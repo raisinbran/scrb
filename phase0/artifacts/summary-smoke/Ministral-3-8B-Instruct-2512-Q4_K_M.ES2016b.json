@@ -1,0 +1,93 @@
+{
+  "action_items": [
+    {
+      "text": "A: I'll do the minutes.",
+      "owner": "A",
+      "timestamp": "26:11"
+    },
+    {
+      "text": "A: Manuel you're going to work on the components for what we're gonna use. Let's go with our our uh rounded kind of fit in your hand let's explore uh the the uh possibility of having the two-piece. So one for the quick zapping um and possibly one you know with just that rounded part that fits into your hand.",
+      "owner": "A",
+      "timestamp": "39:19"
+    },
+    {
+      "text": "A: Ryan you work on how how well they'll work with the user. So both of those concepts.",
+      "owner": "A",
+      "timestamp": "39:36"
+    },
+    {
+      "text": "D: Mm-hmm",
+      "owner": "D",
+      "timestamp": "38:54"
+    },
+    {
+      "text": "C: Yep",
+      "owner": "C",
+      "timestamp": "38:55"
+    },
+    {
+      "text": "A: So for the next um before the next meeting w uh sh shall we work on you're watching trends to see what kind of new information we've got going on.",
+      "owner": "A",
+      "timestamp": "38:53"
+    },
+    {
+      "text": "C: I'll yeah I'll have a look, try look at the actual appearance in the next break.",
+      "owner": "C",
+      "timestamp": "27:29"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "We want the remote to be a universal remote for T_V_s only, not universal across all devices.",
+      "timestamp": "22:08"
+    },
+    {
+      "text": "We will not include teletext functionality.",
+      "timestamp": "22:45"
+    },
+    {
+      "text": "The remote should incorporate the corporate colors (grey and yellow) and the slogan 'We put the fashion in electronics'.",
+      "timestamp": "23:02"
+    },
+    {
+      "text": "We will not include speech recognition due to cost and practicality concerns, despite younger users expressing interest.",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "We will include a locator function to help find the remote if it is lost.",
+      "timestamp": "24:24"
+    },
+    {
+      "text": "We will use rechargeable batteries or solar power, and the locator function can be integrated into a charging holder.",
+      "timestamp": "24:53"
+    },
+    {
+      "text": "We will focus on a one-handed design, not a ball-shaped remote.",
+      "timestamp": "27:36"
+    },
+    {
+      "text": "We will focus on a design that is user-friendly, with a minimal number of buttons and a user-centric interface.",
+      "timestamp": "26:48"
+    },
+    {
+      "text": "We will use a scroll wheel for channel selection and other functions, with a click function to confirm selections.",
+      "timestamp": "33:18"
+    },
+    {
+      "text": "We will design the remote primarily for right-handed users, with consideration for left-handed users through special orders if needed.",
+      "timestamp": "35:38"
+    },
+    {
+      "text": "We will explore a two-piece remote concept: one for quick zapping (power, volume, channel up/down) and another for more detailed functions.",
+      "timestamp": "39:19"
+    },
+    {
+      "text": "We will continue to focus on a modern, stylish design that appeals to users and stands out from traditional remotes.",
+      "timestamp": "10:02"
+    },
+    {
+      "text": "We will simplify the remote by reducing the number of buttons and combining functions where possible.",
+      "timestamp": "10:12"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "action_items": [
+    {
+      "text": "Put minutes in the shared folder",
+      "owner": "A",
+      "timestamp": "01:25"
+    },
+    {
+      "text": "Press the little presentation (Y kind of over there above Draw) to start presentation",
+      "owner": "A",
+      "timestamp": "04:07"
+    },
+    {
+      "text": "Check if D can access the online report",
+      "owner": "A",
+      "timestamp": "03:53"
+    },
+    {
+      "text": "Rose will help B with turning things",
+      "owner": "A",
+      "timestamp": "20:03"
+    },
+    {
+      "text": "Complete a questionnaire and summary (sk(s)?) after the meeting",
+      "owner": "each participant",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Put individual summary in the group folder",
+      "owner": "B",
+      "timestamp": "36:09"
+    },
+    {
+      "text": "D will save/locate the remote design file from email and save it to the shared folder if possible",
+      "owner": "D",
+      "timestamp": "36:28"
+    },
+    {
+      "text": "A will post/upload the minutes and project documentation (including PowerPoint slides) for the team to access",
+      "owner": "A",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Each participant will receive specific instructions from their personal coach via email (as per usual process)",
+      "owner": "each participant (coach-assigned)",
+      "timestamp": "35:30"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Remote control should be 'fashionable' (not ugly) to appeal to consumers",
+      "timestamp": "07:55"
+    },
+    {
+      "text": "Focus on channel and volume buttons (used ~65% of the time); deprioritize audio/screen settings",
+      "timestamp": "07:57"
+    },
+    {
+      "text": "Do not work with teletext (it has been taken over by the internet)",
+      "timestamp": "21:15"
+    },
+    {
+      "text": "Not going to work with Ceefax/television page navigation technology",
+      "timestamp": "23:32"
+    },
+    {
+      "text": "Focus only on television (not video or other platforms)",
+      "timestamp": "22:43"
+    },
+    {
+      "text": "Target group will be aimed at younger audience (fashion + electronics), though exact demographic (age range) not yet finalized",
+      "timestamp": "24:16"
+    },
+    {
+      "text": "Voice recognition will NOT be used as a function in the remote control",
+      "timestamp": "25:43"
+    },
+    {
+      "text": "Price limit for production is 12.5 Euros (for the remote)",
+      "timestamp": "25:57"
+    },
+    {
+      "text": "Remote will be sold separately (not bundled with TV)",
+      "timestamp": "24:55"
+    },
+    {
+      "text": "Emphasis will be on simplicity and fashion (usability + functional IR)",
+      "timestamp": "28:34"
+    },
+    {
+      "text": "Need to investigate whether remote needs a battery (current suspicion: yes), but consider rechargeable option",
+      "timestamp": "34:01"
+    },
+    {
+      "text": "Will use a simple 'pull-out' or slide-out screen/hatch for hidden/complicated buttons (optional for advanced functions)",
+      "timestamp": "27:31"
+    }
+  ]
+}

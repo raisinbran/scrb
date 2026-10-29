@@ -1,0 +1,838 @@
+﻿whisper-cli.exe : whisper_init_from_file_with_params_no_state: loading model from 
+'C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting Transcriber\models\whisper\ggml-small.en-q5_1.bin'
+At line:3 char:29
++ ... '-1','0') { & $w -m "$s\models\whisper\ggml-small.en-q5_1.bin" -f "$s ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (whisper_init_fr...ll.en-q5_1.bin':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+whisper_init_with_params_no_state: use gpu    = 1
+whisper_init_with_params_no_state: flash attn = 1
+whisper_init_with_params_no_state: gpu_device = 0
+whisper_init_with_params_no_state: dtw        = 0
+whisper_init_with_params_no_state: devices    = 1
+whisper_init_with_params_no_state: backends   = 1
+whisper_model_load: loading model
+whisper_model_load: n_vocab       = 51864
+whisper_model_load: n_audio_ctx   = 1500
+whisper_model_load: n_audio_state = 768
+whisper_model_load: n_audio_head  = 12
+whisper_model_load: n_audio_layer = 12
+whisper_model_load: n_text_ctx    = 448
+whisper_model_load: n_text_state  = 768
+whisper_model_load: n_text_head   = 12
+whisper_model_load: n_text_layer  = 12
+whisper_model_load: n_mels        = 80
+whisper_model_load: ftype         = 9
+whisper_model_load: qntvr         = 1
+whisper_model_load: type          = 3 (small)
+whisper_model_load: adding 1607 extra tokens
+whisper_model_load: n_langs       = 99
+whisper_model_load:          CPU total size =   189.49 MB
+whisper_model_load: model size    =  189.49 MB
+whisper_backend_init_gpu: device 0: CPU (type: 0)
+whisper_backend_init_gpu: no GPU found
+whisper_init_state: kv self size  =   18.87 MB
+whisper_init_state: kv cross size =   56.62 MB
+whisper_init_state: kv pad  size  =    4.72 MB
+whisper_init_state: compute buffer (conv)   =   22.42 MB
+whisper_init_state: compute buffer (encode) =   33.85 MB
+whisper_init_state: compute buffer (cross)  =    6.20 MB
+whisper_init_state: compute buffer (decode) =   97.28 MB
+read_audio_data: reading audio data from 'C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting 
+Transcriber\downloads\ami\ES2004a.Mix-Headset.wav' ...
+read_audio_data: trying to decode with miniaudio
+
+system_info: n_threads = 8 / 28 | WHISPER : VITISAI = 0 | COREML = 0 | OPENVINO = 0 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX 
+= 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | OPENMP = 1 | REPACK = 1 | 
+
+main: processing 'C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting 
+Transcriber\downloads\ami\ES2004a.Mix-Headset.wav' (16789675 samples, 1049.4 sec), 8 threads, 1 processors, 5 beams + 
+best of 5, lang = en, task = transcribe, timestamps = 0 ...
+
+whisper_full: VAD is enabled, processing speech segments only
+whisper_vad: VAD is enabled, processing speech segments only
+whisper_vad_init_from_file_with_params: loading VAD model from 'C:\Users\brand\Documents\ChatGPT\Self-correcting 
+Meeting Transcriber\models\whisper\ggml-silero-v6.2.0.bin'
+whisper_vad_init_with_params: model type: silero-16k
+whisper_vad_init_with_params: model version: 6.2.0
+whisper_vad_init_with_params: n_encoder_layers = 4
+whisper_vad_init_with_params: encoder_in_channels[0] = 129
+whisper_vad_init_with_params: encoder_in_channels[1] = 128
+whisper_vad_init_with_params: encoder_in_channels[2] = 64
+whisper_vad_init_with_params: encoder_in_channels[3] = 64
+whisper_vad_init_with_params: encoder_out_channels[0] = 128
+whisper_vad_init_with_params: encoder_out_channels[1] = 64
+whisper_vad_init_with_params: encoder_out_channels[2] = 64
+whisper_vad_init_with_params: encoder_out_channels[3] = 128
+whisper_vad_init_with_params: lstm_input_size = 128
+whisper_vad_init_with_params: lstm_hidden_size = 128
+whisper_vad_init_with_params: final_conv_in = 128
+whisper_vad_init_with_params: final_conv_out = 1
+whisper_vad_init_with_params:          CPU total size =     0.88 MB
+whisper_vad_init_with_params: model size    =    0.88 MB
+whisper_backend_init_gpu: no GPU found
+whisper_vad_init_context: compute buffer (VAD)   =    1.60 MB
+whisper_vad_segments_from_samples: detecting speech timestamps in 16789675 samples
+whisper_vad_detect_speech_no_reset: detecting speech in 16789675 samples
+whisper_vad_detect_speech_no_reset: n_chunks: 32793
+whisper_vad_detect_speech_no_reset: props size: 32793
+whisper_vad_detect_speech_no_reset: chunk_len: 171 < n_window: 512
+whisper_vad_detect_speech_no_reset: vad time = 4308.23 ms processing 16789675 samples
+whisper_vad_segments_from_probs: detecting speech timestamps using 32793 probabilities
+whisper_vad_segments_from_probs: Merged 35 adjacent segments, now have 246 segments
+whisper_vad_segments_from_probs: Final speech segments after filtering: 246
+whisper_vad_segments_from_probs: VAD segment 0: start = 12.48, end = 14.65 (duration: 2.17)
+whisper_vad_segments_from_probs: VAD segment 1: start = 22.59, end = 23.84 (duration: 1.25)
+whisper_vad_segments_from_probs: VAD segment 2: start = 25.19, end = 26.65 (duration: 1.46)
+whisper_vad_segments_from_probs: VAD segment 3: start = 29.22, end = 30.49 (duration: 1.27)
+whisper_vad_segments_from_probs: VAD segment 4: start = 30.95, end = 32.38 (duration: 1.43)
+whisper_vad_segments_from_probs: VAD segment 5: start = 82.50, end = 83.77 (duration: 1.27)
+whisper_vad_segments_from_probs: VAD segment 6: start = 84.55, end = 85.69 (duration: 1.14)
+whisper_vad_segments_from_probs: VAD segment 7: start = 86.59, end = 87.36 (duration: 0.77)
+whisper_vad_segments_from_probs: VAD segment 8: start = 87.91, end = 90.24 (duration: 2.33)
+whisper_vad_segments_from_probs: VAD segment 9: start = 92.00, end = 94.17 (duration: 2.17)
+whisper_vad_segments_from_probs: VAD segment 10: start = 95.84, end = 96.45 (duration: 0.61)
+whisper_vad_segments_from_probs: VAD segment 11: start = 96.71, end = 97.15 (duration: 0.44)
+whisper_vad_segments_from_probs: VAD segment 12: start = 97.76, end = 99.97 (duration: 2.21)
+whisper_vad_segments_from_probs: VAD segment 13: start = 100.45, end = 101.60 (duration: 1.15)
+whisper_vad_segments_from_probs: VAD segment 14: start = 101.95, end = 103.77 (duration: 1.82)
+whisper_vad_segments_from_probs: VAD segment 15: start = 104.26, end = 105.47 (duration: 1.21)
+whisper_vad_segments_from_probs: VAD segment 16: start = 106.34, end = 107.58 (duration: 1.24)
+whisper_vad_segments_from_probs: VAD segment 17: start = 108.19, end = 110.01 (duration: 1.82)
+whisper_vad_segments_from_probs: VAD segment 18: start = 110.50, end = 111.52 (duration: 1.02)
+whisper_vad_segments_from_probs: VAD segment 19: start = 112.07, end = 116.00 (duration: 3.93)
+whisper_vad_segments_from_probs: VAD segment 20: start = 117.63, end = 121.15 (duration: 3.52)
+whisper_vad_segments_from_probs: VAD segment 21: start = 121.57, end = 122.27 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 22: start = 122.43, end = 124.41 (duration: 1.98)
+whisper_vad_segments_from_probs: VAD segment 23: start = 124.80, end = 125.47 (duration: 0.67)
+whisper_vad_segments_from_probs: VAD segment 24: start = 126.05, end = 128.25 (duration: 2.20)
+whisper_vad_segments_from_probs: VAD segment 25: start = 128.80, end = 130.11 (duration: 1.31)
+whisper_vad_segments_from_probs: VAD segment 26: start = 130.40, end = 131.87 (duration: 1.47)
+whisper_vad_segments_from_probs: VAD segment 27: start = 132.03, end = 132.38 (duration: 0.35)
+whisper_vad_segments_from_probs: VAD segment 28: start = 133.28, end = 133.73 (duration: 0.45)
+whisper_vad_segments_from_probs: VAD segment 29: start = 133.95, end = 135.07 (duration: 1.12)
+whisper_vad_segments_from_probs: VAD segment 30: start = 135.55, end = 136.77 (duration: 1.22)
+whisper_vad_segments_from_probs: VAD segment 31: start = 137.09, end = 138.46 (duration: 1.37)
+whisper_vad_segments_from_probs: VAD segment 32: start = 139.33, end = 141.12 (duration: 1.79)
+whisper_vad_segments_from_probs: VAD segment 33: start = 142.85, end = 143.49 (duration: 0.64)
+whisper_vad_segments_from_probs: VAD segment 34: start = 143.87, end = 149.15 (duration: 5.28)
+whisper_vad_segments_from_probs: VAD segment 35: start = 149.60, end = 150.21 (duration: 0.61)
+whisper_vad_segments_from_probs: VAD segment 36: start = 150.37, end = 153.63 (duration: 3.26)
+whisper_vad_segments_from_probs: VAD segment 37: start = 153.99, end = 156.19 (duration: 2.20)
+whisper_vad_segments_from_probs: VAD segment 38: start = 156.64, end = 158.75 (duration: 2.11)
+whisper_vad_segments_from_probs: VAD segment 39: start = 159.43, end = 161.05 (duration: 1.62)
+whisper_vad_segments_from_probs: VAD segment 40: start = 162.34, end = 164.16 (duration: 1.82)
+whisper_vad_segments_from_probs: VAD segment 41: start = 164.35, end = 167.87 (duration: 3.52)
+whisper_vad_segments_from_probs: VAD segment 42: start = 170.40, end = 170.97 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 43: start = 171.27, end = 171.81 (duration: 0.54)
+whisper_vad_segments_from_probs: VAD segment 44: start = 172.03, end = 172.67 (duration: 0.64)
+whisper_vad_segments_from_probs: VAD segment 45: start = 172.87, end = 174.17 (duration: 1.30)
+whisper_vad_segments_from_probs: VAD segment 46: start = 174.50, end = 177.05 (duration: 2.55)
+whisper_vad_segments_from_probs: VAD segment 47: start = 177.31, end = 179.13 (duration: 1.82)
+whisper_vad_segments_from_probs: VAD segment 48: start = 179.68, end = 183.52 (duration: 3.84)
+whisper_vad_segments_from_probs: VAD segment 49: start = 184.26, end = 184.83 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 50: start = 189.09, end = 189.41 (duration: 0.32)
+whisper_vad_segments_from_probs: VAD segment 51: start = 190.05, end = 191.71 (duration: 1.66)
+whisper_vad_segments_from_probs: VAD segment 52: start = 192.10, end = 192.83 (duration: 0.73)
+whisper_vad_segments_from_probs: VAD segment 53: start = 243.33, end = 244.45 (duration: 1.12)
+whisper_vad_segments_from_probs: VAD segment 54: start = 246.95, end = 247.49 (duration: 0.54)
+whisper_vad_segments_from_probs: VAD segment 55: start = 247.91, end = 250.88 (duration: 2.97)
+whisper_vad_segments_from_probs: VAD segment 56: start = 254.53, end = 257.60 (duration: 3.07)
+whisper_vad_segments_from_probs: VAD segment 57: start = 259.91, end = 260.77 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 58: start = 261.35, end = 262.27 (duration: 0.92)
+whisper_vad_segments_from_probs: VAD segment 59: start = 266.21, end = 266.97 (duration: 0.76)
+whisper_vad_segments_from_probs: VAD segment 60: start = 268.77, end = 269.15 (duration: 0.38)
+whisper_vad_segments_from_probs: VAD segment 61: start = 272.32, end = 272.70 (duration: 0.38)
+whisper_vad_segments_from_probs: VAD segment 62: start = 273.31, end = 274.21 (duration: 0.90)
+whisper_vad_segments_from_probs: VAD segment 63: start = 275.20, end = 276.48 (duration: 1.28)
+whisper_vad_segments_from_probs: VAD segment 64: start = 277.73, end = 278.91 (duration: 1.18)
+whisper_vad_segments_from_probs: VAD segment 65: start = 279.27, end = 279.74 (duration: 0.47)
+whisper_vad_segments_from_probs: VAD segment 66: start = 285.19, end = 286.59 (duration: 1.40)
+whisper_vad_segments_from_probs: VAD segment 67: start = 287.71, end = 288.70 (duration: 0.99)
+whisper_vad_segments_from_probs: VAD segment 68: start = 289.09, end = 291.39 (duration: 2.30)
+whisper_vad_segments_from_probs: VAD segment 69: start = 293.38, end = 296.35 (duration: 2.97)
+whisper_vad_segments_from_probs: VAD segment 70: start = 306.37, end = 307.33 (duration: 0.96)
+whisper_vad_segments_from_probs: VAD segment 71: start = 309.28, end = 309.69 (duration: 0.41)
+whisper_vad_segments_from_probs: VAD segment 72: start = 313.51, end = 314.56 (duration: 1.05)
+whisper_vad_segments_from_probs: VAD segment 73: start = 314.79, end = 315.45 (duration: 0.66)
+whisper_vad_segments_from_probs: VAD segment 74: start = 315.75, end = 318.59 (duration: 2.84)
+whisper_vad_segments_from_probs: VAD segment 75: start = 319.14, end = 321.82 (duration: 2.68)
+whisper_vad_segments_from_probs: VAD segment 76: start = 324.13, end = 325.63 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 77: start = 326.18, end = 329.25 (duration: 3.07)
+whisper_vad_segments_from_probs: VAD segment 78: start = 329.73, end = 330.69 (duration: 0.96)
+whisper_vad_segments_from_probs: VAD segment 79: start = 331.49, end = 332.16 (duration: 0.67)
+whisper_vad_segments_from_probs: VAD segment 80: start = 333.41, end = 333.98 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 81: start = 335.52, end = 338.30 (duration: 2.78)
+whisper_vad_segments_from_probs: VAD segment 82: start = 340.67, end = 343.97 (duration: 3.30)
+whisper_vad_segments_from_probs: VAD segment 83: start = 345.19, end = 348.32 (duration: 3.13)
+whisper_vad_segments_from_probs: VAD segment 84: start = 348.67, end = 349.60 (duration: 0.93)
+whisper_vad_segments_from_probs: VAD segment 85: start = 350.85, end = 351.55 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 86: start = 354.37, end = 355.36 (duration: 0.99)
+whisper_vad_segments_from_probs: VAD segment 87: start = 356.39, end = 360.22 (duration: 3.83)
+whisper_vad_segments_from_probs: VAD segment 88: start = 360.45, end = 360.77 (duration: 0.32)
+whisper_vad_segments_from_probs: VAD segment 89: start = 360.93, end = 367.65 (duration: 6.72)
+whisper_vad_segments_from_probs: VAD segment 90: start = 371.49, end = 379.49 (duration: 8.00)
+whisper_vad_segments_from_probs: VAD segment 91: start = 379.65, end = 384.51 (duration: 4.86)
+whisper_vad_segments_from_probs: VAD segment 92: start = 391.20, end = 391.81 (duration: 0.61)
+whisper_vad_segments_from_probs: VAD segment 93: start = 393.99, end = 407.17 (duration: 13.18)
+whisper_vad_segments_from_probs: VAD segment 94: start = 421.25, end = 422.33 (duration: 1.08)
+whisper_vad_segments_from_probs: VAD segment 95: start = 422.63, end = 425.37 (duration: 2.74)
+whisper_vad_segments_from_probs: VAD segment 96: start = 426.02, end = 426.59 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 97: start = 428.13, end = 428.77 (duration: 0.64)
+whisper_vad_segments_from_probs: VAD segment 98: start = 429.06, end = 430.14 (duration: 1.08)
+whisper_vad_segments_from_probs: VAD segment 99: start = 432.51, end = 434.01 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 100: start = 438.75, end = 442.33 (duration: 3.58)
+whisper_vad_segments_from_probs: VAD segment 101: start = 443.17, end = 446.65 (duration: 3.48)
+whisper_vad_segments_from_probs: VAD segment 102: start = 447.94, end = 451.49 (duration: 3.55)
+whisper_vad_segments_from_probs: VAD segment 103: start = 453.99, end = 456.25 (duration: 2.26)
+whisper_vad_segments_from_probs: VAD segment 104: start = 456.51, end = 457.34 (duration: 0.83)
+whisper_vad_segments_from_probs: VAD segment 105: start = 457.95, end = 459.13 (duration: 1.18)
+whisper_vad_segments_from_probs: VAD segment 106: start = 459.84, end = 460.70 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 107: start = 461.15, end = 462.14 (duration: 0.99)
+whisper_vad_segments_from_probs: VAD segment 108: start = 465.44, end = 469.15 (duration: 3.71)
+whisper_vad_segments_from_probs: VAD segment 109: start = 469.57, end = 470.17 (duration: 0.60)
+whisper_vad_segments_from_probs: VAD segment 110: start = 474.43, end = 477.76 (duration: 3.33)
+whisper_vad_segments_from_probs: VAD segment 111: start = 478.11, end = 478.81 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 112: start = 481.28, end = 484.06 (duration: 2.78)
+whisper_vad_segments_from_probs: VAD segment 113: start = 488.87, end = 491.13 (duration: 2.26)
+whisper_vad_segments_from_probs: VAD segment 114: start = 492.90, end = 494.88 (duration: 1.98)
+whisper_vad_segments_from_probs: VAD segment 115: start = 497.54, end = 510.97 (duration: 13.43)
+whisper_vad_segments_from_probs: VAD segment 116: start = 511.49, end = 514.21 (duration: 2.72)
+whisper_vad_segments_from_probs: VAD segment 117: start = 516.13, end = 516.61 (duration: 0.48)
+whisper_vad_segments_from_probs: VAD segment 118: start = 517.92, end = 518.72 (duration: 0.80)
+whisper_vad_segments_from_probs: VAD segment 119: start = 519.87, end = 522.97 (duration: 3.10)
+whisper_vad_segments_from_probs: VAD segment 120: start = 523.23, end = 526.05 (duration: 2.82)
+whisper_vad_segments_from_probs: VAD segment 121: start = 526.24, end = 529.02 (duration: 2.78)
+whisper_vad_segments_from_probs: VAD segment 122: start = 529.22, end = 531.04 (duration: 1.82)
+whisper_vad_segments_from_probs: VAD segment 123: start = 532.03, end = 533.37 (duration: 1.34)
+whisper_vad_segments_from_probs: VAD segment 124: start = 535.59, end = 536.67 (duration: 1.08)
+whisper_vad_segments_from_probs: VAD segment 125: start = 541.47, end = 542.65 (duration: 1.18)
+whisper_vad_segments_from_probs: VAD segment 126: start = 543.78, end = 545.57 (duration: 1.79)
+whisper_vad_segments_from_probs: VAD segment 127: start = 546.08, end = 548.83 (duration: 2.75)
+whisper_vad_segments_from_probs: VAD segment 128: start = 553.67, end = 554.43 (duration: 0.76)
+whisper_vad_segments_from_probs: VAD segment 129: start = 554.85, end = 556.41 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 130: start = 558.56, end = 559.07 (duration: 0.51)
+whisper_vad_segments_from_probs: VAD segment 131: start = 561.15, end = 561.63 (duration: 0.48)
+whisper_vad_segments_from_probs: VAD segment 132: start = 565.47, end = 566.01 (duration: 0.54)
+whisper_vad_segments_from_probs: VAD segment 133: start = 566.18, end = 570.11 (duration: 3.93)
+whisper_vad_segments_from_probs: VAD segment 134: start = 570.40, end = 571.90 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 135: start = 572.23, end = 573.79 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 136: start = 574.66, end = 575.74 (duration: 1.08)
+whisper_vad_segments_from_probs: VAD segment 137: start = 576.61, end = 578.40 (duration: 1.79)
+whisper_vad_segments_from_probs: VAD segment 138: start = 578.72, end = 582.30 (duration: 3.58)
+whisper_vad_segments_from_probs: VAD segment 139: start = 582.59, end = 583.01 (duration: 0.42)
+whisper_vad_segments_from_probs: VAD segment 140: start = 584.00, end = 587.26 (duration: 3.26)
+whisper_vad_segments_from_probs: VAD segment 141: start = 588.42, end = 597.79 (duration: 9.37)
+whisper_vad_segments_from_probs: VAD segment 142: start = 598.08, end = 600.83 (duration: 2.75)
+whisper_vad_segments_from_probs: VAD segment 143: start = 600.99, end = 602.11 (duration: 1.12)
+whisper_vad_segments_from_probs: VAD segment 144: start = 603.27, end = 606.88 (duration: 3.61)
+whisper_vad_segments_from_probs: VAD segment 145: start = 607.17, end = 607.58 (duration: 0.41)
+whisper_vad_segments_from_probs: VAD segment 146: start = 608.13, end = 616.96 (duration: 8.83)
+whisper_vad_segments_from_probs: VAD segment 147: start = 617.35, end = 618.17 (duration: 0.82)
+whisper_vad_segments_from_probs: VAD segment 148: start = 618.40, end = 619.74 (duration: 1.34)
+whisper_vad_segments_from_probs: VAD segment 149: start = 620.29, end = 622.85 (duration: 2.56)
+whisper_vad_segments_from_probs: VAD segment 150: start = 623.01, end = 623.58 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 151: start = 623.84, end = 625.05 (duration: 1.21)
+whisper_vad_segments_from_probs: VAD segment 152: start = 625.44, end = 628.38 (duration: 2.94)
+whisper_vad_segments_from_probs: VAD segment 153: start = 628.77, end = 629.50 (duration: 0.73)
+whisper_vad_segments_from_probs: VAD segment 154: start = 630.37, end = 632.13 (duration: 1.76)
+whisper_vad_segments_from_probs: VAD segment 155: start = 632.48, end = 633.73 (duration: 1.25)
+whisper_vad_segments_from_probs: VAD segment 156: start = 634.69, end = 636.00 (duration: 1.31)
+whisper_vad_segments_from_probs: VAD segment 157: start = 636.42, end = 637.15 (duration: 0.73)
+whisper_vad_segments_from_probs: VAD segment 158: start = 638.08, end = 645.69 (duration: 7.61)
+whisper_vad_segments_from_probs: VAD segment 159: start = 646.15, end = 651.97 (duration: 5.82)
+whisper_vad_segments_from_probs: VAD segment 160: start = 653.41, end = 658.24 (duration: 4.83)
+whisper_vad_segments_from_probs: VAD segment 161: start = 658.43, end = 659.29 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 162: start = 659.52, end = 661.57 (duration: 2.05)
+whisper_vad_segments_from_probs: VAD segment 163: start = 661.83, end = 664.00 (duration: 2.17)
+whisper_vad_segments_from_probs: VAD segment 164: start = 664.39, end = 668.83 (duration: 4.44)
+whisper_vad_segments_from_probs: VAD segment 165: start = 669.70, end = 670.33 (duration: 0.63)
+whisper_vad_segments_from_probs: VAD segment 166: start = 675.20, end = 677.92 (duration: 2.72)
+whisper_vad_segments_from_probs: VAD segment 167: start = 678.95, end = 681.25 (duration: 2.30)
+whisper_vad_segments_from_probs: VAD segment 168: start = 681.99, end = 685.05 (duration: 3.06)
+whisper_vad_segments_from_probs: VAD segment 169: start = 685.31, end = 685.79 (duration: 0.48)
+whisper_vad_segments_from_probs: VAD segment 170: start = 685.95, end = 686.53 (duration: 0.58)
+whisper_vad_segments_from_probs: VAD segment 171: start = 686.82, end = 694.33 (duration: 7.51)
+whisper_vad_segments_from_probs: VAD segment 172: start = 694.79, end = 696.38 (duration: 1.59)
+whisper_vad_segments_from_probs: VAD segment 173: start = 696.61, end = 704.80 (duration: 8.19)
+whisper_vad_segments_from_probs: VAD segment 174: start = 705.19, end = 711.04 (duration: 5.85)
+whisper_vad_segments_from_probs: VAD segment 175: start = 711.23, end = 722.30 (duration: 11.07)
+whisper_vad_segments_from_probs: VAD segment 176: start = 722.47, end = 729.50 (duration: 7.03)
+whisper_vad_segments_from_probs: VAD segment 177: start = 730.50, end = 731.87 (duration: 1.37)
+whisper_vad_segments_from_probs: VAD segment 178: start = 732.39, end = 737.98 (duration: 5.59)
+whisper_vad_segments_from_probs: VAD segment 179: start = 738.69, end = 740.38 (duration: 1.69)
+whisper_vad_segments_from_probs: VAD segment 180: start = 740.61, end = 742.75 (duration: 2.14)
+whisper_vad_segments_from_probs: VAD segment 181: start = 743.01, end = 748.29 (duration: 5.28)
+whisper_vad_segments_from_probs: VAD segment 182: start = 748.74, end = 758.30 (duration: 9.56)
+whisper_vad_segments_from_probs: VAD segment 183: start = 759.07, end = 764.25 (duration: 5.18)
+whisper_vad_segments_from_probs: VAD segment 184: start = 764.71, end = 765.41 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 185: start = 765.60, end = 769.37 (duration: 3.77)
+whisper_vad_segments_from_probs: VAD segment 186: start = 770.08, end = 776.35 (duration: 6.27)
+whisper_vad_segments_from_probs: VAD segment 187: start = 777.12, end = 778.78 (duration: 1.66)
+whisper_vad_segments_from_probs: VAD segment 188: start = 779.33, end = 796.51 (duration: 17.18)
+whisper_vad_segments_from_probs: VAD segment 189: start = 796.77, end = 811.61 (duration: 14.84)
+whisper_vad_segments_from_probs: VAD segment 190: start = 811.81, end = 812.19 (duration: 0.38)
+whisper_vad_segments_from_probs: VAD segment 191: start = 812.35, end = 815.10 (duration: 2.75)
+whisper_vad_segments_from_probs: VAD segment 192: start = 816.19, end = 820.77 (duration: 4.58)
+whisper_vad_segments_from_probs: VAD segment 193: start = 820.99, end = 823.52 (duration: 2.53)
+whisper_vad_segments_from_probs: VAD segment 194: start = 823.81, end = 827.13 (duration: 3.32)
+whisper_vad_segments_from_probs: VAD segment 195: start = 828.13, end = 834.14 (duration: 6.01)
+whisper_vad_segments_from_probs: VAD segment 196: start = 834.66, end = 842.11 (duration: 7.45)
+whisper_vad_segments_from_probs: VAD segment 197: start = 842.47, end = 848.41 (duration: 5.94)
+whisper_vad_segments_from_probs: VAD segment 198: start = 848.90, end = 849.69 (duration: 0.79)
+whisper_vad_segments_from_probs: VAD segment 199: start = 851.01, end = 853.50 (duration: 2.49)
+whisper_vad_segments_from_probs: VAD segment 200: start = 854.37, end = 854.94 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 201: start = 855.20, end = 855.90 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 202: start = 856.26, end = 862.81 (duration: 6.55)
+whisper_vad_segments_from_probs: VAD segment 203: start = 863.20, end = 863.65 (duration: 0.45)
+whisper_vad_segments_from_probs: VAD segment 204: start = 864.29, end = 865.73 (duration: 1.44)
+whisper_vad_segments_from_probs: VAD segment 205: start = 866.27, end = 871.84 (duration: 5.57)
+whisper_vad_segments_from_probs: VAD segment 206: start = 872.19, end = 872.70 (duration: 0.51)
+whisper_vad_segments_from_probs: VAD segment 207: start = 872.96, end = 875.90 (duration: 2.94)
+whisper_vad_segments_from_probs: VAD segment 208: start = 876.35, end = 883.26 (duration: 6.91)
+whisper_vad_segments_from_probs: VAD segment 209: start = 884.39, end = 888.19 (duration: 3.80)
+whisper_vad_segments_from_probs: VAD segment 210: start = 888.58, end = 891.68 (duration: 3.10)
+whisper_vad_segments_from_probs: VAD segment 211: start = 892.26, end = 895.17 (duration: 2.91)
+whisper_vad_segments_from_probs: VAD segment 212: start = 895.39, end = 896.48 (duration: 1.09)
+whisper_vad_segments_from_probs: VAD segment 213: start = 896.83, end = 904.99 (duration: 8.16)
+whisper_vad_segments_from_probs: VAD segment 214: start = 905.60, end = 907.71 (duration: 2.11)
+whisper_vad_segments_from_probs: VAD segment 215: start = 908.29, end = 912.41 (duration: 4.12)
+whisper_vad_segments_from_probs: VAD segment 216: start = 913.73, end = 914.88 (duration: 1.15)
+whisper_vad_segments_from_probs: VAD segment 217: start = 915.39, end = 916.41 (duration: 1.02)
+whisper_vad_segments_from_probs: VAD segment 218: start = 916.80, end = 918.30 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 219: start = 918.47, end = 921.69 (duration: 3.22)
+whisper_vad_segments_from_probs: VAD segment 220: start = 921.89, end = 922.81 (duration: 0.92)
+whisper_vad_segments_from_probs: VAD segment 221: start = 923.23, end = 927.36 (duration: 4.13)
+whisper_vad_segments_from_probs: VAD segment 222: start = 928.19, end = 931.49 (duration: 3.30)
+whisper_vad_segments_from_probs: VAD segment 223: start = 931.71, end = 946.05 (duration: 14.34)
+whisper_vad_segments_from_probs: VAD segment 224: start = 946.31, end = 947.17 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 225: start = 948.48, end = 950.40 (duration: 1.92)
+whisper_vad_segments_from_probs: VAD segment 226: start = 950.75, end = 966.08 (duration: 15.33)
+whisper_vad_segments_from_probs: VAD segment 227: start = 966.24, end = 967.87 (duration: 1.63)
+whisper_vad_segments_from_probs: VAD segment 228: start = 968.42, end = 972.29 (duration: 3.87)
+whisper_vad_segments_from_probs: VAD segment 229: start = 972.99, end = 978.72 (duration: 5.73)
+whisper_vad_segments_from_probs: VAD segment 230: start = 979.36, end = 980.09 (duration: 0.73)
+whisper_vad_segments_from_probs: VAD segment 231: start = 981.25, end = 983.10 (duration: 1.85)
+whisper_vad_segments_from_probs: VAD segment 232: start = 983.46, end = 987.20 (duration: 3.74)
+whisper_vad_segments_from_probs: VAD segment 233: start = 987.55, end = 992.09 (duration: 4.54)
+whisper_vad_segments_from_probs: VAD segment 234: start = 992.99, end = 1001.41 (duration: 8.42)
+whisper_vad_segments_from_probs: VAD segment 235: start = 1002.08, end = 1013.02 (duration: 10.94)
+whisper_vad_segments_from_probs: VAD segment 236: start = 1013.67, end = 1023.36 (duration: 9.69)
+whisper_vad_segments_from_probs: VAD segment 237: start = 1025.09, end = 1034.91 (duration: 9.82)
+whisper_vad_segments_from_probs: VAD segment 238: start = 1035.17, end = 1035.68 (duration: 0.51)
+whisper_vad_segments_from_probs: VAD segment 239: start = 1035.84, end = 1038.01 (duration: 2.17)
+whisper_vad_segments_from_probs: VAD segment 240: start = 1038.66, end = 1039.23 (duration: 0.57)
+whisper_vad_segments_from_probs: VAD segment 241: start = 1039.71, end = 1040.19 (duration: 0.48)
+whisper_vad_segments_from_probs: VAD segment 242: start = 1040.64, end = 1041.95 (duration: 1.31)
+whisper_vad_segments_from_probs: VAD segment 243: start = 1042.56, end = 1044.32 (duration: 1.76)
+whisper_vad_segments_from_probs: VAD segment 244: start = 1045.19, end = 1045.57 (duration: 0.38)
+whisper_vad_segments_from_probs: VAD segment 245: start = 1046.43, end = 1049.09 (duration: 2.66)
+whisper_vad: detected 246 speech segments
+whisper_vad: Including segment 0: 12.48 - 14.75 (duration: 2.27)
+whisper_vad: Including segment 1: 22.59 - 23.94 (duration: 1.35)
+whisper_vad: Including segment 2: 25.19 - 26.75 (duration: 1.56)
+whisper_vad: Including segment 3: 29.22 - 30.59 (duration: 1.37)
+whisper_vad: Including segment 4: 30.95 - 32.48 (duration: 1.53)
+whisper_vad: Including segment 5: 82.50 - 83.87 (duration: 1.37)
+whisper_vad: Including segment 6: 84.55 - 85.79 (duration: 1.24)
+whisper_vad: Including segment 7: 86.59 - 87.46 (duration: 0.87)
+whisper_vad: Including segment 8: 87.91 - 90.34 (duration: 2.43)
+whisper_vad: Including segment 9: 92.00 - 94.27 (duration: 2.27)
+whisper_vad: Including segment 10: 95.84 - 96.55 (duration: 0.71)
+whisper_vad: Including segment 11: 96.71 - 97.25 (duration: 0.54)
+whisper_vad: Including segment 12: 97.76 - 100.07 (duration: 2.31)
+whisper_vad: Including segment 13: 100.45 - 101.70 (duration: 1.25)
+whisper_vad: Including segment 14: 101.95 - 103.87 (duration: 1.92)
+whisper_vad: Including segment 15: 104.26 - 105.57 (duration: 1.31)
+whisper_vad: Including segment 16: 106.34 - 107.68 (duration: 1.34)
+whisper_vad: Including segment 17: 108.19 - 110.11 (duration: 1.92)
+whisper_vad: Including segment 18: 110.50 - 111.62 (duration: 1.12)
+whisper_vad: Including segment 19: 112.07 - 116.10 (duration: 4.03)
+whisper_vad: Including segment 20: 117.63 - 121.25 (duration: 3.62)
+whisper_vad: Including segment 21: 121.57 - 122.37 (duration: 0.80)
+whisper_vad: Including segment 22: 122.43 - 124.51 (duration: 2.08)
+whisper_vad: Including segment 23: 124.80 - 125.57 (duration: 0.77)
+whisper_vad: Including segment 24: 126.05 - 128.35 (duration: 2.30)
+whisper_vad: Including segment 25: 128.80 - 130.21 (duration: 1.41)
+whisper_vad: Including segment 26: 130.40 - 131.97 (duration: 1.57)
+whisper_vad: Including segment 27: 132.03 - 132.48 (duration: 0.45)
+whisper_vad: Including segment 28: 133.28 - 133.83 (duration: 0.55)
+whisper_vad: Including segment 29: 133.95 - 135.17 (duration: 1.22)
+whisper_vad: Including segment 30: 135.55 - 136.87 (duration: 1.32)
+whisper_vad: Including segment 31: 137.09 - 138.56 (duration: 1.47)
+whisper_vad: Including segment 32: 139.33 - 141.22 (duration: 1.89)
+whisper_vad: Including segment 33: 142.85 - 143.59 (duration: 0.74)
+whisper_vad: Including segment 34: 143.87 - 149.25 (duration: 5.38)
+whisper_vad: Including segment 35: 149.60 - 150.31 (duration: 0.71)
+whisper_vad: Including segment 36: 150.37 - 153.73 (duration: 3.36)
+whisper_vad: Including segment 37: 153.99 - 156.29 (duration: 2.30)
+whisper_vad: Including segment 38: 156.64 - 158.85 (duration: 2.21)
+whisper_vad: Including segment 39: 159.43 - 161.15 (duration: 1.72)
+whisper_vad: Including segment 40: 162.34 - 164.26 (duration: 1.92)
+whisper_vad: Including segment 41: 164.35 - 167.97 (duration: 3.62)
+whisper_vad: Including segment 42: 170.40 - 171.07 (duration: 0.67)
+whisper_vad: Including segment 43: 171.27 - 171.91 (duration: 0.64)
+whisper_vad: Including segment 44: 172.03 - 172.77 (duration: 0.74)
+whisper_vad: Including segment 45: 172.87 - 174.27 (duration: 1.40)
+whisper_vad: Including segment 46: 174.50 - 177.15 (duration: 2.65)
+whisper_vad: Including segment 47: 177.31 - 179.23 (duration: 1.92)
+whisper_vad: Including segment 48: 179.68 - 183.62 (duration: 3.94)
+whisper_vad: Including segment 49: 184.26 - 184.93 (duration: 0.67)
+whisper_vad: Including segment 50: 189.09 - 189.51 (duration: 0.42)
+whisper_vad: Including segment 51: 190.05 - 191.81 (duration: 1.76)
+whisper_vad: Including segment 52: 192.10 - 192.93 (duration: 0.83)
+whisper_vad: Including segment 53: 243.33 - 244.55 (duration: 1.22)
+whisper_vad: Including segment 54: 246.95 - 247.59 (duration: 0.64)
+whisper_vad: Including segment 55: 247.91 - 250.98 (duration: 3.07)
+whisper_vad: Including segment 56: 254.53 - 257.70 (duration: 3.17)
+whisper_vad: Including segment 57: 259.91 - 260.87 (duration: 0.96)
+whisper_vad: Including segment 58: 261.35 - 262.37 (duration: 1.02)
+whisper_vad: Including segment 59: 266.21 - 267.07 (duration: 0.86)
+whisper_vad: Including segment 60: 268.77 - 269.25 (duration: 0.48)
+whisper_vad: Including segment 61: 272.32 - 272.80 (duration: 0.48)
+whisper_vad: Including segment 62: 273.31 - 274.31 (duration: 1.00)
+whisper_vad: Including segment 63: 275.20 - 276.58 (duration: 1.38)
+whisper_vad: Including segment 64: 277.73 - 279.01 (duration: 1.28)
+whisper_vad: Including segment 65: 279.27 - 279.84 (duration: 0.57)
+whisper_vad: Including segment 66: 285.19 - 286.69 (duration: 1.50)
+whisper_vad: Including segment 67: 287.71 - 288.80 (duration: 1.09)
+whisper_vad: Including segment 68: 289.09 - 291.49 (duration: 2.40)
+whisper_vad: Including segment 69: 293.38 - 296.45 (duration: 3.07)
+whisper_vad: Including segment 70: 306.37 - 307.43 (duration: 1.06)
+whisper_vad: Including segment 71: 309.28 - 309.79 (duration: 0.51)
+whisper_vad: Including segment 72: 313.51 - 314.66 (duration: 1.15)
+whisper_vad: Including segment 73: 314.79 - 315.55 (duration: 0.76)
+whisper_vad: Including segment 74: 315.75 - 318.69 (duration: 2.94)
+whisper_vad: Including segment 75: 319.14 - 321.92 (duration: 2.78)
+whisper_vad: Including segment 76: 324.13 - 325.73 (duration: 1.60)
+whisper_vad: Including segment 77: 326.18 - 329.35 (duration: 3.17)
+whisper_vad: Including segment 78: 329.73 - 330.79 (duration: 1.06)
+whisper_vad: Including segment 79: 331.49 - 332.26 (duration: 0.77)
+whisper_vad: Including segment 80: 333.41 - 334.08 (duration: 0.67)
+whisper_vad: Including segment 81: 335.52 - 338.40 (duration: 2.88)
+whisper_vad: Including segment 82: 340.67 - 344.07 (duration: 3.40)
+whisper_vad: Including segment 83: 345.19 - 348.42 (duration: 3.23)
+whisper_vad: Including segment 84: 348.67 - 349.70 (duration: 1.03)
+whisper_vad: Including segment 85: 350.85 - 351.65 (duration: 0.80)
+whisper_vad: Including segment 86: 354.37 - 355.46 (duration: 1.09)
+whisper_vad: Including segment 87: 356.39 - 360.32 (duration: 3.93)
+whisper_vad: Including segment 88: 360.45 - 360.87 (duration: 0.42)
+whisper_vad: Including segment 89: 360.93 - 367.75 (duration: 6.82)
+whisper_vad: Including segment 90: 371.49 - 379.59 (duration: 8.10)
+whisper_vad: Including segment 91: 379.65 - 384.61 (duration: 4.96)
+whisper_vad: Including segment 92: 391.20 - 391.91 (duration: 0.71)
+whisper_vad: Including segment 93: 393.99 - 407.27 (duration: 13.28)
+whisper_vad: Including segment 94: 421.25 - 422.43 (duration: 1.18)
+whisper_vad: Including segment 95: 422.63 - 425.47 (duration: 2.84)
+whisper_vad: Including segment 96: 426.02 - 426.69 (duration: 0.67)
+whisper_vad: Including segment 97: 428.13 - 428.87 (duration: 0.74)
+whisper_vad: Including segment 98: 429.06 - 430.24 (duration: 1.18)
+whisper_vad: Including segment 99: 432.51 - 434.11 (duration: 1.60)
+whisper_vad: Including segment 100: 438.75 - 442.43 (duration: 3.68)
+whisper_vad: Including segment 101: 443.17 - 446.75 (duration: 3.58)
+whisper_vad: Including segment 102: 447.94 - 451.59 (duration: 3.65)
+whisper_vad: Including segment 103: 453.99 - 456.35 (duration: 2.36)
+whisper_vad: Including segment 104: 456.51 - 457.44 (duration: 0.93)
+whisper_vad: Including segment 105: 457.95 - 459.23 (duration: 1.28)
+whisper_vad: Including segment 106: 459.84 - 460.80 (duration: 0.96)
+whisper_vad: Including segment 107: 461.15 - 462.24 (duration: 1.09)
+whisper_vad: Including segment 108: 465.44 - 469.25 (duration: 3.81)
+whisper_vad: Including segment 109: 469.57 - 470.27 (duration: 0.70)
+whisper_vad: Including segment 110: 474.43 - 477.86 (duration: 3.43)
+whisper_vad: Including segment 111: 478.11 - 478.91 (duration: 0.80)
+whisper_vad: Including segment 112: 481.28 - 484.16 (duration: 2.88)
+whisper_vad: Including segment 113: 488.87 - 491.23 (duration: 2.36)
+whisper_vad: Including segment 114: 492.90 - 494.98 (duration: 2.08)
+whisper_vad: Including segment 115: 497.54 - 511.07 (duration: 13.53)
+whisper_vad: Including segment 116: 511.49 - 514.31 (duration: 2.82)
+whisper_vad: Including segment 117: 516.13 - 516.71 (duration: 0.58)
+whisper_vad: Including segment 118: 517.92 - 518.82 (duration: 0.90)
+whisper_vad: Including segment 119: 519.87 - 523.07 (duration: 3.20)
+whisper_vad: Including segment 120: 523.23 - 526.15 (duration: 2.92)
+whisper_vad: Including segment 121: 526.24 - 529.12 (duration: 2.88)
+whisper_vad: Including segment 122: 529.22 - 531.14 (duration: 1.92)
+whisper_vad: Including segment 123: 532.03 - 533.47 (duration: 1.44)
+whisper_vad: Including segment 124: 535.59 - 536.77 (duration: 1.18)
+whisper_vad: Including segment 125: 541.47 - 542.75 (duration: 1.28)
+whisper_vad: Including segment 126: 543.78 - 545.67 (duration: 1.89)
+whisper_vad: Including segment 127: 546.08 - 548.93 (duration: 2.85)
+whisper_vad: Including segment 128: 553.67 - 554.53 (duration: 0.86)
+whisper_vad: Including segment 129: 554.85 - 556.51 (duration: 1.66)
+whisper_vad: Including segment 130: 558.56 - 559.17 (duration: 0.61)
+whisper_vad: Including segment 131: 561.15 - 561.73 (duration: 0.58)
+whisper_vad: Including segment 132: 565.47 - 566.11 (duration: 0.64)
+whisper_vad: Including segment 133: 566.18 - 570.21 (duration: 4.03)
+whisper_vad: Including segment 134: 570.40 - 572.00 (duration: 1.60)
+whisper_vad: Including segment 135: 572.23 - 573.89 (duration: 1.66)
+whisper_vad: Including segment 136: 574.66 - 575.84 (duration: 1.18)
+whisper_vad: Including segment 137: 576.61 - 578.50 (duration: 1.89)
+whisper_vad: Including segment 138: 578.72 - 582.40 (duration: 3.68)
+whisper_vad: Including segment 139: 582.59 - 583.11 (duration: 0.52)
+whisper_vad: Including segment 140: 584.00 - 587.36 (duration: 3.36)
+whisper_vad: Including segment 141: 588.42 - 597.89 (duration: 9.47)
+whisper_vad: Including segment 142: 598.08 - 600.93 (duration: 2.85)
+whisper_vad: Including segment 143: 600.99 - 602.21 (duration: 1.22)
+whisper_vad: Including segment 144: 603.27 - 606.98 (duration: 3.71)
+whisper_vad: Including segment 145: 607.17 - 607.68 (duration: 0.51)
+whisper_vad: Including segment 146: 608.13 - 617.06 (duration: 8.93)
+whisper_vad: Including segment 147: 617.35 - 618.27 (duration: 0.92)
+whisper_vad: Including segment 148: 618.40 - 619.84 (duration: 1.44)
+whisper_vad: Including segment 149: 620.29 - 622.95 (duration: 2.66)
+whisper_vad: Including segment 150: 623.01 - 623.68 (duration: 0.67)
+whisper_vad: Including segment 151: 623.84 - 625.15 (duration: 1.31)
+whisper_vad: Including segment 152: 625.44 - 628.48 (duration: 3.04)
+whisper_vad: Including segment 153: 628.77 - 629.60 (duration: 0.83)
+whisper_vad: Including segment 154: 630.37 - 632.23 (duration: 1.86)
+whisper_vad: Including segment 155: 632.48 - 633.83 (duration: 1.35)
+whisper_vad: Including segment 156: 634.69 - 636.10 (duration: 1.41)
+whisper_vad: Including segment 157: 636.42 - 637.25 (duration: 0.83)
+whisper_vad: Including segment 158: 638.08 - 645.79 (duration: 7.71)
+whisper_vad: Including segment 159: 646.15 - 652.07 (duration: 5.92)
+whisper_vad: Including segment 160: 653.41 - 658.34 (duration: 4.93)
+whisper_vad: Including segment 161: 658.43 - 659.39 (duration: 0.96)
+whisper_vad: Including segment 162: 659.52 - 661.67 (duration: 2.15)
+whisper_vad: Including segment 163: 661.83 - 664.10 (duration: 2.27)
+whisper_vad: Including segment 164: 664.39 - 668.93 (duration: 4.54)
+whisper_vad: Including segment 165: 669.70 - 670.43 (duration: 0.73)
+whisper_vad: Including segment 166: 675.20 - 678.02 (duration: 2.82)
+whisper_vad: Including segment 167: 678.95 - 681.35 (duration: 2.40)
+whisper_vad: Including segment 168: 681.99 - 685.15 (duration: 3.16)
+whisper_vad: Including segment 169: 685.31 - 685.89 (duration: 0.58)
+whisper_vad: Including segment 170: 685.95 - 686.63 (duration: 0.68)
+whisper_vad: Including segment 171: 686.82 - 694.43 (duration: 7.61)
+whisper_vad: Including segment 172: 694.79 - 696.48 (duration: 1.69)
+whisper_vad: Including segment 173: 696.61 - 704.90 (duration: 8.29)
+whisper_vad: Including segment 174: 705.19 - 711.14 (duration: 5.95)
+whisper_vad: Including segment 175: 711.23 - 722.40 (duration: 11.17)
+whisper_vad: Including segment 176: 722.47 - 729.60 (duration: 7.13)
+whisper_vad: Including segment 177: 730.50 - 731.97 (duration: 1.47)
+whisper_vad: Including segment 178: 732.39 - 738.08 (duration: 5.69)
+whisper_vad: Including segment 179: 738.69 - 740.48 (duration: 1.79)
+whisper_vad: Including segment 180: 740.61 - 742.85 (duration: 2.24)
+whisper_vad: Including segment 181: 743.01 - 748.39 (duration: 5.38)
+whisper_vad: Including segment 182: 748.74 - 758.40 (duration: 9.66)
+whisper_vad: Including segment 183: 759.07 - 764.35 (duration: 5.28)
+whisper_vad: Including segment 184: 764.71 - 765.51 (duration: 0.80)
+whisper_vad: Including segment 185: 765.60 - 769.47 (duration: 3.87)
+whisper_vad: Including segment 186: 770.08 - 776.45 (duration: 6.37)
+whisper_vad: Including segment 187: 777.12 - 778.88 (duration: 1.76)
+whisper_vad: Including segment 188: 779.33 - 796.61 (duration: 17.28)
+whisper_vad: Including segment 189: 796.77 - 811.71 (duration: 14.94)
+whisper_vad: Including segment 190: 811.81 - 812.29 (duration: 0.48)
+whisper_vad: Including segment 191: 812.35 - 815.20 (duration: 2.85)
+whisper_vad: Including segment 192: 816.19 - 820.87 (duration: 4.68)
+whisper_vad: Including segment 193: 820.99 - 823.62 (duration: 2.63)
+whisper_vad: Including segment 194: 823.81 - 827.23 (duration: 3.42)
+whisper_vad: Including segment 195: 828.13 - 834.24 (duration: 6.11)
+whisper_vad: Including segment 196: 834.66 - 842.21 (duration: 7.55)
+whisper_vad: Including segment 197: 842.47 - 848.51 (duration: 6.04)
+whisper_vad: Including segment 198: 848.90 - 849.79 (duration: 0.89)
+whisper_vad: Including segment 199: 851.01 - 853.60 (duration: 2.59)
+whisper_vad: Including segment 200: 854.37 - 855.04 (duration: 0.67)
+whisper_vad: Including segment 201: 855.20 - 856.00 (duration: 0.80)
+whisper_vad: Including segment 202: 856.26 - 862.91 (duration: 6.65)
+whisper_vad: Including segment 203: 863.20 - 863.75 (duration: 0.55)
+whisper_vad: Including segment 204: 864.29 - 865.83 (duration: 1.54)
+whisper_vad: Including segment 205: 866.27 - 871.94 (duration: 5.67)
+whisper_vad: Including segment 206: 872.19 - 872.80 (duration: 0.61)
+whisper_vad: Including segment 207: 872.96 - 876.00 (duration: 3.04)
+whisper_vad: Including segment 208: 876.35 - 883.36 (duration: 7.01)
+whisper_vad: Including segment 209: 884.39 - 888.29 (duration: 3.90)
+whisper_vad: Including segment 210: 888.58 - 891.78 (duration: 3.20)
+whisper_vad: Including segment 211: 892.26 - 895.27 (duration: 3.01)
+whisper_vad: Including segment 212: 895.39 - 896.58 (duration: 1.19)
+whisper_vad: Including segment 213: 896.83 - 905.09 (duration: 8.26)
+whisper_vad: Including segment 214: 905.60 - 907.81 (duration: 2.21)
+whisper_vad: Including segment 215: 908.29 - 912.51 (duration: 4.22)
+whisper_vad: Including segment 216: 913.73 - 914.98 (duration: 1.25)
+whisper_vad: Including segment 217: 915.39 - 916.51 (duration: 1.12)
+whisper_vad: Including segment 218: 916.80 - 918.40 (duration: 1.60)
+whisper_vad: Including segment 219: 918.47 - 921.79 (duration: 3.32)
+whisper_vad: Including segment 220: 921.89 - 922.91 (duration: 1.02)
+whisper_vad: Including segment 221: 923.23 - 927.46 (duration: 4.23)
+whisper_vad: Including segment 222: 928.19 - 931.59 (duration: 3.40)
+whisper_vad: Including segment 223: 931.71 - 946.15 (duration: 14.44)
+whisper_vad: Including segment 224: 946.31 - 947.27 (duration: 0.96)
+whisper_vad: Including segment 225: 948.48 - 950.50 (duration: 2.02)
+whisper_vad: Including segment 226: 950.75 - 966.18 (duration: 15.43)
+whisper_vad: Including segment 227: 966.24 - 967.97 (duration: 1.73)
+whisper_vad: Including segment 228: 968.42 - 972.39 (duration: 3.97)
+whisper_vad: Including segment 229: 972.99 - 978.82 (duration: 5.83)
+whisper_vad: Including segment 230: 979.36 - 980.19 (duration: 0.83)
+whisper_vad: Including segment 231: 981.25 - 983.20 (duration: 1.95)
+whisper_vad: Including segment 232: 983.46 - 987.30 (duration: 3.84)
+whisper_vad: Including segment 233: 987.55 - 992.19 (duration: 4.64)
+whisper_vad: Including segment 234: 992.99 - 1001.51 (duration: 8.52)
+whisper_vad: Including segment 235: 1002.08 - 1013.12 (duration: 11.04)
+whisper_vad: Including segment 236: 1013.67 - 1023.46 (duration: 9.79)
+whisper_vad: Including segment 237: 1025.09 - 1035.01 (duration: 9.92)
+whisper_vad: Including segment 238: 1035.17 - 1035.78 (duration: 0.61)
+whisper_vad: Including segment 239: 1035.84 - 1038.11 (duration: 2.27)
+whisper_vad: Including segment 240: 1038.66 - 1039.33 (duration: 0.67)
+whisper_vad: Including segment 241: 1039.71 - 1040.29 (duration: 0.58)
+whisper_vad: Including segment 242: 1040.64 - 1042.05 (duration: 1.41)
+whisper_vad: Including segment 243: 1042.56 - 1044.42 (duration: 1.86)
+whisper_vad: Including segment 244: 1045.19 - 1045.67 (duration: 0.48)
+whisper_vad: Including segment 245: 1046.43 - 1049.09 (duration: 2.66)
+whisper_vad: total duration of speech segments: 693.92 seconds
+whisper_vad: vad_segment_info: orig_start: 12.48, orig_end: 14.65, vad_start: 0.00, vad_end: 2.17
+whisper_vad: vad_segment_info: orig_start: 22.59, orig_end: 23.84, vad_start: 2.37, vad_end: 3.62
+whisper_vad: vad_segment_info: orig_start: 25.19, orig_end: 26.65, vad_start: 3.82, vad_end: 5.28
+whisper_vad: vad_segment_info: orig_start: 29.22, orig_end: 30.49, vad_start: 5.48, vad_end: 6.75
+whisper_vad: vad_segment_info: orig_start: 30.95, orig_end: 32.38, vad_start: 6.95, vad_end: 8.38
+whisper_vad: vad_segment_info: orig_start: 82.50, orig_end: 83.77, vad_start: 8.58, vad_end: 9.85
+whisper_vad: vad_segment_info: orig_start: 84.55, orig_end: 85.69, vad_start: 10.05, vad_end: 11.19
+whisper_vad: vad_segment_info: orig_start: 86.59, orig_end: 87.36, vad_start: 11.39, vad_end: 12.16
+whisper_vad: vad_segment_info: orig_start: 87.91, orig_end: 90.24, vad_start: 12.36, vad_end: 14.69
+whisper_vad: vad_segment_info: orig_start: 92.00, orig_end: 94.17, vad_start: 14.89, vad_end: 17.06
+whisper_vad: vad_segment_info: orig_start: 95.84, orig_end: 96.45, vad_start: 17.26, vad_end: 17.87
+whisper_vad: vad_segment_info: orig_start: 96.71, orig_end: 97.15, vad_start: 18.07, vad_end: 18.51
+whisper_vad: vad_segment_info: orig_start: 97.76, orig_end: 99.97, vad_start: 18.71, vad_end: 20.92
+whisper_vad: vad_segment_info: orig_start: 100.45, orig_end: 101.60, vad_start: 21.12, vad_end: 22.27
+whisper_vad: vad_segment_info: orig_start: 101.95, orig_end: 103.77, vad_start: 22.47, vad_end: 24.29
+whisper_vad: vad_segment_info: orig_start: 104.26, orig_end: 105.47, vad_start: 24.49, vad_end: 25.70
+whisper_vad: vad_segment_info: orig_start: 106.34, orig_end: 107.58, vad_start: 25.90, vad_end: 27.14
+whisper_vad: vad_segment_info: orig_start: 108.19, orig_end: 110.01, vad_start: 27.34, vad_end: 29.16
+whisper_vad: vad_segment_info: orig_start: 110.50, orig_end: 111.52, vad_start: 29.36, vad_end: 30.38
+whisper_vad: vad_segment_info: orig_start: 112.07, orig_end: 116.00, vad_start: 30.58, vad_end: 34.51
+whisper_vad: vad_segment_info: orig_start: 117.63, orig_end: 121.15, vad_start: 34.71, vad_end: 38.23
+whisper_vad: vad_segment_info: orig_start: 121.57, orig_end: 122.27, vad_start: 38.43, vad_end: 39.13
+whisper_vad: vad_segment_info: orig_start: 122.43, orig_end: 124.41, vad_start: 39.33, vad_end: 41.31
+whisper_vad: vad_segment_info: orig_start: 124.80, orig_end: 125.47, vad_start: 41.51, vad_end: 42.18
+whisper_vad: vad_segment_info: orig_start: 126.05, orig_end: 128.25, vad_start: 42.38, vad_end: 44.58
+whisper_vad: vad_segment_info: orig_start: 128.80, orig_end: 130.11, vad_start: 44.78, vad_end: 46.09
+whisper_vad: vad_segment_info: orig_start: 130.40, orig_end: 131.87, vad_start: 46.29, vad_end: 47.76
+whisper_vad: vad_segment_info: orig_start: 132.03, orig_end: 132.38, vad_start: 47.96, vad_end: 48.31
+whisper_vad: vad_segment_info: orig_start: 133.28, orig_end: 133.73, vad_start: 48.51, vad_end: 48.96
+whisper_vad: vad_segment_info: orig_start: 133.95, orig_end: 135.07, vad_start: 49.16, vad_end: 50.28
+whisper_vad: vad_segment_info: orig_start: 135.55, orig_end: 136.77, vad_start: 50.48, vad_end: 51.70
+whisper_vad: vad_segment_info: orig_start: 137.09, orig_end: 138.46, vad_start: 51.90, vad_end: 53.27
+whisper_vad: vad_segment_info: orig_start: 139.33, orig_end: 141.12, vad_start: 53.47, vad_end: 55.26
+whisper_vad: vad_segment_info: orig_start: 142.85, orig_end: 143.49, vad_start: 55.46, vad_end: 56.10
+whisper_vad: vad_segment_info: orig_start: 143.87, orig_end: 149.15, vad_start: 56.30, vad_end: 61.58
+whisper_vad: vad_segment_info: orig_start: 149.60, orig_end: 150.21, vad_start: 61.78, vad_end: 62.39
+whisper_vad: vad_segment_info: orig_start: 150.37, orig_end: 153.63, vad_start: 62.59, vad_end: 65.85
+whisper_vad: vad_segment_info: orig_start: 153.99, orig_end: 156.19, vad_start: 66.05, vad_end: 68.25
+whisper_vad: vad_segment_info: orig_start: 156.64, orig_end: 158.75, vad_start: 68.45, vad_end: 70.56
+whisper_vad: vad_segment_info: orig_start: 159.43, orig_end: 161.05, vad_start: 70.76, vad_end: 72.38
+whisper_vad: vad_segment_info: orig_start: 162.34, orig_end: 164.16, vad_start: 72.58, vad_end: 74.40
+whisper_vad: vad_segment_info: orig_start: 164.35, orig_end: 167.87, vad_start: 74.60, vad_end: 78.12
+whisper_vad: vad_segment_info: orig_start: 170.40, orig_end: 170.97, vad_start: 78.32, vad_end: 78.89
+whisper_vad: vad_segment_info: orig_start: 171.27, orig_end: 171.81, vad_start: 79.09, vad_end: 79.63
+whisper_vad: vad_segment_info: orig_start: 172.03, orig_end: 172.67, vad_start: 79.83, vad_end: 80.47
+whisper_vad: vad_segment_info: orig_start: 172.87, orig_end: 174.17, vad_start: 80.67, vad_end: 81.97
+whisper_vad: vad_segment_info: orig_start: 174.50, orig_end: 177.05, vad_start: 82.17, vad_end: 84.72
+whisper_vad: vad_segment_info: orig_start: 177.31, orig_end: 179.13, vad_start: 84.92, vad_end: 86.74
+whisper_vad: vad_segment_info: orig_start: 179.68, orig_end: 183.52, vad_start: 86.94, vad_end: 90.78
+whisper_vad: vad_segment_info: orig_start: 184.26, orig_end: 184.83, vad_start: 90.98, vad_end: 91.55
+whisper_vad: vad_segment_info: orig_start: 189.09, orig_end: 189.41, vad_start: 91.75, vad_end: 92.07
+whisper_vad: vad_segment_info: orig_start: 190.05, orig_end: 191.71, vad_start: 92.27, vad_end: 93.93
+whisper_vad: vad_segment_info: orig_start: 192.10, orig_end: 192.83, vad_start: 94.13, vad_end: 94.86
+whisper_vad: vad_segment_info: orig_start: 243.33, orig_end: 244.45, vad_start: 95.06, vad_end: 96.18
+whisper_vad: vad_segment_info: orig_start: 246.95, orig_end: 247.49, vad_start: 96.38, vad_end: 96.92
+whisper_vad: vad_segment_info: orig_start: 247.91, orig_end: 250.88, vad_start: 97.12, vad_end: 100.09
+whisper_vad: vad_segment_info: orig_start: 254.53, orig_end: 257.60, vad_start: 100.29, vad_end: 103.36
+whisper_vad: vad_segment_info: orig_start: 259.91, orig_end: 260.77, vad_start: 103.56, vad_end: 104.42
+whisper_vad: vad_segment_info: orig_start: 261.35, orig_end: 262.27, vad_start: 104.62, vad_end: 105.54
+whisper_vad: vad_segment_info: orig_start: 266.21, orig_end: 266.97, vad_start: 105.74, vad_end: 106.50
+whisper_vad: vad_segment_info: orig_start: 268.77, orig_end: 269.15, vad_start: 106.70, vad_end: 107.08
+whisper_vad: vad_segment_info: orig_start: 272.32, orig_end: 272.70, vad_start: 107.28, vad_end: 107.66
+whisper_vad: vad_segment_info: orig_start: 273.31, orig_end: 274.21, vad_start: 107.86, vad_end: 108.76
+whisper_vad: vad_segment_info: orig_start: 275.20, orig_end: 276.48, vad_start: 108.96, vad_end: 110.24
+whisper_vad: vad_segment_info: orig_start: 277.73, orig_end: 278.91, vad_start: 110.44, vad_end: 111.62
+whisper_vad: vad_segment_info: orig_start: 279.27, orig_end: 279.74, vad_start: 111.82, vad_end: 112.29
+whisper_vad: vad_segment_info: orig_start: 285.19, orig_end: 286.59, vad_start: 112.49, vad_end: 113.89
+whisper_vad: vad_segment_info: orig_start: 287.71, orig_end: 288.70, vad_start: 114.09, vad_end: 115.08
+whisper_vad: vad_segment_info: orig_start: 289.09, orig_end: 291.39, vad_start: 115.28, vad_end: 117.58
+whisper_vad: vad_segment_info: orig_start: 293.38, orig_end: 296.35, vad_start: 117.78, vad_end: 120.75
+whisper_vad: vad_segment_info: orig_start: 306.37, orig_end: 307.33, vad_start: 120.95, vad_end: 121.91
+whisper_vad: vad_segment_info: orig_start: 309.28, orig_end: 309.69, vad_start: 122.11, vad_end: 122.52
+whisper_vad: vad_segment_info: orig_start: 313.51, orig_end: 314.56, vad_start: 122.72, vad_end: 123.77
+whisper_vad: vad_segment_info: orig_start: 314.79, orig_end: 315.45, vad_start: 123.97, vad_end: 124.63
+whisper_vad: vad_segment_info: orig_start: 315.75, orig_end: 318.59, vad_start: 124.83, vad_end: 127.67
+whisper_vad: vad_segment_info: orig_start: 319.14, orig_end: 321.82, vad_start: 127.87, vad_end: 130.55
+whisper_vad: vad_segment_info: orig_start: 324.13, orig_end: 325.63, vad_start: 130.75, vad_end: 132.25
+whisper_vad: vad_segment_info: orig_start: 326.18, orig_end: 329.25, vad_start: 132.45, vad_end: 135.52
+whisper_vad: vad_segment_info: orig_start: 329.73, orig_end: 330.69, vad_start: 135.72, vad_end: 136.68
+whisper_vad: vad_segment_info: orig_start: 331.49, orig_end: 332.16, vad_start: 136.88, vad_end: 137.55
+whisper_vad: vad_segment_info: orig_start: 333.41, orig_end: 333.98, vad_start: 137.75, vad_end: 138.32
+whisper_vad: vad_segment_info: orig_start: 335.52, orig_end: 338.30, vad_start: 138.52, vad_end: 141.30
+whisper_vad: vad_segment_info: orig_start: 340.67, orig_end: 343.97, vad_start: 141.50, vad_end: 144.80
+whisper_vad: vad_segment_info: orig_start: 345.19, orig_end: 348.32, vad_start: 145.00, vad_end: 148.13
+whisper_vad: vad_segment_info: orig_start: 348.67, orig_end: 349.60, vad_start: 148.33, vad_end: 149.26
+whisper_vad: vad_segment_info: orig_start: 350.85, orig_end: 351.55, vad_start: 149.46, vad_end: 150.16
+whisper_vad: vad_segment_info: orig_start: 354.37, orig_end: 355.36, vad_start: 150.36, vad_end: 151.35
+whisper_vad: vad_segment_info: orig_start: 356.39, orig_end: 360.22, vad_start: 151.55, vad_end: 155.38
+whisper_vad: vad_segment_info: orig_start: 360.45, orig_end: 360.77, vad_start: 155.58, vad_end: 155.90
+whisper_vad: vad_segment_info: orig_start: 360.93, orig_end: 367.65, vad_start: 156.10, vad_end: 162.82
+whisper_vad: vad_segment_info: orig_start: 371.49, orig_end: 379.49, vad_start: 163.02, vad_end: 171.02
+whisper_vad: vad_segment_info: orig_start: 379.65, orig_end: 384.51, vad_start: 171.22, vad_end: 176.08
+whisper_vad: vad_segment_info: orig_start: 391.20, orig_end: 391.81, vad_start: 176.28, vad_end: 176.89
+whisper_vad: vad_segment_info: orig_start: 393.99, orig_end: 407.17, vad_start: 177.09, vad_end: 190.27
+whisper_vad: vad_segment_info: orig_start: 421.25, orig_end: 422.33, vad_start: 190.47, vad_end: 191.55
+whisper_vad: vad_segment_info: orig_start: 422.63, orig_end: 425.37, vad_start: 191.75, vad_end: 194.49
+whisper_vad: vad_segment_info: orig_start: 426.02, orig_end: 426.59, vad_start: 194.69, vad_end: 195.26
+whisper_vad: vad_segment_info: orig_start: 428.13, orig_end: 428.77, vad_start: 195.46, vad_end: 196.10
+whisper_vad: vad_segment_info: orig_start: 429.06, orig_end: 430.14, vad_start: 196.30, vad_end: 197.38
+whisper_vad: vad_segment_info: orig_start: 432.51, orig_end: 434.01, vad_start: 197.58, vad_end: 199.08
+whisper_vad: vad_segment_info: orig_start: 438.75, orig_end: 442.33, vad_start: 199.28, vad_end: 202.86
+whisper_vad: vad_segment_info: orig_start: 443.17, orig_end: 446.65, vad_start: 203.06, vad_end: 206.54
+whisper_vad: vad_segment_info: orig_start: 447.94, orig_end: 451.49, vad_start: 206.74, vad_end: 210.29
+whisper_vad: vad_segment_info: orig_start: 453.99, orig_end: 456.25, vad_start: 210.49, vad_end: 212.75
+whisper_vad: vad_segment_info: orig_start: 456.51, orig_end: 457.34, vad_start: 212.95, vad_end: 213.78
+whisper_vad: vad_segment_info: orig_start: 457.95, orig_end: 459.13, vad_start: 213.98, vad_end: 215.16
+whisper_vad: vad_segment_info: orig_start: 459.84, orig_end: 460.70, vad_start: 215.36, vad_end: 216.22
+whisper_vad: vad_segment_info: orig_start: 461.15, orig_end: 462.14, vad_start: 216.42, vad_end: 217.41
+whisper_vad: vad_segment_info: orig_start: 465.44, orig_end: 469.15, vad_start: 217.61, vad_end: 221.32
+whisper_vad: vad_segment_info: orig_start: 469.57, orig_end: 470.17, vad_start: 221.52, vad_end: 222.12
+whisper_vad: vad_segment_info: orig_start: 474.43, orig_end: 477.76, vad_start: 222.32, vad_end: 225.65
+whisper_vad: vad_segment_info: orig_start: 478.11, orig_end: 478.81, vad_start: 225.85, vad_end: 226.55
+whisper_vad: vad_segment_info: orig_start: 481.28, orig_end: 484.06, vad_start: 226.75, vad_end: 229.53
+whisper_vad: vad_segment_info: orig_start: 488.87, orig_end: 491.13, vad_start: 229.73, vad_end: 231.99
+whisper_vad: vad_segment_info: orig_start: 492.90, orig_end: 494.88, vad_start: 232.19, vad_end: 234.17
+whisper_vad: vad_segment_info: orig_start: 497.54, orig_end: 510.97, vad_start: 234.37, vad_end: 247.80
+whisper_vad: vad_segment_info: orig_start: 511.49, orig_end: 514.21, vad_start: 248.00, vad_end: 250.72
+whisper_vad: vad_segment_info: orig_start: 516.13, orig_end: 516.61, vad_start: 250.92, vad_end: 251.40
+whisper_vad: vad_segment_info: orig_start: 517.92, orig_end: 518.72, vad_start: 251.60, vad_end: 252.40
+whisper_vad: vad_segment_info: orig_start: 519.87, orig_end: 522.97, vad_start: 252.60, vad_end: 255.70
+whisper_vad: vad_segment_info: orig_start: 523.23, orig_end: 526.05, vad_start: 255.90, vad_end: 258.72
+whisper_vad: vad_segment_info: orig_start: 526.24, orig_end: 529.02, vad_start: 258.92, vad_end: 261.70
+whisper_vad: vad_segment_info: orig_start: 529.22, orig_end: 531.04, vad_start: 261.90, vad_end: 263.72
+whisper_vad: vad_segment_info: orig_start: 532.03, orig_end: 533.37, vad_start: 263.92, vad_end: 265.26
+whisper_vad: vad_segment_info: orig_start: 535.59, orig_end: 536.67, vad_start: 265.46, vad_end: 266.54
+whisper_vad: vad_segment_info: orig_start: 541.47, orig_end: 542.65, vad_start: 266.74, vad_end: 267.92
+whisper_vad: vad_segment_info: orig_start: 543.78, orig_end: 545.57, vad_start: 268.12, vad_end: 269.91
+whisper_vad: vad_segment_info: orig_start: 546.08, orig_end: 548.83, vad_start: 270.11, vad_end: 272.86
+whisper_vad: vad_segment_info: orig_start: 553.67, orig_end: 554.43, vad_start: 273.06, vad_end: 273.82
+whisper_vad: vad_segment_info: orig_start: 554.85, orig_end: 556.41, vad_start: 274.02, vad_end: 275.58
+whisper_vad: vad_segment_info: orig_start: 558.56, orig_end: 559.07, vad_start: 275.78, vad_end: 276.29
+whisper_vad: vad_segment_info: orig_start: 561.15, orig_end: 561.63, vad_start: 276.49, vad_end: 276.97
+whisper_vad: vad_segment_info: orig_start: 565.47, orig_end: 566.01, vad_start: 277.17, vad_end: 277.71
+whisper_vad: vad_segment_info: orig_start: 566.18, orig_end: 570.11, vad_start: 277.91, vad_end: 281.84
+whisper_vad: vad_segment_info: orig_start: 570.40, orig_end: 571.90, vad_start: 282.04, vad_end: 283.54
+whisper_vad: vad_segment_info: orig_start: 572.23, orig_end: 573.79, vad_start: 283.74, vad_end: 285.30
+whisper_vad: vad_segment_info: orig_start: 574.66, orig_end: 575.74, vad_start: 285.50, vad_end: 286.58
+whisper_vad: vad_segment_info: orig_start: 576.61, orig_end: 578.40, vad_start: 286.78, vad_end: 288.57
+whisper_vad: vad_segment_info: orig_start: 578.72, orig_end: 582.30, vad_start: 288.77, vad_end: 292.35
+whisper_vad: vad_segment_info: orig_start: 582.59, orig_end: 583.01, vad_start: 292.55, vad_end: 292.97
+whisper_vad: vad_segment_info: orig_start: 584.00, orig_end: 587.26, vad_start: 293.17, vad_end: 296.43
+whisper_vad: vad_segment_info: orig_start: 588.42, orig_end: 597.79, vad_start: 296.63, vad_end: 306.00
+whisper_vad: vad_segment_info: orig_start: 598.08, orig_end: 600.83, vad_start: 306.20, vad_end: 308.95
+whisper_vad: vad_segment_info: orig_start: 600.99, orig_end: 602.11, vad_start: 309.15, vad_end: 310.27
+whisper_vad: vad_segment_info: orig_start: 603.27, orig_end: 606.88, vad_start: 310.47, vad_end: 314.08
+whisper_vad: vad_segment_info: orig_start: 607.17, orig_end: 607.58, vad_start: 314.28, vad_end: 314.69
+whisper_vad: vad_segment_info: orig_start: 608.13, orig_end: 616.96, vad_start: 314.89, vad_end: 323.72
+whisper_vad: vad_segment_info: orig_start: 617.35, orig_end: 618.17, vad_start: 323.92, vad_end: 324.74
+whisper_vad: vad_segment_info: orig_start: 618.40, orig_end: 619.74, vad_start: 324.94, vad_end: 326.28
+whisper_vad: vad_segment_info: orig_start: 620.29, orig_end: 622.85, vad_start: 326.48, vad_end: 329.04
+whisper_vad: vad_segment_info: orig_start: 623.01, orig_end: 623.58, vad_start: 329.24, vad_end: 329.81
+whisper_vad: vad_segment_info: orig_start: 623.84, orig_end: 625.05, vad_start: 330.01, vad_end: 331.22
+whisper_vad: vad_segment_info: orig_start: 625.44, orig_end: 628.38, vad_start: 331.42, vad_end: 334.36
+whisper_vad: vad_segment_info: orig_start: 628.77, orig_end: 629.50, vad_start: 334.56, vad_end: 335.29
+whisper_vad: vad_segment_info: orig_start: 630.37, orig_end: 632.13, vad_start: 335.49, vad_end: 337.25
+whisper_vad: vad_segment_info: orig_start: 632.48, orig_end: 633.73, vad_start: 337.45, vad_end: 338.70
+whisper_vad: vad_segment_info: orig_start: 634.69, orig_end: 636.00, vad_start: 338.90, vad_end: 340.21
+whisper_vad: vad_segment_info: orig_start: 636.42, orig_end: 637.15, vad_start: 340.41, vad_end: 341.14
+whisper_vad: vad_segment_info: orig_start: 638.08, orig_end: 645.69, vad_start: 341.34, vad_end: 348.95
+whisper_vad: vad_segment_info: orig_start: 646.15, orig_end: 651.97, vad_start: 349.15, vad_end: 354.97
+whisper_vad: vad_segment_info: orig_start: 653.41, orig_end: 658.24, vad_start: 355.17, vad_end: 360.00
+whisper_vad: vad_segment_info: orig_start: 658.43, orig_end: 659.29, vad_start: 360.20, vad_end: 361.06
+whisper_vad: vad_segment_info: orig_start: 659.52, orig_end: 661.57, vad_start: 361.26, vad_end: 363.31
+whisper_vad: vad_segment_info: orig_start: 661.83, orig_end: 664.00, vad_start: 363.51, vad_end: 365.68
+whisper_vad: vad_segment_info: orig_start: 664.39, orig_end: 668.83, vad_start: 365.88, vad_end: 370.32
+whisper_vad: vad_segment_info: orig_start: 669.70, orig_end: 670.33, vad_start: 370.52, vad_end: 371.15
+whisper_vad: vad_segment_info: orig_start: 675.20, orig_end: 677.92, vad_start: 371.35, vad_end: 374.07
+whisper_vad: vad_segment_info: orig_start: 678.95, orig_end: 681.25, vad_start: 374.27, vad_end: 376.57
+whisper_vad: vad_segment_info: orig_start: 681.99, orig_end: 685.05, vad_start: 376.77, vad_end: 379.83
+whisper_vad: vad_segment_info: orig_start: 685.31, orig_end: 685.79, vad_start: 380.03, vad_end: 380.51
+whisper_vad: vad_segment_info: orig_start: 685.95, orig_end: 686.53, vad_start: 380.71, vad_end: 381.29
+whisper_vad: vad_segment_info: orig_start: 686.82, orig_end: 694.33, vad_start: 381.49, vad_end: 389.00
+whisper_vad: vad_segment_info: orig_start: 694.79, orig_end: 696.38, vad_start: 389.20, vad_end: 390.79
+whisper_vad: vad_segment_info: orig_start: 696.61, orig_end: 704.80, vad_start: 390.99, vad_end: 399.18
+whisper_vad: vad_segment_info: orig_start: 705.19, orig_end: 711.04, vad_start: 399.38, vad_end: 405.23
+whisper_vad: vad_segment_info: orig_start: 711.23, orig_end: 722.30, vad_start: 405.43, vad_end: 416.50
+whisper_vad: vad_segment_info: orig_start: 722.47, orig_end: 729.50, vad_start: 416.70, vad_end: 423.73
+whisper_vad: vad_segment_info: orig_start: 730.50, orig_end: 731.87, vad_start: 423.93, vad_end: 425.30
+whisper_vad: vad_segment_info: orig_start: 732.39, orig_end: 737.98, vad_start: 425.50, vad_end: 431.09
+whisper_vad: vad_segment_info: orig_start: 738.69, orig_end: 740.38, vad_start: 431.29, vad_end: 432.98
+whisper_vad: vad_segment_info: orig_start: 740.61, orig_end: 742.75, vad_start: 433.18, vad_end: 435.32
+whisper_vad: vad_segment_info: orig_start: 743.01, orig_end: 748.29, vad_start: 435.52, vad_end: 440.80
+whisper_vad: vad_segment_info: orig_start: 748.74, orig_end: 758.30, vad_start: 441.00, vad_end: 450.56
+whisper_vad: vad_segment_info: orig_start: 759.07, orig_end: 764.25, vad_start: 450.76, vad_end: 455.94
+whisper_vad: vad_segment_info: orig_start: 764.71, orig_end: 765.41, vad_start: 456.14, vad_end: 456.84
+whisper_vad: vad_segment_info: orig_start: 765.60, orig_end: 769.37, vad_start: 457.04, vad_end: 460.81
+whisper_vad: vad_segment_info: orig_start: 770.08, orig_end: 776.35, vad_start: 461.01, vad_end: 467.28
+whisper_vad: vad_segment_info: orig_start: 777.12, orig_end: 778.78, vad_start: 467.48, vad_end: 469.14
+whisper_vad: vad_segment_info: orig_start: 779.33, orig_end: 796.51, vad_start: 469.34, vad_end: 486.52
+whisper_vad: vad_segment_info: orig_start: 796.77, orig_end: 811.61, vad_start: 486.72, vad_end: 501.56
+whisper_vad: vad_segment_info: orig_start: 811.81, orig_end: 812.19, vad_start: 501.76, vad_end: 502.14
+whisper_vad: vad_segment_info: orig_start: 812.35, orig_end: 815.10, vad_start: 502.34, vad_end: 505.09
+whisper_vad: vad_segment_info: orig_start: 816.19, orig_end: 820.77, vad_start: 505.29, vad_end: 509.87
+whisper_vad: vad_segment_info: orig_start: 820.99, orig_end: 823.52, vad_start: 510.07, vad_end: 512.60
+whisper_vad: vad_segment_info: orig_start: 823.81, orig_end: 827.13, vad_start: 512.80, vad_end: 516.12
+whisper_vad: vad_segment_info: orig_start: 828.13, orig_end: 834.14, vad_start: 516.32, vad_end: 522.33
+whisper_vad: vad_segment_info: orig_start: 834.66, orig_end: 842.11, vad_start: 522.53, vad_end: 529.98
+whisper_vad: vad_segment_info: orig_start: 842.47, orig_end: 848.41, vad_start: 530.18, vad_end: 536.12
+whisper_vad: vad_segment_info: orig_start: 848.90, orig_end: 849.69, vad_start: 536.32, vad_end: 537.11
+whisper_vad: vad_segment_info: orig_start: 851.01, orig_end: 853.50, vad_start: 537.31, vad_end: 539.80
+whisper_vad: vad_segment_info: orig_start: 854.37, orig_end: 854.94, vad_start: 540.00, vad_end: 540.57
+whisper_vad: vad_segment_info: orig_start: 855.20, orig_end: 855.90, vad_start: 540.77, vad_end: 541.47
+whisper_vad: vad_segment_info: orig_start: 856.26, orig_end: 862.81, vad_start: 541.67, vad_end: 548.22
+whisper_vad: vad_segment_info: orig_start: 863.20, orig_end: 863.65, vad_start: 548.42, vad_end: 548.87
+whisper_vad: vad_segment_info: orig_start: 864.29, orig_end: 865.73, vad_start: 549.07, vad_end: 550.51
+whisper_vad: vad_segment_info: orig_start: 866.27, orig_end: 871.84, vad_start: 550.71, vad_end: 556.28
+whisper_vad: vad_segment_info: orig_start: 872.19, orig_end: 872.70, vad_start: 556.48, vad_end: 556.99
+whisper_vad: vad_segment_info: orig_start: 872.96, orig_end: 875.90, vad_start: 557.19, vad_end: 560.13
+whisper_vad: vad_segment_info: orig_start: 876.35, orig_end: 883.26, vad_start: 560.33, vad_end: 567.24
+whisper_vad: vad_segment_info: orig_start: 884.39, orig_end: 888.19, vad_start: 567.44, vad_end: 571.24
+whisper_vad: vad_segment_info: orig_start: 888.58, orig_end: 891.68, vad_start: 571.44, vad_end: 574.54
+whisper_vad: vad_segment_info: orig_start: 892.26, orig_end: 895.17, vad_start: 574.74, vad_end: 577.65
+whisper_vad: vad_segment_info: orig_start: 895.39, orig_end: 896.48, vad_start: 577.85, vad_end: 578.94
+whisper_vad: vad_segment_info: orig_start: 896.83, orig_end: 904.99, vad_start: 579.14, vad_end: 587.30
+whisper_vad: vad_segment_info: orig_start: 905.60, orig_end: 907.71, vad_start: 587.50, vad_end: 589.61
+whisper_vad: vad_segment_info: orig_start: 908.29, orig_end: 912.41, vad_start: 589.81, vad_end: 593.93
+whisper_vad: vad_segment_info: orig_start: 913.73, orig_end: 914.88, vad_start: 594.13, vad_end: 595.28
+whisper_vad: vad_segment_info: orig_start: 915.39, orig_end: 916.41, vad_start: 595.48, vad_end: 596.50
+whisper_vad: vad_segment_info: orig_start: 916.80, orig_end: 918.30, vad_start: 596.70, vad_end: 598.20
+whisper_vad: vad_segment_info: orig_start: 918.47, orig_end: 921.69, vad_start: 598.40, vad_end: 601.62
+whisper_vad: vad_segment_info: orig_start: 921.89, orig_end: 922.81, vad_start: 601.82, vad_end: 602.74
+whisper_vad: vad_segment_info: orig_start: 923.23, orig_end: 927.36, vad_start: 602.94, vad_end: 607.07
+whisper_vad: vad_segment_info: orig_start: 928.19, orig_end: 931.49, vad_start: 607.27, vad_end: 610.57
+whisper_vad: vad_segment_info: orig_start: 931.71, orig_end: 946.05, vad_start: 610.77, vad_end: 625.11
+whisper_vad: vad_segment_info: orig_start: 946.31, orig_end: 947.17, vad_start: 625.31, vad_end: 626.17
+whisper_vad: vad_segment_info: orig_start: 948.48, orig_end: 950.40, vad_start: 626.37, vad_end: 628.29
+whisper_vad: vad_segment_info: orig_start: 950.75, orig_end: 966.08, vad_start: 628.49, vad_end: 643.82
+whisper_vad: vad_segment_info: orig_start: 966.24, orig_end: 967.87, vad_start: 644.02, vad_end: 645.65
+whisper_vad: vad_segment_info: orig_start: 968.42, orig_end: 972.29, vad_start: 645.85, vad_end: 649.72
+whisper_vad: vad_segment_info: orig_start: 972.99, orig_end: 978.72, vad_start: 649.92, vad_end: 655.65
+whisper_vad: vad_segment_info: orig_start: 979.36, orig_end: 980.09, vad_start: 655.85, vad_end: 656.58
+whisper_vad: vad_segment_info: orig_start: 981.25, orig_end: 983.10, vad_start: 656.78, vad_end: 658.63
+whisper_vad: vad_segment_info: orig_start: 983.46, orig_end: 987.20, vad_start: 658.83, vad_end: 662.57
+whisper_vad: vad_segment_info: orig_start: 987.55, orig_end: 992.09, vad_start: 662.77, vad_end: 667.31
+whisper_vad: vad_segment_info: orig_start: 992.99, orig_end: 1001.41, vad_start: 667.51, vad_end: 675.93
+whisper_vad: vad_segment_info: orig_start: 1002.08, orig_end: 1013.02, vad_start: 676.13, vad_end: 687.07
+whisper_vad: vad_segment_info: orig_start: 1013.67, orig_end: 1023.36, vad_start: 687.27, vad_end: 696.96
+whisper_vad: vad_segment_info: orig_start: 1025.09, orig_end: 1034.91, vad_start: 697.16, vad_end: 706.98
+whisper_vad: vad_segment_info: orig_start: 1035.17, orig_end: 1035.68, vad_start: 707.18, vad_end: 707.69
+whisper_vad: vad_segment_info: orig_start: 1035.84, orig_end: 1038.01, vad_start: 707.89, vad_end: 710.06
+whisper_vad: vad_segment_info: orig_start: 1038.66, orig_end: 1039.23, vad_start: 710.26, vad_end: 710.83
+whisper_vad: vad_segment_info: orig_start: 1039.71, orig_end: 1040.19, vad_start: 711.03, vad_end: 711.51
+whisper_vad: vad_segment_info: orig_start: 1040.64, orig_end: 1041.95, vad_start: 711.71, vad_end: 713.02
+whisper_vad: vad_segment_info: orig_start: 1042.56, orig_end: 1044.32, vad_start: 713.22, vad_end: 714.98
+whisper_vad: vad_segment_info: orig_start: 1045.19, orig_end: 1045.57, vad_start: 715.18, vad_end: 715.56
+whisper_vad: vad_segment_info: orig_start: 1046.43, orig_end: 1049.09, vad_start: 715.76, vad_end: 718.42
+whisper_vad: Created time mapping table with 737 points
+whisper_vad: Reduced audio from 16789675 to 11494720 samples (31.5% reduction)
+output_txt: saving output to 'C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting 
+Transcriber\artifacts\whisper-ami\ES2004a-small-vad-ac768-mc0.txt'
+
+whisper_print_timings:     load time =   371.86 ms
+whisper_print_timings:     fallbacks =  24 p /  21 h
+whisper_print_timings:      mel time =   492.20 ms
+whisper_print_timings:   sample time = 33527.75 ms / 38600 runs (     0.87 ms per run)
+whisper_print_timings:   encode time = 19377.43 ms /    24 runs (   807.39 ms per run)
+whisper_print_timings:   decode time = 11960.27 ms /   896 runs (    13.35 ms per run)
+whisper_print_timings:   batchd time = 140731.22 ms / 37560 runs (     3.75 ms per run)
+whisper_print_timings:   prompt time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:    total time = 211693.78 ms

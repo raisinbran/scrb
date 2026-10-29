@@ -1,0 +1,5 @@
+WASAPI Capture Shared Event Driven Sample
+Copyright (c) Microsoft.  All Rights Reserved
+
+Capture audio data for 5 seconds
+Unable to initialize audio client: 80070005.

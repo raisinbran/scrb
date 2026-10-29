@@ -1,0 +1,4 @@
+The ZillaTrax rollout slipped to the second week of March. Pellucid Health asked for the revised pricing sheet by Friday. And Jolli Venkataraman will own the onboarding checklist. Siamban Kia flagged two open risks in the vendor contract. We should move the session cache from Redis to QuarkDB next quarter. The FinOps review found idle clusters in three regions.
+Send the worker logs to Grafina Loki instead of the old file share. Maravex is still waiting on our security questionnaire. The Tavistock migration needs one more dry run before cut over. Our SOC 2 audit window opens on 1 June. Brightwell agreed to extend the pilot by six weeks. Dr. Okonkwa will present the clinical findings on Tuesday.
+Please copy Eric Halvorson on the budget thread.
+Next we will talk about integration items after the call. Nexaflow quoted 12 weeks for the integration work.

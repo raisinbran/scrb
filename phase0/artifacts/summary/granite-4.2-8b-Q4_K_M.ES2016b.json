@@ -1,0 +1,106 @@
+{
+  "action_items": [
+    {
+      "text": "A will lead the meetings, keep the notes, and come up with the final presentation",
+      "owner": "A",
+      "timestamp": "02:01"
+    },
+    {
+      "text": "Corinne is our Marketing Expert and will figure out what the consumer wants",
+      "owner": "Corinne (C)",
+      "timestamp": "02:11"
+    },
+    {
+      "text": "Ryan is our User Interface Designer and will come up with the ideas and pick them apart",
+      "owner": "Ryan",
+      "timestamp": "02:29"
+    },
+    {
+      "text": "Manuel is the Industrial Designer",
+      "owner": "Manuel",
+      "timestamp": "02:29"
+    },
+    {
+      "text": "A will hand off presentations to each person and have them go first",
+      "owner": "A",
+      "timestamp": "03:31"
+    },
+    {
+      "text": "D will present their report based on a survey",
+      "owner": "D",
+      "timestamp": "04:30"
+    },
+    {
+      "text": "C will approach the technical functions design and suggest a TV-only universal remote",
+      "owner": "C",
+      "timestamp": "10:42"
+    },
+    {
+      "text": "B will explain the working design of the interiors (components and user interface)",
+      "owner": "B",
+      "timestamp": "15:07"
+    },
+    {
+      "text": "A will do the minutes (notes) for the meeting",
+      "owner": "A",
+      "timestamp": "26:17"
+    },
+    {
+      "text": "C will look at the actual appearance in the next break",
+      "owner": "C",
+      "timestamp": "27:29"
+    },
+    {
+      "text": "Manuel will work on the components for what they're gonna use",
+      "owner": "Manuel (B mentions Manuel)",
+      "timestamp": "39:01"
+    },
+    {
+      "text": "Ryan will work on how well it'll work with the user",
+      "owner": "Ryan (C mentions Ryan)",
+      "timestamp": "39:36"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The remote will be for TV only (not universal across devices)",
+      "timestamp": "22:20"
+    },
+    {
+      "text": "We want something that looks good, simple, easy to find (has a locator function), sturdy, and one-handed usable",
+      "timestamp": "02:52"
+    },
+    {
+      "text": "We want to be modern, fun, different",
+      "timestamp": "02:51"
+    },
+    {
+      "text": "We want to eliminate unused buttons (only use frequent functions like channel, volume, power)",
+      "timestamp": "02:52"
+    },
+    {
+      "text": "We want a locator function (e.g., beep to find lost remote)",
+      "timestamp": "02:52"
+    },
+    {
+      "text": "We decided the remote should probably be one-handed (something we could use with one hand)",
+      "timestamp": "03:17"
+    },
+    {
+      "text": "Speech recognition is not worth the investment at this point",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "The ball-shaped remote is probably not a good idea",
+      "timestamp": "27:40"
+    },
+    {
+      "text": "We will focus on a rounded/one-handed form that fits in the hand (e.g., wrapped around thumb)",
+      "timestamp": "36:15"
+    },
+    {
+      "text": "We will not do a two-in-one remote (one for zapping + one rounded)",
+      "timestamp": "38:11"
+    }
+  ]
+}

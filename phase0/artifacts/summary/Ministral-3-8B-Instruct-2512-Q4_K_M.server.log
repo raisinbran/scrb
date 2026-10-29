@@ -1,0 +1,17 @@
+0.00.002.725 I srv  llama_server: initializing ...
+0.00.003.700 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.003.980 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.024.217 I srv    load_model: loading model 'C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting Transcriber\models\llm\Ministral-3-8B-Instruct-2512-Q4_K_M.gguf'
+0.14.635.820 W llama_context: setting new yarn_attn_factor = 1.0000 (mscale == 1.0, mscale_all_dim = 1.0)
+0.15.200.737 I cmn          init: llama threadpool init, n_threads = 12
+0.15.961.874 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 24576, kv_unified = 'false'
+0.15.978.442 I srv  server_run_i: model loaded
+0.15.978.622 I srv  server_on_li: listening on http://127.0.0.1:8091
+0.16.985.351 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.16.986.028 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+1.05.492.452 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   2048, progress = 0.15, t =  48.51 s / 42.22 tokens per second
+2.26.149.191 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   4096, progress = 0.30, t = 129.16 s / 31.71 tokens per second
+4.33.216.278 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   6144, progress = 0.44, t = 256.23 s / 23.98 tokens per second
+7.50.278.659 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   8192, progress = 0.59, t = 453.29 s / 18.07 tokens per second
+11.58.609.129 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =  10240, progress = 0.74, t = 701.61 s / 14.59 tokens per second
+16.15.600.258 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =  12288, progress = 0.89, t = 958.60 s / 12.82 tokens per second
