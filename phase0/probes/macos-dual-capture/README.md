@@ -23,6 +23,11 @@ missed IO deadlines under full CPU load.
   code.  Processes started by Claude Code are attributed to its bundled
   helper (`com.anthropic.claude-code`), not to Terminal or the Claude app, so
   their app track is silent unless that helper is granted access.
+- The terminal pane inside the Claude desktop app is attributed to the
+  Claude app, so it works when the Claude app has the permission.  On
+  2026-10-29 Terminal.app runs were denied ("not granted") even though the
+  setting showed Terminal enabled.  `scripts/run-muted.sh` mutes the speakers
+  for a run (the tap is unaffected) and restores them afterwards.
 
 ## Build and run
 

@@ -23,6 +23,10 @@ model=models/whisper/ggml-large-v3-turbo-q5_0.bin
 sample=upstream/whisper.cpp/samples/jfk.wav
 # WORKER_THREADS overrides the default of every physical core.
 threads="${WORKER_THREADS:-$(sysctl -n hw.physicalcpu)}"
+# WORKER_GPU=1 runs the worker on Metal instead of the CPU; WORKER_POLICY=utility
+# starts it under taskpolicy -c utility (the priority a recorder would give it).
+gpu_flag=-ng; [[ "${WORKER_GPU:-0}" == 1 ]] && gpu_flag=
+policy=(); [[ -n "${WORKER_POLICY:-}" ]] && policy=(taskpolicy -c "$WORKER_POLICY")
 tone="$out/$name-tone.wav"
 
 # 880 Hz mono tone long enough to outlast the capture.
@@ -48,8 +52,8 @@ log="$out/$name-workers.jsonl"
 : >"$log"
 start=$(date +%s)
 while kill -0 "$capture_pid" 2>/dev/null; do
-  # -ng keeps the load on the CPU, matching the Windows stress run.
-  "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng \
+  # -ng (the default) keeps the load on the CPU, matching the Windows stress run.
+  ${policy[@]+"${policy[@]}"} "$whisper" -m "$model" -f "$sample" -t "$threads" -nt $gpu_flag \
     >"$out/$name-worker.stdout.txt" 2>"$out/$name-worker.stderr.txt" & worker=$!
   hi=$(( kill_every - 2 > 3 ? kill_every - 2 : 3 ))
   lifetime=$(( 2 + RANDOM % (hi - 2) ))

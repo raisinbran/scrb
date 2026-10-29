@@ -1,0 +1,39 @@
+{
+  "app" : {
+    "arrival_error_ms" : 22.866374966270087,
+    "discontinuities" : 4,
+    "effective_rate_hz" : 48000.293982825497,
+    "frame_vs_clock_error_ms" : 22.169958371250686,
+    "frames" : 173751808,
+    "gap_fill_frames" : 33792,
+    "max_inter_arrival_ms" : 383.9965834049508,
+    "packets" : 339293,
+    "rate" : 48000,
+    "seconds_by_frames" : 3619.8293333333331
+  },
+  "arrival_drift_ms" : 0.61408331430357066,
+  "avg_cpu_percent_of_machine" : 0.1015729862592992,
+  "cpu_seconds" : 36.768659999999997,
+  "mic" : {
+    "arrival_error_ms" : 22.252291651966516,
+    "discontinuities" : 4,
+    "effective_rate_hz" : 48000.293978082169,
+    "frame_vs_clock_error_ms" : 22.169833398947958,
+    "frames" : 173753632,
+    "gap_fill_frames" : 34080,
+    "max_inter_arrival_ms" : 394.04241659212857,
+    "packets" : 339296,
+    "rate" : 48000,
+    "seconds_by_frames" : 3619.8673333333331
+  },
+  "peak_rss_mib" : 15.515625,
+  "pid_tree" : [
+    21522
+  ],
+  "platform" : "macos",
+  "requested_seconds" : 3600,
+  "sample_count_drift_ms" : 0.00012497230272856541,
+  "start_offset_ms" : 16.3042499916628,
+  "tap_processes" : 1,
+  "wall_seconds" : 3619.9250759582501
+}
