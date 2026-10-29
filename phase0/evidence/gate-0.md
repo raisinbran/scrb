@@ -235,6 +235,33 @@ about 10% better than small.en with the same settings, short of the plan's
   audio.  A GPU build is needed for the final-pass-time target; none of the
   CPU numbers here use the RTX 3080.
 
+**Per-segment transcription (the recommended design).**  Each Silero VAD
+segment (300 ms silence split, 204 segments) is sent to `whisper-server` as
+its own request (`scripts/simulate_live_delay.py`):
+
+| Pass | Model and setting | WER | CPU time per segment |
+| --- | --- | ---: | ---: |
+| Live candidate | small.en, 15 s encoder context (`-ac 768`) | 31.8% | 1.2 s |
+| Live candidate | small.en, full context | 25.7% | 2.5 s |
+| Final pass | large-v3-turbo, full context | **23.8%** | 10.7 s |
+
+Final versus live: 25% fewer errors than the CPU-viable live setting (meets
+the >=15% target); 7.5% fewer than full-context live.  On CPU the turbo pass
+took 2.1x the meeting length, so the final-pass-time target needs the GPU
+build.
+
+**Live delay** (real-time replay of the first 10 min, single worker, 8 CPU
+threads, CPU shared with the LLM benchmark):
+
+| small.en setting | Median delay | p95 delay | Within 6 s |
+| --- | ---: | ---: | ---: |
+| Full 30 s context | 2.85 s | 7.60 s | 91.9% (fails the 95% target) |
+| `-ac 768` | 1.36 s | 1.59 s | 99.2% (meets) |
+
+On CPU, live mode needs the reduced encoder context, which costs about 6
+points of WER.  With a GPU, full context is expected to fit the delay target;
+this must be confirmed on GPU builds on both machines.
+
 ### Speaker diarization on AMI
 
 `probes/live-diarization/LiveDiarize.cpp` on sherpa-onnx v2.0.1 (pyannote
@@ -293,31 +320,92 @@ tested configuration (best 21.1--28.4%), mainly because overlapped speech is
 missed.  Options: accept a measured target (about 25%) or add overlap
 assignment in Phase 4.  Owner decision.
 
+### Local summary models (action items and decisions)
+
+llama.cpp `369dcf309c8b274370e692ac2d42d9708597ae04`, CPU build, 12 threads,
+24k context, flash attention, q8_0 KV cache, JSON-schema output (actions with
+owner and timestamp; decisions with timestamp), temperature 0.  Transcripts
+over 40k characters are split into sections and the results concatenated (the
+plan's section-by-section design).  Inputs are AMI reference transcripts of
+ES2016b, ES2008b and TS3012b, the AMI meetings with the
+most annotated actions and decisions: 18 actions and 32 decisions in total.
+Judged item by item against the AMI abstractive summaries
+(`artifacts/summary/judgments.md`).
+
+| Model | Recall (of 50) | Non-items output | Valid timestamps | Peak private / working set | CPU time per meeting |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Ministral-3-8B-Instruct-2512 | **84%** | ~13% | 80/85 | 8.8 / 10.0 GiB | 17--44 min |
+| Qwen3.5-9B | 61% | ~4% | 66/67 | 4.4 / 8.2 GiB | 10--25 min |
+| granite-4.2-8b | 49% | ~18% | 64/67 | 9.5 / 11.3 GiB | 14--49 min |
+
+- No model reaches the 90% recall target on reference transcripts.
+  Ministral is closest.  The plan's coverage-check pass and a non-item filter
+  are the obvious next steps.
+- Evidence links: JSON schema plus a timestamp check catches most bad links,
+  but Ministral shifted 5 timestamps by 30 minutes.  The app must validate
+  every link against the transcript, as the plan's 100% target requires.
+- Memory: run after Stop, one large model at a time.  The owner noted on
+  2026-10-28 that most target machines have 32 GB RAM, so 9--10 GiB after Stop
+  is acceptable.
+- Speed: about 34 prompt tokens/s and 6 generated tokens/s on contended CPU.
+  A GPU build is required.
+
+### Memory during recording (Windows, measured parts)
+
+| Component | Peak |
+| --- | ---: |
+| Capture process (two tracks) | 11--12 MiB |
+| Opus encoding | negligible (libopus, ~1% of one core) |
+| Live speech: whisper.cpp small.en-q5_1 | 481 MiB (batch peak) |
+| Live speakers: sherpa-onnx incremental | 230--840 MiB (zh model upper end) |
+| **Measured total** | **about 0.7--1.3 GiB** |
+
+The desktop shell and UI are not built yet; Electron typically adds a few
+hundred MiB.  The whole-app recording budget of about 6 GB has ample headroom
+on Windows.  The final pass loads turbo (811 MiB) after Stop.
+
+## Recommendations for Gate 0 open items (proposed; owner decides)
+
+| Open item | Proposal from measurements |
+| --- | --- |
+| Desktop shell | Electron (Meetily fails rule 1 at the capture architecture) |
+| Live / final speech models | small.en-q5_1 live; large-v3-turbo-q5_0 final, both per VAD segment, `-mc 0` for the final pass; GPU builds |
+| Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass |
+| Summary model | Ministral-3-8B-Instruct-2512 Q4_K_M on recall, with coverage and non-item passes; Qwen3.5-9B if memory matters more |
+| Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each stamped with its first frame's device timestamp (QPC / host time) |
+| Voice-match confidence line | Not measured; needs labeled multi-meeting voice data (Phase 4) |
+| DOCX library | Follows Electron: a Node DOCX writer such as `docx` (to be pinned in Phase 7) |
+| Targets to revisit | Final DER 20% (best measured 21--28%); summary recall 90% (best 84% on reference text); RAM guidance now 32 GB typical |
+
 ## Apple Silicon Machine
 
-Pending access and execution.  Required tests include ScreenCaptureKit selected-
-application audio plus microphone capture, worker-crash isolation, model memory,
-and the same diarization/summary/storage cases used on Windows.
+Pending access and execution.  `probes/macos-dual-capture/` holds an untested
+Swift probe (Core Audio process tap over the target's process tree, plus the
+default input device), with outputs compatible with the Windows analysis
+scripts.  Required: isolation, 60-minute worker-kill stress, the 8 h drift run,
+device cases, and Metal builds of whisper.cpp, sherpa-onnx and llama.cpp for
+the model memory and timing runs.
 
 ## Gate Checklist
 
-- [ ] Synced dual-track capture works on Windows.
+- [ ] Synced dual-track capture works on Windows.  60 min passes with
+  per-chunk timestamps; 8 h run pending; device-change, sleep/wake and
+  Bluetooth cases not run.
 - [ ] Synced dual-track capture works on Apple Silicon macOS.
-- [ ] Recording survives a crashed AI worker on both machines.
-- [ ] Native models fit the 6 GB whole-app recording budget.
+- [ ] Recording survives a crashed AI worker on both machines.  Windows
+  passes (120 runs, 16 killed, 0 app-track gaps); macOS not run.
+- [ ] Native models fit the 6 GB whole-app recording budget.  Windows passes
+  at about 1.3 GiB measured, before the shell; macOS not run.
 - [ ] Live diarization is usable, or the documented fallback is accepted.
+  Usable on Windows at about 25--29% DER, pending owner acceptance.
 - [x] The Meetily decision rule has a decisive code-level failure.
 - [ ] The final framework choice is approved by the project owner.
 
-Windows per-application loopback and a short separate dual-track recording are
-proven, but the checklist item remains open until clock drift and the required
-device-state cases have been measured.
-
 ## Gate Decision
 
-**Not ready for approval.** Phase 1 remains blocked by Gate 0.  Windows long-run
-and resilience measurements remain, and the Apple Silicon macOS execution
-environment will be needed after the Windows-only work is exhausted.  After the
-remaining measurements pass, the owner must approve the final framework
-decision before production implementation begins.
+**Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
+the 8 h Windows drift result, the Windows device-state cases, the whole Apple
+Silicon run, GPU confirmation of the delay and final-pass-time targets, and
+owner decisions on the framework, the DER and summary-recall targets, and the
+recommendations above.
 

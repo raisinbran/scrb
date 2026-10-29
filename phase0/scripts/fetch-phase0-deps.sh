@@ -52,6 +52,8 @@ if [[ "$group" == all || "$group" == upstream ]]; then
   clone upstream/sherpa-onnx https://github.com/k2-fsa/sherpa-onnx af2d8d81dbfa61c4cea4c568da78f3982edca005
   clone upstream/meetily https://github.com/Zackriya-Solutions/meetily a2cb62e827da7ef59f65064c97233efb2313878e
   clone upstream/windows-classic-samples https://github.com/microsoft/Windows-classic-samples 434f6002bdf9cf9829406c3ff2b33387982d6168
+  # macOS capture borrow candidate named in the plan (reviewed by Codex, not yet used).
+  clone upstream/meeting-transcriber https://github.com/pasrom/meeting-transcriber 0c40928d44f4453dd0e375db6cff538a8de24065
 fi
 
 if [[ "$group" == all || "$group" == asr ]]; then

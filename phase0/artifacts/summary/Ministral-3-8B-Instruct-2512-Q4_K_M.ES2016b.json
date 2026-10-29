@@ -1,0 +1,131 @@
+{
+  "action_items": [
+    {
+      "text": "A: Okay let's just go over the agenda real quick for this meeting. See if I can't get things uh moving along here a little bit better.",
+      "owner": "A",
+      "timestamp": "01:12"
+    },
+    {
+      "text": "A: I'll go over what we went over last time, which shouldn't take long.",
+      "owner": "A",
+      "timestamp": "01:20"
+    },
+    {
+      "text": "A: I'm responsible for leading the meetings, keeping the notes, uh and coming up with the final presentation.",
+      "owner": "A",
+      "timestamp": "02:01"
+    },
+    {
+      "text": "A: Corinne is our Marketing Expert. She's gonna figure out what the consumer wants.",
+      "owner": "A",
+      "timestamp": "02:11"
+    },
+    {
+      "text": "A: Ryan is our User Interface Designer.",
+      "owner": "A",
+      "timestamp": "02:21"
+    },
+    {
+      "text": "A: Manuel is the Industrial Designer.",
+      "owner": "A",
+      "timestamp": "02:24"
+    },
+    {
+      "text": "C: I've done the role that I was asked to do anyway.",
+      "owner": "C",
+      "timestamp": "01:06"
+    },
+    {
+      "text": "A: Manuel you're going to work on the components for what we're gonna use. Let's go with our rounded kind of fit in your hand. Let's explore the possibility of having the two-piece. So one for the quick zapping, um and possibly one you know with just that rounded part that fits into your hand.",
+      "owner": "A",
+      "timestamp": "09:19"
+    },
+    {
+      "text": "A: Ryan you work on how how well they'll work with the user. So both of those concepts.",
+      "owner": "A",
+      "timestamp": "09:33"
+    },
+    {
+      "text": "A: So for the next um before the next meeting we'll work on watching trends to see what kind of new information we've got going on.",
+      "owner": "A",
+      "timestamp": "08:53"
+    },
+    {
+      "text": "A: I'll do the minutes.",
+      "owner": "A",
+      "timestamp": "06:11"
+    },
+    {
+      "text": "A: We'll have some questionnaires and some summaries for what's going on.",
+      "owner": "A",
+      "timestamp": "05:53"
+    },
+    {
+      "text": "C: I'll have a look, try look at the actual appearance in the next break.",
+      "owner": "C",
+      "timestamp": "07:29"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "We want it to be a universal remote uh that everyone would want. Um we want to be modern, fun, different. Uh it needs to be sturdy, easy to find, so we gonna have that locator function.",
+      "timestamp": "02:36"
+    },
+    {
+      "text": "We decided that it should probably be one-handed. Something we could use with one hand.",
+      "timestamp": "03:15"
+    },
+    {
+      "text": "We decided our remote, uh we want it to be a universal remote uh that everyone would want. Um we want to be modern, fun, different. Uh it needs to be sturdy, easy to find, so we gonna have that locator function.",
+      "timestamp": "02:47"
+    },
+    {
+      "text": "We decided a universal remote control is actually quite a difficult object to design and possibly within maybe the budget that we do it, um because you'd need to know all the specs of all the electronic companies.",
+      "timestamp": "11:28"
+    },
+    {
+      "text": "We decided to focus on a T_V_ remote control instead of a universal remote.",
+      "timestamp": "12:03"
+    },
+    {
+      "text": "We decided to focus on a user-centred design for the remote control, with fewer buttons and simpler to use.",
+      "timestamp": "12:43"
+    },
+    {
+      "text": "We decided to incorporate the corporate colour (grey and yellow) and our slogan, 'We put the fashion in electronics', on the remote.",
+      "timestamp": "22:55"
+    },
+    {
+      "text": "We decided not to include teletext functionality.",
+      "timestamp": "22:45"
+    },
+    {
+      "text": "We decided not to include speech recognition due to cost and practicality concerns, despite younger people's interest.",
+      "timestamp": "23:54"
+    },
+    {
+      "text": "We decided to include a locator function for the remote, possibly with a holder/charger that also serves as a locator.",
+      "timestamp": "24:24"
+    },
+    {
+      "text": "We decided to use a minimal number of buttons: 1-9 for channel input, volume up/down, channel up/down, power, mute, and a menu button for additional functions.",
+      "timestamp": "32:28"
+    },
+    {
+      "text": "We decided to explore a scroll wheel for navigation, possibly with a click function, and to consider ergonomic aspects like a bulge for better grip.",
+      "timestamp": "33:04"
+    },
+    {
+      "text": "We decided to explore a circular design with buttons around the thumb for a one-handed use, which would work for both left and right-handed users.",
+      "timestamp": "36:11"
+    },
+    {
+      "text": "We decided to explore a two-piece remote concept: one for quick zapping (channels, volume, power) and another for more detailed functions.",
+      "timestamp": "37:08"
+    },
+    {
+      "text": "We decided to focus on a specific target group to help determine the remote's design and features.",
+      "timestamp": "28:01"
+    }
+  ]
+}

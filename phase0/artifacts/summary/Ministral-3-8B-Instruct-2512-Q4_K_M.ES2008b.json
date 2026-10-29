@@ -1,0 +1,105 @@
+{
+  "action_items": [
+    {
+      "text": "Complete a questionnaire and a summary individually after the meeting.",
+      "owner": "Everyone",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Ensure the minutes and project documentation, including PowerPoint slides, are accessible for everyone.",
+      "owner": "A",
+      "timestamp": "35:17"
+    },
+    {
+      "text": "Note any frustrations or issues in your summary.",
+      "owner": "Everyone",
+      "timestamp": "35:50"
+    },
+    {
+      "text": "Industrial Design: Complete the components concept.",
+      "owner": "I_D (Industrial Design)",
+      "timestamp": "35:21"
+    },
+    {
+      "text": "User Interface: Complete the user interface concept.",
+      "owner": "User Interface",
+      "timestamp": "35:25"
+    },
+    {
+      "text": "Watch market trends.",
+      "owner": "User Interface",
+      "timestamp": "35:30"
+    },
+    {
+      "text": "Check the group folder for shared project documents and ensure your files are correctly placed.",
+      "owner": "Everyone",
+      "timestamp": "36:06"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The group will follow the order of presentations as initially suggested by A (D, then C, then B).",
+      "timestamp": "02:18"
+    },
+    {
+      "text": "The group agreed to focus on the remote control's appearance (fashion appeal) and usability (ease of use, fewer buttons, addressing repetitive strain injury) based on market research findings.",
+      "timestamp": "07:55"
+    },
+    {
+      "text": "The group decided not to work with teletext as it has been largely replaced by the internet.",
+      "timestamp": "21:29"
+    },
+    {
+      "text": "Management has decided not to work with Ceefax-like technology for the remote.",
+      "timestamp": "22:32"
+    },
+    {
+      "text": "Focus on designing the remote for television only, not for other devices like video or electronics.",
+      "timestamp": "22:43"
+    },
+    {
+      "text": "Use the company\u2019s corporate image, including the yellow color and the slogan, in the new remote design.",
+      "timestamp": "23:05"
+    },
+    {
+      "text": "Target group is narrowed down to under sixty-five years old, focusing on simplicity and fashion.",
+      "timestamp": "30:28"
+    },
+    {
+      "text": "Remote will be sold separately from the television for \u20ac25.",
+      "timestamp": "24:55"
+    },
+    {
+      "text": "Voice recognition will not be included in the remote due to cost and complexity.",
+      "timestamp": "25:46"
+    },
+    {
+      "text": "Remote should have large, accessible buttons for essential functions.",
+      "timestamp": "32:42"
+    },
+    {
+      "text": "Remote should include a feature to help locate it if lost (e.g., a beep or ring function).",
+      "timestamp": "31:49"
+    },
+    {
+      "text": "Remote should have a possibility to access extra functions, which can be hidden or less prominent.",
+      "timestamp": "32:52"
+    },
+    {
+      "text": "Remote should be fashionable and aesthetically pleasing.",
+      "timestamp": "33:23"
+    },
+    {
+      "text": "Consider using a rechargeable battery or a charging station instead of disposable batteries.",
+      "timestamp": "34:20"
+    },
+    {
+      "text": "Emphasize simplicity and ease of use, including functional infrared capabilities.",
+      "timestamp": "33:30"
+    },
+    {
+      "text": "Focus on simplicity and fashion as core design goals.",
+      "timestamp": "30:33"
+    }
+  ]
+}
