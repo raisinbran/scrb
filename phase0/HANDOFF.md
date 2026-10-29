@@ -1,6 +1,6 @@
 # Phase 0 Handoff
 
-Last updated: 2026-10-28 (Claude Code, Windows PC #1).  This folder mirrors the
+Last updated: 2026-10-29 (Claude Code, Windows PC #1).  This folder mirrors the
 Phase 0 scratch repository (originally
 `C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting Transcriber` on
 Windows PC #1, which is offline for up to a week from 2026-10-29).  Continue
@@ -24,8 +24,11 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Device change / sleep-wake / Bluetooth | **Not run** (needs a person at the machine) | Not run |
 | Framework | Electron (Meetily fails rule 1); owner approval pending | n/a |
 
-Also measured on Windows: Opus storage, vocabulary hints, whisper accuracy and
-live delay on AMI, and the summary-model comparison.
+Also measured on Windows (CPU and RTX 3080 GPU): Opus storage, vocabulary
+hints, whisper accuracy, live delay and final-pass time on AMI, the
+summary-model comparison, and a provisional voice-match confidence line.
+The proposed answers to the plan's open items are in the "Recommendations"
+table of `evidence/gate-0.md`.
 
 ## Resume on any machine
 
@@ -54,8 +57,8 @@ See `MANIFEST.md` for exact versions and hashes.
    `probes/windows-dual-capture/DualCapture.exe` runs.  The probe currently
    has no device-change recovery; record what happens.  That is the finding
    Phase 2's adapter must handle.
-3. **GPU builds** of whisper.cpp and llama.cpp (Vulkan or CUDA on Windows,
-   Metal on Mac).  Every model number so far is CPU-only on a contended CPU.
+3. **GPU on the Mac:** repeat the GPU runs with Metal builds.  Windows GPU
+   numbers come from the prebuilt CUDA binaries pinned in `MANIFEST.md`.
 4. Owner decisions listed at the end of `evidence/gate-0.md`, then the Gate 0
    decision.
 
