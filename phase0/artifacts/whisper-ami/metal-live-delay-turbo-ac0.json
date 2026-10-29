@@ -1,0 +1,1132 @@
+{
+ "summary": {
+  "model": "ggml-large-v3-turbo-q5_0.bin",
+  "threads": "4",
+  "audio_ctx": "0",
+  "segments": 124,
+  "audio_s": 597.79,
+  "median_delay_s": 0.734,
+  "p95_delay_s": 0.784,
+  "max_delay_s": 0.87,
+  "share_within_6s": 1.0,
+  "mean_process_s": 0.437
+ },
+ "rows": [
+  {
+   "start": 12.48,
+   "end": 14.65,
+   "queue_s": 0.309,
+   "process_s": 0.448,
+   "delay_s": 0.757,
+   "words": 12,
+   "text": "I'll extend the lights so everyone can see that a bit better."
+  },
+  {
+   "start": 22.59,
+   "end": 23.84,
+   "queue_s": 0.304,
+   "process_s": 0.433,
+   "delay_s": 0.737,
+   "words": 7,
+   "text": "I'm supposed to be standing up there."
+  },
+  {
+   "start": 25.19,
+   "end": 26.65,
+   "queue_s": 0.307,
+   "process_s": 0.442,
+   "delay_s": 0.748,
+   "words": 8,
+   "text": "So we've got both of these clipped on."
+  },
+  {
+   "start": 29.22,
+   "end": 30.49,
+   "queue_s": 0.309,
+   "process_s": 0.428,
+   "delay_s": 0.737,
+   "words": 6,
+   "text": "- Is she gonna answer me?"
+  },
+  {
+   "start": 30.95,
+   "end": 32.38,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 3,
+   "text": "Both of them."
+  },
+  {
+   "start": 82.18,
+   "end": 83.77,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 3,
+   "text": "- Hello everybody."
+  },
+  {
+   "start": 84.55,
+   "end": 85.69,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.732,
+   "words": 2,
+   "text": "I'm Sarah."
+  },
+  {
+   "start": 86.11,
+   "end": 87.36,
+   "queue_s": 0.302,
+   "process_s": 0.419,
+   "delay_s": 0.721,
+   "words": 3,
+   "text": "- Project manager."
+  },
+  {
+   "start": 87.91,
+   "end": 90.24,
+   "queue_s": 0.303,
+   "process_s": 0.428,
+   "delay_s": 0.732,
+   "words": 6,
+   "text": "And this is our first meeting."
+  },
+  {
+   "start": 91.59,
+   "end": 94.17,
+   "queue_s": 0.301,
+   "process_s": 0.431,
+   "delay_s": 0.732,
+   "words": 5,
+   "text": "Okay, this is our agenda."
+  },
+  {
+   "start": 95.84,
+   "end": 97.15,
+   "queue_s": 0.309,
+   "process_s": 0.419,
+   "delay_s": 0.728,
+   "words": 2,
+   "text": "We will..."
+  },
+  {
+   "start": 97.76,
+   "end": 101.6,
+   "queue_s": 0.31,
+   "process_s": 0.457,
+   "delay_s": 0.767,
+   "words": 17,
+   "text": "do some stuff, get to know each other a bit better, feel more comfortable with each other."
+  },
+  {
+   "start": 101.95,
+   "end": 103.77,
+   "queue_s": 0.302,
+   "process_s": 0.422,
+   "delay_s": 0.724,
+   "words": 3,
+   "text": "Then we'll go..."
+  },
+  {
+   "start": 104.26,
+   "end": 105.47,
+   "queue_s": 0.301,
+   "process_s": 0.419,
+   "delay_s": 0.721,
+   "words": 3,
+   "text": "do tool training."
+  },
+  {
+   "start": 106.34,
+   "end": 107.58,
+   "queue_s": 0.308,
+   "process_s": 0.424,
+   "delay_s": 0.732,
+   "words": 5,
+   "text": "talk about the project plan."
+  },
+  {
+   "start": 108.19,
+   "end": 110.01,
+   "queue_s": 0.31,
+   "process_s": 0.427,
+   "delay_s": 0.737,
+   "words": 6,
+   "text": "discuss our own ideas and everything."
+  },
+  {
+   "start": 110.5,
+   "end": 111.52,
+   "queue_s": 0.31,
+   "process_s": 0.414,
+   "delay_s": 0.724,
+   "words": 1,
+   "text": "um,"
+  },
+  {
+   "start": 112.07,
+   "end": 116.0,
+   "queue_s": 0.31,
+   "process_s": 0.448,
+   "delay_s": 0.758,
+   "words": 14,
+   "text": "and we've got 25 minutes to do that as far as I can understand."
+  },
+  {
+   "start": 117.63,
+   "end": 121.15,
+   "queue_s": 0.31,
+   "process_s": 0.446,
+   "delay_s": 0.756,
+   "words": 11,
+   "text": "Now, we're developing a remote control, which you probably already know."
+  },
+  {
+   "start": 121.57,
+   "end": 124.41,
+   "queue_s": 0.301,
+   "process_s": 0.428,
+   "delay_s": 0.729,
+   "words": 6,
+   "text": "we want it to be original"
+  },
+  {
+   "start": 124.8,
+   "end": 125.47,
+   "queue_s": 0.31,
+   "process_s": 0.416,
+   "delay_s": 0.726,
+   "words": 2,
+   "text": "something that's"
+  },
+  {
+   "start": 126.05,
+   "end": 128.25,
+   "queue_s": 0.31,
+   "process_s": 0.443,
+   "delay_s": 0.753,
+   "words": 10,
+   "text": "people haven't thought of. It's not out in the shops."
+  },
+  {
+   "start": 128.8,
+   "end": 132.38,
+   "queue_s": 0.306,
+   "process_s": 0.433,
+   "delay_s": 0.739,
+   "words": 7,
+   "text": "trendy, appealing to a wide market, but"
+  },
+  {
+   "start": 133.28,
+   "end": 135.07,
+   "queue_s": 0.31,
+   "process_s": 0.434,
+   "delay_s": 0.744,
+   "words": 7,
+   "text": "you know, not a hunk of metal."
+  },
+  {
+   "start": 135.55,
+   "end": 136.77,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.732,
+   "words": 2,
+   "text": "and user-friendly."
+  },
+  {
+   "start": 137.09,
+   "end": 138.46,
+   "queue_s": 0.31,
+   "process_s": 0.421,
+   "delay_s": 0.731,
+   "words": 2,
+   "text": "Granny's tickets."
+  },
+  {
+   "start": 139.33,
+   "end": 141.12,
+   "queue_s": 0.302,
+   "process_s": 0.438,
+   "delay_s": 0.74,
+   "words": 9,
+   "text": "maybe even poochers should be able to use it."
+  },
+  {
+   "start": 142.85,
+   "end": 143.49,
+   "queue_s": 0.31,
+   "process_s": 0.416,
+   "delay_s": 0.726,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 143.87,
+   "end": 149.15,
+   "queue_s": 0.304,
+   "process_s": 0.456,
+   "delay_s": 0.76,
+   "words": 17,
+   "text": "First is the functional design. This is where we all go off and do our individual work."
+  },
+  {
+   "start": 149.6,
+   "end": 153.63,
+   "queue_s": 0.305,
+   "process_s": 0.435,
+   "delay_s": 0.74,
+   "words": 9,
+   "text": "what needs need to be fulfilled by the product."
+  },
+  {
+   "start": 153.99,
+   "end": 156.19,
+   "queue_s": 0.305,
+   "process_s": 0.428,
+   "delay_s": 0.733,
+   "words": 7,
+   "text": "what effect the product has to have"
+  },
+  {
+   "start": 156.64,
+   "end": 158.75,
+   "queue_s": 0.301,
+   "process_s": 0.434,
+   "delay_s": 0.735,
+   "words": 8,
+   "text": "and how it's actually going to do that."
+  },
+  {
+   "start": 159.43,
+   "end": 161.05,
+   "queue_s": 0.31,
+   "process_s": 0.416,
+   "delay_s": 0.726,
+   "words": 2,
+   "text": "conceptual design"
+  },
+  {
+   "start": 162.34,
+   "end": 167.87,
+   "queue_s": 0.307,
+   "process_s": 0.486,
+   "delay_s": 0.793,
+   "words": 26,
+   "text": "what we're thinking, how it's going to go, and then the detailed design, how we're actually going to put it into practice and make it work."
+  },
+  {
+   "start": 170.4,
+   "end": 170.97,
+   "queue_s": 0.31,
+   "process_s": 0.418,
+   "delay_s": 0.728,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 171.27,
+   "end": 174.17,
+   "queue_s": 0.31,
+   "process_s": 0.436,
+   "delay_s": 0.746,
+   "words": 8,
+   "text": "Right. We're going to practice with the pens."
+  },
+  {
+   "start": 174.5,
+   "end": 179.13,
+   "queue_s": 0.307,
+   "process_s": 0.446,
+   "delay_s": 0.753,
+   "words": 11,
+   "text": "and draw our favorite animal on the whiteboard. I'll go first."
+  },
+  {
+   "start": 179.68,
+   "end": 183.52,
+   "queue_s": 0.305,
+   "process_s": 0.433,
+   "delay_s": 0.738,
+   "words": 8,
+   "text": "and sum up the characteristics of that animal."
+  },
+  {
+   "start": 184.26,
+   "end": 184.83,
+   "queue_s": 0.303,
+   "process_s": 0.414,
+   "delay_s": 0.717,
+   "words": 1,
+   "text": "So..."
+  },
+  {
+   "start": 189.09,
+   "end": 189.41,
+   "queue_s": 0.31,
+   "process_s": 0.415,
+   "delay_s": 0.725,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 190.05,
+   "end": 191.71,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 4,
+   "text": "space for everyone else."
+  },
+  {
+   "start": 192.1,
+   "end": 192.83,
+   "queue_s": 0.31,
+   "process_s": 0.414,
+   "delay_s": 0.724,
+   "words": 1,
+   "text": "Um..."
+  },
+  {
+   "start": 243.33,
+   "end": 244.45,
+   "queue_s": 0.302,
+   "process_s": 0.426,
+   "delay_s": 0.728,
+   "words": 4,
+   "text": "running out of blue"
+  },
+  {
+   "start": 246.95,
+   "end": 247.49,
+   "queue_s": 0.31,
+   "process_s": 0.42,
+   "delay_s": 0.73,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 247.91,
+   "end": 250.88,
+   "queue_s": 0.309,
+   "process_s": 0.473,
+   "delay_s": 0.782,
+   "words": 20,
+   "text": "I'm not going to ask you to guess, I'm going to tell you that it's supposed to be a tiger."
+  },
+  {
+   "start": 254.53,
+   "end": 257.6,
+   "queue_s": 0.31,
+   "process_s": 0.434,
+   "delay_s": 0.744,
+   "words": 6,
+   "text": "and I see them as majestic."
+  },
+  {
+   "start": 259.91,
+   "end": 260.77,
+   "queue_s": 0.305,
+   "process_s": 0.421,
+   "delay_s": 0.727,
+   "words": 1,
+   "text": "And..."
+  },
+  {
+   "start": 261.35,
+   "end": 262.27,
+   "queue_s": 0.304,
+   "process_s": 0.416,
+   "delay_s": 0.72,
+   "words": 1,
+   "text": "independent"
+  },
+  {
+   "start": 266.21,
+   "end": 266.97,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.732,
+   "words": 1,
+   "text": "And..."
+  },
+  {
+   "start": 268.77,
+   "end": 269.15,
+   "queue_s": 0.304,
+   "process_s": 0.42,
+   "delay_s": 0.724,
+   "words": 1,
+   "text": "proud."
+  },
+  {
+   "start": 272.32,
+   "end": 272.7,
+   "queue_s": 0.306,
+   "process_s": 0.421,
+   "delay_s": 0.727,
+   "words": 1,
+   "text": "No."
+  },
+  {
+   "start": 273.31,
+   "end": 274.21,
+   "queue_s": 0.302,
+   "process_s": 0.432,
+   "delay_s": 0.734,
+   "words": 6,
+   "text": "Who would like to go next?"
+  },
+  {
+   "start": 275.2,
+   "end": 276.48,
+   "queue_s": 0.31,
+   "process_s": 0.424,
+   "delay_s": 0.734,
+   "words": 2,
+   "text": "Me. Okay."
+  },
+  {
+   "start": 277.73,
+   "end": 278.91,
+   "queue_s": 0.31,
+   "process_s": 0.451,
+   "delay_s": 0.761,
+   "words": 1,
+   "text": "We're..."
+  },
+  {
+   "start": 279.27,
+   "end": 279.74,
+   "queue_s": 0.306,
+   "process_s": 0.416,
+   "delay_s": 0.723,
+   "words": 1,
+   "text": "God."
+  },
+  {
+   "start": 285.19,
+   "end": 286.59,
+   "queue_s": 0.31,
+   "process_s": 0.43,
+   "delay_s": 0.74,
+   "words": 5,
+   "text": "Where did this come from?"
+  },
+  {
+   "start": 287.71,
+   "end": 288.7,
+   "queue_s": 0.31,
+   "process_s": 0.429,
+   "delay_s": 0.74,
+   "words": 5,
+   "text": "- Put your lapel on."
+  },
+  {
+   "start": 289.09,
+   "end": 291.39,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 2,
+   "text": "Thank you."
+  },
+  {
+   "start": 293.38,
+   "end": 296.35,
+   "queue_s": 0.302,
+   "process_s": 0.441,
+   "delay_s": 0.743,
+   "words": 9,
+   "text": "Maybe you can guess what I'm trying to make."
+  },
+  {
+   "start": 306.37,
+   "end": 307.33,
+   "queue_s": 0.303,
+   "process_s": 0.426,
+   "delay_s": 0.729,
+   "words": 4,
+   "text": "a kind of dog."
+  },
+  {
+   "start": 309.28,
+   "end": 309.69,
+   "queue_s": 0.31,
+   "process_s": 0.418,
+   "delay_s": 0.729,
+   "words": 1,
+   "text": "Yep."
+  },
+  {
+   "start": 313.51,
+   "end": 315.45,
+   "queue_s": 0.301,
+   "process_s": 0.427,
+   "delay_s": 0.729,
+   "words": 3,
+   "text": "It's actually sitting."
+  },
+  {
+   "start": 315.75,
+   "end": 318.59,
+   "queue_s": 0.31,
+   "process_s": 0.442,
+   "delay_s": 0.752,
+   "words": 6,
+   "text": "Sorry? It's sitting. It's not standing."
+  },
+  {
+   "start": 319.14,
+   "end": 321.82,
+   "queue_s": 0.31,
+   "process_s": 0.45,
+   "delay_s": 0.76,
+   "words": 10,
+   "text": "Okay, I see it as one thing, it's very supportive."
+  },
+  {
+   "start": 324.13,
+   "end": 325.63,
+   "queue_s": 0.305,
+   "process_s": 0.439,
+   "delay_s": 0.744,
+   "words": 6,
+   "text": "it's your best friend in your"
+  },
+  {
+   "start": 326.18,
+   "end": 329.25,
+   "queue_s": 0.31,
+   "process_s": 0.467,
+   "delay_s": 0.777,
+   "words": 17,
+   "text": "You can talk to a dog, it can be a best friend, it doesn't discriminate between you."
+  },
+  {
+   "start": 329.73,
+   "end": 330.69,
+   "queue_s": 0.304,
+   "process_s": 0.428,
+   "delay_s": 0.732,
+   "words": 5,
+   "text": "based on what you are?"
+  },
+  {
+   "start": 331.49,
+   "end": 332.16,
+   "queue_s": 0.303,
+   "process_s": 0.42,
+   "delay_s": 0.723,
+   "words": 2,
+   "text": "second it's"
+  },
+  {
+   "start": 333.41,
+   "end": 333.98,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.732,
+   "words": 1,
+   "text": "Loyal."
+  },
+  {
+   "start": 335.52,
+   "end": 338.3,
+   "queue_s": 0.309,
+   "process_s": 0.44,
+   "delay_s": 0.749,
+   "words": 6,
+   "text": "And third thing, it's got intuition."
+  },
+  {
+   "start": 340.67,
+   "end": 343.97,
+   "queue_s": 0.31,
+   "process_s": 0.449,
+   "delay_s": 0.76,
+   "words": 12,
+   "text": "I mean, dogs can sometimes make out between a thief and a..."
+  },
+  {
+   "start": 345.19,
+   "end": 348.32,
+   "queue_s": 0.302,
+   "process_s": 0.442,
+   "delay_s": 0.744,
+   "words": 10,
+   "text": "So basically these are the three unique features I think"
+  },
+  {
+   "start": 348.67,
+   "end": 349.6,
+   "queue_s": 0.308,
+   "process_s": 0.425,
+   "delay_s": 0.732,
+   "words": 4,
+   "text": "belong to a dog."
+  },
+  {
+   "start": 350.85,
+   "end": 351.55,
+   "queue_s": 0.306,
+   "process_s": 0.421,
+   "delay_s": 0.727,
+   "words": 2,
+   "text": "Thank you."
+  },
+  {
+   "start": 354.37,
+   "end": 355.36,
+   "queue_s": 0.305,
+   "process_s": 0.42,
+   "delay_s": 0.725,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 356.39,
+   "end": 360.77,
+   "queue_s": 0.306,
+   "process_s": 0.474,
+   "delay_s": 0.78,
+   "words": 15,
+   "text": "Please leave me a space at the bottom. I'm little. I'll get to the top."
+  },
+  {
+   "start": 360.93,
+   "end": 367.65,
+   "queue_s": 0.31,
+   "process_s": 0.487,
+   "delay_s": 0.797,
+   "words": 27,
+   "text": "- Standing on a chair. - Well, since you guys have chosen the ones I wanted to do, I have to go for something a bit random."
+  },
+  {
+   "start": 371.49,
+   "end": 379.49,
+   "queue_s": 0.309,
+   "process_s": 0.504,
+   "delay_s": 0.813,
+   "words": 25,
+   "text": "And also my drawing skill isn't that great. Well, as you can see, the quality of the work today is... I think it's outstandingly good."
+  },
+  {
+   "start": 379.65,
+   "end": 384.51,
+   "queue_s": 0.306,
+   "process_s": 0.478,
+   "delay_s": 0.784,
+   "words": 23,
+   "text": "Okay, now I'm going to have to change what it was originally going to be because that looks like a beak now, so..."
+  },
+  {
+   "start": 391.2,
+   "end": 391.81,
+   "queue_s": 0.306,
+   "process_s": 0.419,
+   "delay_s": 0.725,
+   "words": 1,
+   "text": "crocodile?"
+  },
+  {
+   "start": 393.99,
+   "end": 407.17,
+   "queue_s": 0.3,
+   "process_s": 0.528,
+   "delay_s": 0.828,
+   "words": 34,
+   "text": "Yeah, it can be a crocodile. It can be a crocodile. Firstly, it was an attempt at a T-Rex, and then it sort of changed into a pelican, but it can be a crocodile."
+  },
+  {
+   "start": 421.25,
+   "end": 425.37,
+   "queue_s": 0.31,
+   "process_s": 0.454,
+   "delay_s": 0.764,
+   "words": 14,
+   "text": "Yeah, and I'll have to think on the spot of things that it is."
+  },
+  {
+   "start": 426.02,
+   "end": 426.59,
+   "queue_s": 0.308,
+   "process_s": 0.416,
+   "delay_s": 0.724,
+   "words": 1,
+   "text": "Um..."
+  },
+  {
+   "start": 428.13,
+   "end": 428.77,
+   "queue_s": 0.31,
+   "process_s": 0.418,
+   "delay_s": 0.728,
+   "words": 1,
+   "text": "uh,"
+  },
+  {
+   "start": 429.06,
+   "end": 430.14,
+   "queue_s": 0.302,
+   "process_s": 0.417,
+   "delay_s": 0.719,
+   "words": 1,
+   "text": "Scary."
+  },
+  {
+   "start": 432.51,
+   "end": 434.01,
+   "queue_s": 0.305,
+   "process_s": 0.418,
+   "delay_s": 0.723,
+   "words": 1,
+   "text": "Strong..."
+  },
+  {
+   "start": 438.75,
+   "end": 442.33,
+   "queue_s": 0.31,
+   "process_s": 0.444,
+   "delay_s": 0.754,
+   "words": 7,
+   "text": "Yeah, that's about it, I think. Okay."
+  },
+  {
+   "start": 443.17,
+   "end": 446.65,
+   "queue_s": 0.3,
+   "process_s": 0.455,
+   "delay_s": 0.755,
+   "words": 10,
+   "text": "I'm very impressed with your artistic skills. Mine's a dreadful."
+  },
+  {
+   "start": 447.94,
+   "end": 451.49,
+   "queue_s": 0.307,
+   "process_s": 0.449,
+   "delay_s": 0.756,
+   "words": 12,
+   "text": "This is now coming apart. Let me just put the top in."
+  },
+  {
+   "start": 453.99,
+   "end": 457.34,
+   "queue_s": 0.31,
+   "process_s": 0.443,
+   "delay_s": 0.753,
+   "words": 9,
+   "text": "I hope that clicks in. I'll hold it on."
+  },
+  {
+   "start": 457.95,
+   "end": 459.13,
+   "queue_s": 0.301,
+   "process_s": 0.42,
+   "delay_s": 0.722,
+   "words": 2,
+   "text": "Oh dear."
+  },
+  {
+   "start": 459.84,
+   "end": 460.7,
+   "queue_s": 0.3,
+   "process_s": 0.422,
+   "delay_s": 0.722,
+   "words": 3,
+   "text": "What happened there?"
+  },
+  {
+   "start": 461.15,
+   "end": 462.14,
+   "queue_s": 0.308,
+   "process_s": 0.42,
+   "delay_s": 0.729,
+   "words": 2,
+   "text": "Technical help."
+  },
+  {
+   "start": 465.44,
+   "end": 469.15,
+   "queue_s": 0.301,
+   "process_s": 0.444,
+   "delay_s": 0.745,
+   "words": 7,
+   "text": "Hopefully that will stay on, two-handed version."
+  },
+  {
+   "start": 469.57,
+   "end": 470.17,
+   "queue_s": 0.31,
+   "process_s": 0.417,
+   "delay_s": 0.727,
+   "words": 1,
+   "text": "Oh."
+  },
+  {
+   "start": 474.43,
+   "end": 477.76,
+   "queue_s": 0.307,
+   "process_s": 0.464,
+   "delay_s": 0.771,
+   "words": 17,
+   "text": "Again, this is off the top of my head. I was gonna do a big cat too."
+  },
+  {
+   "start": 478.11,
+   "end": 478.81,
+   "queue_s": 0.31,
+   "process_s": 0.418,
+   "delay_s": 0.728,
+   "words": 1,
+   "text": "um,"
+  },
+  {
+   "start": 481.28,
+   "end": 484.06,
+   "queue_s": 0.31,
+   "process_s": 0.444,
+   "delay_s": 0.754,
+   "words": 10,
+   "text": "It doesn't look like what I want it to be."
+  },
+  {
+   "start": 488.87,
+   "end": 491.13,
+   "queue_s": 0.31,
+   "process_s": 0.429,
+   "delay_s": 0.739,
+   "words": 5,
+   "text": "Not a vampire bat, honestly."
+  },
+  {
+   "start": 492.9,
+   "end": 494.88,
+   "queue_s": 0.306,
+   "process_s": 0.436,
+   "delay_s": 0.742,
+   "words": 6,
+   "text": "and somewhere there's a body behind."
+  },
+  {
+   "start": 497.54,
+   "end": 510.97,
+   "queue_s": 0.3,
+   "process_s": 0.558,
+   "delay_s": 0.858,
+   "words": 40,
+   "text": "That's my dreadful, that's the worst yet. It's meant to be an eagle. You can tell it's a flying animal. Could have been a seagull. I never thought of a seagull. An eagle. Again, I'm thinking on my feet. Goodness."
+  },
+  {
+   "start": 511.49,
+   "end": 514.21,
+   "queue_s": 0.301,
+   "process_s": 0.449,
+   "delay_s": 0.75,
+   "words": 11,
+   "text": "I suppose they're also independent. I'd put that one down again."
+  },
+  {
+   "start": 516.13,
+   "end": 516.61,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.732,
+   "words": 2,
+   "text": "I didn't."
+  },
+  {
+   "start": 517.92,
+   "end": 518.72,
+   "queue_s": 0.31,
+   "process_s": 0.419,
+   "delay_s": 0.729,
+   "words": 1,
+   "text": "Um..."
+  },
+  {
+   "start": 519.87,
+   "end": 526.05,
+   "queue_s": 0.309,
+   "process_s": 0.48,
+   "delay_s": 0.789,
+   "words": 18,
+   "text": "They're good at golf. Independent, right. Did you say they're good at golf? Yeah. Are they? Eagle. Eagle."
+  },
+  {
+   "start": 526.24,
+   "end": 531.04,
+   "queue_s": 0.308,
+   "process_s": 0.467,
+   "delay_s": 0.775,
+   "words": 12,
+   "text": "Oh right, I'm not good at golf. I'll say they're quite free-spirited."
+  },
+  {
+   "start": 532.03,
+   "end": 533.37,
+   "queue_s": 0.31,
+   "process_s": 0.422,
+   "delay_s": 0.733,
+   "words": 3,
+   "text": "flying around everywhere."
+  },
+  {
+   "start": 535.59,
+   "end": 536.67,
+   "queue_s": 0.308,
+   "process_s": 0.426,
+   "delay_s": 0.734,
+   "words": 4,
+   "text": "doing their own thing."
+  },
+  {
+   "start": 541.47,
+   "end": 542.65,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 2,
+   "text": "And, uh..."
+  },
+  {
+   "start": 543.78,
+   "end": 545.57,
+   "queue_s": 0.31,
+   "process_s": 0.441,
+   "delay_s": 0.751,
+   "words": 7,
+   "text": "Birds of prey, aren't they? Oh dear."
+  },
+  {
+   "start": 546.08,
+   "end": 548.83,
+   "queue_s": 0.31,
+   "process_s": 0.434,
+   "delay_s": 0.744,
+   "words": 2,
+   "text": "Intrepid. Intrepid."
+  },
+  {
+   "start": 553.67,
+   "end": 554.43,
+   "queue_s": 0.31,
+   "process_s": 0.424,
+   "delay_s": 0.734,
+   "words": 3,
+   "text": "There we go."
+  },
+  {
+   "start": 554.85,
+   "end": 556.41,
+   "queue_s": 0.31,
+   "process_s": 0.441,
+   "delay_s": 0.752,
+   "words": 9,
+   "text": "I hope that pen is going to be okay."
+  },
+  {
+   "start": 558.56,
+   "end": 559.07,
+   "queue_s": 0.31,
+   "process_s": 0.42,
+   "delay_s": 0.73,
+   "words": 1,
+   "text": "clip."
+  },
+  {
+   "start": 561.15,
+   "end": 561.63,
+   "queue_s": 0.306,
+   "process_s": 0.422,
+   "delay_s": 0.729,
+   "words": 1,
+   "text": "Okay."
+  },
+  {
+   "start": 565.47,
+   "end": 570.11,
+   "queue_s": 0.307,
+   "process_s": 0.457,
+   "delay_s": 0.764,
+   "words": 9,
+   "text": "Finance-wise, we've got a selling price at 25 euros."
+  },
+  {
+   "start": 570.4,
+   "end": 571.9,
+   "queue_s": 0.305,
+   "process_s": 0.437,
+   "delay_s": 0.742,
+   "words": 6,
+   "text": "which I don't actually know what."
+  },
+  {
+   "start": 572.23,
+   "end": 573.79,
+   "queue_s": 0.301,
+   "process_s": 0.435,
+   "delay_s": 0.737,
+   "words": 5,
+   "text": "that isn't pounds at all."
+  },
+  {
+   "start": 574.66,
+   "end": 575.74,
+   "queue_s": 0.31,
+   "process_s": 0.423,
+   "delay_s": 0.733,
+   "words": 2,
+   "text": "Any ideas?"
+  },
+  {
+   "start": 576.61,
+   "end": 578.4,
+   "queue_s": 0.304,
+   "process_s": 0.421,
+   "delay_s": 0.725,
+   "words": 1,
+   "text": "17?"
+  },
+  {
+   "start": 578.72,
+   "end": 582.3,
+   "queue_s": 0.304,
+   "process_s": 0.468,
+   "delay_s": 0.772,
+   "words": 15,
+   "text": "1.4 euro would make a pound or something like that. Yeah, yeah, same on that."
+  },
+  {
+   "start": 582.59,
+   "end": 583.01,
+   "queue_s": 0.301,
+   "process_s": 0.424,
+   "delay_s": 0.725,
+   "words": 1,
+   "text": "over"
+  },
+  {
+   "start": 583.81,
+   "end": 587.26,
+   "queue_s": 0.305,
+   "process_s": 0.428,
+   "delay_s": 0.733,
+   "words": 4,
+   "text": "Yeah, about 17 pounds."
+  },
+  {
+   "start": 588.42,
+   "end": 597.79,
+   "queue_s": 0.302,
+   "process_s": 0.568,
+   "delay_s": 0.87,
+   "words": 47,
+   "text": "Should we be making notes of this? We can just refer to this later, Conor. I think so. I think so. I'd be able to pull it up or put it in the shared folder. Having said that, though, if you want to get one of those..."
+  }
+ ]
+}

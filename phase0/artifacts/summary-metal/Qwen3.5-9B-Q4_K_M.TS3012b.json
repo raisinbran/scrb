@@ -1,0 +1,118 @@
+{
+  "action_items": [
+    {
+      "text": "Review the minutes from the last meeting posted on Project Share.",
+      "owner": "All attendees",
+      "timestamp": "01:04"
+    },
+    {
+      "text": "Investigate whether symbols on the remote control can be made more durable or fade-proof.",
+      "owner": "Team",
+      "timestamp": "07:48"
+    },
+    {
+      "text": "Investigate the feasibility of implementing a text-only TV guide preview feature instead of an LCD screen.",
+      "owner": "C",
+      "timestamp": "15:24"
+    },
+    {
+      "text": "Research if there is a standard menu button usable across different TV brands to enable opening menus with a universal remote.",
+      "owner": "C",
+      "timestamp": "21:49"
+    },
+    {
+      "text": "Develop a components concept for the new remote control.",
+      "owner": "Team",
+      "timestamp": "19:04"
+    },
+    {
+      "text": "Conduct trend-watching to understand what features people really want in a remote control.",
+      "owner": "D",
+      "timestamp": "19:11"
+    },
+    {
+      "text": "Sketch ideas for the remote control design (e.g., shape, curves, colors) and present them at the next meeting.",
+      "owner": "B",
+      "timestamp": "22:52"
+    },
+    {
+      "text": "Find out if rechargeable batteries are possible and if people are willing to pay extra for them.",
+      "owner": "C",
+      "timestamp": "28:41"
+    },
+    {
+      "text": "Find out what people are willing to pay for the remote control (targeting around 25 Euros sales price).",
+      "owner": "C",
+      "timestamp": "29:52"
+    },
+    {
+      "text": "Research the cost and space requirements for including an LCD screen on the remote.",
+      "owner": "C",
+      "timestamp": "37:31"
+    },
+    {
+      "text": "Research the cost and space requirements for including speech recognition functionality on the remote.",
+      "owner": "C",
+      "timestamp": "39:49"
+    },
+    {
+      "text": "Think of a name for the new remote control product.",
+      "owner": "All",
+      "timestamp": "40:02"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The project will target younger people (under forty) who are willing to pay for a stylish and functional remote control.",
+      "timestamp": "13:15"
+    },
+    {
+      "text": "The Teletext button should be kept but not made a primary button; it should be placed under a secondary menu option.",
+      "timestamp": "12:58"
+    },
+    {
+      "text": "The corporate colors (black and yellow) and logo should be kept in mind for the design.",
+      "timestamp": "13:39"
+    },
+    {
+      "text": "The team will pursue a universal remote control design rather than a brand-specific one.",
+      "timestamp": "16:26"
+    },
+    {
+      "text": "Speech recognition will not be implemented in the remote control due to technical immaturity, memory constraints, and lack of market readiness.",
+      "timestamp": "17:06"
+    },
+    {
+      "text": "The remote control should use durable materials (e.g., harder plastic) to prevent symbols from fading, potentially utilizing changeable covers.",
+      "timestamp": "17:19"
+    },
+    {
+      "text": "The remote control design should be distinct from competitors (like Sony) to avoid confusion, possibly using different shapes or curves.",
+      "timestamp": "22:38"
+    },
+    {
+      "text": "The power button should be placed on top of the remote.",
+      "timestamp": "25:30"
+    },
+    {
+      "text": "The mute button should be placed near the volume selection, not at the top.",
+      "timestamp": "26:03"
+    },
+    {
+      "text": "The channel buttons (up and down) should be placed on top of the remote.",
+      "timestamp": "26:34"
+    },
+    {
+      "text": "The remote should include a beep and/or light feature to help deaf users or users who have lost the remote.",
+      "timestamp": "24:44"
+    },
+    {
+      "text": "The remote should include an LCD screen to display information.",
+      "timestamp": "37:12"
+    },
+    {
+      "text": "The channel buttons should be grouped together in a central section.",
+      "timestamp": "38:08"
+    }
+  ]
+}

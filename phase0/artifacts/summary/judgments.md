@@ -88,3 +88,30 @@ or invalid answer once with temperature 0.4, seed 1 and DRY sampling.
 - Ministral-3-8B: the retry did not rescue TS3012b (2 retries, still invalid
   JSON); ES2016b produced 42 decisions (over-extraction).  It is not viable
   on this build.
+
+## Apple Silicon Metal run (llama.cpp `369dcf3` Metal, `-ngl 99`, Apple M5, same prompt and schema)
+
+Judge: Claude Code (Opus 5.5), 2026-10-29, same rules.  Outputs in
+`artifacts/summary-metal/`.  The items differ from the CUDA run (only 37 of
+68 timestamps coincide), so they were judged afresh.
+
+| Model | ES2016b | ES2008b | TS3012b | Total (of 50) | Recall |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Qwen3.5-9B Q4_K_M | 10 (3.5 + 6.5) | 14.5 (5.5 + 9) | 13.5 (6 + 7.5) | 38 | **76%** |
+
+- ES2016b misses: no teletext, simple, appealing, easy to find, slogan on the
+  bottom; button colour only as "grey and yellow" corporate colours (0.5); the
+  UI designer's task is only "how the proposed concepts work with the user"
+  (0.5).
+- ES2008b: target group by "income and TV ownership" rather than objectives
+  (0.5); the charging station appears only as something to investigate (0.5);
+  "team members post documentation" missing.
+- TS3012b: "TV only" missing (the output says universal, which the reference
+  also lists); logo instead of slogan (0.5); TV-mounted finder button missing
+  (0.5); the UI concept presentation missing.
+- Non-items: about 4 of 68 (6%): "review the minutes" (twice), "make a
+  decision on functions", presentation order.
+- Conflicts: TS3012b decides both "speech recognition will not be
+  implemented" and to research it, and "should include an LCD screen" while
+  researching its cost, the same inconsistency as the CUDA run.
+- Valid evidence timestamps: 67/68.

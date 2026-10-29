@@ -1,0 +1,4 @@
+WER artifacts/whisper-ami/metal-segacc-small-ac0.txt: {"meeting": "ES2004a", "hypothesis": "metal-segacc-small-ac0.txt", "ref_words": 2512, "hyp_words": 2015, "wer": 0.2699}
+WER artifacts/whisper-ami/metal-segacc-turbo-ac0.txt: {"meeting": "ES2004a", "hypothesis": "metal-segacc-turbo-ac0.txt", "ref_words": 2512, "hyp_words": 2074, "wer": 0.2369}
+WER artifacts/whisper-ami/metal-ES2004a-small-vad-mc0.txt: {"meeting": "ES2004a", "hypothesis": "metal-ES2004a-small-vad-mc0.txt", "ref_words": 2512, "hyp_words": 2068, "wer": 0.2528}
+WER artifacts/whisper-ami/metal-ES2004a-turbo-vad-mc0.txt: {"meeting": "ES2004a", "hypothesis": "metal-ES2004a-turbo-vad-mc0.txt", "ref_words": 2512, "hyp_words": 2072, "wer": 0.2381}

@@ -11,7 +11,6 @@ separately from the saved outputs.
 """
 
 import ctypes
-import ctypes.wintypes as wt
 import json
 import os
 import re
@@ -62,18 +61,28 @@ SCHEMA = {
 }
 
 
-class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
-    _fields_ = [
-        ("cb", wt.DWORD), ("PageFaultCount", wt.DWORD),
-        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
-        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
-        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
-    ]
-
-
 def memory_mib(pid):
-    """Return (peak working set, peak private bytes) in MiB for a process."""
+    """Return (peak working set, peak private bytes) in MiB for a process.
+
+    On macOS both values are the lifetime peak physical footprint, which on
+    Apple Silicon includes Metal (unified) memory.
+    """
+    if sys.platform == "darwin":
+        info = (ctypes.c_uint64 * 64)()  # rusage_info_v4 is 16 uuid bytes + uint64 fields
+        ctypes.CDLL("/usr/lib/libproc.dylib").proc_pid_rusage(pid, 4, ctypes.byref(info))
+        peak = info[2 + 28] / 2**20  # ri_lifetime_max_phys_footprint
+        return peak, peak
+    import ctypes.wintypes as wt
+
+    class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+        _fields_ = [
+            ("cb", wt.DWORD), ("PageFaultCount", wt.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
     handle = ctypes.windll.kernel32.OpenProcess(0x0410, False, pid)
     counters = PROCESS_MEMORY_COUNTERS()
     counters.cb = ctypes.sizeof(counters)

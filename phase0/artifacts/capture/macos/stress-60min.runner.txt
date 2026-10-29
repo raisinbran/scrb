@@ -1,0 +1,56 @@
+scripts/run-macos-dual-capture-stress.sh: line 58:  6118 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58:  8651 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58:  9149 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58:  9400 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58:  9486 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58:  9986 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 10297 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 10347 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 10402 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 10664 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 10944 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 11241 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 11304 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 11513 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 11659 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+scripts/run-macos-dual-capture-stress.sh: line 58: 11844 Killed: 9               "$whisper" -m "$model" -f "$sample" -t "$threads" -nt -ng > "$out/$name-worker.stdout.txt" 2> "$out/$name-worker.stderr.txt"
+capture_exit_code=0 worker_runs=121 worker_killed=16
+{
+  "app" : {
+    "arrival_error_ms" : 17.160750032417127,
+    "discontinuities" : 3,
+    "effective_rate_hz" : 48000.214223290648,
+    "frame_vs_clock_error_ms" : 16.175500039025792,
+    "frames" : 173970944,
+    "gap_fill_frames" : 13312,
+    "max_inter_arrival_ms" : 181.39208329375833,
+    "packets" : 339761,
+    "rate" : 48000,
+    "seconds_by_frames" : 3624.3946666666666
+  },
+  "arrival_drift_ms" : 0.86300000566552626,
+  "avg_cpu_percent_of_machine" : 0.11070748776120579,
+  "cpu_seconds" : 40.125729999999997,
+  "mic" : {
+    "arrival_error_ms" : 16.297750026751601,
+    "discontinuities" : 3,
+    "effective_rate_hz" : 48000.214212427694,
+    "frame_vs_clock_error_ms" : 16.174875051547133,
+    "frames" : 173973044,
+    "gap_fill_frames" : 13876,
+    "max_inter_arrival_ms" : 197.9856250109151,
+    "packets" : 339764,
+    "rate" : 48000,
+    "seconds_by_frames" : 3624.4384166666669
+  },
+  "peak_rss_mib" : 16.265625,
+  "pid_tree" : [
+    4381
+  ],
+  "platform" : "macos",
+  "requested_seconds" : 3600,
+  "sample_count_drift_ms" : 0.0006249874786590226,
+  "start_offset_ms" : 14.010666636750102,
+  "tap_processes" : 1,
+  "wall_seconds" : 3624.482030208339
+}

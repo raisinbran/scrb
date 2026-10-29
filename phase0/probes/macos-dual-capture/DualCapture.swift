@@ -242,9 +242,10 @@ check(AudioHardwareCreateAggregateDevice(aggregateSpec as CFDictionary, &aggrega
 let tapFormat: AudioStreamBasicDescription = getProperty(tapID, kAudioTapPropertyFormat,
                                                          AudioStreamBasicDescription())
 let appTrack = Track(name: "app", path: prefix + "-app.wav", rate: tapFormat.mSampleRate)
-let queue = DispatchQueue(label: "capture", qos: .userInteractive)
+// A nil queue runs each IOProc on its device's real-time HAL IO thread.  A shared GCD
+// queue (the first macOS stress run) missed IO deadlines under full CPU load.
 var appProc: AudioDeviceIOProcID?
-check(AudioDeviceCreateIOProcIDWithBlock(&appProc, aggregateID, queue) { _, input, inputTime, _, _ in
+check(AudioDeviceCreateIOProcIDWithBlock(&appProc, aggregateID, nil) { _, input, inputTime, _, _ in
     handleInput(appTrack, input, inputTime, channels: Int(tapFormat.mChannelsPerFrame))
 }, "create tap IOProc")
 
@@ -260,7 +261,7 @@ if useMic {
         AudioStreamBasicDescription())
     let track = Track(name: "mic", path: prefix + "-mic.wav", rate: micFormat.mSampleRate)
     micTrack = track
-    check(AudioDeviceCreateIOProcIDWithBlock(&micProc, inputDevice, queue) { _, input, inputTime, _, _ in
+    check(AudioDeviceCreateIOProcIDWithBlock(&micProc, inputDevice, nil) { _, input, inputTime, _, _ in
         handleInput(track, input, inputTime, channels: Int(micFormat.mChannelsPerFrame))
     }, "create mic IOProc")
 }

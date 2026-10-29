@@ -1,0 +1,78 @@
+{
+  "action_items": [
+    {
+      "text": "Work on questionnaires and summaries regarding the current project status.",
+      "owner": "Group",
+      "timestamp": "25:51"
+    },
+    {
+      "text": "Work on individual tasks (components, user interface concepts, and design appearance) after lunch.",
+      "owner": "Group",
+      "timestamp": "26:04"
+    },
+    {
+      "text": "A will write the meeting minutes.",
+      "owner": "A",
+      "timestamp": "26:11"
+    },
+    {
+      "text": "C will look at the actual appearance of the remote design in the next break.",
+      "owner": "C",
+      "timestamp": "27:27"
+    },
+    {
+      "text": "B will work on the components (chips, power source) needed for the remote.",
+      "owner": "B",
+      "timestamp": "39:01"
+    },
+    {
+      "text": "B will explore the possibility of a two-piece remote design (one for quick zapping, one for the rounded hand-fit part).",
+      "owner": "B",
+      "timestamp": "39:11"
+    },
+    {
+      "text": "C will work on how the proposed concepts will work with the user.",
+      "owner": "C",
+      "timestamp": "39:30"
+    },
+    {
+      "text": "D will research new trends to gather information for the next meeting.",
+      "owner": "D",
+      "timestamp": "38:53"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The remote will be designed specifically for television, not as a universal remote.",
+      "timestamp": "22:10"
+    },
+    {
+      "text": "The remote will incorporate the corporate colors (grey and yellow) and the slogan 'we put the fashion in electronics'.",
+      "timestamp": "22:55"
+    },
+    {
+      "text": "Speech recognition will be removed from the project as it is not considered worth the investment at this time.",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "The remote design should focus on a specific look/trend rather than targeting a specific demographic group.",
+      "timestamp": "28:01"
+    },
+    {
+      "text": "The remote will feature a minimal number of buttons, including numbers 1-9, volume up/down, channel up/down, power, mute, and a menu button.",
+      "timestamp": "31:48"
+    },
+    {
+      "text": "The remote will utilize a scrolling function (like a wheel) for navigating menus.",
+      "timestamp": "33:03"
+    },
+    {
+      "text": "The remote will be designed primarily for right-handed users.",
+      "timestamp": "35:34"
+    },
+    {
+      "text": "The team will explore a two-piece remote design where a smaller 'zapping' device fits into a larger, rounded hand-fit unit.",
+      "timestamp": "39:19"
+    }
+  ]
+}

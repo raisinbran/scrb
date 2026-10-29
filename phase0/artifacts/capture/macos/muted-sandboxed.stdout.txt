@@ -1,0 +1,2 @@
+Capturing 6 seconds.
+Finished. drift(sample-count)=0.000 ms

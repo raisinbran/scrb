@@ -16,3 +16,11 @@ results/raw/
 *.gguf
 *.onnx
 __pycache__/
+
+# macOS probe binaries
+probes/macos-dual-capture/DualCapture
+probes/live-diarization/LiveDiarize
+
+# Hour-long capture recordings and generated tones (summaries and timing CSVs are kept)
+artifacts/capture/macos/stress-*.wav
+artifacts/capture/macos/*-tone*.wav

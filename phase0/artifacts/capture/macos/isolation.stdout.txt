@@ -1,0 +1,3 @@
+Capturing 60 seconds.
+60 s app_frames=2888704 mic_frames=0
+Finished. drift(sample-count)=0.000 ms
