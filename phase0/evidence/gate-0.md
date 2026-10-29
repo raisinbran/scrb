@@ -229,8 +229,6 @@ about 10% better than small.en with the same settings, short of the plan's
 
 - The final pass must use VAD segmentation and no text conditioning
   (`-mc 0`); unconditioned turbo otherwise loops or skips.
-- Reaching the 15% target likely needs a per-speaker-turn final pass
-  (transcribe diarized segments separately) rather than a whole-file pass.
 - Wall time on CPU: small.en 146--158 s, turbo 363--475 s for 1,049 s of
   audio.  A GPU build is needed for the final-pass-time target; none of the
   CPU numbers here use the RTX 3080.
@@ -271,13 +269,19 @@ points of WER.
 | small.en per-segment WER (full context) | 25.7% | 26.7% |
 | Live delay, small.en full context, median / p95 | 2.85 / 7.60 s | **0.54 / 0.68 s** |
 | Live segments within 6 s | 91.9% | **100%** |
+| Live delay, **turbo** full context, median / p95 | n/a | **0.54 / 0.70 s** (100% within 6 s) |
+| Final pass on diarized speaker turns instead of VAD segments (turbo) | n/a | 28.5% WER (worse) |
 
 With a GPU, the live-delay and final-pass-time targets pass with wide margins
-on Windows.  Turbo-versus-small gives only about 10% fewer errors at full
-context, below the >=15% target.  At GPU speed the live pass could itself use
-turbo, so the target is better redefined: the final pass gains from
-per-speaker-turn segmentation and frozen corrections rather than from a
-bigger model.  Owner decision.  Must be repeated with Metal on the Mac.
+on Windows.  Turbo is fast enough to be the live model itself, so on GPU
+machines the "final pass >=15% fewer errors than live" target has no model gap
+left to measure.  Transcribing diarized speaker turns instead of VAD segments
+made results worse (non-speech and overlap inside turns cause insertions).
+Proposal: on GPU machines, use turbo live and keep the final pass for
+re-segmentation, frozen corrections and diarization relabeling; restate the
+15% target as "final pass no worse than live, plus corrections preserved", or
+keep 15% only for CPU-only machines where live must use small.en.  Owner
+decision.  Must be repeated with Metal on the Mac.
 
 ### Speaker diarization on AMI
 
@@ -381,6 +385,9 @@ so recall on three meetings swings by about 20 points between builds.
 **Revised proposal: Qwen3.5-9B Q4_K_M**, for stable output, the best GPU
 recall and the lowest memory.  The summarizer must detect loops and retry with
 sampling whatever model is used, and Phase 6 needs a larger evaluation set.
+A naive coverage-check pass (re-ask with the first-pass items listed) added
+only duplicates and no recall with Qwen.  A sampled retry did not rescue
+Ministral's loops (`artifacts/summary/judgments.md`).
 
 ### Memory during recording (Windows, measured parts)
 
@@ -401,7 +408,7 @@ on Windows.  The final pass loads turbo (811 MiB) after Stop.
 | Open item | Proposal from measurements |
 | --- | --- |
 | Desktop shell | Electron (Meetily fails rule 1 at the capture architecture) |
-| Live / final speech models | small.en-q5_1 live; large-v3-turbo-q5_0 final, both per VAD segment, `-mc 0` for the final pass; GPU builds |
+| Live / final speech models | GPU machines: large-v3-turbo-q5_0 live and final, per VAD segment; CPU-only: small.en-q5_1 live with `-ac 768`, turbo final; `-mc 0` for whole-file passes |
 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass |
 | Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, stable JSON, lowest memory); Ministral was best on CPU (84%) but loops on the newer llama.cpp build |
 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each stamped with its first frame's device timestamp (QPC / host time) |

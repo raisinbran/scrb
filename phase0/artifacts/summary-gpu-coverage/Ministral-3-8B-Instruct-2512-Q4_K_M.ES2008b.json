@@ -1,0 +1,125 @@
+{
+  "action_items": [
+    {
+      "text": "A will email the meeting minutes to everyone and also place them in the shared folder.",
+      "owner": "A",
+      "timestamp": "01:25",
+      "pass": "coverage"
+    },
+    {
+      "text": "D will check if the group can access the report online or if it is only accessible to D.",
+      "owner": "D",
+      "timestamp": "03:53",
+      "pass": "coverage"
+    },
+    {
+      "text": "Complete a questionnaire and a summary after the meeting.",
+      "owner": "Everyone",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Ensure the minutes and project documentation, including PowerPoint slides, are accessible for everyone.",
+      "owner": "A",
+      "timestamp": "35:17"
+    },
+    {
+      "text": "User Interface team: Complete the user interface concept.",
+      "owner": "User Interface team",
+      "timestamp": "35:28"
+    },
+    {
+      "text": "Industrial Design team: Complete the components concept.",
+      "owner": "I_D_ Industrial Design team",
+      "timestamp": "35:25"
+    },
+    {
+      "text": "Watch market trends.",
+      "owner": "Market Trend team",
+      "timestamp": "35:30"
+    },
+    {
+      "text": "Note any frustrations or issues in your summary.",
+      "owner": "Everyone",
+      "timestamp": "35:50"
+    },
+    {
+      "text": "Check and ensure your individual project files are in the group folder.",
+      "owner": "Everyone",
+      "timestamp": "36:06"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Order of presentations: Presentations will be given in the order that was initially mentioned by A (user requirements, effects, working design).",
+      "timestamp": "02:18"
+    },
+    {
+      "text": "Remote control functions to be decided upon during the meeting.",
+      "timestamp": "01:40"
+    },
+    {
+      "text": "Not working with teletext due to it being taken over by the internet.",
+      "timestamp": "21:29"
+    },
+    {
+      "text": "Management has decided not to work with Ceefax-like technology for the remote.",
+      "timestamp": "22:32"
+    },
+    {
+      "text": "Focus on designing the remote for television only, not for other devices like video or general electronics.",
+      "timestamp": "22:51"
+    },
+    {
+      "text": "The remote should be sold separately from the television for now.",
+      "timestamp": "24:55"
+    },
+    {
+      "text": "The price of the remote is set at 25 Euros.",
+      "timestamp": "24:58"
+    },
+    {
+      "text": "The target age group for the remote is under 65 years old.",
+      "timestamp": "30:28"
+    },
+    {
+      "text": "The remote should include large, accessible buttons for essential functions.",
+      "timestamp": "32:42"
+    },
+    {
+      "text": "The remote should have a feature to help locate it if lost (e.g., a beep or ring function).",
+      "timestamp": "32:33"
+    },
+    {
+      "text": "The remote should have a possibility to access extra functions, which can be hidden or less prominent.",
+      "timestamp": "33:05"
+    },
+    {
+      "text": "The remote should be fashionable and aesthetically pleasing.",
+      "timestamp": "33:23"
+    },
+    {
+      "text": "The remote should incorporate a long-life or rechargeable battery option.",
+      "timestamp": "34:26"
+    },
+    {
+      "text": "The remote should emphasize simplicity and fashion as core design goals.",
+      "timestamp": "31:39"
+    },
+    {
+      "text": "Voice recognition will not be included in the remote due to cost and complexity.",
+      "timestamp": "25:46"
+    },
+    {
+      "text": "The remote should have a design that includes the company's yellow color and slogan.",
+      "timestamp": "23:09"
+    },
+    {
+      "text": "The remote should have a design that combines fashion with electronics.",
+      "timestamp": "23:30"
+    },
+    {
+      "text": "The remote should have a design that includes the double 'R_' logo prominently.",
+      "timestamp": "23:23"
+    }
+  ]
+}

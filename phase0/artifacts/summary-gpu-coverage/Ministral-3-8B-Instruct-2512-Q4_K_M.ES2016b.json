@@ -1,0 +1,197 @@
+{
+  "action_items": [
+    {
+      "text": "A: I'll do the minutes.",
+      "owner": "A",
+      "timestamp": "26:11"
+    },
+    {
+      "text": "A: Manuel you're going to work on the components for what we're gonna use. Let's go with our our uh rounded kind of fit in your hand let's explore uh the the uh possibility of having the two-piece. So one for the quick zapping um and possibly one you know with just that rounded part that fits into your hand.",
+      "owner": "A",
+      "timestamp": "39:19"
+    },
+    {
+      "text": "A: Ryan you work on how how well they'll work with the user. So both of those concepts.",
+      "owner": "A",
+      "timestamp": "39:36"
+    },
+    {
+      "text": "A: D: Mm-hmm A: So for the next um before the next meeting w uh sh shall we work on you're watching trends to see what kind of new information we've got going on.",
+      "owner": "A and D",
+      "timestamp": "38:55"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "A: We want something that looks good. Um we want something that's simple We want something that you can find easily.",
+      "timestamp": "23:35"
+    },
+    {
+      "text": "A: So maybe we should just do away with speech recognition.",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "A: The remote's only gonna be for the television, which is good because we already decided your your research showed that uh not only is a universal remote more complicated it's more costly. And your re uh research showed that you know most of the people don't even use it.",
+      "timestamp": "22:10"
+    },
+    {
+      "text": "A: So we don't have to worry about that [teletext].",
+      "timestamp": "22:45"
+    },
+    {
+      "text": "A: We'll just say we've got a colour scheme for it [yellow and grey/black] and our slogan pasted somewhere on it.",
+      "timestamp": "29:08"
+    },
+    {
+      "text": "A: I guess our main thing that we should focus on until then is probably deciding on a certain look you know.",
+      "timestamp": "27:02"
+    },
+    {
+      "text": "A: I guess you've got you know one through nine. For typing in your channels. Uh you've got volume up and down. Channel up and down. Power. Usually at the top. Um a mute. A menu button, maybe.",
+      "timestamp": "31:48"
+    },
+    {
+      "text": "A: So we've got uh I like the scroll, the scroll action and the [scrolling wheel]",
+      "timestamp": "35:56"
+    },
+    {
+      "text": "A: So two remotes in one.",
+      "timestamp": "38:02"
+    },
+    {
+      "text": "A: Manuel you're going to work on the components for the two-piece remote concept.",
+      "timestamp": "39:04"
+    },
+    {
+      "text": "A: Ryan you work on how well the two-piece remote concepts will work with the user.",
+      "timestamp": "39:36"
+    },
+    {
+      "text": "A: D: Mm-hmm A: So for the next meeting shall we work on watching trends to see what kind of new information we've got going on.",
+      "timestamp": "38:55"
+    },
+    {
+      "text": "C: I think speech recognition was uh one of those things where um they have to be really good for them to work.",
+      "timestamp": "20:16"
+    },
+    {
+      "text": "A: I think we've got a kind of a good plan there [for the buttons and design].",
+      "timestamp": "35:45"
+    },
+    {
+      "text": "A: At least for what buttons we're gonna use.",
+      "timestamp": "35:53"
+    },
+    {
+      "text": "B: Right. Uh [discussing the ergonomics of the scroll wheel and button placement].",
+      "timestamp": "33:34"
+    },
+    {
+      "text": "B: That minimises it size-wise.",
+      "timestamp": "36:53"
+    },
+    {
+      "text": "C: I think it still has to be a variation on maybe a rectangle but maybe not necessarily as boring as a rectangle.",
+      "timestamp": "27:48"
+    },
+    {
+      "text": "C: I think it needs to be something that is ultimately one-handed.",
+      "timestamp": "27:36"
+    },
+    {
+      "text": "C: The ball is probably not a good idea.",
+      "timestamp": "27:40"
+    },
+    {
+      "text": "C: I think we should concentrate on something that would set a trend and change the fashion of remote controls.",
+      "timestamp": "13:41"
+    },
+    {
+      "text": "C: I think a universal remote control is actually quite a difficult object to design and possibly within maybe the budget that we do it, um because you'd need to know all the specs of all the electronic companies.",
+      "timestamp": "11:28"
+    },
+    {
+      "text": "C: But I think a universal remote control for T_V_s might be better.",
+      "timestamp": "12:03"
+    },
+    {
+      "text": "C: I think we should concentrate on a user interface orientated remote control.",
+      "timestamp": "13:21"
+    },
+    {
+      "text": "C: I think we should have a user-centred design with fewer buttons and simpler to use.",
+      "timestamp": "12:27"
+    },
+    {
+      "text": "C: I think we could have a locator function that sends out a beep to find where the remote is.",
+      "timestamp": "24:24"
+    },
+    {
+      "text": "C: The holder could also be the charging unit with the locator button.",
+      "timestamp": "25:04"
+    },
+    {
+      "text": "D: I think we were correct. We definitely need to focus on a new modern appearance, since so many people seem to be concerned about the ugliness of their remote control.",
+      "timestamp": "09:28"
+    },
+    {
+      "text": "D: Um a multifunctional remote could be a good thing to explore. So you only have one rather than five different remotes sitting all over your room.",
+      "timestamp": "09:30"
+    },
+    {
+      "text": "D: We need to simplify the remote and reduce the number of buttons, get rid of the ones that don't seem to be serving much purpose.",
+      "timestamp": "09:42"
+    },
+    {
+      "text": "D: We should discuss the idea of speech recognition, especially if we're targeting the younger groups.",
+      "timestamp": "09:06"
+    },
+    {
+      "text": "D: The younger group looks like they're all for speech recognition, but it might not be worth the investment if we're targeting older groups.",
+      "timestamp": "08:45"
+    },
+    {
+      "text": "D: Ninety-one percent of the youngest age groups said they'd use speech recognition, but probably a lot of them would use their parents' money.",
+      "timestamp": "21:23"
+    },
+    {
+      "text": "D: It's a gimmick factor that they like at first, and it'll wear off.",
+      "timestamp": "21:39"
+    },
+    {
+      "text": "B: The user interface controls the chip and accordingly the messages. We can discuss the user interface (buttons, touchpad, or speech recognition).",
+      "timestamp": "19:04"
+    },
+    {
+      "text": "B: The energy source can be altered (batteries, solar cells).",
+      "timestamp": "19:28"
+    },
+    {
+      "text": "B: The infrared lamp is a fixed component that we cannot change.",
+      "timestamp": "18:32"
+    },
+    {
+      "text": "B: The lamp can be placed on the device or not.",
+      "timestamp": "18:54"
+    },
+    {
+      "text": "A: We'll take lunch in about half an hour and then we'll probably have another meeting.",
+      "timestamp": "40:01"
+    },
+    {
+      "text": "A: We'll just say we've got a colour scheme for it [yellow and grey/black] and our slogan pasted somewhere on it, on the bottom.",
+      "timestamp": "29:21",
+      "pass": "coverage"
+    },
+    {
+      "text": "A: Maybe we could sketch a so basically all of our remotes all of our typical remotes now are just kind of a rectangular sort. You know. Um maybe we could flare it or something. You know. So it's more of course this will look like a bone then.",
+      "timestamp": "29:41",
+      "pass": "coverage"
+    },
+    {
+      "text": "B: That minimises it size-wise as well.",
+      "timestamp": "36:53",
+      "pass": "coverage"
+    }
+  ]
+}

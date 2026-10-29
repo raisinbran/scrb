@@ -161,12 +161,15 @@ def main():
                 prompt_tokens = completion_tokens = 0
                 json_valid = True
                 sections = split_sections(transcript)
-                for section in sections:
-                    resp = post("/v1/chat/completions", {
-                        "messages": [
-                            {"role": "system", "content": SYSTEM},
-                            {"role": "user", "content": section},
-                        ],
+                retries = 0
+
+                def extract(system, user):
+                    """One schema-constrained request; on a loop (token limit or bad JSON)
+                    retry once with sampling and DRY, which greedy decoding ignores."""
+                    nonlocal prompt_tokens, completion_tokens, retries
+                    body = {
+                        "messages": [{"role": "system", "content": system},
+                                     {"role": "user", "content": user}],
                         "temperature": 0,
                         "max_tokens": 4096,
                         "response_format": {"type": "json_schema", "json_schema": {"name": "notes", "schema": SCHEMA}},
@@ -176,17 +179,48 @@ def main():
                            else {"chat_template_kwargs": {"enable_thinking": False}}),
                         # Extra sampling fields as JSON, e.g. '{"dry_multiplier": 0.8}'.
                         **json.loads(os.environ.get("SUMMARY_SAMPLING", "{}")),
-                    })
-                    prompt_tokens += resp.get("usage", {}).get("prompt_tokens", 0)
-                    completion_tokens += resp.get("usage", {}).get("completion_tokens", 0)
-                    content = resp["choices"][0]["message"]["content"]
-                    try:
-                        part = json.loads(content)
-                        items["action_items"] += part.get("action_items", [])
-                        items["decisions"] += part.get("decisions", [])
-                    except json.JSONDecodeError:
+                    }
+                    for attempt in range(2):
+                        resp = post("/v1/chat/completions", body)
+                        prompt_tokens += resp.get("usage", {}).get("prompt_tokens", 0)
+                        completion_tokens += resp.get("usage", {}).get("completion_tokens", 0)
+                        choice = resp["choices"][0]
+                        content = choice["message"]["content"]
+                        try:
+                            if choice.get("finish_reason") == "length":
+                                raise json.JSONDecodeError("token limit", content or "", 0)
+                            return json.loads(content), None
+                        except json.JSONDecodeError:
+                            if attempt == 0 and os.environ.get("SUMMARY_RETRY"):
+                                retries += 1
+                                body.update({"temperature": 0.4, "seed": 1, "dry_multiplier": 0.8,
+                                             "dry_base": 1.75, "dry_allowed_length": 4})
+                                continue
+                            return None, content
+
+                coverage_system = SYSTEM + (
+                    " A first pass already extracted the items listed after the transcript. "
+                    "Return ONLY action items and decisions that the first pass missed; "
+                    "return empty lists if nothing is missing. Do not repeat or rephrase listed items.")
+                for section in sections:
+                    part, bad = extract(SYSTEM, section)
+                    if part is None:
                         json_valid = False
-                        items.setdefault("invalid_json", []).append(content)
+                        items.setdefault("invalid_json", []).append(bad)
+                        continue
+                    items["action_items"] += part.get("action_items", [])
+                    items["decisions"] += part.get("decisions", [])
+                    if os.environ.get("SUMMARY_COVERAGE"):
+                        listed = json.dumps(part, indent=1)
+                        extra, bad = extract(coverage_system,
+                                             section + "\n\nAlready extracted:\n" + listed)
+                        if extra is None:
+                            items.setdefault("invalid_json", []).append(bad)
+                            continue
+                        for key in ("action_items", "decisions"):
+                            for item in extra.get(key, []):
+                                item["pass"] = "coverage"
+                                items[key].append(item)
                 seconds = time.time() - started
                 all_items = items["action_items"] + items["decisions"]
                 valid = sum(1 for i in all_items if i.get("timestamp") in stamps)
@@ -194,7 +228,8 @@ def main():
                     json.dump(items, f, indent=2)
                 row = {
                     "model": name, "meeting": meeting, "load_seconds": round(load_seconds, 1),
-                    "seconds": round(seconds, 1), "sections": len(sections),
+                    "seconds": round(seconds, 1), "sections": len(sections), "retries": retries,
+                    "coverage_items": sum(1 for i in all_items if i.get("pass") == "coverage"),
                     "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
                     "actions": len(items["action_items"]),
                     "decisions": len(items["decisions"]),
