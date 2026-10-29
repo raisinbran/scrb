@@ -1,6 +1,6 @@
 # Gate 0 Evidence
 
-Status: **In progress; Apple Silicon execution still required**
+Status: **In progress; macOS long-run and device cases still required**
 
 This is Phase 0 throwaway evidence.  No production application code has been
 created in `C:\Users\brand\Documents\GitHub\scrb`; Phase 1 remains gated.
@@ -482,12 +482,171 @@ on Windows.  The final pass loads turbo (811 MiB) after Stop.
 
 ## Apple Silicon Machine
 
-Pending access and execution.  `probes/macos-dual-capture/` holds an untested
-Swift probe (Core Audio process tap over the target's process tree, plus the
-default input device), with outputs compatible with the Windows analysis
-scripts.  Required: isolation, 60-minute worker-kill stress, the 8 h drift run,
-device cases, and Metal builds of whisper.cpp, sherpa-onnx and llama.cpp for
-the model memory and timing runs.
+Claude Code, 2026-10-29, on the owner's Mac, overnight and unattended except
+for the isolation run.
+
+- Apple M5, 10 cores (4 performance + 6 efficiency), 16 GB, macOS 27.0.1
+  (26A434), on AC power with system sleep disabled
+- Toolchain: Command Line Tools, Swift 6.4, Apple clang 2100.3; CMake 4.4.4
+  and Ninja from a local venv (`tools/venv`, no Homebrew)
+- Builds from the pinned `upstream/` clones: whisper.cpp and llama.cpp with
+  Metal (`-DGGML_METAL=ON`), sherpa-onnx v2.0.1 C API (CPU onnxruntime)
+- Probes: `probes/macos-dual-capture/DualCapture.swift` compiled with no API
+  fixes; `probes/live-diarization/LiveDiarize.cpp` gained POSIX timer and
+  peak-memory branches (`build.sh`)
+
+### System-audio permission (finding)
+
+A process tap without System Audio Recording permission is not an error: it
+starts, delivers packets on schedule, and every sample is zero.  macOS shows
+no prompt; only coreaudiod logs "Client is not granted access to the tap".
+The permission is checked against the *responsible* process.  Runs started by
+Claude Code were attributed to its bundled helper
+(`com.anthropic.claude-code`), not to the Claude app the owner had enabled,
+so their app tracks were silent.  The isolation run was started from
+Terminal.app with permission granted.
+
+**Design consequence:** the macOS adapter must detect an all-zero app track
+(no permission, or permission revoked mid-meeting) and tell the user, and
+must request the permission explicitly rather than rely on a prompt.  The
+signed app will be its own responsible process, unlike these probes.
+
+### Per-application capture
+
+`scripts/run-macos-isolation.sh` from Terminal.app: target afplay at 880 Hz,
+an unrelated afplay at 440 Hz, 60 s, speakers muted (the tap records before
+the device volume, so muting does not affect it).
+
+| Measure | Result |
+| --- | ---: |
+| App-track peak | 10,288 (tone written at 9,830) |
+| 880 Hz / 440 Hz power on the app track | **135.5 dB** (the unrelated app is absent) |
+| Discontinuities, 5,642 packets | 0 |
+| Capture CPU / peak RSS | 0.05% / 15.9 MiB |
+
+**Pass.**
+
+### 60-minute capture with real whisper.cpp worker kills
+
+`scripts/run-macos-dual-capture-stress.sh` (port of the Windows runner):
+afplay tone plus built-in mic for 3,620 s while CPU whisper.cpp
+`large-v3-turbo-q5_0` (`-ng`, as on Windows) was started every 30 s and
+force-killed when still running.  Started from Claude Code, so the app track
+is timing-only (silent, see above), and the tone ran at volume 0 because the
+machine was in use overnight.
+
+| Measure | GCD-queue IOProcs, 10 worker threads | Real-time IOProcs, 10 threads | Real-time IOProcs, 8 threads |
+| --- | ---: | ---: | ---: |
+| Whisper runs / force-killed | 121 / 11 | 121 / 16 | 121 / 9 |
+| Capture exit | clean | clean | clean |
+| Load-stall events (both tracks at once) | 6 | 2 (+1 at tap start) | 2 |
+| Audio padded, app / mic | 416 / 455 ms | 277 / 289 ms | 213 / 201 ms |
+| Longest wait between packets, app / mic | 160 / 167 ms | 181 / 198 ms | 117 / 118 ms |
+| Capture CPU (whole machine) / peak RSS | 0.09% / 16.2 MiB | 0.11% / 16.3 MiB | 0.12% / 16.3 MiB |
+| Sample-count drift at 60 min / projected 8 h | 0.008 / 0.0 ms | 0.007 / 0.0 ms | 0.008 / 0.0 ms |
+| Max per-chunk (5 s) timestamp error | 0.027 ms | 0.024 ms | 0.022 ms |
+
+- Every stall matches a coreaudiod "Audio IO Overload" ("client timeout" /
+  "HAL client proc exceeding io cycle budget") at the same second.  None
+  coincide with a worker kill: recording survives crashed workers, but a
+  CPU-saturating worker stalls the whole Core Audio IO cycle a few times an
+  hour.  Unlike Windows, the app track is affected too; both tracks stall in
+  the same second, presumably because coreaudiod serves both in one IO cycle.
+- The first version ran both IOProcs on one shared GCD serial queue.
+  Moving them to the HAL real-time thread (nil queue) cut stalls from 6 to 2
+  per hour; leaving 2 cores free shortened them.  Neither removed them.
+- The Windows comparison run used 20 of 28 logical processors; here the
+  worker used 8--10 of 10 cores, the harsher case.  The llama.cpp and
+  sherpa-onnx builds (`nice 20`) overlapped the first 3 minutes of the
+  real-time 10-thread run.
+- The built-in mic and speakers share one clock, so sample-count drift is
+  ~0 here; this says nothing about USB or Bluetooth mics (device cases).
+- Not tested: a Metal (GPU) worker, which is what the Mac app will run, and
+  a worker at reduced QoS (`utility`).
+
+**Design consequence:** on macOS the adapter must also pad stall gaps from
+host time on the app track, and the final-pass worker should run on Metal
+with a thread cap and a QoS below the capture threads.  Re-run this stress
+with the Metal worker before Phase 2 closes.
+
+Outputs: `artifacts/capture/macos/stress-60min{-gcdqueue,,-t8}-*` (summary,
+timing CSV, worker log; the WAVs are kept locally only).
+
+### Whisper on AMI ES2004a (Metal)
+
+Same segments, scripts and models as the Windows runs; whisper.cpp Metal,
+4 threads.
+
+| Measure | Windows CPU | Windows RTX 3080 | **Apple M5 Metal** |
+| --- | ---: | ---: | ---: |
+| Turbo final pass, 1,049 s meeting, per segment | ~2,180 s | 23.6 s | **88 s (0.08x)** |
+| Turbo whole-file pass (VAD, `-mc 0`), wall | 363--475 s | n/a | **23.5 s (0.02x)** |
+| Turbo per-segment WER | 23.8% | 24.0% | 23.7% |
+| Turbo whole-file WER (VAD, `-mc 0`) | 30.0% | n/a | 23.8% |
+| small.en per-segment WER (full context) | 25.7% | 26.7% | 27.0% |
+| small.en whole-file WER (VAD, `-mc 0`) | 33.9% | n/a | 25.3% |
+| Live delay, small.en full context, median / p95 | 2.85 / 7.60 s | 0.54 / 0.68 s | **0.44 / 0.52 s** |
+| Live delay, turbo full context, median / p95 | n/a | 0.54 / 0.70 s | **0.73 / 0.78 s** |
+| Live segments within 6 s | 91.9% | 100% | **100%** (both models) |
+| Peak memory, whole-file pass | | | small 0.65 GiB, turbo 0.97 GiB footprint |
+
+The live-delay and final-pass-time targets pass on the Mac with wide margins,
+and the GPU-machine proposal (turbo live and final, per VAD segment) holds.
+The whole-file turbo pass is faster than per-segment requests here (one
+model load, batched VAD segments) at the same WER; whole-file WER is much
+better than on the Windows CPU run (same whisper.cpp commit, run under
+CPU contention); the cause of that difference was not investigated.
+
+### Speaker diarization on AMI (sherpa-onnx CPU, 4 threads)
+
+| Meeting | Live (inc 10/5, join 0.5) DER | Post-merge DER | Windows live / post-merge | Offline threshold 1.2 | Windows offline 1.2 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ES2004a | 25.7% | 24.3% | 26.2% / 24.4% | 32.9% (3 spk) | 21.6% (4 spk) |
+| IS1009a | 32.3% | 29.2% | 29.1% / 26.5% | 17.0% (5 spk) | 29.0% (5 spk) |
+| TS3003a | 25.5% | 22.9% | 25.3% / 22.7% | 21.8% (6 spk) | 21.1% (6 spk) |
+
+- Live: RTF 0.011--0.012, worst hop 0.1--0.34 s for a 5 s hop, peak 371--459
+  MiB.  Live results reproduce Windows within 0.5 points except IS1009a (+3).
+- Offline at a fixed threshold swings by 11--12 points per meeting between
+  the two onnxruntime builds (ES2004a merges a speaker; IS1009a improves).
+  This confirms the narrow threshold band: the final pass should not rely on
+  one global threshold.  RTF 0.07, peak 508--582 MiB.
+
+### Summary model (llama.cpp Metal, `-ngl 99`)
+
+Qwen3.5-9B Q4_K_M, same prompt, schema and meetings
+(`artifacts/summary-metal/`, judged in `artifacts/summary/judgments.md`).
+
+| Measure | Result |
+| --- | ---: |
+| Recall (of 50) | **76%** (Windows CUDA 80%, CPU 61%) |
+| Valid JSON / evidence timestamps | 3/3 / 67 of 68 |
+| Non-items | ~6% |
+| Time per meeting (14k--32k prompt tokens) | 72--158 s (450--620 prompt tok/s, 18.7 gen tok/s) |
+| Model load | 12 s |
+| Peak memory | 2.5 GiB footprint + 5.3 GiB memory-mapped weights, about 7.8 GiB |
+
+Usable after Stop on a 16 GB Mac.  Recall stays within the build-to-build
+noise already seen.
+
+### Memory during recording (macOS, measured parts)
+
+| Component | Peak |
+| --- | ---: |
+| Capture process (two tracks) | 16 MiB |
+| Live speech: whisper.cpp small.en (Metal) | 0.65 GiB (turbo live: 0.97 GiB) |
+| Live speakers: sherpa-onnx incremental | 371--459 MiB |
+| **Measured total** | **about 1.1--1.5 GiB** |
+
+Within the 6 GB budget, as on Windows.
+
+### Not run on the Mac yet
+
+- 8 h drift run: needs 8 unbroken awake hours on AC, started from Terminal.app
+  so the app track carries audio.
+- Device cases (output and input switch, Bluetooth headset, sleep/wake): need
+  a person at the machine.
+- The stress run with a Metal worker (see above).
 
 ## Gate Checklist
 
@@ -495,11 +654,16 @@ the model memory and timing runs.
   per-chunk timestamps (8 h: within 2 ms for 99.95% of packets; mic lost
   0.56% to load stalls, app track lost nothing); device-change, sleep/wake
   and Bluetooth cases not run.
-- [ ] Synced dual-track capture works on Apple Silicon macOS.
+- [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
+  passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
+  load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
+  8 h drift and device cases not run.
 - [ ] Recording survives a crashed AI worker on both machines.  Windows
-  passes (120 runs, 16 killed, 0 app-track gaps); macOS not run.
-- [ ] Native models fit the 6 GB whole-app recording budget.  Windows passes
-  at about 1.3 GiB measured, before the shell; macOS not run.
+  passes (120 runs, 16 killed, 0 app-track gaps).  macOS: recording survives
+  every kill (3 x 121 runs, 36 killed, no kill-related gaps); the load stalls
+  above are a separate finding.
+- [x] Native models fit the 6 GB whole-app recording budget.  Windows about
+  1.3 GiB, macOS about 1.1--1.5 GiB measured, before the shell.
 - [ ] Live diarization is usable, or the documented fallback is accepted.
   Usable on Windows at about 25--29% DER, pending owner acceptance.
 - [x] The Meetily decision rule has a decisive code-level failure.
@@ -508,8 +672,9 @@ the model memory and timing runs.
 ## Gate Decision
 
 **Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-the Windows device-state cases, the whole Apple Silicon run (including Metal
-timing of the delay and final-pass-time targets), and
+the Windows device-state cases; on the Mac the 8 h drift run, device cases
+and a Metal-worker stress run (Metal timing passes the delay and final-pass
+targets); and
 owner decisions on the framework, the DER and summary-recall targets, and the
 recommendations above.
 

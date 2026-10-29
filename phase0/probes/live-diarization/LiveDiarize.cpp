@@ -17,9 +17,14 @@
 
 #include <sherpa-onnx/c-api/c-api.h>
 
+#ifdef _WIN32
 #define NOMINMAX
 #include <Windows.h>
 #include <psapi.h>
+#else
+#include <sys/resource.h>
+#include <chrono>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -37,10 +42,30 @@ struct Segment {
 };
 
 double NowSeconds() {
+#ifdef _WIN32
     LARGE_INTEGER f, c;
     QueryPerformanceFrequency(&f);
     QueryPerformanceCounter(&c);
     return static_cast<double>(c.QuadPart) / f.QuadPart;
+#else
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+#endif
+}
+
+double PeakMemoryMib() {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS pmc{};
+    pmc.cb = sizeof(pmc);
+    typedef BOOL(WINAPI * GetPmi)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
+    auto getPmi = reinterpret_cast<GetPmi>(
+        GetProcAddress(LoadLibraryW(L"psapi.dll"), "GetProcessMemoryInfo"));
+    if (getPmi) getPmi(GetCurrentProcess(), &pmc, sizeof(pmc));
+    return pmc.PeakWorkingSetSize / 1048576.0;
+#else
+    rusage ru{};
+    getrusage(RUSAGE_SELF, &ru);
+    return ru.ru_maxrss / 1048576.0;  // bytes on macOS
+#endif
 }
 
 std::vector<Segment> Diarize(const SherpaOnnxOfflineSpeakerDiarization* sd,
@@ -344,17 +369,11 @@ int main(int argc, char** argv) {
         for (auto& s : finalLabels) fprintf(f, "%.3f %.3f %d\n", s.start, s.end, s.speaker);
         fclose(f);
     }
-    PROCESS_MEMORY_COUNTERS pmc{};
-    pmc.cb = sizeof(pmc);
-    typedef BOOL(WINAPI * GetPmi)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
-    auto getPmi = reinterpret_cast<GetPmi>(
-        GetProcAddress(LoadLibraryW(L"psapi.dll"), "GetProcessMemoryInfo"));
-    if (getPmi) getPmi(GetCurrentProcess(), &pmc, sizeof(pmc));
     printf("{\"mode\": \"%s\", \"audio_seconds\": %.3f, \"processing_seconds\": %.3f, "
            "\"rtf\": %.4f, \"hops\": %d, \"max_hop_seconds\": %.3f, \"segments\": %zu, "
            "\"relabels\": %d, \"peak_working_set_mib\": %.1f}\n",
            mode.c_str(), audioSeconds, elapsed, elapsed / audioSeconds, hops, maxHopSeconds,
-           emitted.size(), relabels, pmc.PeakWorkingSetSize / 1048576.0);
+           emitted.size(), relabels, PeakMemoryMib());
     SherpaOnnxFreeWave(wave);
     SherpaOnnxDestroyOfflineSpeakerDiarization(sd);
     return 0;

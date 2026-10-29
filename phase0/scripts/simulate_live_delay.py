@@ -92,7 +92,7 @@ def main():
                          "words": len(text.split()), "text": text.strip()})
         delays = sorted(r["delay_s"] for r in rows)
         summary = {
-            "model": model.split("\\")[-1], "threads": threads, "audio_ctx": audio_ctx, "segments": len(rows),
+            "model": model.replace("\\", "/").split("/")[-1], "threads": threads, "audio_ctx": audio_ctx, "segments": len(rows),
             "audio_s": segments[-1][1] if segments else 0,
             "median_delay_s": round(statistics.median(delays), 3),
             "p95_delay_s": round(delays[int(0.95 * (len(delays) - 1))], 3),

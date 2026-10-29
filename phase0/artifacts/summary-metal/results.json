@@ -1,0 +1,53 @@
+[
+  {
+    "model": "Qwen3.5-9B-Q4_K_M",
+    "meeting": "ES2016b",
+    "load_seconds": 12.1,
+    "seconds": 71.6,
+    "sections": 1,
+    "retries": 0,
+    "coverage_items": 0,
+    "prompt_tokens": 14011,
+    "completion_tokens": 763,
+    "actions": 8,
+    "decisions": 8,
+    "valid_timestamps": "16/16",
+    "json_valid": true,
+    "peak_working_set_mib": 2511,
+    "peak_private_mib": 2511
+  },
+  {
+    "model": "Qwen3.5-9B-Q4_K_M",
+    "meeting": "ES2008b",
+    "load_seconds": 12.1,
+    "seconds": 108.5,
+    "sections": 2,
+    "retries": 0,
+    "coverage_items": 0,
+    "prompt_tokens": 16245,
+    "completion_tokens": 1278,
+    "actions": 15,
+    "decisions": 12,
+    "valid_timestamps": "26/27",
+    "json_valid": true,
+    "peak_working_set_mib": 2511,
+    "peak_private_mib": 2511
+  },
+  {
+    "model": "Qwen3.5-9B-Q4_K_M",
+    "meeting": "TS3012b",
+    "load_seconds": 12.1,
+    "seconds": 158.3,
+    "sections": 2,
+    "retries": 0,
+    "coverage_items": 0,
+    "prompt_tokens": 31999,
+    "completion_tokens": 1199,
+    "actions": 12,
+    "decisions": 13,
+    "valid_timestamps": "25/25",
+    "json_valid": true,
+    "peak_working_set_mib": 2511,
+    "peak_private_mib": 2511
+  }
+]

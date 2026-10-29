@@ -1,0 +1,1 @@
+speakers created: 42, after merges: 30, relabels: 12

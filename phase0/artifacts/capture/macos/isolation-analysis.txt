@@ -1,0 +1,2 @@
+app track peak=10288  880Hz/440Hz = 135.5 dB
+RESULT: PASS - only the target app's tone is on the app track
