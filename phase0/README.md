@@ -24,14 +24,7 @@ Meeting Scribe development plan.  Production code belongs in
 
 ## Current Status
 
-The Windows process-loopback and CPU model benchmarks are complete.  Selected-
-process and process-tree isolation passed, and the Meetily framework rule failed
-at the capture-architecture level, making Electron the provisional choice.
-
-Windows microphone access and a short separate dual-track run now pass in the
-normal desktop session.  A two-minute run also continued to completion after a
-separate worker process terminated abruptly.  Gate 0 remains open for eight-
-hour drift and production-worker resilience measurements and the corresponding
-Apple Silicon test run.  See
-`evidence/gate-0.md` for measurements and the exact remaining checklist.
-
+See `HANDOFF.md` for where things stand and how to resume, and
+`evidence/gate-0.md` for every measurement.  Windows measurements are largely
+complete (CPU and RTX 3080 GPU); the Apple Silicon run, Windows device-state
+cases, and owner decisions remain before Gate 0 can be approved.
