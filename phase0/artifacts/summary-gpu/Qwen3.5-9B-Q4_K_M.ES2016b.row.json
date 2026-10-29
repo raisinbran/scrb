@@ -1,0 +1,1 @@
+{"model": "Qwen3.5-9B-Q4_K_M", "meeting": "ES2016b", "load_seconds": 12.7, "seconds": 9.7, "sections": 1, "prompt_tokens": 14011, "completion_tokens": 658, "actions": 4, "decisions": 9, "valid_timestamps": "13/13", "json_valid": true}

@@ -49,3 +49,27 @@ present X".
 
 Prompt processing ran at about 34 tokens/s and generation at about 6 tokens/s
 on CPU.  A GPU build is needed for practical summary times.
+
+## GPU rerun (llama.cpp b11977 CUDA 13.4, `-ngl 99`, same prompt and schema)
+
+Outputs in `artifacts/summary-gpu/`.  Same judging rules.
+
+| Model | ES2016b | ES2008b | TS3012b | Recall | Valid JSON | Time per meeting |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| Qwen3.5-9B | 12.5 (4 + 8.5) | 15 (6 + 9) | 12.5 (5.5 + 7) | **80%** | 3/3 | 10--25 s |
+| Ministral-3-8B | n/a | n/a | n/a | n/a | **1/3** (greedy repetition loop to the token limit on ES2008b section 2 and both TS3012b sections) | 31--131 s |
+| granite-4.2-8b | not re-judged | | | | 3/3 | 10--29 s |
+
+- Qwen: about 4 of 73 items are non-items (~5%).  Conflicts: ES2008b target
+  group "15 to 35" (reference: no age group); TS3012b says the LCD is both
+  excluded and considered.
+- Ministral looped identically with `--reasoning off`, without
+  `chat_template_kwargs`, and with a `maxItems` cap.  DRY sampling has no
+  effect at temperature 0 (greedy).  The CPU run on the older build did not
+  loop.
+- The same model and prompt scored 61% (CPU, older build) and 80% (GPU, newer
+  build).  Three meetings and one judge give noisy recall estimates; Phase 6
+  needs a larger evaluation set before choosing on a few points of recall.
+- Peak GPU memory during the run: 8.9 GiB of 12 GiB (1.4 GiB desktop
+  baseline).  Host private memory: Qwen 8.7 GiB, Ministral 11.4 GiB, Granite
+  11.5 GiB.  Host figures include CUDA pinned and staging buffers.

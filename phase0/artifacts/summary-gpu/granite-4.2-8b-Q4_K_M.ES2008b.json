@@ -1,0 +1,83 @@
+{
+  "action_items": [
+    {
+      "text": "Put minutes in the shared folder",
+      "owner": "A",
+      "timestamp": "01:29"
+    },
+    {
+      "text": "Press the little presentation (Y kind of over there above Draw)",
+      "owner": "A",
+      "timestamp": "04:07"
+    },
+    {
+      "text": "Give B a hand with the schematic (turning things)",
+      "owner": "A",
+      "timestamp": "20:03"
+    },
+    {
+      "text": "Complete a questionnaire and summary (sk(s)?) after the meeting",
+      "owner": "each participant",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Put individual summary in the group folder",
+      "owner": "B",
+      "timestamp": "36:06"
+    },
+    {
+      "text": "Industrial Design to complete components concept",
+      "owner": "Industrial Design",
+      "timestamp": "35:21"
+    },
+    {
+      "text": "User Interface to complete user interface concept",
+      "owner": "User Interface",
+      "timestamp": "35:21"
+    },
+    {
+      "text": "Market trend watcher to continue watching market trends",
+      "owner": "market trend wa watching",
+      "timestamp": "35:30"
+    },
+    {
+      "text": "Receive specific instructions from personal coach via email",
+      "owner": "each participant",
+      "timestamp": "35:30"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Do not work with teletext",
+      "timestamp": "21:15"
+    },
+    {
+      "text": "Not going to work with Ceefax/television page navigation technology",
+      "timestamp": "23:32"
+    },
+    {
+      "text": "Focus only on television (not video or other platforms)",
+      "timestamp": "22:43"
+    },
+    {
+      "text": "Target group will be aimed at younger audience (fashion + electronics), though exact demographic not yet defined",
+      "timestamp": "24:29"
+    },
+    {
+      "text": "Voice recognition not going to be used as a function in the remote",
+      "timestamp": "25:46"
+    },
+    {
+      "text": "Price limit for production is 12.5 Euros",
+      "timestamp": "25:57"
+    },
+    {
+      "text": "Remote will be sold separately (not bundled with TV)",
+      "timestamp": "24:55"
+    },
+    {
+      "text": "Primary emphasis: simplicity and fashion (usability included)",
+      "timestamp": "28:34"
+    }
+  ]
+}

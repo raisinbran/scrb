@@ -259,8 +259,25 @@ threads, CPU shared with the LLM benchmark):
 | `-ac 768` | 1.36 s | 1.59 s | 99.2% (meets) |
 
 On CPU, live mode needs the reduced encoder context, which costs about 6
-points of WER.  With a GPU, full context is expected to fit the delay target;
-this must be confirmed on GPU builds on both machines.
+points of WER.
+
+**GPU (RTX 3080, official whisper.cpp b5454 CUDA 12.4 build; zip SHA-256
+`afef0b881c500958921c3f5523b50e59ee2ec9b6f5cbd25b324c51ed308a957a`).**  Same segments, scripts and models:
+
+| Measure | CPU | GPU |
+| --- | ---: | ---: |
+| Turbo final pass, 1,049 s meeting, per segment | ~2,180 s (2.1x meeting) | **23.6 s (0.02x)** |
+| Turbo per-segment WER | 23.8% | 24.0% |
+| small.en per-segment WER (full context) | 25.7% | 26.7% |
+| Live delay, small.en full context, median / p95 | 2.85 / 7.60 s | **0.54 / 0.68 s** |
+| Live segments within 6 s | 91.9% | **100%** |
+
+With a GPU, the live-delay and final-pass-time targets pass with wide margins
+on Windows.  Turbo-versus-small gives only about 10% fewer errors at full
+context, below the >=15% target.  At GPU speed the live pass could itself use
+turbo, so the target is better redefined: the final pass gains from
+per-speaker-turn segmentation and frozen corrections rather than from a
+bigger model.  Owner decision.  Must be repeated with Metal on the Mac.
 
 ### Speaker diarization on AMI
 
@@ -350,6 +367,21 @@ Judged item by item against the AMI abstractive summaries
 - Speed: about 34 prompt tokens/s and 6 generated tokens/s on contended CPU.
   A GPU build is required.
 
+**GPU rerun** (RTX 3080, llama.cpp b11977 CUDA, `-ngl 99`): 10--131 s per
+meeting instead of 10--49 min.  Peak VRAM 8.9 GiB of 12 GiB.
+
+| Model | Recall | Valid JSON | Notes |
+| --- | ---: | --- | --- |
+| Qwen3.5-9B | **80%** | 3/3 | About 5% non-items |
+| Ministral-3-8B | n/a | **1/3** | Deterministic repetition loops to the token limit on this build |
+| granite-4.2-8b | not re-judged | 3/3 | |
+
+The same Qwen model and prompt scored 61% on the older CPU build and 80% here,
+so recall on three meetings swings by about 20 points between builds.
+**Revised proposal: Qwen3.5-9B Q4_K_M**, for stable output, the best GPU
+recall and the lowest memory.  The summarizer must detect loops and retry with
+sampling whatever model is used, and Phase 6 needs a larger evaluation set.
+
 ### Memory during recording (Windows, measured parts)
 
 | Component | Peak |
@@ -371,11 +403,11 @@ on Windows.  The final pass loads turbo (811 MiB) after Stop.
 | Desktop shell | Electron (Meetily fails rule 1 at the capture architecture) |
 | Live / final speech models | small.en-q5_1 live; large-v3-turbo-q5_0 final, both per VAD segment, `-mc 0` for the final pass; GPU builds |
 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass |
-| Summary model | Ministral-3-8B-Instruct-2512 Q4_K_M on recall, with coverage and non-item passes; Qwen3.5-9B if memory matters more |
+| Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, stable JSON, lowest memory); Ministral was best on CPU (84%) but loops on the newer llama.cpp build |
 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each stamped with its first frame's device timestamp (QPC / host time) |
 | Voice-match confidence line | Not measured; needs labeled multi-meeting voice data (Phase 4) |
 | DOCX library | Follows Electron: a Node DOCX writer such as `docx` (to be pinned in Phase 7) |
-| Targets to revisit | Final DER 20% (best measured 21--28%); summary recall 90% (best 84% on reference text); RAM guidance now 32 GB typical |
+| Targets to revisit | Final DER 20% (best measured 21--28%); summary recall 90% (best 80--84% on reference text); live-versus-final WER 15% (about 10% at GPU full context); RAM guidance now 32 GB typical |
 
 ## Apple Silicon Machine
 

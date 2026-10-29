@@ -1,0 +1,168 @@
+{
+  "action_items": [
+    {
+      "text": "Review the project minutes posted on the project share folder.",
+      "owner": "Team members (implied)",
+      "timestamp": "00:53"
+    },
+    {
+      "text": "Investigate whether symbols on the remote control need to be replaced by others to improve clarity.",
+      "owner": "B",
+      "timestamp": "08:33"
+    },
+    {
+      "text": "Check if it is possible to implement a text-only TV guide preview feature on the remote control.",
+      "owner": "C",
+      "timestamp": "15:23"
+    },
+    {
+      "text": "Research if there is a standard menu button usable between different TV brands for a universal remote control.",
+      "owner": "C",
+      "timestamp": "21:49"
+    },
+    {
+      "text": "Research how to invoke more complicated functions of a television using the new remote control.",
+      "owner": "C",
+      "timestamp": "22:09"
+    },
+    {
+      "text": "Look into whether the changeable covers should include the buttons themselves or just the cover.",
+      "owner": "A",
+      "timestamp": "18:43"
+    },
+    {
+      "text": "Conduct trend-watching to understand what people really want regarding the remote control design.",
+      "owner": "D",
+      "timestamp": "19:11"
+    },
+    {
+      "text": "Put ideas for the remote control design (shape, colors, etc.) on paper and present them at the next meeting.",
+      "owner": "B",
+      "timestamp": "22:49"
+    },
+    {
+      "text": "Find out if rechargeable batteries are possible and if people are willing to pay extra for them.",
+      "owner": "C",
+      "timestamp": "28:41"
+    },
+    {
+      "text": "Find out what people are willing to pay for the remote control (targeting around 25 Euros sales price).",
+      "owner": "D",
+      "timestamp": "29:57"
+    },
+    {
+      "text": "Research the cost and materials for the remote control design.",
+      "owner": "C",
+      "timestamp": "30:09"
+    },
+    {
+      "text": "Post information about what people want regarding button placement and essentials to B.",
+      "owner": "D",
+      "timestamp": "30:28"
+    },
+    {
+      "text": "Draw out some design ideas for the remote control.",
+      "owner": "B",
+      "timestamp": "31:27"
+    },
+    {
+      "text": "Post designs from time to time on the product share.",
+      "owner": "B",
+      "timestamp": "31:45"
+    },
+    {
+      "text": "Research the possibilities and costs for an LCD screen and speech recognition in the remote control.",
+      "owner": "D",
+      "timestamp": "34:10"
+    },
+    {
+      "text": "Look into if it is possible to include an LCD screen without it being too expensive.",
+      "owner": "C",
+      "timestamp": "37:15"
+    },
+    {
+      "text": "Research the cost and space requirements for both an LCD screen and speech recognition.",
+      "owner": "C",
+      "timestamp": "39:50"
+    },
+    {
+      "text": "Think of a name for the product instead of a vague serial number.",
+      "owner": "C",
+      "timestamp": "40:02"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The team will proceed with the functional design phase.",
+      "timestamp": "00:39"
+    },
+    {
+      "text": "The remote control should not include an LCD screen due to high cost and battery consumption.",
+      "timestamp": "14:54"
+    },
+    {
+      "text": "The team will implement a beep sound feature to help locate the remote control.",
+      "timestamp": "15:37"
+    },
+    {
+      "text": "The team will not implement speech recognition in the remote control as the technology is not mature and the market is not ready.",
+      "timestamp": "17:06"
+    },
+    {
+      "text": "The team will use durable materials (e.g., harder plastic) to prevent symbols from fading.",
+      "timestamp": "17:19"
+    },
+    {
+      "text": "The team will target younger people (under forty) with the new product.",
+      "timestamp": "13:15"
+    },
+    {
+      "text": "The team will use the corporate colors (black and yellow) and keep the logo in mind.",
+      "timestamp": "13:46"
+    },
+    {
+      "text": "The team will manufacture a basic remote control and sell changeable covers separately to appeal to everyone.",
+      "timestamp": "14:25"
+    },
+    {
+      "text": "The team will make the remote control distinct from competitors (e.g., different shape or curves) to avoid confusion.",
+      "timestamp": "22:38"
+    },
+    {
+      "text": "The team will focus on the user aspect (finding the remote, clear buttons, durability) rather than just technical aspects.",
+      "timestamp": "06:50"
+    },
+    {
+      "text": "The power button should be on top because it is the first thing users do (turn it on).",
+      "timestamp": "25:30"
+    },
+    {
+      "text": "The mute button should be placed around the volume selection, not at the top.",
+      "timestamp": "26:03"
+    },
+    {
+      "text": "The channel buttons (up and down) should be on top.",
+      "timestamp": "26:34"
+    },
+    {
+      "text": "The channel buttons should be grouped together in a specific section.",
+      "timestamp": "38:08"
+    },
+    {
+      "text": "The channel button should be in the center of the remote.",
+      "timestamp": "38:06"
+    },
+    {
+      "text": "The remote should have a beep and/or flash feature to help users find it if lost.",
+      "timestamp": "24:46"
+    },
+    {
+      "text": "The remote should be designed with important buttons on top and larger sizes for frequently used functions.",
+      "timestamp": "31:31"
+    },
+    {
+      "text": "The team will consider including an LCD screen if it is possible and not too expensive.",
+      "timestamp": "37:12"
+    }
+  ]
+}

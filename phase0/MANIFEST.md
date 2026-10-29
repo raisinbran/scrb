@@ -45,6 +45,19 @@ Full hashes are in the fetch script.
   Mix-Headset audio, plus `ami_public_manual_1.6.2.zip` unpacked to
   `downloads/ami/ann/`.
 
+## GPU builds (Windows, NVIDIA)
+
+Official prebuilt CUDA binaries, unzipped under `tools/gpu/` and used with
+`-ngl 99` (llama) or default GPU use (whisper).  NVIDIA driver 610.88.
+
+| Zip | URL | SHA-256 |
+| --- | --- | --- |
+| whisper.cpp b5454 CUDA 12.4 x64 | https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-win-cuda-12.4.0-x64.zip | `afef0b881c500958921c3f5523b50e59ee2ec9b6f5cbd25b324c51ed308a957a` |
+| llama.cpp b11977 CUDA 13.4 x64 | https://github.com/ggml-org/llama.cpp/releases/download/b11977/llama-b11977-bin-win-cuda-13.4-x64.zip | `d6d292e611f700731ca713a892e67b409f1488eac13c962f7f3f97cc6655f211` |
+| CUDA 13.4 runtime for llama.cpp | https://github.com/ggml-org/llama.cpp/releases/download/b11977/cudart-llama-bin-win-cuda-13.4-x64.zip | `738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668` |
+
+Unzip the llama zip and the runtime zip into the same folder.
+
 ## Build outputs and large captures (not reproduced)
 
 Executables are rebuilt from `probes/*/build.cmd` (Windows, MSVC at
@@ -55,4 +68,5 @@ Executables are rebuilt from `probes/*/build.cmd` (Windows, MSVC at
 
 Toolchain used on the Windows machine: MSVC v143 (C:\BuildTools), Windows SDK
 10.0.26100.0, CMake 3.31.6, Ninja 1.12.1, Python 3.15.1, Git Bash.  No GPU
-SDK (CUDA/Vulkan) was installed, so every model number is CPU-only.
+SDK (CUDA/Vulkan) was installed; GPU numbers come from the prebuilt CUDA
+binaries above.

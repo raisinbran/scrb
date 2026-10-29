@@ -29,6 +29,8 @@ SYSTEM = (
     "item give the [mm:ss] timestamp of the transcript line that best supports it, "
     "copied exactly as it appears."
 )
+# Optional cap on list length (SUMMARY_MAX_ITEMS) guards against repetition loops.
+MAX_ITEMS = int(os.environ.get("SUMMARY_MAX_ITEMS", "0"))
 SCHEMA = {
     "type": "object",
     "properties": {
@@ -91,6 +93,11 @@ def post(path, body, timeout=3600):
 SECTION_CHARS = 40000  # about 15k tokens at ~2.6 chars/token for these transcripts
 
 
+if MAX_ITEMS:
+    for key in ("action_items", "decisions"):
+        SCHEMA["properties"][key]["maxItems"] = MAX_ITEMS
+
+
 def split_sections(transcript):
     """Split on line boundaries into the fewest roughly equal sections under the limit."""
     count = -(-len(transcript) // SECTION_CHARS)
@@ -134,7 +141,9 @@ def main():
         proc = subprocess.Popen(
             [server, "-m", model, "-c", "24576", "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0",
              "-t", threads, "-np", "1",
-             "--port", str(PORT), "--host", "127.0.0.1"],
+             "--port", str(PORT), "--host", "127.0.0.1"]
+            # Extra llama-server flags, e.g. LLAMA_EXTRA_ARGS="-ngl 99" for GPU offload.
+            + os.environ.get("LLAMA_EXTRA_ARGS", "").split(),
             stdout=log, stderr=subprocess.STDOUT)
         try:
             load_start = time.time()
@@ -161,7 +170,12 @@ def main():
                         "temperature": 0,
                         "max_tokens": 4096,
                         "response_format": {"type": "json_schema", "json_schema": {"name": "notes", "schema": SCHEMA}},
-                        "chat_template_kwargs": {"enable_thinking": False},
+                        # Qwen needs thinking disabled; Ministral's template breaks on this
+                        # kwarg in newer llama.cpp builds (SUMMARY_NO_TEMPLATE_KWARGS=1).
+                        **({} if os.environ.get("SUMMARY_NO_TEMPLATE_KWARGS")
+                           else {"chat_template_kwargs": {"enable_thinking": False}}),
+                        # Extra sampling fields as JSON, e.g. '{"dry_multiplier": 0.8}'.
+                        **json.loads(os.environ.get("SUMMARY_SAMPLING", "{}")),
                     })
                     prompt_tokens += resp.get("usage", {}).get("prompt_tokens", 0)
                     completion_tokens += resp.get("usage", {}).get("completion_tokens", 0)

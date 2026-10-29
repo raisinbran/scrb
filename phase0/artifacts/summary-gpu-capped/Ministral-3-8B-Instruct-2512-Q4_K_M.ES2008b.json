@@ -1,0 +1,20 @@
+{
+  "action_items": [],
+  "decisions": [
+    {
+      "text": "Order of presentations: Presentations will be given in the order that was initially mentioned by A (D first, then C, then B).",
+      "timestamp": "02:15"
+    },
+    {
+      "text": "Remote control functions to be decided upon during the meeting.",
+      "timestamp": "01:40"
+    },
+    {
+      "text": "Not working with teletext due to it being taken over by the internet.",
+      "timestamp": "21:29"
+    }
+  ],
+  "invalid_json": [
+    ""
+  ]
+}

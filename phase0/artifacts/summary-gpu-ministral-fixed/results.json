@@ -1,0 +1,47 @@
+[
+  {
+    "model": "Ministral-3-8B-Instruct-2512-Q4_K_M",
+    "meeting": "ES2016b",
+    "load_seconds": 2.5,
+    "seconds": 31.3,
+    "sections": 1,
+    "prompt_tokens": 13876,
+    "completion_tokens": 1969,
+    "actions": 4,
+    "decisions": 39,
+    "valid_timestamps": "43/43",
+    "json_valid": true,
+    "peak_working_set_mib": 9092,
+    "peak_private_mib": 11413
+  },
+  {
+    "model": "Ministral-3-8B-Instruct-2512-Q4_K_M",
+    "meeting": "ES2008b",
+    "load_seconds": 2.5,
+    "seconds": 57.5,
+    "sections": 2,
+    "prompt_tokens": 16023,
+    "completion_tokens": 4233,
+    "actions": 0,
+    "decisions": 3,
+    "valid_timestamps": "3/3",
+    "json_valid": false,
+    "peak_working_set_mib": 9092,
+    "peak_private_mib": 11413
+  },
+  {
+    "model": "Ministral-3-8B-Instruct-2512-Q4_K_M",
+    "meeting": "TS3012b",
+    "load_seconds": 2.5,
+    "seconds": 131.0,
+    "sections": 2,
+    "prompt_tokens": 31757,
+    "completion_tokens": 8192,
+    "actions": 0,
+    "decisions": 0,
+    "valid_timestamps": "0/0",
+    "json_valid": false,
+    "peak_working_set_mib": 9092,
+    "peak_private_mib": 11413
+  }
+]
