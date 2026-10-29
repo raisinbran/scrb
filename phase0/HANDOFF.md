@@ -17,7 +17,7 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Gate 0 item | Windows | macOS |
 | --- | --- | --- |
 | Per-app capture isolation | Pass (Codex) | Not run |
-| Synced dual-track capture | 60 min pass; drift needs per-chunk timestamps; 8 h run pending | Not run; probe written |
+| Synced dual-track capture | 60 min and 8 h pass with per-chunk timestamps; mic loses audio during heavy-load stalls (see evidence) | Not run; probe written |
 | Survives crashed AI worker | Pass (120 whisper runs, 16 killed, 0 app-track gaps) | Not run |
 | Models fit 6 GB recording budget | Pass on measured parts (see evidence) | Not run |
 | Live diarization usable | Usable (~25--29% DER, incremental mode) | Not run |

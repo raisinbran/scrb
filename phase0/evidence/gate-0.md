@@ -170,8 +170,49 @@ at the next chunk boundary (`scripts/analyze_alignment.py`).
 
 ### Eight-hour drift run
 
-Started 2026-10-28 17:12 against a silent target, ends ~01:12.  Results are
-recorded below when complete.
+`DualCapture.exe` against a silent target process plus the default mic,
+2026-10-28 17:12 to 2026-10-29 01:12 (28,837 s), on the same machine while the
+whisper, diarization and LLM benchmarks in this document ran alongside it
+(CPU and GPU).  Analysis: `scripts/analyze_alignment.py`, 5 s chunks.
+
+| Measure | Result |
+| --- | ---: |
+| Capture exit / HRESULT | clean / `S_OK` both tracks |
+| Capture CPU (whole machine) / peak working set | 0.023% / 12.1 MiB |
+| App-track discontinuities / padded audio | 0 / 0 s |
+| Mic-track discontinuities / padded audio | 88 / 160.3 s (0.56% of the run) |
+| Longest wait between packets | 13.7 s app, 13.8 s mic |
+| Mic clock vs app, whole run | +0.44 ppm (the 60 min run measured -4.68 ppm) |
+| Sample-count sync error, mic vs app | -122 to +13 ms; within 2 ms for 39% of logged packets; 12.7 ms at the end |
+| Chunk-timestamp sync error, mic vs app | within 2 ms for 99.95% of logged packets; 0.002 ms at the end |
+| Chunk-timestamp error episodes over 2 ms | 5, each inside one chunk (<= 5 s): 18.6, 16.0, 125.0, 60.0, 10.6 ms |
+
+- **Drift is solved by per-chunk timestamps.**  Over 8 h, sample-count
+  alignment wandered up to 122 ms off (above the 100 ms target) because of mic
+  glitches and clock wander; per-chunk QPC stamps stayed within 2 ms except
+  inside the five chunks that held a glitch, and recovered at the next chunk
+  boundary every time.
+- **Whole-process stalls of 3--14 s happened 23 times**, both tracks at
+  once, with the capture thread already at MMCSS "Audio" priority.  Fifteen
+  fell between 5.55 and 5.64 h, during the GPU benchmark runs; the rest were
+  spread from 1.8 to 6.7 h while other benchmarks ran (large model loads, GPU
+  work, many CPU threads).  The app (process-loopback) track
+  lost nothing: Windows buffered it through every stall.  The mic track (200 ms
+  shared-mode buffer) lost the audio of each stall, 160 s in total, padded
+  with silence at the correct time.
+- No idle sleep occurred (`ES_SYSTEM_REQUIRED` held for 8 h).
+
+**Design consequences for Phase 2:**
+
+1. Store each chunk's first-frame device timestamp (already the plan) and also
+   start a new chunk at every discontinuity, so no chunk spans a glitch.
+2. Give the mic stream a larger buffer (for example 1--2 s) and keep capture in
+   its own small process at MMCSS priority; record padded spans per chunk so
+   the transcript can mark "audio missing" instead of treating it as silence.
+3. Expect mic loss when the same machine runs heavy model loads.  The
+   recorder must keep heavy AI work out of its process and lower that work's
+   priority while recording, and Gate 0 does not show that a 1--2 s buffer
+   avoids 10 s stalls; re-measure on the Phase 2 adapter.
 
 ### Opus storage and CPU
 
@@ -450,9 +491,10 @@ the model memory and timing runs.
 
 ## Gate Checklist
 
-- [ ] Synced dual-track capture works on Windows.  60 min passes with
-  per-chunk timestamps; 8 h run pending; device-change, sleep/wake and
-  Bluetooth cases not run.
+- [ ] Synced dual-track capture works on Windows.  60 min and 8 h pass with
+  per-chunk timestamps (8 h: within 2 ms for 99.95% of packets; mic lost
+  0.56% to load stalls, app track lost nothing); device-change, sleep/wake
+  and Bluetooth cases not run.
 - [ ] Synced dual-track capture works on Apple Silicon macOS.
 - [ ] Recording survives a crashed AI worker on both machines.  Windows
   passes (120 runs, 16 killed, 0 app-track gaps); macOS not run.
@@ -466,8 +508,8 @@ the model memory and timing runs.
 ## Gate Decision
 
 **Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-the 8 h Windows drift result, the Windows device-state cases, the whole Apple
-Silicon run, GPU confirmation of the delay and final-pass-time targets, and
+the Windows device-state cases, the whole Apple Silicon run (including Metal
+timing of the delay and final-pass-time targets), and
 owner decisions on the framework, the DER and summary-recall targets, and the
 recommendations above.
 
