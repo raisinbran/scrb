@@ -1,0 +1,884 @@
+[00:50] A: Good to see you all again. Let's see if that comes up.
+[00:58] A: This is our functional design meeting.
+[01:01] A: Um.
+[01:03] A: Just a sec while my PowerPoint comes up.
+[01:06] A: Et voila.
+[01:11] A: Okay. Mm um we put the fashion in electronics. Let's start
+[01:17] A: Okay, our agenda today um
+[01:19] A: just check the time, it's twelve thirteen.
+[01:23] A: Um.
+[01:25] A: I'm gonna do an opening, talk about um did you all get the minutes? I e-mailed them to you. I'm also
+[01:29] C: Yep
+[01:29] A: putting 'em them in the shared folder. So
+[01:31] B: Right.
+[01:32] A: um then I we'll talk about our general objectives and have your three presentations
+[01:37] A: Um I'll talk about the new project requirements I've just received
+[01:40] A: and then we have to make a decision on our remote control functions
+[01:44] A: Finally we'll just close. We're starting this meeting at approximately twelve thirteen and we have forty minutes. So
+[01:51] A: First of all the functional design objectives
+[01:54] A: Uh we need to keep in mind the user requirement specification, what needs and desires are to be fulfilled
+[02:01] A: the functions design, what effects the apparatus should have, and the working design, how the apparatus actually works to fulfil its function.
+[02:10] A: Okay, three presentations, um you can go in any order you choose um.
+[02:15] D: Mm shall we go in the order that you just did it?
+[02:18] A: Sure, please do.
+[02:19] D: I dunno.
+[02:23] D: How do I hook
+[02:24] D: my
+[02:26] D: screen up?
+[02:28] B: I think, you might have to disconnect
+[02:29] A: Yes I
+[02:30] B: Rose
+[02:30] A: do.
+[02:41] A: Yeah.
+[02:48] C: Well there's a wee
+[02:49] D: Where
+[02:49] C: a
+[02:49] D: does
+[02:49] C: wee
+[02:49] D: it go
+[02:49] C: plug just
+[02:50] D: Mm-hmm.
+[02:50] C: just that one there
+[02:52] D: Hmm, I'm not supposed to move this, but
+[02:57] C: Ah that's it, yep.
+[03:06] C: And then you have to press function F_ eight I
+[03:09] A: Function
+[03:09] C: think it
+[03:09] A: F_
+[03:09] C: is
+[03:09] A: eight
+[03:10] C: on
+[03:10] A: yeah
+[03:10] C: your laptop.
+[03:13] D: Where's
+[03:13] A: The
+[03:13] D: function
+[03:14] A: blue one, F_N_.
+[03:27] D: No signal.
+[03:29] A: Is it plugged in all the way and you screwed it in and
+[03:32] D: Ah
+[03:32] B: Yeah
+[03:33] D: wait, 's screw in.
+[03:35] B: I I
+[03:35] D: Push
+[03:35] B: think
+[03:35] D: the screw
+[03:35] B: you just have to push it in really hard.
+[03:40] C: That's it.
+[03:40] B: Oh, got it.
+[03:42] A: Mm 'kay
+[03:42] D: Mm alright
+[03:43] A: It's taking it a little bit
+[03:45] D: I've never
+[03:46] D: attached to anything
+[03:47] B: Mm, neither have I.
+[03:49] A: 'Kay there you go.
+[03:51] D: Alright
+[03:51] B: Alright
+[03:52] D: so
+[03:53] D: I don't know if you guys are able to get access to um the report that was online or if I'm the only one who is.
+[04:01] D: But, I don't even know how to play this.
+[04:06] D: No.
+[04:07] A: Press the little presentation. It's the
+[04:10] A: um it looks like a Y_ kind of over there above Draw.
+[04:14] A: There, that one
+[04:15] A: there you
+[04:16] D: Alright
+[04:16] A: go.
+[04:17] D: So we're just gonna talk a little bit about the functional requirements that people specified when they were asked
+[04:23] D: Um I guess Real Reaction did some market research. They had a hundred subjects and their usability lab and they watched them watch T_V_ and recorded
+[04:34] D: the frequency that they used particular buttons
+[04:37] D: and the relevance that those buttons had.
+[04:45] D: What they found was they analysed people's desires and needs. Focusing on their desires
+[04:51] D: um people specifically said that they thought remotes were ugly, seventy five per cent of the a hundred subjects
+[04:58] D: noted that and that they more importantly though, eighty per cent said that they would be willing to pay more
+[05:04] D: for a fancier looking remote. I don't know anything
+[05:07] B: Hmm
+[05:07] D: beyond what fancy means, but that's particularly of use to us, I think
+[05:13] D: Um also
+[05:14] D: they did some questions on voice recognition and found that the desire for voice recognition was inversely related to age, so younger people were more inclined to want something with voice recognition, whereas the older people in the like sixty and above segment or so did not really think that they would pay more money for voice recognitions.
+[05:37] D: Um
+[05:37] B: 'Kay.
+[05:38] D: people also
+[05:39] D: had certain frustrations, that I think that we could try to take into consideration
+[05:44] D: with
+[05:45] D: our design. That being people
+[05:48] D: k um frustrated with losing their remotes
+[05:51] D: I think, over fifty percent of the people mentioned that that was their biggest frustration
+[05:56] D: People are also frustrated with the difficulty it is
+[06:00] D: to learn how to use a remote and I think that ties back to what you were saying before
+[06:04] B: Hmm
+[06:04] D: just that there's too many buttons, it just needs to be easy to use
+[06:08] D: It also mentioned something called R_S_I_ and I was hoping someone might be able to inform me as to what R_S_I_ is, because
+[06:14] C: Repetitive
+[06:14] D: I don't know.
+[06:15] C: strain injury.
+[06:16] D: What?
+[06:17] C: Repetitive strain injury
+[06:18] D: Ah
+[06:19] D: There we go. Wow
+[06:20] C: So
+[06:20] D: People
+[06:21] C: if
+[06:21] D: do
+[06:21] C: you
+[06:21] D: not like that. So I guess sort of the carpal tunnel type thing, people do not like that, um the repetitive use, I guess, caused a strain
+[06:29] D: Um looking at the needs people
+[06:32] D: specified
+[06:33] D: the problem right now is that people's remotes are not matching their operating behaviour. People are only
+[06:40] D: using ten per cent of the buttons
+[06:43] D: that they have offered to them on their remote. And what people do most often is changing the channel and changing the volume
+[06:51] D: People also zap like to change the channel
+[06:54] D: about um sixty five per cent
+[06:57] D: during an hour of use. So we really just need to focus in on those volumes
+[07:03] D: and channel changers rather than things like the audio settings, the screen settings and the channel settings, because they're used much more infrequently and probably just complicate
+[07:13] D: what's going on.
+[07:15] D: So I think that some things that we might wanna think about, the idea of an L_C_D_ screen was brought up although they didn't have any details on
+[07:23] D: what people's preferences on that were, so I dunno know if that's coming to me later, or something like that. But something for us to consider also just the phenomenon that less is more when it comes to the buttons on the remote or what we wanna make easiest to use, make sure that, you know, something like an audio setting
+[07:41] D: isn't given as much importance and visibility
+[07:44] D: on the remote as something like channel changing that's used a lot more often
+[07:48] D: And basically in order for us to win over to the consumer we just need to focus on what it looks like, that it has a fancy appeal
+[07:55] D: and that it's not ugly
+[07:57] D: and that it feels like the way they're gonna use it, so it doesn't give them any hand injuries or
+[08:04] D: things like that.
+[08:05] B: Hmm.
+[08:09] A: Thank you very much. That was that was great
+[08:11] B: Mm 'kay.
+[08:12] A: Um
+[08:13] A: 's move on to the next presentation
+[08:16] A: um on effects
+[08:17] A: Was that
+[08:17] D: Hmm.
+[08:19] A: you? Great.
+[08:21] D: Yeah, have I unscrewed it?
+[08:26] A: Push.
+[08:28] A: User interface, right.
+[08:31] A: Interface.
+[08:37] D: Here we go.
+[08:38] C: Cheers.
+[08:38] D: Mm-hmm.
+[08:44] D: And I think that's in the shared, if I did it right, if anyone wants to look at
+[08:48] A: Mm
+[08:48] D: it
+[08:48] B: Okay
+[08:48] A: 'kay, thank you.
+[08:49] B: great.
+[09:23] A: Okay.
+[09:24] C: Here we go.
+[09:29] C: Right so I'm gonna talk about the technical technical functions design of the remote control um.
+[09:38] C: We need to start by considering what a remote control actually is. It's a
+[09:42] C: device that allows us to
+[09:46] C: produce certain effects on our television, so i it's basically a communication device. We we tell the remote control what we want to do, it sends a message to the television saying change the channel, change the volume
+[09:59] C: uh
+[10:00] C: yeah, adjust these settings, adjust the brightness.
+[10:05] C: Um how do we actually go about designing a new television remote control?
+[10:10] C: First thing to do is to come up with the design specifications
+[10:13] C: We need to know what our final product is gonna be like, so we need a a clear idea of exactly what this product does, uh how it works, and what the end-user is gonna want from this product.
+[10:27] C: Um.
+[10:29] C: Oh, a way I'd suggest that we could go about this is by designing uh several different prototypes of user interfaces for this product, um and then uh trying to get some feedback
+[10:42] C: uh about
+[10:44] C: h how well these particular prototypes work, uh sorta find out what people think of 'em. Um using a remote control is is quite a subjective experience
+[10:55] C: Um
+[10:55] A: Hmm.
+[10:57] C: and different different people sort of prefer different things.
+[11:01] C: Um we should remember that
+[11:03] C: remote controls are a a fairly standard piece of equipment. When a users using a remote control, he or she expects the buttons to be in certain places. So in some sense we're gonna we're gonna have to aim for a device which is fairly conventional in design uh so that we're not completely shocking people. But I think within that there is also room for us to introduce novel ideas uh and to make something that's that's perhaps a little bit different, something that stands out.
+[11:33] C: Um also in in designing the user interface we need to consider practicalities
+[11:38] C: Uh the first of these is is technological ye uh what can we do with the current state of technology as it is. The second is is economic, uh we need to find a balance between features and price. So as you mentioned things like voice recognition would would add to the price
+[11:54] C: uh but it would also im
+[11:56] A: Hmm
+[11:56] C: improve the design of the product.
+[12:00] C: So I had a look on the on the web uh to see if I could find a few examples of existing
+[12:06] C: television remote controls
+[12:08] C: In analysing these we can consider
+[12:10] C: what what things what's good about them, uh what things do they get right, what's bad about them, what's wrong with 'em, um how we can improve on the designs that that that I found and
+[12:23] C: what can we do to make our product stand out from from the large majority of remote controls.
+[12:29] C: Here's two examples uh probably at the extreme ends of the spectrum. Um on the left here we've got uh
+[12:38] C: an engineering-based
+[12:40] C: design for a remote control, so it's one that's got lots of buttons, it's it's fully featured
+[12:45] C: everything you might possibly want to do is there, you know, it's got forward, backwards, up, down, channel numbers, volume, uh freeze frame
+[12:53] C: Yeah, it's it's fully featured and
+[12:56] C: it might take a while to get to learn to use it, but once you've learned it you can you can do whatever you want with your T_V_. The one on the right is a lot more basic. It's just got the essential functions of the T_V_ changing the channel, play, stop, volume
+[13:09] C: It would be a lot quicker to learn to use it, but again
+[13:13] C: th it's it's swings and roundabouts. There are disadvantages, you can't use it say to to freeze the television picture. Uh there's a lot of features that are missing from that remote control. So we've got to to find our find a way of striking a balance between the two.
+[13:29] C: Um as I said before, remote controls are subjective
+[13:33] C: different people want want different things. Um personally wa what I want from a remote control is a device that's simple, it it's easy to use, uh it's got big buttons for doing the things I do most often, changing the volume, changing the channel
+[13:49] C: It it does everything that I need it to uh, as I said before, I'm quite lazy, I don't wanna walk across the room just to adjust my television
+[13:57] C: I also want something that that looks cool, um and that that feels good, that's ergonomically designed.
+[14:08] A: Mm 'kay. Thank you very much. That was very useful. It's funny to see the drastic difference between those two remotes
+[14:16] B: Hmm
+[14:16] A: Um.
+[14:18] A: And neither of them were very pretty, you know
+[14:19] D: No
+[14:20] B: Yeah. I think that could be our selling point.
+[14:23] A: Mm
+[14:23] D: A fashion
+[14:24] D: fashion remote
+[14:25] C: I
+[14:25] B: Right
+[14:25] C: think there's there's certainly a market for technology that looks cool
+[14:29] A: Mm
+[14:29] D: Mm-hmm
+[14:29] C: And I think that's that's why companies like Apple've 've 've
+[14:32] B: Hmm
+[14:32] C: made
+[14:33] D: Yeah
+[14:33] C: a lot of progress.
+[14:34] B: Right, I really can't see what I'm doing, so does anyone have a
+[14:38] A: You there it is.
+[14:48] B: Ah-ha, look at that
+[14:50] B: showing up already
+[14:52] A: Lovely
+[14:52] D: So wait, did it let you go on the Internet or was that just what it let you see
+[14:55] C: Uh that was just on the d on
+[14:57] D: Okay
+[14:57] C: the company web site, yeah
+[14:58] D: 'Cause I was like
+[14:59] A: Hmm
+[14:59] B: Yeah
+[14:59] D: googling and then I'm like wait it won't let me google.
+[15:03] B: Alright um
+[15:06] B: No, how do I play again?
+[15:09] A: Um the it's right above Draw
+[15:11] A: There are three thingy if it's way at the bottom
+[15:15] B: Ah.
+[15:15] A: Under three icons and it's the one that looks like a desk. Yeah, that one
+[15:19] A: There are
+[15:19] B: Okay
+[15:19] A: Y_s.
+[15:20] B: So this is our working design presentation. Um I had a bit of some issues with this, because
+[15:27] B: I wasn't able to find everything I needed, but I guess that's we're still in early stages
+[15:33] B: Um so, yeah, this is this. Though th the thing about working design is the what we're trying to do as a working design is figure out how the aparata apparatus can fulfil its function. Um one of the examples that kept coming up for me is that a coffee grinder. It works because it converts electrical energy to grinding the beans
+[15:54] B: and then you put the bean through a filter
+[15:57] B: and that filters out
+[15:58] B: and then you get coffee at the end that's nice and hot because of the combination of electrical energy and then the other things that are brought in to make it work. Don't know if I'm explaining that very well, but how do I get to the next s ah. So h the method as
+[16:13] B: um working designers figure out what you need to make it fulfil this practical function
+[16:19] B: what what needs to be done and how do we convert all the elements to make that done. So
+[16:25] B: wha the easiest thing to do is to break down all the points
+[16:30] B: at which you need something to happen
+[16:33] B: So you make a schematic of the way that the the energy is converted
+[16:38] B: tsh towards this practical function. And then I think the easiest thing to do is gonna be work on each task separately
+[16:45] B: So
+[16:46] B: um
+[16:48] B: Uh
+[16:48] A: You just press yeah, just
+[16:49] B: Uh
+[16:49] A: click. That'll be fine.
+[16:50] B: So the findings that I got uh very just very briefly is that you have a choice
+[16:56] B: of the way that the
+[16:58] B: information is projected to the receiver and in my opinion infra-red is the best way to do that 'cause you don't need a sight line. So that's one thing we're gonna work on. Um the user interface is critical here, because a lot of the things that happen in a remote control happen through the chip that controls that converts the electrical energy into data, which then goes through the infra-red, so the the chip that uh I think Ian is designing, is gonna be crucial. And really it all comes down to the to the user, because they're the one that's controlling most of the working design
+[17:31] B: So the components that we find here are the energy source, you know the battery or whatever that's gonna m make it work, then the chip
+[17:39] B: which converts the data, the user that's controlling the chip, and the infra-red bulb that's gonna let us move the data to the receiver
+[17:45] B: So you have four main components
+[17:47] B: and they are designed sort of like this. You have your energy source right there which then
+[17:55] B: um
+[17:56] B: brings
+[17:58] B: uh energy or information to the chip, which is also controlled by the users. You have energy going to the user who's controlling the chip ooh 's not what I wanted to do uh
+[18:11] B: uh.
+[18:11] A: Um yeah use that thing you can go back, previous
+[18:15] B: Previous.
+[18:17] B: Sorry about that, guys.
+[18:18] A: Pardon.
+[18:19] B: Oh.
+[18:21] A: Oh
+[18:21] B: No, no
+[18:21] A: well
+[18:21] B: no, no, no
+[18:22] A: Okay
+[18:22] B: Okay, let's just get back to my schematic here.
+[18:25] A: Ye
+[18:27] A: Double click on it.
+[18:29] A: With the right with the left
+[18:30] B: W
+[18:30] A: hand one.
+[18:31] B: yeah, yeah
+[18:32] B: I think it's frozen. Here. Don't show me that tip again
+[18:35] A: There we
+[18:36] B: There we are
+[18:36] A: are.
+[18:37] B: Sorry about this, guys. I'm kind of pathetic with things like this
+[18:41] B: Um alright. So you have your energy source, your user interface who's controlling the chip, the chip also uses the energy
+[18:49] B: and the chip through the use of the user interface is gonna control the switch which will work your infra-red bulb, which will then bring the data to the receiver
+[18:58] B: So hopefully that makes sense for everyone in my kind of garbled way
+[19:02] B: This
+[19:02] A: Mm-hmm
+[19:02] B: is the the parts of the working design that need to be figured out. And
+[19:08] B: personal preferences, besides the fact that I can't spell, we need a long-lasting energy source, people don't wanna be changing it a lot. We need a chip that works well with the user interface, that isn't too complicated.
+[19:21] B: We need a straightforward interface, like Ian was saying, simple, not overwhelming it with information
+[19:27] B: and we need a reliable and clear infra-red signal, so that you're not waving your remote around and
+[19:32] A: Mm-hmm
+[19:32] B: having to get frustrated and go do it by hands. So that's pretty much it for the working design.
+[19:41] A: Excellent
+[19:55] A: So, um.
+[20:03] B: Rose, do you think you can give me a hand with this
+[20:04] A: Yes, absolutely.
+[20:15] A: Ah I can never tell which way to turn these things
+[20:17] B: Yeah.
+[20:20] A: Lefty loosey, righty tighty, right
+[20:22] B: Yeah.
+[20:24] C: What's up? Lefty
+[20:25] A: Lefty loosey
+[20:25] C: loosey.
+[20:26] A: righty tighty
+[20:28] C: Uh
+[20:29] C: Never heard that before, that's good
+[20:31] A: Oh yes.
+[20:37] C: I'll think of that every time now.
+[20:39] B: It's
+[20:39] D: Yeah
+[20:39] B: gonna
+[20:39] D: that's
+[20:40] B: stick
+[20:40] D: a good
+[20:40] B: in your
+[20:40] D: one it'll
+[20:40] B: head
+[20:40] D: stick with you.
+[20:47] A: Mm 'kay.
+[20:59] A: Um I have nothing on my screen.
+[21:04] A: Just a sec.
+[21:05] B: Mm.
+[21:05] A: Here we are.
+[21:07] B: Ooh, no signal
+[21:07] A: Okay, yeah, it's fine.
+[21:10] A: Okay, requirements
+[21:11] A: We have a couple new requirements that I was just e-mailed right before the meeting and
+[21:15] B: Okay
+[21:15] A: that we have to keep in in um in mind as we're creating this. We didn't bring it up yet, or at all in the meetings so far, but we're not gonna work with teletext because um well it that's been taken over by the internet, so we're not gonna worry about um we're not gonna worry about that.
+[21:29] D: What's teletext?
+[21:31] A: Um
+[21:32] B: Uh, it's a British thing.
+[21:34] D: Oh
+[21:34] C: You don't
+[21:34] D: Oh
+[21:34] C: have
+[21:34] D: so
+[21:34] C: it in the States?
+[21:35] B: No
+[21:35] A: It no. W d
+[21:36] C: Oh
+[21:36] A: could
+[21:37] C: I didn't
+[21:37] A: would
+[21:37] C: realise
+[21:37] A: you care to explain it?
+[21:38] C: Um
+[21:39] C: yeah, it's like a
+[21:41] C: I suppose it's kind of similar to a very very basic web browser. Um
+[21:46] C: you have like you have uh numbers on your remote control
+[21:49] D: Mm-hmm
+[21:50] C: uh y and you type in the page number you want, so like you type a hundred on your remote control and this this kind of index appears
+[21:58] C: on the television screen with just some some text and some very blocky looking graphics on it. And you just type numbers to go to different pages and it gives you information
+[22:08] C: mostly rather boring
+[22:09] B: S
+[22:09] C: stuff like what's on T_V_ next and share prices and that kind of thing.
+[22:13] B: Lottery numbers and sport scores
+[22:15] C: Yep, news headlines
+[22:16] B: But if you ever see the T_V_ saying like go to page one sixty on Ceefax now, that's what they're talking about.
+[22:22] A: How
+[22:22] D: Oh
+[22:22] C: It's earl it's pretty old technology. It's like
+[22:25] A: Okay
+[22:25] C: nineteen eighties
+[22:25] D: That explains a lot
+[22:26] B: I have no idea why we don't have it, but
+[22:29] D: That's good.
+[22:30] A: Interesting
+[22:32] A: Okay um, well, we're not gonna the management has decided we're not gonna work with that
+[22:38] A: Um
+[22:43] A: Okay um and we're also gonna w like your question earlier um whether this is going to be t for television, video, or etcetera. Just for television. That's
+[22:51] C: Right
+[22:51] A: what we're focused on. Um otherwise becomes to complex, we wanna get this out um very quickly. We only have a a short amount of time.
+[22:59] B: 'Kay.
+[22:59] A: Um and finally there's more marketing, I think, um, our corporate image has to be recognisable
+[23:05] A: So while we're gonna make it
+[23:06] B: Mm
+[23:06] A: look pretty we need to use our colour and our slogan
+[23:09] A: i in the new design.
+[23:14] C: So what's our corporate image like? It's It's kind of yellow colour with uh
+[23:18] A: Looks
+[23:18] C: we
+[23:18] A: like
+[23:18] C: put
+[23:18] A: yeah
+[23:18] C: fashion
+[23:19] A: kind of
+[23:19] C: in
+[23:19] A: a yellow
+[23:19] C: electronics
+[23:19] A: and black and we have that the emphasis on the R_s in
+[23:22] C: It's like
+[23:23] A: um
+[23:23] C: double R_.
+[23:24] A: mm-hmm.
+[23:24] C: Yeah.
+[23:25] A: But it's, yeah, we put the um
+[23:30] A: fashion in electronics. So we gotta keep that in that in mind.
+[23:34] B: Okay, so we want something that looks good
+[23:36] A: Yep. Yep.
+[23:37] B: and is yellow.
+[23:39] A: Yeah, or ha maybe some buttons could be yellow
+[23:42] B: Okay.
+[23:42] A: Like, we can we can play around with it a little bit.
+[23:45] A: Um.
+[23:47] A: Okay, we need to talk about our functions and our target group
+[23:51] A: We need to decide who our target group is. You um in your analysis of different market um of the marketing
+[23:56] D: Mm-hmm.
+[23:56] A: you identified that different groups wanted different things or had certain preferences, for example that um that older people didn't really care for um voice recognition
+[24:07] D: Mm-hmm
+[24:07] A: but younger people did
+[24:09] A: Um
+[24:10] A: and so
+[24:12] A: who are we aiming this at?
+[24:16] B: Well if we're gonna say that function um fashion we put the fashion in in electronics then you automatically, I think, a sort of younger group that that's who's gonna be attracted to this.
+[24:29] D: Yes, I do think, who's gonna have the money to buy that also
+[24:32] A: Mm-hmm
+[24:32] D: that one?
+[24:33] A: It's gonna be twenty five Euro remember, so um it has to be avai marketable to um whomever it is.
+[24:40] B: Mm-hmm.
+[24:41] C: Is it is it something that's gonna be sold separately from the television or is it something that comes w with a television? 'Cause that would affect the way that we market it.
+[24:50] A: Well at least right now what we're doing is um deciding on just the remote itself, so it
+[24:55] C: Right
+[24:55] A: will probably be sold separately
+[24:57] C: Right, okay
+[24:58] A: twenty five Euro by itself.
+[25:00] D: The only break-down that I was given in terms of age was the voice activation and basically there's a big jump, after thirty five people don't really care if it has voice, so it's like basically fifteen to thirty five that
+[25:12] B: Mm-hmm
+[25:12] D: think that that's a good idea. I dunno I'm gonna be given any other numbers broken down in terms of age later, but if that's sort of the only quality that we have that is divided into age then we would wanna stick between the fifteen and thirty five range.
+[25:25] B: Yeah, that's probably uh a population w quite a little bit of disposable income for use on technology anyway, so
+[25:32] C: Yeah
+[25:32] B: that might be a fairly good target group for us.
+[25:35] A: Now, those are that's all specific for speech recognition. Are we gonna use that as one of our functions?
+[25:43] C: Um.
+[25:44] B: Mm.
+[25:46] C: I I would say no, because it's gonna add too much to the price.
+[25:50] C: Especially if we are marketing it as a separate
+[25:53] A: Mm-hmm
+[25:53] C: product, people are gonna be paying
+[25:56] C: uh
+[25:57] C: well, uh we've got a price limit
+[25:58] A: Mm
+[25:58] C: of was it twelve twelve and a half Euros for
+[26:01] B: To produce it
+[26:01] A: To
+[26:01] B: yeah
+[26:01] A: produce
+[26:01] C: to produce
+[26:02] A: it, yes
+[26:02] C: it? And I wonder if we can get voice recognition into that
+[26:05] A: Mm
+[26:05] C: twelve and a half Euros without having to make too many other compromises.
+[26:09] D: But what else are we gonna put, I mean not that I'm really gung-ho about it, I don't know what else you can put in a remote to make it technologically advanced though. So like other than just making
+[26:18] C: Yeah
+[26:18] D: it look good
+[26:19] B: Hmm
+[26:19] D: how is it I mean it can look really great and still have the same up-n-down
+[26:23] B: But
+[26:24] D: buttons and why's anyone
+[26:24] B: right
+[26:24] D: gonna buy a new remote?
+[26:26] B: Well but why are we why are we aiming for a technological advancement? Everything we're talking about is ease of use and simple and that doesn't necessarily mean
+[26:34] D: Mm-hmm.
+[26:35] B: more technology, in
+[26:36] A: That's
+[26:36] B: fact
+[26:36] A: a good
+[26:36] B: it
+[26:36] A: thing
+[26:36] B: could
+[26:36] A: to
+[26:36] B: use
+[26:37] A: keep in mind
+[26:37] B: it could mean, not. If they might be overwhelmed with with remotes that have too many buttons and too much technology.
+[26:45] D: If someone's looking to buy a new remote, don't they want like an upgrade
+[26:48] D: I dunno.
+[26:50] A: Upgrade? Well, we can look for we can look at upgrade or we can look at um user-friendly.
+[26:55] B: Yeah, simplification
+[26:56] C: Yeah
+[26:56] A: Simplification
+[26:56] D: Mm-hmm
+[26:56] B: They could have a crap
+[26:57] A: so
+[26:57] B: remote that came with their T_V_ that's just impossible to use, or maybe it broke, or maybe
+[27:02] D: Mm-hmm.
+[27:03] B: they're just missing it.
+[27:06] A: Uh-huh, mm.
+[27:08] A: And we also need to talk about if we're only gonna have the very simple ones or also have the other ones just separate somehow or
+[27:15] B: Hmm
+[27:15] D: Can you like
+[27:15] C: Yeah
+[27:16] D: I mean this may be too complicated, but, I wish I had something to explain it, like if it was just a simple, either this way or this way, that had like the main buttons and then you could like pull something out, kind of and like you got the rest
+[27:26] B: Ooh
+[27:26] D: the buttons, but the rest of them like went in
+[27:29] C: The
+[27:29] D: Do you know what I'm saying
+[27:29] C: remote There
+[27:30] A: Kind
+[27:30] C: are
+[27:30] A: of
+[27:30] C: remote
+[27:30] A: pull out
+[27:30] C: controls
+[27:30] A: of the side
+[27:31] C: like that, yeah. Like some T_V_s they have a sort of uh a sliding screen on the remote control of it
+[27:37] A: Mm
+[27:37] C: that hides all the complicated buttons
+[27:39] B: Ooh.
+[27:39] C: So if you wanna do something complicated like programme your television or re-tune it, then you you open up this little hatch or or slide the
+[27:47] D: Mm-hmm
+[27:47] C: screen down and there's
+[27:48] A: Mm-hmm
+[27:48] C: all the all the special buttons
+[27:50] D: 'Cause then 's like people who don't wanna ever look at them, never even have to see them
+[27:53] B: Mm-hmm
+[27:53] D: and
+[27:53] A: Mm-hmm
+[27:53] D: if you like
+[27:54] C: Yeah.
+[27:54] D: get the instruction manual that comes with it and you just don't even read it then you'll never even know that those things can pull out
+[28:00] A: Mm-hmm
+[28:00] D: And you're a happy person and everyone else doesn't have to have like two remotes, one that has the easy ones and one that has
+[28:05] B: Yeah
+[28:05] D: more complicated
+[28:05] C: Yeah
+[28:06] A: Mm-hmm
+[28:06] D: ones
+[28:06] B: that's a good
+[28:06] D: but
+[28:07] B: idea
+[28:07] D: 's all still
+[28:07] C: I think
+[28:07] D: in
+[28:07] C: that's
+[28:07] D: one
+[28:07] C: a good idea, yeah.
+[28:08] B: Mm.
+[28:10] A: Um we have to be careful that that that doesn't impede um the chip transmitting information
+[28:15] D: Yeah.
+[28:16] A: but
+[28:16] B: Good
+[28:16] C: Yeah
+[28:16] A: um
+[28:16] B: point
+[28:17] A: that's gonna be mostly technological thing
+[28:18] B: Yeah.
+[28:19] A: Um.
+[28:23] A: Okay um, so what are we emphasising?
+[28:28] A: I what in this
+[28:29] C: Si
+[28:29] A: project?
+[28:30] C: simplicity and fashion
+[28:31] D: I think simplicity
+[28:31] A: Simplicity
+[28:32] B: Yeah
+[28:32] A: and fashion
+[28:32] D: fashion.
+[28:33] B: mm.
+[28:34] A: Okay, those are very good goals, I think, um that we have to keep in mind in with everything we do. Simplicity and fashion and, yeah, or usability speci
+[28:43] A: however you wanna say that, which includes um an emphasis on making the infra-red very functional
+[28:48] D: Mm-hmm
+[28:48] A: so that you don't
+[28:49] C: Yeah
+[28:49] A: have to travel around a lot.
+[28:50] C: Yeah.
+[28:55] D: What can
+[28:55] A: Um
+[28:55] D: you do to
+[28:57] D: like make the infra-red more functional, like why would it not be? I'm just wondering.
+[29:01] A: I think it's a lot to do with battery
+[29:04] D: Okay
+[29:04] A: but that's just my
+[29:05] B: The battery and that I think that the chip
+[29:08] B: takes the data and presents it well, without sort of scattering.
+[29:12] A: Mm-hmm.
+[29:12] D: So 's just the quality of the chip.
+[29:14] B: Yeah. I think so
+[29:16] D: Okay.
+[29:17] B: The quality uh quality of all the components really, I mean
+[29:21] B: we can't really do anything
+[29:23] B: shoddy work, 'cause it's
+[29:25] C: Yeah.
+[29:26] B: gonna be visible down the line.
+[29:29] A: So our target group, we're saying, fifteen to thirty five?
+[29:33] D: Well, I dunno how useful that number is if we're not doing
+[29:35] A: S voice recognition
+[29:36] D: Yeah
+[29:37] A: which I kind of I kind of feel like voice recognition is not necessary in a remote control
+[29:41] D: Yeah. I don't.
+[29:42] A: like it might be necessary for a T_V_ but not for the remote
+[29:44] C: It's
+[29:44] A: c, you
+[29:44] C: yeah
+[29:45] A: know
+[29:45] C: it's
+[29:45] B: Mm-mm
+[29:45] C: pretty
+[29:45] A: Seems
+[29:45] C: it's pretty
+[29:45] A: a little bit
+[29:46] C: high-tech.
+[29:47] B: Yeah
+[29:47] A: Mm-hmm. Yeah, and it might be too expensive.
+[29:49] D: And if the whole idea is you're using a remote then why would you have voice, like you know what
+[29:53] A: Mm-hmm
+[29:53] D: I mean and then it's like you wouldn't need a remote you'd just talk to your T_V_.
+[29:56] A: Yeah
+[29:56] C: It's for
+[29:57] B: Ooh
+[29:57] C: like, the ultimately lazy people, who can't even be bothered to pick up the remote.
+[30:01] B: Yeah.
+[30:02] D: Mm yeah. Maybe
+[30:03] B: I
+[30:03] D: I mean if I get m more numbers, I'll e-mail you before the next meeting in terms of ages
+[30:09] D: But this doesn't divide up anything and there was only a hundred subjects also
+[30:13] A: Mm-hmm
+[30:13] B: Mm-hmm.
+[30:13] D: which isn't, I mean, really isn't that representative, especially if it's a hundred subjects that th they then can subdivide into age groups that means there's very few in each age group, so
+[30:23] B: Yeah, but I th I think regardless we're we're aiming for the under sixty five or something.
+[30:28] A: Under sixty five
+[30:29] C: Yep
+[30:29] A: okay, that's a good start. Um.
+[30:33] A: I'd say we're uh can we narrow it down to maybe um
+[30:37] A: teenagers and families?
+[30:40] A: 'Cause that would go
+[30:40] B: Or
+[30:40] A: up
+[30:40] B: like
+[30:41] A: to like fifty
+[30:41] B: single professionals or something.
+[30:43] D: Twenty
+[30:43] A: Okay, single
+[30:44] D: to like fifty five
+[30:48] B: Yeah
+[30:48] D: I dunno.
+[30:50] A: It's it's hard to
+[30:50] B: It's
+[30:51] A: narrow
+[30:51] B: really hard
+[30:51] A: it down
+[30:51] B: to figure out right now.
+[30:54] C: I think the product appeals across a quite a broad range of ages
+[30:57] A: Mm-hmm
+[30:58] C: I mean, we we said simplicity is is one of the features, so it's going to appeal to people
+[31:05] C: maybe people who have problems with technology, you know, people who get
+[31:08] A: Okay
+[31:08] C: scared by having lots of buttons, and that might be older people
+[31:11] A: Mm-hmm
+[31:11] C: but then we've also got fashion, which is something that definitely appeals
+[31:14] B: Yeah
+[31:14] C: to younger people.
+[31:15] D: Well maybe we don't have to defi define the target group by the demographic of age, maybe we
+[31:18] A: Right
+[31:18] D: can define it by like the demographic of
+[31:22] D: like h t how much money they have to spend
+[31:24] C: Yeah
+[31:24] D: or something like that
+[31:25] C: Yeah
+[31:25] D: like
+[31:25] B: That's
+[31:25] C: aim
+[31:25] B: a
+[31:25] C: for
+[31:25] B: good
+[31:25] D: well
+[31:25] B: point
+[31:25] C: a
+[31:25] D: obviously
+[31:25] A: Mm-hmm
+[31:26] D: it has to
+[31:26] C: an
+[31:26] D: be
+[31:26] C: income
+[31:26] D: someone who
+[31:26] C: group
+[31:26] D: owns a television
+[31:28] A: Mm-hmm
+[31:28] D: and like
+[31:28] B: Yeah
+[31:28] D: how recently have they bought their television like that sort of thing.
+[31:32] B: Mm.
+[31:33] A: So maybe it's more useful to d d to define objectives
+[31:36] A: like fashion and
+[31:36] B: Yeah
+[31:36] A: simplicity than
+[31:37] B: t probably
+[31:37] A: to find specific
+[31:39] A: target group as far
+[31:40] C: Yeah
+[31:40] A: as age is because, yeah, things so different will appeal to different people, but
+[31:46] A: Okay
+[31:47] A: Um oh, there're a couple functions
+[31:49] A: do we want something so that do we want some kind of thing to find it if it's lost?
+[31:56] B: Mm
+[31:56] D: Yeah
+[31:56] A: Like a button on a T_V_ you can press and it'll ring or something, I don't know like or
+[32:00] D: H
+[32:00] A: beep?
+[32:02] D: I mean, like I said before, fifty per cent of of the fru f like frustration someone can have that was the biggest one and half the people said that happened and we all mentioned it before we
+[32:11] A: Mm-hmm.
+[32:12] D: knew about it.
+[32:13] C: Yeah.
+[32:14] D: And if we're talking about making something easy that sort of goes along with it so it wouldn't be like a random thing to sort of add in
+[32:21] B: Mm
+[32:21] D: It would be relevant to like the overall goal
+[32:23] A: Mm
+[32:23] D: I think
+[32:23] B: Yeah
+[32:24] D: so
+[32:24] B: that'll probably be good.
+[32:25] A: Okay, we have to we have about four minutes left to define our functions. So let's do that quickly. Um so we want something to keep it from getting lost.
+[32:33] C: Yep.
+[32:34] B: Yeah.
+[32:36] A: And
+[32:38] A: we want
+[32:40] A: um
+[32:42] A: we want large buttons for the essential things.
+[32:45] C: Yeah.
+[32:46] B: Yeah.
+[32:46] A: Large, accessible buttons for the essentials.
+[32:52] A: We want a possibility to um to get um
+[32:58] A: a possibility to get the
+[33:01] A: extra functions.
+[33:02] B: Mm-hmm.
+[33:02] C: Yeah.
+[33:05] C: Which are kind of hidden away in some way or
+[33:09] C: well not hidden but they're uh
+[33:12] C: they're not as prominent as the main features.
+[33:14] A: Mm-hmm
+[33:14] D: Hmm.
+[33:19] A: Um, yeah, hidden way.
+[33:22] A: And we also
+[33:23] A: want it to be fashionable
+[33:25] A: which I'm not sure if that's a function so much as a
+[33:28] A: um yeah
+[33:30] D: on your coffee table, it's not like an eye sore, that kind
+[33:33] A: Mm-hmm
+[33:33] D: of thing
+[33:33] B: Yeah.
+[33:38] B: Alright.
+[33:40] A: Okay, do it. Any other essential functions that we need?
+[33:44] A: Battery
+[33:46] A: Do we need a
+[33:46] B: Battery
+[33:46] A: long-life battery
+[33:47] B: battery use
+[33:48] B: Yeah, but
+[33:49] D: Yeah
+[33:49] B: I think that goes in with simplicity and ease of use really.
+[33:52] A: But
+[33:52] D: So
+[33:53] A: we might
+[33:53] D: you
+[33:53] A: as well
+[33:53] D: never have to change the battery
+[33:54] B: Yeah.
+[33:58] C: We should maybe investigate whether it needs a battery at all.
+[34:01] C: I suspect the remote control does need a battery, but
+[34:04] A: Yeah
+[34:04] B: Yeah
+[34:04] A: I would imagine
+[34:05] C: I dunno if you can
+[34:05] A: Just 'cause it is an electronic device, the
+[34:08] C: Yeah
+[34:08] B: Mm. It I think it does. I don't I don't think of a way you can operate a chip and convert that much data without
+[34:14] B: without
+[34:14] C: Yeah
+[34:14] B: one
+[34:15] C: without the energy
+[34:15] B: But you
+[34:16] C: yeah
+[34:16] B: could maybe have it in a little charging station like a mobile phone
+[34:20] B: or like a little cradle for your iPod.
+[34:22] C: Yeah, that's
+[34:23] B: You
+[34:23] C: that's
+[34:23] B: could
+[34:23] C: possible
+[34:23] B: we could maybe
+[34:24] C: Yeah
+[34:24] B: do that instead
+[34:25] B: So you don't
+[34:26] A: Charging
+[34:26] B: ha you got like a rechargeable battery.
+[34:28] C: Yeah.
+[34:30] B: I dunno, that might contribute to less people losing it too if
+[34:33] A: Mm-hmm
+[34:33] B: it it stays in one place.
+[34:35] D: Mm.
+[34:36] A: We have to think about um space in living-rooms, too, like
+[34:40] B: Mm.
+[34:40] A: 'cause they're I mean, would you put it on top of the T_V_? I don't know, just think okay, that's that's a good idea, we'll keep it
+[34:46] B: Yeah
+[34:46] A: Think it's
+[34:46] B: That's just off the top of my head.
+[34:48] A: And maybe fun.
+[34:50] A: Okay. Um
+[34:52] A: 'kay we're gonna conclude now, has everyone said their functions and
+[34:55] C: Yep
+[34:56] A: 'kay.
+[34:57] A: Um after the meeting we're gonna each complete a sks um a questionnaire and a summaries summary
+[35:02] A: I don't know what summarisation
+[35:04] A: Um and then we'll have our lunch break. After that we have thirty minutes of individual work. Um I'll make sure to put up um the minutes and the project documentation and including these PowerPoint slides. If everyone could do that as well, that'd be great.
+[35:17] A: Um you each have individual actions, I_ um
+[35:21] A: I_D_ Industrial Design you've your components concept
+[35:25] A: User Interface, the user interface concept
+[35:28] A: market trend wa watching
+[35:30] A: And as as per last time you'll get specific incrat instructions from your personal coach e-mailed to you. And hopefully, I hope, next time you'll be able to access more of the web site that they they seem to tell you that you could.
+[35:42] B: Yeah
+[35:42] A: It's kinda
+[35:43] B: who knows
+[35:43] A: frustrating, but um
+[35:47] A: Be sure to note any frustrations or any um
+[35:50] A: issues that come up in your um in your um summary.
+[35:57] B: Okay
+[35:58] A: Mm 'kay?
+[35:59] B: Sounds good.
+[36:00] A: Great seeing y'all.
+[36:03] D: It's good.
+[36:06] D: Did you um were you able to like put yours in the group folder
+[36:09] B: Yes, I
+[36:10] D: Okay
+[36:10] B: just did that. Hopefully it is there for people
+[36:13] D: Yep.
+[36:14] B: Yeah?
+[36:16] A: Looks like there are um
+[36:18] A: looks like there's a second one kind of of mine
+[36:21] B: Yeah
+[36:21] A: that's that I didn't do, it's from like an earlier project, I think so
+[36:24] B: Okay.
+[36:25] A: um
+[36:26] D: Where is that
+[36:28] D: Yours is
+[36:28] A: Under the shared folder, I don't know it might not
+[36:30] B: Technical
+[36:30] A: even be under yours
+[36:31] B: So
+[36:31] A: as well
+[36:31] B: in there we
+[36:32] A: Projects
+[36:32] B: have technical functions presentation, working design presentation and the functional requirements
+[36:37] B: At least that's
+[36:38] D: I
+[36:38] B: what I
+[36:38] D: only
+[36:38] B: have
+[36:38] D: have
+[36:39] B: in
+[36:39] D: three, I just have like our three
+[36:40] B: Yeah
+[36:40] D: Yeah
+[36:40] B: that's what I have as well, R
+[36:41] A: Okay
+[36:42] B: Rose So.
+[36:43] A: You don't have mine?
+[36:45] D: No, but that's 'cause I think yours is in the e-mail
+[36:47] D: separate, like it's not on the server.
+[36:49] A: S
+[36:50] B: Yeah.
+[36:55] A: Mm.
+[36:56] D: But if I open it and then save it, probably will be there
+[36:59] D: Oh wait, never mind you can't save it to the
+[37:05] A: Okay. Well I'll figure that out in the meantime.
+[37:07] B: Okay.
+[37:08] D: Okay.
+[37:08] A: Okay.

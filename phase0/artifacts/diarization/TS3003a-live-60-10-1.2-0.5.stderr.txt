@@ -1,0 +1,7 @@
+﻿LiveDiarize.exe : global speakers: 5
+At C:\Users\brand\Documents\ChatGPT\Self-correcting Meeting Transcriber\scripts\run-diarization-sweep.ps1:26 char:18
++ ...    $stats = & $exe $wav $hyp $seg $emb @parts 2> (Join-Path $out "$me ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (global speakers: 5:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

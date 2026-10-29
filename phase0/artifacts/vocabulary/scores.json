@@ -1,0 +1,125 @@
+﻿{
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\small-vocab-david-plain.txt": {
+    "term_recall_strict": 0.5,
+    "term_recall_lenient": 0.5,
+    "wer": 0.15263157894736842,
+    "missed": [
+      "Zylotrax",
+      "Anjali Venkataraman",
+      "Siobhan Keogh",
+      "Grafana Loki",
+      "Merovex",
+      "pgvector",
+      "Vantiq",
+      "LoRaWAN",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\small-vocab-david-prompt.txt": {
+    "term_recall_strict": 0.95,
+    "term_recall_lenient": 0.95,
+    "wer": 0.07894736842105263,
+    "missed": [
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\small-vocab-zira-plain.txt": {
+    "term_recall_strict": 0.35,
+    "term_recall_lenient": 0.35,
+    "wer": 0.3526315789473684,
+    "missed": [
+      "Zylotrax",
+      "Anjali Venkataraman",
+      "Siobhan Keogh",
+      "Grafana Loki",
+      "Merovex",
+      "Okonkwo",
+      "Halvorsen",
+      "Kafka Connect",
+      "pgvector",
+      "Vantiq",
+      "LoRaWAN",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\small-vocab-zira-prompt.txt": {
+    "term_recall_strict": 0.9,
+    "term_recall_lenient": 0.9,
+    "wer": 0.12105263157894737,
+    "missed": [
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\turbo-vocab-david-plain.txt": {
+    "term_recall_strict": 0.4,
+    "term_recall_lenient": 0.45,
+    "wer": 0.15789473684210525,
+    "missed": [
+      "Zylotrax",
+      "Anjali Venkataraman",
+      "Siobhan Keogh",
+      "Grafana Loki",
+      "Merovex",
+      "SOC 2",
+      "Halvorsen",
+      "pgvector",
+      "Vantiq",
+      "LoRaWAN",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\turbo-vocab-david-prompt.txt": {
+    "term_recall_strict": 0.7,
+    "term_recall_lenient": 0.7,
+    "wer": 0.10526315789473684,
+    "missed": [
+      "Pellucid Health",
+      "Anjali Venkataraman",
+      "Grafana Loki",
+      "LoRaWAN",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\turbo-vocab-zira-plain.txt": {
+    "term_recall_strict": 0.55,
+    "term_recall_lenient": 0.6,
+    "wer": 0.14210526315789473,
+    "missed": [
+      "Zylotrax",
+      "Siobhan Keogh",
+      "Grafana Loki",
+      "Merovex",
+      "SOC 2",
+      "Vantiq",
+      "LoRaWAN",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": [
+      "Nexaflow"
+    ]
+  },
+  "C:\\Users\\brand\\Documents\\ChatGPT\\Self-correcting Meeting Transcriber\\artifacts\\vocabulary\\turbo-vocab-zira-prompt.txt": {
+    "term_recall_strict": 0.8,
+    "term_recall_lenient": 0.8,
+    "wer": 0.13157894736842105,
+    "missed": [
+      "Pellucid Health",
+      "Grafana Loki",
+      "Daedalus",
+      "Ingrid Solberg"
+    ],
+    "false_insertions": []
+  }
+}

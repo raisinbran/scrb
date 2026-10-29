@@ -1,0 +1,6 @@
+WASAPI Capture Shared Event Driven Sample
+Copyright (c) Microsoft.  All Rights Reserved
+
+Capture audio data for 120 seconds
+........................................................................................................................
+Successfully wrote WAVE data to WASAPICaptureEventDriven-{203F4C1E-FCC8-403B-A6F0-3C7500C31AA9}.WAV

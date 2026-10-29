@@ -1,0 +1,16 @@
+[
+  {
+    "model": "Ministral-3-8B-Instruct-2512-Q4_K_M",
+    "meeting": "ES2016b",
+    "load_seconds": 51.9,
+    "seconds": 776.4,
+    "prompt_tokens": 13876,
+    "completion_tokens": 917,
+    "actions": 7,
+    "decisions": 13,
+    "valid_timestamps": "20/20",
+    "json_valid": true,
+    "peak_working_set_mib": 11603,
+    "peak_private_mib": 8094
+  }
+]

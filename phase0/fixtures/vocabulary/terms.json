@@ -1,0 +1,24 @@
+{
+  "terms": [
+    {"term": "Zylotrax", "sentence": "The Zylotrax rollout slipped to the second week of March."},
+    {"term": "Pellucid Health", "sentence": "Pellucid Health asked for the revised pricing sheet by Friday."},
+    {"term": "Anjali Venkataraman", "sentence": "Anjali Venkataraman will own the onboarding checklist."},
+    {"term": "Siobhan Keogh", "sentence": "Siobhan Keogh flagged two open risks in the vendor contract."},
+    {"term": "QuarkDB", "sentence": "We should move the session cache from Redis to QuarkDB next quarter."},
+    {"term": "FinOps", "sentence": "The FinOps review found idle clusters in three regions."},
+    {"term": "Grafana Loki", "sentence": "Send the worker logs to Grafana Loki instead of the old file share."},
+    {"term": "Merovex", "sentence": "Merovex is still waiting on our security questionnaire."},
+    {"term": "Tavistock", "sentence": "The Tavistock migration needs one more dry run before cutover."},
+    {"term": "SOC 2", "sentence": "Our SOC 2 audit window opens on the first of June."},
+    {"term": "Brightwell", "sentence": "Brightwell agreed to extend the pilot by six weeks."},
+    {"term": "Okonkwo", "sentence": "Doctor Okonkwo will present the clinical findings on Tuesday."},
+    {"term": "Halvorsen", "sentence": "Please copy Erik Halvorsen on the budget thread."},
+    {"term": "Kafka Connect", "sentence": "The ingest team is replacing the cron jobs with Kafka Connect."},
+    {"term": "pgvector", "sentence": "Search quality improved after we switched to pgvector."},
+    {"term": "Vantiq", "sentence": "Vantiq needs a signed data processing agreement first."},
+    {"term": "LoRaWAN", "sentence": "The sensors in the warehouse talk over LoRaWAN gateways."},
+    {"term": "Daedalus", "sentence": "Daedalus is the code name for the new billing engine."},
+    {"term": "Ingrid Solberg", "sentence": "Ingrid Solberg will send the action items after the call."},
+    {"term": "Nexaflow", "sentence": "Nexaflow quoted twelve weeks for the integration work."}
+  ]
+}

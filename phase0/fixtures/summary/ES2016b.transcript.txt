@@ -1,0 +1,822 @@
+[00:16] A: Oh.
+[00:25] C: Du
+[00:46] A: Okay
+[00:50] A: Thanks
+[00:50] D: Hm
+[00:50] A: for coming to this meeting. S how we doing on our remote
+[00:55] A: We have some we have some ideas and some uh
+[01:00] A: ideas for what people want.
+[01:04] C: Uh we yes s I've lo
+[01:06] C: I've done the role that I was asked to do anyway
+[01:08] A: Yeah
+[01:09] C: I think.
+[01:12] A: Alright let's just go over the agenda real quick for this meeting. See if I can't get things uh moving along here a little bit better. Um
+[01:20] A: I'll go over what we went over last time, which shouldn't take long. Then I believe each of you have a presentation
+[01:26] A: Um
+[01:27] A: I've was sent a a couple more requirements for our remote, what they want
+[01:33] A: Um
+[01:35] A: then we can come to a conclusion on uh
+[01:40] A: what we want the remote to do, um and how it's going to do it hopefully. And uh then we'll have the closing
+[01:49] A: Um
+[01:50] A: which we'll have forty minutes for
+[01:53] A: Uh let's see, the last meeting we went over um
+[01:58] A: who was responsible for what
+[02:01] A: I'm responsible for leading the meetings, keeping the notes, uh and coming up with the final
+[02:07] A: presentation
+[02:09] A: Um
+[02:11] A: Corinne is our Marketing Expert. She's gonna figure out what
+[02:15] A: what um the consumer wants
+[02:19] A: Um
+[02:21] A: Ryan is our User Interface Designer.
+[02:24] A: And Manuel is the Industrial Designer
+[02:29] A: So you're gonna come up with the ideas Ryan, and you're gonna pick 'em apart
+[02:35] A: Um
+[02:36] A: we decided our remote, uh we want it to be a universal remote uh that everyone would want. Um we want to be modern
+[02:47] A: um
+[02:48] A: fun, different
+[02:50] A: Uh it needs to be sturdy
+[02:52] A: um
+[02:53] A: easy to find, so we gonna have that locator function
+[02:58] A: Um
+[03:00] A: and
+[03:02] A: we want to be different.
+[03:05] A: Um and then we went over a couple of different ideas. Ball-shaped phone. The keyboard shape. Um we decided that it should probably be one-handed
+[03:15] A: Something we could use with one hand
+[03:17] A: Um and that was our last meeting
+[03:22] A: So
+[03:24] A: um
+[03:25] A: why don't um
+[03:27] A: Do each of you have a presentation?
+[03:29] D: Yep.
+[03:31] A: Okay. I'll hand it off to you and um
+[03:36] A: Does anyone
+[03:37] A: do you wanna go first
+[03:38] D: Sure.
+[03:39] A: So we can maybe see what uh what the people want.
+[03:49] D: What was it? Function?
+[03:51] B: Eight
+[03:51] D: F_
+[03:51] B: F_ eight
+[03:52] D: eight?
+[04:14] D: Well.
+[04:21] D: How do I get it
+[04:23] C: Slide show
+[04:24] A: To go to the
+[04:25] D: Oh
+[04:25] A: next
+[04:25] D: right
+[04:25] A: one
+[04:25] D: right right
+[04:26] A: Yeah you click on that
+[04:27] D: That
+[04:27] A: guy
+[04:27] D: one
+[04:28] A: Yeah
+[04:28] D: Okay.
+[04:30] D: Alright
+[04:31] D: Well, this is
+[04:33] D: my report
+[04:35] D: which is going to be
+[04:37] D: based pretty much on
+[04:39] D: a survey that I was sent
+[04:43] D: Oh gosh, I've no idea
+[04:45] D: G
+[04:47] C: Just press the arrow keys I think. Usually
+[04:49] D: Okay
+[04:49] C: goes to it.
+[04:50] D: Sorry I actually need
+[04:53] D: to see something else on my screen.
+[04:59] A: Hit F_ eight again.
+[05:00] D: Yeah.
+[05:01] A: I think.
+[05:02] D: And then
+[05:03] D: Again?
+[05:04] A: Yeah.
+[05:07] A: You want it to be on both screens, or
+[05:09] D: No
+[05:09] A: just
+[05:09] D: I want
+[05:09] A: just
+[05:09] D: something
+[05:09] A: yours
+[05:10] D: else on mine.
+[05:12] D: Is that possible?
+[05:13] A: Yeah but I think you have to hit escape.
+[05:19] A: And then you can
+[05:22] A: Yeah
+[05:22] D: Okay but now you don't have that
+[05:24] A: Oh hit F_ eight again.
+[05:25] D: Sorry guys
+[05:26] A: I know. I did the same thing.
+[05:29] A: And then it should come up
+[05:32] A: here shortly.
+[05:34] A: 'Kay.
+[05:44] D: So is there no way I can give you the slideshow
+[05:46] A: I think
+[05:46] D: and
+[05:47] A: oh give
+[05:48] D: have
+[05:48] A: us
+[05:48] D: something
+[05:48] A: the slideshow and
+[05:49] D: yeah
+[05:49] A: something on your screen
+[05:50] D: Yeah
+[05:51] D: Oh
+[05:51] A: Mm
+[05:51] D: well.
+[05:52] A: I'm not sure. You could maybe minimise that screen and then
+[05:56] D: Yeah
+[05:56] A: have them both up at the same
+[05:57] D: It's
+[05:57] A: time
+[05:58] D: okay
+[05:58] A: I think.
+[05:59] D: Okay. Um so first of all, the method that I used was
+[06:04] D: by doing some marketing research, by
+[06:07] D: um doing research on some interviews that were conducted
+[06:11] D: And then some internet research. And I was sent a report that was
+[06:16] D: I think there were a hundred remote users that they interviewed. And so I will show you some of the results from that, which I think will be helpful
+[06:26] D: Um okay here are some of the findings
+[06:29] D: They said that the users dislike the look and feel of their current remote controls
+[06:34] D: And seventy five percent of the users find their remote controls to be ugly. Which is a fairly significant
+[06:41] D: number I would say. And eighty percent of the users would be willing to spend more money
+[06:46] D: if they could get a remote that would look fancy. So I think that earlier we were onto something when we were talking about having it be a modern cool look, I think that's definitely important. Um they say that current remote controls do not match well the operating behaviour
+[07:03] D: of the user
+[07:04] D: Seventy five percent of users said they zap a lot
+[07:08] D: And if anyone could clarify what that means
+[07:12] D: Zap
+[07:12] C: Is
+[07:13] D: does
+[07:13] C: is it
+[07:13] D: that
+[07:13] C: j
+[07:13] D: just mean
+[07:13] B: Just
+[07:13] D: like changing
+[07:13] C: just
+[07:14] D: the
+[07:14] C: just
+[07:14] D: channel
+[07:14] C: just using
+[07:14] B: jus
+[07:15] C: it yeah
+[07:15] D: Okay
+[07:15] B: yeah.
+[07:16] D: Um
+[07:18] D: and fifty percent of the users say that they're only using ten percent of the buttons on their remote control
+[07:24] D: And
+[07:25] D: there was something else, they
+[07:28] D: kept track of the frequency per hour in using certain buttons
+[07:34] D: And some of them it looks like barely need to be included at all. Of course channel selection is used the most frequently. And then teletext was the next
+[07:45] D: Volume
+[07:46] D: and then power
+[07:47] D: And then audio settings and screen settings and channel settings were practically never used. So I think we could definitely eliminate
+[07:56] D: or somehow
+[07:57] D: combine a lot of the functions into one button.
+[08:03] D: Um the biggest user frustrations
+[08:07] D: as we said fifty percent of people
+[08:09] D: find that their remotes are lost somewhere, and so I think a tracking device of some sort would be a good idea
+[08:16] D: They said it take thirty four percent said it takes too much time to learn
+[08:20] D: how to use a new remote.
+[08:22] D: And twenty six percent
+[08:25] D: said that the controls are bad for R_S_I_.
+[08:29] C: A repetitive strain injury.
+[08:31] D: What is it
+[08:32] C: Just repetitive strain injury. I think
+[08:34] D: Okay
+[08:34] C: That's what I guess.
+[08:35] D: Okay
+[08:38] D: And so bas okay
+[08:40] D: Um
+[08:41] D: as far as speech recognition goes
+[08:45] D: um the younger group looks like they're all for it. From the fifteen to twenty five age group over ninety percent said they would pay more
+[08:54] D: And it kind of just went down incrementally. The groups at the older they get it looks like the less willing they are
+[09:02] D: to pay, so maybe we could discuss this and think
+[09:06] D: and decide if we think it's worth investing in this. At least if we're targeting the younger groups
+[09:14] D: And so in conclusion. Some things that I drew from this are that I think we were correct. We definitely need to focus on a new modern appearance, since so many people seem to be concerned about the ugliness of their remote control
+[09:28] D: Um a multifunctional
+[09:30] D: remote could be a good thing to explore. So you only have one rather than five different remotes sitting all over your room. Uh we need to simplify the remote and reduce the number of buttons, get rid of the ones
+[09:42] D: that don't seem to be serving much purpose
+[09:45] D: And then lastly I thought that maybe we could discuss the idea of speech recognition.
+[09:51] D: And that's it.
+[10:01] A: 'Kay
+[10:02] A: Very nice. Now we actually have some ideas of what what people want, what we should focus on
+[10:12] A: Uh
+[10:23] A: Wait can I look at that real quick
+[10:24] D: Oh yeah.
+[10:25] D: Sorry did you guys
+[10:27] D: get time to write everything
+[10:28] C: Yeah
+[10:29] D: that you needed? 'Kay.
+[10:33] C: Having just listened to what Corinne just said, I'll draw on some of the things as well. Some things that sort of relevant to what I wanna say.
+[10:42] C: 'Kay so I'm just gonna yeah approach the technical functions design.
+[10:48] C: Um
+[10:50] C: the method I used was to explore
+[10:52] C: the uh technical functions of a remote control. And t s simplest approach that I came to is is to change, programme and operate an electronic device
+[11:02] C: remotely. I mean that's an obvious thing to say, but it's not attached to the device that you want to control. Um
+[11:09] C: I had some things sent to me. Not very much. To look at similar devices
+[11:13] C: Um defined in some them. And then the personal preferences
+[11:19] C: that I will suggest. Um we discussed a universal one
+[11:24] C: Um
+[11:25] C: like it's just been brought up again then
+[11:28] C: But I think a universal
+[11:30] C: remote control is actually quite a difficult object to design
+[11:34] C: and
+[11:35] C: po possibly within
+[11:37] C: maybe the budget that we do it, um because you'd need to know all the spef specifications of a all the like electronic companies. I'm not sure have you ever come across a universal remote control yourself, but you have to i they're a nightmare to use. You have to set them, reset them to everything. Um and that would only add buttons
+[11:55] C: Whereas I think the aim is to take away buttons. So I think it'd be better maybe to concentrate on maybe just a universal one for T_V_s
+[12:03] C: Um
+[12:05] C: or maybe just one that you could we could design and then different people, manufacturers could use it to set to their specifications
+[12:11] C: if if the aim is to get something that's unique in design
+[12:15] C: Um
+[12:17] C: Okay
+[12:19] C: here here's just two pictures of remote controls. They're just simple T_V_ remote controls. But one is uh user-centred
+[12:27] C: That is the one on the left
+[12:29] C: And you can straight away see there's less buttons
+[12:32] C: And the other one is engineer-centred where that's more
+[12:36] C: uh specified for the sort of the elaborate piece of equipment it's trying to control um
+[12:43] C: which appeals more to the product that we want, and on what the have said and the market research and stuff
+[12:50] C: probably looking at something that should be user-centred. Fewer buttons, simpler to use, and if ten percent um is hidden away if ten percent is what's used, maybe the other fifty percent, the buttons that are used very rarely like programming, they could be
+[13:03] C: hidden maybe under some remote controls you might have come across have maybe a little flip thi thing where they're hidden away. And the main buttons are the ones you or the ones you come across.
+[13:14] C: Um and finally, um uh sort I've sort of covered that, our product I think should be user interface orientated
+[13:21] C: Um
+[13:23] C: Like I said to concentrate on T_V_ remote control, a universal remote might be too complex
+[13:28] C: Um
+[13:30] C: and as what
+[13:32] C: it, the major findings market researchers have said, it's the image and the appearance that people di dislike
+[13:38] C: So that we should concentrate on something that would set a trend
+[13:41] C: And then and change the fashion
+[13:43] C: of remote controls.
+[13:46] C: And that's it.
+[14:00] B: cable there. Thank you.
+[14:08] A: What was your last conclusion on that one? Focus on uh
+[14:12] C: On
+[14:12] A: the i
+[14:12] C: something on the image of it
+[14:13] A: the image
+[14:13] C: Uh
+[14:13] A: of it
+[14:13] C: the f the actual design.
+[14:15] A: 'Kay
+[14:16] A: Good. Good.
+[15:07] B: Okay
+[15:09] B: Gonna talk to you about the working design of the interiors basically
+[15:14] B: which is what
+[15:16] B: dictates
+[15:17] B: the design the
+[15:19] B: both the interface basically and
+[15:23] B: the outer appearance because this is all the stuff that needs to go in there. Right
+[15:28] B: So
+[15:29] B: unfortunately the people who were supposed to
+[15:33] B: do this little presentation for me obviously were too drunk to actually accomplish it, so um I'm going to do a lot of the stuff on the board. Um
+[15:43] B: just
+[15:45] B: This is the basic
+[15:48] B: basic premise of a remote control
+[15:50] B: Um the basic function is to send messages to another system. Okay so much
+[15:55] B: is clear. An energy source feeds an integrated circuit, like a chip, that can compose messages
+[16:02] B: Often in the form of infrared bits. This is the most
+[16:06] B: mostly used. Um there's uh also some sound systems but infrared is
+[16:12] B: the better
+[16:14] B: or the more
+[16:15] B: more used system. Um parts are cheaper as well. A user interface controls the chip and accordingly the messages.
+[16:24] B: This is where my people screwed up basically
+[16:27] B: So I'm going to explain that on the board rather
+[16:31] B: Um
+[16:33] B: what we have is
+[16:35] B: different components that obviously need to go in there. We'll start with an energy source
+[16:42] B: Right. Um
+[16:45] B: which is usually a battery right?
+[16:48] B: Since it's not feasible to add a cable to that
+[16:53] B: This energy source of course is connected to
+[16:59] B: the
+[17:02] B: the user interface itself
+[17:07] B: Uh which can be buttons, whatever
+[17:11] B: which in fact
+[17:14] B: controls a chip
+[17:16] B: Right
+[17:18] B: This is the user interface
+[17:20] B: and there we have the chip
+[17:23] B: Um the way this goes normally is that this chip then controls an infrared lamp.
+[17:30] B: That sends out the signal.
+[17:36] B: Of course the signal differs accordingly
+[17:40] B: Um depending on what the chip tells the infrared lan lamp. And
+[17:45] B: Of course that's controlled
+[17:47] B: the chip itself is controlled by the user interface
+[17:50] B: The way you normally
+[17:52] B: normally do it is that you add a little device such as a lamp
+[17:58] B: to the whole thing as well, so that you know
+[18:00] B: that it's working basically. You press something, you get a response.
+[18:05] B: Which is also comparatively
+[18:07] B: um important on one of those devices.
+[18:11] B: Now this, what we're talking about here, or what I think should be discussed are these two components mostly. The
+[18:21] B: the uh energy source for one thing can be altered. What we probably cannot alter
+[18:27] B: is of course the infrared
+[18:32] B: the sending device basically, the infrared lamp. We cannot change the chip
+[18:36] B: which controls the infrared lamp
+[18:39] B: Right? These two
+[18:41] B: are components that we have to use, and
+[18:44] B: these are dictated by the whole function of the whole thing. Um the lamp can be put onto the desi the device. It c it doesn't have to be there
+[18:54] B: This can be discussed as well.
+[19:00] B: The user interface
+[19:01] B: That's something we can also discuss
+[19:04] B: Um as we've heard
+[19:07] B: uh speech recognition is the hype obviously in the moment.
+[19:12] B: Speech recognition
+[19:13] B: um
+[19:15] B: interface
+[19:16] B: we don't know that. Or if we just
+[19:19] B: do the usual button thing. Or we have a touch pad or something like that
+[19:24] B: that's something we can discuss. And of course the energy source
+[19:28] B: Batteries
+[19:30] B: Solar cells. Who knows?
+[19:37] B: Of course it's always a question whether these these components are in fact
+[19:44] B: available cheap enough, developed enough
+[19:47] B: But that's like I s I suppose rather up to marketing, and not to
+[19:53] A: So we could
+[19:54] B: to the industrial design
+[19:55] A: the the
+[19:55] B: department
+[19:55] A: the more complex we make it of course, the more
+[19:57] B: Expensive
+[19:57] A: expensive
+[19:58] B: it's gonna be get uh. Yeah.
+[20:00] A: But people have said that they would well younger generations of people have said that they would pay more for a speech recognition
+[20:07] D: Mm-hmm
+[20:07] A: remote
+[20:08] A: So
+[20:10] B: Right
+[20:10] A: possibly
+[20:11] A: it might be worth the investment.
+[20:13] C: I think speech recognition was
+[20:16] C: uh one of those things where um
+[20:18] C: they have to be really good for them to work. 'Cause sometimes you find yourself just saying things over and o
+[20:23] D: Yeah
+[20:23] C: if it's on your phone.
+[20:24] A: I agree.
+[20:26] C: And
+[20:26] A: Well
+[20:26] C: you need to sort of take into light languages and then
+[20:30] C: different dialects I suppose as well.
+[20:33] A: I myself I find, when you
+[20:36] A: h when there's something like spee speech recognition. Like uh you call on the phone and you try to change your telephone or power or something. Sometimes they have a a speech recognition
+[20:45] C: Yeah
+[20:45] A: on the other end, and you say one for
+[20:48] A: this, and you find yours, like you said, saying the same thing over and over and over. I find myself
+[20:54] A: especially if I'm in a crowd of people, looking really silly
+[20:57] C: Yeah.
+[20:57] A: So maybe if you're sitting on your couch with a bunch of people then
+[21:03] C: And
+[21:03] A: you
+[21:03] C: wou
+[21:03] A: know
+[21:03] C: I
+[21:03] A: you
+[21:03] C: don't know if would would you want to keep saying stuff if you were watching stuff. If you were watching something would you sort of be wanting
+[21:09] A: Volume up. Volume
+[21:11] C: Yeah
+[21:11] A: down
+[21:12] A: Change the channel, you know channel up, channel down? I I don't know.
+[21:16] D: Another thing about these figures is ninety one percent of the youngest age groups said they'd do it, but
+[21:23] D: probably a lot of them that's actually their parents money. Like I don't know if they would actually go out and purchase this themselves
+[21:28] C: I think
+[21:29] D: a fifteen year old you know
+[21:30] C: As well it'd be j the gimmick factor
+[21:32] A: Mm-hmm
+[21:33] D: Yeah
+[21:33] C: for the younger people
+[21:35] C: But practically I don't
+[21:35] A: It's
+[21:35] C: think it's
+[21:36] A: a, it's a gimmick factor that they like at first, and
+[21:39] C: Yeah. It'll wear off.
+[21:40] D: Gets old yeah.
+[21:46] A: Okay. Um
+[21:49] A: Let's see here
+[21:50] C: Do you wanna put your
+[21:52] C: cord back in?
+[21:53] A: Yeah I guess so
+[21:54] B: Oh right
+[21:55] A: Trade you.
+[21:56] B: go
+[21:58] A: Now I was sent a couple of
+[22:03] A: things to modify our
+[22:08] A: uh
+[22:10] A: new requirements
+[22:11] A: Um the remote's only gonna be for the television, which is good because we already decided y your your research showed that uh
+[22:20] A: not only is a universal remote more complicated
+[22:22] A: it's more cost, more costly. And your re uh research showed that
+[22:28] A: you know most of the people don't even use it. I think
+[22:30] D: Mm
+[22:31] A: uh you said
+[22:33] A: fifty percent of the people only use half the or ten percent of the buttons. So if we remove the universal remote then that solves that problem. Um no teletext
+[22:45] A: Um
+[22:47] A: So we don't have to worry about that
+[22:49] A: Um but we do have to use the the company wants us to incorporate
+[22:55] A: the corporate colour and our slogan, which is we put the fashion in electronics
+[23:02] A: And our corporate colours are grey and yellow.
+[23:08] A: And we could probably get away with black too but
+[23:15] A: So those are the three
+[23:17] A: um the three new requirements that that I was told
+[23:23] A: we need to use
+[23:25] A: Um from all all three of your uh presentations, I think that we were on the right track a lot in our last meeting. Um
+[23:35] A: We want something that looks good. Um we want something that's simple
+[23:40] A: We want something that you can find easily
+[23:43] A: Um
+[23:47] A: And the speech recognition I I guess is kind of uh give or take. It's gonna cost more
+[23:54] A: S
+[23:54] B: Mm-hmm
+[23:54] A: the young the younger people say that they like it. But
+[23:57] A: um it's
+[24:00] A: probably
+[24:01] A: I would say, probably not worth the investment at this point in time
+[24:05] A: So maybe we should just do away with speech recognition
+[24:09] A: Um
+[24:12] A: And that way we can focus on our form.
+[24:17] C: I did have have a thought about the
+[24:20] C: sort of the tracking thing. Is that if it came with maybe
+[24:24] C: a holder
+[24:26] C: or holster, whatever you wanna call it. Um
+[24:28] C: that you you should put it back in. Your remote. But if you don't put it back in, you press something like a little button on that, and that just sort of sends out a beep to find where it is or something. Just by infrared. That shouldn't be too complex I would've thought.
+[24:42] A: That'd be, that'd be good if we were going with our our ball.
+[24:46] C: Yeah it would be quite good. The ball
+[24:47] A: Or or
+[24:47] C: could sit
+[24:47] A: with
+[24:47] C: on a
+[24:48] A: you know I guess
+[24:48] D: Mm
+[24:48] A: with any form that that would be good. You know that could be the charger
+[24:53] A: For
+[24:53] C: Yeah
+[24:53] A: you know we could use rechargeable batteries
+[24:56] A: in the remote. And that would be or solar. Or you know However, however you wanted to go about it, the holder could also be the charging unit
+[25:04] C: Yeah.
+[25:05] A: Um
+[25:07] A: With the locator button.
+[25:09] A: Um and if it were the ball you'd no longer have to have a flat space on it.
+[25:14] C: Yeah.
+[25:15] A: Um
+[25:16] B: Well you still
+[25:16] A: like
+[25:16] B: do
+[25:17] A: if we still have the
+[25:17] B: You s you still
+[25:18] A: how to hold on to it and
+[25:20] B: W yeah. You put it on t on the couch table. While you're watching
+[25:23] D: Rolls
+[25:23] B: it's
+[25:23] A: It's
+[25:23] B: gonna
+[25:24] D: away
+[25:24] A: gonna
+[25:24] B: roll
+[25:24] A: roll
+[25:24] B: off
+[25:24] A: away
+[25:24] D: yeah
+[25:24] B: So that's not an issue really.
+[25:47] A: Um
+[25:51] A: So I guess after the meeting
+[25:53] A: we'll have some questionnaires
+[25:55] A: And uh
+[25:58] A: and some summaries for for what's going on. Um then we'll take lunch
+[26:04] A: Then we can come back and uh work on our individual work.
+[26:08] A: Um
+[26:11] A: I'll do the minutes.
+[26:17] A: Uh let's see.
+[26:24] A: It looks like you're already on your way for uh
+[26:28] A: working with the components
+[26:30] A: Um
+[26:31] A: chips, the what chips we need and what uh
+[26:38] A: you know how to power it and whatnot
+[26:45] A: User interface concept, we want it to be something simple.
+[26:48] C: Yeah.
+[26:49] A: Um
+[26:51] A: Minimal number of buttons.
+[26:57] A: I guess our, I guess our main
+[26:59] A: um
+[27:02] A: main thing that we should focus on until then is probably deciding on a certain
+[27:07] A: look
+[27:09] A: you know.
+[27:10] C: Yeah.
+[27:13] B: Right.
+[27:14] B: That's
+[27:16] A: Did you have time earlier to to work on that. Did you guys feel you have enough time in between our meetings
+[27:23] A: to get
+[27:23] D: Not
+[27:24] A: everything
+[27:24] D: really
+[27:24] A: done that you need to get done?
+[27:27] C: I'll yeah I'll have a look, try
+[27:29] C: look at the actual appearance
+[27:32] C: in the next break.
+[27:36] A: 'Kay
+[27:36] C: I th I I do still think it needs to be something that is ultimately one-handed
+[27:40] C: The ball
+[27:40] D: Mm
+[27:40] C: is probably not a good idea. And even something that's held like that might be difficult
+[27:44] A: Mm-hmm.
+[27:44] C: So that I think it still has to be a variation.
+[27:48] C: On maybe a
+[27:50] C: a rect on a rectangle but maybe not necessarily as
+[27:54] C: boring, as
+[27:55] D: Mm
+[27:55] C: plain as a rectangle.
+[27:58] A: Um
+[28:01] A: Shall we maybe shoot for a a specific uh target group?
+[28:06] A: That way we could l I mean
+[28:09] A: if it were, if we were shooting for young guys then it's
+[28:14] A: um a certain look to the remote. Or
+[28:17] A: girls or older people?
+[28:21] A: Um
+[28:24] A: Would that you think that would help us find um a specific form?
+[28:29] A: That we would would wanna pick out?
+[28:33] C: D I don't know if that might cope with like the trend-watching
+[28:38] D: Mm
+[28:38] C: I find anything more on that.
+[28:41] D: Yeah not yet but maybe
+[28:43] D: by the next meeting we'll have some info on that.
+[28:51] A: 'Kay.
+[29:01] A: So
+[29:03] A: um we know that the remote's gonna have to be
+[29:06] A: we'll just say we've got a colour scheme for it
+[29:08] C: Yeah.
+[29:09] A: Um
+[29:10] A: yellow and you know yellow it's nice and bright
+[29:13] A: with the
+[29:13] B: Mm
+[29:13] A: buttons being grey or black
+[29:15] A: And our slogan
+[29:18] A: pasted somewhere on it, on the
+[29:20] A: the bottom
+[29:21] C: Bottom perhaps
+[29:21] A: or the
+[29:21] C: yeah
+[29:22] A: you know
+[29:23] A: Um
+[29:32] A: Maybe we could sketch a
+[29:35] A: so basically
+[29:41] A: all of our remotes all of our typical remotes now are just kind of a rectangular sort
+[29:46] A: You
+[29:47] A: know
+[29:49] A: Um maybe
+[29:51] A: we could flare it or something. You know. So it's
+[29:55] A: more
+[29:56] A: of course this will look like a bone then
+[30:06] A: go ahead and erase this
+[30:09] A: Um
+[30:18] A: Hope everyone memorised that uh
+[30:20] C: You I mean it might be
+[30:22] C: to look at sort of the the shape and trend of like things like mobile phones, and the shapes that the they've been going
+[30:28] A: Yeah
+[30:28] D: Mm
+[30:28] A: Yeah
+[30:29] C: They've gone from big brick block things, which is a remote control is
+[30:33] C: to sort of slinky small things.
+[30:35] A: Yeah everybody's got a mobile phone right? Except for me now
+[30:41] A: Uh
+[30:47] A: But they are all, you know, mobile phones
+[30:51] A: um they've kind of taken a turn to where they're really small
+[30:54] C: Yeah
+[30:54] A: Um
+[30:55] A: which may defeat our purpose for
+[30:57] D: Mm
+[30:57] A: being able to locate our remote all the time
+[30:59] B: Right.
+[31:01] A: But then again you don't want you know like the first
+[31:05] A: mobile phone that was this big and you had a handbag to carry it around in. Um
+[31:14] A: So we've got basically what
+[31:17] A: remotes look like now is kind of what we're
+[31:22] A: what we're stuck with
+[31:24] A: Um
+[31:29] A: Maybe we could go with a
+[31:32] A: square or something
+[31:34] A: Um
+[31:40] B: Hm.
+[31:42] A: Um
+[31:43] A: you know with minimal number of buttons.
+[31:48] A: I guess you've got you know one through nine.
+[31:54] A: For typing in your channels
+[31:57] A: Uh you've got
+[31:59] A: volume
+[32:01] A: up and down
+[32:03] A: Channel up and down.
+[32:06] D: Power.
+[32:07] A: Power.
+[32:09] A: Usually at the top
+[32:11] A: Um a mute.
+[32:19] B: That's
+[32:20] B: the classical
+[32:21] A: That's
+[32:21] B: design
+[32:21] A: that's pretty much
+[32:23] A: all you need I think
+[32:25] A: Um
+[32:28] A: A menu button, maybe.
+[32:31] B: Right.
+[32:32] A: So you know.
+[32:34] A: If you, if we want the remote to do other things like um
+[32:39] A: or I guess the T_V_ to be able to
+[32:42] A: change the tint and the colour and you know all those kind of things that are built into T_V_s, we just have that under one standard menu button where you go in, press the menu button, scroll up and down to select it.
+[32:52] D: Yeah.
+[32:54] B: Yeah
+[32:55] A: Um
+[32:58] B: Talking of which maybe a scrolling function is not not too bad.
+[33:01] A: 'Kay so
+[33:03] B: It's
+[33:04] B: Talk
+[33:04] A: Um
+[33:04] B: about maybe
+[33:07] B: f look at that from the side, there maybe
+[33:11] B: Which is technically
+[33:13] B: the easiest option. Would probably be like a scrolling
+[33:16] B: little scrolling wheel like this
+[33:18] A: Mm-hmm.
+[33:18] B: Yeah. Yeah. Yeah
+[33:19] A: Like a wheel
+[33:20] B: So
+[33:20] A: on your mouse.
+[33:21] B: Yeah, sort of like that
+[33:22] A: Sort of
+[33:22] B: You can even
+[33:24] B: if we're coming from mice, we can even add a click function, where you, in order to verify the information you just press it down.
+[33:32] B: Right
+[33:33] A: 'S a good idea
+[33:34] B: Also when it comes to the ergonomics of the whole thing, if you wanna make it square for the looks of it
+[33:40] B: then maybe
+[33:44] B: to make it more comfortable to hold the whole thing, you add a little bulge down here
+[33:49] B: Just
+[33:50] B: which maybe
+[33:51] B: from an engineering point this could be holding the the batteries and so on.
+[33:56] A: Mm-hmm.
+[33:57] B: I know. You know what
+[33:59] A: Look
+[33:59] B: I'm getting
+[33:59] A: g
+[33:59] B: at here
+[33:59] A: yeah
+[33:59] B: fel
+[34:00] D: Mm-hmm
+[34:00] A: Looks
+[34:00] B: look
+[34:00] A: good
+[34:00] B: at it from the side. It's
+[34:02] B: like that. Right. Uh
+[34:06] B: Then you hold it in your hand like this. And
+[34:09] C: Yes
+[34:10] B: maybe you bring the buttons
+[34:10] C: s
+[34:11] B: nearer to the or the imp more important buttons nearer to the
+[34:15] A: To the
+[34:15] B: to
+[34:15] A: thumb
+[34:15] B: the side
+[34:16] C: To
+[34:16] A: Yeah
+[34:16] C: the thumb
+[34:16] B: Right
+[34:16] C: yeah
+[34:17] B: Mm.
+[34:18] C: Maybe the buttons could like uh
+[34:21] C: decrease in s the bigger ones
+[34:23] C: you know they could actually be bigger in size than the ones that are less important, the smaller here.
+[34:28] B: Right. You can also have it, maybe, talking about mobile phones again, sliding open.
+[34:34] C: Yeah
+[34:34] B: With the lesser used functions
+[34:36] C: Behind
+[34:36] B: on this part, and
+[34:37] C: Definitely
+[34:37] B: then it slides into that part
+[34:40] B: And out
+[34:40] C: just like o on a sort of side view.
+[34:45] C: Something that you know it would sort of fit in the hand better. So you know you just sort of have your hand
+[34:49] B: Mm well I was just thinking, this
+[34:51] C: Yeah
+[34:51] B: this of course
+[34:52] C: Right on
+[34:52] B: causes
+[34:52] C: the and your thumb would be up here type thing.
+[34:54] B: causes a problem
+[34:55] B: um for left or right-handed people actually
+[34:58] C: Yeah that's also true
+[34:59] B: So.
+[35:02] C: instantly sort of always going for the right-handed person.
+[35:04] B: Right.
+[35:07] C: But I mean the older
+[35:09] C: so
+[35:09] A: Yeah is everyone who in here's right-handed, left-handed
+[35:13] D: Right
+[35:14] A: You guys
+[35:14] B: Right
+[35:14] A: all right-handed
+[35:14] C: Right-handed, yeah
+[35:15] A: Yeah. So I'm left-handed but
+[35:17] D: Uh-huh.
+[35:18] A: I, so I can say that most things are designed for right-handed people.
+[35:23] B: That's right
+[35:23] A: Like the written language
+[35:26] A: Or English.
+[35:27] D: Maybe you could buy like a special left-handed version of the remote
+[35:31] A: Maybe. Ow
+[35:32] D: Special order.
+[35:34] A: I would say I mean it should be probably designed for a right-handed p person.
+[35:38] D: Yeah.
+[35:39] A: Um
+[35:40] A: but that's that's good. That's w I think we've got a
+[35:45] A: kind of a good plan there
+[35:47] A: Um
+[35:49] A: At least for what buttons we're gonna use
+[35:53] A: Um
+[35:56] A: So we've got uh
+[36:00] A: I like the scroll, the scroll action and
+[36:03] A: the
+[36:06] C: I mean I'm just just thinking maybe
+[36:11] C: if it was um
+[36:15] C: circular
+[36:18] C: um
+[36:21] C: with the sort of that sort of the sort of early idea we had, with the way that was more like that, whereas this is just a one-handed thing that you sort of almost
+[36:31] C: wrap round the thumb. So you'd have your, you'd put your hand into there with the thumb there.
+[36:37] C: And then your thumb would do you'd have all the buttons sort of round here
+[36:40] C: And that I think could work
+[36:42] A: Yeah
+[36:42] C: On any hand
+[36:43] A: Kinda like holding a
+[36:44] C: If you just had it like wrapped round there. Left or right.
+[36:47] D: Mm.
+[36:49] B: Right.
+[36:51] B: That minimises it size-wise
+[36:53] C: Minimise
+[36:53] B: as well
+[36:53] C: its size. It could be you know really quite
+[36:55] B: Mm
+[36:55] C: small.
+[36:58] B: Then there's maybe
+[37:03] B: another point of making it
+[37:06] B: a two-in-one kind of thing
+[37:08] B: If we have a smaller
+[37:11] B: a smaller device that actually fits into the big one
+[37:14] B: You give it the full functions in here, and just a couple of functions in there
+[37:18] C: Yeah.
+[37:18] D: Hmm
+[37:18] B: Like your zap zapping
+[37:20] C: Zapping
+[37:20] B: device
+[37:20] C: functions
+[37:21] B: is just u channels up-down, uh volume
+[37:25] B: and on-off. That's it.
+[37:28] D: Could
+[37:28] A: Yeah
+[37:28] D: be good
+[37:28] B: Maybe
+[38:02] A: So two remotes in one.
+[38:07] A: But then would be easier to lose
+[38:11] A: one or the other.
+[38:13] B: That's right.
+[38:15] B: Means the big one has to be sufficiently big. And perhaps heavy, so you can't move it around.
+[38:21] B: Make it a piece of furniture
+[38:23] D: Yeah
+[38:23] A: It actually is your coffee table
+[38:25] B: yes
+[38:26] D: yeah
+[38:26] B: Yes, there you go.
+[38:30] B: Or a statue or something
+[38:34] A: Okay. Well we need to finish up here. Um
+[38:39] A: So for the next
+[38:45] A: So for the next um before the next meeting
+[38:50] A: w uh sh shall we work on
+[38:53] A: you're watching trends
+[38:54] D: Mm-hmm
+[38:54] A: to see what
+[38:55] C: Yep
+[38:55] A: what kind of new information we've got going on. Um
+[39:01] A: Manuel you're going to work on the components
+[39:04] B: Right
+[39:04] A: for for what we're gonna use. Let's go with our our uh rounded
+[39:11] A: kind of fit in your hand let's explore uh the the uh possibility of having the two-piece. So one for the
+[39:19] B: Alright
+[39:19] A: the quick zapping
+[39:20] A: um and possibly one you know with just that rounded part
+[39:25] C: Yeah.
+[39:25] A: that fits into your hand
+[39:27] A: Um
+[39:29] A: And
+[39:30] A: Ryan you work on
+[39:33] A: um how how well they'll work
+[39:36] C: How
+[39:36] A: with
+[39:36] C: well it'll
+[39:36] A: the us
+[39:36] C: work yeah
+[39:37] A: with the user. So both of those concepts.
+[39:42] A: And uh
+[39:44] A: okay I think we made some good progress here
+[39:46] B: Alright
+[39:47] A: see you in
+[39:50] A: I dunno. I gu I guess we'll take lunch
+[39:54] A: in about uh half an hour
+[39:57] A: Or I guess we'll be taking lunch shortly and then
+[40:01] A: then in about half an hour after that we'll probably have another meeting.
+[40:03] C: Yeah
+[40:03] B: Alright
+[40:05] A: Okay.

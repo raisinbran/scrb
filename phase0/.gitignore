@@ -1,0 +1,18 @@
+# Re-created by scripts/fetch-phase0-deps.sh (see MANIFEST.md)
+models/
+upstream/
+tools/
+downloads/
+results/raw/
+*.part
+
+# Build outputs
+*.exe
+*.obj
+*.dll
+*.lib
+*.pdb
+*.exp
+*.gguf
+*.onnx
+__pycache__/

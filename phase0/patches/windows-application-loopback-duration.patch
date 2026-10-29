@@ -1,0 +1,30 @@
+diff --git a/Samples/ApplicationLoopback/cpp/ApplicationLoopback.cpp b/Samples/ApplicationLoopback/cpp/ApplicationLoopback.cpp
+--- a/Samples/ApplicationLoopback/cpp/ApplicationLoopback.cpp
++++ b/Samples/ApplicationLoopback/cpp/ApplicationLoopback.cpp
+@@
+-        L"Usage: ApplicationLoopback <pid> <includetree|excludetree> <outputfilename>\n"
++        L"Usage: ApplicationLoopback <pid> <includetree|excludetree> <outputfilename> [duration-seconds]\n"
+@@
+-        L"<outputfilename> is the WAV file to receive the captured audio (10 seconds)\n"
++        L"<outputfilename> is the WAV file to receive the captured audio\n"
++        L"[duration-seconds] is optional and defaults to 10 seconds\n"
+@@
+-    if (argc != 4)
++    if (argc != 4 && argc != 5)
+@@
+     PCWSTR outputFile = argv[3];
++    DWORD durationSeconds = 10;
++    if (argc == 5)
++    {
++        durationSeconds = wcstoul(argv[4], nullptr, 0);
++        if (durationSeconds == 0 || durationSeconds > 28800)
++        {
++            usage();
++            return 0;
++        }
++    }
+@@
+-        std::wcout << L"Capturing 10 seconds of audio." << std::endl;
+-        Sleep(10000);
++        std::wcout << L"Capturing " << durationSeconds << L" seconds of audio." << std::endl;
++        Sleep(durationSeconds * 1000);

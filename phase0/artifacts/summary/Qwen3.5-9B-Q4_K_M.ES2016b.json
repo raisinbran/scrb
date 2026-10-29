@@ -1,0 +1,130 @@
+{
+  "action_items": [
+    {
+      "text": "Work on questionnaires and summaries regarding the current project status.",
+      "owner": "Group",
+      "timestamp": "25:55"
+    },
+    {
+      "text": "Work on individual tasks (components, user interface concepts, and design look).",
+      "owner": "Group",
+      "timestamp": "26:04"
+    },
+    {
+      "text": "Write the meeting minutes.",
+      "owner": "A",
+      "timestamp": "26:11"
+    },
+    {
+      "text": "Research and determine the specific chips needed for the remote's components.",
+      "owner": "B",
+      "timestamp": "26:30"
+    },
+    {
+      "text": "Research and determine how to power the remote (chips, power sources).",
+      "owner": "B",
+      "timestamp": "26:38"
+    },
+    {
+      "text": "Develop a simple user interface concept with a minimal number of buttons.",
+      "owner": "C",
+      "timestamp": "26:45"
+    },
+    {
+      "text": "Research and decide on a specific look/design for the remote.",
+      "owner": "C",
+      "timestamp": "27:07"
+    },
+    {
+      "text": "Research trends in mobile phone shapes to inform remote design.",
+      "owner": "C",
+      "timestamp": "30:22"
+    },
+    {
+      "text": "Research trends to gather new information for the next meeting.",
+      "owner": "D",
+      "timestamp": "38:53"
+    },
+    {
+      "text": "Work on the components (chips, power sources) for the rounded, two-piece remote design.",
+      "owner": "B",
+      "timestamp": "39:01"
+    },
+    {
+      "text": "Explore the possibility of a two-piece remote design (one for quick zapping, one for hand fit).",
+      "owner": "B",
+      "timestamp": "39:11"
+    },
+    {
+      "text": "Work on how the two-piece remote concepts will work with the user.",
+      "owner": "C",
+      "timestamp": "39:30"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The remote will be designed specifically for television use, not as a universal remote.",
+      "timestamp": "22:10"
+    },
+    {
+      "text": "The remote must incorporate the corporate slogan 'We put the fashion in electronics'.",
+      "timestamp": "22:55"
+    },
+    {
+      "text": "The remote must use the corporate colors grey and yellow (with black as an option).",
+      "timestamp": "23:02"
+    },
+    {
+      "text": "Speech recognition will be removed from the project as it is not worth the investment at this time.",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "The remote should feature a locator function (beep) to help find it when lost.",
+      "timestamp": "24:24"
+    },
+    {
+      "text": "The remote should utilize rechargeable batteries or solar power.",
+      "timestamp": "24:53"
+    },
+    {
+      "text": "The remote should be designed to fit in the hand (one-handed operation).",
+      "timestamp": "27:36"
+    },
+    {
+      "text": "The remote design should be a variation of a rectangle rather than a ball shape.",
+      "timestamp": "27:50"
+    },
+    {
+      "text": "The remote should be designed primarily for right-handed users.",
+      "timestamp": "35:34"
+    },
+    {
+      "text": "The remote will feature a scrolling wheel/button for navigation and a click function to verify selections.",
+      "timestamp": "33:16"
+    },
+    {
+      "text": "The remote will have a bulge at the bottom to improve ergonomics and house batteries.",
+      "timestamp": "33:44"
+    },
+    {
+      "text": "The remote will feature buttons of varying sizes, with more important buttons being larger.",
+      "timestamp": "34:21"
+    },
+    {
+      "text": "The remote will feature a sliding mechanism to hide lesser-used functions.",
+      "timestamp": "34:28"
+    },
+    {
+      "text": "The project will proceed with a two-piece remote design: a larger base unit and a smaller 'zapping' device.",
+      "timestamp": "37:06"
+    },
+    {
+      "text": "The larger unit will house the full functions, while the smaller unit will only have channel up/down, volume, and on/off.",
+      "timestamp": "37:21"
+    },
+    {
+      "text": "The larger unit of the two-piece design will be sufficiently heavy to prevent it from rolling off surfaces.",
+      "timestamp": "38:15"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "action_items": [
+    {
+      "text": "Review the minutes from the last meeting posted on Project Share.",
+      "owner": "All attendees",
+      "timestamp": "00:53"
+    },
+    {
+      "text": "Investigate whether it is possible to implement a text-only TV guide preview on the remote control instead of an LCD screen.",
+      "owner": "C",
+      "timestamp": "15:24"
+    },
+    {
+      "text": "Research if there is a standard menu button usable across different TV brands to allow a universal remote to access complicated functions.",
+      "owner": "C",
+      "timestamp": "21:49"
+    },
+    {
+      "text": "Look into whether the changeable covers should include the buttons themselves or just be a sleeve over them.",
+      "owner": "A",
+      "timestamp": "18:43"
+    },
+    {
+      "text": "Conduct trend-watching to understand what people really want regarding the components and design of the remote control.",
+      "owner": "D",
+      "timestamp": "19:11"
+    },
+    {
+      "text": "Put ideas for different remote control shapes and colors on paper to present at the next meeting.",
+      "owner": "B",
+      "timestamp": "22:52"
+    },
+    {
+      "text": "Find out if rechargeable batteries are possible and if people are willing to pay extra for them.",
+      "owner": "C",
+      "timestamp": "28:41"
+    },
+    {
+      "text": "Find out what people are willing to pay for the remote control.",
+      "owner": "C",
+      "timestamp": "29:52"
+    },
+    {
+      "text": "Research the cost and space requirements for an LCD screen.",
+      "owner": "C",
+      "timestamp": "37:31"
+    },
+    {
+      "text": "Research the cost and space requirements for speech recognition.",
+      "owner": "C",
+      "timestamp": "39:49"
+    },
+    {
+      "text": "Think of a name for the product.",
+      "owner": "C",
+      "timestamp": "40:02"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The target demographic for the new remote control is people under forty years old.",
+      "timestamp": "13:15"
+    },
+    {
+      "text": "The Teletext button should be kept but not made a primary button; it should be placed under a secondary menu or option.",
+      "timestamp": "12:58"
+    },
+    {
+      "text": "The remote control should feature changeable covers to appeal to different tastes and allow for language-specific covers for older people, rather than manufacturing entirely new remote bodies.",
+      "timestamp": "14:25"
+    },
+    {
+      "text": "The LCD screen for channel preview should be removed due to high cost and battery consumption.",
+      "timestamp": "14:55"
+    },
+    {
+      "text": "Speech recognition should not be implemented in the remote control yet because the technology is not mature, requires too much memory, and is not ready for a global market.",
+      "timestamp": "17:06"
+    },
+    {
+      "text": "The remote control should be a universal remote control rather than a brand-specific one.",
+      "timestamp": "16:27"
+    },
+    {
+      "text": "The remote control design should be distinct from competitors (like Sony) to avoid confusion, potentially using different shapes or curves.",
+      "timestamp": "22:38"
+    },
+    {
+      "text": "The power button should be on top.",
+      "timestamp": "25:30"
+    },
+    {
+      "text": "The mute button should be placed around the volume selection, not at the top.",
+      "timestamp": "26:03"
+    },
+    {
+      "text": "The channel buttons should be on top.",
+      "timestamp": "26:34"
+    },
+    {
+      "text": "The channel up and down buttons should be grouped together.",
+      "timestamp": "38:08"
+    },
+    {
+      "text": "The channel button should be in the center.",
+      "timestamp": "38:06"
+    },
+    {
+      "text": "If an LCD screen is possible and not too expensive, it should be included.",
+      "timestamp": "37:15"
+    }
+  ]
+}

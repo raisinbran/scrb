@@ -1,0 +1,120 @@
+{
+  "action_items": [
+    {
+      "text": "Come up with a components concept",
+      "owner": "A",
+      "timestamp": "19:04"
+    },
+    {
+      "text": "Do some trend-watching",
+      "owner": "A",
+      "timestamp": "19:10"
+    },
+    {
+      "text": "Look into materials that are durable (harder plastic, symbols that won't fade)",
+      "owner": "A",
+      "timestamp": "17:17"
+    },
+    {
+      "text": "Research whether a universal remote control is possible (including mode switching for different TV brands)",
+      "owner": "C",
+      "timestamp": "16:15"
+    },
+    {
+      "text": "Research whether sending a signal to a TV to pop up a menu is technically possible",
+      "owner": "B",
+      "timestamp": "20:08"
+    },
+    {
+      "text": "Present ideas on paper (shape, curves, colours) next time",
+      "owner": "B",
+      "timestamp": "22:52"
+    },
+    {
+      "text": "draw some designs for the remote (e.g., layout, buttons, placement)",
+      "owner": "A",
+      "timestamp": "23:03"
+    },
+    {
+      "text": "post designs periodically on the product share",
+      "owner": "A",
+      "timestamp": "31:45"
+    },
+    {
+      "text": "draw ideas for buttons/layout (general design work)",
+      "owner": "B",
+      "timestamp": "31:27"
+    },
+    {
+      "text": "find out if rechargeable batteries are possible/feasible for the remote",
+      "owner": "C",
+      "timestamp": "26:46"
+    },
+    {
+      "text": "find out what people are willing to pay for comfort features (e.g., rechargeable, L_C_D_ screen)",
+      "owner": "A",
+      "timestamp": "29:57"
+    },
+    {
+      "text": "research if L_C_D_ screen can be integrated (cost, space, feasibility)",
+      "owner": "C",
+      "timestamp": "37:34"
+    },
+    {
+      "text": "research if speech recognition is possible/feasible (cost, space)",
+      "owner": "A",
+      "timestamp": "34:10"
+    },
+    {
+      "text": "look into possibility of a docking station for rechargeable batteries",
+      "owner": "C",
+      "timestamp": "27:49"
+    },
+    {
+      "text": "find out if it's possible to make the remote act as a charger (wireless/plug-in)",
+      "owner": "C",
+      "timestamp": "27:40"
+    },
+    {
+      "text": "check if sending emails internally is allowed (regarding documents)",
+      "owner": "A",
+      "timestamp": "30:36"
+    },
+    {
+      "text": "find out financial/cost information for rechargeable batteries, L_C_D_ screen, speech recognition",
+      "owner": "C",
+      "timestamp": "30:25"
+    },
+    {
+      "text": "draw/work on basic design (channels, buttons placement)",
+      "owner": "A",
+      "timestamp": "23:03"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Go for a universal remote control",
+      "timestamp": "16:17"
+    },
+    {
+      "text": "Do not include an L_C_D_ screen (too expensive, power-hungry)",
+      "timestamp": "15:05"
+    },
+    {
+      "text": "Do not implement speech recognition at this time (technology not mature, market not ready)",
+      "timestamp": "17:08"
+    },
+    {
+      "text": "Hide less important settings (sound, display) under a menu",
+      "timestamp": "04:06"
+    },
+    {
+      "text": "Target younger people (<40), focus on design appeal and willingness to pay",
+      "timestamp": "13:06"
+    },
+    {
+      "text": "Use changeable covers/skins for the remote (instead of entire remote redesign), keep basic remote design simple",
+      "timestamp": "14:08"
+    }
+  ]
+}
