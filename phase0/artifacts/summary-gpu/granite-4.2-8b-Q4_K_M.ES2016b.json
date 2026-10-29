@@ -1,0 +1,50 @@
+{
+  "action_items": [
+    {
+      "text": "A will do the minutes (meeting notes)",
+      "owner": "A",
+      "timestamp": "26:17"
+    },
+    {
+      "text": "C will look at the actual appearance in the next break",
+      "owner": "C",
+      "timestamp": "27:29"
+    },
+    {
+      "text": "Manuel (B) will work on the components (energy source, chip, infrared lamp, etc.)",
+      "owner": "B",
+      "timestamp": "39:01"
+    },
+    {
+      "text": "Ryan (C) will work on how well the concepts will work with the user",
+      "owner": "C",
+      "timestamp": "39:36"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Remote will be for TV only (not universal for all electronics)",
+      "timestamp": "22:20"
+    },
+    {
+      "text": "Speech recognition will not be included (not worth the investment at this point)",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "Focus on modern, simple, easy-to-find remote design (one-handed use)",
+      "timestamp": "02:36"
+    },
+    {
+      "text": "Include locator/tracking function (e.g., beep to find remote)",
+      "timestamp": "24:20"
+    },
+    {
+      "text": "Colour scheme: yellow (bright) with grey/black buttons; slogan on bottom",
+      "timestamp": "29:08"
+    },
+    {
+      "text": "Design should be user-centred, minimal buttons, hide rarely-used functions",
+      "timestamp": "12:50"
+    }
+  ]
+}

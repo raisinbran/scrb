@@ -1,0 +1,144 @@
+{
+  "action_items": [
+    {
+      "text": "Come up with a components concept",
+      "owner": "A",
+      "timestamp": "19:04"
+    },
+    {
+      "text": "Do some trend-watching",
+      "owner": "A",
+      "timestamp": "19:10"
+    },
+    {
+      "text": "Look into materials that are durable (symbols won't fade)",
+      "owner": "A",
+      "timestamp": "17:17"
+    },
+    {
+      "text": "Research whether a universal remote control is possible (including mode switching for different TV brands)",
+      "owner": "C",
+      "timestamp": "12:05"
+    },
+    {
+      "text": "Check feasibility of L_C_D screen (text-only preview)",
+      "owner": "A",
+      "timestamp": "15:13"
+    },
+    {
+      "text": "Check feasibility of speech recognition",
+      "owner": "A",
+      "timestamp": "16:41"
+    },
+    {
+      "text": "Investigate whether TV menu can be invoked via remote signal",
+      "owner": "C",
+      "timestamp": "20:24"
+    },
+    {
+      "text": "Look into circuit board integration (single board with connections)",
+      "owner": "C",
+      "timestamp": "11:13"
+    },
+    {
+      "text": "Present ideas on paper (shape, curves, colours)",
+      "owner": "B",
+      "timestamp": "22:52"
+    },
+    {
+      "text": "draw some designs for the remote (e.g., layout, buttons, placement)",
+      "owner": "A",
+      "timestamp": "23:03"
+    },
+    {
+      "text": "find out if rechargeable batteries are possible/cost-effective for the remote",
+      "owner": "C",
+      "timestamp": "26:46"
+    },
+    {
+      "text": "find out if L_C_D_ screen is possible/cost-effective for the remote",
+      "owner": "C",
+      "timestamp": "36:40"
+    },
+    {
+      "text": "find out what people are willing to pay for comfort features (e.g., rechargeable batteries, L_C_D_ screen)",
+      "owner": "C",
+      "timestamp": "29:57"
+    },
+    {
+      "text": "research if speech recognition is possible/cost-effective for the remote",
+      "owner": "C",
+      "timestamp": "34:10"
+    },
+    {
+      "text": "research if brightness adjustment (and related menu functions) can be reached via the remote (i.e., via TV menu)",
+      "owner": "C",
+      "timestamp": "32:48"
+    },
+    {
+      "text": "post designs/updates periodically on the product share",
+      "owner": "A",
+      "timestamp": "31:45"
+    },
+    {
+      "text": "draw/work on a small, futuristic design that fits in the hand",
+      "owner": "B",
+      "timestamp": "35:04"
+    },
+    {
+      "text": "give back the pen",
+      "owner": "B",
+      "timestamp": "35:34"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Not include L_C_D screen (too expensive/power-hungry)",
+      "timestamp": "15:05"
+    },
+    {
+      "text": "Go for universal remote control",
+      "timestamp": "16:30"
+    },
+    {
+      "text": "Do not implement speech recognition now (technology not mature enough)",
+      "timestamp": "17:08"
+    },
+    {
+      "text": "Hide less important settings (sound, display) under a menu",
+      "timestamp": "04:06"
+    },
+    {
+      "text": "Target people under 40; appeal to younger audience with design/covers",
+      "timestamp": "13:10"
+    },
+    {
+      "text": "Use changeable covers (not full remote redesign); keep basic remote + separate covers",
+      "timestamp": "14:32"
+    },
+    {
+      "text": "power button should be on top (first thing users do: turn device on)",
+      "timestamp": "25:30"
+    },
+    {
+      "text": "basic channel buttons (up/down) and volume buttons should be on top/central area, not stacked away",
+      "timestamp": "25:30"
+    },
+    {
+      "text": "mute button should be at the bottom (often used frequently)",
+      "timestamp": "25:40"
+    },
+    {
+      "text": "important buttons (power, channel, volume) should be on top; less important (e.g., menu, extra functions) below",
+      "timestamp": "25:40"
+    },
+    {
+      "text": "L_C_D_ screen (if included) should be placed on top/central area, but may require stacking other buttons below",
+      "timestamp": "36:15"
+    },
+    {
+      "text": "meeting will be cut now; no decision on final layout; continue discussion later",
+      "timestamp": "39:51"
+    }
+  ]
+}

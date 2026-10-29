@@ -1,0 +1,1 @@
+{"model": "granite-4.2-8b-Q4_K_M", "meeting": "TS3012b", "load_seconds": 13.6, "seconds": 28.6, "sections": 2, "prompt_tokens": 27742, "completion_tokens": 1309, "actions": 18, "decisions": 12, "valid_timestamps": "29/30", "json_valid": true}

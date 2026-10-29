@@ -1,0 +1,112 @@
+{
+  "action_items": [
+    {
+      "text": "Review the minutes that were emailed and placed in the shared folder.",
+      "owner": "All attendees",
+      "timestamp": "01:25"
+    },
+    {
+      "text": "Make a decision on the remote control functions.",
+      "owner": "The group",
+      "timestamp": "01:40"
+    },
+    {
+      "text": "Design several different prototypes of user interfaces for the remote control and gather feedback on them.",
+      "owner": "The design team",
+      "timestamp": "10:29"
+    },
+    {
+      "text": "Design a chip that works well with the user interface and isn't too complicated.",
+      "owner": "Ian",
+      "timestamp": "19:08"
+    },
+    {
+      "text": "Find a long-lasting energy source that doesn't require frequent battery changes.",
+      "owner": "The design team",
+      "timestamp": "19:08"
+    },
+    {
+      "text": "Ensure the infra-red signal is reliable and clear so users aren't frustrated by waving the remote.",
+      "owner": "The design team",
+      "timestamp": "19:27"
+    },
+    {
+      "text": "Complete a questionnaire and a summary.",
+      "owner": "Everyone",
+      "timestamp": "35:02"
+    },
+    {
+      "text": "Put up the minutes and project documentation, including PowerPoint slides.",
+      "owner": "Speaker A",
+      "timestamp": "35:04"
+    },
+    {
+      "text": "Complete individual work: Industrial Design (components concept), User Interface (user interface concept), and market trend watching.",
+      "owner": "Everyone",
+      "timestamp": "35:21"
+    },
+    {
+      "text": "Note any frustrations or issues that come up in the summary.",
+      "owner": "Everyone",
+      "timestamp": "35:47"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The group will proceed with the presentations in the order they were originally listed.",
+      "timestamp": "02:18"
+    },
+    {
+      "text": "The team will not include teletext functionality in the new remote control design because it has been taken over by the internet.",
+      "timestamp": "21:15"
+    },
+    {
+      "text": "The project will focus on television (T_V) rather than video or other media to keep it simple and quick.",
+      "timestamp": "22:43"
+    },
+    {
+      "text": "The new design must use the corporate image: yellow color, black, and the slogan 'fashion in electronics' (emphasizing R_s).",
+      "timestamp": "23:06"
+    },
+    {
+      "text": "The target group is defined as people aged 15 to 35 who have disposable income for technology.",
+      "timestamp": "25:12"
+    },
+    {
+      "text": "Voice recognition will not be included as a function because it adds too much to the price and is not necessary for a remote.",
+      "timestamp": "25:46"
+    },
+    {
+      "text": "The remote will be sold separately for 25 Euro.",
+      "timestamp": "24:58"
+    },
+    {
+      "text": "The design will emphasize simplicity and fashion (usability).",
+      "timestamp": "28:30"
+    },
+    {
+      "text": "The remote must include a feature to keep it from getting lost (e.g., a button to make it ring/beep).",
+      "timestamp": "32:25"
+    },
+    {
+      "text": "The remote must have large, accessible buttons for essential functions.",
+      "timestamp": "32:42"
+    },
+    {
+      "text": "Extra functions should be hidden away or not as prominent as main features.",
+      "timestamp": "33:01"
+    },
+    {
+      "text": "The remote should be fashionable so it is not an eyesore on the coffee table.",
+      "timestamp": "33:23"
+    },
+    {
+      "text": "The remote should have a long-life battery or a rechargeable option (e.g., charging station/cradle).",
+      "timestamp": "33:46"
+    },
+    {
+      "text": "The remote should be designed to fit in living-room spaces (e.g., not too large to put on top of the TV).",
+      "timestamp": "34:36"
+    }
+  ]
+}
