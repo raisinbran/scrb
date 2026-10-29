@@ -73,3 +73,18 @@ Outputs in `artifacts/summary-gpu/`.  Same judging rules.
 - Peak GPU memory during the run: 8.9 GiB of 12 GiB (1.4 GiB desktop
   baseline).  Host private memory: Qwen 8.7 GiB, Ministral 11.4 GiB, Granite
   11.5 GiB.  Host figures include CUDA pinned and staging buffers.
+
+## Coverage pass and loop retry (GPU, `artifacts/summary-gpu-coverage/`)
+
+`SUMMARY_COVERAGE=1` sends each section a second time with the first-pass
+items and asks only for missed items.  `SUMMARY_RETRY=1` retries a looped
+or invalid answer once with temperature 0.4, seed 1 and DRY sampling.
+
+- Qwen3.5-9B: the coverage pass returned nothing on ES2016b and ES2008b.  On
+  TS3012b it returned 16 items, all repeats of first-pass items despite the
+  instruction, and recovered no missed reference item.  Recall stays 80%.  A
+  useful coverage pass needs deduplication and a narrower prompt (for
+  example, one category or one time range at a time).
+- Ministral-3-8B: the retry did not rescue TS3012b (2 retries, still invalid
+  JSON); ES2016b produced 42 decisions (over-extraction).  It is not viable
+  on this build.

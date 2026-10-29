@@ -1,0 +1,1 @@
+{"model": "Ministral-3-8B-Instruct-2512-Q4_K_M", "meeting": "TS3012b", "load_seconds": 11.6, "seconds": 192.7, "sections": 2, "retries": 2, "coverage_items": 0, "prompt_tokens": 81427, "completion_tokens": 13101, "actions": 7, "decisions": 11, "valid_timestamps": "18/18", "json_valid": false}

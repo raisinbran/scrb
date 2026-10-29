@@ -1,0 +1,62 @@
+{
+  "action_items": [
+    {
+      "text": "Work on questionnaires and summaries regarding the current project status.",
+      "owner": "Group",
+      "timestamp": "25:53"
+    },
+    {
+      "text": "Work on individual tasks: Manuel to work on components (chips, power); Corinne to work on user interface concept (minimal buttons); Manuel/Group to explore the two-piece remote concept (quick zap device + rounded hand-fit device).",
+      "owner": "Manuel, Corinne, Group",
+      "timestamp": "39:01"
+    },
+    {
+      "text": "Corinne to look at the actual appearance of the remote design in the next break.",
+      "owner": "Corinne",
+      "timestamp": "27:27"
+    },
+    {
+      "text": "Group to work on watching trends to gather new information for the next meeting.",
+      "owner": "Group",
+      "timestamp": "38:53"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The remote will be designed specifically for television, not as a universal remote for all devices.",
+      "timestamp": "22:11"
+    },
+    {
+      "text": "The remote will incorporate the corporate slogan 'we put the fashion in electronics' and the corporate colors grey, yellow, and possibly black.",
+      "timestamp": "22:55"
+    },
+    {
+      "text": "Speech recognition will be removed from the design as it is deemed not worth the investment at this time.",
+      "timestamp": "24:05"
+    },
+    {
+      "text": "The remote design should focus on a modern, simple look with a minimal number of buttons.",
+      "timestamp": "23:35"
+    },
+    {
+      "text": "The remote should include a locator function (e.g., a holder/holster that beeps to find the remote).",
+      "timestamp": "24:24"
+    },
+    {
+      "text": "The remote should be rechargeable (using rechargeable batteries or solar) and the holder could serve as the charging unit.",
+      "timestamp": "24:53"
+    },
+    {
+      "text": "The remote design should be one-handed and ergonomic, potentially featuring a scrolling wheel/button for navigation.",
+      "timestamp": "33:16"
+    },
+    {
+      "text": "The remote design should be optimized for right-handed users.",
+      "timestamp": "35:34"
+    },
+    {
+      "text": "The group will explore a two-piece remote concept: a larger base unit and a smaller 'quick zap' device that fits into the hand.",
+      "timestamp": "39:11"
+    }
+  ]
+}

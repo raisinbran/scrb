@@ -1,0 +1,88 @@
+{
+  "action_items": [
+    {
+      "text": "C will try to find out if it's possible to make a rechargeable remote and what it would cost to implement.",
+      "owner": "C",
+      "timestamp": "28:41"
+    },
+    {
+      "text": "C will try to gather financial information about the costs and materials for the remote.",
+      "owner": "C",
+      "timestamp": "30:08"
+    },
+    {
+      "text": "B will draw up some designs of possible remote controls based on the essentials discussed.",
+      "owner": "B",
+      "timestamp": "31:27"
+    },
+    {
+      "text": "B will post the designs on the product share for review.",
+      "owner": "B",
+      "timestamp": "31:47"
+    },
+    {
+      "text": "C will look into the feasibility of including an L_C_D_ screen and speech recognition, determining costs and space requirements.",
+      "owner": "C",
+      "timestamp": "37:22"
+    },
+    {
+      "text": "The group will collectively think of a name for the remote control.",
+      "owner": "All",
+      "timestamp": "40:02"
+    },
+    {
+      "text": "A will share the meeting minutes on the web shortly.",
+      "owner": "A",
+      "timestamp": "40:18"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "The power button should be placed centrally and not at the top or somewhere else where it can be pressed accidentally.",
+      "timestamp": "25:00"
+    },
+    {
+      "text": "The power button should be on top because it is the first thing you do when turning on the remote.",
+      "timestamp": "25:28"
+    },
+    {
+      "text": "The mute button should be placed somewhere at the bottom, not near the volume or channel buttons.",
+      "timestamp": "25:41"
+    },
+    {
+      "text": "Channel up and down buttons should be placed on top, making them easily accessible.",
+      "timestamp": "26:33"
+    },
+    {
+      "text": "The remote should include a feature to locate the remote (beep and/or flash) when it is lost.",
+      "timestamp": "24:21"
+    },
+    {
+      "text": "They will consider a combination of beep and flashing light for locating the remote rather than just a flash.",
+      "timestamp": "24:43"
+    },
+    {
+      "text": "The remote should have a design that is easy to use, with important buttons (power, channel, volume) placed prominently.",
+      "timestamp": "32:12"
+    },
+    {
+      "text": "They will not focus on features like an L_C_D_ screen and speech recognition for the age group under 40, due to potential cost and usability concerns.",
+      "timestamp": "33:47"
+    },
+    {
+      "text": "They will explore the feasibility of including an L_C_D_ screen based on cost and space requirements, despite it being a desired feature.",
+      "timestamp": "37:15"
+    },
+    {
+      "text": "They will keep the remote's design simple and focused on ease of use, with a potential luxury version including an L_C_D_ screen.",
+      "timestamp": "39:08"
+    },
+    {
+      "text": "They will decide on a name for the remote control.",
+      "timestamp": "40:02"
+    }
+  ],
+  "invalid_json": [
+    ""
+  ]
+}
