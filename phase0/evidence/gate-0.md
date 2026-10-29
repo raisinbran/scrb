@@ -504,7 +504,12 @@ The permission is checked against the *responsible* process.  Runs started by
 Claude Code were attributed to its bundled helper
 (`com.anthropic.claude-code`), not to the Claude app the owner had enabled,
 so their app tracks were silent.  The isolation run was started from
-Terminal.app with permission granted.
+Terminal.app with permission granted.  The next afternoon Terminal.app
+runs were denied although the setting still showed Terminal enabled, while
+the same command run in the Claude desktop app's terminal pane (attributed
+to the Claude app, which has the permission) recorded audio.  Which process
+macOS holds responsible decides the outcome, and the settings list does not
+show it.
 
 **Design consequence:** the macOS adapter must detect an all-zero app track
 (no permission, or permission revoked mid-meeting) and tell the user, and
@@ -561,16 +566,46 @@ machine was in use overnight.
   real-time 10-thread run.
 - The built-in mic and speakers share one clock, so sample-count drift is
   ~0 here; this says nothing about USB or Bluetooth mics (device cases).
-- Not tested: a Metal (GPU) worker, which is what the Mac app will run, and
-  a worker at reduced QoS (`utility`).
+#### Metal worker reruns (2026-10-29 afternoon)
 
-**Design consequence:** on macOS the adapter must also pad stall gaps from
-host time on the app track, and the final-pass worker should run on Metal
-with a thread cap and a QoS below the capture threads.  Re-run this stress
-with the Metal worker before Phase 2 closes.
+The same runner with `WORKER_GPU=1` (whisper.cpp on Metal), the second run
+also with `WORKER_POLICY=utility` (`taskpolicy -c utility`).  Both were
+started from the Claude desktop app's terminal pane with the speakers muted
+(`scripts/run-muted.sh`), so **the app track carries the tone**: a 1 s probe
+every minute found it in all 60 minutes of both runs.  The owner was using
+the Mac during both runs.
 
-Outputs: `artifacts/capture/macos/stress-60min{-gcdqueue,,-t8}-*` (summary,
-timing CSV, worker log; the WAVs are kept locally only).
+| Measure | Metal worker | Metal worker, `utility` |
+| --- | ---: | ---: |
+| Whisper runs / force-killed | 121 / 0 | 121 / 0 |
+| Capture exit | clean | clean |
+| Stall events (app track; mic in the same second) | 3 (at 15.0, 15.6, 39.8 min) | 5 (at 5.8, 11.9, 45.2, 50.7, 50.7 min) |
+| Audio padded, app / mic | 704 / 710 ms | 672 / 549 ms |
+| Longest wait between packets, app / mic | 384 / 394 ms | 299 / 310 ms |
+| Capture CPU / peak RSS | 0.10% / 15.5 MiB | 0.11% / 16.4 MiB |
+| Max per-chunk (5 s) timestamp error | 0.027 ms | 0.027 ms |
+
+- **No kills:** on Metal the 11 s sample transcribes in about 0.7 s (about
+  2 s with model load), so the worker always finished before its kill time.
+  These runs test GPU load, not crash survival (covered by the CPU runs).
+- The load was light (about 2 s of GPU work every 30 s), yet the stalls were
+  no fewer and somewhat longer than with the CPU-saturating worker, and
+  `utility` priority did not remove them.  coreaudiod logged no "IO
+  Overload" at these stalls (it did for every CPU-run stall); one coincided
+  with coreaudiod restarting the speaker and mic devices.  **So these stalls
+  are not caused by the worker.**  Likely sources are other activity on a
+  Mac in use; the 8 h idle-machine drift run will show the baseline rate.
+- The app track kept its audio outside the stalls; sync stayed within
+  0.03 ms per chunk.
+
+**Design consequence:** on macOS the adapter must pad stall gaps (a few per
+hour, up to about 0.4 s, on both tracks) from host time on both tracks and
+record them as "audio missing".  Worker priority alone does not prevent
+them; still run the final-pass worker on Metal with a QoS below the capture
+threads, which costs nothing.
+
+Outputs: `artifacts/capture/macos/stress-60min{-gcdqueue,,-t8,-metal,-metal-utility}-*`
+(summary, timing CSV, worker log; the WAVs are kept locally only).
 
 ### Whisper on AMI ES2004a (Metal)
 
@@ -642,11 +677,10 @@ Within the 6 GB budget, as on Windows.
 
 ### Not run on the Mac yet
 
-- 8 h drift run: needs 8 unbroken awake hours on AC, started from Terminal.app
+- 8 h drift run: needs 8 unbroken awake hours on AC, started from the Claude app's terminal pane
   so the app track carries audio.
 - Device cases (output and input switch, Bluetooth headset, sleep/wake): need
   a person at the machine.
-- The stress run with a Metal worker (see above).
 
 ## Gate Checklist
 
@@ -657,7 +691,8 @@ Within the 6 GB budget, as on Windows.
 - [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
   passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
   load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
-  8 h drift and device cases not run.
+  8 h drift and device cases not run.  Metal-worker reruns (with real app
+  audio) show 3--5 stalls per hour not caused by the worker.
 - [ ] Recording survives a crashed AI worker on both machines.  Windows
   passes (120 runs, 16 killed, 0 app-track gaps).  macOS: recording survives
   every kill (3 x 121 runs, 36 killed, no kill-related gaps); the load stalls
@@ -672,9 +707,8 @@ Within the 6 GB budget, as on Windows.
 ## Gate Decision
 
 **Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-the Windows device-state cases; on the Mac the 8 h drift run, device cases
-and a Metal-worker stress run (Metal timing passes the delay and final-pass
-targets); and
+the Windows device-state cases (`HANDOFF-WINDOWS.md`); on the Mac the 8 h
+drift run and device cases; and
 owner decisions on the framework, the DER and summary-recall targets, and the
 recommendations above.
 

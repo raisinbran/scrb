@@ -18,7 +18,7 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Gate 0 item | Windows | macOS |
 | --- | --- | --- |
 | Per-app capture isolation | Pass (Codex) | Pass (135 dB rejection) |
-| Synced dual-track capture | 60 min and 8 h pass with per-chunk timestamps; mic loses audio during heavy-load stalls (see evidence) | 60 min: sync within 0.03 ms, but ~2 Core Audio stalls/hour on both tracks under CPU-saturating load; 8 h not run |
+| Synced dual-track capture | 60 min and 8 h pass with per-chunk timestamps; mic loses audio during heavy-load stalls (see evidence) | 60 min: sync within 0.03 ms; 2--5 stalls/hour on both tracks (up to ~0.4 s), with or without heavy load; 8 h not run |
 | Survives crashed AI worker | Pass (120 whisper runs, 16 killed, 0 app-track gaps) | Survives all kills (363 runs, 36 killed); load stalls are separate |
 | Models fit 6 GB recording budget | Pass on measured parts (see evidence) | Pass (~1.1--1.5 GiB) |
 | Live diarization usable | Usable (~25--29% DER, incremental mode) | Same (~26--32% DER) |
@@ -47,15 +47,16 @@ See `MANIFEST.md` for exact versions and hashes.
 ## Next steps, in order
 
 1. **macOS remaining runs** (`probes/macos-dual-capture/README.md`).  Start
-   capture runs from **Terminal.app** with System Audio Recording granted to
-   Terminal; runs started by Claude Code get a silent app track (see the
-   permission finding in `evidence/gate-0.md`).
-   - 8 h drift run: needs 8 unbroken awake hours on AC, lid open.
+   capture runs from the **Claude desktop app's terminal pane** (attributed
+   to the Claude app, which has System Audio Recording); runs started by
+   Claude Code's Bash tool, and on 2026-10-29 also Terminal.app, got a
+   silent app track (see the permission finding in `evidence/gate-0.md`).
+   Wrap runs in `scripts/run-muted.sh` so the speakers stay silent.
+   - 8 h drift run: needs 8 unbroken awake hours on AC, lid open; it also
+     gives the idle-machine stall rate.
    - Device cases: output switch, input switch, Bluetooth headset,
      sleep/wake; record what the probe reports.
-   - Re-run the 60 min stress with a Metal worker (drop `-ng` in
-     `scripts/run-macos-dual-capture-stress.sh`) and, if stalls remain,
-     with the worker under `taskpolicy -c utility`.
+   - Metal-worker stress reruns: done (stalls not caused by the worker).
 2. **Windows device cases**: split out into `HANDOFF-WINDOWS.md`, which a
    Windows PC runs on its own.  It commits a results table and artifacts
    only; when that commit lands, fold the table into `evidence/gate-0.md`
