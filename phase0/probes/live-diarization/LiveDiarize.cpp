@@ -140,6 +140,34 @@ int main(int argc, char** argv) {
 
     int relabels = 0;
     std::vector<Segment> finalLabels;
+    if (mode == "embed") {
+        // argv[6]: segment list "<start> <end> <label>"; writes one embedding per line
+        // to <out.txt> as "<start> <end> <label> v1 v2 ..." (unit-normalized).
+        SherpaOnnxSpeakerEmbeddingExtractorConfig ec = config.embedding;
+        const SherpaOnnxSpeakerEmbeddingExtractor* ex =
+            SherpaOnnxCreateSpeakerEmbeddingExtractor(&ec);
+        FILE* in = fopen(argv[6], "r");
+        FILE* out = fopen(outPath, "w");
+        float a, b;
+        char label[64];
+        while (in && fscanf(in, "%f %f %63s", &a, &b, label) == 3) {
+            int32_t ia = static_cast<int32_t>(a * rate);
+            int32_t ib = std::min(static_cast<int32_t>(b * rate), wave->num_samples);
+            if (ib - ia < rate) continue;  // under 1 s gives unreliable embeddings
+            std::vector<float> audio(wave->samples + ia, wave->samples + ib);
+            std::vector<float> e = Embed(ex, audio, rate);
+            if (e.empty()) continue;
+            fprintf(out, "%.3f %.3f %s", a, b, label);
+            for (float x : e) fprintf(out, " %.6f", x);
+            fprintf(out, "\n");
+            ++hops;
+        }
+        if (in) fclose(in);
+        fclose(out);
+        SherpaOnnxDestroySpeakerEmbeddingExtractor(ex);
+        printf("{\"mode\": \"embed\", \"embeddings\": %d}\n", hops);
+        return 0;
+    }
     if (!live) {
         emitted = Diarize(sd, wave->samples, wave->num_samples, 0);
     } else if (mode == "inc") {
