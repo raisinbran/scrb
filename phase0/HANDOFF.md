@@ -56,11 +56,10 @@ See `MANIFEST.md` for exact versions and hashes.
    - Re-run the 60 min stress with a Metal worker (drop `-ng` in
      `scripts/run-macos-dual-capture-stress.sh`) and, if stalls remain,
      with the worker under `taskpolicy -c utility`.
-2. **Windows device cases** (another Windows PC is fine): output-device switch,
-   mic switch, Bluetooth headset, sleep/wake while
-   `probes/windows-dual-capture/DualCapture.exe` runs.  The probe currently
-   has no device-change recovery; record what happens.  That is the finding
-   Phase 2's adapter must handle.
+2. **Windows device cases**: split out into `HANDOFF-WINDOWS.md`, which a
+   Windows PC runs on its own.  It commits a results table and artifacts
+   only; when that commit lands, fold the table into `evidence/gate-0.md`
+   and update the Windows checklist item here and there.
 3. Owner decisions listed at the end of `evidence/gate-0.md`, then the Gate 0
    decision.
 

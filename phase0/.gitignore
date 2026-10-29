@@ -24,3 +24,6 @@ probes/live-diarization/LiveDiarize
 # Hour-long capture recordings and generated tones (summaries and timing CSVs are kept)
 artifacts/capture/macos/stress-*.wav
 artifacts/capture/macos/*-tone*.wav
+
+# Windows device-case recordings (HANDOFF-WINDOWS.md)
+artifacts/capture/devices/*.wav
