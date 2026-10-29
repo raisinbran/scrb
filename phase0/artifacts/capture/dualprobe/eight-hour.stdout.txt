@@ -374,3 +374,5 @@ Capturing 28800 seconds.
 22380 s app_frames=1075824000 mic_frames=1075823609
 22440 s app_frames=1078705440 mic_frames=1078705529
 22500 s app_frames=1081586880 mic_frames=1081586969
+22560 s app_frames=1084468800 mic_frames=1084468409
+22620 s app_frames=1087350720 mic_frames=1087350329

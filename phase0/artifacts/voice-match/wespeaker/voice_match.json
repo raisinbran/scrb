@@ -1,0 +1,83 @@
+{
+ "meetings": [
+  "ES2004a",
+  "IS1009a",
+  "TS3003a"
+ ],
+ "profiles": 12,
+ "test_segments": 164,
+ "table": [
+  {
+   "threshold": 0.3,
+   "known_auto_assigned": 0.872,
+   "known_wrong": 0.128,
+   "stranger_wrong": 0.8841
+  },
+  {
+   "threshold": 0.35,
+   "known_auto_assigned": 0.8598,
+   "known_wrong": 0.128,
+   "stranger_wrong": 0.7622
+  },
+  {
+   "threshold": 0.4,
+   "known_auto_assigned": 0.8293,
+   "known_wrong": 0.128,
+   "stranger_wrong": 0.6098
+  },
+  {
+   "threshold": 0.45,
+   "known_auto_assigned": 0.8293,
+   "known_wrong": 0.128,
+   "stranger_wrong": 0.4939
+  },
+  {
+   "threshold": 0.5,
+   "known_auto_assigned": 0.8171,
+   "known_wrong": 0.122,
+   "stranger_wrong": 0.4024
+  },
+  {
+   "threshold": 0.55,
+   "known_auto_assigned": 0.8049,
+   "known_wrong": 0.1098,
+   "stranger_wrong": 0.3659
+  },
+  {
+   "threshold": 0.6,
+   "known_auto_assigned": 0.7439,
+   "known_wrong": 0.0976,
+   "stranger_wrong": 0.2561
+  },
+  {
+   "threshold": 0.65,
+   "known_auto_assigned": 0.7073,
+   "known_wrong": 0.0915,
+   "stranger_wrong": 0.189
+  },
+  {
+   "threshold": 0.7,
+   "known_auto_assigned": 0.5854,
+   "known_wrong": 0.0732,
+   "stranger_wrong": 0.128
+  },
+  {
+   "threshold": 0.75,
+   "known_auto_assigned": 0.4573,
+   "known_wrong": 0.0488,
+   "stranger_wrong": 0.0793
+  },
+  {
+   "threshold": 0.8,
+   "known_auto_assigned": 0.3049,
+   "known_wrong": 0.0122,
+   "stranger_wrong": 0.0305
+  },
+  {
+   "threshold": 0.85,
+   "known_auto_assigned": 0.1402,
+   "known_wrong": 0.0,
+   "stranger_wrong": 0.0061
+  }
+ ]
+}

@@ -341,6 +341,29 @@ tested configuration (best 21.1--28.4%), mainly because overlapped speech is
 missed.  Options: accept a measured target (about 25%) or add overlap
 assignment in Phase 4.  Owner decision.
 
+### Voice-match confidence line (provisional)
+
+`scripts/voice_match.py`: AMI reference single-speaker stretches of at least
+1.5 s (no overlap) from ES2004a, IS1009a and TS3003a, giving 12 speakers.
+Each speaker's profile is the mean embedding of the first half of their
+segments; the second half (164 segments) are matched against all 12
+profiles.  "Stranger" withholds the true speaker's profile, so any match is
+wrong.
+
+| Embedding | Threshold | Known auto-named | Known named wrong | Stranger named wrong |
+| --- | ---: | ---: | ---: | ---: |
+| eres2net (zh) | 0.50 | 92.1% | 0.0% | 6.1% |
+| eres2net (zh) | **0.55** | **86.6%** | **0.0%** | **1.8%** |
+| eres2net (zh) | 0.60 | 77.4% | 0.0% | 0.0% |
+| wespeaker ResNet34-LM (en) | 0.80 | 30.5% | 1.2% | 3.0% |
+
+Provisional line: **0.55--0.60 cosine** with eres2net meets the under-2%
+wrong-match target; below the line, suggest instead of auto-assigning.  This
+is optimistic because profiles and tests come from the same meeting and there
+are only 164 tests (2% is about 3 segments).  Phase 4 must re-measure it
+across sessions (for example, the four meetings of one AMI series).  The
+English embedding is clearly worse here as well, which confirms eres2net.
+
 ### Local summary models (action items and decisions)
 
 llama.cpp `369dcf309c8b274370e692ac2d42d9708597ae04`, CPU build, 12 threads,
@@ -412,7 +435,7 @@ on Windows.  The final pass loads turbo (811 MiB) after Stop.
 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass |
 | Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, stable JSON, lowest memory); Ministral was best on CPU (84%) but loops on the newer llama.cpp build |
 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each stamped with its first frame's device timestamp (QPC / host time) |
-| Voice-match confidence line | Not measured; needs labeled multi-meeting voice data (Phase 4) |
+| Voice-match confidence line | Provisional 0.55--0.60 cosine (eres2net), measured within meetings; re-measure across sessions in Phase 4 |
 | DOCX library | Follows Electron: a Node DOCX writer such as `docx` (to be pinned in Phase 7) |
 | Targets to revisit | Final DER 20% (best measured 21--28%); summary recall 90% (best 80--84% on reference text); live-versus-final WER 15% (about 10% at GPU full context); RAM guidance now 32 GB typical |
 
