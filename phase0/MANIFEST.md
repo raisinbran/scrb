@@ -14,6 +14,7 @@ versions used and checks every file's SHA-256.
 | `upstream/sherpa-onnx` | k2-fsa/sherpa-onnx | `af2d8d81dbfa61c4cea4c568da78f3982edca005` (v2.0.1) | Apache-2.0 |
 | `upstream/meetily` | Zackriya-Solutions/meetily | `a2cb62e827da7ef59f65064c97233efb2313878e` | MIT |
 | `upstream/windows-classic-samples` | microsoft/Windows-classic-samples | `434f6002bdf9cf9829406c3ff2b33387982d6168` | Microsoft sample license |
+| `upstream/meeting-transcriber` | pasrom/meeting-transcriber (macOS capture borrow candidate; reviewed, unused) | `0c40928d44f4453dd0e375db6cff538a8de24065` | MIT |
 
 `patches/windows-application-loopback-duration.patch` applies to the
 ApplicationLoopback sample (adds a duration argument).

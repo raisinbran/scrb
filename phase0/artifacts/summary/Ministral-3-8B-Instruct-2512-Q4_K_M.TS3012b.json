@@ -1,0 +1,155 @@
+{
+  "action_items": [
+    {
+      "text": "A will put the minutes of the meeting on the project share and do so after every meeting.",
+      "owner": "A",
+      "timestamp": "01:02"
+    },
+    {
+      "text": "Everyone should review the minutes from the last meeting, which are available on the project share.",
+      "owner": "Everyone",
+      "timestamp": "01:04"
+    },
+    {
+      "text": "D will continue with their presentation despite technical issues with their computer.",
+      "owner": "D",
+      "timestamp": "01:30"
+    },
+    {
+      "text": "A will check if the beep feature to locate the remote control is feasible and implement it.",
+      "owner": "A",
+      "timestamp": "15:32"
+    },
+    {
+      "text": "C will investigate the feasibility of a text-only TV guide preview on the remote control.",
+      "owner": "C",
+      "timestamp": "15:24"
+    },
+    {
+      "text": "Everyone will do individual work after the lunch break to come up with a components concept and do trend-watching.",
+      "owner": "Everyone",
+      "timestamp": "19:04"
+    },
+    {
+      "text": "B will present their ideas on the design of the remote control in the next meeting.",
+      "owner": "B",
+      "timestamp": "22:52"
+    },
+    {
+      "text": "C will look into the feasibility of making the remote control universal and how to invoke more complicated functions of a TV.",
+      "owner": "C",
+      "timestamp": "22:10"
+    },
+    {
+      "text": "C will try to find information about the cost and feasibility of a rechargeable remote control and a docking station for recharging.",
+      "owner": "C",
+      "timestamp": "28:41"
+    },
+    {
+      "text": "C will try to find out what people are willing to pay for the remote control features.",
+      "owner": "A",
+      "timestamp": "29:54"
+    },
+    {
+      "text": "C will look into the feasibility of including an L_C_D_ screen and speech recognition, including cost and space requirements.",
+      "owner": "C",
+      "timestamp": "37:21"
+    },
+    {
+      "text": "B will draw up some designs of possible remote control layouts and share them on the product share.",
+      "owner": "B",
+      "timestamp": "31:28"
+    },
+    {
+      "text": "Everyone will try to think of a name for the remote control product.",
+      "owner": "Group",
+      "timestamp": "40:02"
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Agreement to start the meeting without the marketing director, as they were late.",
+      "timestamp": "00:21"
+    },
+    {
+      "text": "Agreement that the remote control should have a beep feature to help users locate it.",
+      "timestamp": "04:33"
+    },
+    {
+      "text": "Agreement to hide less important functions like teletext, display settings, and audio settings under a menu.",
+      "timestamp": "04:06"
+    },
+    {
+      "text": "Agreement that the remote control should have a durable design to prevent faded symbols.",
+      "timestamp": "07:49"
+    },
+    {
+      "text": "Agreement to make the remote control more user-friendly by reducing the number of buttons and making important buttons larger.",
+      "timestamp": "08:50"
+    },
+    {
+      "text": "Agreement to consider using changeable covers for the remote control to appeal to a broader audience and for fashion trends.",
+      "timestamp": "14:01"
+    },
+    {
+      "text": "Agreement to not implement speech recognition in the remote control due to technological immaturity and international market challenges.",
+      "timestamp": "16:40"
+    },
+    {
+      "text": "Agreement to make the remote control universal to cater to a wide range of users.",
+      "timestamp": "16:32"
+    },
+    {
+      "text": "Agreement to focus on intuitive user interface design with fewer buttons and a secondary menu for advanced settings.",
+      "timestamp": "19:29"
+    },
+    {
+      "text": "Agreement that the remote control should not look like other brands' remote controls to stand out.",
+      "timestamp": "22:32"
+    },
+    {
+      "text": "Agreement to explore the feasibility of invoking TV menus through the remote control.",
+      "timestamp": "22:13"
+    },
+    {
+      "text": "The power button should be on top of the remote control.",
+      "timestamp": "25:28"
+    },
+    {
+      "text": "The mute button should be at the bottom of the remote control.",
+      "timestamp": "25:41"
+    },
+    {
+      "text": "The channel buttons should be on top of the remote control.",
+      "timestamp": "32:33"
+    },
+    {
+      "text": "The basic functions (power, channel buttons, volume, mute) should be prioritized and placed prominently.",
+      "timestamp": "32:12"
+    },
+    {
+      "text": "The remote control should have a design that is easy to use and intuitive, with important buttons being larger and more accessible.",
+      "timestamp": "31:33"
+    },
+    {
+      "text": "The remote control should include a feature to help locate it (e.g., beep or flash) for people who might lose it.",
+      "timestamp": "24:21"
+    },
+    {
+      "text": "The remote control should be designed to be user-friendly for younger users (under 40), considering features like an L_C_D_ screen and speech recognition.",
+      "timestamp": "33:13"
+    },
+    {
+      "text": "The group will decide on the final design layout for the remote control, including the placement of the volume and channel controls.",
+      "timestamp": "37:38"
+    },
+    {
+      "text": "The group will consider the feasibility and cost of including an L_C_D_ screen and speech recognition, and decide based on market research and financial information.",
+      "timestamp": "34:36"
+    },
+    {
+      "text": "The meeting will be concluded, and the minutes will be posted on the web shortly.",
+      "timestamp": "40:19"
+    }
+  ]
+}
