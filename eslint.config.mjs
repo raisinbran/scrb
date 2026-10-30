@@ -16,11 +16,11 @@ const backendModules = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-electron/**', 'phase0/**', 'dev-plan/**'] },
+  { ignores: ['**/dist/**', '**/dist-electron/**', '.claude/**', 'phase0/**', 'dev-plan/**'] },
   js.configs.recommended,
   {
     files: ['**/*.mjs'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly' } },
   },
   ...tseslint.configs.recommended,
   {
