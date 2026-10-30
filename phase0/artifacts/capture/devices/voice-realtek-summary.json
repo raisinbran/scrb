@@ -1,0 +1,12 @@
+{
+  "requested_seconds": 120,
+  "wall_seconds": 120.614,
+  "start_offset_ms": 368.182,
+  "sample_count_drift_ms": 0.094,
+  "arrival_drift_ms": -0.558,
+  "cpu_seconds": 1.109,
+  "avg_cpu_percent_of_machine": 0.0766,
+  "peak_working_set_mib": 13.0,
+  "app": {"hresult": "0x00000000", "packets": 12047, "frames": 5782560, "seconds_by_frames": 120.470000, "effective_rate_hz": 48000.0000, "frame_vs_clock_error_ms": 0.000, "discontinuities": 0, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.000, "arrival_error_ms": -0.430, "max_inter_arrival_ms": 11.627},
+  "mic": {"hresult": "0x00000000", "packets": 12009, "frames": 5764320, "seconds_by_frames": 120.090000, "effective_rate_hz": 47999.9624, "frame_vs_clock_error_ms": -0.094, "discontinuities": 1, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.517, "arrival_error_ms": 0.128, "max_inter_arrival_ms": 10.512}
+}

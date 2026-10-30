@@ -106,6 +106,13 @@ For each case, record in the table below:
    (3) Bluetooth hands-free capture is lossy and the default comms mic can
    flap on its own, so default-change events need debouncing.
 
+   Voice checks (120 s, no device change, user talking in two windows):
+
+   | Case | Mic | Talking | Quiet | Discontinuities app / mic | Notes |
+   | --- | --- | --- | --- | --- | --- |
+   | voice-realtek | Microphone Array (Realtek) | −17 to −21 dBFS | ≈ −40 dBFS | 0 / 1 | Voice ~20 dB over room noise. |
+   | voice-airpods | Headset (No Air 3), buds worn | −26 to −33 dBFS | ≈ −83 dBFS | 0 / 126 | Strong on-bud noise gating (~50 dB), which explains the −80 dBFS ambient readings above. 126 discontinuities but 0 gap-fill frames: HFP jitter, no loss this run. |
+
 2. Write the PC's model, Windows version and the devices used under this
    line:
 
