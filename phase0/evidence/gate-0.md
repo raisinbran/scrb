@@ -1,6 +1,6 @@
 # Gate 0 Evidence
 
-Status: **Ready for owner approval (2026-10-30)**
+Status: **Approved by owner (2026-10-30)**
 
 This is Phase 0 throwaway evidence.  No production application code has been
 created in `C:\Users\brand\Documents\GitHub\scrb`; Phase 1 remains gated.
@@ -826,7 +826,7 @@ playback and background benchmarks), so this is not an idle baseline.
 
 ## Gate Decision
 
-**Ready for owner approval.** Every checklist item is met or accepted with the
+**Approved by owner on 2026-10-30 ("the Gate 0 checklist is acceptable").** Every checklist item is met or accepted with the
 caveats above.  Approval is the owner's; it has not been given yet.  The owner decided every open item on
 2026-10-29 (`HANDOFF-PARALLEL.md`, table B): all recommendations accepted;
 final DER pass line ~25% and summary recall pass line ~80%, with 20% and 90%
