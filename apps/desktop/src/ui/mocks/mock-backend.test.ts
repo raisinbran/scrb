@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ContractError, CALL_NAMES, type TranscriptSegment } from '@scrb/contracts';
+import {
+  ContractError,
+  CALL_NAMES,
+  type TranscriptChanged,
+  type TranscriptSegment,
+} from '@scrb/contracts';
 import { MockBackend } from './mock-backend.ts';
 import { DEV_TRIGGERS } from './dev-triggers.ts';
 import { LONG_MEETING_ID } from './fixtures.ts';
@@ -234,6 +239,58 @@ describe('MockBackend', () => {
 
     await backend.call('redo', { meetingId });
     expect((await read()).segments[0]).toEqual(corrected);
+  });
+
+  it('reassigns part of a segment, emits the change, and undoes and redoes it', async () => {
+    const { meetingId } = await backend.call('startRecording', {});
+    vi.advanceTimersByTime(1000);
+    backend.dispose();
+    const read = () => backend.call('getTranscript', { meetingId, offset: 0, limit: 10 });
+    const original = await read();
+    const segment = original.segments[0] as TranscriptSegment;
+    const speakerId = segment.speakerId === 'sp-2' ? 'sp-3' : 'sp-2';
+    const changes: TranscriptChanged['change'][] = [];
+    backend.on('transcriptChanged', ({ change }) => changes.push(change));
+
+    const state = await backend.call('reassignSpeaker', {
+      meetingId,
+      range: {
+        firstWordId: segment.words[1]?.id as string,
+        lastWordId: segment.words[2]?.id as string,
+      },
+      speakerId,
+    });
+
+    expect(state).toEqual({ canUndo: true, canRedo: false });
+    expect(changes).toHaveLength(1);
+    const parts = (await read()).segments;
+    expect(parts.map((part) => part.speakerId)).toEqual([
+      segment.speakerId,
+      speakerId,
+      segment.speakerId,
+    ]);
+    expect(parts.flatMap((part) => part.words)).toEqual(segment.words);
+    expect(parts[1]?.words.map((word) => word.text)).toEqual(
+      segment.words.slice(1, 3).map((word) => word.text),
+    );
+
+    await backend.call('undo', { meetingId });
+    expect((await read()).segments).toEqual([segment]);
+    expect(changes).toHaveLength(2);
+
+    await backend.call('redo', { meetingId });
+    expect((await read()).segments).toEqual(parts);
+  });
+
+  it('refuses a reassignment of text that is gone', async () => {
+    const failure = await backend
+      .call('reassignSpeaker', {
+        meetingId: LONG_MEETING_ID,
+        range: { firstWordId: 'missing', lastWordId: 'missing' },
+        speakerId: 'sp-2',
+      })
+      .catch((error: unknown) => error);
+    expect((failure as ContractError).code).toBe('notFound');
   });
 
   it('runs a live meeting that already holds 8 hours of text', async () => {

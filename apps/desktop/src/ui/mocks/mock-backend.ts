@@ -34,7 +34,12 @@ import {
   createLibrary,
   createSummary,
 } from './fixtures.ts';
-import { correctWordRange, finalizeProvisionalWords, type TranscriptEdit } from './corrections.ts';
+import {
+  correctWordRange,
+  finalizeProvisionalWords,
+  reassignWordRange,
+  type TranscriptEdit,
+} from './corrections.ts';
 import { createPrng } from './prng.ts';
 import { SCRIPT, type ScriptStep } from './scripted-meeting.ts';
 import { MOCK_SPEAKERS, generateSegment, generateTranscript } from './transcript.ts';
@@ -520,7 +525,14 @@ export class MockBackend implements Backend {
     },
     applyCorrection: ({ meetingId, range, text, remember }) =>
       this.correct(meetingId, range, text, remember),
-    reassignSpeaker: ({ meetingId }) => this.pushUndo(meetingId, { before: [], after: [] }),
+    reassignSpeaker: ({ meetingId, range, speakerId }) => {
+      const edit = reassignWordRange(this.transcriptOf(meetingId), range, speakerId);
+      if (!edit) {
+        throw new ContractError({ code: 'notFound', message: 'That text is no longer available.' });
+      }
+      this.applyEdit(meetingId, edit.before, edit.after);
+      return this.pushUndo(meetingId, edit);
+    },
     undo: ({ meetingId }) => this.moveUndo(meetingId, -1),
     redo: ({ meetingId }) => this.moveUndo(meetingId, 1),
     seekAudio: ({ meetingId, positionMs }) => this.playFrom(meetingId, positionMs),

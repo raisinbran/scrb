@@ -1,4 +1,4 @@
-import type { TranscriptSegment, TranscriptWord, WordRange } from '@scrb/contracts';
+import type { SpeakerId, TranscriptSegment, TranscriptWord, WordRange } from '@scrb/contracts';
 
 /** A reversible change: the segments as they were, and as they became. */
 export interface TranscriptEdit {
@@ -78,4 +78,50 @@ export function correctWordRange(
     after: rebuilt,
     originalText: selected.map((word) => word.text).join(' '),
   };
+}
+
+function withWords(segment: TranscriptSegment, id: string, words: TranscriptWord[]) {
+  const first = words[0] as TranscriptWord;
+  const last = words.at(-1) as TranscriptWord;
+  return { ...segment, id, words, startMs: first.startMs, endMs: last.endMs };
+}
+
+/**
+ * Gives the range to `speakerId`, splitting a segment the range only partly covers. The first part
+ * keeps the segment's id. Returns null when the range is not in `segments`.
+ */
+export function reassignWordRange(
+  segments: TranscriptSegment[],
+  range: WordRange,
+  speakerId: SpeakerId,
+): TranscriptEdit | null {
+  const contains = (segment: TranscriptSegment, wordId: string) =>
+    segment.words.some((word) => word.id === wordId);
+  const firstIndex = segments.findIndex((segment) => contains(segment, range.firstWordId));
+  const lastIndex = segments.findIndex((segment) => contains(segment, range.lastWordId));
+  if (firstIndex < 0 || lastIndex < firstIndex) return null;
+
+  const before = segments.slice(firstIndex, lastIndex + 1);
+  const after = before.flatMap((segment, index) => {
+    const start =
+      index === 0 ? segment.words.findIndex((word) => word.id === range.firstWordId) : 0;
+    const end =
+      index === before.length - 1
+        ? segment.words.findIndex((word) => word.id === range.lastWordId)
+        : segment.words.length - 1;
+    const parts = [
+      { words: segment.words.slice(0, start), speakerId: segment.speakerId },
+      { words: segment.words.slice(start, end + 1), speakerId },
+      { words: segment.words.slice(end + 1), speakerId: segment.speakerId },
+    ].filter((part) => part.words.length > 0);
+    return parts.map((part, partIndex) => ({
+      ...withWords(
+        segment,
+        partIndex === 0 ? segment.id : `${segment.id}-part-${partIndex}`,
+        part.words,
+      ),
+      speakerId: part.speakerId,
+    }));
+  });
+  return { before, after };
 }
