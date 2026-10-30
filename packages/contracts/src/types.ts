@@ -63,6 +63,14 @@ export interface TranscriptionLag {
   lagMs: number;
 }
 
+/** Everything a reloaded UI needs to catch up, so a degraded recording never looks healthy. */
+export interface RecordingSnapshot {
+  state: RecordingState;
+  /** Null when nothing has been reported yet, such as while idle. */
+  health: RecordingHealth | null;
+  transcription: TranscriptionLag | null;
+}
+
 export type InputTransport = 'builtIn' | 'usb' | 'bluetooth' | 'bluetoothHandsFree' | 'other';
 
 export interface InputDevice {
@@ -134,6 +142,12 @@ export interface ImportProgress {
 export interface ImportFinished {
   importId: ImportId;
   meetingId: MeetingId;
+}
+
+/** The import stopped at the user's request. No meeting was created and its files are gone. */
+export interface ImportCancelled {
+  importId: ImportId;
+  fileName: string;
 }
 
 export type ImportFailureReason =
@@ -217,7 +231,11 @@ export type TranscriptChange =
 
 export interface TranscriptChanged {
   meetingId: MeetingId;
-  /** Increases by one per change. A skipped value means the UI must reload the range. */
+  /**
+   * Counted per meeting: increases by one per change to that meeting's transcript, and never
+   * resets. A skipped value means the UI must reload the range. Values from two meetings are
+   * unrelated, so a UI that switches meetings starts again from the page's `revision`.
+   */
   revision: number;
   change: TranscriptChange;
   /** Speakers that are new or changed by this event. */
@@ -226,6 +244,7 @@ export interface TranscriptChanged {
 
 export interface TranscriptPage {
   meetingId: MeetingId;
+  /** This meeting's revision; see `TranscriptChanged`. */
   revision: number;
   totalSegments: number;
   totalWords: number;
@@ -299,15 +318,31 @@ export type VocabularyTermPatch = Partial<Pick<VocabularyTerm, 'term' | 'mishear
 
 export type SummaryLength = 'brief' | 'full';
 
-/** Items with unknown details use null, which the UI shows as "Not specified" or "Unconfirmed". */
-export interface ActionItem {
+/** Whether the meeting agreed the action. It says nothing about whether the action was done. */
+export type ActionStatus = 'agreed' | 'proposed' | 'unconfirmed';
+
+/** Fields every summary item shares. */
+export interface SummaryItemEvidence {
+  /** Where else a merged duplicate was raised. */
+  alsoAtMs: number[];
+  /** The transcript barely supports this item, or another item contradicts it. */
+  needsReview: boolean;
+  edited: boolean;
+}
+
+/**
+ * A null owner or deadline shows as "Not specified", or as "Unconfirmed" when its flag is set: the
+ * meeting named someone or a date, but not clearly enough to state.
+ */
+export interface ActionItem extends SummaryItemEvidence {
   id: SummaryItemId;
   action: string;
   owner: string | null;
+  ownerUnconfirmed: boolean;
   deadline: string | null;
-  status: 'open' | 'done' | 'unconfirmed';
+  deadlineUnconfirmed: boolean;
+  status: ActionStatus;
   sourceMs: number;
-  edited: boolean;
 }
 
 export type DecisionStatus = 'decided' | 'proposed' | 'tentativelyAgreed' | 'unresolved';
@@ -315,20 +350,18 @@ export type DecisionStatus = 'decided' | 'proposed' | 'tentativelyAgreed' | 'unr
 export type ImpactArea =
   'scope' | 'schedule' | 'cost' | 'risk' | 'deliverables' | 'technicalApproach';
 
-export interface DecisionItem {
+export interface DecisionItem extends SummaryItemEvidence {
   id: SummaryItemId;
   decision: string;
   status: DecisionStatus;
   impactArea: ImpactArea | null;
   sourceMs: number;
-  edited: boolean;
 }
 
-export interface OpenQuestion {
+export interface OpenQuestion extends SummaryItemEvidence {
   id: SummaryItemId;
   question: string;
   sourceMs: number | null;
-  edited: boolean;
 }
 
 export interface NarrativeSection {
@@ -347,6 +380,8 @@ export interface MeetingSummaryDoc {
   actionItems: ActionItem[];
   decisions: DecisionItem[];
   openQuestions: OpenQuestion[];
+  /** Parts of the meeting the summary could not read. Always shown. */
+  warnings: string[];
 }
 
 export type SummaryItemUpdate =

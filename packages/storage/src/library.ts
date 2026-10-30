@@ -528,7 +528,7 @@ export class Library {
       const transcript = await this.readTranscript(meetingId);
       const fresh: SummaryFile = {
         ...generated,
-        schemaVersion: 2,
+        schemaVersion: 3,
         meetingId,
         revision: 0,
         transcriptRevision: transcript.revision,

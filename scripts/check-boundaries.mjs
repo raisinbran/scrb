@@ -1,5 +1,5 @@
 // Fails a branch that crosses the UI/backend folder boundary (Development Process, Enforcement).
-// While the owner has lifted the agent split, only `ui/*` and `backend/*` branches are checked.
+// The agent split is a preference, so only `ui/*` and `backend/*` branches are checked.
 // Set CONTRACT_APPROVED=1 once the owner has approved a contract change on such a branch.
 import { execFileSync } from 'node:child_process';
 
@@ -15,7 +15,7 @@ const isUiBranch = branch.startsWith('ui/');
 const isBackendBranch = branch.startsWith('backend/');
 
 if (!isUiBranch && !isBackendBranch) {
-  console.log(`Boundary check skipped on ${branch}: the agent split is lifted for now.`);
+  console.log(`Boundary check skipped on ${branch}: not a ui/ or backend/ branch.`);
   process.exit(0);
 }
 

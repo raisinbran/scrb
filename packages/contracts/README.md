@@ -10,7 +10,8 @@ These are not in the UI Specification's contract table. Each is tagged `@additio
 
 | Item                                                        | Why it is needed                                                                                             |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `getRecordingState`                                         | The UI must catch up after a reload; events alone cannot say what is already running                         |
+| `getRecordingSnapshot`                                      | The UI must catch up after a reload, including health and transcription status, which only arrive as events  |
+| `importCancelled`                                           | Each import needs one definite end; this is the only one that means no meeting exists                        |
 | `pickAudioFile`                                             | A sandboxed renderer cannot open a file dialog. Returns an opaque token, so the renderer never passes a path |
 | `getTranscript`                                             | Paged loading for stored transcripts; `transcriptChanged` only carries changes                               |
 | `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                            |
@@ -29,11 +30,17 @@ These are not in the UI Specification's contract table. Each is tagged `@additio
 2. Failures of summaries travel in `summaryProgress` (stage `failed`) and of exports in `exportFinished` (`ok: false`), instead of adding `summaryFailed` and `exportFailed` events.
 3. `SpeakerTarget` and `SpeakerMerge` cover both meeting speakers and voice profiles under one call.
 4. Times are milliseconds on the meeting timeline. The capture draft's nanosecond timeline stays backend-side.
-5. Action-item status is `open`, `done` or `unconfirmed`; the requirements name the column but not its values.
-6. Transcription quality is `fast`, `balanced` or `accurate`; the requirements do not name the levels.
+5. Action-item status is `agreed`, `proposed` or `unconfirmed`, matching the summary engine. It records agreement, not completion; V1 does not track completion. The requirements name the column but not its values.
+6. An unknown owner or deadline is null. `ownerUnconfirmed` and `deadlineUnconfirmed` tell "Unconfirmed" apart from "Not specified".
+7. Summary items carry `alsoAtMs` and `needsReview`, so merged sources and weak or conflicting evidence stay visible. Inferred impacts have no table in the requirements; they appear as a labelled section of the full narrative.
+8. Transcript revisions are counted per meeting.
+9. Transcription quality is `fast`, `balanced` or `accurate`; the requirements do not name the levels.
 
 ## Known gaps
 
 - Mic test and meters before Start: there is no call to run meters while idle. Depends on capture draft Q8.
 - Chunk metadata and adapter events (capture draft Q14) are not here.
-- Requests are not validated at runtime in the main process yet. Add this with the first real handlers.
+
+## Request validation
+
+`isValidRequest` checks every call's request in the main process and in the mock: shapes, id format, string lengths, number ranges, and a transcript page of at most `MAX_TRANSCRIPT_PAGE` segments. Unknown keys are refused. The compiler ties each check to its request type, in one direction: a check can be stricter than the type, but not looser on required fields.
