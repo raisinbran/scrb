@@ -47,6 +47,7 @@ describe('RecordingSession', () => {
   let seen: string[];
   let session: RecordingSession;
   let nextId: number;
+  let firstReply: FakeAdapter['reply'];
 
   const latest = () => adapters.at(-1) as FakeAdapter;
 
@@ -57,9 +58,11 @@ describe('RecordingSession', () => {
     missing = [];
     seen = [];
     nextId = 0;
+    firstReply = () => ({});
     session = new RecordingSession({
       launch: () => {
         const adapter = new FakeAdapter();
+        adapter.reply = firstReply;
         adapters.push(adapter);
         return adapter;
       },
@@ -168,6 +171,12 @@ describe('RecordingSession', () => {
     latest().reply = (command) => (command.name === 'start' ? { activeTracks: [] } : {});
     await expect(refused).rejects.toThrow(ContractError);
     expect(session.state.status).toBe('idle');
+  });
+
+  it('reports the meeting track when system audio permission is denied', async () => {
+    firstReply = (command) => (command.name === 'checkPermission' ? { systemAudio: 'denied' } : {});
+    await session.start(OPEN);
+    expect(missing).toEqual(['meeting']);
   });
 
   it('refuses commands in the wrong state', async () => {

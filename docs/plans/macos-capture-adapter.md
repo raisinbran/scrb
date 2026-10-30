@@ -49,7 +49,7 @@ These can change the design, so they run as the first step of the build, before 
 | S4 | **No effect seen on a running capture.** Over a 280 s run with both switches turned off and on, tap and mic audio never stopped, no error appeared, and the app was not closed. The exact switch times were not logged | Revocation is not reliably detectable mid-recording, so T20 must time it properly. Check permission at each Start |
 | S6 | **Fail.** A denied tap gives on-time packets, zero level and `IsRunningOutput` = 1, the same as an app with an open stream and no sound | This property cannot detect denial. The adapter needs another way; see below |
 
-**After S6:** at Start, a denied tap and a silent app look the same. The adapter will play a short, inaudible check tone from its own process through a private tap, confirm it arrives, and report `unknown` if it can't run. Zero level with a running app stays a warning after the existing silence limit.
+**After S6:** at Start, the helper plays a tone too quiet to hear from its own process through a private tap, and checks it comes back (`src/Permission.swift`). Tested: `denied` from a process without permission, `granted` from the Claude terminal pane. A run that can't complete reports `unknown`. It hasn't been tested with the switch turned off in System Settings, or on a packaged build.
 
 ## How it could lose data, and the test that proves each is handled
 

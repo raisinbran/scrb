@@ -324,12 +324,14 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     var ok = true
     var error: String?
     var at: Int64?
+    var permission: String?
     switch command["name"] as? String {
     case "open": (ok, error) = session.open(command)
     case "start": at = session.start()
     case "pause": at = session.pause(id: id, cause: command["cause"] as? String ?? "user")
     case "resume": at = session.resume(id: id)
     case "stop": at = session.stop()
+    case "checkPermission": permission = checkSystemAudioPermission()
     case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
     case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
     default: ok = false; error = "unknown command"
@@ -338,6 +340,7 @@ func handle(_ command: [String: Any]) -> [String: Any] {
                               "gate": rt_gate_is_open() != 0 ? "open" : "closed",
                               "activeTracks": session.activeTracks, "atNs": at ?? NSNull()]
     if let error { ack["error"] = error }
+    if let permission { ack["systemAudio"] = permission }
     acks[id] = ack
     return ack
 }

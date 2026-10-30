@@ -19,7 +19,7 @@ export interface OpenCommand {
 
 export type CaptureCommand =
   | OpenCommand
-  | { name: 'start' | 'pause' | 'resume' | 'stop' }
+  | { name: 'start' | 'pause' | 'resume' | 'stop' | 'checkPermission' }
   | { name: 'selectMic'; mic: string }
   | { name: 'selectSource'; source: number[] | 'wholeComputer' };
 
@@ -37,6 +37,8 @@ export interface CaptureAck {
   /** Tracks audio is passing on. Shorter than both after a partial start or resume. */
   activeTracks: Track[];
   error?: string;
+  /** The result of `checkPermission`. */
+  systemAudio?: 'granted' | 'denied' | 'unknown';
 }
 
 export type CaptureEvent =

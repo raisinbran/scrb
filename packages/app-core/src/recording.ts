@@ -53,6 +53,8 @@ export class RecordingSession {
     this.restarts = 0;
     this.openCommand = open;
     this.attach();
+    const permission = await this.send({ name: 'checkPermission' });
+    if (permission.systemAudio === 'denied') this.options.onTrackMissing('meeting');
     await this.require(open);
     const ack = await this.require({ name: 'start' });
     this.reportMissing(ack);
