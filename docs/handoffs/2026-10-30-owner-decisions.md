@@ -28,3 +28,7 @@ Most meetings run 0.5 to 2 hours and rarely over 4. Routine long runs are 4 hour
 - QA, then owner approval, of `docs/plans/pause-resume.md`.
 - Written plans for corrections, index upgrades and delete.
 - The summary-to-export adapter is on `backend-export-adapter`. Its open gaps are in `2026-10-30-export-summary-gaps.md`.
+
+## Commit history
+
+On 2026-10-30 the owner had attribution trailers removed from all commits. That changed every commit ID, so IDs quoted in older notes and plans no longer exist. Find the commit by date and message.
