@@ -60,10 +60,7 @@ async function main(): Promise<void> {
     serverPath: join(PHASE0, "upstream/llama.cpp/build/bin/llama-server"),
     modelPath: join(PHASE0, "models/llm/Qwen3.5-9B-Q4_K_M.gguf"),
   });
-  const llm = new RecordingLlm(worker);
-  const started = Date.now();
-  await worker.start();
-  const loadSeconds = (Date.now() - started) / 1000;
+  const llm = new RecordingLlm(worker, join(out, `${meeting}.recording.json`));
   let peakRss = 0;
   const sampler = setInterval(() => (peakRss = Math.max(peakRss, rssMib(worker.pid))), 3000);
   try {
@@ -82,9 +79,8 @@ async function main(): Promise<void> {
     writeFileSync(join(out, `${meeting}.judging.md`), judgingSheet(meeting, extraction, reference));
     writeFileSync(join(out, `${meeting}.brief.md`), renderMarkdown(brief));
     writeFileSync(join(out, `${meeting}.full.md`), renderMarkdown(full));
-    writeFileSync(join(out, `${meeting}.recording.json`), JSON.stringify(llm.recording));
     const row = {
-      meeting, loadSeconds, extractSeconds, narrativeSeconds, peakRssMib: Math.round(peakRss), ...extraction.stats,
+      meeting, extractSeconds, narrativeSeconds, peakRssMib: Math.round(peakRss), ...extraction.stats,
       actions: extraction.actions.length, decisions: extraction.decisions.length, impacts: extraction.impacts.length,
       openQuestions: extraction.openQuestions.length, rejected: extraction.rejected.length,
       flagged: [...extraction.actions, ...extraction.decisions].filter((item) => item.flags.length > 0).length,

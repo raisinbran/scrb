@@ -76,6 +76,20 @@ export class LlamaServerWorker implements LlmClient {
       });
     });
     this.process = child;
+    // A parent that exits, or is told to, must not leave 8 GB behind.
+    const killChild = () => child.kill("SIGKILL");
+    const onSignal = () => {
+      killChild();
+      process.exit(1);
+    };
+    process.once("exit", killChild);
+    process.once("SIGTERM", onSignal);
+    process.once("SIGINT", onSignal);
+    child.once("exit", () => {
+      process.off("exit", killChild);
+      process.off("SIGTERM", onSignal);
+      process.off("SIGINT", onSignal);
+    });
     try {
       await this.waitReady();
     } catch (error) {

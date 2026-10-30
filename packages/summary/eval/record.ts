@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { LlmClient, LlmRequest, LlmResponse } from "../src/llm.js";
 
 export interface Recording {
@@ -10,17 +11,23 @@ export function requestKey(request: LlmRequest): string {
   return createHash("sha256").update(JSON.stringify({ messages, schema, maxTokens, sampling })).digest("hex").slice(0, 16);
 }
 
+/** Saves after every answer and reuses saved answers, so an interrupted run resumes. */
 export class RecordingLlm implements LlmClient {
-  readonly recording: Recording = {};
+  readonly recording: Recording;
   readonly modelName: string;
 
-  constructor(private readonly inner: LlmClient) {
+  constructor(private readonly inner: LlmClient, private readonly path: string) {
     this.modelName = inner.modelName;
+    this.recording = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as Recording) : {};
   }
 
   async complete(request: LlmRequest): Promise<LlmResponse> {
+    const key = requestKey(request);
+    const saved = this.recording[key];
+    if (saved) return saved;
     const response = await this.inner.complete(request);
-    this.recording[requestKey(request)] = response;
+    this.recording[key] = response;
+    writeFileSync(this.path, JSON.stringify(this.recording));
     return response;
   }
 }
