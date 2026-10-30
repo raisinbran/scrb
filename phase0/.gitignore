@@ -27,3 +27,6 @@ artifacts/capture/macos/*-tone*.wav
 
 # Windows device-case recordings (HANDOFF-WINDOWS.md)
 artifacts/capture/devices/*.wav
+
+# macOS device-case recordings
+artifacts/capture/macos/devices/*.wav

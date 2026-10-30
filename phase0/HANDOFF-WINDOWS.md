@@ -65,6 +65,7 @@ at about 60 s and note the wall-clock time.
 | `bt-call-mode` | With the headset as output, open its mic so it switches from stereo to hands-free profile, then back. |
 | `sleep-wake` | Start / Sleep, wake after ~30 s.  Note: the probe holds `ES_SYSTEM_REQUIRED`, which blocks idle sleep only, not a manual sleep. |
 | `mic-unplug` | (if a USB mic is available) Unplug it mid-run, replug after ~30 s. |
+| `mic-privacy-off` | Settings > Privacy & security > Microphone: turn off "Let desktop apps access your microphone", then back on after ~30 s.  Also note any prompt or notification Windows shows. |
 
 For each case, record in the table below:
 
@@ -92,6 +93,7 @@ For each case, record in the table below:
    | bt-call-mode | Yes, exit 0, HRESULT 0 | **1.4 s digital silence at +64.6–66.0 s** when the buds entered hands-free, with 0 discontinuities flagged; slight dip only on the return to stereo (+74 s) | Realtek array, live throughout | 0 / 3 | HFP open 14:54:51, back to A2DP 14:55:00 (Windows dropped HFP ~9 s after the Settings level meter, before Settings was closed at ~14:55:30). One mic discontinuity at +66.4 s, the profile switch, although the mic device did not change. |
    | sleep-wake | Yes, exit 0, HRESULT 0 | Arrival gap +68 → +110 s; 41.7 s of silent frames, 0 discontinuities; **track ends 1.69 s short of wall clock** (frame_vs_clock −1690 ms) | Gap-filled 42.0 s (2.0 M frames), 1262 silent-flag packets, stays clock-aligned (−7 ms) | 0 / 8 | Modern Standby (S0ix) 17:39:11–17:39:55. App vs mic now offset by ~1.7 s after resume: sync is broken without a discontinuity on the app side. Probe ran 343 s wall for a 300 s request (its timer skipped standby). A first run without sleep is kept as `sleep-wake-nosleep-*`: fully continuous. |
    | mic-unplug | — | — | — | — | Not run: no USB mic available. |
+   | mic-privacy-off | | | | | Added to the handoff after this run; still to run. |
 
    All runs: output muted (the probe still captures at full level; verified with a
    15 s muted test), mic content is room ambient only (voice checks are
