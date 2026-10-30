@@ -5,6 +5,7 @@ import { Library, readLibraryLocation } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
+import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 
 export interface OpenedBackend {
@@ -36,6 +37,7 @@ export async function openBackend(
       handlers: {
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
+        ...createMeetingHandlers(library),
         ...recording?.handlers,
       },
       warning:

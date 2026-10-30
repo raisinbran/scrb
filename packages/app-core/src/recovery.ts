@@ -289,6 +289,24 @@ function sealTrack(
 }
 
 /**
+ * All spans of a sealed meeting in timeline order, without touching its files. `chunks.json` holds
+ * only track-level gaps, so paused spans come from the session log. Throws on a damaged file.
+ */
+export function readSealedGaps(audioDir: string, endNs: number): AudioSpan[] {
+  const gaps: AudioSpan[] = pausedSpans(audioDir, endNs).map((span) => ({
+    kind: 'paused',
+    track: 'both',
+    ...span,
+  }));
+  for (const track of TRACKS) {
+    const path = join(audioDir, track, 'chunks.json');
+    if (!existsSync(path)) continue;
+    gaps.push(...(JSON.parse(readFileSync(path, 'utf8')) as SealedTrack).gaps);
+  }
+  return gaps.sort((a, b) => a.startNs - b.startNs);
+}
+
+/**
  * Seals both tracks. Every step can be repeated, so a crash here just runs it again.
  * `isWriterAlive` must use the real lock: a live worker's files are left alone.
  */
