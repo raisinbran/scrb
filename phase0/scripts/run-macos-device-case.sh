@@ -6,7 +6,9 @@
 # happens.  Run from the Claude desktop app's terminal pane (see the probe
 # README for the System Audio Recording permission).
 #
-# Usage (from phase0/): scripts/run-macos-device-case.sh <case> [seconds] [act-at]
+# Usage (from phase0/): [ACTION=cmd] [RESTORE=cmd] scripts/run-macos-device-case.sh <case> [seconds] [act-at]
+# ACTION runs at act-at instead of prompting (e.g. probes/macos-dual-capture/SetDefaultDevice
+# output "Steam Streaming Speakers"); RESTORE runs after the capture ends.
 # Output: artifacts/capture/macos/devices/<case>-{app,mic}.wav, -timing.csv,
 #         -summary.json, -devices.txt, -analysis.txt
 
@@ -47,17 +49,22 @@ sleep 1
 start=$(date +%s)
 probes/macos-dual-capture/DualCapture "$tone" "$prefix" "$seconds" >"$prefix.stdout.txt" 2>"$prefix.stderr.txt" & probe=$!
 
-state=running
+state=running; warned=0; acted=0
 while kill -0 "$probe" 2>/dev/null; do
   t=$(( $(date +%s) - start ))
-  if (( t == act_at - 10 )); then echo ">>> get ready: action in 10 s"; fi
-  if (( t == act_at )); then printf '\a'; echo ">>> DO THE ACTION NOW ($(date +%H:%M:%S))"; fi
+  if (( t >= act_at - 10 && !warned )); then warned=1; echo ">>> get ready: action in 10 s"; fi
+  if (( t >= act_at && !acted )); then
+    acted=1
+    if [[ -n "${ACTION:-}" ]]; then echo ">>> action at $(date +%H:%M:%S): $(eval "$ACTION" 2>&1)" | tee "$prefix-action.txt"
+    else printf '\a'; echo ">>> DO THE ACTION NOW ($(date +%H:%M:%S))"; fi
+  fi
   if (( t > seconds + 90 )); then state=hung; kill -9 "$probe"; break; fi
   sleep 1
 done
 code=0; wait "$probe" || code=$?
 [[ $state == running ]] && state=exited
 kill "$tone" 2>/dev/null
+[[ -n "${RESTORE:-}" ]] && echo "restore: $(eval "$RESTORE" 2>&1)"
 { echo "after ($(date +%H:%M:%S)):"; devices; } | tee -a "$prefix-devices.txt"
 echo "probe $state, exit code $code, $(( $(date +%s) - start )) s wall" | tee "$prefix-analysis.txt"
 tail -3 "$prefix.stderr.txt" | sed 's/^/stderr: /' | tee -a "$prefix-analysis.txt"
