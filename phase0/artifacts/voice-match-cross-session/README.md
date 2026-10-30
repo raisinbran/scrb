@@ -87,11 +87,63 @@ auto-name from a profile built from only a handful of segments (here 4--5
 stretches, well under a minute of speech); suggest instead until the profile
 has grown.  The minimum enrolment amount still needs measuring.
 
+## Real-audio sanity check (anonymised)
+
+The owner lent two confidential workplace recordings for a one-off check.
+They were processed in temporary storage only and deleted afterwards.  No
+audio, transcript, name, timing or embedding is kept here; speakers are
+labelled S1--S4.  This is a rough check, not a measured error rate.
+
+**One Teams recording, within the meeting** (mixed, compressed call audio;
+about 75 minutes; profiles from the first third, tests from the rest).  Labels
+come from Teams transcript turns, which have start times only and often run
+over other speakers.
+
+| Labels | Threshold | Tests | Auto-named | Known named wrong | Stranger named wrong |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Raw Teams turns | 0.55 | 222 | 64.0% | 14.0% | 24.8% |
+| Raw Teams turns | 0.60 | 222 | 60.4% | 10.8% | 12.6% |
+| Agreeing with diarization | 0.55 | 197 | 92.4% | 0.0% | 1.5% |
+| Agreeing with diarization | 0.60 | 197 | 87.8% | 0.0% | 0.0% |
+
+The raw rows are too pessimistic because the labels are noisy.  The cleaned
+rows are too optimistic: they keep only audio where the diarizer agrees with
+Teams (64% of it), which removes hard cases.  One speaker was dropped entirely
+because the diarizer merged them with another, and only three speakers
+remained, one with 3 enrolment segments.
+
+**Across recordings** (Teams profiles against a phone recording of a different
+meeting, on a different day and microphone).  The phone recording has no
+speaker labels, so it was diarized into three clusters (405 segments) and the
+owner reported who attended; which cluster is which person was not verified.
+
+| Cluster | Speech | Closest profile | Cluster mean score | Segments at 0.55 or above | at 0.60 or above |
+| --- | ---: | --- | ---: | ---: | ---: |
+| A | 619 s | S1 | 0.759 | 46% | 30% |
+| B | 742 s | S3 | 0.523 | 18% | 14% |
+| C | 523 s | S3 | 0.510 | 1 of 91 | 0 of 91 |
+
+- S1 attended and was a primary speaker, so cluster A is consistent with a
+  correct match across microphones, with no above-line segment going to anyone
+  else.  Under half of that speaker's segments cleared the line, against 84%
+  on AMI: expect more suggestions and fewer automatic names on real audio.
+- S4 did not attend and drew no matches above the line, a clean stranger result
+  for one profile.
+- S3 attended but spoke less than cluster B's total, so cluster B is either
+  several people merged, or partly someone else.  In the second case some of
+  its above-line segments are false matches, including at 0.60.  This cannot
+  be settled without per-speaker timing.
+
+The check does not contradict 0.55--0.60 but does not prove the under-2% target
+on real audio.  It favours 0.60 over 0.55.  Phase 4 should measure on recordings
+with per-speaker tracks or on the app's own separated mic and system audio.
+
 ## Limits
 
 - All four meetings of an AMI series were recorded on the same day, in the
   same room, with the same headset mix.  This is across sessions, not across
-  days, rooms or microphones (a laptop mic on a later day will score lower).
+  days, rooms or microphones (a laptop mic on a later day will score lower;
+  see the real-audio check above).
 - The stranger pool is only the other 11 speakers; a larger population raises
   the chance that some impostor clears the line.
 - Segments are clean reference stretches of at least 1.5 s; live diarization
