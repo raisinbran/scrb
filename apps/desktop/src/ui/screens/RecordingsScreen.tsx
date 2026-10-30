@@ -1,33 +1,45 @@
-import type { Backend } from '@scrb/contracts';
-import { formatDuration, formatMeetingDate } from '../lib/format.ts';
-import { useBackendData } from '../lib/use-backend-data.ts';
-import { DataView, EmptyState, Item, ItemList, Screen } from './Screen.tsx';
+import { useState } from 'react';
+import { readStored, writeStored } from '../lib/stored-value.ts';
+import { LibraryView } from './recordings/LibraryView.tsx';
+import { MeetingDetailView } from './recordings/MeetingDetailView.tsx';
 
-const load = (backend: Backend) => backend.call('listMeetings', {});
+const OPEN_KEY = 'scrb.recordings.open';
+
+interface OpenMeeting {
+  id: string;
+  jumpMs?: number;
+}
 
 export function RecordingsScreen() {
-  const { state } = useBackendData(load);
+  const [open, setOpen] = useState<OpenMeeting | null>(() => {
+    const id = readStored<string>(OPEN_KEY);
+    return id ? { id } : null;
+  });
+  const [notice, setNotice] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <LibraryView
+        notice={notice}
+        onOpen={(id, jumpMs) => {
+          setNotice(null);
+          writeStored(OPEN_KEY, id);
+          setOpen(jumpMs === undefined ? { id } : { id, jumpMs });
+        }}
+      />
+    );
+  }
+
   return (
-    <Screen title="Recordings">
-      <DataView state={state}>
-        {(meetings) =>
-          meetings.length === 0 ? (
-            <EmptyState title="No recordings yet">
-              Meetings you record or import will appear here.
-            </EmptyState>
-          ) : (
-            <ItemList>
-              {meetings.map((meeting) => (
-                <Item
-                  key={meeting.id}
-                  primary={meeting.title}
-                  secondary={`${formatMeetingDate(meeting.startedAt)} · ${formatDuration(meeting.durationMs)}`}
-                />
-              ))}
-            </ItemList>
-          )
-        }
-      </DataView>
-    </Screen>
+    <MeetingDetailView
+      key={open.id}
+      meetingId={open.id}
+      jumpMs={open.jumpMs}
+      onBack={(message) => {
+        writeStored(OPEN_KEY, null);
+        setNotice(message ?? null);
+        setOpen(null);
+      }}
+    />
   );
 }

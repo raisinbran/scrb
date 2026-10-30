@@ -8,12 +8,20 @@ import {
   type CallName,
   type DeleteResult,
   type EventName,
+  type ImportFailureReason,
+  type ImportStage,
   type MeetingDetail,
+  type MeetingFilter,
   type MeetingListItem,
   type MeetingSummaryDoc,
+  type PickedAudioFile,
   type RecordingHealth,
   type RecordingState,
+  type SearchMatch,
   type SettingsPatch,
+  type SummaryItemUpdate,
+  type SummaryLength,
+  type SummaryStage,
   type TranscriptSegment,
   type TranscriptionLag,
   type VocabularyTerm,
@@ -42,24 +50,66 @@ import {
 } from './corrections.ts';
 import { createPrng } from './prng.ts';
 import { SCRIPT, type ScriptStep } from './scripted-meeting.ts';
-import { MOCK_SPEAKERS, generateSegment, generateTranscript } from './transcript.ts';
+import {
+  MOCK_SPEAKERS,
+  generateSegment,
+  generateTranscript,
+  withWordStates,
+} from './transcript.ts';
 import { readStored, writeStored } from '../lib/stored-value.ts';
 
 const SETTINGS_KEY = 'scrb.mock.settings';
 const LONG_MEETING_WORDS = 80_000;
-const SHORT_MEETING_WORDS = 2_000;
+const SHORT_MEETING_WORDS = 8_000;
 const FULL_DISK_BYTES = 180_000_000_000;
 const METER_INTERVAL_MS = 120;
-const PLAYBACK_INTERVAL_MS = 500;
 /** How many of the newest live segments stay provisional before the live pass confirms them. */
 const PROVISIONAL_SEGMENTS = 4;
+const IMPORT_STEP_MS = 600;
+const SUMMARY_STEP_MS = 600;
+const PLAYBACK_STEP_MS = 250;
+const SLOW_DELETE_MS = 1500;
+const MAX_SEARCH_MATCHES = 5;
+const PICKED_FILE: Omit<PickedAudioFile, 'fileToken'> = {
+  fileName: 'Client interview.m4a',
+  sizeBytes: 42_000_000,
+  fileDate: '2026-10-21T15:00:00Z',
+};
+const IMPORT_STEPS: { stage: ImportStage; fraction: number }[] = [
+  { stage: 'decoding', fraction: 0.1 },
+  { stage: 'transcribing', fraction: 0.45 },
+  { stage: 'diarizing', fraction: 0.8 },
+  { stage: 'finishing', fraction: 0.95 },
+];
+const SUMMARY_STEPS: { stage: SummaryStage; fraction: number }[] = [
+  { stage: 'extracting', fraction: 0.2 },
+  { stage: 'coverageCheck', fraction: 0.55 },
+  { stage: 'writing', fraction: 0.8 },
+];
+const IMPORT_FAULTS = {
+  importFails: {
+    reason: 'unreadable',
+    message: 'This file could not be read. It may be damaged or not an audio file.',
+  },
+  importUnsupported: {
+    reason: 'unsupportedFormat',
+    message: 'This file type is not supported. Use a WAV, MP3, M4A, FLAC or Opus audio file.',
+  },
+  importDiskFull: {
+    reason: 'diskFull',
+    message: 'There is not enough disk space to import this file.',
+  },
+} as const;
 
 /** Armed faults change what the next matching call does; see `dev-triggers.ts`. */
 export type ArmedFault =
   | 'deleteFails'
   | 'exportFails'
-  | 'importFails'
+  | keyof typeof IMPORT_FAULTS
+  | 'pickerCancelled'
+  | 'deleteSlow'
   | 'summaryFails'
+  | 'summaryStalls'
   | 'modelDownloadFails'
   | 'permissionDenied'
   | 'noModelInfo'
@@ -82,6 +132,65 @@ function mergeSettings(settings: AppSettings, patch: SettingsPatch): AppSettings
     autoDelete: { ...settings.autoDelete, ...patch.autoDelete },
     location: { ...settings.location, ...patch.location },
   };
+}
+
+function inDateRange(startedAt: string, { from, to }: MeetingFilter): boolean {
+  const day = startedAt.slice(0, 10);
+  return (!from || day >= from.slice(0, 10)) && (!to || day <= to.slice(0, 10));
+}
+
+function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
+  return items.map((existing) => (existing.id === item.id ? item : existing));
+}
+
+/** A new item takes the place of its old copy unless the user edited that copy. */
+function keepEdited<T extends { id: string; edited: boolean }>(fresh: T[], previous: T[]): T[] {
+  const edited = previous.filter((item) => item.edited);
+  return [
+    ...fresh.map((item) => edited.find((old) => old.id === item.id) ?? item),
+    ...edited.filter((old) => !fresh.some((item) => item.id === old.id)),
+  ];
+}
+
+function hasEdits(summary: MeetingSummaryDoc): boolean {
+  return [
+    ...summary.actionItems,
+    ...summary.decisions,
+    ...summary.openQuestions,
+    ...(summary.narrative.brief ?? []),
+    ...(summary.narrative.full ?? []),
+  ].some((item) => item.edited);
+}
+
+function withItem(summary: MeetingSummaryDoc, update: SummaryItemUpdate): MeetingSummaryDoc {
+  switch (update.kind) {
+    case 'narrative': {
+      const item = { ...update.item, edited: true };
+      const { brief, full } = summary.narrative;
+      return {
+        ...summary,
+        narrative: {
+          brief: brief && replaceById(brief, item),
+          full: full && replaceById(full, item),
+        },
+      };
+    }
+    case 'actionItem':
+      return {
+        ...summary,
+        actionItems: replaceById(summary.actionItems, { ...update.item, edited: true }),
+      };
+    case 'decision':
+      return {
+        ...summary,
+        decisions: replaceById(summary.decisions, { ...update.item, edited: true }),
+      };
+    case 'openQuestion':
+      return {
+        ...summary,
+        openQuestions: replaceById(summary.openQuestions, { ...update.item, edited: true }),
+      };
+  }
 }
 
 function toListItem(meeting: MeetingDetail): MeetingListItem {
@@ -119,11 +228,13 @@ export class MockBackend implements Backend {
   };
   private ticker: ReturnType<typeof setInterval> | undefined;
   private meterTicker: ReturnType<typeof setInterval> | undefined;
-  private playbackTicker: ReturnType<typeof setInterval> | undefined;
   private readonly meterPrng = createPrng(20261031);
   private second = 0;
   private readonly revisions = new Map<string, number>();
   private readonly activeImports = new Map<string, { fileName: string; timer: Timer }>();
+  private readonly pickedFiles = new Map<string, PickedAudioFile>();
+  private playback: { meetingId: string; positionMs: number } | null = null;
+  private playbackTimer: ReturnType<typeof setInterval> | undefined;
   private readonly endedImports = new Set<string>();
   private health: RecordingHealth | null = null;
   private lag: TranscriptionLag | null = null;
@@ -148,6 +259,9 @@ export class MockBackend implements Backend {
   emit<K extends EventName>(name: K, payload: BackendEvents[K]): void {
     if (name === 'recordingHealth') this.health = payload as RecordingHealth;
     if (name === 'transcriptionLag') this.lag = payload as TranscriptionLag;
+    if (name === 'summaryOutdated') {
+      this.setSummaryState((payload as { meetingId: string }).meetingId, 'outdated');
+    }
     this.listeners
       .get(name)
       ?.forEach((listener) => (listener as (value: unknown) => void)(payload));
@@ -171,6 +285,17 @@ export class MockBackend implements Backend {
     this.armed.clear();
     this.library = createLibrary();
     this.summaries.clear();
+    this.stopPlayback();
+  }
+
+  /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
+  finishFinalPass(): void {
+    for (const meeting of this.library) {
+      if (meeting.status !== 'finalPassRunning') continue;
+      const segments = this.transcripts.get(meeting.id);
+      if (segments) this.transcripts.set(meeting.id, withWordStates(segments, 'final'));
+      this.updateMeetingStatus(meeting.id, { status: 'ready' });
+    }
   }
 
   updateMeetingStatus(meetingId: string, patch: Partial<MeetingDetail>): void {
@@ -182,10 +307,9 @@ export class MockBackend implements Backend {
   dispose(): void {
     clearInterval(this.ticker);
     clearInterval(this.meterTicker);
-    clearInterval(this.playbackTicker);
     this.ticker = undefined;
     this.meterTicker = undefined;
-    this.playbackTicker = undefined;
+    this.stopPlayback();
   }
 
   /** Starts a live meeting that already holds 8 hours of text, for performance checks. */
@@ -215,7 +339,9 @@ export class MockBackend implements Backend {
     let segments = this.transcripts.get(meetingId);
     if (!segments) {
       const words = meetingId === LONG_MEETING_ID ? LONG_MEETING_WORDS : SHORT_MEETING_WORDS;
-      segments = generateTranscript(meetingId, words, meetingId.length * 7919).segments;
+      const generated = generateTranscript(meetingId, words, meetingId.length * 7919).segments;
+      const finalPass = this.findMeeting(meetingId).status === 'finalPassRunning';
+      segments = withWordStates(generated, finalPass ? 'provisional' : 'final');
       this.transcripts.set(meetingId, segments);
     }
     return segments;
@@ -223,6 +349,46 @@ export class MockBackend implements Backend {
 
   private revisionOf(meetingId: string): number {
     return this.revisions.get(meetingId) ?? 0;
+  }
+
+  /** Reports each stage in turn, then runs `end`. Cancelling stops the pending stage's timer. */
+  private runImportStages(importId: string, fileName: string, step: number, end: () => void) {
+    const next = IMPORT_STEPS[step];
+    if (!next) {
+      this.finishImportLater(importId, fileName, IMPORT_STEP_MS, end);
+      return;
+    }
+    this.emit('importProgress', { importId, fileName, ...next });
+    const timer = setTimeout(
+      () => this.runImportStages(importId, fileName, step + 1, end),
+      IMPORT_STEP_MS,
+    );
+    this.activeImports.set(importId, { fileName, timer });
+  }
+
+  private failImportLater(
+    importId: string,
+    fileName: string,
+    failure: { reason: ImportFailureReason; message: string },
+  ) {
+    this.finishImportLater(importId, fileName, 300, () =>
+      this.emit('importFailed', { importId, fileName, ...failure }),
+    );
+  }
+
+  /** Owner decision 4: a recording that starts during an import stops the import. */
+  private stopImportsForRecording(): void {
+    for (const [importId, { fileName, timer }] of this.activeImports) {
+      clearTimeout(timer);
+      this.activeImports.delete(importId);
+      this.endedImports.add(importId);
+      this.emit('importFailed', {
+        importId,
+        fileName,
+        reason: 'recordingInProgress',
+        message: 'A recording started, so this import stopped. Try it again after the recording.',
+      });
+    }
   }
 
   /** Runs one import's last step, unless the import was cancelled first. */
@@ -243,6 +409,76 @@ export class MockBackend implements Backend {
       this.summaries.set(meetingId, summary);
     }
     return summary;
+  }
+
+  private setSummaryState(meetingId: string, state: MeetingSummaryDoc['state']): void {
+    const summary = this.summaryOf(meetingId);
+    this.summaries.set(meetingId, { ...summary, state });
+    this.updateMeetingStatus(meetingId, { summaryState: state });
+  }
+
+  /** Reports each stage in turn, then writes one length and keeps every edited item. */
+  private runSummaryStages(meetingId: string, length: SummaryLength, step: number): void {
+    const next = SUMMARY_STEPS[step];
+    if (next) {
+      this.emit('summaryProgress', { meetingId, ...next });
+      setTimeout(() => this.runSummaryStages(meetingId, length, step + 1), SUMMARY_STEP_MS);
+      return;
+    }
+    if (!this.library.some((meeting) => meeting.id === meetingId)) return;
+    const previous = this.summaryOf(meetingId);
+    const fresh = createSummary(meetingId, 'ready');
+    const merged: MeetingSummaryDoc = {
+      ...fresh,
+      narrative: {
+        ...previous.narrative,
+        [length]: keepEdited(fresh.narrative[length] ?? [], previous.narrative[length] ?? []),
+      },
+      actionItems: keepEdited(fresh.actionItems, previous.actionItems),
+      decisions: keepEdited(fresh.decisions, previous.decisions),
+      openQuestions: keepEdited(fresh.openQuestions, previous.openQuestions),
+    };
+    const state = hasEdits(merged) ? 'edited' : 'ready';
+    this.summaries.set(meetingId, { ...merged, state });
+    this.updateMeetingStatus(meetingId, { summaryState: state });
+    this.emit('summaryProgress', { meetingId, stage: 'done', fraction: 1 });
+  }
+
+  private stopPlayback(): void {
+    clearInterval(this.playbackTimer);
+    this.playback = null;
+  }
+
+  /** A meeting still recording keeps `durationMs` at 0 until it stops, so its end is the live text. */
+  private audioEndMs(meetingId: string): number {
+    if (this.recording.meetingId === meetingId) return this.liveStartMs;
+    return this.findMeeting(meetingId).durationMs;
+  }
+
+  private startPlayback(meetingId: string, positionMs: number): void {
+    this.stopPlayback();
+    const playback = { meetingId, positionMs: Math.min(positionMs, this.audioEndMs(meetingId)) };
+    this.emit('playbackPosition', { ...playback, isPlaying: true });
+    this.playback = playback;
+    this.playbackTimer = setInterval(() => {
+      const endMs = this.audioEndMs(meetingId);
+      playback.positionMs = Math.min(playback.positionMs + PLAYBACK_STEP_MS, endMs);
+      const isPlaying = playback.positionMs < endMs;
+      this.emit('playbackPosition', { ...playback, isPlaying });
+      if (!isPlaying) this.stopPlayback();
+    }, PLAYBACK_STEP_MS);
+  }
+
+  private textMatches(meetingId: string, needle: string): SearchMatch[] {
+    const matches: SearchMatch[] = [];
+    for (const segment of this.transcriptOf(meetingId)) {
+      const snippet = segment.words.map((word) => word.text).join(' ');
+      if (snippet.toLowerCase().includes(needle)) {
+        matches.push({ segmentId: segment.id, startMs: segment.startMs, snippet });
+      }
+      if (matches.length === MAX_SEARCH_MATCHES) break;
+    }
+    return matches;
   }
 
   private setRecording(patch: Partial<RecordingState>): void {
@@ -290,17 +526,6 @@ export class MockBackend implements Backend {
       segments: [confirmed],
       removedSegmentIds: [],
     });
-  }
-
-  /** Moves through the audio from `positionMs` until something stops it. */
-  private playFrom(meetingId: string, positionMs: number): void {
-    clearInterval(this.playbackTicker);
-    let position = positionMs;
-    this.emit('playbackPosition', { meetingId, positionMs: position, isPlaying: true });
-    this.playbackTicker = setInterval(() => {
-      position += PLAYBACK_INTERVAL_MS;
-      this.emit('playbackPosition', { meetingId, positionMs: position, isPlaying: true });
-    }, PLAYBACK_INTERVAL_MS);
   }
 
   private correct(meetingId: string, range: WordRange, text: string, remember: boolean) {
@@ -395,6 +620,7 @@ export class MockBackend implements Backend {
           message: 'Meeting Scribe does not have permission to use the microphone.',
         });
       }
+      this.stopImportsForRecording();
       const meetingId = this.id('meeting-live');
       this.library = [
         {
@@ -453,34 +679,35 @@ export class MockBackend implements Backend {
       transcription: this.lag,
     }),
 
-    pickAudioFile: () => ({
-      fileToken: this.id('file'),
-      fileName: 'Client interview.m4a',
-      sizeBytes: 42_000_000,
-      fileDate: '2026-10-21T15:00:00Z',
-    }),
+    pickAudioFile: () => {
+      if (this.armed.delete('pickerCancelled')) return null;
+      const file = { ...PICKED_FILE, fileToken: this.id('file') };
+      this.pickedFiles.set(file.fileToken, file);
+      return file;
+    },
     importAudioFile: ({ fileToken }) => {
       const importId = this.id('import');
-      const fileName = 'Client interview.m4a';
-      if (this.armed.delete('importFails')) {
-        const failure = {
-          importId,
-          fileName,
-          reason: 'unreadable',
-          message: 'This file could not be read. It may be damaged or not an audio file.',
-        } as const;
-        this.finishImportLater(importId, fileName, 300, () => this.emit('importFailed', failure));
+      const { fileName, fileDate } = this.pickedFiles.get(fileToken) ?? PICKED_FILE;
+      if (this.recording.status !== 'idle') {
+        this.failImportLater(importId, fileName, {
+          reason: 'recordingInProgress',
+          message: 'A recording is running. Try this import again after the recording.',
+        });
         return { importId };
       }
-      void fileToken;
-      this.emit('importProgress', { importId, fileName, stage: 'decoding', fraction: 0.1 });
-      this.finishImportLater(importId, fileName, 1500, () => {
+      for (const fault of ['importFails', 'importUnsupported', 'importDiskFull'] as const) {
+        if (this.armed.delete(fault)) {
+          this.failImportLater(importId, fileName, IMPORT_FAULTS[fault]);
+          return { importId };
+        }
+      }
+      this.runImportStages(importId, fileName, 0, () => {
         const meetingId = this.id('meeting-import');
         this.library = [
           {
             id: meetingId,
             title: fileName,
-            startedAt: '2026-10-21T15:00:00Z',
+            startedAt: fileDate,
             durationMs: 26 * 60_000,
             origin: 'imported',
             status: 'ready',
@@ -535,10 +762,11 @@ export class MockBackend implements Backend {
     },
     undo: ({ meetingId }) => this.moveUndo(meetingId, -1),
     redo: ({ meetingId }) => this.moveUndo(meetingId, 1),
-    seekAudio: ({ meetingId, positionMs }) => this.playFrom(meetingId, positionMs),
+    seekAudio: ({ meetingId, positionMs }) => this.startPlayback(meetingId, positionMs),
     pauseAudio: ({ meetingId }) => {
-      clearInterval(this.playbackTicker);
-      this.emit('playbackPosition', { meetingId, positionMs: 0, isPlaying: false });
+      const positionMs = this.playback?.meetingId === meetingId ? this.playback.positionMs : 0;
+      this.stopPlayback();
+      this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
     },
 
     listProfiles: () => this.profiles,
@@ -574,30 +802,33 @@ export class MockBackend implements Backend {
     },
 
     getSummary: ({ meetingId }) => this.summaryOf(meetingId),
-    generateSummary: ({ meetingId }) => {
+    generateSummary: ({ meetingId, length }) => {
       this.findMeeting(meetingId);
       if (this.armed.delete('summaryFails')) {
         const message = 'The summary could not be generated. Try again.';
         this.emit('summaryProgress', { meetingId, stage: 'failed', fraction: 0, message });
         return;
       }
-      this.updateMeetingStatus(meetingId, { summaryState: 'generating' });
-      this.emit('summaryProgress', { meetingId, stage: 'extracting', fraction: 0.2 });
-      setTimeout(() => {
-        this.updateMeetingStatus(meetingId, { summaryState: 'ready' });
-        this.summaries.set(meetingId, createSummary(meetingId, 'ready'));
-        this.emit('summaryProgress', { meetingId, stage: 'done', fraction: 1 });
-      }, 1200);
+      this.setSummaryState(meetingId, 'generating');
+      if (this.armed.delete('summaryStalls')) {
+        this.emit('summaryProgress', { meetingId, stage: 'extracting', fraction: 0.2 });
+        return;
+      }
+      this.runSummaryStages(meetingId, length, 0);
     },
-    updateSummaryItem: ({ meetingId }) => {
-      const updated = { ...this.summaryOf(meetingId), state: 'edited' as const };
+    updateSummaryItem: ({ meetingId, update }) => {
+      const summary = this.summaryOf(meetingId);
+      const state = summary.state === 'outdated' ? 'outdated' : 'edited';
+      const updated = { ...withItem(summary, update), state } as const;
       this.summaries.set(meetingId, updated);
+      this.updateMeetingStatus(meetingId, { summaryState: state });
       return updated;
     },
 
     listMeetings: ({ filter }) =>
       this.library
         .filter((meeting) => !filter?.origin || meeting.origin === filter.origin)
+        .filter((meeting) => !filter || inDateRange(meeting.startedAt, filter))
         .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
         .map(toListItem),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
@@ -607,15 +838,22 @@ export class MockBackend implements Backend {
     },
     searchMeetings: ({ query }) => {
       const needle = query.toLowerCase();
-      return this.library
-        .filter((meeting) => meeting.title.toLowerCase().includes(needle))
-        .map((meeting) => ({
-          meeting: toListItem(meeting),
-          matches: [{ segmentId: null, startMs: null, snippet: null }],
-        }));
+      return this.library.flatMap((meeting) => {
+        const inIndex =
+          meeting.title.toLowerCase().includes(needle) || meeting.startedAt.includes(needle);
+        const matches = [
+          ...(inIndex ? [{ segmentId: null, startMs: null, snippet: null }] : []),
+          ...this.textMatches(meeting.id, needle),
+        ];
+        return matches.length > 0 ? [{ meeting: toListItem(meeting), matches }] : [];
+      });
     },
-    deleteMeeting: ({ meetingId }): DeleteResult => {
+    deleteMeeting: async ({ meetingId }): Promise<DeleteResult> => {
       this.findMeeting(meetingId);
+      if (this.armed.delete('deleteSlow')) {
+        this.updateMeetingStatus(meetingId, { status: 'deleting' });
+        await new Promise((resolve) => setTimeout(resolve, SLOW_DELETE_MS));
+      }
       if (this.armed.delete('deleteFails')) {
         return { verified: false, remaining: ['Audio folder'] };
       }
@@ -628,14 +866,15 @@ export class MockBackend implements Backend {
     exportMeeting: ({ meetingId, format }) => {
       const exportId = this.id('export');
       const ok = !this.armed.delete('exportFails');
+      const { title } = this.findMeeting(meetingId);
       setTimeout(() => {
         this.emit(
           'exportFinished',
           ok
-            ? { exportId, meetingId, ok, fileName: `Meeting export.${format}` }
+            ? { exportId, meetingId, ok, fileName: `${title}.${format}` }
             : { exportId, meetingId, ok, message: 'The export could not be saved.' },
         );
-      }, 400);
+      }, 900);
       return { exportId };
     },
 
