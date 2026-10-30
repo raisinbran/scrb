@@ -1,0 +1,9 @@
+case=input-switch helperExit=0
+microphone: chunks=23 audio=103.6 s missing=1874.1 ms bad=0 tmp=0 files=23 toneChunks=4 zeroChunks=0 peak=-27.8 dB
+  close reasons: device=2 discontinuity=1 rollover=19 stop=1
+    missing 1796.3 ms before 37.678 s, cause device
+    missing 77.7 ms before 75.918 s, cause device
+meeting: chunks=22 audio=105.5 s missing=0.0 ms bad=0 tmp=0 files=22 toneChunks=22 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=21 stop=1
+VERIFY OK
+events: deviceChanged=2 discontinuity=1 handsFreeMic=1 streamReopened=2

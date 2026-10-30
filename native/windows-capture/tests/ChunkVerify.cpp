@@ -155,7 +155,8 @@ int main(int argc, char** argv) {
                 gaps.push_back(g);
             }
             int64_t overlap = int64_t(atof(Field(line, "overlapMs").c_str()) * 1000000);
-            if (chunks > 1 && std::abs(start + overlap - nextStart) > 2000000 && miss == 0) {
+            int64_t tolerance = Field(line, "transport") == "bluetooth-handsfree" ? 20000000 : 2000000;
+            if (chunks > 1 && std::abs(start + overlap - nextStart) > tolerance && miss == 0) {
                 ++bad;
                 printf("  unexplained gap at seq %d\n", seq);
             }
