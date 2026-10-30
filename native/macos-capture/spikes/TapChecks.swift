@@ -106,6 +106,25 @@ for (name, selector) in [("serviceRestarted", AudioObjectPropertySelector(0x7372
 
 fail(AudioDeviceStart(aggregate, proc), "start")
 
+// S4: the default mic, to see what permission loss does to it.
+var micPackets = 0
+var micPeak: Float = 0
+var micDevice = AudioObjectID(kAudioObjectUnknown)
+size = UInt32(MemoryLayout<AudioObjectID>.size)
+where_ = address(kAudioHardwarePropertyDefaultInputDevice)
+AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &where_, 0, nil, &size, &micDevice)
+var micProc: AudioDeviceIOProcID?
+AudioDeviceCreateIOProcIDWithBlock(&micProc, micDevice, nil) { _, input, _, _, _ in
+    var loudest: Float = 0
+    for buffer in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input)) {
+        guard let data = buffer.mData else { continue }
+        let samples = data.bindMemory(to: Float.self, capacity: Int(buffer.mDataByteSize) / 4)
+        for i in 0..<(Int(buffer.mDataByteSize) / 4) { loudest = max(loudest, abs(samples[i])) }
+    }
+    lock.lock(); micPackets += 1; micPeak = max(micPeak, loudest); lock.unlock()
+}
+print("mic start status \(AudioDeviceStart(micDevice, micProc))")
+
 var second: Process?
 var secondObject = AudioObjectID(kAudioObjectUnknown)
 let seconds = Int(CommandLine.arguments[2]) ?? 35
@@ -138,8 +157,8 @@ for t in 1...seconds {
     }
     Thread.sleep(forTimeInterval: 1)
     lock.lock()
-    let line = "\(t) \(phase) | \(packets) \(String(format: "%.3f", peak))"
-    packets = 0; peak = 0
+    let line = "\(t) \(phase) | \(packets) \(String(format: "%.3f", peak)) mic \(micPackets) \(String(format: "%.4f", micPeak))"
+    packets = 0; peak = 0; micPackets = 0; micPeak = 0
     lock.unlock()
     print("\(line) | \(isRunningOutput(firstObject)) \(secondObject == kAudioObjectUnknown ? -1 : isRunningOutput(secondObject))")
 }
