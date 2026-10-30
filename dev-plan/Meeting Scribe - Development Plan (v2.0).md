@@ -138,7 +138,7 @@ Create the real repository, the desktop shell, the sidebar and screens as empty 
 
 Capture adapters behind one shared interface, the app picker and fallback, the mic picker, meters, start/pause/resume/stop, crash-safe chunks, crash recovery, low-disk and silent-mic warnings, synced playback, the recording indicator, and the audio settings and presets.
 
-**Gate 2:** an 8-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target. On both operating systems: a real Teams or Zoom call has its start offset and drift measured from a shared sound in both tracks; a stopped stream, including an audio-service restart, is detected and either recovers or warns the user, with the missing span marked; and mic audio lost under representative load is measured against a stated limit, reported apart from sync.
+**Gate 2:** a 4-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target. On both operating systems: a real Teams or Zoom call has its start offset and drift measured from a shared sound in both tracks; a stopped stream, including an audio-service restart, is detected and either recovers or warns the user, with the missing span marked; and mic audio lost under representative load is measured against a stated limit, reported apart from sync.
 
 ### Phase 3: Live and final transcription
 
@@ -183,7 +183,7 @@ These are the release thresholds. The owner may change a target at a gate when m
 | Measure | Target |
 | --- | --- |
 | Lost audio | None; any gap is shown and marked |
-| Mic-to-meeting sync drift | Under 100 ms over 8 hours |
+| Mic-to-meeting sync drift | Under 50 ms over 4 hours, the same rate as the original 100 ms over 8 hours; measured over 8 hours at Gate 8 |
 | Crash recovery | All saved chunks recovered; the end point marked |
 | Live transcript delay | Median 3 s or less; 95% of segments within 6 s |
 | Memory during recording + live transcription | About 6 GB or less for the whole app |
@@ -209,7 +209,7 @@ Every phase adds automated tests; gates also need hands-on runs on both machines
 - **Unit:** correction precedence, frozen spans, vocabulary rules, the summary schema, file-format upgrades.
 - **Integration:** chunk writing and recovery, queue behavior, index-versus-folder consistency, delete and auto-delete.
 - **Fault injection:** worker crash, app kill, disk full, permission revoked, device unplugged, sleep/wake, pause during a device change.
-- **Long run:** an 8-hour recording on each machine before Gates 2, 3 and 8.
+- **Long run:** a 4-hour recording on each machine before Gates 2 and 3, and one 8-hour recording on each machine before Gate 8 (owner decision, 2026-10-30).
 - **Hardware:** built-in mic, USB headset, Bluetooth headset, docking station; Teams, Zoom and a browser meeting on each OS.
 
 **Evaluation data**

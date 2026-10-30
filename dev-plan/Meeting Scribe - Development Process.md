@@ -168,7 +168,7 @@ Dependencies are updated deliberately in the repository, never inside the runnin
 - Enable Dependabot or Renovate on the repository to flag new versions and security advisories.
 - Apply security fixes for the desktop shell, its built-in browser engine, audio libraries and AI runtimes within a month of release. Because the app is offline and loads no outside web pages, this risk is low, but not zero.
 - Batch other updates into a maintenance release two to four times a year.
-- Before any maintenance release: run the full test suite, an 8-hour recording on both machines, and the summary evaluation set.
+- Before any maintenance release: run the full test suite, a 4-hour recording on both machines, and the summary evaluation set.
 - Model updates follow the same testing, then ship through the in-app **Check for model updates** option with rollback.
 - Record what changed and why in the release notes and `THIRD_PARTY_NOTICES.md`.
 - Recheck capture after every major Windows or macOS update, even when the app itself has not changed.

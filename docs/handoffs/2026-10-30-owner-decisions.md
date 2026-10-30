@@ -19,7 +19,12 @@ Every recommendation in `docs/plans/` is accepted, including the proposed contra
 - Crash loss: about 1 s for a program crash, about 5 s for a power cut, always marked.
 - Whole-computer audio is never switched on automatically: warn and offer one click.
 
+## Long-run tests
+
+Most meetings run 0.5 to 2 hours and rarely over 4. Routine long runs are 4 hours, at Gates 2 and 3 and before maintenance releases. One 8-hour run per machine stays, before Gate 8. The drift target is under 50 ms over 4 hours. The app still supports 8 hours. Where the plans in `docs/plans/` say 8 hours for T15 or Gate 2, read 4 hours. The Gate 2 mic-loss limit scales the same way: at most 15 s per track over 4 hours, no single gap over 5 s, every gap marked.
+
 ## Still needed
 
-- Written plans for pause/resume, corrections, index upgrades and delete.
+- QA, then owner approval, of `docs/plans/pause-resume.md`.
+- Written plans for corrections, index upgrades and delete.
 - The summary-to-export adapter is on `backend-export-adapter`. Its open gaps are in `2026-10-30-export-summary-gaps.md`.

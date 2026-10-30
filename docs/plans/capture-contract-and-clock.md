@@ -2,6 +2,8 @@
 
 Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
+**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/2026-10-30-owner-decisions.md`.
+
 Date: 2026-10-30. Base commit: `4abe340`. First of the initial plans in the Development Process, followed by `windows-capture-adapter.md` and `macos-capture-adapter.md`.
 
 Sources: `phase0/design/capture-contract-draft.md`, `phase0/evidence/gate-0.md`, `phase0/HANDOFF-WINDOWS.md`, Development Plan v2.0 (Gate 2), V1 Requirements v1.2, the contract in `packages/contracts/`, and the unmerged `windows-capture` branch (tip `cac61df`).

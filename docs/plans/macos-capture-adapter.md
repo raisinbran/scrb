@@ -2,6 +2,8 @@
 
 Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
+**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/2026-10-30-owner-decisions.md`.
+
 Date: 2026-10-30. Base commit: `4abe340`. Depends on `capture-contract-and-clock.md`, whose rules (D1 to D10), tests (T1 to T24) and decisions (C1 to C10) are used here.
 
 Sources: Gate 0 evidence (Apple Silicon sections), `phase0/probes/macos-dual-capture/`, and the Windows branch's results where they apply.
