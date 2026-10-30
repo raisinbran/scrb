@@ -38,6 +38,17 @@ These can change the design, so they run as the first step of the build, before 
 | S5 | Is there a signal for "the audio service restarted"? | Faster than waiting on the watchdog. The watchdog stays as the backstop either way |
 | S6 | Does `kAudioProcessPropertyIsRunningOutput` tell a denied tap from a silent app (Q3)? | Without it, D7 cannot separate "no permission" from "quiet meeting" |
 
+### Results so far (2026-10-30, `native/macos-capture/spikes/TapChecks.swift`)
+
+| # | Result | Effect on the design |
+| --- | --- | --- |
+| S2 | **Pass.** With the target frozen for 10 s, packets kept arriving at 94 a second, with zero level | A quiet meeting is not a dead stream. Packet arrival is a safe watchdog signal |
+| S3 | **Pass.** Setting a new process list on a running tap returned success, the new process was heard within 1 s, and no packets were lost | Helpers can be added without a rebuild, so no gap |
+| S5 | **Signal exists:** `kAudioHardwarePropertyServiceRestarted`. Not yet seen firing | Add the listener. Trigger test still to run; the watchdog stays as backstop |
+| S6 | **Fail.** A denied tap gives on-time packets, zero level and `IsRunningOutput` = 1, the same as an app with an open stream and no sound | This property cannot detect denial. The adapter needs another way; see below |
+
+**After S6:** at Start, a denied tap and a silent app look the same. The adapter will play a short, inaudible check tone from its own process through a private tap, confirm it arrives, and report `unknown` if it can't run. Zero level with a running app stays a warning after the existing silence limit. S1 and S4 still need the owner present.
+
 ## How it could lose data, and the test that proves each is handled
 
 | Failure (Phase 0 result) | What the adapter does | Test | Kind | Gate 2 clause |
