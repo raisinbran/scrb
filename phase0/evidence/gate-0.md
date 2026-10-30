@@ -1,13 +1,17 @@
 # Gate 0 Evidence
 
-Status: **Approved by owner (2026-10-30)**
+Status: **Approved by owner (2026-10-30), with the deferrals listed under
+Gate Decision**
 
-This is Phase 0 throwaway evidence.  No production application code has been
-created in `C:\Users\brand\Documents\GitHub\scrb`; Phase 1 remains gated.
+This is Phase 0 throwaway evidence.  Production code in this repository was
+started before this approval, under a temporary owner waiver of sequential
+gates (2026-10-29/30): the desktop shell, draft contract and backend packages.
+The waiver has ended.  That code is provisional until the contract is
+approved; approving these findings does not by itself approve it.
 
 ## Build and Source IDs
 
-- Meeting Scribe production commit: not created; Phase 1 has not started
+- Meeting Scribe production commit: none at the time of these measurements; see the note above
 - Meetily: `a2cb62e827da7ef59f65064c97233efb2313878e`
 - Microsoft ApplicationLoopback sample:
   `434f6002bdf9cf9829406c3ff2b33387982d6168`
@@ -748,8 +752,9 @@ Streaming devices as targets); the owner did sleep/wake and the AirPods Pro
 Sleep/wake detail: host time (`mach_absolute_time`) does not advance during
 sleep, so the probe saw a single 24 s arrival jump (1 discontinuity, nothing
 padded) for 55 s of sleep.  Both tracks stayed aligned with each other
-(25 ms), but the recording is about 41 s shorter than the wall-clock span
-(217 s of audio in 282 s; the probe's own timer also stopped while asleep).
+(25 ms), but the recording holds 217 s of audio for a 282 s wall-clock span,
+65 s short.  The probe saw 24 s of that as the arrival jump; the other 41 s
+were invisible to it.  Its own timer also stopped while asleep.
 
 **Design consequences for the Phase 2 macOS adapter:**
 
@@ -803,7 +808,8 @@ playback and background benchmarks), so this is not an idle baseline.
   changes, silent stream death, 1.7 s offset after standby) are handled by
   the adapter rules above, not blockers.  The mic-privacy case ran too;
   USB unplug not run (no USB mic).
-- [x] Synced dual-track capture works on Apple Silicon macOS.  Isolation
+- [x] Synced dual-track capture works on Apple Silicon macOS (**deferred in
+  part by the owner**: the 8 h run did not complete).  Isolation
   passes; sync stays within 0.03 ms over 60 min and 2 h 09 m.  Stalls of
   3--7 per hour (up to about 0.4 s, both tracks) happen with and without
   heavy load.  Device cases ran: no crash; the mic does not follow changes,
@@ -826,10 +832,24 @@ playback and background benchmarks), so this is not an idle baseline.
 
 ## Gate Decision
 
-**Approved by owner on 2026-10-30 ("the Gate 0 checklist is acceptable").** Every checklist item is met or accepted with the
-caveats above.  Approval is the owner's; it has not been given yet.  The owner decided every open item on
+**Approved by owner on 2026-10-30 ("the Gate 0 checklist is acceptable").**
+Every checklist item is met or accepted with the caveats above.  The owner
+decided every open item on
 2026-10-29 (`HANDOFF-PARALLEL.md`, table B): all recommendations accepted;
 final DER pass line ~25% and summary recall pass line ~80%, with 20% and 90%
 kept as stretch goals; live-versus-final WER stays at 15%; RAM 16 GB
 minimum, 32 GB recommended.
+
+**What this approval does not prove.**  External QA
+(`gpt-QA-reports/20261030_gate-0-qa-findings.md`) rightly separates these from
+the passes:
+
+| Open item | Why it is open | Tested at |
+| --- | --- | --- |
+| Full 8 h macOS capture | Run stopped at 2 h 09 m; exit 0 proves nothing about audio | Gate 2 |
+| Stopped streams on both OSes | Probes neither detect nor recover them | Gate 2 |
+| Sync in a real Teams or Zoom call, measured from audio content | Evidence is tone generators and device timestamps | Gate 2 |
+| Worker killed during audible app capture on macOS | CPU runs had a silent app track; Metal reruns killed no worker | Gate 3 |
+| Windows mic loss under load | 8 h run lost about 160 s to stalls; timestamps keep sync, not audio | Gate 2 |
+| 15% final-pass word-error gain | Live and final use the same GPU model, so no method is shown yet | Gate 3 |
 

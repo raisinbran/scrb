@@ -138,13 +138,13 @@ Create the real repository, the desktop shell, the sidebar and screens as empty 
 
 Capture adapters behind one shared interface, the app picker and fallback, the mic picker, meters, start/pause/resume/stop, crash-safe chunks, crash recovery, low-disk and silent-mic warnings, synced playback, the recording indicator, and the audio settings and presets.
 
-**Gate 2:** an 8-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target.
+**Gate 2:** an 8-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target. On both operating systems: a real Teams or Zoom call has its start offset and drift measured from a shared sound in both tracks; a stopped stream, including an audio-service restart, is detected and either recovers or warns the user, with the missing span marked; and mic audio lost under representative load is measured against a stated limit, reported apart from sync.
 
 ### Phase 3: Live and final transcription
 
 The live speech worker reading saved chunks through a bounded queue, provisional text labeled "You" or "Meeting," the final pass after Stop, word timing, click-to-play, the lag indicator, and a transcript view that stays fast at 8 hours. Also the audio file import pipeline: decode and convert a supported file into a meeting's `audio/meeting/` folder and run the final pass on it, with progress, cancel and clean failure. Check the decoder's license before choosing it, and keep a recording in progress ahead of any import work.
 
-**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate; killing the worker never affects recording; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
+**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate, against the 15% word-error target, compared with the actual live output on the same clips; killing the worker during audible capture never affects recording on either operating system; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
 
 ### Phase 4: Speakers
 
@@ -178,7 +178,7 @@ Installers, the first-launch model download with checksums, offline operation, u
 
 ## Quality targets
 
-These are the release thresholds. Phase 0 may loosen a target only if a measurement shows it cannot be met on 16 GB hardware, and the change is written down here.
+These are the release thresholds. The owner may change a target at a gate when measurements show it cannot be met, and the change and its reason are written down here. The Gate 0 changes below were made this way.
 
 | Measure | Target |
 | --- | --- |
