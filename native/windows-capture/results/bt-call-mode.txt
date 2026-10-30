@@ -1,0 +1,20 @@
+case=bt-call-mode helperExit=0
+microphone: chunks=128 audio=58.3 s missing=21840.7 ms bad=0 tmp=0 files=128 toneChunks=7 zeroChunks=0 peak=-29.3 dB
+  close reasons: device=2 discontinuity=116 rollover=7 stall=2 stop=1
+    missing 92.3 ms before 13.745 s, cause unknown
+    missing 266.9 ms before 14.961 s, cause unknown
+    missing 162.9 ms before 15.274 s, cause unknown
+    missing 1298.2 ms before 26.363 s, cause device
+    missing 28.7 ms before 28.679 s, cause unknown
+    missing 47.7 ms before 28.737 s, cause unknown
+    missing 62.2 ms before 28.809 s, cause unknown
+    missing 92.1 ms before 28.911 s, cause unknown
+    missing 107.3 ms before 29.028 s, cause unknown
+    missing 124.9 ms before 29.163 s, cause unknown
+    missing 140.5 ms before 29.314 s, cause unknown
+    missing 172.4 ms before 29.496 s, cause unknown
+    ... 75 more
+meeting: chunks=17 audio=80.2 s missing=0.0 ms bad=0 tmp=0 files=17 toneChunks=17 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=16 stop=1
+VERIFY OK
+events: discontinuity=118 handsFreeMic=1 streamReopened=2

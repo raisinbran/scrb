@@ -1,7 +1,7 @@
 # scrb-capture (Windows capture adapter)
 
-Status: **in progress.**  Automated cases pass on this PC; the real device
-cases have not been rerun.  Design source:
+Status: **device cases rerun on this PC; real meeting apps, load and the 8 h
+run are not done.**  Design source:
 `phase0/design/capture-contract-draft.md` (still a draft).
 
 ## Build
@@ -32,7 +32,7 @@ stops and finalizes the recording.
 | `pause`, `resume`, `stop` | | Ack `atNs` gives each track's time |
 | `selectMic` | `mic` | Forces a chunk boundary |
 | `selectSource` | `pid` | Forces a boundary; also reattaches a restarted app |
-| `listMics` | | Ack carries `mics` |
+| `listMics` | | Ack carries `mics`, each with `defaultConsole` and `defaultCommunications` |
 | `quit` | | Stops if needed and exits |
 | `inject` | `track`, `fault`, `ms` | Only with `--test-hooks` |
 
@@ -48,7 +48,9 @@ Chunks: `<outputDir>/<sessionId>/audio/{microphone,meeting}/NNNNNN.opus` plus
 
 ## Owner decisions (2026-10-30)
 
-- Mic "system default" follows `eCommunications` (Q10).
+- Mic "system default" follows `eConsole`, the Input choice in Settings (Q10).
+  This replaces an earlier choice of `eCommunications`: on this PC Settings
+  does not move that role, and connecting a headset does.
 - A picked mic that disappears falls back to the default with a warning; when
   it returns, the app offers to switch back (Q12).
 - Target app exits (Q6): warn at once, keep the mic recording, mark the meeting
@@ -77,20 +79,23 @@ decoded with ChunkVerify: all Ogg CRCs valid, decoded frames equal the index,
 | Whole-computer capture | Pass: tone in all 5 chunks |
 | `selectSource`, `selectMic` mid-run | Pass: boundaries forced; 28 ms and 430 ms missing |
 
-Not run (need the owner at the PC):
+Reruns of the Phase 0 failures, owner at the PC, with the `scripts/countdown.ps1`
+timer:
 
-| Case | Phase 0 failure | Status |
+| Case | Phase 0 failure | Result |
 | --- | --- | --- |
-| `input-switch` | Mic did not follow default | **Not run** |
-| `bt-disconnect` | Mic stopped silently | **Not run** |
-| `bt-call-mode` | 1.4 s silence, no flag | **Not run** |
-| `sleep-wake` | 1.7 s offset | **Not run on hardware**; replay only |
-| `mic-privacy-off` | Mic stopped, never resumed | **Not run** |
-| Windows Audio restart | Mac capture died silently | **Not run**: needs an admin terminal; this session is not elevated |
+| `input-switch` | Mic did not follow default | Pass: followed Settings both ways; 1.80 s and 0.08 s missing |
+| `bt-disconnect-picked` | Mic stopped silently | Pass on behavior: `streamDead`, `micFallback` to the built-in mic after 5.4 s, `micReturned`.  Its VERIFY FAILED line is the seq 72 drift fixed afterward (finding 7); `bt-call-mode` verifies that fix |
+| `bt-disconnect` | App audio silent after disconnect | Pass for meeting: tone back after about 2.5 s.  The mic stayed on the built-in device, so this run did not test mic loss |
+| `bt-call-mode` | 1.4 s silence, no flag | Pass: meeting tone in all 17 chunks, 0 ms missing.  See finding 6 for the mic |
+| `sleep-wake` | 1.7 s offset | Pass: 71.1 s `sleep` on meeting, 71.4 s on mic, against 72 s in the Windows log.  See finding 8 |
+| `mic-privacy-off` | Mic stopped, never resumed | Pass: 45.7 s `permission` missing; reopened 0.45 s after access returned |
+| `audio-restart-tree` | Mac capture died silently | Pass after finding 5: meeting back in about 1.8 s, mic in 5.6 s |
+| `default-debounce` | None | Pass, weakly: no `deviceChanged` with an 8 s debounce.  The log cannot show that the two quick changes happened |
 
-Also unverified: default-device debounce (no test yet), Bluetooth transport
-detection, `micFallback`, real Teams/Zoom/browser targets, CPU under load, the
-8 h Gate 2 run, and USB unplug (no USB mic).
+Not run: Windows Audio restart with whole-computer capture.  Unverified: real
+Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
+(no USB mic).
 
 ## Findings
 
@@ -108,6 +113,21 @@ detection, `micFallback`, real Teams/Zoom/browser targets, CPU under load, the
    case also logs a stamp discontinuity.  The replay above is the better check.
 4. D7's all-zero branch is not used on Windows.  Mic revocation is read from the
    `ConsentStore` registry values (read only) at 1 Hz.
+5. **A process loopback stream can die silently.**  After a Windows Audio
+   restart it kept delivering silence with no error and never heard the target
+   again.  The helper now watches the Audiosrv PID and reopens both tracks.
+6. **The No Air 3 hands-free mic loses real audio here.**  In `bt-call-mode` it
+   lost about 21.8 s of 30 s, as in the Phase 0 `input-switch` starvation.  The
+   gaps are marked, and flags came with them, so splitting on every flag stays.
+   The app should warn strongly on hands-free mics.
+7. Hands-free stamps jitter by up to 16 ms with no loss.  A 2 ms tolerance split
+   105 s into 6725 chunks, so hands-free uses 20 ms measured against the chunk
+   end, which also stops small losses adding up unseen.
+8. The mic was all-zero for about 12 s after wake, until around sign-in.  It is
+   recorded as audio, not a gap; only `allZero` shows it.
+9. A picked or restarted mic retries every 5 s, which costs up to about 5 s of
+   mic audio on a disconnect or service restart.  A shorter retry is worth
+   testing.
 
 ## Needs a Planner plan
 
