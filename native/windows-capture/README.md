@@ -96,6 +96,27 @@ Node versions that decode with `ChunkVerify --levels`.
 | `run-case.ps1`: `gate-baseline`, `gate-whole-computer` | Pass: `VERIFY OK`; 3.97 s paused on both tracks |
 | Source `[-1]`, second writer, restart in the same folder | Mic only with no widening; `writer lock held`; numbering continued past the `.part` |
 
+### Stop during a pause (2026-10-30)
+
+`Gate::Close` now moves only an open gate, and Stop's ack keeps its own time.
+`scripts/stop_paused_case.mjs` is stricter than the Mac script: each round also
+needs tone on the meeting track, one chunk per track and Stop's own time.
+
+| Run | Result |
+| --- | --- |
+| Before the fix, 8 rounds | Fail as it should: paused mic audio reached a new chunk in all 8, about 1 s past the cutoff |
+| After the fix, 40 rounds (`results/stop-paused-case.txt`) | **Fail, 1 leak:** round 39's mic chunk ended 0.028 ms past the cutoff.  The other 79 track checks were clean |
+| Diagnostic copy after the fix, 40 rounds | **Fail, 1 leak:** round 8's meeting chunk ended 0.031 ms past the cutoff, by its packet stamp as well |
+| `pause_case.mjs` after the fix | Pass: pause ack 0.5 ms, marker 9.5 against 4492, -17.9 dB at the stream while paused |
+| PipelineTests after the fix | Pass, 0 failures |
+
+The roughly 1 s leak is gone.  **The case still fails its rule that no chunk ends
+after the cutoff.**  The likely cause, not proven, is a packet that passed the
+open gate just before Pause closed it, with a stamped end microseconds later.  That
+would be audio captured before the pause, which `docs/plans/pause-resume.md` keeps,
+and that plan puts the cutoff's accuracy at about a packet.  The script has no
+tolerance, and adding one is the owner's decision.
+
 ## Results on this PC
 
 Output muted; tone target; each case in `results/<case>.txt`.  Every run

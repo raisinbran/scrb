@@ -187,6 +187,9 @@ void TestGate() {
     g.Close(200);
     CHECK(!g.IsOpen());
     CHECK(g.Passes(190, 10) && !g.Passes(191, 10) && !g.Passes(300, 10));
+    puts("Gate: Stop during a pause keeps the cutoff and its own time");
+    CHECK(g.Close(350) == 350);
+    CHECK(!g.Passes(300, 10) && g.Passes(190, 10));
     g.Open(400);
     CHECK(g.Generation() == 2 && !g.Passes(390, 5) && g.Passes(400, 10));
 }

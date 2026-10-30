@@ -1,17 +1,17 @@
 o {"type":"ack","id":"o","cmd":"open","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":null}
-s {"type":"ack","id":"s","cmd":"start","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":0,"origin":{"qpcNs":803564592624300,"wallUtc":"2026-10-30T23:25:31.086Z"}}
-p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4801450000}
-pause ms 0.6
-p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4801450000}
+s {"type":"ack","id":"s","cmd":"start","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":0,"origin":{"qpcNs":804850753540700,"wallUtc":"2026-10-30T23:46:57.232Z"}}
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4804387700}
+pause ms 0.5
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4804387700}
 p2 {"type":"ack","id":"p2","cmd":"pause","ok":false,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":null,"error":"conflict"}
-r {"type":"ack","id":"r","cmd":"resume","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":12309034100}
-x {"type":"ack","id":"x","cmd":"stop","ok":true,"gate":"closed","activeTracks":[],"atNs":17324097800}
-meeting 000000.opus 0.02-4.79 start/pause; 000001.opus 12.45-17.32 resume/stop
-880 level 4492.3 2000 level 5.9 after resume 4483.1
+r {"type":"ack","id":"r","cmd":"resume","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":12316926900}
+x {"type":"ack","id":"x","cmd":"stop","ok":true,"gate":"closed","activeTracks":[],"atNs":17328884000}
+meeting 000000.opus 0.02-4.80 start/pause; 000001.opus 12.41-17.33 resume/stop
+880 level 4492.3 2000 level 9.5 after resume 4483.1
 loudest meeting level while paused -17.9 dB
-microphone 000000.opus 0.01-4.80 start/pause; 000001.opus 12.32-17.32 resume/stop
+microphone 000000.opus 0.01-4.80 start/pause; 000001.opus 12.33-17.32 resume/stop
 {"event":"open","wholeComputer":false,"seq":1}
-{"event":"pause","commandId":"p","cause":"user","atNs":4801450000,"seq":2}
-{"event":"resume","commandId":"r","cause":"user","atNs":12309034100,"seq":3}
+{"event":"pause","commandId":"p","cause":"user","atNs":4804387700,"seq":2}
+{"event":"resume","commandId":"r","cause":"user","atNs":12316926900,"seq":3}
 
 PASS

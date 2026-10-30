@@ -36,7 +36,9 @@ class Gate {
 public:
     static constexpr int64_t kOpen = (std::numeric_limits<int64_t>::max)();
     int64_t Close(int64_t nowNs) {
-        cutoffNs_ = nowNs;
+        // Only an open gate moves: Stop during a pause must keep the pause's cutoff.
+        int64_t open = kOpen;
+        cutoffNs_.compare_exchange_strong(open, nowNs);
         return nowNs;
     }
     int64_t Open(int64_t nowNs) {
