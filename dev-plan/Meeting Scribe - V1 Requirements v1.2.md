@@ -26,6 +26,8 @@ Meeting Scribe is a personal, solo-developed desktop tool for Windows 11 and App
 | Install | Unspecified | One installer; models downloaded on first launch |
 | Distribution | Unspecified | Personal/internal only |
 
+**Amendment, Oct 29, 2026 (owner approved):** audio-file import moved from "Not in V1" to a V1 feature. See V1 item 15 and "Audio file import."
+
 ## V1 requirements and non-goals
 
 **V1 must:**
@@ -44,12 +46,13 @@ Meeting Scribe is a personal, solo-developed desktop tool for Windows 11 and App
 12. Offer Light, Dark and System themes, with a Discord-style sidebar and resizable panels.
 13. Work fully offline once installed and models are downloaded.
 14. Include an About screen and a built-in, searchable User Manual that work offline.
+15. Import an existing meeting audio file and transcribe it to the same requirements as a recorded meeting, except where they cannot apply to a finished file.
 
 **Not in V1:**
 
 - Participant sentiment or tone analysis.
 - Legacy .doc export.
-- Importing existing audio or video files as a user feature. Import exists only as a test tool.
+- Importing video files. Audio file import is in V1; see "Audio file import."
 - Meeting bots, plugins, calendar links or automatic meeting joins.
 - Cloud transcription, cloud summaries or accounts.
 - Whole-library export or import. "Open folder" buttons replace it.
@@ -143,6 +146,18 @@ No audio may be lost silently. If a gap ever occurs, the app shows it and marks 
 - The banner can be dismissed for that session but cannot be turned off. It returns at every new recording.
 - "Appears to be" comes from a question at first launch. Outside the US, the app uses the OS country setting. In the US, the user picks their state of residence or the state they most often work from, so the banner shows in the US only when that state is on the list. Choosing a listed state, such as Illinois, shows a short warning directly under that option. The choice can be changed later in Settings.
 - The jurisdiction list is a plain settings file that can be edited, starting with the EU/EEA, UK, Illinois, Texas, Washington, California and Colorado.
+
+## Audio file import
+
+The user can import a finished recording of a meeting from the Recordings screen. It becomes an ordinary meeting.
+
+- **Formats:** WAV, MP3, M4A, FLAC and Opus audio files. Video files are not accepted.
+- **What applies:** the final pass, multi-speaker diarization, speaker renaming and merging, voice-profile naming, corrections and frozen words, vocabulary hints, summaries, synced playback, search, export, delete and auto-delete.
+- **What does not apply:** capture and device handling, the live pass, pause and resume, drift, and audio presets.
+- **Speakers:** a file is treated as one meeting track, so there is no automatic "You" label. The user's own voice is named through their voice profile like anyone else's. A stereo file is not split into mic and meeting tracks.
+- **Storage:** the file is converted to the app's audio format in the meeting's `audio/meeting/` folder. The original file is never changed or deleted. The meeting's date defaults to the file's date and can be edited.
+- **Voice profiles:** an imported file can hold voices of people who never knew they would be profiled, so building or growing profiles from it is **off by default** and chosen per file. Existing profiles may still suggest and assign names. When the user turns profile building on, the privacy banner shows under the same location rule as a recording.
+- **Progress and failure:** the import shows progress and can be cancelled. A failed or cancelled import leaves no meeting behind, and an unreadable file gets a plain-language reason. A recording in progress keeps priority: an import may not start or continue in a way that risks it.
 
 ## Corrections and vocabulary
 
@@ -286,6 +301,7 @@ V1 is done when each item below works on the installed app, on both a Windows 11
 - [ ] Records the mic and a selected meeting app (or whole-computer audio) as synced tracks, with no meeting-app plugin.
 - [ ] Records 8 hours with pause/resume, without losing audio, and recovers after a forced crash.
 - [ ] Shows a live multi-speaker transcript that can be corrected without stopping the recording.
+- [ ] Imports a supported audio file into a meeting with a final transcript, speakers, corrections, summary and export; a cancelled or failed import leaves nothing behind.
 - [ ] Reuses learned vocabulary and recognizes returning speakers from silently built profiles; profiles can be deleted.
 - [ ] Shows the privacy banner at each new recording where the location rule applies.
 - [ ] Produces a final transcript that keeps every user correction.

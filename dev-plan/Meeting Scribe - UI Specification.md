@@ -39,7 +39,7 @@ Every screen must handle each state listed; a state not designed is a bug.
 | --- | --- | --- |
 | **First launch** | Model download with progress and size; US state of residence or main work state, with a warning under listed states; mic and meeting-app permission prompts | Downloading, failed download with retry, permission denied, complete |
 | **Live** | Start, pause, resume, stop; meeting-app picker with "Whole computer audio" fallback; mic picker; level meters; elapsed time; live transcript; privacy banner where applicable | Idle, recording, paused, transcription lagging, transcription failed (recording still running), mic silent, device changed, low disk |
-| **Recordings** | Searchable, filterable meeting list; meeting detail with Transcript, Summary and Audio tabs; open-folder buttons; export; delete | Empty library, final pass running, summary generating, summary "May be outdated," recovered after crash, deleting |
+| **Recordings** | Searchable, filterable meeting list; Import audio file action (file picker, per-file "build voice profiles" choice, off by default); meeting detail with Transcript, Summary and Audio tabs; open-folder buttons; export; delete | Empty library, final pass running, summary generating, summary "May be outdated," recovered after crash, deleting |
 | **Summary tab** | Brief/Full toggle; narrative; action-item and decision tables with clickable timestamps; edit; regenerate | Not generated, generating, ready, edited, outdated |
 | **Speakers** | Voice profiles with name, meeting count; rename, merge, delete | Empty, suggested match awaiting confirmation, deleting |
 | **Vocabulary** | Terms, misheard variants, history; edit, disable, delete | Empty, disabled entry |
@@ -71,6 +71,7 @@ The UI talks to the backend only through the typed contract in `packages/contrac
 | Group | Example calls (UI → backend) | Example events (backend → UI) |
 | --- | --- | --- |
 | Session | `startRecording`, `pauseRecording`, `resumeRecording`, `stopRecording` | `recordingStateChanged`, `recordingHealth` |
+| Import | `importAudioFile`, `cancelImport` | `importProgress`, `importFinished`, `importFailed` |
 | Devices | `listInputDevices`, `listMeetingApps`, `selectSources` | `deviceChanged`, `levelMeter` |
 | Transcript | `applyCorrection`, `reassignSpeaker`, `undo`, `redo`, `seekAudio` | `transcriptChanged` (append, replace, realign), `transcriptionLag` |
 | Speakers | `renameSpeaker`, `mergeSpeakers`, `deleteProfile` | `speakerSuggestion` |
@@ -115,5 +116,5 @@ In each phase the contract freezes first; then Claude Code builds against the mo
 | 4 | Speaker labels and menus, Speakers screen, privacy banner, US state question with warning |
 | 5 | Selection, inline editor, undo/redo, Vocabulary screen |
 | 6 | Summary tab with Brief/Full, editable tables, outdated flag |
-| 7 | Recordings list and search, meeting detail, export dialog, delete and auto-delete settings, open-folder buttons |
+| 7 | Recordings list and search, Import audio file action with progress and failure states, meeting detail, export dialog, delete and auto-delete settings, open-folder buttons |
 | 8 | Accessibility pass, polish, model-update settings, About screen, User Manual pages and screenshots |
