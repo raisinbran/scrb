@@ -48,6 +48,7 @@ func waitForObject(_ pid: pid_t) -> AudioObjectID {
     print("no process object for \(pid)"); exit(1)
 }
 
+setlinebuf(stdout)
 let file = CommandLine.arguments[1]
 let first = play(file)
 let firstObject = waitForObject(first.processIdentifier)

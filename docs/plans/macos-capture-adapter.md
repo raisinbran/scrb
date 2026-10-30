@@ -46,9 +46,10 @@ These can change the design, so they run as the first step of the build, before 
 | S3 | **Pass.** Setting a new process list on a running tap returned success, the new process was heard within 1 s, and no packets were lost | Helpers can be added without a rebuild, so no gap |
 | S5 | **Pass.** `kAudioHardwarePropertyServiceRestarted` fired within a second of killing `coreaudiod`. The stream then stopped for good: 0 packets, with no error on the stream | Listen for it and rebuild at once. The watchdog stays as backstop |
 | S1 | **Pass.** With AirPods in hands-free mode, an aggregate clocked by them ran at 24 kHz. One clocked by the built-in output ran at 48 kHz with the audio intact | Clock the tap from the built-in output. Hands-free halving goes away, and most rebuilds with it. Needs testing on a Mac with no built-in output in use, such as a closed lid with an external display |
+| S4 | **No effect seen on a running capture.** Over a 280 s run with both switches turned off and on, tap and mic audio never stopped, no error appeared, and the app was not closed. The exact switch times were not logged | Revocation is not reliably detectable mid-recording, so T20 must time it properly. Check permission at each Start |
 | S6 | **Fail.** A denied tap gives on-time packets, zero level and `IsRunningOutput` = 1, the same as an app with an open stream and no sound | This property cannot detect denial. The adapter needs another way; see below |
 
-**After S6:** at Start, a denied tap and a silent app look the same. The adapter will play a short, inaudible check tone from its own process through a private tap, confirm it arrives, and report `unknown` if it can't run. Zero level with a running app stays a warning after the existing silence limit. S4 still needs the owner present.
+**After S6:** at Start, a denied tap and a silent app look the same. The adapter will play a short, inaudible check tone from its own process through a private tap, confirm it arrives, and report `unknown` if it can't run. Zero level with a running app stays a warning after the existing silence limit.
 
 ## How it could lose data, and the test that proves each is handled
 
