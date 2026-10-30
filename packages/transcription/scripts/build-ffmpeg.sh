@@ -37,7 +37,7 @@ rm -rf ffmpeg-9.0 && tar xJf ffmpeg-9.0.tar.xz
 cd ffmpeg-9.0
 ./configure --prefix="$work/prefix" --pkg-config="$work/pkg-config-shim" \
   --disable-everything --disable-autodetect --disable-doc --disable-network \
-  --disable-ffplay --disable-avdevice --disable-swscale --disable-postproc \
+  --disable-ffplay --disable-avdevice --disable-swscale \
   --enable-ffmpeg --enable-ffprobe --enable-libopus \
   --enable-protocol=file,pipe \
   --enable-demuxer=wav,w64,mp3,mov,flac,ogg,aac,concat \
