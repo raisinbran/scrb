@@ -1,10 +1,11 @@
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { LlamaServerWorker } from "../src/worker.js";
 
 const server = fileURLToPath(new URL("./fixtures/fake-llama-server.mjs", import.meta.url));
 const request = { messages: [{ role: "user" as const, content: "hi" }], schema: { type: "object" }, maxTokens: 10 };
-let worker: LlamaServerWorker;
+let worker = new LlamaServerWorker({ serverPath: server, modelPath: "m.gguf" });
 
 afterEach(async () => {
   await worker.stop();
@@ -49,6 +50,18 @@ describe("LlamaServerWorker", () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(worker.pid).toBeUndefined();
     await expect(worker.complete(request)).resolves.toMatchObject({ finishReason: "stop" });
+  });
+
+  it("leaves no server behind when the parent process exits", async () => {
+    const script = `
+      import { LlamaServerWorker } from ${JSON.stringify(new URL("../dist/src/worker.js", import.meta.url).href)};
+      const worker = new LlamaServerWorker({ serverPath: ${JSON.stringify(server)}, modelPath: "m.gguf" });
+      await worker.start();
+      console.log(worker.pid);
+      process.exit(0);`;
+    const output = execFileSync(process.execPath, ["--input-type=module", "-e", script]).toString();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(() => process.kill(Number(output.trim()), 0)).toThrow();
   });
 
   it("stops the process", async () => {
