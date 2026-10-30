@@ -136,13 +136,18 @@ int main(int argc, char** argv) {
     float hopSeconds = live ? static_cast<float>(atof(argv[7])) : 0;
     float matchThreshold = live ? static_cast<float>(atof(argv[9])) : 0;
 
+    // LIVEDIARIZE_THREADS caps onnxruntime threads (default 4), for runs that
+    // must stay light while another job uses the machine.
+    const char* threadsEnv = getenv("LIVEDIARIZE_THREADS");
+    const int threads = threadsEnv && atoi(threadsEnv) > 0 ? atoi(threadsEnv) : 4;
+
     SherpaOnnxOfflineSpeakerDiarizationConfig config;
     memset(&config, 0, sizeof(config));
     config.segmentation.pyannote.model = argv[3];
-    config.segmentation.num_threads = 4;
+    config.segmentation.num_threads = threads;
     config.segmentation.provider = "cpu";
     config.embedding.model = argv[4];
-    config.embedding.num_threads = 4;
+    config.embedding.num_threads = threads;
     config.embedding.provider = "cpu";
     // A threshold of 2 or more is taken as a known speaker count instead.
     config.clustering.num_clusters = clusterThreshold >= 2 ? static_cast<int32_t>(clusterThreshold) : -1;

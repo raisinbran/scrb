@@ -33,3 +33,6 @@ artifacts/capture/macos/devices/*.wav
 probes/macos-dual-capture/SetDefaultDevice
 artifacts/capture/macos/drift-*.wav
 artifacts/capture/macos/*-tone.m4a
+
+# Cross-session voice-match embeddings (~15 MB; regenerate with scripts/voice_match_cross.py)
+artifacts/voice-match-cross-session/*.embeddings.txt
