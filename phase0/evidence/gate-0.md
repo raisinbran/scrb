@@ -445,6 +445,17 @@ are only 164 tests (2% is about 3 segments).  Phase 4 must re-measure it
 across sessions (for example, the four meetings of one AMI series).  The
 English embedding is clearly worse here as well, which confirms eres2net.
 
+**Across sessions** (`artifacts/voice-match-cross-session/README.md`,
+`scripts/voice_match_cross.py`): profiles from meeting a (or a+b) of the
+ES2004, IS1009 and TS3003 series, tested on the later meetings with the same
+12 people, 3,462 tests.  At 0.55: 84--88% auto-named, 0.1% known named
+wrong, 0.2--0.4% strangers named wrong; at 0.60: 74--81% auto-named and no
+wrong matches.  **The 0.55--0.60 line holds across sessions.**  Speakers
+whose profile came from only 4--5 segments were auto-named far less often
+(22--64%), so Phase 4 should not auto-name from a thin profile.  Limits: all
+four meetings of a series share a day, room and headset mix; the stranger
+pool is 11 people.
+
 ### Local summary models (action items and decisions)
 
 llama.cpp `369dcf309c8b274370e692ac2d42d9708597ae04`, CPU build, 12 threads,
@@ -516,7 +527,7 @@ on Windows.  The final pass loads turbo (811 MiB) after Stop.
 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass |
 | Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, stable JSON, lowest memory); Ministral was best on CPU (84%) but loops on the newer llama.cpp build |
 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each stamped with its first frame's device timestamp (QPC / host time) |
-| Voice-match confidence line | Provisional 0.55--0.60 cosine (eres2net), measured within meetings; re-measure across sessions in Phase 4 |
+| Voice-match confidence line | 0.55--0.60 cosine (eres2net); holds across sessions of one AMI series (0--0.4% wrong); re-check across days and microphones in Phase 4 |
 | DOCX library | Follows Electron: a Node DOCX writer such as `docx` (to be pinned in Phase 7) |
 | Targets to revisit | Final DER 20% (best measured 21--28%); summary recall 90% (best 80--84% on reference text); live-versus-final WER 15% (about 10% at GPU full context); RAM guidance now 32 GB typical |
 
