@@ -44,8 +44,8 @@ and `score_der.py`; reproduce with `scripts/e2e-ami.ts`.
 | Meeting | Length | WER | Phase 0 WER | DER | Speakers (true 4) | Miss | Confusion |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | ES2004a | 17.5 min | **23.8%** | 23.8% | **20.3%** | 4 | 17.2% | 2.2% |
-| IS1009a | 13.9 min | 23.4% | n/a | 15.4% | 4 | n/a | n/a |
-| TS3003a | 21.0 min | 19.3% | n/a | 20.6% | 2 | n/a | n/a |
+| IS1009a | 14.0 min | 23.4% | n/a | 15.4% | 4 | n/a | n/a |
+| TS3003a | 25.1 min | 19.3% | n/a | 20.6% | 2 | n/a | n/a |
 | IS1009b (hold-out) | 34.2 min | 17.6% | n/a | 8.6% | 4 | 6.3% | 1.7% |
 | TS3003b (hold-out) | 36.8 min | 17.5% | n/a | 8.4% | 4 | 5.2% | 0.6% |
 
@@ -95,7 +95,7 @@ well inside 5 s, so the pass keeps up.  Live WER is worse than Phase 0's per-seg
 - **Long meetings are unmeasured.**  The longest run is 37 min.  Diarization took
   0.16--0.35x meeting length under load and holds the whole file in memory, so an
   8-hour run may need 1--3 hours and well over 2 GB.  Check before Gate 3.
-- **Thin evidence.**  Six meetings from three AMI series, headset mixes only.
+- **Thin evidence.**  Five meetings from three AMI series, headset mixes only.
 - **Corrected-word freezing is not here.**  The final pass returns model text; the
   transcript layers must apply frozen spans.
 - **An orphaned whisper-server.**  If the app itself crashes, `whisper-server`
