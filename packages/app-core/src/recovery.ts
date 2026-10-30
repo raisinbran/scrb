@@ -30,7 +30,8 @@ export interface SealedChunk {
 }
 
 export interface AudioSpan {
-  kind: 'paused' | 'audioMissing';
+  /** `possiblyMissing`: whole-computer audio sends nothing while the computer is silent. */
+  kind: 'paused' | 'audioMissing' | 'possiblyMissing';
   track: TrackName | 'both';
   startNs: number;
   endNs: number;
@@ -195,7 +196,8 @@ function readLogLines<T>(path: string): T[] {
 }
 
 interface SessionEvent {
-  event: 'pause' | 'resume' | 'pauseFailed';
+  event: 'open' | 'pause' | 'resume' | 'pauseFailed';
+  wholeComputer?: boolean;
   atNs: number;
   seq: number;
 }
@@ -305,16 +307,25 @@ export async function sealAudio(
   });
   const present = sealed.flatMap(([track, value]) => (value ? [[track, value] as const] : []));
   const endNs = Math.max(0, ...present.map(([, value]) => value.endNs));
+  // A track with no audio cannot show how the recording ended, so it does not decide.
+  const withAudio = present.filter(([, value]) => value.chunks.length > 0);
   const stopped =
-    present.length > 0 && present.every(([, value]) => value.chunks.at(-1)?.closeReason === 'stop');
+    withAudio.length > 0 &&
+    withAudio.every(([, value]) => value.chunks.at(-1)?.closeReason === 'stop');
   const paused = pausedSpans(audioDir, endNs);
 
+  const wholeComputer = readLogLines<SessionEvent>(join(audioDir, 'session.log')).some(
+    ({ event, wholeComputer: value }) => event === 'open' && value === true,
+  );
   const tracks: RecoveredAudio['tracks'] = {};
   const gaps: AudioSpan[] = paused.map((span) => ({ kind: 'paused', track: 'both', ...span }));
   for (const [track, value] of present) {
     const trackLevelGaps = trackGaps(track, value.chunks, paused);
-    if (value.endNs < endNs - 2_000_000 && !stopped) {
+    if (value.chunks.length === 0 || (value.endNs < endNs - 2_000_000 && !stopped)) {
       trackLevelGaps.push({ kind: 'audioMissing', track, startNs: value.endNs, endNs });
+    }
+    if (track === 'meeting' && wholeComputer) {
+      for (const gap of trackLevelGaps) gap.kind = 'possiblyMissing';
     }
     const final: SealedTrack = {
       ...value,

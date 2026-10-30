@@ -139,7 +139,7 @@ describe('shared components', () => {
           status: 'recording',
           meetingId,
           elapsedMs: 0,
-      pauseReason: null,
+          pauseReason: null,
           privacyBannerRequired: required,
         }),
       );

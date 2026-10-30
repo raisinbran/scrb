@@ -169,6 +169,27 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it('calls a clean stop ready when one track has no audio, and marks that track missing', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    logLine('microphone', [{ file: '000000.opus', closeReason: 'stop' }]);
+    mkdirSync(join(audio, 'meeting'));
+    const { outcome, gaps } = await sealAudio(audio, dead);
+    expect(outcome).toBe('ready');
+    expect(gaps).toEqual([
+      { kind: 'audioMissing', track: 'meeting', startNs: 0, endNs: 2 * SECOND },
+    ]);
+  });
+
+  it('does not call a silent whole-computer track lost', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    mkdirSync(join(audio, 'meeting'));
+    events([{ event: 'open', wholeComputer: true, seq: 1 }]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      { kind: 'possiblyMissing', track: 'meeting', startNs: 0, endNs: 2 * SECOND },
+    ]);
+  });
+
   it('rebuilds from chunks when the log is lost, with close details unknown', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
     const { tracks } = await sealAudio(audio, dead);

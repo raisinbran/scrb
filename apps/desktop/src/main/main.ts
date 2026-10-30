@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
+import { IPC_EVENT_CHANNEL } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
@@ -61,7 +62,11 @@ app.on('second-instance', () => {
 void app.whenReady().then(async () => {
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  const backend = await openBackend();
+  const backend = await openBackend((name, payload) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+    }
+  });
   registerCallHandlers(backend.handlers, isTrustedSender);
   app.once('will-quit', () => void backend.close());
   createMainWindow(backend.warning);

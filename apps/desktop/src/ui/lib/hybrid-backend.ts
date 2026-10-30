@@ -1,17 +1,36 @@
-import { ContractError, type AppSettings, type Backend, type CallName } from '@scrb/contracts';
+import {
+  ContractError,
+  type AppSettings,
+  type Backend,
+  type CallName,
+  type EventName,
+} from '@scrb/contracts';
 
-const REAL_CALLS: ReadonlySet<CallName> = new Set(['getSettings', 'updateSettings']);
+const SETTINGS_CALLS: ReadonlySet<CallName> = new Set(['getSettings', 'updateSettings']);
+const REAL_CALLS: ReadonlySet<CallName> = new Set([
+  ...SETTINGS_CALLS,
+  'startRecording',
+  'pauseRecording',
+  'resumeRecording',
+  'stopRecording',
+  'getRecordingSnapshot',
+]);
+const REAL_EVENTS: ReadonlySet<EventName> = new Set([
+  'recordingStateChanged',
+  'recordingHealth',
+  'levelMeter',
+]);
 
 /**
- * Real settings with everything else on the mock, until each phase connects its screens. The mock
+ * Real settings and, when a capture helper is set up, real recording, with everything else on the mock, until each phase connects its screens. The mock
  * gets a copy of the settings because its privacy banner rule reads them.
  */
 export function createHybridBackend(real: Backend, mock: Backend): Backend {
-  const callReal = async (name: CallName, request: unknown): Promise<AppSettings> => {
-    const call = real.call as (name: CallName, request?: unknown) => Promise<AppSettings>;
-    const settings = await call(name, request);
-    await mock.call('updateSettings', settings);
-    return settings;
+  const callReal = async (name: CallName, request: unknown): Promise<unknown> => {
+    const call = real.call as (name: CallName, request?: unknown) => Promise<unknown>;
+    const value = await call(name, request);
+    if (SETTINGS_CALLS.has(name)) await mock.call('updateSettings', value as AppSettings);
+    return value;
   };
 
   // The first-launch check reads the mock's copy, so nothing reaches the mock before it is current.
@@ -34,6 +53,14 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
         throw error;
       }
     }) as Backend['call'],
-    on: mock.on,
+    on: ((name: EventName, listener: never) => {
+      const offMock = mock.on(name, listener);
+      if (!REAL_EVENTS.has(name)) return offMock;
+      const offReal = real.on(name, listener);
+      return () => {
+        offMock();
+        offReal();
+      };
+    }) as Backend['on'],
   };
 }

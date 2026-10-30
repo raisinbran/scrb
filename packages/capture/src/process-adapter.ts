@@ -35,7 +35,11 @@ export class ProcessAdapter implements CaptureAdapter {
     return new Promise((resolve) => {
       const replies = this.waiting.get(id) ?? [];
       this.waiting.set(id, [...replies, resolve]);
-      this.child.stdin.write(`${JSON.stringify({ id, ...command })}\n`);
+      const wire =
+        'source' in command && command.source === 'wholeComputer'
+          ? { ...command, source: [] }
+          : command;
+      this.child.stdin.write(`${JSON.stringify({ id, ...wire })}\n`);
     });
   }
 

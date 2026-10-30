@@ -45,6 +45,7 @@ export type CaptureEvent =
       track: Track;
     }
   | { type: 'sourceChanged'; alive: boolean }
+  | { type: 'health'; micDb: number; meetingDb: number }
   | { type: 'writeError'; message: string };
 
 /** One running audio worker. */

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@scrb/app-core": "*",
+    "@scrb/capture": "*",
     "@scrb/contracts": "*",
     "@scrb/storage": "*",
     "react": "19.3.1",

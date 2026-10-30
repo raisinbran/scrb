@@ -128,6 +128,7 @@ final class Session {
         lockFd = Darwin.open(audio + "/writer.lock", O_CREAT | O_RDWR, 0o600)
         guard lockFd >= 0, flock(lockFd, LOCK_EX | LOCK_NB) == 0 else { return (false, "writer lock held") }
         sessionLog = fopen(audio + "/session.log", "a")
+        record(["event": "open", "wholeComputer": source.isEmpty])
         micTrack.writer = ChunkWriter(directory: audio + "/microphone")
         meetingTrack.writer = ChunkWriter(directory: audio + "/meeting")
         let micError = micStream.open(mic: mic)
