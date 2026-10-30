@@ -31,7 +31,7 @@ export interface SealedChunk {
 
 export interface AudioSpan {
   /** `possiblyMissing`: whole-computer audio sends nothing while the computer is silent. */
-  kind: 'paused' | 'audioMissing' | 'possiblyMissing';
+  kind: 'paused' | 'audioMissing' | 'possiblyMissing' | 'computerAsleep';
   track: TrackName | 'both';
   startNs: number;
   endNs: number;
@@ -239,7 +239,9 @@ function trackGaps(
         startNs - span.startNs <= EDGE_TOLERANCE_NS &&
         Math.abs(span.endNs - endNs) <= EDGE_TOLERANCE_NS,
     );
-    if (!confirmed) gaps.push({ kind: 'audioMissing', track, startNs, endNs });
+    if (confirmed) continue;
+    const asleep = chunks[i - 1]?.closeReason === 'sleep';
+    gaps.push({ kind: asleep ? 'computerAsleep' : 'audioMissing', track, startNs, endNs });
   }
   return gaps;
 }
@@ -325,7 +327,8 @@ export async function sealAudio(
       trackLevelGaps.push({ kind: 'audioMissing', track, startNs: value.endNs, endNs });
     }
     if (track === 'meeting' && wholeComputer) {
-      for (const gap of trackLevelGaps) gap.kind = 'possiblyMissing';
+      for (const gap of trackLevelGaps)
+        if (gap.kind === 'audioMissing') gap.kind = 'possiblyMissing';
     }
     const final: SealedTrack = {
       ...value,

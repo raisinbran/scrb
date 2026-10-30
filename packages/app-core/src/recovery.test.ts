@@ -190,6 +190,19 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it('marks a span after a sleep close as asleep, not lost', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000001.opus', chunk(1, 60 * SECOND, 2, 'wake'));
+    logLine('meeting', [
+      { file: '000000.opus', closeReason: 'sleep' },
+      { file: '000001.opus', closeReason: 'stop' },
+    ]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      { kind: 'computerAsleep', track: 'meeting', startNs: 2 * SECOND, endNs: 60 * SECOND },
+    ]);
+  });
+
   it('rebuilds from chunks when the log is lost, with close details unknown', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
     const { tracks } = await sealAudio(audio, dead);

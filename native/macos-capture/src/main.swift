@@ -1,6 +1,7 @@
 import CoreAudio
 import Darwin
 import Foundation
+import IOKit
 import IOKit.pwr_mgt
 
 // scrb-capture: the macOS capture worker. One JSON object per line on stdin and stdout, the same
@@ -111,6 +112,8 @@ final class Session {
     private let logQueue = DispatchQueue(label: "session.log")
     private var writerThread: Thread?
     private var sleepAssertion: IOPMAssertionID = 0
+    private var micChange: DispatchWorkItem?
+    private var rootPort: io_connect_t = 0
 
     func toSessionNs(host: UInt64) -> Int64 {
         ticksToNs(Int64(host) + sleepOffset()) - originNs
@@ -254,6 +257,59 @@ final class Session {
         AudioObjectAddPropertyListenerBlock(systemObject, &output, DispatchQueue.main) { [self] _, _ in
             say(["type": "event", "event": "deviceChanged", "track": "meeting"])
         }
+        var input = address(kAudioHardwarePropertyDefaultInputDevice)
+        AudioObjectAddPropertyListenerBlock(systemObject, &input, DispatchQueue.main) { [self] _, _ in
+            guard mic == "default" else { return }
+            // Debounced: a headset can flip the default several times as it connects (Q7).
+            micChange?.cancel()
+            let change = DispatchWorkItem { [self] in rebuild(reason: "deviceChanged", track: micTrack) }
+            micChange = change
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: change)
+        }
+        watchPower()
+    }
+
+    /// Chunks close before the Mac sleeps, because hardware time stops during sleep. Each new
+    /// chunk's time adds the sleep offset, so the timeline spans the sleep.
+    private func watchPower() {
+        var notifier: io_object_t = 0
+        var port: IONotificationPortRef?
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        rootPort = IORegisterForSystemPower(context, &port, { context, _, message, argument in
+            guard let context else { return }
+            let session = Unmanaged<Session>.fromOpaque(context).takeUnretainedValue()
+            session.power(message: message, argument: argument)
+        }, &notifier)
+        guard let port else { return }
+        IONotificationPortSetDispatchQueue(port, DispatchQueue.main)
+    }
+
+    fileprivate func power(message: natural_t, argument: UnsafeMutableRawPointer?) {
+        switch message {
+        case 0xE000_0270:  // kIOMessageCanSystemSleep
+            IOAllowPowerChange(rootPort, Int(bitPattern: argument))
+        case 0xE000_0280:  // kIOMessageSystemWillSleep
+            say(["type": "event", "event": "sleeping"])
+            for track in [micTrack, meetingTrack] {
+                track.drain(session: self)
+                track.close(reason: "sleep")
+            }
+            IOAllowPowerChange(rootPort, Int(bitPattern: argument))
+        case 0xE000_0300:  // kIOMessageSystemHasPoweredOn
+            say(["type": "event", "event": "woke"])
+            rebuild(reason: "wake")
+        default: break
+        }
+    }
+
+    func selectMic(_ next: String) {
+        mic = next
+        rebuild(reason: "deviceChanged", track: micTrack)
+    }
+
+    func selectSource(_ next: [Int32]) {
+        source = next
+        rebuild(reason: "sourceChanged", track: meetingTrack)
     }
 
     var activeTracks: [String] { [micTrack, meetingTrack].filter(\.active).map(\.name) }
@@ -274,6 +330,8 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     case "pause": at = session.pause(id: id, cause: command["cause"] as? String ?? "user")
     case "resume": at = session.resume(id: id)
     case "stop": at = session.stop()
+    case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
+    case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
     default: ok = false; error = "unknown command"
     }
     var ack: [String: Any] = ["type": "ack", "id": id, "ok": ok,
