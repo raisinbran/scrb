@@ -236,16 +236,22 @@ export class LivePass {
     if (this.stopped && !this.running) return false;
     this.whisper?.kill();
     if (++this.restarts > MAX_RESTARTS) {
-      this.o.onFailed?.((err as Error).message);
+      this.giveUp(err);
       return false;
     }
     try {
       this.whisper = await this.startWhisper();
       return true;
     } catch (restartError) {
-      this.o.onFailed?.((restartError as Error).message);
+      this.giveUp(restartError);
       return false;
     }
+  }
+
+  private giveUp(err: unknown): void {
+    this.stopped = true;
+    for (const t of this.tracks.values()) t.queue = [];
+    this.o.onFailed?.((err as Error).message);
   }
 
   private async process(track: TrackState, chunk: AudioChunk): Promise<void> {
