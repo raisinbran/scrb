@@ -80,6 +80,7 @@ export class LivePass {
   private sherpa: SherpaWorker | null = null;
   private running = false;
   private stopped = false;
+  private busy = false;
   private wake: (() => void) | null = null;
   private loop: Promise<void> | null = null;
   private restarts = 0;
@@ -124,6 +125,13 @@ export class LivePass {
     }
     this.reportLag();
     this.wake?.();
+  }
+
+  /** Resolves once everything queued so far has been processed. */
+  async idle(): Promise<void> {
+    while (this.busy || [...this.tracks.values()].some((t) => t.queue.length > 0)) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
   }
 
   /** Waits for queued chunks to finish, then shuts down the workers. */
@@ -187,12 +195,17 @@ export class LivePass {
         this.wake = null;
         continue;
       }
+      this.busy = true;
       try {
         await this.process(next.track, next.chunk);
         this.reportLag();
       } catch (err) {
-        if (!(await this.recover(err))) return;
+        if (!(await this.recover(err))) {
+          this.busy = false;
+          return;
+        }
       }
+      this.busy = false;
     }
     for (const t of this.tracks.values()) {
       try {

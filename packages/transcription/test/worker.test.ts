@@ -44,7 +44,7 @@ describe('WorkerProcess', () => {
         name: 'bad', command: node, args: script('console.error("boom"); process.exit(3)'),
       }),
     ).rejects.toSatisfy(
-      (e: WorkerFailed) => e.exit.code === 3 && e.exit.stderrTail.includes('boom'),
+      (e) => e instanceof WorkerFailed && e.exit.code === 3 && e.exit.stderrTail.includes("boom"),
     );
   });
 

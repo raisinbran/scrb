@@ -45,7 +45,7 @@ describe('LiveClusterer', () => {
     expect(c.mergeConverged()).toEqual([]);
     // New speech drags b's centroid toward a.
     c.add(unit([0.75, 1]), 60_000);
-    c.add(unit([1, 0.72]), 60_000);
+    c.add(unit([1, 0.5]), 60_000);
     const merges = c.mergeConverged();
     expect(merges).toHaveLength(1);
     expect(c.resolve(a)).toBe(c.resolve(b));
