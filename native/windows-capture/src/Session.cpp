@@ -29,6 +29,22 @@ bool ConsentDeny(HKEY root, const std::wstring& key) {
            _wcsicmp(value, L"Deny") == 0;
 }
 
+DWORD AudioServicePid() {
+    DWORD pid = 0;
+    if (SC_HANDLE manager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT)) {
+        if (SC_HANDLE service = OpenServiceW(manager, L"Audiosrv", SERVICE_QUERY_STATUS)) {
+            SERVICE_STATUS_PROCESS status = {};
+            DWORD size = 0;
+            if (QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, reinterpret_cast<BYTE*>(&status), sizeof status,
+                                     &size))
+                pid = status.dwProcessId;
+            CloseServiceHandle(service);
+        }
+        CloseServiceHandle(manager);
+    }
+    return pid;
+}
+
 class Notifier : public IMMNotificationClient {
 public:
     explicit Notifier(Session* session) : session_(session) {}
@@ -516,6 +532,18 @@ void Session::CheckConsent() {
     }
 }
 
+// A process loopback stream gives no error when Windows Audio restarts: it keeps
+// delivering silence and never hears the target again.  So reopen on a new PID.
+void Session::CheckAudioService() {
+    DWORD pid = AudioServicePid();
+    if (!pid || pid == audioServicePid_) return;
+    bool restarted = audioServicePid_ != 0;
+    audioServicePid_ = pid;
+    if (!restarted) return;
+    for (int i = 0; i < kTrackCount; ++i)
+        if (slots_[i].track && slots_[i].track->streamOpen()) MarkDead(i, "audioServiceRestart", S_OK);
+}
+
 void Session::OnPower(bool suspending) {
     if (suspending == sleeping_.exchange(suspending)) return;
     int64_t now = NowNs();
@@ -534,6 +562,7 @@ void Session::OnPower(bool suspending) {
 
 void Session::TickSecond(int64_t now) {
     CheckConsent();
+    CheckAudioService();
     if (target_ && WaitForSingleObject(target_, 0) == WAIT_OBJECT_0 && slots_[kMeeting].track) {
         // The core owns the grace period and auto-pause (owner decision on Q6).
         Emit("sourceChanged", JsonObject().Str("track", "meeting").Str("reason", "targetExited").Int("pid", targetPid_));

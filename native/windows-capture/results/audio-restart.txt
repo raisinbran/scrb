@@ -1,0 +1,10 @@
+case=audio-restart helperExit=0
+microphone: chunks=20 audio=95.4 s missing=5697.8 ms bad=0 tmp=0 files=20 toneChunks=3 zeroChunks=0 peak=-31.7 dB
+  close reasons: device=1 rollover=18 stop=1
+    missing 5697.8 ms before 36.767 s, cause device
+meeting: chunks=8 audio=32.0 s missing=190.0 ms bad=0 tmp=0 files=8 toneChunks=8 zeroChunks=0 peak=-14.5 dB
+  close reasons: discontinuity=2 rollover=5 source=1
+    missing 170.0 ms before 13.895 s, cause unknown
+    missing 20.0 ms before 13.925 s, cause unknown
+VERIFY OK
+events: discontinuity=2 sourceChanged=1 streamDead=1 streamReopened=1

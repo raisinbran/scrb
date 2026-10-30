@@ -1,0 +1,9 @@
+case=tree-retone helperExit=0
+microphone: chunks=7 audio=30.4 s missing=0.0 ms bad=0 tmp=0 files=7 toneChunks=2 zeroChunks=0 peak=-36.5 dB
+  close reasons: rollover=6 stop=1
+meeting: chunks=8 audio=30.3 s missing=219.4 ms bad=0 tmp=0 files=8 toneChunks=7 zeroChunks=0 peak=-14.5 dB
+  close reasons: discontinuity=2 rollover=5 stop=1
+    missing 48.6 ms before 10.175 s, cause unknown
+    missing 170.9 ms before 12.496 s, cause unknown
+VERIFY OK
+events: discontinuity=2

@@ -67,6 +67,7 @@ private:
     void ApplyMicDebounce();
     void ApplyOutputDebounce();
     void CheckConsent();
+    void CheckAudioService();
     void RebuildNotifier();
     std::string TrackTimes(int64_t mic, int64_t meeting);
 
@@ -93,6 +94,7 @@ private:
     int64_t outputDebounceNs_ = 0;
     std::string lostPickedMic_;
     bool consentDenied_ = false;
+    DWORD audioServicePid_ = 0;
     HANDLE target_ = nullptr;
     DWORD targetPid_ = 0;
 };

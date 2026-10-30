@@ -1,0 +1,10 @@
+case=audio-restart-tree helperExit=0
+microphone: chunks=15 audio=71.0 s missing=5579.1 ms bad=0 tmp=0 files=15 toneChunks=2 zeroChunks=0 peak=-31.4 dB
+  close reasons: device=1 rollover=13 stop=1
+    missing 5579.1 ms before 36.662 s, cause device
+meeting: chunks=17 audio=76.4 s missing=271.6 ms bad=0 tmp=0 files=17 toneChunks=16 zeroChunks=0 peak=-14.4 dB
+  close reasons: device=1 discontinuity=1 rollover=14 stop=1
+    missing 71.9 ms before 32.258 s, cause device
+    missing 199.6 ms before 33.748 s, cause unknown
+VERIFY OK
+events: discontinuity=1 streamDead=2 streamReopened=2

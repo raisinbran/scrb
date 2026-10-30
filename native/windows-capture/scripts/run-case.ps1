@@ -13,7 +13,11 @@ param(
     [int]$LeadSeconds = 20,
     [string]$HelperArgs = '--test-hooks',
     [string]$Mic = 'default',
-    [switch]$WholeComputer
+    [switch]$WholeComputer,
+    # Target a parent shell that outlives the tone and starts it again, as a
+    # real app outlives a lost stream.  TonePlayer exits when Windows Audio
+    # restarts.
+    [switch]$TreeTarget
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -27,7 +31,11 @@ $mute = Join-Path $repo 'phase0\probes\windows-mute\Mute.exe'
 $tonePlayer = Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe'
 & $mute on | Out-Null
 
-$tone = Start-Process $tonePlayer -ArgumentList 880, ($Seconds + 60), 1 -PassThru -WindowStyle Hidden
+$tone = if ($TreeTarget) {
+    Start-Process cmd.exe -ArgumentList '/k', "for /l %i in (1,1,9) do (@`"$tonePlayer`" 880 $($Seconds + 60) 1 & ping -n 3 127.0.0.1 >nul)" -PassThru -WindowStyle Hidden
+} else {
+    Start-Process $tonePlayer -ArgumentList 880, ($Seconds + 60), 1 -PassThru -WindowStyle Hidden
+}
 Start-Sleep -Seconds 2
 if ($Actions.Count) {
     # Encoded so quotes in an action survive the command line.
@@ -69,6 +77,8 @@ foreach ($s in $steps) {
     "$((Get-Date).ToString('HH:mm:ss')) +$($s.At)s $($s.Cmd)"
     if ($s.Cmd -eq 'kill') { Stop-Process -Name scrb-capture -Force; $killed = $true; break }
     elseif ($s.Cmd -eq 'killtone') { $tone.Kill() }
+    elseif ($s.Cmd -eq 'killplayer') { Stop-Process -Name TonePlayer -Force }
+    elseif ($s.Cmd -eq 'players') { "players: $(@(Get-Process TonePlayer -ErrorAction SilentlyContinue).Id -join ',')" }
     elseif ($s.Cmd -eq 'restartaudio') { Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', 'Restart-Service Audiosrv -Force' }
     else { Send $s.Cmd }
 }
@@ -77,6 +87,7 @@ if (-not $killed) { Send '{"cmd":"quit"}' }
 $p.StandardInput.Close()
 if (-not $p.WaitForExit(20000)) { 'HUNG; killing'; Stop-Process -Name scrb-capture -Force }
 try { $tone.Kill() } catch {}
+if ($TreeTarget) { Stop-Process -Name TonePlayer -Force -ErrorAction SilentlyContinue }
 
 $verify = & "$bin\ChunkVerify.exe" "$out\session"
 $names = Get-Content $events | ForEach-Object { if ($_ -match '"event":"([^"]+)"') { $Matches[1] } } | Where-Object { $_ -notin 'health', 'chunkClosed' }
