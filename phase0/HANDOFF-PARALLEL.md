@@ -34,17 +34,17 @@ commit, and push; or reply in the Mac session with the answers.
 
 | # | Open item | Proposal | Decision |
 | --- | --- | --- | --- |
-| 1 | Desktop shell | Electron with project-owned capture adapters (Meetily fails decision rule 1) | |
-| 2 | Live / final speech models | GPU: large-v3-turbo-q5_0 live and final, per VAD segment.  CPU-only: small.en-q5_1 live (`-ac 768`), turbo final.  `-mc 0` for whole-file passes | |
-| 3 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass | |
-| 4 | Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, 76% on M5 Metal) | |
-| 5 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each with its first frame's device timestamp; new chunk at every discontinuity | |
-| 6 | Voice-match confidence line | Provisional 0.55--0.60 cosine; re-measure across sessions in Phase 4 | |
-| 7 | DOCX library | Follows Electron: a Node DOCX writer such as `docx` | |
-| 8a | Final DER target 20% | Best measured 21--28% (AMI); accept ~25% or keep 20% as a stretch goal | |
-| 8b | Summary recall target 90% | Best measured 76--84%; accept ~80% | |
-| 8c | Live-versus-final WER 15% | About 10% at GPU full context; keep | |
-| 8d | RAM guidance | 16 GB minimum works; recommend 32 GB as typical | |
+| 1 | Desktop shell | Electron with project-owned capture adapters (Meetily fails decision rule 1) | Accept |
+| 2 | Live / final speech models | GPU: large-v3-turbo-q5_0 live and final, per VAD segment.  CPU-only: small.en-q5_1 live (`-ac 768`), turbo final.  `-mc 0` for whole-file passes | Accept |
+| 3 | Live diarization | Incremental per-segment clustering (join 0.5) with the "Speaker ?" rule; offline relabel in the final pass | Accept |
+| 4 | Summary model | Qwen3.5-9B Q4_K_M (80% recall on GPU, 76% on M5 Metal) | Accept |
+| 5 | Audio chunks | 5 s Opus chunks, mono 32 kbps per track, each with its first frame's device timestamp; new chunk at every discontinuity | Accept |
+| 6 | Voice-match confidence line | Provisional 0.55--0.60 cosine; re-measure across sessions in Phase 4 | Accept |
+| 7 | DOCX library | Follows Electron: a Node DOCX writer such as `docx` | Accept |
+| 8a | Final DER target 20% | Best measured 21--28% (AMI); accept ~25% or keep 20% as a stretch goal | Change: pass line ~25%; keep 20% as a stretch goal |
+| 8b | Summary recall target 90% | Best measured 76--84%; accept ~80% | Change: pass line ~80%; keep 90% as a stretch goal |
+| 8c | Live-versus-final WER 15% | About 10% at GPU full context; keep | Accept (keep 15%) |
+| 8d | RAM guidance | 16 GB minimum works; recommend 32 GB as typical | Accept (16 GB minimum, 32 GB recommended) |
 
 ## Not parallel
 
