@@ -62,6 +62,12 @@ function u32(value: number): Buffer {
   return buffer;
 }
 
+function flipped(data: Buffer, at: number): Buffer {
+  const copy = Buffer.from(data);
+  copy[at] = (copy[at] ?? 0) ^ 0xff;
+  return copy;
+}
+
 describe('sealAudio', () => {
   let audio: string;
 
@@ -166,6 +172,71 @@ describe('sealAudio', () => {
     const { gaps } = await sealAudio(audio, dead);
     expect(gaps).toEqual([
       { kind: 'audioMissing', track: 'microphone', startNs: 2 * SECOND, endNs: 4 * SECOND },
+    ]);
+  });
+
+  it('survives a cut or damage at every byte of the last page', async () => {
+    const whole = chunk(0, 0, 2, 'start');
+    const lastPage = readPages(whole).at(-1);
+    for (let at = lastPage?.start ?? 0; at < whole.length; at += 7) {
+      for (const damaged of [whole.subarray(0, at), flipped(whole, at)]) {
+        rmSync(join(audio, 'meeting'), { recursive: true, force: true });
+        put('meeting', '000000.opus.part', damaged);
+        const { tracks } = await sealAudio(audio, dead);
+        expect(tracks.meeting?.endNs).toBe(SECOND);
+        expect(readPages(readFileSync(join(audio, 'meeting', '000000.opus')))).toHaveLength(3);
+        rmSync(join(audio, 'meeting', 'chunks.json'), { force: true });
+      }
+    }
+  });
+
+  it('trusts the finished chunk when a crash left it and its part', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 3, 'start'));
+    put('meeting', '000000.opus.part', chunk(0, 0, 1, 'start'));
+    const { tracks } = await sealAudio(audio, dead);
+    expect(tracks.meeting?.endNs).toBe(3 * SECOND);
+    expect(existsSync(join(audio, 'meeting', '000000.opus.part'))).toBe(false);
+  });
+
+  it('clears a half-written repair and repairs again', async () => {
+    put('meeting', '000000.opus.part', chunk(0, 0, 2, 'start'));
+    put('meeting', '000000.opus.tmp', Buffer.from('half a file'));
+    const { tracks } = await sealAudio(audio, dead);
+    expect(tracks.meeting?.endNs).toBe(2 * SECOND);
+    expect(existsSync(join(audio, 'meeting', '000000.opus.tmp'))).toBe(false);
+  });
+
+  it('keeps a meeting that crashed before any audio was saved', async () => {
+    mkdirSync(join(audio, 'meeting'));
+    mkdirSync(join(audio, 'microphone'));
+    const { outcome, endNs } = await sealAudio(audio, dead);
+    expect(outcome).toBe('recovered');
+    expect(endNs).toBe(0);
+  });
+
+  it('rebuilds a damaged chunks.json from the chunks', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', 'chunks.json', Buffer.from('{ not json'));
+    const { tracks } = await sealAudio(audio, dead);
+    expect(tracks.meeting?.endNs).toBe(2 * SECOND);
+  });
+
+  it('refuses a chunks.json from a newer version', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', 'chunks.json', Buffer.from(JSON.stringify({ schemaVersion: 99 })));
+    await expect(sealAudio(audio, dead)).rejects.toThrow('newer');
+  });
+
+  it('keeps the good pages of a damaged chunk in mid-sequence, and marks the hole', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 5, 'start'));
+    const middle = chunk(1, 5 * SECOND, 5, 'rollover');
+    put('meeting', '000001.opus', flipped(middle, readPages(middle)[4]?.start ?? 0));
+    put('meeting', '000002.opus', chunk(2, 10 * SECOND, 5, 'rollover'));
+    const { tracks, gaps } = await sealAudio(audio, dead);
+    expect(tracks.meeting?.chunks).toHaveLength(3);
+    expect(tracks.meeting?.chunks[1]?.endNs).toBe(7 * SECOND);
+    expect(gaps).toEqual([
+      { kind: 'audioMissing', track: 'meeting', startNs: 7 * SECOND, endNs: 10 * SECOND },
     ]);
   });
 

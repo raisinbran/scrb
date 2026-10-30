@@ -253,8 +253,11 @@ function sealTrack(
 ): Omit<SealedTrack, 'gaps'> | null {
   const folder = join(audioDir, track);
   if (!existsSync(folder)) return null;
+  // Leftovers go first: repairing a part writes and renames a file of the same name.
   for (const name of readdirSync(folder)) {
-    if (name.endsWith('.opus.tmp')) rmSync(join(folder, name));
+    if (name.endsWith('.tmp')) rmSync(join(folder, name));
+  }
+  for (const name of readdirSync(folder)) {
     if (name.endsWith('.opus.part')) repairPart(folder, name);
   }
   const logged = new Map(
@@ -290,6 +293,19 @@ function sealTrack(
   };
 }
 
+/** A damaged list is rebuilt from the chunks. A newer one is refused, so it is never overwritten. */
+function readSealed(path: string): SealedTrack | null {
+  if (!existsSync(path)) return null;
+  let sealed: SealedTrack;
+  try {
+    sealed = JSON.parse(readFileSync(path, 'utf8')) as SealedTrack;
+  } catch {
+    return null;
+  }
+  if (sealed.schemaVersion > 2) throw new Error(`${path} is from a newer version`);
+  return sealed;
+}
+
 /**
  * Seals both tracks. Every step can be repeated, so a crash here just runs it again.
  * `isWriterAlive` must use the real lock: a live worker's files are left alone.
@@ -302,9 +318,8 @@ export async function sealAudio(
 
   const logsPresent = TRACKS.some((track) => existsSync(join(audioDir, track, 'chunks.log')));
   const sealed = TRACKS.map((track) => {
-    const path = join(audioDir, track, 'chunks.json');
-    if (!logsPresent && existsSync(path))
-      return [track, JSON.parse(readFileSync(path, 'utf8')) as SealedTrack] as const;
+    const existing = readSealed(join(audioDir, track, 'chunks.json'));
+    if (!logsPresent && existing) return [track, existing] as const;
     return [track, sealTrack(audioDir, track, 'crash')] as const;
   });
   const present = sealed.flatMap(([track, value]) => (value ? [[track, value] as const] : []));
