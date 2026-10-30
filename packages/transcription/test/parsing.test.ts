@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
@@ -80,8 +81,8 @@ describe('import checks', () => {
 
   it('reads the chunk list', () => {
     expect(parseChunkList('000000.opus,0.000000,5.000000\n000001.opus,5.000000,7.5\n', '/d')).toEqual([
-      { path: '/d/000000.opus', startMs: 0, durationMs: 5000 },
-      { path: '/d/000001.opus', startMs: 5000, durationMs: 2500 },
+      { path: join('/d', '000000.opus'), startMs: 0, durationMs: 5000 },
+      { path: join('/d', '000001.opus'), startMs: 5000, durationMs: 2500 },
     ]);
   });
 });

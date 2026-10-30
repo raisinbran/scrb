@@ -12,7 +12,8 @@ afterEach(async () => {
   delete process.env.FAKE_MODE;
 });
 
-describe("LlamaServerWorker", () => {
+// The fake server is a Node script, which Windows cannot start directly as an executable.
+describe.skipIf(process.platform === "win32")("LlamaServerWorker", () => {
   it("starts the server with Metal offload and a schema request", async () => {
     worker = new LlamaServerWorker({ serverPath: server, modelPath: "/models/Qwen3.5-9B-Q4_K_M.gguf" });
     await worker.start();

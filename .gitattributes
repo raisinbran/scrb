@@ -1,0 +1,3 @@
+# Fixture hashes depend on exact bytes, so Windows checkouts must not convert line endings.
+phase0/fixtures/** -text
+packages/*/test/fixtures/** -text
