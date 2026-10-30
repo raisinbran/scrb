@@ -167,16 +167,13 @@ export interface RelabelOptions {
   knownSpeakers?: number;
   /** Clusters under this are absorbed into their nearest real speaker. */
   minSpeakerMs?: number;
-  /** Always merge at or above this cosine similarity. */
-  mergeAbove?: number;
-  /** Never merge below this. */
-  mergeBelow?: number;
+  /** Merge clusters at or above this cosine similarity. */
+  mergeLine?: number;
 }
 
 export const RELABEL_DEFAULTS = {
   minSpeakerMs: NAMED_AFTER_MS,
-  mergeAbove: 0.62,
-  mergeBelow: 0.42,
+  mergeLine: 0.65,
 } as const;
 
 interface Group {
@@ -210,11 +207,10 @@ function closestPair(groups: Group[]): { i: number; j: number; sim: number } | n
 
 /**
  * Decides the final speakers from an over-split diarization.  Phase 0 showed no
- * single sherpa threshold holds: the usable band is narrow and moved 11 points
- * of DER between onnxruntime builds.  So sherpa runs below that band and the
- * merging is judged per meeting: pairs above `mergeAbove` always merge, pairs
- * below `mergeBelow` never do, and between them the stop point is the largest
- * drop in similarity between successive merges.
+ * sherpa threshold holds: the usable band is narrow and moved 11 points of DER
+ * between onnxruntime builds.  So sherpa runs below that band and clusters are
+ * merged here on voice similarity, where 0.60--0.70 gave the same result on
+ * all three AMI meetings, from WAV and from Opus chunks alike.
  *
  * Returns a map from raw cluster to final speaker index, biggest speaker first.
  */
@@ -223,8 +219,7 @@ export function relabelClusters(
   options: RelabelOptions = {},
 ): Map<number, number> {
   const minSpeakerMs = options.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs;
-  const mergeAbove = options.mergeAbove ?? RELABEL_DEFAULTS.mergeAbove;
-  const mergeBelow = options.mergeBelow ?? RELABEL_DEFAULTS.mergeBelow;
+  const mergeLine = options.mergeLine ?? RELABEL_DEFAULTS.mergeLine;
 
   const voiced = clusters.filter((c) => c.embedding);
   const voiceless = clusters.filter((c) => !c.embedding);
@@ -250,28 +245,9 @@ export function relabelClusters(
       mergeGroups(major, p.i, p.j);
     }
   } else {
-    // Trial merges on a copy give the similarity curve; the cut is then replayed.
-    const trial = major.map((g) => ({ ...g, members: [...g.members], sum: [...g.sum] }));
-    const sims: number[] = [];
-    while (trial.length > 1) {
-      const p = closestPair(trial)!;
-      sims.push(p.sim);
-      mergeGroups(trial, p.i, p.j);
-    }
-    let merges = 0;
-    while (merges < sims.length && sims[merges]! >= mergeAbove) merges++;
-    let stop = merges;
-    let biggestDrop = 0;
-    for (let n = merges; n < sims.length && sims[n]! >= mergeBelow; n++) {
-      const after = sims[n + 1] ?? mergeBelow;
-      const drop = sims[n]! - Math.max(after, mergeBelow - 0.1);
-      if (drop > biggestDrop) {
-        biggestDrop = drop;
-        stop = n + 1;
-      }
-    }
-    for (let n = 0; n < stop; n++) {
-      const p = closestPair(major)!;
+    for (;;) {
+      const p = closestPair(major);
+      if (!p || p.sim < mergeLine) break;
       mergeGroups(major, p.i, p.j);
     }
   }
