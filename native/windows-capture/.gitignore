@@ -1,0 +1,6 @@
+third_party/
+build/
+out/
+*.opus
+*.opus.tmp
+*.wav
