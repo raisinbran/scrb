@@ -2,7 +2,7 @@
 
 **Ownership rule:** UI code lives in `apps/desktop/src/ui/`, backend code lives everywhere else, and `packages/contracts/` changes only with the owner's approval.
 
-**Temporary owner decision (2026-10-30):** the Codex/Claude split and sequential gate approval are lifted for now, and Claude Code builds both UI and backend. The folder boundaries still apply: keep each change on one side of the line, and do not let UI code import backend modules. The split in the Development Process document returns when the owner says so.
+**Work split (owner decision, 2026-10-30):** gates are approved in sequence; a phase does not start before the previous gate is approved. The Codex/Claude split in the Development Process document is a preference, not a rule: unless the owner asks for work to be split between Claude and Codex, Claude Code may build both UI and backend. The folder boundaries still apply: keep each change on one side of the line, and do not let UI code import backend modules.
 
 ## Sources
 
