@@ -1,0 +1,30 @@
+﻿case=mic-privacy-off start=20:11:06 actionAt=20:12:06 tonePid=41216
+20:11:06 output: Speakers (2- Realtek(R) Audio) muted=1 volume=26% | comms mic: Microphone Array (2- Realtek(R) Audio)
+exited=True exit=0 end=20:14:08 elapsed=181s
+--- stderr
+--- stdout (tail)
+Capturing 180 seconds.
+60 s app_frames=2898720 mic_frames=2881440
+120 s app_frames=5780640 mic_frames=4577280
+180 s app_frames=8663040 mic_frames=4577280
+Finished. drift(sample-count)=-0.032 ms
+--- summary
+{
+  "requested_seconds": 180,
+  "wall_seconds": 180.950,
+  "start_offset_ms": 359.798,
+  "sample_count_drift_ms": -0.032,
+  "arrival_drift_ms": -0.715,
+  "cpu_seconds": 1.047,
+  "avg_cpu_percent_of_machine": 0.0482,
+  "peak_working_set_mib": 13.0,
+  "app": {"hresult": "0x00000000", "packets": 18049, "frames": 8663520, "seconds_by_frames": 180.490000, "effective_rate_hz": 48000.0000, "frame_vs_clock_error_ms": 0.000, "discontinuities": 0, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.000, "arrival_error_ms": -0.445, "max_inter_arrival_ms": 12.063},
+  "mic": {"hresult": "0x00000000", "packets": 9536, "frames": 4577280, "seconds_by_frames": 95.360000, "effective_rate_hz": 48000.0163, "frame_vs_clock_error_ms": 0.032, "discontinuities": 1, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.522, "arrival_error_ms": 0.270, "max_inter_arrival_ms": 10.574}
+}
+
+[exited with code 0]
+20:11:13 master=Allow desktop=Allow
+20:12:42 master=Allow desktop=Deny
+20:12:58 master=Allow desktop=Allow
+
+[exited with code 0]
