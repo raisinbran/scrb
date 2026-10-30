@@ -188,6 +188,94 @@ describe('MockBackend', () => {
     expect(page.revision).toBe(3);
   });
 
+  describe('library', () => {
+    it('applies date bounds inclusively', async () => {
+      const meetings = await backend.call('listMeetings', {
+        filter: { from: '2026-10-26', to: '2026-10-27' },
+      });
+      expect(meetings.map((meeting) => meeting.id).sort()).toEqual([
+        'meeting-outdated',
+        'meeting-recovered',
+      ]);
+    });
+
+    it('searches transcript text and returns where it matched', async () => {
+      const [first] = await backend.call('searchMeetings', { query: 'northern depot' });
+      expect(first?.matches[0]?.snippet).toContain('northern depot');
+      expect(first?.matches[0]?.startMs).not.toBeNull();
+    });
+  });
+
+  describe('import stages', () => {
+    it('reports each stage and uses the picked file', async () => {
+      const stages: string[] = [];
+      let meetingId = '';
+      backend.on('importProgress', ({ stage }) => stages.push(stage));
+      backend.on('importFinished', (event) => (meetingId = event.meetingId));
+      const file = await backend.call('pickAudioFile');
+      await backend.call('importAudioFile', {
+        fileToken: (file as { fileToken: string }).fileToken,
+        buildVoiceProfiles: false,
+      });
+      vi.advanceTimersByTime(5000);
+      expect(stages).toEqual(['decoding', 'transcribing', 'diarizing', 'finishing']);
+      expect((await backend.call('getMeeting', { meetingId })).startedAt).toBe(file?.fileDate);
+    });
+
+    it('stops an import when a recording starts', async () => {
+      const failures: string[] = [];
+      backend.on('importFailed', ({ reason }) => failures.push(reason));
+      await backend.call('importAudioFile', { fileToken: 'file-1', buildVoiceProfiles: false });
+      await backend.call('startRecording', {});
+      expect(failures).toEqual(['recordingInProgress']);
+    });
+  });
+
+  describe('summary', () => {
+    const meetingId = 'meeting-outdated';
+
+    it('saves an edit and keeps it through regeneration', async () => {
+      const { actionItems } = await backend.call('getSummary', { meetingId });
+      const item = { ...(actionItems[0] as (typeof actionItems)[number]), action: 'Changed' };
+      const saved = await backend.call('updateSummaryItem', {
+        meetingId,
+        update: { kind: 'actionItem', item },
+      });
+      expect(saved.actionItems[0]?.edited).toBe(true);
+
+      await backend.call('generateSummary', { meetingId, length: 'brief' });
+      expect((await backend.call('getSummary', { meetingId })).state).toBe('generating');
+      vi.advanceTimersByTime(5000);
+
+      const after = await backend.call('getSummary', { meetingId });
+      expect(after.state).toBe('edited');
+      expect(after.actionItems[0]?.action).toBe('Changed');
+    });
+
+    it('generates only the requested length', async () => {
+      await backend.call('generateSummary', { meetingId: 'meeting-imported', length: 'brief' });
+      vi.advanceTimersByTime(5000);
+      const { narrative } = await backend.call('getSummary', { meetingId: 'meeting-imported' });
+      expect(narrative.brief).not.toBeNull();
+      expect(narrative.full).toBeNull();
+    });
+
+    it('marks the summary outdated when that event fires', async () => {
+      backend.emit('summaryOutdated', { meetingId: LONG_MEETING_ID });
+      const summary = await backend.call('getSummary', { meetingId: LONG_MEETING_ID });
+      expect(summary.state).toBe('outdated');
+    });
+  });
+
+  it('reports playback position and keeps it on pause', async () => {
+    const positions: number[] = [];
+    backend.on('playbackPosition', ({ positionMs }) => positions.push(positionMs));
+    await backend.call('seekAudio', { meetingId: LONG_MEETING_ID, positionMs: 1000 });
+    vi.advanceTimersByTime(500);
+    await backend.call('pauseAudio', { meetingId: LONG_MEETING_ID });
+    expect(positions).toEqual([1000, 1250, 1500, 1500]);
+  });
+
   it('runs every developer trigger without throwing', () => {
     for (const trigger of DEV_TRIGGERS) expect(() => trigger.run(backend)).not.toThrow();
   });

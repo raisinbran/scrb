@@ -22,3 +22,8 @@ export function formatMeetingDate(iso: string): string {
     day: 'numeric',
   });
 }
+
+export function formatFileSize(bytes: number): string {
+  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(bytes / 1_000_000))} MB`;
+}

@@ -132,6 +132,15 @@ export function createLibrary(): MeetingDetail[] {
     },
     {
       ...base,
+      id: 'meeting-edited',
+      title: 'Design review',
+      startedAt: '2026-10-24T14:00:00Z',
+      durationMs: 38 * 60_000,
+      summaryState: 'edited',
+      speakerCount: 3,
+    },
+    {
+      ...base,
       id: 'meeting-recovered',
       title: 'Vendor call',
       startedAt: '2026-10-26T18:00:00Z',
@@ -178,7 +187,7 @@ export function createSummary(
               id: 'n-b1',
               heading: null,
               text: 'The team agreed to start the pilot at the northern depot in the second week of November. Storage costs still need an updated estimate, and the older inventory records remain the main risk.',
-              edited: false,
+              edited: state === 'edited',
             },
           ],
       full: empty
@@ -211,6 +220,7 @@ export function createSummary(
             status: 'agreed',
             sourceMs: 412_000,
             ...UNREVIEWED,
+            edited: state === 'edited',
           },
           {
             id: 'a-2',
@@ -222,6 +232,19 @@ export function createSummary(
             status: 'unconfirmed',
             sourceMs: 1_840_000,
             ...UNREVIEWED,
+          },
+          {
+            id: 'a-3',
+            action: 'Book the first training session',
+            owner: 'Tomas Lindgren',
+            deadline: 'next week',
+            ownerUnconfirmed: false,
+            deadlineUnconfirmed: true,
+            status: 'proposed',
+            sourceMs: 2_600_000,
+            ...UNREVIEWED,
+            alsoAtMs: [2_710_000],
+            needsReview: true,
           },
         ],
     decisions: empty
@@ -254,7 +277,8 @@ export function createSummary(
             ...UNREVIEWED,
           },
         ],
-    warnings: [],
+    warnings:
+      state === 'outdated' ? ['15:00 to 17:00 was paused, so the summary does not cover it.'] : [],
   };
 }
 

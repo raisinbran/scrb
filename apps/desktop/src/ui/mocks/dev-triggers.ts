@@ -83,6 +83,36 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.arm('importFails'),
   },
   {
+    id: 'import-unsupported',
+    group: 'Recordings',
+    label: 'Next import is an unsupported file',
+    run: (b) => b.arm('importUnsupported'),
+  },
+  {
+    id: 'import-disk-full',
+    group: 'Recordings',
+    label: 'Next import runs out of disk',
+    run: (b) => b.arm('importDiskFull'),
+  },
+  {
+    id: 'picker-cancelled',
+    group: 'Recordings',
+    label: 'Next file picker is cancelled',
+    run: (b) => b.arm('pickerCancelled'),
+  },
+  {
+    id: 'finish-final-pass',
+    group: 'Recordings',
+    label: 'Finish final pass',
+    run: (b) => b.finishFinalPass(),
+  },
+  {
+    id: 'delete-slow',
+    group: 'Recordings',
+    label: 'Next delete is slow',
+    run: (b) => b.arm('deleteSlow'),
+  },
+  {
     id: 'delete-fails',
     group: 'Recordings',
     label: 'Next delete leaves files behind',
@@ -99,6 +129,12 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     group: 'Summary',
     label: 'Next summary fails',
     run: (b) => b.arm('summaryFails'),
+  },
+  {
+    id: 'summary-stalls',
+    group: 'Summary',
+    label: 'Next summary stays generating',
+    run: (b) => b.arm('summaryStalls'),
   },
   {
     id: 'summary-outdated',
