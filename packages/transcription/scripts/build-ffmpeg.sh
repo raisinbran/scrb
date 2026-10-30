@@ -40,7 +40,7 @@ cd ffmpeg-9.0
   --disable-ffplay --disable-avdevice --disable-swscale \
   --enable-ffmpeg --enable-ffprobe --enable-libopus \
   --enable-protocol=file,pipe \
-  --enable-demuxer=wav,w64,mp3,mov,flac,ogg,aac,concat \
+  --enable-demuxer=wav,w64,mp3,mov,flac,ogg,aac \
   --enable-decoder=pcm_u8,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp3,mp3float,aac,aac_fixed,alac,flac,opus \
   --enable-parser=aac,flac,mpegaudio,opus \
   --enable-encoder=libopus,pcm_s16le,pcm_f32le \

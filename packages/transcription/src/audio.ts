@@ -1,13 +1,11 @@
-import { open, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { open } from 'node:fs/promises';
 import type { ToolPaths } from './config.js';
 import type { AudioChunk } from './types.js';
 import { WorkerFailed, WorkerProcess, runToCompletion } from './worker.js';
 
 export const MODEL_RATE = 16_000;
 const BYTES_PER_SAMPLE = 2;
-/** Chunks closer than this count as continuous audio. */
-const CONTIGUOUS_MS = 30;
+const HEADER_BYTES = 44;
 
 export function wavHeader(dataBytes: number, rate = MODEL_RATE): Buffer {
   const h = Buffer.alloc(44);
@@ -31,69 +29,39 @@ export function pcmToWav(samples: Int16Array): Buffer {
   return Buffer.concat([wavHeader(data.length), data]);
 }
 
-/** Splits chunks into stretches with no gap, so pauses stay silent in the WAV. */
-export function contiguousRuns(chunks: AudioChunk[]): AudioChunk[][] {
-  const sorted = [...chunks].sort((a, b) => a.startMs - b.startMs);
-  const runs: AudioChunk[][] = [];
-  let end = Number.NEGATIVE_INFINITY;
-  for (const chunk of sorted) {
-    const run = runs.at(-1);
-    if (run && Math.abs(chunk.startMs - end) <= CONTIGUOUS_MS) run.push(chunk);
-    else runs.push([chunk]);
-    end = chunk.startMs + chunk.durationMs;
-  }
-  return runs;
-}
-
-function concatList(chunks: AudioChunk[]): string {
-  const lines = ['ffconcat version 1.0'];
-  for (const c of chunks) lines.push(`file '${c.path.replaceAll("'", "'\\''")}'`);
-  return lines.join('\n') + '\n';
-}
+/** Chunks decoded at once while assembling. */
+const ASSEMBLE_WORKERS = 3;
 
 /**
  * Decodes a track's chunks into one 16 kHz mono WAV on the meeting timeline.
- * Each run of chunks starts at its stamped position, so gaps stay gaps and any
- * rounding inside a run is corrected at the next one.
+ * Each chunk goes at its own stamp, never after the one before: sample counts
+ * do not place audio, gaps stay silent, and no error can build up over 8 hours.
  */
 export async function assembleChunks(
   tools: ToolPaths,
   chunks: AudioChunk[],
   wavPath: string,
-  workDir: string,
   signal?: AbortSignal,
   onFraction?: (fraction: number) => void,
 ): Promise<void> {
-  const runs = contiguousRuns(chunks);
-  const total = chunks.reduce((sum, c) => sum + c.durationMs, 0) || 1;
   const output = await open(wavPath, 'w');
-  let doneMs = 0;
-  let endByte = 0;
-  try {
-    for (const [i, run] of runs.entries()) {
-      const list = join(workDir, `concat-${i}.txt`);
-      await writeFile(list, concatList(run));
-      const worker = new WorkerProcess({
-        name: 'ffmpeg',
-        command: tools.ffmpeg,
-        args: ['-nostdin', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list,
-          '-ac', '1', '-ar', String(MODEL_RATE), '-f', 's16le', 'pipe:1'],
-        ...(signal ? { signal } : {}),
-      });
-      const firstMs = run[0]!.startMs;
-      let position = 44 + 2 * Math.round((firstMs * MODEL_RATE) / 1000);
-      for await (const data of worker.stdout as AsyncIterable<Buffer>) {
-        await output.write(data, 0, data.length, position);
-        position += data.length;
-      }
-      const exit = await worker.done;
-      await rm(list, { force: true });
-      if (exit.code !== 0) throw new WorkerFailed('ffmpeg', exit);
-      endByte = Math.max(endByte, position);
-      doneMs += run.reduce((sum, c) => sum + c.durationMs, 0);
-      onFraction?.(doneMs / total);
+  let next = 0;
+  let done = 0;
+  let endByte = HEADER_BYTES;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const chunk = chunks[next++];
+      if (!chunk) return;
+      const pcm = await decodeChunk(tools, chunk.path, signal);
+      const position = HEADER_BYTES + BYTES_PER_SAMPLE * Math.round((chunk.startMs * MODEL_RATE) / 1000);
+      await output.write(Buffer.from(pcm.buffer), 0, pcm.byteLength, position);
+      endByte = Math.max(endByte, position + pcm.byteLength);
+      onFraction?.(++done / chunks.length);
     }
-    await output.write(wavHeader(Math.max(0, endByte - 44)), 0, 44, 0);
+  };
+  try {
+    await Promise.all(Array.from({ length: ASSEMBLE_WORKERS }, worker));
+    await output.write(wavHeader(endByte - HEADER_BYTES), 0, HEADER_BYTES, 0);
   } finally {
     await output.close();
   }

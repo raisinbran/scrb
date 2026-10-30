@@ -70,7 +70,7 @@ export async function runFinalPass(o: FinalPassOptions): Promise<FinalTranscript
       }
       const wavPath = join(o.workDir, `track-${i}.wav`);
       report('assembling', i / o.tracks.length);
-      await assembleChunks(o.tools, track.source.chunks, wavPath, o.workDir, o.signal);
+      await assembleChunks(o.tools, track.source.chunks, wavPath, o.signal);
       prepared.push({ kind: track.kind, wavPath });
     }
 
