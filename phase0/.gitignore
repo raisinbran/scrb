@@ -31,3 +31,5 @@ artifacts/capture/devices/*.wav
 # macOS device-case recordings
 artifacts/capture/macos/devices/*.wav
 probes/macos-dual-capture/SetDefaultDevice
+artifacts/capture/macos/drift-*.wav
+artifacts/capture/macos/*-tone.m4a

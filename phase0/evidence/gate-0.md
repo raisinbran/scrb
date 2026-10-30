@@ -507,7 +507,7 @@ The desktop shell and UI are not built yet; Electron typically adds a few
 hundred MiB.  The whole-app recording budget of about 6 GB has ample headroom
 on Windows.  The final pass loads turbo (811 MiB) after Stop.
 
-## Recommendations for Gate 0 open items (proposed; owner decides)
+## Recommendations for Gate 0 open items (owner decisions 2026-10-29: accepted, see Gate Decision)
 
 | Open item | Proposal from measurements |
 | --- | --- |
@@ -715,12 +715,48 @@ noise already seen.
 
 Within the 6 GB budget, as on Windows.
 
+### Device-state cases (macOS, 2026-10-29 evening)
+
+`scripts/run-macos-device-case.sh`: quiet afplay tone plus default mic,
+180--240 s, change at 60 s.  Output and mic switches were made at the exact
+second by `probes/macos-dual-capture/SetDefaultDevice` (the virtual Steam
+Streaming devices as targets); the owner did sleep/wake and the AirPods Pro
+3 steps.  Outputs: `artifacts/capture/macos/devices/`.
+
+| Case | Probe | App track | Mic track |
+| --- | --- | --- | --- |
+| Output switch (speakers to virtual device) | ran to end, exit 0 | tone continuous, 0 gaps | unaffected |
+| Mic switch (to virtual mic) | ran to end | tone continuous | **stayed on the old mic** (live, 0 gaps) |
+| AirPods connect (become default output and mic) | ran to end | tone continuous | stayed on the built-in mic |
+| AirPods disconnect (started on AirPods output and mic) | ran to end | **half rate while on AirPods hands-free** (24 kHz delivered, 48 kHz assumed, no flag); 35 s of silence padded in one step when output fell back to the speakers | **stopped at 70 s: no packets, no error** |
+| AirPods enter hands-free mid-run (mic switched to AirPods) | ran to end | tone continuous, full rate | stayed on the built-in mic, 0 gaps |
+| Sleep/wake (55 s asleep, Apple menu) | ran to end, exit 0 | resumed with tone | resumed |
+
+Sleep/wake detail: host time (`mach_absolute_time`) does not advance during
+sleep, so the probe saw a single 24 s arrival jump (1 discontinuity, nothing
+padded) for 55 s of sleep.  Both tracks stayed aligned with each other
+(25 ms), but the recording is about 41 s shorter than the wall-clock span
+(217 s of audio in 282 s; the probe's own timer also stopped while asleep).
+
+**Design consequences for the Phase 2 macOS adapter:**
+
+1. Listen for default-device changes and reopen the mic on the new default,
+   as on Windows; a disappearing device stops delivering without an error, so
+   keep an arrival watchdog.
+2. Read the tap's actual delivered rate per packet, not once at start: a tap
+   whose aggregate device is clocked by a hands-free Bluetooth headset
+   delivers half the frames with no flag.  Rebuild the tap aggregate when the
+   default output changes.
+3. Handle sleep explicitly: close the chunk on the will-sleep notification
+   and start a new chunk on wake, stamped with a sleep-aware clock
+   (`mach_continuous_time` or wall time); host time alone loses the sleep.
+4. These agree with the Windows rules: the per-chunk timestamps and "new
+   chunk at every gap" design covers both platforms once wake and device
+   changes force a chunk boundary.
+
 ### Not run on the Mac yet
 
-- 8 h drift run: needs 8 unbroken awake hours on AC, started from the Claude app's terminal pane
-  so the app track carries audio.
-- Device cases (output and input switch, Bluetooth headset, sleep/wake): need
-  a person at the machine.
+- 8 h drift run: started 2026-10-29 19:32 (results to follow).
 
 ## Gate Checklist
 
@@ -734,23 +770,31 @@ Within the 6 GB budget, as on Windows.
 - [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
   passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
   load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
-  8 h drift and device cases not run.  Metal-worker reruns (with real app
-  audio) show 3--5 stalls per hour not caused by the worker.
+  Metal-worker reruns (with real app audio) show 3--5 stalls per hour not
+  caused by the worker.  Device cases ran: the probe never crashed; mic does
+  not follow device changes, Bluetooth hands-free halves the app-track rate,
+  and sleep is invisible to host time (adapter rules above).  8 h drift run
+  in progress.
 - [ ] Recording survives a crashed AI worker on both machines.  Windows
   passes (120 runs, 16 killed, 0 app-track gaps).  macOS: recording survives
   every kill (3 x 121 runs, 36 killed, no kill-related gaps); the load stalls
   above are a separate finding.
 - [x] Native models fit the 6 GB whole-app recording budget.  Windows about
   1.3 GiB, macOS about 1.1--1.5 GiB measured, before the shell.
-- [ ] Live diarization is usable, or the documented fallback is accepted.
-  Usable on Windows at about 25--29% DER, pending owner acceptance.
+- [x] Live diarization is usable, or the documented fallback is accepted.
+  Usable at about 25--32% DER on both machines; accepted by the owner
+  2026-10-29 (final DER pass line ~25%, 20% kept as a stretch goal).
 - [x] The Meetily decision rule has a decisive code-level failure.
-- [ ] The final framework choice is approved by the project owner.
+- [x] The final framework choice is approved by the project owner:
+  Electron with project-owned capture adapters (2026-10-29).
 
 ## Gate Decision
 
 **Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-on the Mac the 8 h drift run and device cases; and
-owner decisions on the framework, the DER and summary-recall targets, and the
-recommendations above.
+the Mac 8 h drift run (in progress) and the macOS capture and crash-worker
+checklist items it closes.  The owner decided every open item on
+2026-10-29 (`HANDOFF-PARALLEL.md`, table B): all recommendations accepted;
+final DER pass line ~25% and summary recall pass line ~80%, with 20% and 90%
+kept as stretch goals; live-versus-final WER stays at 15%; RAM 16 GB
+minimum, 32 GB recommended.
 

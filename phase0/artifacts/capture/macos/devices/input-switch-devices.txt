@@ -1,3 +1,6 @@
 before (18:10:12):
   default input: MacBook Air Microphone
   default output: MacBook Air Speakers
+after (18:13:15):
+  default input: MacBook Air Microphone
+  default output: MacBook Air Speakers
