@@ -40,7 +40,7 @@ export class RowHeights {
     const previous = this.heightOf(index);
     if (Math.abs(previous - heightPx) < 0.5) return 0;
     this.measured.set(id, heightPx);
-    this.invalidateFrom(index + 1);
+    this.invalidateFrom(index);
     return heightPx - previous;
   }
 

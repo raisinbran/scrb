@@ -86,7 +86,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const [selection, setSelection] = useState<WordSelection | null>(null);
   const [cursor, setCursor] = useState<WordRef | null>(null);
   const [editing, setEditing] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const playback = usePlayback(meetingId);
   const undoState = useUndo(meetingId);
@@ -125,23 +124,18 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   }, [store, firstRow, lastRow, version]);
 
   // Selected words are tracked by id, so only a rewrite of those very words can move them.
-  useEffect(() => {
-    if (!selection) return;
-    const resolved = resolveSelection(store, selection);
-    if (resolved === selection) return;
-    setSelection(resolved);
-    if (!resolved) {
-      setEditing(false);
-      setNotice('The selected text changed, so the selection was cleared.');
-    }
-  }, [store, selection, version]);
-
-  const range = useMemo(
-    () => (selection ? rangeOf(store, selection) : null),
+  const liveSelection = useMemo(
+    () => (selection ? resolveSelection(store, selection) : null),
     // `version` stands for the store's contents, which React cannot see.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [store, selection, version],
   );
+  const range = useMemo(
+    () => (liveSelection ? rangeOf(store, liveSelection) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [store, liveSelection, version],
+  );
+  const selectionLost = selection !== null && liveSelection === null;
   const cursorPosition = useMemo(
     () => (cursor ? store.positionOf(cursor) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,12 +159,12 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     }
     if (aboveViewport !== 0 && !following) element.scrollTop += aboveViewport;
     if (changed) setMeasureTick((tick) => tick + 1);
-  });
+  }, [store, version, firstRow, lastRow, firstVisible, following, fontPx, viewport, measureTick]);
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
     if (!element || !following) return;
-    const bottom = totalHeight - element.clientHeight;
+    const bottom = Math.max(totalHeight - element.clientHeight, 0);
     if (element.scrollTop !== bottom) {
       reachedBottomByCode.current = true;
       element.scrollTop = bottom;
@@ -223,17 +217,21 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     setSelection(next);
     setCursor(next.focus);
     setFollowing(false);
-    setNotice(null);
+  };
+
+  const refFromEvent = (event: MouseEvent): WordRef | null => {
+    const word = wordAt(event.target);
+    const position = word && store.positionOf({ ...word, startMs: 0 });
+    return position ? store.refAt(position) : null;
   };
 
   const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0) return;
-    const word = wordAt(event.target);
-    const ref = word && store.resolve({ ...word, startMs: 0 });
+    const ref = refFromEvent(event);
     if (!ref) return;
-    if (event.shiftKey && selection) {
-      startSelection({ anchor: selection.anchor, focus: ref });
-      dragRef.current = { anchor: selection.anchor, moved: true };
+    if (event.shiftKey && liveSelection) {
+      startSelection({ anchor: liveSelection.anchor, focus: ref });
+      dragRef.current = { anchor: liveSelection.anchor, moved: true };
       return;
     }
     dragRef.current = { anchor: ref, moved: false };
@@ -242,8 +240,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const onMouseMove = (event: MouseEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
-    const word = wordAt(event.target);
-    const focus = word && store.resolve({ ...word, startMs: 0 });
+    const focus = refFromEvent(event);
     if (!focus || (focus.wordId === drag.anchor.wordId && !drag.moved)) return;
     drag.moved = true;
     startSelection({ anchor: drag.anchor, focus });
@@ -270,8 +267,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
 
   const onDoubleClick = (event: MouseEvent) => {
     clearTimeout(clickTimer.current);
-    const word = wordAt(event.target);
-    const ref = word && store.resolve({ ...word, startMs: 0 });
+    const ref = refFromEvent(event);
     if (!ref) return;
     startSelection({ anchor: ref, focus: ref });
     setEditing(true);
@@ -292,7 +288,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     setCursor(next);
     scrollRowIntoView(next ? (store.positionOf(next)?.segment ?? 0) : 0);
     if (extend) {
-      const anchor = selection?.anchor ?? (from && store.refAt(from)) ?? next;
+      const anchor = liveSelection?.anchor ?? (from && store.refAt(from)) ?? next;
       setSelection({ anchor, focus: next });
     } else {
       setSelection(null);
@@ -306,9 +302,9 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       moveCursor(move, event.shiftKey);
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      const ref = selection?.focus ?? (cursorPosition && cursor);
+      const ref = liveSelection?.focus ?? (cursorPosition && cursor);
       if (!ref) return;
-      if (!selection) startSelection({ anchor: ref, focus: ref });
+      if (!liveSelection) startSelection({ anchor: ref, focus: ref });
       setEditing(true);
     } else if (event.key === ' ') {
       event.preventDefault();
@@ -398,7 +394,10 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const cursorWord =
     cursorPosition && store.segmentAt(cursorPosition.segment)?.words[cursorPosition.word];
   const status = store.getStatus();
-  const error = playback.error ?? undoState.error;
+  const error =
+    playback.error ??
+    undoState.error ??
+    (selectionLost ? 'The selected text changed, so the selection was cleared.' : null);
 
   return (
     <section className={styles.transcript} aria-label="Transcript">
@@ -459,9 +458,9 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           </button>
         </div>
       </div>
-      {(error ?? notice) && (
+      {error && (
         <p className={styles.notice} role="alert">
-          {error ?? notice}
+          {error}
         </p>
       )}
       <div className={styles.frame}>

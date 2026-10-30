@@ -65,9 +65,9 @@ export function LiveScreen() {
     });
   }, [backend, refreshSources]);
 
-  useEffect(() => {
-    if (recording.meetingId) setLastMeetingId(recording.meetingId);
-  }, [recording.meetingId]);
+  if (recording.meetingId && recording.meetingId !== lastMeetingId) {
+    setLastMeetingId(recording.meetingId);
+  }
 
   const run = useCallback((action: () => Promise<unknown>) => {
     setBusy(true);
@@ -178,7 +178,7 @@ export function LiveScreen() {
         />
       ) : (
         <div className={styles.idle}>
-          <p className={styles.idleTitle}>Not recording</p>
+          <p className={styles.idleTitle}>Ready to record</p>
           <p className={styles.idleBody}>Choose your sources, then press Start.</p>
         </div>
       )}

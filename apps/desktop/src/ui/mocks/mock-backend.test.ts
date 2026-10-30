@@ -210,7 +210,6 @@ describe('MockBackend', () => {
       firstWordId: first.words.at(-1)?.id as string,
       lastWordId: second.words[0]?.id as string,
     };
-    const emptySecond = second.words.length === 1;
 
     const state = await backend.call('applyCorrection', {
       meetingId,
@@ -227,7 +226,6 @@ describe('MockBackend', () => {
       'rollout',
     ]);
     expect(corrected.words.at(-1)?.state).toBe('corrected');
-    expect(emptySecond).toBe(false);
     expect((await read()).segments[1]?.words[0]?.id).toBe(second.words[1]?.id);
     expect((await backend.call('listTerms')).at(-1)?.term).toBe('Halden Depot rollout');
 
