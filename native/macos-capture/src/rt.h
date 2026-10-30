@@ -47,7 +47,9 @@ static inline void rt_init(void) {
 
 static inline uint64_t rt_gate_close(void) {
   uint64_t now = mach_absolute_time();
-  atomic_store(&rtGate.cutoff, now);
+  // Only an open gate moves: Stop during a pause must keep the pause's cutoff.
+  uint64_t open = UINT64_MAX;
+  atomic_compare_exchange_strong(&rtGate.cutoff, &open, now);
   return now;
 }
 
