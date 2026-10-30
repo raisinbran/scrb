@@ -23,12 +23,12 @@ p { margin: 0 0 6pt; }
 p.meta { margin-bottom: 2pt; }
 p.note, p.marker { color: #555; font-style: italic; }
 p.speaker { margin: 10pt 0 2pt; break-after: avoid; }
-ul { margin: 0 0 6pt; padding-inline-start: 18pt; }
+ul { margin: 0 0 6pt; padding-inline: 18pt; }
 li { margin-bottom: 3pt; }
 small { color: #555; font-size: inherit; }
 ins { text-decoration: underline; }
 del { color: #555; text-decoration: line-through; }
-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 10pt; }
+table { width: calc(100% - 1pt); table-layout: fixed; border-collapse: collapse; margin: 0 0 10pt; }
 thead { display: table-header-group; }
 tr { break-inside: avoid; }
 th, td { border: 0.5pt solid #999; padding: 3pt 5pt; text-align: start; vertical-align: top; }
