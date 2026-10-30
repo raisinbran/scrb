@@ -1,0 +1,192 @@
+import { randomUUID } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
+import { StorageError } from '../errors.ts';
+
+export interface VocabularyContextRef {
+  meetingId: string;
+  correctionId: string;
+}
+
+export interface VocabularyTerm {
+  id: string;
+  term: string;
+  enabled: boolean;
+  misheard: string[];
+  contexts: VocabularyContextRef[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TermRow {
+  id: string;
+  term: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function hydrate(db: DatabaseSync, row: TermRow): VocabularyTerm {
+  const misheard = db
+    .prepare('SELECT text FROM vocabulary_misheard WHERE term_id = ? ORDER BY text')
+    .all(row.id) as unknown as { text: string }[];
+  const contexts = db
+    .prepare('SELECT meeting_id, correction_id FROM vocabulary_contexts WHERE term_id = ?')
+    .all(row.id) as unknown as { meeting_id: string; correction_id: string }[];
+  return {
+    id: row.id,
+    term: row.term,
+    enabled: row.enabled === 1,
+    misheard: misheard.map((item) => item.text),
+    contexts: contexts.map((item) => ({
+      meetingId: item.meeting_id,
+      correctionId: item.correction_id,
+    })),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function inTransaction<T>(db: DatabaseSync, work: () => T): T {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = work();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+export interface TermInput {
+  term: string;
+  misheard?: string[];
+  context?: VocabularyContextRef;
+}
+
+/** The Vocabulary list. Entries are hints for later meetings, never a find-and-replace table. */
+export class VocabularyStore {
+  private readonly db: DatabaseSync;
+  private readonly now: () => string;
+
+  constructor(db: DatabaseSync, now: () => string) {
+    this.db = db;
+    this.now = now;
+  }
+
+  list(): VocabularyTerm[] {
+    const rows = this.db.prepare('SELECT * FROM vocabulary_terms ORDER BY term').all();
+    return (rows as unknown as TermRow[]).map((row) => hydrate(this.db, row));
+  }
+
+  get(id: string): VocabularyTerm | null {
+    const row = this.db.prepare('SELECT * FROM vocabulary_terms WHERE id = ?').get(id);
+    return row === undefined ? null : hydrate(this.db, row as unknown as TermRow);
+  }
+
+  private findByTerm(term: string): TermRow | undefined {
+    const row = this.db.prepare('SELECT * FROM vocabulary_terms WHERE term = ?').get(term);
+    return row as unknown as TermRow | undefined;
+  }
+
+  /** Adds a term, or adds the misheard forms and context to the entry that already has it. */
+  remember(input: TermInput): VocabularyTerm {
+    const term = input.term.trim();
+    if (term === '') throw new StorageError('EMPTY_TERM', 'A vocabulary term cannot be empty');
+    const id = inTransaction(this.db, () => {
+      const now = this.now();
+      const existing = this.findByTerm(term);
+      const termId = existing?.id ?? randomUUID();
+      if (existing === undefined) {
+        this.db
+          .prepare(
+            'INSERT INTO vocabulary_terms (id, term, enabled, created_at, updated_at) VALUES (?, ?, 1, ?, ?)',
+          )
+          .run(termId, term, now, now);
+      } else {
+        this.db.prepare('UPDATE vocabulary_terms SET updated_at = ? WHERE id = ?').run(now, termId);
+      }
+      for (const text of input.misheard ?? []) {
+        this.db
+          .prepare('INSERT OR IGNORE INTO vocabulary_misheard (term_id, text) VALUES (?, ?)')
+          .run(termId, text);
+      }
+      if (input.context !== undefined) {
+        this.db
+          .prepare(
+            'INSERT OR IGNORE INTO vocabulary_contexts (term_id, meeting_id, correction_id) VALUES (?, ?, ?)',
+          )
+          .run(termId, input.context.meetingId, input.context.correctionId);
+      }
+      return termId;
+    });
+    return this.get(id) as VocabularyTerm;
+  }
+
+  update(id: string, changes: { term?: string; enabled?: boolean; misheard?: string[] }): void {
+    inTransaction(this.db, () => {
+      if (changes.term !== undefined) {
+        this.db
+          .prepare('UPDATE vocabulary_terms SET term = ? WHERE id = ?')
+          .run(changes.term.trim(), id);
+      }
+      if (changes.enabled !== undefined) {
+        this.db
+          .prepare('UPDATE vocabulary_terms SET enabled = ? WHERE id = ?')
+          .run(changes.enabled ? 1 : 0, id);
+      }
+      if (changes.misheard !== undefined) {
+        this.db.prepare('DELETE FROM vocabulary_misheard WHERE term_id = ?').run(id);
+        for (const text of new Set(changes.misheard)) {
+          this.db
+            .prepare('INSERT INTO vocabulary_misheard (term_id, text) VALUES (?, ?)')
+            .run(id, text);
+        }
+      }
+      this.db
+        .prepare('UPDATE vocabulary_terms SET updated_at = ? WHERE id = ?')
+        .run(this.now(), id);
+    });
+  }
+
+  delete(id: string): void {
+    this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
+  }
+
+  /** Terms to bias recognition with, most recently touched first. */
+  enabledTerms(limit = 200): VocabularyTerm[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM vocabulary_terms WHERE enabled = 1 ORDER BY updated_at DESC, term LIMIT ?',
+      )
+      .all(limit);
+    return (rows as unknown as TermRow[]).map((row) => hydrate(this.db, row));
+  }
+
+  /**
+   * Undoes what one remembered correction added. The term goes too if nothing else backs it.
+   * Misheard forms stay when another correction still gives the term a context.
+   */
+  forgetCorrection(correctionId: string, originalText: string): void {
+    inTransaction(this.db, () => {
+      const owners = this.db
+        .prepare('SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?')
+        .all(correctionId) as unknown as { term_id: string }[];
+      for (const { term_id: termId } of owners) {
+        this.db
+          .prepare('DELETE FROM vocabulary_contexts WHERE term_id = ? AND correction_id = ?')
+          .run(termId, correctionId);
+        const left = this.db
+          .prepare('SELECT COUNT(*) n FROM vocabulary_contexts WHERE term_id = ?')
+          .get(termId) as { n: number };
+        if (left.n === 0) {
+          this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);
+        } else {
+          this.db
+            .prepare('DELETE FROM vocabulary_misheard WHERE term_id = ? AND text = ?')
+            .run(termId, originalText);
+        }
+      }
+    });
+  }
+}
