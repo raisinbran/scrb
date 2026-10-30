@@ -42,7 +42,6 @@ export function LiveScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceChange | null>(null);
-  const [privacyDismissedFor, setPrivacyDismissedFor] = useState<string | null>(null);
   const [lastMeetingId, setLastMeetingId] = useState<string | null>(null);
   const transcriptRef = useRef<TranscriptViewHandle>(null);
 
@@ -117,8 +116,6 @@ export function LiveScreen() {
   });
 
   const meetingId = recording.meetingId ?? lastMeetingId;
-  const privacyBanner =
-    recording.privacyBannerRequired && privacyDismissedFor !== recording.meetingId;
 
   return (
     <div className={styles.live}>
@@ -153,7 +150,6 @@ export function LiveScreen() {
         health={health}
         lag={lag}
         active={active}
-        privacyBanner={privacyBanner}
         device={device}
         error={error}
         onUseDevice={(chosen) => {
@@ -161,7 +157,6 @@ export function LiveScreen() {
           setDevice(null);
         }}
         onDismissDevice={() => setDevice(null)}
-        onDismissPrivacy={() => setPrivacyDismissedFor(recording.meetingId)}
       />
       {status === 'idle' && lastMeetingId && (
         <p className={styles.finished}>

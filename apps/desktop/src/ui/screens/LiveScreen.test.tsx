@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
+import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockBackend } from '../mocks/index.ts';
 import { DEV_TRIGGERS } from '../mocks/dev-triggers.ts';
@@ -21,6 +22,7 @@ const selected = () => [...document.querySelectorAll('[data-selected]')].map((w)
 async function renderLive() {
   render(
     <BackendProvider backend={backend}>
+      <PrivacyBanner />
       <LiveScreen />
     </BackendProvider>,
   );
@@ -186,7 +188,7 @@ describe('LiveScreen', () => {
     it('shows the privacy banner until dismissed, and again at the next recording', async () => {
       await backend.call('updateSettings', { location: { usState: 'IL' } });
       await startMeeting();
-      expect(screen.getByText(/Voice profiles are being built/)).toBeTruthy();
+      expect(screen.getAllByText(/Voice profiles are being built/)).toHaveLength(1);
       fireEvent.click(button('Dismiss'));
       expect(screen.queryByText(/Voice profiles are being built/)).toBeNull();
 

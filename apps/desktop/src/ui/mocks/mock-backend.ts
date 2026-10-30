@@ -199,6 +199,10 @@ function withItem(summary: MeetingSummaryDoc, update: SummaryItemUpdate): Meetin
   }
 }
 
+function finalized(segment: TranscriptSegment): TranscriptSegment {
+  return finalizeProvisionalWords(segment) ?? segment;
+}
+
 function toListItem(meeting: MeetingDetail): MeetingListItem {
   return {
     id: meeting.id,
@@ -301,6 +305,8 @@ export class MockBackend implements Backend {
     this.armed.clear();
     this.library = createLibrary();
     this.summaries.clear();
+    this.transcripts.clear();
+    this.history.clear();
     this.profiles = VOICE_PROFILES.map((profile) => ({ ...profile }));
     this.terms = VOCABULARY_TERMS.map((term) => ({ ...term }));
     this.meetingSpeakers.clear();
@@ -312,7 +318,8 @@ export class MockBackend implements Backend {
     for (const meeting of this.library) {
       if (meeting.status !== 'finalPassRunning') continue;
       const segments = this.transcripts.get(meeting.id);
-      if (segments) this.transcripts.set(meeting.id, withWordStates(segments, 'final'));
+      if (segments) this.transcripts.set(meeting.id, segments.map(finalized));
+      this.rewriteHistory(meeting.id, finalized);
       this.updateMeetingStatus(meeting.id, { status: 'ready' });
     }
   }
@@ -324,11 +331,15 @@ export class MockBackend implements Backend {
   }
 
   dispose(): void {
+    this.stopRecordingTimers();
+    this.stopPlayback();
+  }
+
+  private stopRecordingTimers(): void {
     clearInterval(this.ticker);
     clearInterval(this.meterTicker);
     this.ticker = undefined;
     this.meterTicker = undefined;
-    this.stopPlayback();
   }
 
   /** Starts a live meeting that already holds 8 hours of text, for performance checks. */
@@ -446,19 +457,18 @@ export class MockBackend implements Backend {
       segments[index] = updated;
       moved.push(updated);
     });
+    const added = speakers.length - this.speakersOf(meetingId).length;
+    if (added !== 0) {
+      const { speakerCount } = this.findMeeting(meetingId);
+      this.updateMeetingStatus(meetingId, { speakerCount: speakerCount + added });
+    }
     this.meetingSpeakers.set(meetingId, speakers);
-    const revision = this.revisionOf(meetingId) + 1;
-    this.revisions.set(meetingId, revision);
-    this.emit('transcriptChanged', {
+    this.publishTranscriptChange(
       meetingId,
-      revision,
-      change: {
-        kind: 'replace',
-        segments: moved,
-        removedSegmentIds: moved.map((segment) => segment.id),
-      },
-      speakers: changed,
-    });
+      { kind: 'replace', segments: moved, removedSegmentIds: [] },
+      changed,
+    );
+    this.markSummaryOutdated(meetingId);
   }
 
   /** The mock moves whole segments; the real backend splits a segment at the selected words. */
@@ -554,11 +564,12 @@ export class MockBackend implements Backend {
   /** A meeting still recording keeps `durationMs` at 0 until it stops, so its end is the live text. */
   private audioEndMs(meetingId: string): number {
     if (this.recording.meetingId === meetingId) return this.liveStartMs;
-    return this.findMeeting(meetingId).durationMs;
+    return this.library.find((meeting) => meeting.id === meetingId)?.durationMs ?? 0;
   }
 
   private startPlayback(meetingId: string, positionMs: number): void {
     this.stopPlayback();
+    this.findMeeting(meetingId);
     const playback = { meetingId, positionMs: Math.min(positionMs, this.audioEndMs(meetingId)) };
     this.emit('playbackPosition', { ...playback, isPlaying: true });
     this.playback = playback;
@@ -610,10 +621,17 @@ export class MockBackend implements Backend {
   private publishTranscriptChange(
     meetingId: string,
     change: BackendEvents['transcriptChanged']['change'],
+    speakers: Speaker[] = [],
   ): void {
     const revision = this.revisionOf(meetingId) + 1;
     this.revisions.set(meetingId, revision);
-    this.emit('transcriptChanged', { meetingId, revision, change, speakers: [] });
+    this.emit('transcriptChanged', { meetingId, revision, change, speakers });
+  }
+
+  /** Requirements: after transcript edits, the summary shows "May be outdated". */
+  private markSummaryOutdated(meetingId: string): void {
+    const state = this.library.find((meeting) => meeting.id === meetingId)?.summaryState;
+    if (state === 'ready' || state === 'edited') this.emit('summaryOutdated', { meetingId });
   }
 
   private confirmOlderSegments(): void {
@@ -669,6 +687,7 @@ export class MockBackend implements Backend {
     next.sort((a, b) => a.startMs - b.startMs);
     segments.splice(0, segments.length, ...next);
     this.publishTranscriptChange(meetingId, { kind: 'replace', segments: to, removedSegmentIds });
+    this.markSummaryOutdated(meetingId);
   }
 
   private appendLiveSegment(): void {
@@ -758,8 +777,13 @@ export class MockBackend implements Backend {
     pauseRecording: () => this.setRecording({ status: 'paused' }),
     resumeRecording: () => this.setRecording({ status: 'recording' }),
     stopRecording: () => {
-      this.dispose();
+      this.stopRecordingTimers();
       const meetingId = this.recording.meetingId;
+      if (meetingId && this.playback?.meetingId === meetingId) {
+        const { positionMs } = this.playback;
+        this.stopPlayback();
+        this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
+      }
       if (meetingId) {
         this.updateMeetingStatus(meetingId, {
           status: 'finalPassRunning',
@@ -909,6 +933,9 @@ export class MockBackend implements Backend {
         matches: (segment) => segment.speakerId === from,
         to: into,
       });
+      this.rewriteHistory(meetingId, (segment) =>
+        segment.speakerId === from ? { ...segment, speakerId: into } : segment,
+      );
     },
     splitSpeaker: ({ meetingId, range, newLabel }) => {
       const speaker: Speaker = {
@@ -1034,6 +1061,8 @@ export class MockBackend implements Backend {
       this.library = this.library.filter((meeting) => meeting.id !== meetingId);
       this.transcripts.delete(meetingId);
       this.summaries.delete(meetingId);
+      this.history.delete(meetingId);
+      this.meetingSpeakers.delete(meetingId);
       return { verified: true, remaining: [] };
     },
     openMeetingFolder: () => undefined,
@@ -1123,6 +1152,18 @@ export class MockBackend implements Backend {
     const history = this.history.get(meetingId) ?? { undo: [], redo: [] };
     this.history.set(meetingId, history);
     return history;
+  }
+
+  /** Keeps undo from bringing back a state that no longer exists, such as a merged speaker. */
+  private rewriteHistory(
+    meetingId: string,
+    rewrite: (segment: TranscriptSegment) => TranscriptSegment,
+  ): void {
+    const { undo, redo } = this.historyOf(meetingId);
+    for (const edit of [...undo, ...redo]) {
+      edit.before = edit.before.map(rewrite);
+      edit.after = edit.after.map(rewrite);
+    }
   }
 
   private undoStateOf(meetingId: string) {

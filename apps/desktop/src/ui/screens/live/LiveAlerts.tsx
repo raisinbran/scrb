@@ -79,29 +79,19 @@ interface LiveAlertsProps {
   health: RecordingHealth | null;
   lag: TranscriptionLag | null;
   active: boolean;
-  privacyBanner: boolean;
   device: DeviceChange | null;
   error: string | null;
   onUseDevice(device: DeviceChange['device']): void;
   onDismissDevice(): void;
-  onDismissPrivacy(): void;
 }
 
 export function LiveAlerts(props: LiveAlertsProps) {
-  const { health, lag, active, privacyBanner, device, error } = props;
+  const { health, lag, active, device, error } = props;
   return (
     <div className={styles.alerts}>
       {error && (
         <div className={styles.banner} data-level="failed" role="alert">
           {error}
-        </div>
-      )}
-      {privacyBanner && (
-        <div className={styles.banner} data-level="info" role="status">
-          Voice profiles are being built for this recording.
-          <button type="button" className={styles.linkButton} onClick={props.onDismissPrivacy}>
-            Dismiss
-          </button>
         </div>
       )}
       {active &&

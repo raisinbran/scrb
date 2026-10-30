@@ -450,6 +450,157 @@ describe('MockBackend', () => {
     expect(positions).toEqual([positionMs, positionMs + 250]);
   });
 
+  describe('across screens', () => {
+    const edit = async (meetingId: string) => {
+      const { segments } = await backend.call('getTranscript', { meetingId, offset: 0, limit: 5 });
+      const segment = segments[0] as TranscriptSegment;
+      const wordId = segment.words[0]?.id as string;
+      return { segment, range: { firstWordId: wordId, lastWordId: wordId } };
+    };
+
+    it('keeps a live correction through the final pass and in search', async () => {
+      const { meetingId } = await backend.call('startRecording', {});
+      vi.advanceTimersByTime(3000);
+      const { range } = await edit(meetingId);
+      await backend.call('applyCorrection', {
+        meetingId,
+        range,
+        text: 'Halden',
+        remember: false,
+      });
+      await backend.call('stopRecording');
+      backend.finishFinalPass();
+
+      const { segments } = await backend.call('getTranscript', { meetingId, offset: 0, limit: 10 });
+      const words = segments.flatMap((segment) => segment.words);
+      expect(words[0]).toMatchObject({ text: 'Halden', state: 'corrected' });
+      expect(words.filter((word) => word.state === 'corrected')).toHaveLength(1);
+      expect(words.some((word) => word.state === 'provisional')).toBe(false);
+      const results = await backend.call('searchMeetings', { query: 'halden' });
+      expect(results.map((result) => result.meeting.id)).toContain(meetingId);
+
+      await backend.call('undo', { meetingId });
+      const undone = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+      expect(undone.segments[0]?.words[0]?.state).toBe('final');
+    });
+
+    it('marks a summary outdated after a transcript edit, and after undo', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const seen: string[] = [];
+      backend.on('summaryOutdated', (event) => seen.push(event.meetingId));
+      const { range } = await edit(meetingId);
+      await backend.call('applyCorrection', { meetingId, range, text: 'New', remember: false });
+      expect(seen).toEqual([meetingId]);
+      expect((await backend.call('getSummary', { meetingId })).state).toBe('outdated');
+      expect((await backend.call('getMeeting', { meetingId })).summaryState).toBe('outdated');
+
+      await backend.call('generateSummary', { meetingId, length: 'brief' });
+      vi.advanceTimersByTime(5000);
+      await backend.call('undo', { meetingId });
+      expect((await backend.call('getSummary', { meetingId })).state).toBe('outdated');
+    });
+
+    it('leaves a meeting with no summary alone', async () => {
+      const seen: string[] = [];
+      backend.on('summaryOutdated', (event) => seen.push(event.meetingId));
+      const meetingId = 'meeting-imported';
+      const { range } = await edit(meetingId);
+      await backend.call('applyCorrection', { meetingId, range, text: 'New', remember: false });
+      expect(seen).toEqual([]);
+    });
+
+    it('marks a summary outdated when a speaker changes in the Speakers screen', async () => {
+      const meetingId = LONG_MEETING_ID;
+      await backend.call('renameSpeaker', {
+        target: { kind: 'meetingSpeaker', meetingId, speakerId: 'sp-2' },
+        name: 'Ana',
+      });
+      expect((await backend.call('getSummary', { meetingId })).state).toBe('outdated');
+    });
+
+    it('updates the library speaker count on merge and split', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const count = async () => (await backend.call('getMeeting', { meetingId })).speakerCount;
+      const before = await count();
+      await backend.call('mergeSpeakers', {
+        kind: 'meetingSpeakers',
+        meetingId,
+        from: 'sp-2',
+        into: 'sp-3',
+      });
+      expect(await count()).toBe(before - 1);
+      const { range } = await edit(meetingId);
+      await backend.call('splitSpeaker', { meetingId, range, newLabel: 'Guest' });
+      expect(await count()).toBe(before);
+    });
+
+    it('undoes an earlier reassignment onto a speaker that still exists after a merge', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const { segment, range } = await edit(meetingId);
+      const [other, target] = MOCK_SPEAKERS.map((speaker) => speaker.id).filter(
+        (id) => id !== segment.speakerId,
+      ) as [string, string];
+      await backend.call('reassignSpeaker', { meetingId, range, speakerId: other });
+      await backend.call('mergeSpeakers', {
+        kind: 'meetingSpeakers',
+        meetingId,
+        from: segment.speakerId,
+        into: target,
+      });
+      await backend.call('undo', { meetingId });
+      const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 3 });
+      const known = new Set(page.speakers.map((speaker) => speaker.id));
+      expect(page.segments.every((item) => known.has(item.speakerId))).toBe(true);
+    });
+
+    it('sends segments moved between speakers in place, for both transcript views', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const changes: TranscriptChanged['change'][] = [];
+      backend.on('transcriptChanged', ({ change }) => changes.push(change));
+      await backend.call('mergeSpeakers', {
+        kind: 'meetingSpeakers',
+        meetingId,
+        from: 'sp-2',
+        into: 'sp-3',
+      });
+      expect(changes[0]).toMatchObject({ kind: 'replace', removedSegmentIds: [] });
+    });
+
+    it('stops live playback when the recording stops, and leaves other playback running', async () => {
+      const { meetingId } = await backend.call('startRecording', {});
+      vi.advanceTimersByTime(3000);
+      const events: { id: string; playing: boolean }[] = [];
+      backend.on('playbackPosition', (event) =>
+        events.push({ id: event.meetingId, playing: event.isPlaying }),
+      );
+      await backend.call('seekAudio', { meetingId, positionMs: 0 });
+      await backend.call('stopRecording');
+      expect(events.at(-1)).toEqual({ id: meetingId, playing: false });
+
+      await backend.call('startRecording', {});
+      await backend.call('seekAudio', { meetingId: LONG_MEETING_ID, positionMs: 0 });
+      await backend.call('stopRecording');
+      events.length = 0;
+      vi.advanceTimersByTime(250);
+      expect(events).toEqual([{ id: LONG_MEETING_ID, playing: true }]);
+    });
+
+    it('survives a library change while audio is playing', async () => {
+      await backend.call('seekAudio', { meetingId: LONG_MEETING_ID, positionMs: 0 });
+      backend.setLibrary([]);
+      expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+    });
+
+    it('restores original transcripts when the sample library is restored', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const { segment, range } = await edit(meetingId);
+      await backend.call('applyCorrection', { meetingId, range, text: 'New', remember: false });
+      backend.reset();
+      expect((await edit(meetingId)).segment).toEqual(segment);
+      expect(await backend.call('undo', { meetingId })).toEqual({ canUndo: false, canRedo: false });
+    });
+  });
+
   it('runs every developer trigger without throwing', () => {
     for (const trigger of DEV_TRIGGERS) expect(() => trigger.run(backend)).not.toThrow();
   });
