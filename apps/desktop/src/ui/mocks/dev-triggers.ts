@@ -239,6 +239,30 @@ export const DEV_TRIGGERS: DevTrigger[] = [
       }),
   },
   {
+    id: 'empty-profiles',
+    group: 'Speakers',
+    label: 'No voice profiles',
+    run: (b) => b.setProfiles([]),
+  },
+  {
+    id: 'profile-delete-fails',
+    group: 'Speakers',
+    label: 'Next profile delete fails',
+    run: (b) => b.arm('profileDeleteFails'),
+  },
+  {
+    id: 'empty-vocabulary',
+    group: 'Vocabulary',
+    label: 'No terms',
+    run: (b) => b.setTerms([]),
+  },
+  {
+    id: 'location-unset',
+    group: 'Setup',
+    label: 'Clear location (then reload)',
+    run: (b) => void b.call('updateSettings', { location: { country: null, usState: null } }),
+  },
+  {
     id: 'models-missing',
     group: 'Setup',
     label: 'Models not downloaded',

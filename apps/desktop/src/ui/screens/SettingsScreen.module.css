@@ -1,4 +1,5 @@
 .section {
+  min-width: 0;
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface-sidebar);
@@ -8,7 +9,7 @@
 
 .legend {
   padding: 0;
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-md);
   font-weight: 600;
 }
@@ -18,4 +19,162 @@
   gap: var(--space-1);
   align-items: center;
   margin-inline-end: var(--space-4);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.field select {
+  padding: var(--space-1) var(--space-2);
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.group {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.groupLabel {
+  padding: 0;
+  font-weight: 600;
+}
+
+.check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-1) 0;
+  font-weight: 400;
+}
+
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.help {
+  display: block;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.warning {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-inline-start: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+  border-inline-start: 3px solid var(--color-warning);
+}
+
+.slider {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.slider input {
+  flex: 1;
+  min-width: 0;
+}
+
+.slider output {
+  flex: none;
+  font-weight: 400;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.path {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.models {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.model {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modelMain {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modelText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.progress progress {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.error {
+  margin: var(--space-1) 0;
+  color: var(--color-danger);
+}
+
+.saveBar {
+  position: sticky;
+  inset-block-end: var(--space-3);
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
 }

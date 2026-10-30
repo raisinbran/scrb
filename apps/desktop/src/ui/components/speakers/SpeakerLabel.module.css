@@ -1,0 +1,25 @@
+.label {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+  color: var(--color-text);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.label:hover {
+  background: var(--color-surface-hover);
+}
+
+.you {
+  color: var(--color-accent);
+}
+
+.unknown {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.named {
+  color: var(--color-text);
+}
