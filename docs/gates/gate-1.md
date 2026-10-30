@@ -1,6 +1,6 @@
 # Gate 1 Evidence
 
-Status: **Done on both machines. Awaiting owner approval.**
+Status: **Approved by the owner on 2026-10-30.** The Windows run's caveats below were accepted.
 
 Gate 1: clean install, launch, restart and settings survive; the security checklist passes. "Clean install" means a fresh clone and `npm ci` on each machine (owner decision, 2026-10-30).
 
