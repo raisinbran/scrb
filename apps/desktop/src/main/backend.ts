@@ -26,7 +26,12 @@ export async function openBackend(
     // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
     if (helper) await recoverInterrupted(library, helper);
-    const recording = helper ? new RecordingController(library, helper, emit) : null;
+    const recording = helper
+      ? new RecordingController(library, helper, emit, {
+          read: () => settings.getSettings().audio,
+          save: (selection) => settings.updateSettings({ audio: selection }),
+        })
+      : null;
     return {
       handlers: {
         getSettings: async () => settings.getSettings(),

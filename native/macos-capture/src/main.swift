@@ -274,6 +274,8 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     case "pause": at = session.pause(id: id, cause: command["cause"] as? String ?? "user")
     case "resume": at = session.resume(id: id)
     case "stop": at = session.stop()
+    case "listMics": return listingAck(id, "mics", listMics())
+    case "listApps": return listingAck(id, "apps", listApps(include: command["include"] as? [String] ?? []))
     default: ok = false; error = "unknown command"
     }
     var ack: [String: Any] = ["type": "ack", "id": id, "ok": ok,
