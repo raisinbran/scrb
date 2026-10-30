@@ -1,0 +1,26 @@
+.menu {
+  position: fixed;
+  z-index: 15;
+  min-width: 200px;
+  padding: var(--space-1);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--color-surface-hover);
+}

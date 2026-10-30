@@ -43,6 +43,7 @@
   --color-ok: #16703b;
   --color-warning: #8a5a00;
   --color-danger: #b42020;
+  --color-backdrop: #00000066;
   --shadow-overlay: 0 4px 16px #0000002e;
 }
 
@@ -65,6 +66,7 @@
   --color-ok: #57c98a;
   --color-warning: #f0b232;
   --color-danger: #f58585;
+  --color-backdrop: #00000099;
   --shadow-overlay: 0 4px 16px #00000080;
 }
 
@@ -90,7 +92,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 

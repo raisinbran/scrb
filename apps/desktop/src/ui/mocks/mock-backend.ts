@@ -11,13 +11,18 @@ import {
   type MeetingDetail,
   type MeetingListItem,
   type MeetingSummaryDoc,
+  type ModelDownloadProgress,
+  type ModelInfo,
+  type ModelRole,
   type RecordingHealth,
   type RecordingState,
   type SettingsPatch,
+  type Speaker,
   type TranscriptSegment,
   type TranscriptionLag,
   type VocabularyTerm,
   type VoiceProfile,
+  type WordRange,
 } from '@scrb/contracts';
 import {
   APP_INFO,
@@ -42,6 +47,7 @@ const SETTINGS_KEY = 'scrb.mock.settings';
 const LONG_MEETING_WORDS = 80_000;
 const SHORT_MEETING_WORDS = 2_000;
 const FULL_DISK_BYTES = 180_000_000_000;
+const PICKED_STORAGE_LOCATION = '/Users/example/Documents/Meeting Scribe';
 
 /** Armed faults change what the next matching call does; see `dev-triggers.ts`. */
 export type ArmedFault =
@@ -50,6 +56,7 @@ export type ArmedFault =
   | 'importFails'
   | 'summaryFails'
   | 'modelDownloadFails'
+  | 'profileDeleteFails'
   | 'permissionDenied'
   | 'noModelInfo'
   | 'modelsMissing';
@@ -99,6 +106,8 @@ export class MockBackend implements Backend {
   private library: MeetingDetail[] = createLibrary();
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
+  private readonly meetingSpeakers = new Map<string, Speaker[]>();
+  private readonly updatedModels = new Set<string>();
   private recording: RecordingState = {
     status: 'idle',
     meetingId: null,
@@ -151,11 +160,22 @@ export class MockBackend implements Backend {
     this.library = meetings;
   }
 
+  setProfiles(profiles: VoiceProfile[]): void {
+    this.profiles = profiles;
+  }
+
+  setTerms(terms: VocabularyTerm[]): void {
+    this.terms = terms;
+  }
+
   /** Replaces the library with its full sample state, clearing armed faults. */
   reset(): void {
     this.armed.clear();
     this.library = createLibrary();
     this.summaries.clear();
+    this.profiles = VOICE_PROFILES.map((profile) => ({ ...profile }));
+    this.terms = VOCABULARY_TERMS.map((term) => ({ ...term }));
+    this.meetingSpeakers.clear();
   }
 
   updateMeetingStatus(meetingId: string, patch: Partial<MeetingDetail>): void {
@@ -202,6 +222,89 @@ export class MockBackend implements Backend {
       end();
     }, delayMs);
     this.activeImports.set(importId, { fileName, timer });
+  }
+
+  private speakersOf(meetingId: string): Speaker[] {
+    return this.meetingSpeakers.get(meetingId) ?? MOCK_SPEAKERS;
+  }
+
+  private findSpeaker(meetingId: string, speakerId: string): Speaker {
+    const speaker = this.speakersOf(meetingId).find((item) => item.id === speakerId);
+    if (!speaker)
+      throw new ContractError({ code: 'notFound', message: 'That speaker no longer exists.' });
+    return speaker;
+  }
+
+  /** Replaces a meeting's speakers and moves the matching segments, then reports both. */
+  private changeSpeakers(
+    meetingId: string,
+    speakers: Speaker[],
+    changed: Speaker[],
+    move?: { matches(segment: TranscriptSegment): boolean; to: string },
+  ): void {
+    const segments = this.transcriptOf(meetingId);
+    const moved: TranscriptSegment[] = [];
+    segments.forEach((segment, index) => {
+      if (!move?.matches(segment)) return;
+      const updated = { ...segment, speakerId: move.to };
+      segments[index] = updated;
+      moved.push(updated);
+    });
+    this.meetingSpeakers.set(meetingId, speakers);
+    const revision = this.revisionOf(meetingId) + 1;
+    this.revisions.set(meetingId, revision);
+    this.emit('transcriptChanged', {
+      meetingId,
+      revision,
+      change: {
+        kind: 'replace',
+        segments: moved,
+        removedSegmentIds: moved.map((segment) => segment.id),
+      },
+      speakers: changed,
+    });
+  }
+
+  /** The mock moves whole segments; the real backend splits a segment at the selected words. */
+  private rangeMatcher(meetingId: string, range: WordRange) {
+    const segments = this.transcriptOf(meetingId);
+    const indexOfWord = (wordId: string) =>
+      segments.findIndex((segment) => segment.words.some((word) => word.id === wordId));
+    const first = indexOfWord(range.firstWordId);
+    const last = indexOfWord(range.lastWordId);
+    if (first < 0 || last < first) {
+      throw new ContractError({ code: 'invalidRequest', message: 'That selection is not valid.' });
+    }
+    const ids = new Set(segments.slice(first, last + 1).map((segment) => segment.id));
+    return (segment: TranscriptSegment) => ids.has(segment.id);
+  }
+
+  private renameMeetingSpeaker(meetingId: string, speakerId: string, patch: Partial<Speaker>) {
+    const updated = { ...this.findSpeaker(meetingId, speakerId), ...patch };
+    const speakers = this.speakersOf(meetingId).map((speaker) =>
+      speaker.id === speakerId ? updated : speaker,
+    );
+    this.changeSpeakers(meetingId, speakers, [updated]);
+    return updated;
+  }
+
+  private emitModelProgress(
+    role: ModelRole,
+    state: ModelDownloadProgress['state'],
+    fraction: number,
+    message?: string,
+  ): void {
+    const model = MODELS.find((item) => item.role === role) as ModelInfo;
+    const update = MODEL_UPDATES.find((item) => item.role === role);
+    const bytesTotal = update?.sizeBytes ?? model.sizeBytes;
+    this.emit('modelDownloadProgress', {
+      role,
+      modelName: model.name,
+      state,
+      bytesDone: Math.round(bytesTotal * fraction),
+      bytesTotal,
+      ...(message ? { message } : {}),
+    });
   }
 
   private summaryOf(meetingId: string): MeetingSummaryDoc {
@@ -408,11 +511,18 @@ export class MockBackend implements Backend {
         totalSegments: all.length,
         totalWords: all.reduce((sum, segment) => sum + segment.words.length, 0),
         segments: all.slice(offset, offset + limit),
-        speakers: MOCK_SPEAKERS,
+        speakers: this.speakersOf(meetingId),
       };
     },
     applyCorrection: ({ meetingId }) => this.pushUndo(meetingId),
-    reassignSpeaker: ({ meetingId }) => this.pushUndo(meetingId),
+    reassignSpeaker: ({ meetingId, range, speakerId }) => {
+      this.findSpeaker(meetingId, speakerId);
+      this.changeSpeakers(meetingId, this.speakersOf(meetingId), [], {
+        matches: this.rangeMatcher(meetingId, range),
+        to: speakerId,
+      });
+      return this.pushUndo(meetingId);
+    },
     undo: ({ meetingId }) => this.moveUndo(meetingId, -1),
     redo: ({ meetingId }) => this.moveUndo(meetingId, 1),
     seekAudio: ({ meetingId, positionMs }) => {
@@ -428,25 +538,96 @@ export class MockBackend implements Backend {
         this.profiles = this.profiles.map((profile) =>
           profile.id === target.profileId ? { ...profile, name } : profile,
         );
+        return;
       }
+      const { meetingId, speakerId } = target;
+      const { profileId } = this.renameMeetingSpeaker(meetingId, speakerId, {
+        label: name,
+        kind: 'named',
+      });
+      this.profiles = this.profiles.map((profile) =>
+        profile.id === profileId ? { ...profile, name } : profile,
+      );
     },
     mergeSpeakers: (merge) => {
       if (merge.kind === 'profiles') {
-        this.profiles = this.profiles.filter((profile) => profile.id !== merge.from);
+        const from = this.profiles.find((profile) => profile.id === merge.from);
+        this.profiles = this.profiles
+          .filter((profile) => profile.id !== merge.from)
+          .map((profile) =>
+            profile.id === merge.into
+              ? { ...profile, meetingCount: profile.meetingCount + (from?.meetingCount ?? 0) }
+              : profile,
+          );
+        return;
       }
+      const { meetingId, from, into } = merge;
+      this.findSpeaker(meetingId, from);
+      this.findSpeaker(meetingId, into);
+      const speakers = this.speakersOf(meetingId).filter((speaker) => speaker.id !== from);
+      this.changeSpeakers(meetingId, speakers, [], {
+        matches: (segment) => segment.speakerId === from,
+        to: into,
+      });
     },
-    splitSpeaker: () => ({ speakerId: this.id('sp') }),
-    deleteProfile: ({ profileId }) => {
-      this.profiles = this.profiles.filter((profile) => profile.id !== profileId);
+    splitSpeaker: ({ meetingId, range, newLabel }) => {
+      const speaker: Speaker = {
+        id: this.id('sp'),
+        label: newLabel,
+        kind: 'named',
+        profileId: null,
+      };
+      this.changeSpeakers(meetingId, [...this.speakersOf(meetingId), speaker], [speaker], {
+        matches: this.rangeMatcher(meetingId, range),
+        to: speaker.id,
+      });
+      return { speakerId: speaker.id };
     },
-    answerSpeakerSuggestion: () => undefined,
+    deleteProfile: ({ profileId }) =>
+      new Promise((resolve, reject) => {
+        const fails = this.armed.delete('profileDeleteFails');
+        setTimeout(() => {
+          if (fails) {
+            const message = 'The voice data could not be deleted. Try again.';
+            reject(new ContractError({ code: 'internal', message }));
+            return;
+          }
+          this.profiles = this.profiles.filter((profile) => profile.id !== profileId);
+          resolve();
+        }, 500);
+      }),
+    answerSpeakerSuggestion: ({ meetingId, speakerId, profileId, accepted }) => {
+      if (!accepted) return;
+      const profile = this.profiles.find((item) => item.id === profileId);
+      this.renameMeetingSpeaker(meetingId, speakerId, {
+        label: profile?.name ?? 'Unnamed voice',
+        kind: 'named',
+        profileId,
+      });
+    },
 
     listTerms: () => this.terms,
     updateTerm: ({ id, patch }) => {
       const term = this.terms.find((item) => item.id === id);
       if (!term)
         throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
-      const updated = { ...term, ...patch };
+      const at = new Date().toISOString();
+      const history = [...term.history];
+      if (patch.enabled === true && !term.enabled) {
+        history.push({ at, action: 'enabled', detail: 'Turned on by you' });
+      }
+      if (patch.enabled === false && term.enabled) {
+        history.push({ at, action: 'disabled', detail: 'Turned off by you' });
+      }
+      if (patch.term !== undefined && patch.term !== term.term) {
+        history.push({ at, action: 'edited', detail: `Spelling changed from ${term.term}` });
+      }
+      for (const misheard of patch.misheard ?? []) {
+        if (!term.misheard.includes(misheard)) {
+          history.push({ at, action: 'misheardAdded', detail: misheard });
+        }
+      }
+      const updated = { ...term, ...patch, history };
       this.terms = this.terms.map((item) => (item.id === id ? updated : item));
       return updated;
     },
@@ -526,16 +707,42 @@ export class MockBackend implements Backend {
       writeStored(SETTINGS_KEY, this.settings);
       return this.settings;
     },
-    pickStorageLocation: () => this.settings,
-    checkModelUpdates: () => MODEL_UPDATES,
-    installModelUpdate: () => undefined,
-    revertModel: () => undefined,
+    pickStorageLocation: () => {
+      this.settings = { ...this.settings, storageLocation: PICKED_STORAGE_LOCATION };
+      writeStored(SETTINGS_KEY, this.settings);
+      return this.settings;
+    },
+    checkModelUpdates: () =>
+      MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
+    installModelUpdate: ({ role }) => {
+      if (this.armed.delete('modelDownloadFails')) {
+        this.emitModelProgress(role, 'failed', 0.2, 'The download stopped. Try again.');
+        return;
+      }
+      this.emitModelProgress(role, 'downloading', 0.3);
+      setTimeout(() => this.emitModelProgress(role, 'downloading', 0.7), 700);
+      setTimeout(() => this.emitModelProgress(role, 'verifying', 1), 1400);
+      setTimeout(() => {
+        this.updatedModels.add(role);
+        this.emitModelProgress(role, 'done', 1);
+      }, 2100);
+    },
+    revertModel: ({ role }) => {
+      this.updatedModels.delete(role);
+    },
 
     getSetupStatus: () => {
       const missing = this.armed.has('modelsMissing');
       const denied = this.armed.has('permissionDenied');
       return {
-        models: MODELS.map((model) => ({ ...model, installed: !missing })),
+        models: MODELS.map((model) => ({
+          ...model,
+          installed: !missing,
+          version: this.updatedModels.has(model.role)
+            ? (MODEL_UPDATES.find((update) => update.role === model.role)?.availableVersion ??
+              model.version)
+            : model.version,
+        })),
         permissions: { microphone: denied ? 'denied' : 'granted', meetingAudio: 'granted' },
         locationSet: this.settings.location.country !== null,
         complete: !missing && !denied,

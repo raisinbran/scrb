@@ -1,0 +1,9 @@
+.intro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: var(--space-3) 0 0;
+  color: var(--color-danger);
+}

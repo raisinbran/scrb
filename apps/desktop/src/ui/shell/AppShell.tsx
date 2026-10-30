@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { readStored, writeStored } from '../lib/stored-value.ts';
 import { usePanelSize, type PanelLimits } from '../lib/use-panel-size.ts';
@@ -49,6 +50,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
   return (
     <div className={styles.shell}>
       <TitleBar />
+      <PrivacyBanner />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: sidebarWidth }}>
           <Sidebar selected={screenId} onSelect={onSelectScreen} />
