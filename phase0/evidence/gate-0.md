@@ -769,7 +769,14 @@ padded) for 55 s of sleep.  Both tracks stayed aligned with each other
 
 ### Not run on the Mac yet
 
-- 8 h drift run: started 2026-10-29 19:32 (results to follow).
+- 8 h drift run: started 2026-10-29 19:32 from the Claude app's terminal pane.
+  **Capture ended at 2 h 09 m:** `coreaudiod` restarted at 21:41:15 (cause
+  unknown; a clean exit, no crash report, no sleep) and the probe silently
+  received nothing afterwards, with no error.  The first 7,733 s of both
+  tracks exist; timing is written when the run ends at about 03:32.  The
+  owner agreed the full 8 h is not needed for Gate 0: the Gate 2 8-hour
+  recording on the real adapter covers it.  New adapter rule in
+  `design/capture-contract-draft.md` (audio service restart).
 
 ## Gate Checklist
 
