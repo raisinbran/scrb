@@ -1,5 +1,5 @@
 const UNLOADED_WORDS = 22;
-const AVERAGE_WORD_CHARS = 6;
+const AVERAGE_WORD_CHARS = 5;
 const CHAR_WIDTH_EM = 0.5;
 const LINE_HEIGHT_EM = 1.55;
 /** Speaker line plus row padding. Measured height replaces this estimate once a row renders. */
