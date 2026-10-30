@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createBridgeBackend, type ScribeBridge } from '@scrb/contracts';
 import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
+import { createHybridBackend } from './lib/hybrid-backend.ts';
 import { DevMenu, MockBackend } from './mocks/index.ts';
 import { ThemeProvider } from './theme/ThemeProvider.tsx';
 import './theme/tokens.css';
@@ -13,11 +14,11 @@ declare global {
   }
 }
 
-// The real backend is opt-in until the app core is merged; everything else runs on the mock.
+// In Electron, settings are real and everything else stays on the mock until its phase connects
+// it. In a plain browser there is no bridge, so everything is the mock.
 const bridge = window.scribeBridge;
-const useRealBackend = import.meta.env['VITE_SCRB_BACKEND'] === 'real' && bridge !== undefined;
-const mock = useRealBackend ? null : new MockBackend();
-const backend = useRealBackend ? createBridgeBackend(bridge) : (mock as MockBackend);
+const mock = new MockBackend();
+const backend = bridge ? createHybridBackend(createBridgeBackend(bridge), mock) : mock;
 
 document.documentElement.dataset['platform'] = bridge?.platform ?? 'browser';
 
@@ -26,7 +27,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     <BackendProvider backend={backend}>
       <ThemeProvider>
         <App />
-        {mock && <DevMenu backend={mock} />}
+        <DevMenu backend={mock} />
       </ThemeProvider>
     </BackendProvider>
   </StrictMode>,

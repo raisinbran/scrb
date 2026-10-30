@@ -203,12 +203,41 @@ describe('what the UI sends back', () => {
         brief: { text: 'Brief', edited: false },
         full: null,
         actionItems: [
-          { id: 'a', action: 'Ship', owner: 'not specified', deadline: 'Unconfirmed', status: 'Open', sourceMs: 5, edited: false },
+          {
+            id: 'a',
+            action: 'Ship',
+            owner: 'not specified',
+            deadline: 'Unconfirmed',
+            status: 'Open',
+            sourceMs: 5,
+            edited: false,
+          },
         ],
         decisions: [
-          { id: 'd1', decision: 'Ship', status: 'Decided', impactArea: 'Not specified', sourceMs: 5, edited: false },
-          { id: 'd2', decision: 'Hold', status: 'Tentatively agreed', impactArea: 'Technical approach', sourceMs: 6, edited: true },
-          { id: 'd3', decision: 'Wait', status: 'Pending', impactArea: 'Morale', sourceMs: 7, edited: false },
+          {
+            id: 'd1',
+            decision: 'Ship',
+            status: 'Decided',
+            impactArea: 'Not specified',
+            sourceMs: 5,
+            edited: false,
+          },
+          {
+            id: 'd2',
+            decision: 'Hold',
+            status: 'Tentatively agreed',
+            impactArea: 'Technical approach',
+            sourceMs: 6,
+            edited: true,
+          },
+          {
+            id: 'd3',
+            decision: 'Wait',
+            status: 'Pending',
+            impactArea: 'Morale',
+            sourceMs: 7,
+            edited: false,
+          },
         ],
         openQuestions: ['Who owns it?'],
       }),
@@ -233,7 +262,12 @@ describe('regenerating with the engine numbering', () => {
     const second = engineSummary();
     second.actions = [
       { ...second.actions[1]!, id: 'action-1', text: 'A new task' },
-      { ...second.actions[1]!, id: 'action-2', text: 'Another new task', evidence: { lineIndex: 1, timestampSec: 25 } },
+      {
+        ...second.actions[1]!,
+        id: 'action-2',
+        text: 'Another new task',
+        evidence: { lineIndex: 1, timestampSec: 25 },
+      },
     ];
     const merged = mergeRegeneratedSummary(edited, stored(second));
 

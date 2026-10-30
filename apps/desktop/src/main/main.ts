@@ -1,5 +1,6 @@
 import { app, BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
+import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
   APP_ORIGIN,
@@ -45,10 +46,21 @@ function createMainWindow(): void {
 
 registerAppScheme();
 
-void app.whenReady().then(() => {
+// A second copy would write to the same index, so it hands over to the first and quits.
+if (!app.requestSingleInstanceLock()) app.quit();
+
+app.on('second-instance', () => {
+  const [window] = BrowserWindow.getAllWindows();
+  if (window?.isMinimized()) window.restore();
+  window?.focus();
+});
+
+void app.whenReady().then(async () => {
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  registerCallHandlers({}, isTrustedSender);
+  const backend = await openBackend();
+  registerCallHandlers(backend.handlers, isTrustedSender);
+  app.once('will-quit', () => void backend.close());
   createMainWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

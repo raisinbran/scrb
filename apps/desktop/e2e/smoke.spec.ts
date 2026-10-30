@@ -1,14 +1,70 @@
-import { _electron as electron, expect, test } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { _electron as electron, expect, test, type Page } from '@playwright/test';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const SCREENS = ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Settings', 'Help'];
 const screenshotDir = process.env['SCRB_SCREENSHOT_DIR'];
 
+/** Keeps tests out of the real `Documents/Meeting Scribe`. */
+function pointAtTestLibrary(userData: string, root = join(userData, 'library')): void {
+  writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root }));
+}
+
+/** The real settings start with no location, so the first-launch question opens. */
+async function answerFirstLaunch(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
+  );
+  await page.reload();
+}
+
+test('settings survive a restart and go to the real library', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-restart-'));
+  pointAtTestLibrary(userData);
+  const launch = () => electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+
+  const first = await launch();
+  const page = await first.firstWindow();
+  await answerFirstLaunch(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('radio', { name: 'Dark' }).check();
+  await expect
+    .poll(() => page.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)))
+    .toMatchObject({
+      ok: true,
+      value: { theme: 'dark', storageLocation: join(userData, 'library') },
+    });
+  await first.close();
+
+  const second = await launch();
+  const reopened = await second.firstWindow();
+  await reopened.getByRole('button', { name: 'Settings' }).click();
+  await expect(reopened.getByRole('radio', { name: 'Dark' })).toBeChecked();
+  await second.close();
+});
+
+test('a library that cannot open leaves the app usable', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-nolib-'));
+  const blocked = join(userData, 'not-a-folder');
+  writeFileSync(blocked, '');
+  pointAtTestLibrary(userData, blocked);
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  await app.evaluate(({ dialog }) => {
+    dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as never;
+  });
+  const page = await app.firstWindow();
+  await answerFirstLaunch(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('radio', { name: 'Dark' }).check();
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+  await app.close();
+});
+
 test('launches and shows every screen against the mock backend', async () => {
   const userData = join(tmpdir(), `scrb-smoke-${process.pid}`);
   mkdirSync(userData, { recursive: true });
+  pointAtTestLibrary(userData);
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   const page = await app.firstWindow();
   const errors: string[] = [];
@@ -51,6 +107,7 @@ test('launches and shows every screen against the mock backend', async () => {
     nodeIntegration: false,
   });
 
+  await answerFirstLaunch(page);
   for (const theme of ['Dark', 'Light']) {
     await page.getByRole('button', { name: 'Settings' }).click();
     await page.getByRole('radio', { name: theme }).check();

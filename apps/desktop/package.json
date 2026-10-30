@@ -12,7 +12,9 @@
     "test:smoke": "npm run build && playwright test"
   },
   "dependencies": {
+    "@scrb/app-core": "*",
     "@scrb/contracts": "*",
+    "@scrb/storage": "*",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
