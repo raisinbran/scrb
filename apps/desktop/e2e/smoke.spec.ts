@@ -25,6 +25,22 @@ test('launches and shows every screen against the mock backend', async () => {
     bridgeKeys: ['invoke', 'platform', 'subscribe'],
   });
 
+  const policy = await page
+    .locator('meta[http-equiv="Content-Security-Policy"]')
+    .getAttribute('content');
+  expect(policy).toContain("script-src 'self'");
+  expect(new URL(page.url()).protocol).toBe('scribe:');
+
+  const refused = await page.evaluate(async () => {
+    try {
+      await window.scribeBridge?.invoke('notARealCall' as never, undefined);
+      return 'allowed';
+    } catch {
+      return 'refused';
+    }
+  });
+  expect(refused).toBe('refused');
+
   const webPreferences = await app.evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0]?.webContents;
     return (contents as unknown as { getLastWebPreferences(): unknown }).getLastWebPreferences();

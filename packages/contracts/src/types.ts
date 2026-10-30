@@ -137,11 +137,7 @@ export interface ImportFinished {
 }
 
 export type ImportFailureReason =
-  | 'unreadable'
-  | 'unsupportedFormat'
-  | 'recordingInProgress'
-  | 'diskFull'
-  | 'internal';
+  'unreadable' | 'unsupportedFormat' | 'recordingInProgress' | 'diskFull' | 'internal';
 
 export interface ImportFailed {
   importId: ImportId;
@@ -154,13 +150,7 @@ export interface ImportFailed {
 // Meetings and transcript
 
 export type MeetingStatus =
-  | 'recording'
-  | 'paused'
-  | 'finalPassRunning'
-  | 'ready'
-  | 'recovered'
-  | 'importing'
-  | 'deleting';
+  'recording' | 'paused' | 'finalPassRunning' | 'ready' | 'recovered' | 'importing' | 'deleting';
 
 export type SummaryState = 'notGenerated' | 'generating' | 'ready' | 'edited' | 'outdated';
 
@@ -323,12 +313,7 @@ export interface ActionItem {
 export type DecisionStatus = 'decided' | 'proposed' | 'tentativelyAgreed' | 'unresolved';
 
 export type ImpactArea =
-  | 'scope'
-  | 'schedule'
-  | 'cost'
-  | 'risk'
-  | 'deliverables'
-  | 'technicalApproach';
+  'scope' | 'schedule' | 'cost' | 'risk' | 'deliverables' | 'technicalApproach';
 
 export interface DecisionItem {
   id: SummaryItemId;

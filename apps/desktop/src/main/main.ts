@@ -9,7 +9,8 @@ import {
   serveRenderer,
 } from './security.ts';
 
-const devServerUrl = process.env['SCRB_DEV_SERVER_URL'];
+// Ignored in packaged builds, so the environment can never point the app at another page.
+const devServerUrl = app.isPackaged ? undefined : process.env['SCRB_DEV_SERVER_URL'];
 const appUrl = devServerUrl ?? `${APP_ORIGIN}/index.html`;
 const appOrigin = new URL(appUrl).origin;
 

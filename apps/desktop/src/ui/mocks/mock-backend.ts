@@ -53,7 +53,11 @@ export type ArmedFault =
   | 'noModelInfo'
   | 'modelsMissing';
 
-type Handlers = { [K in CallName]: (request: BackendCalls[K]['request']) => BackendCalls[K]['response'] | Promise<BackendCalls[K]['response']> };
+type Handlers = {
+  [K in CallName]: (
+    request: BackendCalls[K]['request'],
+  ) => BackendCalls[K]['response'] | Promise<BackendCalls[K]['response']>;
+};
 type Listener = (payload: never) => void;
 
 function mergeSettings(settings: AppSettings, patch: SettingsPatch): AppSettings {
@@ -118,7 +122,9 @@ export class MockBackend implements Backend {
   };
 
   emit<K extends EventName>(name: K, payload: BackendEvents[K]): void {
-    this.listeners.get(name)?.forEach((listener) => (listener as (value: unknown) => void)(payload));
+    this.listeners
+      .get(name)
+      ?.forEach((listener) => (listener as (value: unknown) => void)(payload));
   }
 
   /** Makes the next matching calls fail or return their degraded state. */
@@ -158,7 +164,8 @@ export class MockBackend implements Backend {
 
   private findMeeting(meetingId: string): MeetingDetail {
     const meeting = this.library.find((item) => item.id === meetingId);
-    if (!meeting) throw new ContractError({ code: 'notFound', message: 'That meeting no longer exists.' });
+    if (!meeting)
+      throw new ContractError({ code: 'notFound', message: 'That meeting no longer exists.' });
     return meeting;
   }
 
@@ -293,7 +300,12 @@ export class MockBackend implements Backend {
           durationMs: this.recording.elapsedMs,
         });
       }
-      this.setRecording({ status: 'idle', meetingId: null, elapsedMs: 0, privacyBannerRequired: false });
+      this.setRecording({
+        status: 'idle',
+        meetingId: null,
+        elapsedMs: 0,
+        privacyBannerRequired: false,
+      });
       this.emit('transcriptionLag', { status: 'off', lagMs: 0 });
     },
     getRecordingState: () => this.recording,
@@ -391,7 +403,8 @@ export class MockBackend implements Backend {
     listTerms: () => this.terms,
     updateTerm: ({ id, patch }) => {
       const term = this.terms.find((item) => item.id === id);
-      if (!term) throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
+      if (!term)
+        throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
       const updated = { ...term, ...patch };
       this.terms = this.terms.map((item) => (item.id === id ? updated : item));
       return updated;
@@ -425,6 +438,7 @@ export class MockBackend implements Backend {
     listMeetings: ({ filter }) =>
       this.library
         .filter((meeting) => !filter?.origin || meeting.origin === filter.origin)
+        .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
         .map(toListItem),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
     updateMeeting: ({ meetingId, ...patch }) => {

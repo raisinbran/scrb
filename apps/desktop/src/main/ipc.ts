@@ -1,17 +1,15 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
-import {
-  CALL_NAMES,
-  IPC_CALL_CHANNEL,
-  type CallEnvelope,
-  type CallName,
-} from '@scrb/contracts';
+import { CALL_NAMES, IPC_CALL_CHANNEL, type CallEnvelope, type CallName } from '@scrb/contracts';
 
 /** Backend calls by name. Empty until the app core is merged; missing calls report notImplemented. */
 export type CallHandlers = Partial<Record<CallName, (request: unknown) => Promise<unknown>>>;
 
 const allowedCalls = new Set<string>(CALL_NAMES);
 
-function fail(code: 'invalidRequest' | 'notImplemented' | 'internal', message: string): CallEnvelope {
+function fail(
+  code: 'invalidRequest' | 'notImplemented' | 'internal',
+  message: string,
+): CallEnvelope {
   return { ok: false, error: { code, message } };
 }
 
