@@ -4,6 +4,7 @@ import { formatStamp, parseStamp } from "./time.js";
 import type { EvidenceLink, ItemFlag, TranscriptLine } from "./types.js";
 
 const NEAR_LINES = 3;
+const NEAR_SECONDS = 45;
 const SNAP_SECONDS = 5;
 const QUOTE_SUPPORT = 0.6;
 const TEXT_SUPPORT = 0.4;
@@ -17,7 +18,9 @@ export type EvidenceResult =
 function near(lines: TranscriptLine[], section: Section, index: number): Set<string> {
   const from = Math.max(section.start, index - NEAR_LINES);
   const to = Math.min(section.end, index + NEAR_LINES + 1);
-  return contentTokens(lines.slice(from, to).map((line) => line.text).join(" "));
+  const at = lines[index]!.startSec;
+  const close = lines.slice(from, to).filter((line) => Math.abs(line.startSec - at) <= NEAR_SECONDS);
+  return contentTokens(close.map((line) => line.text).join(" "));
 }
 
 function link(lines: TranscriptLine[], index: number): EvidenceLink {
