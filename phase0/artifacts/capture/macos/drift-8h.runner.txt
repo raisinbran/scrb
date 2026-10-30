@@ -1,1 +1,56 @@
 drift run drift-8h: 28800 s from 19:32:22, tone pid 40219
+capture exit 0 at 03:34:55
+{
+  "app" : {
+    "arrival_error_ms" : 47.315625055489363,
+    "discontinuities" : 16,
+    "effective_rate_hz" : 48000.293083457749,
+    "frame_vs_clock_error_ms" : 47.219625022989931,
+    "frames" : 371207680,
+    "gap_fill_frames" : 29184,
+    "max_inter_arrival_ms" : 170.6966666970402,
+    "packets" : 724958,
+    "rate" : 48000,
+    "seconds_by_frames" : 7733.4933333333329
+  },
+  "arrival_drift_ms" : 0.011541723324626219,
+  "avg_cpu_percent_of_machine" : 0.033575917075399503,
+  "cpu_seconds" : 97.212266999999997,
+  "mic" : {
+    "arrival_error_ms" : 47.304083332164737,
+    "discontinuities" : 15,
+    "effective_rate_hz" : 48000.293085637852,
+    "frame_vs_clock_error_ms" : 47.219875007613155,
+    "frames" : 371206884,
+    "gap_fill_frames" : 32996,
+    "max_inter_arrival_ms" : 179.82908338308334,
+    "packets" : 724949,
+    "rate" : 48000,
+    "seconds_by_frames" : 7733.4767499999998
+  },
+  "peak_rss_mib" : 16.171875,
+  "pid_tree" : [
+    40219
+  ],
+  "platform" : "macos",
+  "requested_seconds" : 28800,
+  "sample_count_drift_ms" : -0.00024998462322400883,
+  "start_offset_ms" : 14.932124991901219,
+  "tap_processes" : 1,
+  "wall_seconds" : 28952.974473249982
+}{
+  "sample_count": {
+    "max_abs_ms": 0.008,
+    "at_s": 602.6,
+    "final_ms": 0.001
+  },
+  "chunk_timestamps": {
+    "max_abs_ms": 0.028,
+    "at_s": 5222.9,
+    "final_ms": 0.001
+  },
+  "relative_clock_ppm": 0.001,
+  "projected_8h_sample_count_ms": 0.0,
+  "span_s": 7732.5,
+  "chunk_seconds": 5.0
+}

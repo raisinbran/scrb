@@ -1,0 +1,16 @@
+{
+  "sample_count": {
+    "max_abs_ms": 0.008,
+    "at_s": 602.6,
+    "final_ms": 0.001
+  },
+  "chunk_timestamps": {
+    "max_abs_ms": 0.028,
+    "at_s": 5222.9,
+    "final_ms": 0.001
+  },
+  "relative_clock_ppm": 0.001,
+  "projected_8h_sample_count_ms": 0.0,
+  "span_s": 7732.5,
+  "chunk_seconds": 5.0
+}
