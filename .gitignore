@@ -12,3 +12,4 @@ coverage/
 *.gguf
 *.onnx
 *.bin
+phase0/artifacts/capture/macos/long4h*
