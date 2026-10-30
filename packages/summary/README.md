@@ -54,8 +54,8 @@ Judged item by item as in Phase 0; details in [eval/judgments.md](eval/judgments
 - Held out is the honest number: about 2 points under the 80% pass line and well
   under 90%. One judge, who also designed the prompts; Phase 0 saw 20-point swings.
 - The coverage pass stays on. It added 11 of 50 items on the tuning set. Its cost
-  is precision: about 15% non-items and 20% leftover repeats on held-out meetings
-  (Phase 0 single pass: about 6% non-items), and tables of 13–35 actions and 30–49
+  is precision: about 16% non-items and 22% leftover repeats on held-out meetings
+  (Phase 0 single pass: about 6% non-items), and tables of 13–36 actions and 32–50
   decisions a meeting.
 - Time under load: 5–12 minutes to extract, about 1 minute for both narratives.
   Set `coverageChars: 0` to turn the pass off.

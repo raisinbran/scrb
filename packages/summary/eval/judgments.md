@@ -43,10 +43,10 @@ Held out:
 
 ## Precision (held out, read by hand; approximate)
 
-| Measure | Actions (48) | Decisions (115) | Together (163) |
+| Measure | Actions (51) | Decisions (120) | Together (171) |
 | --- | ---: | ---: | ---: |
-| Non-items | ~15 (31%) | ~10 (9%) | ~25 (15%) |
-| Remaining repeats of an item already listed | ~4 | ~30 | ~34 (21%) |
+| Non-items | ~17 (33%) | ~11 (9%) | ~28 (16%) |
+| Remaining repeats of an item already listed | ~5 | ~33 | ~38 (22%) |
 
 Phase 0's single pass had about 6% non-items and few repeats, at lower recall. Non-item
 actions are mostly things done during the meeting ("will present the prototype"). Repeats
@@ -57,11 +57,13 @@ Known wrong content: ES2015c "regular chip with push buttons and an LCD display"
 excluded); IS1004d keeps the turbo button. ES2008b repeats the Phase 0 "15 to 35" and
 "under 65" target group.
 
-Scores were judged before the last dedupe change (topic words ignored). The final outputs
-were then diffed against the judged ones item by item: no scored item went missing, so the
-scores stand; the precision table is adjusted for the extra repeats.
+Scores were judged before the last two dedupe changes. The final outputs were then diffed
+against the judged ones and each credited item checked by keyword: no credited item is
+missing. The first check caught one that was: the ES2008b questionnaire action had been
+merged into another item, which is what the last change fixed. The precision table is a
+hand estimate adjusted for the extra items, not a fresh full count.
 
-## Evidence links (six meetings, 451 items in all lists)
+## Evidence links (six meetings, 464 items in all lists)
 
 Every kept item links to a line at that exact time (tested). Across six meetings 6 links
 were repaired from a quote and flagged, 12 had a real timestamp with thin support and were
@@ -70,7 +72,8 @@ these runs; that path is covered by the model-free tests.
 
 ## Runs
 
-Metal, `-ngl 99`, `taskpolicy -c utility`, other jobs running.
+Metal, `-ngl 99`, `taskpolicy -c utility`, other jobs running. Times are from the run that
+produced the model answers; the final reruns reused those answers.
 
 | Meeting | Requests | Prompt tokens | Extraction | Both narratives |
 | --- | ---: | ---: | ---: | ---: |
@@ -82,5 +85,5 @@ Metal, `-ngl 99`, `taskpolicy -c utility`, other jobs running.
 | IS1004d | 15 | 67k | 548 s | 68 s |
 
 No retries or splits in the final runs. The earlier coverage draft hit 3 retries and 1 split
-on two meetings, all recovered. Three of 12 narratives ran past the 300 word limit (303–344
-words) and carry the warning; none failed.
+on two meetings, all recovered. No narrative failed. None of the 12 final ones passed the 300 word limit, but
+an earlier rerun had three at 303–344 words, so the limit is warned on, not guaranteed.
