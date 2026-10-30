@@ -21,6 +21,7 @@ const DEFAULT_VIEWPORT_PX = 600;
 const GAP_LABELS: Record<TimelineGap['kind'], string> = {
   paused: 'Paused',
   audioMissing: 'Audio missing',
+  possiblyMissing: 'Audio possibly missing',
   computerAsleep: 'Computer asleep',
 };
 

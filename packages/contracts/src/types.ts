@@ -24,12 +24,16 @@ export type TrackKind = 'microphone' | 'meeting';
 
 export type RecordingStatus = 'idle' | 'starting' | 'recording' | 'paused' | 'stopping';
 
+export type PauseReason = 'user' | 'meetingAppExited';
+
 export interface RecordingState {
   status: RecordingStatus;
   /** Null only while `status` is `idle`. */
   meetingId: MeetingId | null;
   /** Recorded time at the moment of this event, excluding paused spans. */
   elapsedMs: number;
+  /** Set only while `status` is `paused`. */
+  pauseReason: PauseReason | null;
   /** True when the privacy banner must show for this recording. The backend applies the rule. */
   privacyBannerRequired: boolean;
 }
@@ -40,10 +44,15 @@ export type RecordingWarningKind =
   | 'deviceChanged'
   | 'permissionLost'
   | 'audioMissing'
-  | 'bluetoothHandsFreeMic';
+  | 'bluetoothHandsFreeMic'
+  | 'meetingAppExited'
+  /** The pause could not be confirmed, so the recording ended. */
+  | 'pauseFailed';
 
 export interface RecordingWarning {
   kind: RecordingWarningKind;
+  /** Set when the warning concerns one track only. */
+  track?: TrackKind;
   message: string;
   /** Meeting time the warning was raised. */
   atMs: number;
@@ -84,6 +93,7 @@ export interface InputDevice {
 export const WHOLE_COMPUTER_SOURCE_ID = 'whole-computer';
 
 export interface MeetingApp {
+  /** Stays the same across restarts of the app it names; it is saved in settings. */
   id: string;
   name: string;
   kind: 'app' | 'browser' | 'wholeComputer';
@@ -108,8 +118,17 @@ export interface DeviceChange {
 export interface LevelMeter {
   /** dBFS, -100 to 0. */
   micDb: number;
-  /** dBFS, -100 to 0. */
-  meetingDb: number;
+  /** dBFS, -100 to 0. Null while the meeting source is not being read. */
+  meetingDb: number | null;
+}
+
+/** Progress of the mic test. Nothing it hears is kept. */
+export interface AudioCheckStatus {
+  active: boolean;
+  micDevice: InputDevice | null;
+  micResult: 'listening' | 'hearing' | 'quiet' | 'noSignal' | 'denied';
+  meetingResult: 'listening' | 'hearing' | 'noSignal' | 'denied' | 'notChecked';
+  endReason?: 'stopped' | 'timedOut' | 'recordingStarted' | 'deviceLost';
 }
 
 // Import
@@ -188,7 +207,9 @@ export interface MeetingDetail extends MeetingListItem {
 }
 
 export interface TimelineGap {
-  kind: 'paused' | 'audioMissing' | 'computerAsleep';
+  /** `possiblyMissing` is a low-confidence mark, such as a headset changing modes. */
+  kind: 'paused' | 'audioMissing' | 'possiblyMissing' | 'computerAsleep';
+  track: TrackKind | 'both';
   startMs: number;
   endMs: number;
 }
@@ -532,7 +553,8 @@ export interface ModelDownloadProgress {
 }
 
 export type PermissionKind = 'microphone' | 'meetingAudio';
-export type PermissionState = 'notDetermined' | 'granted' | 'denied';
+/** `unknown`: the OS offers no way to read it, as with System Audio Recording on macOS. */
+export type PermissionState = 'notDetermined' | 'granted' | 'denied' | 'unknown';
 
 export interface SetupStatus {
   models: ModelInfo[];

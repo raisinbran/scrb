@@ -10,6 +10,7 @@
 import type {
   AppInfo,
   AppSettings,
+  AudioCheckStatus,
   DeleteResult,
   DeviceChange,
   ExportFinished,
@@ -92,6 +93,15 @@ export interface BackendCalls {
   listInputDevices: { request: void; response: InputDevice[] };
   listMeetingApps: { request: void; response: MeetingApp[] };
   selectSources: { request: SourceSelection; response: void };
+
+  /**
+   * @addition
+   * Runs the mic test while idle; `conflict` during a recording. `startRecording` ends it at once.
+   * It ends by itself after 2 minutes. No meeting, file or index entry is created.
+   */
+  startAudioCheck: { request: { sources: SourceSelection }; response: void };
+  /** @addition */
+  stopAudioCheck: { request: void; response: void };
 
   // Transcript
   /** @addition */
@@ -203,6 +213,8 @@ export interface BackendEvents {
   // Devices
   deviceChanged: DeviceChange;
   levelMeter: LevelMeter;
+  /** @addition */
+  audioCheck: AudioCheckStatus;
 
   // Transcript
   transcriptChanged: TranscriptChanged;
@@ -291,6 +303,8 @@ const CALL_TABLE: Record<CallName, true> = {
   listInputDevices: true,
   listMeetingApps: true,
   selectSources: true,
+  startAudioCheck: true,
+  stopAudioCheck: true,
   getTranscript: true,
   applyCorrection: true,
   reassignSpeaker: true,
@@ -340,6 +354,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   importCancelled: true,
   deviceChanged: true,
   levelMeter: true,
+  audioCheck: true,
   transcriptChanged: true,
   transcriptionLag: true,
   playbackPosition: true,

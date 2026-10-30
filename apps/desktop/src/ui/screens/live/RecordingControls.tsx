@@ -1,10 +1,11 @@
-import type { RecordingStatus } from '@scrb/contracts';
+import type { PauseReason, RecordingStatus } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
 import styles from '../LiveScreen.module.css';
 
 interface RecordingControlsProps {
   status: RecordingStatus;
   elapsedMs: number;
+  pauseReason: PauseReason | null;
   busy: boolean;
   onStart(): void;
   onPause(): void;
@@ -21,7 +22,7 @@ const STATUS_TEXT: Record<RecordingStatus, string> = {
 };
 
 export function RecordingControls(props: RecordingControlsProps) {
-  const { status, elapsedMs, busy, onStart, onPause, onResume, onStop } = props;
+  const { status, elapsedMs, pauseReason, busy, onStart, onPause, onResume, onStop } = props;
   const active = status === 'recording' || status === 'paused';
   return (
     <div className={styles.controls} role="group" aria-label="Recording controls">
@@ -65,6 +66,12 @@ export function RecordingControls(props: RecordingControlsProps) {
         {STATUS_TEXT[status]}
       </span>
       {active && <span className={styles.elapsed}>{formatElapsed(elapsedMs)}</span>}
+      {status === 'paused' && (
+        <span className={styles.hint}>
+          {pauseReason === 'meetingAppExited' ? 'The meeting app closed. ' : ''}
+          No new audio is being recorded.
+        </span>
+      )}
     </div>
   );
 }

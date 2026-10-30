@@ -44,7 +44,7 @@ export function LevelMeters({ active }: { active: boolean }) {
     () =>
       backend.on('levelMeter', ({ micDb, meetingDb }) => {
         setLevel(micRef.current, micDb);
-        setLevel(meetingRef.current, meetingDb);
+        setLevel(meetingRef.current, meetingDb ?? -100);
       }),
     [backend],
   );

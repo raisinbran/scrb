@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@scrb/capture": "*",
     "@scrb/contracts": "*",
     "@scrb/storage": "*"
   }

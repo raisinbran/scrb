@@ -213,6 +213,8 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   listInputDevices: nothing,
   listMeetingApps: nothing,
   selectSources: sourceSelection,
+  startAudioCheck: shape({ sources: sourceSelection }),
+  stopAudioCheck: nothing,
 
   getTranscript: shape({
     meetingId: id,

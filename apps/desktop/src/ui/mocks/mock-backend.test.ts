@@ -620,6 +620,24 @@ describe('MockBackend', () => {
     });
   });
 
+  it('ends the mic test when a recording starts, and refuses one during a recording', async () => {
+    const ended: unknown[] = [];
+    backend.on('audioCheck', ({ endReason }) => endReason && ended.push(endReason));
+    const sources = { micDeviceId: null, meetingAppId: 'app-teams' };
+    await backend.call('startAudioCheck', { sources });
+    await backend.call('startRecording', {});
+    expect(ended).toEqual(['recordingStarted']);
+    await expect(backend.call('startAudioCheck', { sources })).rejects.toThrow(ContractError);
+  });
+
+  it('records why a recording is paused', async () => {
+    await backend.call('startRecording', {});
+    await backend.call('pauseRecording');
+    expect((await backend.call('getRecordingSnapshot')).state.pauseReason).toBe('user');
+    await backend.call('resumeRecording');
+    expect((await backend.call('getRecordingSnapshot')).state.pauseReason).toBeNull();
+  });
+
   it('runs every developer trigger without throwing', () => {
     for (const trigger of DEV_TRIGGERS) expect(() => trigger.run(backend)).not.toThrow();
   });

@@ -20,6 +20,7 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 | `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                          |
 | `getSummary`, `getMeeting`                                  | Meeting detail and the Summary tab must load stored data                                                     |
 | `updateMeeting`                                             | Import requires the meeting date to be editable                                                              |
+| `startAudioCheck`, `stopAudioCheck`, `audioCheck`           | The mic test the requirements ask for; meters otherwise run only while recording                             |
 | `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                        |
 | `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                              |
 | `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                      |
@@ -38,7 +39,6 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 
 ## Known gaps
 
-- Mic test and meters before Start: there is no call to run meters while idle. Add it with the capture work (capture draft Q8).
 - Chunk metadata and adapter events (capture draft Q14) are not here.
 
 ## Request validation

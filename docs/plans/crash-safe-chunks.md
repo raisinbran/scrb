@@ -55,6 +55,7 @@ transcriber falls behind, that feed drops audio. Saved audio is never affected.
 ```
 audio/
   session.json          start time and clock type; written once at the start
+  session.log           pause, resume and pauseFailed records (see pause-resume.md)
   writer.lock           held by the audio worker only while it writes
   microphone/
     000000.opus         finished chunks
@@ -134,7 +135,7 @@ in `interruptedRecordings`:
    save it safely as `.opus`, check it, and only then remove the `.part`.
 3. **Check every finished chunk.** A chunk with a damaged page keeps its good pages, and the hole
    becomes a marked gap. A file with no usable audio moves to `damaged/`.
-4. **Rebuild the list** from the log and the chunk files. Work out gaps from the stamps. A track that
+4. **Rebuild the list** from the log and the chunk files, and paused spans from `session.log` (`pause-resume.md`). Work out gaps from the stamps. A track that
    ends sooner than the other gets a marked gap for the difference.
 5. **Seal `chunks.json`** on both tracks.
 6. **Update `meeting.json`:** status `recovered` and the real duration. The end point shown to you
@@ -223,7 +224,7 @@ Tests marked "both" run on Windows and macOS.
 | 7 | Crash before any audio is saved | The meeting stays listed as recovered with no audio; nothing is deleted | I |
 | 8 | Crash while paused | Audio ends at the pause. No false gap afterwards | F: crash during a pause |
 | 9 | A worker is still writing when the app restarts | The lock stops recovery touching its files | F: leave a worker running, start recovery, and confirm no file is touched |
-| 10 | Audio worker crashes while the app stays up | App restarts it in the same meeting; next chunk numbers follow on; the gap is marked (decision 4) | F, both: kill the worker three times in one recording |
+| 10 | Audio worker crashes while the app stays up | Except after `pauseFailed`, which ends the meeting with no restart (`pause-resume.md`), the app restarts it in the same meeting; next chunk numbers follow on; the gap is marked (decision 4) | F, both: kill the worker three times in one recording |
 | 11 | The screen (renderer) crashes | Recording carries on, as the worker does not depend on it | F, both: kill the renderer during recording |
 
 ### Disk and files

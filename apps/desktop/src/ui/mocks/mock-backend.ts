@@ -2,6 +2,7 @@ import {
   ContractError,
   isValidRequest,
   type AppSettings,
+  type AudioCheckStatus,
   type Backend,
   type BackendCalls,
   type BackendEvents,
@@ -236,8 +237,10 @@ export class MockBackend implements Backend {
     status: 'idle',
     meetingId: null,
     elapsedMs: 0,
+    pauseReason: null,
     privacyBannerRequired: false,
   };
+  private audioCheckTimer: Timer | undefined;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private meterTicker: ReturnType<typeof setInterval> | undefined;
   private readonly meterPrng = createPrng(20261031);
@@ -375,6 +378,19 @@ export class MockBackend implements Backend {
       this.transcripts.set(meetingId, segments);
     }
     return segments;
+  }
+
+  private endAudioCheck(endReason: NonNullable<AudioCheckStatus['endReason']>): void {
+    if (this.audioCheckTimer === undefined) return;
+    clearTimeout(this.audioCheckTimer);
+    this.audioCheckTimer = undefined;
+    this.emit('audioCheck', {
+      active: false,
+      micDevice: null,
+      micResult: 'listening',
+      meetingResult: 'notChecked',
+      endReason,
+    });
   }
 
   private revisionOf(meetingId: string): number {
@@ -709,10 +725,10 @@ export class MockBackend implements Backend {
   private runStep(step: ScriptStep): void {
     switch (step.kind) {
       case 'pause':
-        this.setRecording({ status: 'paused' });
+        this.setRecording({ status: 'paused', pauseReason: 'user' });
         break;
       case 'resume':
-        this.setRecording({ status: 'recording' });
+        this.setRecording({ status: 'recording', pauseReason: null });
         break;
       case 'deviceChange':
         this.emit('deviceChanged', {
@@ -742,6 +758,7 @@ export class MockBackend implements Backend {
         });
       }
       this.stopImportsForRecording();
+      this.endAudioCheck('recordingStarted');
       const meetingId = this.id('meeting-live');
       this.library = [
         {
@@ -774,8 +791,8 @@ export class MockBackend implements Backend {
       this.meterTicker = setInterval(() => this.emitLevels(), METER_INTERVAL_MS);
       return { meetingId };
     },
-    pauseRecording: () => this.setRecording({ status: 'paused' }),
-    resumeRecording: () => this.setRecording({ status: 'recording' }),
+    pauseRecording: () => this.setRecording({ status: 'paused', pauseReason: 'user' }),
+    resumeRecording: () => this.setRecording({ status: 'recording', pauseReason: null }),
     stopRecording: () => {
       this.stopRecordingTimers();
       const meetingId = this.recording.meetingId;
@@ -864,6 +881,21 @@ export class MockBackend implements Backend {
     selectSources: (selection) => {
       this.settings = mergeSettings(this.settings, { audio: selection });
     },
+
+    startAudioCheck: () => {
+      if (this.recording.status !== 'idle') {
+        throw new ContractError({ code: 'conflict', message: 'Stop recording to test the mic.' });
+      }
+      this.audioCheckTimer = setTimeout(() => this.endAudioCheck('timedOut'), 120_000);
+      this.emit('audioCheck', {
+        active: true,
+        micDevice: INPUT_DEVICES[0] ?? null,
+        micResult: 'hearing',
+        meetingResult: 'notChecked',
+      });
+      this.emit('levelMeter', { micDb: -24, meetingDb: null });
+    },
+    stopAudioCheck: () => this.endAudioCheck('stopped'),
 
     getTranscript: ({ meetingId, offset, limit }) => {
       const all = this.transcriptOf(meetingId);

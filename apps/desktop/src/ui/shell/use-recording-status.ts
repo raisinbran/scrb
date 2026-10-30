@@ -6,6 +6,7 @@ const IDLE: RecordingState = {
   status: 'idle',
   meetingId: null,
   elapsedMs: 0,
+  pauseReason: null,
   privacyBannerRequired: false,
 };
 

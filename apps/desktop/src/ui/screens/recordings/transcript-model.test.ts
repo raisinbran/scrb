@@ -22,7 +22,7 @@ function segment(id: string, startMs: number): TranscriptSegment {
   };
 }
 
-const gap: TimelineGap = { kind: 'paused', startMs: 1500, endMs: 1800 };
+const gap: TimelineGap = { kind: 'paused', track: 'both', startMs: 1500, endMs: 1800 };
 
 describe('applyTranscriptChange', () => {
   const base = [segment('a', 0), segment('b', 1000), segment('c', 2000)];

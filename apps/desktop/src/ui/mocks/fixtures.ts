@@ -128,7 +128,7 @@ export function createLibrary(): MeetingDetail[] {
       startedAt: '2026-10-27T15:00:00Z',
       durationMs: 47 * 60_000,
       summaryState: 'outdated',
-      gaps: [{ kind: 'paused', startMs: 900_000, endMs: 1_020_000 }],
+      gaps: [{ kind: 'paused', track: 'both', startMs: 900_000, endMs: 1_020_000 }],
     },
     {
       ...base,

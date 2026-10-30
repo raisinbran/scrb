@@ -15,6 +15,8 @@ const WARNING_TITLES: Record<RecordingWarningKind, string> = {
   permissionLost: 'Permission lost',
   audioMissing: 'Audio missing',
   bluetoothHandsFreeMic: 'Low-quality mic',
+  meetingAppExited: 'Meeting app closed',
+  pauseFailed: 'Recording ended',
 };
 
 export function HealthIndicator({

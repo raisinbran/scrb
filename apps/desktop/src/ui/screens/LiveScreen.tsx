@@ -10,6 +10,7 @@ import { useBackend } from '../lib/backend-context.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { HealthIndicator, LagIndicator, LiveAlerts } from './live/LiveAlerts.tsx';
+import { MicTest } from './live/MicTest.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
 import { TranscriptView, type TranscriptViewHandle } from './live/TranscriptView.tsx';
@@ -124,6 +125,7 @@ export function LiveScreen() {
         <RecordingControls
           status={status}
           elapsedMs={recording.elapsedMs}
+          pauseReason={recording.pauseReason}
           busy={busy}
           onStart={start}
           onPause={pause}
@@ -140,6 +142,7 @@ export function LiveScreen() {
             onSelect={selectSources}
           />
         )}
+        {status === 'idle' && <MicTest sources={selection} />}
         <LevelMeters active={status === 'recording'} />
       </div>
       <div className={styles.indicators}>
