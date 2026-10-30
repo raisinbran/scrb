@@ -484,6 +484,25 @@ describe('MockBackend', () => {
       expect(undone.segments[0]?.words[0]?.state).toBe('final');
     });
 
+    it('never reuses a sample id for a remembered term or a split speaker', async () => {
+      const meetingId = LONG_MEETING_ID;
+      for (let round = 0; round < 6; round += 1) {
+        const { range } = await edit(meetingId);
+        await backend.call('applyCorrection', {
+          meetingId,
+          range,
+          text: `Term ${round}`,
+          remember: true,
+        });
+        await backend.call('splitSpeaker', { meetingId, range, newLabel: `Guest ${round}` });
+      }
+      const termIds = (await backend.call('listTerms')).map((term) => term.id);
+      const { speakers } = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+      const speakerIds = speakers.map((speaker) => speaker.id);
+      expect(new Set(termIds).size).toBe(termIds.length);
+      expect(new Set(speakerIds).size).toBe(speakerIds.length);
+    });
+
     it('marks a summary outdated after a transcript edit, and after undo', async () => {
       const meetingId = LONG_MEETING_ID;
       const seen: string[] = [];

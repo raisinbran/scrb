@@ -201,6 +201,13 @@ describe('LiveScreen', () => {
   });
 
   describe('transcript', () => {
+    it('offsets each row slot, so no slot lies over the rows above it', async () => {
+      await startMeeting(3);
+      const slots = [...document.querySelectorAll<HTMLElement>('[data-row-index]')];
+      expect(slots.length).toBeGreaterThan(1);
+      expect(slots.every((slot) => slot.style.transform.startsWith('translateY('))).toBe(true);
+    });
+
     it('styles provisional and final text differently', async () => {
       await startMeeting(8);
       const states = new Set(words().map((word) => word.dataset['state']));

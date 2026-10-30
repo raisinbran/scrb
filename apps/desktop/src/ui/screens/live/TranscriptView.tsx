@@ -358,24 +358,26 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const rows = [];
   for (let index = firstRow; index <= lastRow; index += 1) {
     const segment = store.segmentAt(index);
-    const top = store.heights.topOf(index, rowCount);
+    const slotStyle = { transform: `translateY(${store.heights.topOf(index, rowCount)}px)` };
     if (!segment) {
       rows.push(
-        <div key={`gap-${index}`} className={styles.rowSlot} data-row-index={index}>
-          <p className={styles.placeholder} style={{ transform: `translateY(${top}px)` }}>
-            Loading…
-          </p>
+        <div
+          key={`gap-${index}`}
+          className={styles.rowSlot}
+          style={slotStyle}
+          data-row-index={index}
+        >
+          <p className={styles.placeholder}>Loading…</p>
         </div>,
       );
       continue;
     }
     const inRange = range && index >= range.first.segment && index <= range.last.segment;
     rows.push(
-      <div key={segment.id} className={styles.rowSlot} data-row-index={index}>
+      <div key={segment.id} className={styles.rowSlot} style={slotStyle} data-row-index={index}>
         <TranscriptRow
           segment={segment}
           speakerLabel={store.speakerLabel(segment.speakerId)}
-          top={top}
           selectedFrom={inRange ? (index === range.first.segment ? range.first.word : 0) : null}
           selectedTo={
             inRange

@@ -663,7 +663,7 @@ export class MockBackend implements Backend {
     this.terms = [
       ...this.terms,
       {
-        id: this.id('term'),
+        id: this.id('term-learned'),
         term,
         misheard: [misheard],
         contexts: [],
@@ -939,7 +939,7 @@ export class MockBackend implements Backend {
     },
     splitSpeaker: ({ meetingId, range, newLabel }) => {
       const speaker: Speaker = {
-        id: this.id('sp'),
+        id: this.id('sp-split'),
         label: newLabel,
         kind: 'named',
         profileId: null,

@@ -6,7 +6,6 @@ import styles from './TranscriptView.module.css';
 interface TranscriptRowProps {
   segment: TranscriptSegment;
   speakerLabel: string;
-  top: number;
   /** Index of the first and last selected word in this row. Null when none is selected. */
   selectedFrom: number | null;
   selectedTo: number | null;
@@ -17,18 +16,13 @@ interface TranscriptRowProps {
 export const TranscriptRow = memo(function TranscriptRow({
   segment,
   speakerLabel,
-  top,
   selectedFrom,
   selectedTo,
   cursorWord,
   playingMs,
 }: TranscriptRowProps) {
   return (
-    <div
-      className={styles.row}
-      data-segment-id={segment.id}
-      style={{ transform: `translateY(${top}px)` }}
-    >
+    <div className={styles.row} data-segment-id={segment.id}>
       <div className={styles.rowHeader}>
         <span className={styles.speaker}>{speakerLabel}</span>
         <time className={styles.time}>{formatElapsed(segment.startMs)}</time>
