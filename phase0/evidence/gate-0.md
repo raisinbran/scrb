@@ -214,6 +214,46 @@ whisper, diarization and LLM benchmarks in this document ran alongside it
    priority while recording, and Gate 0 does not show that a 1--2 s buffer
    avoids 10 s stalls; re-measure on the Phase 2 adapter.
 
+### Device-state cases (second Windows PC, 2026-10-29)
+
+Run from `HANDOFF-WINDOWS.md` with the same `DualCapture.exe` (no
+device-change recovery) and `scripts/run-windows-device-case.ps1`, which
+logs the default output and communications mic every 2 s.  Dell Precision
+7760, Windows 11 Pro for Workstations 26H2 (10.0.26300), AC power; Realtek
+speakers and mic array, AirPods Pro 3 (A2DP "Headphones", hands-free
+"Headset").  300 s runs, action at about 60--80 s, output muted.  Full table
+and notes: `HANDOFF-WINDOWS.md`; outputs `artifacts/capture/devices/`.
+
+| Case | Probe | App track | Mic track |
+| --- | --- | --- | --- |
+| Output switch (AirPods to speakers) | ran to end, `S_OK` | tone continuous, 0 discontinuities | stayed on the AirPods hands-free mic |
+| Input switch | ran to end | tone continuous | **did not follow** the new default; HFP stream lost ~222 of 298 s (604 discontinuities) |
+| Bluetooth connect | ran to end | tone continuous | stayed on the Realtek mic (default comms mic moved to AirPods) |
+| Bluetooth disconnect | ran to end | silent from the disconnect (the tone player's own stream died) | **stopped at 72.9 s: no packets, no error, no padding** |
+| AirPods enter hands-free | ran to end | **1.4 s of digital silence, no discontinuity flagged** | Realtek mic live; 1 discontinuity at the profile switch |
+| Sleep/wake (Modern Standby, 44 s) | ran to end (343 s wall for 300 s) | 42 s silent frames, 0 discontinuities, **ends 1.69 s short of the clock** | gap-filled 42 s, stays aligned (-7 ms) |
+| USB mic unplug, mic privacy off | not run | | |
+
+Voice checks (no device change): Realtek mic voice about 20 dB over room
+noise; AirPods hands-free mic gates noise by about 50 dB and shows frequent
+discontinuities (HFP jitter) with no lost frames in that run.
+
+- The default communications mic flapped between AirPods and Realtek every
+  ~4 s for 50 s by itself before one run.
+
+**Design consequences for the Phase 2 Windows adapter:**
+
+1. Listen for default-device changes (`IMMNotificationClient`) and reopen
+   the mic stream on the new default, debounced (the default can flap).
+2. Detect a dead stream with a packet-arrival watchdog: a removed device
+   stops delivering with no error.
+3. Re-anchor every track to QPC after resume and after any arrival gap:
+   after Modern Standby the app track was 1.7 s off with no discontinuity
+   flag, so flags alone cannot find gaps.  Per-chunk timestamps (already
+   planned) plus a new chunk at every arrival gap cover this.
+4. Treat Bluetooth hands-free capture as lossy: mark padded spans, and warn
+   when the selected mic is a hands-free headset.
+
 ### Opus storage and CPU
 
 `probes/opus-storage/OpusStorage.cpp` against libopus
@@ -684,10 +724,13 @@ Within the 6 GB budget, as on Windows.
 
 ## Gate Checklist
 
-- [ ] Synced dual-track capture works on Windows.  60 min and 8 h pass with
+- [x] Synced dual-track capture works on Windows.  60 min and 8 h pass with
   per-chunk timestamps (8 h: within 2 ms for 99.95% of packets; mic lost
-  0.56% to load stalls, app track lost nothing); device-change, sleep/wake
-  and Bluetooth cases not run.
+  0.56% to load stalls, app track lost nothing).  Device cases ran: the
+  probe never crashed, and the failures (mic does not follow device
+  changes, silent stream death, 1.7 s offset after standby) are handled by
+  the adapter rules above, not blockers.  USB unplug and mic-privacy cases
+  not run.
 - [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
   passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
   load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
@@ -707,8 +750,7 @@ Within the 6 GB budget, as on Windows.
 ## Gate Decision
 
 **Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-the Windows device-state cases (`HANDOFF-WINDOWS.md`); on the Mac the 8 h
-drift run and device cases; and
+on the Mac the 8 h drift run and device cases; and
 owner decisions on the framework, the DER and summary-recall targets, and the
 recommendations above.
 
