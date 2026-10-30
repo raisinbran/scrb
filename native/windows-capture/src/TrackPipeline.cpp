@@ -92,6 +92,7 @@ bool TrackPipeline::CheckDivergence(const Packet& p) {
         chunk_.missingBeforeMs += NsToMs(dev);
         if (chunk_.missingCause.empty()) chunk_.missingCause = "unknown";
         prevStampNs_ += dev;
+        rateWindowOpen_ = false;
         stats_.missingMs += static_cast<uint64_t>(NsToMs(dev));
         return false;
     }
@@ -100,6 +101,7 @@ bool TrackPipeline::CheckDivergence(const Packet& p) {
 
 // D5: conversion to 48 kHz hides device rate changes unless the stamps show them.
 void TrackPipeline::CheckRate(const Packet& p, int64_t stamp) {
+    if (!chunkOpen_) return;
     if (!rateWindowOpen_) {
         rateWindowOpen_ = true;
         rateWindowStartNs_ = stamp;
@@ -227,6 +229,7 @@ void TrackPipeline::CloseChunk(const std::string& reason) {
 void TrackPipeline::OpenChunk(int64_t startNs, int64_t rawStamp, int64_t arrivalNs) {
     chunk_ = ChunkMeta{};
     chunkFirstArrivalNs_ = arrivalNs;
+    rateWindowOpen_ = false;  // D5 windows never span a boundary's time jump
     chunk_.seq = nextSeq_++;
     char id[32];
     snprintf(id, sizeof id, "-%06llu", static_cast<unsigned long long>(chunk_.seq));

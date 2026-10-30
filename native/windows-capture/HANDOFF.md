@@ -1,13 +1,21 @@
 # Windows capture adapter: handoff
 
-Status (2026-10-30): **scaffold only; no helper code yet.**  Stopped for the
-5-hour allowance (86% used; resets 09:30 UTC).  Branch `windows-capture`, cut
-from origin/main at 3fc9931.  Not pushed: the owner has not confirmed pushing
-or a Windows Audio restart.
+Status (2026-10-30): **pipeline rules only; no capture helper yet, no device
+case run.**  Stopped for the 5-hour allowance (about 93% used; resets 09:30
+UTC).  Branch `windows-capture`, cut from origin/main at 3fc9931.  Not pushed:
+the owner has not confirmed pushing or a Windows Audio restart.
 
 Done: `.gitignore`, `scripts/fetch-opus.ps1` (libopus 251d657e built static
-with `/MT` to `build/opus/opus.lib`; not in git).  VS 2022 tools at
-`C:\BuildTools`; CMake and Ninja are under its CMake folder, not on PATH.
+with `/MT` to `build/opus/opus.lib`; not in git), `src/Common.h`,
+`src/TrackPipeline.*`, `tests/PipelineTests.cpp`, `build.cmd` (add the other
+files to it).  VS 2022 tools at `C:\BuildTools`; CMake and Ninja are under its
+CMake folder, not on PATH.  Run `build.cmd` by absolute path; the shell's
+working directory is the repo root.
+
+Tests: synthetic groups pass (T2, T3, T3b, T4, T6, T11, T13, T14).  **One known
+failure:** the replay of `sleep-wake-timing.csv` reports 3270 ms missing, not
+~1690 ms.  Not diagnosed.  The log has one row per second, so it may be a
+replay artifact, or D2 and a stall split may double count; settle this first.
 
 Environment notes:
 - Write source with the Write tool, one file per call.  A large Bash heredoc
