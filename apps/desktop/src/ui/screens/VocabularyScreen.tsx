@@ -65,12 +65,7 @@ function EditDialog({
       </label>
       <label className={fieldStyles.field}>
         Misheard versions, one per line
-        <textarea
-          rows={4}
-          value={misheard}
-          onChange={(event) => setMisheard(event.target.value)}
-          onKeyDown={(event) => event.stopPropagation()}
-        />
+        <textarea rows={4} value={misheard} onChange={(event) => setMisheard(event.target.value)} />
       </label>
     </ActionDialog>
   );

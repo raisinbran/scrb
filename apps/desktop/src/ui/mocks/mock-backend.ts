@@ -712,8 +712,7 @@ export class MockBackend implements Backend {
       writeStored(SETTINGS_KEY, this.settings);
       return this.settings;
     },
-    checkModelUpdates: () =>
-      MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
+    checkModelUpdates: () => MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
     installModelUpdate: ({ role }) => {
       if (this.armed.delete('modelDownloadFails')) {
         this.emitModelProgress(role, 'failed', 0.2, 'The download stopped. Try again.');

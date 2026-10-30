@@ -19,7 +19,13 @@ interface SpeakerLabelProps {
 }
 
 /** A speaker's name in a meeting, opening a menu to rename, merge, reassign and split. */
-export function SpeakerLabel({ meetingId, speaker, speakers, range, onChanged }: SpeakerLabelProps) {
+export function SpeakerLabel({
+  meetingId,
+  speaker,
+  speakers,
+  range,
+  onChanged,
+}: SpeakerLabelProps) {
   const backend = useBackend();
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const others = speakers.filter((other) => other.id !== speaker.id);

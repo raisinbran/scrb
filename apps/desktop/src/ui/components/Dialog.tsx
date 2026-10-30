@@ -101,11 +101,7 @@ export function ActionDialog(props: ActionDialogProps) {
         )}
         <DialogActions>
           <Button onClick={onCancel}>Cancel</Button>
-          <Button
-            type="submit"
-            variant={danger ? 'danger' : 'primary'}
-            disabled={busy || disabled}
-          >
+          <Button type="submit" variant={danger ? 'danger' : 'primary'} disabled={busy || disabled}>
             {confirmLabel}
           </Button>
         </DialogActions>

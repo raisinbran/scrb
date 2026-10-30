@@ -128,13 +128,7 @@ function SplitDialog(props: SplitDialogProps) {
   );
 }
 
-function SpeakersOfMeeting({
-  meetingId,
-  onChanged,
-}: {
-  meetingId: MeetingId;
-  onChanged(): void;
-}) {
+function SpeakersOfMeeting({ meetingId, onChanged }: { meetingId: MeetingId; onChanged(): void }) {
   const load = useCallback(
     (backend: Backend) =>
       backend.call('getTranscript', { meetingId, offset: 0, limit: SEGMENT_LIMIT }),

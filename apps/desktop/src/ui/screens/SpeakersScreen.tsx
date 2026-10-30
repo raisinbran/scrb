@@ -61,13 +61,7 @@ function SuggestionRow({
 
 type ProfileDialog = { kind: 'rename' | 'merge' | 'delete'; profile: VoiceProfile } | null;
 
-function Profiles({
-  profiles,
-  onChanged,
-}: {
-  profiles: VoiceProfile[];
-  onChanged(): void;
-}) {
+function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged(): void }) {
   const backend = useBackend();
   const [dialog, setDialog] = useState<ProfileDialog>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
