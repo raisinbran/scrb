@@ -14,7 +14,7 @@ using namespace scrb;
 
 namespace {
 
-// Flat objects only: string values are unescaped, other values kept as written.
+// Flat objects: string values are unescaped, other values, arrays included, kept as written.
 Command ParseCommand(const std::string& s) {
     Command out;
     size_t i = 0;
@@ -45,7 +45,12 @@ Command ParseCommand(const std::string& s) {
             out[key] = parseString();
         } else {
             size_t start = i;
-            while (i < s.size() && s[i] != ',' && s[i] != '}') ++i;
+            if (i < s.size() && s[i] == '[') {
+                while (i < s.size() && s[i] != ']') ++i;
+                ++i;
+            } else {
+                while (i < s.size() && s[i] != ',' && s[i] != '}') ++i;
+            }
             out[key] = s.substr(start, i - start);
         }
     }
@@ -55,6 +60,13 @@ Command ParseCommand(const std::string& s) {
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
+    // Tells recovery whether a worker still holds that lock.
+    if (argc == 3 && std::wstring(argv[1]) == L"check-lock") {
+        HANDLE lock = CreateFileW(argv[2], GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
+        else if (GetLastError() == ERROR_SHARING_VIOLATION) return 3;
+        return 0;
+    }
     SessionOptions options;
     for (int i = 1; i < argc; ++i) {
         std::wstring a = argv[i];
@@ -75,7 +87,7 @@ int wmain(int argc, wchar_t** argv) {
                 session.Post([&session, cmd] { session.Handle(cmd); });
             }
             session.Post([&session] {
-                Command quit{{"cmd", "quit"}};
+                Command quit{{"name", "quit"}};
                 session.Handle(quit);
             });
         });

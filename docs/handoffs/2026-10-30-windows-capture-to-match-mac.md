@@ -13,3 +13,5 @@ For a Windows session on the `windows-capture` branch, which is unapproved start
 - `audio/writer.lock` held for the whole run.
 
 **Then run,** on the Windows PC: `pause_case.py` and `crash_case.mjs` from `native/macos-capture/scripts/`, adapted, plus the unmerged `app-recording` path with `SCRB_CAPTURE_HELPER` set.
+
+**Done 2026-10-30.** See "Matching the Mac helper" in `native/windows-capture/README.md`.

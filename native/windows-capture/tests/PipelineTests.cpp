@@ -19,6 +19,8 @@ struct MemorySink : ChunkSink {
     bool Begin(const ChunkMeta&) override { return true; }
     bool Write(const int16_t*, uint32_t f) override { written += f; return true; }
     bool End(const ChunkMeta& m) override { closed.push_back(m); return true; }
+    void StartMoved(const ChunkMeta&) override { ++moved; }
+    int moved = 0;
 };
 
 PipelineConfig MakeConfig(const char* track, bool arrival) {
@@ -35,18 +37,20 @@ struct Rig {
     TrackPipeline pipe;
     int64_t t = 1000 * kNsPerSec;
     int64_t stamp = 1000 * kNsPerSec;
+    uint32_t generation = 1;
     explicit Rig(const char* track, bool arrival = false)
         : pipe(MakeConfig(track, arrival), sink, [this](const std::string& n, const JsonObject&) {
               discontinuities += n == "discontinuity";
           }) {
         pipe.OnStreamOpened({"id", "name", "internal"}, "start");
-        pipe.Start(t);
+        pipe.Start(t, generation);
     }
     void Feed(int packets, int16_t value = 100, bool flag = false, bool silent = false, int64_t stepNs = 10 * kNsPerMs) {
         for (int i = 0; i < packets; ++i) {
             Packet p;
             p.frames = 480;
             p.stampNs = stamp;
+            p.generation = generation;
             p.arrivalNs = t + 10 * kNsPerMs;
             p.flagDiscontinuity = flag && i == 0;
             p.silentFlag = silent;
@@ -71,7 +75,8 @@ void TestRolloverAndGaps() {
     auto& c = r.sink.closed;
     CHECK(c.size() == 4);
     CHECK(c[0].closeReason == "rollover" && c[0].frames == 5 * kRate);
-    CHECK(c[1].closeReason == "discontinuity" && c[1].seq == 2);
+    CHECK(c[0].seq == 0);
+    CHECK(c[1].closeReason == "discontinuity" && c[1].seq == 1);
     CHECK(c[2].missingBeforeMs > 15 && c[2].missingBeforeMs < 17);
     CHECK(c[3].missingBeforeMs == 0);
     CHECK(r.sink.written == 720 * 480);
@@ -153,9 +158,10 @@ void TestPauseAndLoss() {
     puts("T13 pause spans; T6 stream loss span and new device");
     Rig r("microphone");
     r.Feed(100);
-    CHECK(r.pipe.Pause() == kNsPerSec);
-    r.Feed(200);
-    CHECK(r.pipe.Resume(r.t) == 3 * kNsPerSec);
+    r.pipe.OnGateClosed();
+    r.t += 2 * kNsPerSec;
+    r.stamp += 2 * kNsPerSec;
+    ++r.generation;
     r.Feed(100);
     r.pipe.OnStreamLost("device", "device");
     r.t += 7 * kNsPerSec;
@@ -169,6 +175,47 @@ void TestPauseAndLoss() {
     CHECK(std::abs(c[1].missingBeforeMs - 2000) < 1);
     CHECK(c[2].device.id == "id2" && c[2].missingCause == "device");
     CHECK(std::abs(c[2].missingBeforeMs - 7000) < 1);
+}
+
+void TestGate() {
+    puts("Gate: closed at first, one cutoff, whole packets, stale packets after resume");
+    Gate g;
+    CHECK(!g.IsOpen() && !g.Passes(100, 10));
+    g.Open(100);
+    CHECK(g.IsOpen() && g.Generation() == 1);
+    CHECK(!g.Passes(99, 10) && g.Passes(100, 10));
+    g.Close(200);
+    CHECK(!g.IsOpen());
+    CHECK(g.Passes(190, 10) && !g.Passes(191, 10) && !g.Passes(300, 10));
+    g.Open(400);
+    CHECK(g.Generation() == 2 && !g.Passes(390, 5) && g.Passes(400, 10));
+}
+
+void TestFastPause() {
+    puts("A pause too short for the queue to empty still splits; idle closes do not repeat");
+    Rig r("microphone");
+    r.Feed(10);
+    ++r.generation;
+    r.Feed(10);
+    r.pipe.OnGateClosed();
+    r.pipe.OnGateClosed();
+    r.pipe.Stop();
+    auto& c = r.sink.closed;
+    CHECK(c.size() == 2);
+    CHECK(c[0].closeReason == "pause" && c[1].openReason == "resume" && c[1].closeReason == "pause");
+    CHECK(c[1].seq == 1);
+}
+
+void TestStartMoved() {
+    puts("A chunk moved by confirmed loss tells the sink, so its stored start follows");
+    Rig r("meeting", true);
+    r.Feed(490);
+    r.t += 1000 * kNsPerMs;
+    r.Feed(60);
+    r.pipe.Stop();
+    CHECK(r.discontinuities == 1);
+    CHECK(r.sink.moved == 1);
+    CHECK(r.sink.closed.size() == 2 && r.sink.closed[1].missingBeforeMs > 900);
 }
 
 void TestMarks() {
@@ -205,7 +252,7 @@ void TestRealStandbyLog(const char* path) {
         if (sscanf_s(line.c_str(), "app,%lf,%lf,%lf", &r.qpc, &r.arrival, &r.frames) == 3) rows.push_back(r);
     }
     pipe.OnStreamOpened({"id", "n", "loopback"}, "start");
-    pipe.Start(static_cast<int64_t>(rows[0].qpc * kNsPerSec));
+    pipe.Start(static_cast<int64_t>(rows[0].qpc * kNsPerSec), 0);
     for (size_t i = 0; i + 1 < rows.size(); ++i) {
         Packet p;
         p.stampNs = static_cast<int64_t>(rows[i].qpc * kNsPerSec);
@@ -232,6 +279,9 @@ int main(int argc, char** argv) {
     TestWake();
     TestDrainBurst();
     TestPauseAndLoss();
+    TestGate();
+    TestFastPause();
+    TestStartMoved();
     TestMarks();
     if (argc > 1) TestRealStandbyLog(argv[1]);
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "PASSED", g_failures);

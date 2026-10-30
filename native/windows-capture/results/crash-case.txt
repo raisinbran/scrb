@@ -1,0 +1,9 @@
+lock held while running: true
+lock held after kill: false
+before: 000000.opus 000001.opus.part chunks.log
+after: 000000.opus 000001.opus chunks.json
+outcome recovered recorded 7365 ms, recovered end 7015 ms
+lost 350 ms; gaps [{"kind":"audioMissing","track":"microphone","startNs":6993827900,"endNs":7015258600}]
+last chunk {"seq":1,"startNs":5021758600,"rate":48000,"preSkip":312,"openReason":"rollover","endNs":7015258600,"file":"000001.opus","closeReason":"unknown","state":"recovered"}
+repaired chunk frames and 880 level: 95688 4508.2
+PASS

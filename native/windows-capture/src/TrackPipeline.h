@@ -31,18 +31,18 @@ struct Stats {
     std::atomic<uint64_t> chunks{0};
     std::atomic<uint64_t> missingMs{0};
     std::atomic<uint64_t> writeErrors{0};
-    std::atomic<int> levelCentiDb{-12000};
+    std::atomic<int64_t> correctionNs{0};  // read by the capture thread for the gate
 };
 
 class TrackPipeline {
 public:
     TrackPipeline(PipelineConfig config, ChunkSink& sink, EventFn emit);
 
-    void Start(int64_t originNs);
+    void Start(int64_t originNs, uint32_t generation);
     void OnPacket(const Packet& p);
-    int64_t Pause();                // returns the track's end, timeline ns
-    int64_t Resume(int64_t nowNs);  // returns the time resume took effect
-    int64_t Stop();
+    // Everything before the cutoff is written, so a closed gate can end the chunk.
+    void OnGateClosed();
+    void Stop();
     void OnSleep();
     void OnWake(int64_t nowNs);
     void OnStreamLost(const std::string& closeReason, const std::string& cause);
@@ -76,12 +76,12 @@ private:
     bool sleeping_ = false;
     int64_t wakeNs_ = 0;
     int64_t originNs_ = 0;
-    int64_t resumeAfterNs_ = 0;
+    uint32_t generation_ = 0;
 
     bool chunkOpen_ = false;
     ChunkMeta chunk_;
     int64_t chunkFirstArrivalNs_ = 0;
-    uint64_t nextSeq_ = 1;
+    uint64_t nextSeq_ = 0;
     DeviceInfo device_;
     std::string pendingOpenReason_ = "start";
     std::string pendingCause_;

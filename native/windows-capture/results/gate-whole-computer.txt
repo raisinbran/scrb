@@ -1,0 +1,7 @@
+case=gate-whole-computer helperExit=0
+microphone: chunks=2 audio=8.3 s missing=0.0 ms bad=0 part=0 files=2 toneChunks=0 zeroChunks=0 peak=-26.8 dB
+  close reasons: rollover=1 stop=1
+meeting: chunks=2 audio=8.3 s missing=0.0 ms bad=0 part=0 files=2 toneChunks=2 zeroChunks=0 peak=-16.1 dB
+  close reasons: rollover=1 stop=1
+VERIFY OK
+events: trackHealth=18

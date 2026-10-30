@@ -25,12 +25,15 @@ void ReadWall(std::string* utc, int64_t* wallNs);
 struct StreamSpec {
     enum class Kind { Mic, Process, System } kind = Kind::Mic;
     DWORD pid = 0;
-    std::wstring deviceId;  // Mic only; empty follows the communications default
+    std::wstring deviceId;  // Mic only; empty follows the system default
 };
 
 bool ResolveDefaultMicId(std::wstring* id);
 bool ResolveDefaultOutputId(std::wstring* id);
 std::string ListMicsJson();
+// One row per app that has an audio session.  Its pids are the roots of its process
+// trees, since process loopback captures a whole tree.
+std::string ListAppsJson(const std::vector<std::string>& include);
 
 struct FaultHooks {
     std::atomic<int64_t> stallUntilNs{0};   // reader stops, Windows keeps buffering
@@ -40,7 +43,7 @@ struct FaultHooks {
 
 class Track {
 public:
-    Track(PipelineConfig config, const std::wstring& dir, EventFn emit);
+    Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit);
     ~Track();
 
     HRESULT OpenStream(const StreamSpec& spec, DeviceInfo* info);
@@ -56,6 +59,8 @@ public:
 
     std::atomic<int64_t> lastArrivalNs{0};
     std::atomic<HRESULT> deadHr{S_OK};
+    std::atomic<int> levelCentiDb{-12000};  // ahead of the gate, so meters run during a pause
+    std::atomic<bool> stopping{false};
     FaultHooks hooks;
 
 private:
@@ -68,6 +73,7 @@ private:
     void Enqueue(Item item);
     void TopUpRender();
 
+    const Gate& gate_;
     ChunkStore store_;
     std::unique_ptr<TrackPipeline> pipeline_;
     std::mutex mutex_;

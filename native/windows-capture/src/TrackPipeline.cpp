@@ -31,11 +31,11 @@ std::string ChunkMetaToJson(const ChunkMeta& m) {
 }
 
 TrackPipeline::TrackPipeline(PipelineConfig config, ChunkSink& sink, EventFn emit)
-    : cfg_(std::move(config)), sink_(sink), emit_(std::move(emit)) {}
+    : cfg_(std::move(config)), sink_(sink), emit_(std::move(emit)), nextSeq_(sink.FirstSeq()) {}
 
-void TrackPipeline::Start(int64_t originNs) {
+void TrackPipeline::Start(int64_t originNs, uint32_t generation) {
     originNs_ = originNs;
-    resumeAfterNs_ = originNs;
+    generation_ = generation;
     started_ = true;
 }
 
@@ -43,13 +43,15 @@ void TrackPipeline::ResetStreamState() {
     havePrev_ = false;
     baselineCount_ = 0;
     correctionNs_ = 0;
+    stats_.correctionNs = 0;
     candidate_ = false;
     rateWindowOpen_ = false;
 }
 
 void TrackPipeline::ReportWriteError() {
     stats_.writeErrors++;
-    emit_("writeError", JsonObject().Str("track", cfg_.track).Str("chunkId", chunk_.chunkId));
+    emit_("writeError", JsonObject().Str("track", cfg_.track).Str("chunkId", chunk_.chunkId)
+                            .Str("message", "chunk write failed"));
 }
 
 // Returns true when the open chunk must end here.  Updates correctionNs_ when
@@ -83,12 +85,14 @@ bool TrackPipeline::CheckDivergence(const Packet& p) {
 
     candidate_ = false;
     correctionNs_ += dev;
+    stats_.correctionNs = correctionNs_;
     emit_("discontinuity", JsonObject().Str("track", cfg_.track).Str("kind", "arrival")
                                .Num("missingMs", NsToMs(dev))
                                .Int("atNs", p.stampNs + correctionNs_ - originNs_));
     if (chunkOpen_ && chunkFirstArrivalNs_ >= candidateStartNs_) {
         // Every frame of this chunk is past the loss: shift it rather than split it.
         chunk_.startNs += dev;
+        sink_.StartMoved(chunk_);
         chunk_.missingBeforeMs += NsToMs(dev);
         if (chunk_.missingCause.empty()) chunk_.missingCause = "unknown";
         prevStampNs_ += dev;
@@ -128,14 +132,18 @@ void TrackPipeline::CheckRate(const Packet& p, int64_t stamp) {
 
 void TrackPipeline::OnPacket(const Packet& p) {
     stats_.packets++;
-    double sum = 0;
-    for (int16_t s : p.pcm) sum += static_cast<double>(s) * s;
-    double rms = p.pcm.empty() ? 0 : std::sqrt(sum / p.pcm.size());
-    double db = rms > 0 ? 20 * std::log10(rms / 32768.0) : -120.0;
-    stats_.levelCentiDb = static_cast<int>(std::max(db, -120.0) * 100);
-    if (!started_ || stopped_ || paused_ || sleeping_ || p.stampNs < resumeAfterNs_) return;
+    if (!started_ || stopped_ || sleeping_) return;
     // After standby Windows delivers the slept span as a burst of stale silence (F11).
     if (p.stampNs < wakeNs_ && p.arrivalNs < wakeNs_ + kNsPerSec) return;
+    // A pause too short for the queue to empty still splits here.
+    if (p.generation != generation_) {
+        CloseChunk("pause");
+        generation_ = p.generation;
+        paused_ = false;
+        pendingOpenReason_ = "resume";
+        pendingCause_ = "pause";
+        havePrev_ = false;
+    }
 
     bool lostTime = CheckDivergence(p);
     int64_t stamp = p.stampNs + correctionNs_ - originNs_;
@@ -280,25 +288,19 @@ void TrackPipeline::OpenChunk(int64_t startNs, int64_t rawStamp, int64_t arrival
     chunkOpen_ = true;
 }
 
-int64_t TrackPipeline::Pause() {
+void TrackPipeline::OnGateClosed() {
+    if (!started_ || stopped_) return;
     CloseChunk("pause");
+    if (paused_) return;
     paused_ = true;
-    return endKnown_ ? lastEndNs_ : 0;
-}
-
-int64_t TrackPipeline::Resume(int64_t nowNs) {
-    paused_ = false;
-    resumeAfterNs_ = nowNs;
     pendingOpenReason_ = "resume";
     pendingCause_ = "pause";
     havePrev_ = false;
-    return nowNs - originNs_;
 }
 
-int64_t TrackPipeline::Stop() {
+void TrackPipeline::Stop() {
     CloseChunk("stop");
     stopped_ = true;
-    return endKnown_ ? lastEndNs_ : 0;
 }
 
 void TrackPipeline::OnSleep() {

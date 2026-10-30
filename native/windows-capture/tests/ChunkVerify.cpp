@@ -1,6 +1,8 @@
 // Checks a recorded session: walks every chunk's Ogg pages (CRC), decodes it,
-// compares decoded frames with the index, and reports signal per chunk.
-// Usage: ChunkVerify.exe <session dir> [-v]
+// compares decoded frames with chunks.log, and reports signal per chunk.
+// Usage: ChunkVerify.exe <dir holding audio/> [-v]
+//        ChunkVerify.exe --levels <chunk> <hz>...   prints the frames, then each
+//        tone's highest level in any half second
 #define _CRT_SECURE_NO_WARNINGS
 #include <opus.h>
 
@@ -8,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -98,6 +101,30 @@ double Goertzel(const std::vector<int16_t>& x, double hz) {
     return (a * a + b * b - c * a * b) / std::max<size_t>(x.size(), 1);
 }
 
+double ToneLevel(const std::vector<int16_t>& x, double hz) {
+    double w = 2 * 3.14159265358979 * hz / 48000, c = 2 * cos(w), best = 0;
+    for (size_t at = 0; at < x.size(); at += 24000) {
+        size_t end = std::min(at + 24000, x.size());
+        double a = 0, b = 0;
+        for (size_t i = at; i < end; ++i) {
+            double y = x[i] + c * a - b;
+            b = a;
+            a = y;
+        }
+        best = std::max(best, sqrt(std::max(a * a + b * b - c * a * b, 0.0)) / (end - at));
+    }
+    return best;
+}
+
+int Levels(int argc, char** argv) {
+    Decoded d = DecodeChunk(argv[2]);
+    if (!d.ok) { puts("BAD"); return 1; }
+    printf("%zu", d.pcm.size());
+    for (int i = 3; i < argc; ++i) printf(" %.1f", ToneLevel(d.pcm, atof(argv[i])));
+    puts("");
+    return 0;
+}
+
 std::string Field(const std::string& line, const std::string& key) {
     auto at = line.find("\"" + key + "\":");
     if (at == std::string::npos) return {};
@@ -110,20 +137,21 @@ std::string Field(const std::string& line, const std::string& key) {
 
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
+    if (argc > 3 && !strcmp(argv[1], "--levels")) return Levels(argc, argv);
     bool verbose = argc > 2;
     int failures = 0;
     for (const char* track : {"microphone", "meeting"}) {
         fs::path dir = fs::path(argv[1]) / "audio" / track;
-        std::ifstream index(dir / "index.jsonl");
+        std::ifstream index(dir / "chunks.log");
         std::string line;
         int chunks = 0, bad = 0, toneChunks = 0, zeroChunks = 0;
-        double minutes = 0, missing = 0, wantSeq = 1;
+        double minutes = 0, missing = 0, wantSeq = 0;
         std::map<std::string, int> reasons;
         std::vector<std::string> gaps;
         int64_t nextStart = 0;
         double peakDb = -120;
         while (std::getline(index, line)) {
-            if (line.find("chunkId") == std::string::npos) continue;
+            if (line.find("\"file\"") == std::string::npos) continue;
             ++chunks;
             char name[32];
             int seq = atoi(Field(line, "seq").c_str());
@@ -134,7 +162,7 @@ int main(int argc, char** argv) {
             uint64_t frames = strtoull(Field(line, "frames").c_str(), nullptr, 10);
             if (!d.ok || d.pcm.size() != frames) {
                 ++bad;
-                printf("  BAD %s %s ok=%d decoded=%zu index=%llu\n", track, name, d.ok, d.pcm.size(), frames);
+                printf("  BAD %s %s ok=%d decoded=%zu log=%llu\n", track, name, d.ok, d.pcm.size(), frames);
             }
             double sum = 0;
             for (int16_t s : d.pcm) sum += double(s) * s;
@@ -169,10 +197,10 @@ int main(int argc, char** argv) {
         int tmp = 0, orphan = 0;
         if (fs::exists(dir))
             for (auto& e : fs::directory_iterator(dir)) {
-                tmp += e.path().extension() == ".tmp";
+                tmp += e.path().extension() == ".part";
                 orphan += e.path().extension() == ".opus";
             }
-        printf("%s: chunks=%d audio=%.1f s missing=%.1f ms bad=%d tmp=%d files=%d toneChunks=%d zeroChunks=%d peak=%.1f dB\n",
+        printf("%s: chunks=%d audio=%.1f s missing=%.1f ms bad=%d part=%d files=%d toneChunks=%d zeroChunks=%d peak=%.1f dB\n",
                track, chunks, minutes, missing, bad, tmp, orphan, toneChunks, zeroChunks, peakDb);
         printf("  close reasons:");
         for (auto& r : reasons) printf(" %s=%d", r.first.c_str(), r.second);

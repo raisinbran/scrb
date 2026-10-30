@@ -6,6 +6,7 @@
 #include <opus.h>
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstring>
 
 namespace scrb {
@@ -45,6 +46,48 @@ std::vector<uint8_t> LacingFor(size_t size) {
     std::vector<uint8_t> lacing(size / 255, 255);
     lacing.push_back(static_cast<uint8_t>(size % 255));
     return lacing;
+}
+
+std::vector<uint8_t> OpusTagsBody(const std::vector<std::string>& tags) {
+    std::vector<uint8_t> comment = {'O', 'p', 'u', 's', 'T', 'a', 'g', 's'};
+    PutString(comment, opus_get_version_string());
+    Put32(comment, static_cast<uint32_t>(tags.size()));
+    for (const auto& t : tags) PutString(comment, t);
+    return comment;
+}
+
+// Recovery reads these from the file, so a chunk can be listed with no log.
+// START_NS has a fixed width, which lets StartMoved rewrite the page in place.
+std::vector<std::string> ChunkTags(const ChunkMeta& m) {
+    char start[32];
+    snprintf(start, sizeof start, "START_NS=%019" PRId64, m.startNs);
+    return {"TRACK=" + m.track, "SESSION=" + m.chunkId.substr(0, m.chunkId.size() - m.track.size() - 8),
+            "SEQUENCE=" + std::to_string(m.seq), start, "RATE=" + std::to_string(m.rate),
+            "OPEN_REASON=" + m.openReason, "SCRB_CHUNK_ID=" + m.chunkId,
+            "SCRB_DEVICE_STAMP_NS=" + std::to_string(m.deviceStampNs), "SCRB_WALL_UTC=" + m.wallAnchorUtc};
+}
+
+std::string ChunkName(uint64_t seq) {
+    char name[32];
+    snprintf(name, sizeof name, "%06llu.opus", static_cast<unsigned long long>(seq));
+    return name;
+}
+
+// The fields recovery reads come first.  The rest are what only close time knows.
+std::string ChunkLogLine(const ChunkMeta& m) {
+    std::string spans = "[";
+    for (const auto& s : m.paddedSpans) {
+        if (spans.size() > 1) spans += ",";
+        spans += JsonObject().Num("offsetMs", s.offsetMs).Num("lengthMs", s.lengthMs).Str("cause", s.cause).Done();
+    }
+    return JsonObject()
+               .Str("file", ChunkName(m.seq)).Int("seq", static_cast<int64_t>(m.seq)).Int("startNs", m.startNs)
+               .Int("endNs", m.startNs + FramesToNs(m.frames)).Int("frames", static_cast<int64_t>(m.frames))
+               .Int("rate", m.rate).Str("openReason", m.openReason).Str("closeReason", m.closeReason)
+               .Bool("allZero", m.allZero).Num("missingBeforeMs", m.missingBeforeMs)
+               .Str("missingCause", m.missingCause).Num("overlapMs", m.overlapMs)
+               .Str("transport", m.device.transport).Raw("paddedSpans", spans + "]")
+               .Done() + "\n";
 }
 
 }  // namespace
@@ -127,11 +170,26 @@ bool OggOpusFile::Open(const std::wstring& path, const std::vector<std::string>&
     head.insert(head.end(), {0, 0, 0});
     if (!WritePage(head, LacingFor(head.size()), 2, 0)) return false;
 
-    std::vector<uint8_t> comment = {'O', 'p', 'u', 's', 'T', 'a', 'g', 's'};
-    PutString(comment, opus_get_version_string());
-    Put32(comment, static_cast<uint32_t>(tags.size()));
-    for (const auto& t : tags) PutString(comment, t);
+    LARGE_INTEGER at{}, end{};
+    SetFilePointerEx(file_, at, &end, FILE_CURRENT);
+    tagsOffset_ = end.QuadPart;
+    auto comment = OpusTagsBody(tags);
     return WritePage(comment, LacingFor(comment.size()), 0, 0);
+}
+
+bool OggOpusFile::Retag(const std::vector<std::string>& tags) {
+    if (!file_) return false;
+    uint32_t nextPage = pageSeq_;
+    pageSeq_ = 1;
+    LARGE_INTEGER at{}, end{};
+    at.QuadPart = tagsOffset_;
+    SetFilePointerEx(file_, at, nullptr, FILE_BEGIN);
+    auto comment = OpusTagsBody(tags);
+    bool result = WritePage(comment, LacingFor(comment.size()), 0, 0);
+    pageSeq_ = nextPage;
+    at.QuadPart = 0;
+    SetFilePointerEx(file_, at, &end, FILE_END);
+    return result;
 }
 
 bool OggOpusFile::EncodeFrame(const int16_t* frame) {
@@ -187,40 +245,82 @@ bool OggOpusFile::Close() {
 }
 
 ChunkStore::ChunkStore(const std::wstring& dir) : dir_(dir) {
-    index_ = _wfopen((dir + L"\\index.jsonl").c_str(), L"ab");
-    if (index_) {
-        fputs("{\"formatVersion\":1}\n", index_);
-        fflush(index_);
+    WIN32_FIND_DATAW found;
+    HANDLE search = FindFirstFileW((dir + L"\\??????.opus*").c_str(), &found);
+    if (search != INVALID_HANDLE_VALUE) {
+        do {
+            firstSeq_ = (std::max)(firstSeq_, static_cast<uint64_t>(_wtoi64(found.cFileName)) + 1);
+        } while (FindNextFileW(search, &found));
+        FindClose(search);
     }
+    log_ = _wfopen((dir + L"\\chunks.log").c_str(), L"ab");
 }
 
 ChunkStore::~ChunkStore() {
-    if (index_) fclose(index_);
+    if (log_) fclose(log_);
 }
 
 bool ChunkStore::Begin(const ChunkMeta& meta) {
-    wchar_t name[32];
-    swprintf(name, 32, L"\\%06llu.opus", static_cast<unsigned long long>(meta.seq));
-    finalPath_ = dir_ + name;
-    tmpPath_ = finalPath_ + L".tmp";
-    return file_.Open(tmpPath_, {"SCRB_CHUNK_ID=" + meta.chunkId,
-                                 "SCRB_DEVICE_STAMP_NS=" + std::to_string(meta.deviceStampNs),
-                                 "SCRB_WALL_UTC=" + meta.wallAnchorUtc});
+    finalPath_ = dir_ + L"\\" + Widen(ChunkName(meta.seq));
+    partPath_ = finalPath_ + L".part";
+    return file_.Open(partPath_, ChunkTags(meta));
 }
+
+void ChunkStore::StartMoved(const ChunkMeta& meta) { file_.Retag(ChunkTags(meta)); }
 
 bool ChunkStore::Write(const int16_t* pcm, uint32_t frames) { return file_.Write(pcm, frames); }
 
 bool ChunkStore::End(const ChunkMeta& meta) {
     bool ok = file_.Close();
-    ok = MoveFileExW(tmpPath_.c_str(), finalPath_.c_str(),
-                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0 && ok;
-    if (index_) {
-        std::string line = ChunkMetaToJson(meta) + "\n";
-        fwrite(line.data(), 1, line.size(), index_);
-        fflush(index_);
-        _commit(_fileno(index_));
+    ok = MoveFileExW(partPath_.c_str(), finalPath_.c_str(), MOVEFILE_WRITE_THROUGH) != 0 && ok;
+    if (log_) {
+        std::string line = ChunkLogLine(meta);
+        fwrite(line.data(), 1, line.size(), log_);
+        fflush(log_);
+        _commit(_fileno(log_));
     }
     return ok;
+}
+
+SessionLog::SessionLog(const std::wstring& path, EventFn emit) : emit_(std::move(emit)) {
+    file_ = _wfopen(path.c_str(), L"ab");
+    thread_ = std::thread([this] { Loop(); });
+}
+
+SessionLog::~SessionLog() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        stop_ = true;
+    }
+    cv_.notify_all();
+    thread_.join();
+    if (file_) fclose(file_);
+}
+
+void SessionLog::Record(const std::string& jsonObject) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::string line = jsonObject.substr(0, jsonObject.size() - 1);
+        queue_.push_back(line + ",\"seq\":" + std::to_string(++seq_) + "}\n");
+    }
+    cv_.notify_all();
+}
+
+void SessionLog::Loop() {
+    for (;;) {
+        std::string line;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
+            if (queue_.empty()) return;
+            line = std::move(queue_.front());
+            queue_.pop_front();
+        }
+        // A failed write leaves the pause standing; the app warns.
+        bool ok = file_ && fwrite(line.data(), 1, line.size(), file_) == line.size() && fflush(file_) == 0 &&
+                  _commit(_fileno(file_)) == 0;
+        if (!ok) emit_("writeError", JsonObject().Str("message", "session.log write failed"));
+    }
 }
 
 }  // namespace scrb

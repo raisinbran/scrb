@@ -1,8 +1,10 @@
 // Types shared by the capture thread, the track pipeline and the chunk store.
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,10 +23,39 @@ inline double NsToMs(int64_t ns) { return ns / static_cast<double>(kNsPerMs); }
 struct Packet {
     int64_t stampNs = 0;    // first frame, from IAudioCaptureClient::GetBuffer
     int64_t arrivalNs = 0;  // QPC when the packet was read
+    uint32_t generation = 0;  // the gate opening this packet passed
     uint32_t frames = 0;
     bool flagDiscontinuity = false;
     bool silentFlag = false;
     std::vector<int16_t> pcm;
+};
+
+// One gate for both tracks, checked on the capture threads ahead of the queue
+// and the encoder.  See docs/plans/pause-resume.md, "The gate".
+class Gate {
+public:
+    static constexpr int64_t kOpen = (std::numeric_limits<int64_t>::max)();
+    int64_t Close(int64_t nowNs) {
+        cutoffNs_ = nowNs;
+        return nowNs;
+    }
+    int64_t Open(int64_t nowNs) {
+        resumeAfterNs_ = nowNs;
+        ++generation_;
+        cutoffNs_ = kOpen;
+        return nowNs;
+    }
+    bool IsOpen() const { return cutoffNs_ == kOpen; }
+    uint32_t Generation() const { return generation_; }
+    // Whole packets only: one must start after the resume and end by the cutoff.
+    bool Passes(int64_t stampNs, int64_t durationNs) const {
+        return stampNs >= resumeAfterNs_ && stampNs + durationNs <= cutoffNs_;
+    }
+
+private:
+    std::atomic<int64_t> resumeAfterNs_{0};
+    std::atomic<int64_t> cutoffNs_{0};
+    std::atomic<uint32_t> generation_{0};
 };
 
 struct DeviceInfo {
@@ -125,6 +156,10 @@ public:
     virtual bool Begin(const ChunkMeta& meta) = 0;
     virtual bool Write(const int16_t* pcm, uint32_t frames) = 0;
     virtual bool End(const ChunkMeta& meta) = 0;
+    // A chunk's start moved after Begin, so its stored facts must follow.
+    virtual void StartMoved(const ChunkMeta&) {}
+    // The first free sequence number, so a restarted worker never reuses a name.
+    virtual uint64_t FirstSeq() const { return 0; }
 };
 
 using EventFn = std::function<void(const std::string& name, const JsonObject& fields)>;

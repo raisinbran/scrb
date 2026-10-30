@@ -4,6 +4,7 @@
 #pragma once
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "Track.h"
 
@@ -46,7 +47,10 @@ private:
         bool deathPosted = false;
     };
 
-    void Reply(const Command& cmd, bool ok, const std::string& extraKey = "", const std::string& extraJson = "");
+    void Reply(const Command& cmd, bool ok, const std::string& extraKey = "", const std::string& extraJson = "",
+               std::optional<int64_t> atNs = std::nullopt);
+    void ReleaseWriter();
+    std::string ActiveTracks() const;
     void Emit(const std::string& name, const JsonObject& fields);
     void Tick();
     void TickSecond(int64_t now);
@@ -69,7 +73,6 @@ private:
     void CheckConsent();
     void CheckAudioService();
     void RebuildNotifier();
-    std::string TrackTimes(int64_t mic, int64_t meeting);
 
     SessionOptions options_;
     std::mutex queueMutex_;
@@ -80,6 +83,10 @@ private:
     Slot slots_[kTrackCount];
     std::string sessionId_;
     std::string state_ = "idle";
+    std::map<std::string, std::string> acks_;  // a repeated ID gets its first reply
+    Gate gate_;
+    std::unique_ptr<SessionLog> log_;
+    HANDLE writerLock_ = nullptr;
     int64_t originNs_ = 0;
     int64_t lastSecondNs_ = 0;
 

@@ -21,30 +21,49 @@ shipped build must bundle it or move both to `/MT`.
 
 ## Protocol
 
-One flat JSON object per line on stdin; one JSON object per line on stdout.
-Every command may carry `id`, echoed in its `{"type":"ack"}`.  Closing stdin
-stops and finalizes the recording.
+The protocol matches the Mac helper and `CaptureAck` in
+`packages/capture/src/index.ts`.  One JSON object per line on stdin, one on
+stdout; arrays are allowed as values.  Every command has an `id` and `name`, and
+a repeated `id` gets the first reply and repeats nothing.  Every
+`{"type":"ack"}` carries `gate`, `activeTracks` and `atNs` (session clock, or
+null).  A command in the wrong state returns `error: "conflict"`.  Closing stdin
+stops and finalizes the recording.  A worker exits after `stop`.
+
+`scrb-capture check-lock <path>` exits 3 if a live worker holds that lock.
 
 | Command | Fields | Notes |
 | --- | --- | --- |
-| `open` | `sessionId`, `outputDir`, `pid` (0 = whole computer), `mic` (`default` or device ID) | Streams open, meters run, nothing written |
-| `start` | | Ack carries the session origin |
-| `pause`, `resume`, `stop` | | Ack `atNs` gives each track's time |
+| `open` | `sessionId`, `outputDir`, `source` (process IDs; `[]` = whole computer), `mic` (`default` or device ID) | Streams open, meters run, nothing written.  Succeeds if either track opens |
+| `start` | | Ack also carries the session origin |
+| `pause`, `resume` | `cause` (optional) | One shared gate.  Resume is refused if neither stream is ready |
+| `stop` | | Files closed and lock released before the ack |
+| `checkPermission` | | Always `granted`: Windows has no system-audio permission |
 | `selectMic` | `mic` | Forces a chunk boundary |
-| `selectSource` | `pid` | Forces a boundary; also reattaches a restarted app |
-| `listMics` | | Ack carries `mics`, each with `defaultConsole` and `defaultCommunications` |
+| `selectSource` | `source` | Forces a boundary; also reattaches a restarted app |
+| `listMics` | | Ack carries `mics`; `defaultConsole` and `defaultCommunications` are extra |
+| `listApps` | `include` | Ack carries `apps`.  `bundleId` is the exe file name, `pids` the roots of its process trees |
 | `quit` | | Stops if needed and exits |
 | `inject` | `track`, `fault`, `ms` | Only with `--test-hooks` |
 
+Process loopback captures one process tree, so `open` uses the first ID in
+`source`.  A second instance of an app with a separate tree is not captured.
+
 Events (`{"type":"event"}`): `chunkClosed`, `discontinuity`, `streamStalled`,
 `streamDead`, `streamReopened`, `deviceChanged`, `rateChanged`, `permissionLost`,
-`permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `sourceFallback`,
-`micFallback`, `micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`,
-`writeError`, `health`.
+`permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `micFallback`,
+`micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`, `writeError`,
+`health` (`micDb`, `meetingDb`), `trackHealth`.
 
-Chunks: `<outputDir>/<sessionId>/audio/{microphone,meeting}/NNNNNN.opus` plus
-`index.jsonl`.  Added to the contract's fields: `missingBeforeMs`,
-`missingCause`, `overlapMs`.
+Files, per `docs/plans/crash-safe-chunks.md`, under `<outputDir>/audio/`:
+`{microphone,meeting}/NNNNNN.opus`, first written as `.opus.part`, each with
+`chunks.log`; `session.log`; `writer.lock`, held for the whole run.  Numbering
+starts at 0, and a restarted worker continues it.  `chunks.log` adds
+`missingBeforeMs`, `missingCause`, `overlapMs`, `allZero`, `transport` and
+`paddedSpans` to the fields recovery reads.
+
+The gate is in `Track::CaptureLoop`.  It compares corrected stamps, because
+loopback stamps can lag real time (F3).  A loss in the last 250 ms before a pause
+is not yet confirmed, so it is not counted.
 
 ## Owner decisions (2026-10-30)
 
@@ -57,8 +76,25 @@ Chunks: `<outputDir>/<sessionId>/audio/{microphone,meeting}/NNNNNN.opus` plus
   track missing; reattach if the same app returns within 2 minutes; otherwise
   auto-pause and offer Resume or Stop.  The adapter reports `sourceChanged` and
   reattaches on `selectSource`; **the timer and auto-pause belong to the app
-  core, not built here.**  It never widens to whole-computer on its own.
+  core, not built here.**  It never widens to whole-computer on its own, and
+  that now holds for a failed per-app open too (W2): it retries and warns.
 - A chunk splits on every OS discontinuity flag.
+
+## Matching the Mac helper (2026-10-30)
+
+Run after merging `main`, with output muted, on invented tones.  The tables
+below it are older and describe the earlier protocol and files.  This PC has no
+Python or ffmpeg, so `scripts/pause_case.mjs` and `scripts/crash_case.mjs` are
+Node versions that decode with `ChunkVerify --levels`.
+
+| Case | Result |
+| --- | --- |
+| PipelineTests with the logged standby replay | Pass, 0 failures; 1690 ms detected of 1690 ms |
+| `pause_case.mjs` | Pass: pause ack 0.3 ms, retry returned the first reply, 2000 Hz marker at most 9.5 against 4490 for the tone, and -17.9 dB at the stream while paused shows the marker was there to block |
+| `crash_case.mjs` | Pass: lock held, then free after a force-kill; `.part` repaired; 350 ms lost of 7365 ms |
+| `real-recording.spec.ts` with `SCRB_CAPTURE_HELPER` | Pass: start, pause, resume and stop from the Live screen, meeting `ready`, no mic gaps |
+| `run-case.ps1`: `gate-baseline`, `gate-whole-computer` | Pass: `VERIFY OK`; 3.97 s paused on both tracks |
+| Source `[-1]`, second writer, restart in the same folder | Mic only with no widening; `writer lock held`; numbering continued past the `.part` |
 
 ## Results on this PC
 

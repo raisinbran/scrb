@@ -63,11 +63,11 @@ function Send([string]$json) {
     $p.StandardInput.WriteLine($line)
     $p.StandardInput.Flush()
 }
-$pidField = if ($WholeComputer) { 0 } else { $tone.Id }
+$sourceField = if ($WholeComputer) { '[]' } else { "[$($tone.Id)]" }
 $dir = $out -replace '\\', '\\'
-Send "{`"cmd`":`"open`",`"sessionId`":`"session`",`"outputDir`":`"$dir`",`"pid`":$pidField,`"mic`":`"$Mic`"}"
+Send "{`"name`":`"open`",`"sessionId`":`"session`",`"outputDir`":`"$dir`",`"source`":$sourceField,`"mic`":`"$Mic`"}"
 Start-Sleep -Milliseconds 800
-Send '{"cmd":"start"}'
+Send '{"name":"start"}'
 $start = Get-Date
 "case=$Case start=$($start.ToString('HH:mm:ss')) tonePid=$($tone.Id)"
 $steps = @($Script | ForEach-Object { $k, $v = $_ -split '=', 2; [pscustomobject]@{ At = [double]$k; Cmd = $v } } | Sort-Object At)
@@ -83,14 +83,14 @@ foreach ($s in $steps) {
     else { Send $s.Cmd }
 }
 while (-not $killed -and ((Get-Date) - $start).TotalSeconds -lt $Seconds) { & $mute on | Out-Null; Start-Sleep 2 }
-if (-not $killed) { Send '{"cmd":"quit"}' }
+if (-not $killed) { Send '{"name":"quit"}' }
 $p.StandardInput.Close()
 if (-not $p.WaitForExit(20000)) { 'HUNG; killing'; Stop-Process -Name scrb-capture -Force }
 try { $tone.Kill() } catch {}
 if ($TreeTarget) { Stop-Process -Name TonePlayer -Force -ErrorAction SilentlyContinue }
 
-$verify = & "$bin\ChunkVerify.exe" "$out\session"
-$names = Get-Content $events | ForEach-Object { if ($_ -match '"event":"([^"]+)"') { $Matches[1] } } | Where-Object { $_ -notin 'health', 'chunkClosed' }
+$verify = & "$bin\ChunkVerify.exe" "$out"
+$names = Get-Content $events | ForEach-Object { if ($_ -match '"event":"([^"]+)"') { $Matches[1] } } | Where-Object { $_ -notin 'health', 'trackHealth', 'chunkClosed' }
 $counts = ($names | Group-Object | ForEach-Object { "$($_.Name)=$($_.Count)" }) -join ' '
 $report = @("case=$Case helperExit=$($p.ExitCode)", $verify, "events: $counts") + (Get-Content "$out\stderr.txt" -ErrorAction SilentlyContinue)
 $report | Set-Content (Join-Path $results "$Case.txt")
