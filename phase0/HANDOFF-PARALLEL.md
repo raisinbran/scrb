@@ -11,7 +11,11 @@ its purpose is the stall rate of an idle machine; other load would skew it.
 Light use (browsing, reading) is fine, but do not close the lid or choose
 Sleep.
 
-## A. Windows device and permission cases (a Windows PC)
+## A. Windows device and permission cases (a Windows PC) -- done
+
+Results merged into `evidence/gate-0.md`.  Only the optional
+`mic-privacy-off` and USB-unplug cases remain.
+
 
 Follow `HANDOFF-WINDOWS.md`.  Any Windows 10/11 PC works; it needs only the
 two probes built, no models.  About an hour with a person at the PC.  It

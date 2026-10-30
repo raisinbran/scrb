@@ -22,7 +22,7 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Survives crashed AI worker | Pass (120 whisper runs, 16 killed, 0 app-track gaps) | Survives all kills (363 runs, 36 killed); load stalls are separate |
 | Models fit 6 GB recording budget | Pass on measured parts (see evidence) | Pass (~1.1--1.5 GiB) |
 | Live diarization usable | Usable (~25--29% DER, incremental mode) | Same (~26--32% DER) |
-| Device change / sleep-wake / Bluetooth | **Not run** (needs a person at the machine) | **Not run** |
+| Device change / sleep-wake / Bluetooth | Run on a second PC: probe survives all; mic does not follow device changes, dies silently on BT disconnect, 1.7 s app offset after standby (adapter rules in evidence) | In progress 2026-10-29 evening |
 | Framework | Electron (Meetily fails rule 1); owner approval pending | n/a |
 
 Also measured on Windows (CPU and RTX 3080 GPU): Opus storage, vocabulary
@@ -57,10 +57,8 @@ See `MANIFEST.md` for exact versions and hashes.
    - Device cases: output switch, input switch, Bluetooth headset,
      sleep/wake; record what the probe reports.
    - Metal-worker stress reruns: done (stalls not caused by the worker).
-2. **Windows device cases**: split out into `HANDOFF-WINDOWS.md`, which a
-   Windows PC runs on its own.  It commits a results table and artifacts
-   only; when that commit lands, fold the table into `evidence/gate-0.md`
-   and update the Windows checklist item here and there.
+2. **Windows device cases**: done (`HANDOFF-WINDOWS.md`, merged into
+   `evidence/gate-0.md`).  Optional: the USB-unplug and mic-privacy cases.
 3. Owner decisions listed at the end of `evidence/gate-0.md`, then the Gate 0
    decision.
 
