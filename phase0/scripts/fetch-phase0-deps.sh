@@ -4,7 +4,7 @@
 # fixtures.  Every download is checked against its recorded SHA-256.
 #
 # Usage (from the phase0/ folder; Git Bash on Windows or Terminal on macOS):
-#   scripts/fetch-phase0-deps.sh [all|asr|diarization|summary|ami|upstream]
+#   scripts/fetch-phase0-deps.sh [all|asr|diarization|summary|ami|ami-series|upstream]
 # Default is all.  Already-present files with the right hash are skipped.
 # The summary group is ~16 GB; everything else is ~2 GB.
 
@@ -92,6 +92,29 @@ if [[ "$group" == all || "$group" == ami ]]; then
   fetch downloads/ami/ami_public_manual_1.6.2.zip b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d \
     $AMI/AMICorpusAnnotations/ami_public_manual_1.6.2.zip
   mkdir -p downloads/ami/ann && unzip -q -o downloads/ami/ami_public_manual_1.6.2.zip -d downloads/ami/ann
+fi
+
+# Later meetings of the same series, for the cross-session voice-match line
+# (scripts/voice_match_cross.py).  Not part of "all" (~620 MB).
+if [[ "$group" == ami-series ]]; then
+  fetch downloads/ami/ES2004b.Mix-Headset.wav ad0cf07c42b1694ccf7bea8f1a37348d9cfab194787abc7d050b29ba56e365c8 \
+    $AMI/AMICorpusMirror/amicorpus/ES2004b/audio/ES2004b.Mix-Headset.wav
+  fetch downloads/ami/ES2004c.Mix-Headset.wav 47dc9bd2e3b1d174842091ae9e1fe765218f0c87658b17d6469c404e03ec2ac5 \
+    $AMI/AMICorpusMirror/amicorpus/ES2004c/audio/ES2004c.Mix-Headset.wav
+  fetch downloads/ami/ES2004d.Mix-Headset.wav 3cfce3297ebb7faeb53c02727eea5e9f2c76e9ed4b62db3b03d73e66836e91f3 \
+    $AMI/AMICorpusMirror/amicorpus/ES2004d/audio/ES2004d.Mix-Headset.wav
+  fetch downloads/ami/IS1009b.Mix-Headset.wav 07c2891ae6ad7c507b2a4f15b2dcd0a2343491df9e4e6a58f9db0d0b2c5e1382 \
+    $AMI/AMICorpusMirror/amicorpus/IS1009b/audio/IS1009b.Mix-Headset.wav
+  fetch downloads/ami/IS1009c.Mix-Headset.wav f317910070db0f2649315decbb34686d648bbe9dc3f7576710184f4d572bdbcc \
+    $AMI/AMICorpusMirror/amicorpus/IS1009c/audio/IS1009c.Mix-Headset.wav
+  fetch downloads/ami/IS1009d.Mix-Headset.wav 470440114ee2ed076cfc77c53136ad5d3af500d8a5a6ca36755e83534f5ca4ea \
+    $AMI/AMICorpusMirror/amicorpus/IS1009d/audio/IS1009d.Mix-Headset.wav
+  fetch downloads/ami/TS3003b.Mix-Headset.wav 0c94f3a09ab747caa7714efe8852f5ff37d36cf272b75709344991df1aa266ca \
+    $AMI/AMICorpusMirror/amicorpus/TS3003b/audio/TS3003b.Mix-Headset.wav
+  fetch downloads/ami/TS3003c.Mix-Headset.wav b9f455870e8cb0ba765523a1767cc366775ab7e5e3eabf37d9c91289e5a1a70a \
+    $AMI/AMICorpusMirror/amicorpus/TS3003c/audio/TS3003c.Mix-Headset.wav
+  fetch downloads/ami/TS3003d.Mix-Headset.wav ece4a41c37c1092c737d1dfe313afb18248364625991f745fed4b372c3c67eb3 \
+    $AMI/AMICorpusMirror/amicorpus/TS3003d/audio/TS3003d.Mix-Headset.wav
 fi
 
 if [[ "$group" == all || "$group" == summary ]]; then
