@@ -9,8 +9,17 @@ All accepted by the owner on 2026-10-30.
 5. Final DER: keep the ~25% target. Check the ~8.5% hold-out result at the diarization gate.
 6. Planner is replaced by written plans the owner approves (Development Process, "Risky-change plans").
 
+## Capture and chunk plans
+
+Every recommendation in `docs/plans/` is accepted, including the proposed contract additions, which are applied in the phase that needs them. Exceptions and notes:
+
+- Mac signing: one stable self-signed certificate. Avoid the recurring $99 Apple Developer ID unless the app cannot work without it; if the upgrade test fails, look for a workaround first.
+- Test hardware: the USB mic exists but is not available until Monday evening (2026-11-02). Run the USB case then.
+- Gate 2 mic loss limit: at most 30 s per track over 8 hours, no single gap over 5 s, every gap marked.
+- Crash loss: about 1 s for a program crash, about 5 s for a power cut, always marked.
+- Whole-computer audio is never switched on automatically: warn and offer one click.
+
 ## Still needed
 
-- Written plans for the chunk format and manifest, corrections, index upgrades, delete and capture.
-- Mock corrections, speaker changes and summary edits do not change data (QA-05).
+- Written plans for pause/resume, corrections, index upgrades and delete.
 - The summary-to-export adapter is on `backend-export-adapter`. Its open gaps are in `2026-10-30-export-summary-gaps.md`.

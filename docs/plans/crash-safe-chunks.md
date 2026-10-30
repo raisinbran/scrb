@@ -1,6 +1,6 @@
 # Plan: crash-safe chunks and recovery
 
-Status: **Draft for owner approval. No code is written until it is approved.**
+Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
 Date: 2026-10-30. Starts from commit `4abe340`.
 

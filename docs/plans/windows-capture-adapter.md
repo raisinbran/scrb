@@ -1,6 +1,6 @@
 # Plan: Windows capture adapter
 
-Status: **Draft for owner approval. Not approved. No code may be written from it yet.**
+Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
 Date: 2026-10-30. Base commit: `4abe340`. Depends on `capture-contract-and-clock.md`, whose rules (D1 to D10), tests (T1 to T24) and decisions (C1 to C10) are used here.
 

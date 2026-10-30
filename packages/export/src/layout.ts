@@ -203,6 +203,7 @@ function formatDate(meeting: ExportMeeting, locale: string): string {
 function buildSummary(summary: ExportSummary, options: SummaryOptions): Block[] {
   const blocks: Block[] = [heading(1, LABELS.summary[options.length])];
   if (summary.outdated) blocks.push(paragraph('note', textLine(LABELS.outdated)));
+  for (const warning of summary.warnings ?? []) blocks.push(paragraph('note', textLine(warning)));
 
   blocks.push(...(options.length === 'brief' ? buildBriefBody(summary) : buildFullBody(summary, options)));
 

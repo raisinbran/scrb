@@ -126,5 +126,6 @@ export function toExportSummary(file: SummaryFile | null): ExportSummary | null 
     actionItems: file.actionItems.map(toAction),
     decisions: file.decisions.map(toDecision),
     outdated: file.outdated,
+    warnings: file.warnings,
   };
 }

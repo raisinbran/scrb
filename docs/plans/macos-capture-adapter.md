@@ -1,6 +1,6 @@
 # Plan: macOS capture adapter
 
-Status: **Draft for owner approval. Not approved. No code may be written from it yet.**
+Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
 Date: 2026-10-30. Base commit: `4abe340`. Depends on `capture-contract-and-clock.md`, whose rules (D1 to D10), tests (T1 to T24) and decisions (C1 to C10) are used here.
 
@@ -76,7 +76,7 @@ Any step with a time in it shows a live on-screen countdown. Test audio is tones
 ## Decisions for the owner
 
 **M1. How should the Mac app be signed?** V1 says builds are "unsigned or self-signed". But macOS ties the System Audio permission to the app's identity. Phase 0 already saw a setting show "enabled" while recording was denied. An unsigned build has no steady identity, so a new build may lose the permission, and the result is **silent zeros in the meeting track, not an error**.
-*Recommendation: use one stable self-signed certificate for every build, and prove with a test that an upgrade keeps the permission. If that test fails, move to an Apple Developer ID, about $99 a year.* This needs testing before Phase 8, because capture depends on it. It narrows the V1 wording from "unsigned or self-signed" to self-signed for the Mac.
+*Recommendation: use one stable self-signed certificate for every build, and prove with a test that an upgrade keeps the permission. If that test fails, look for a workaround first.* (Owner, 2026-10-30: avoid the recurring $99 Apple Developer ID unless the app cannot work without it.) This needs testing before Phase 8, because capture depends on it. It narrows the V1 wording from "unsigned or self-signed" to self-signed for the Mac.
 
 **M2. What rate should hands-free meeting audio be saved at (Q5)?**
 *Recommendation: save at the rate delivered (24 kHz), and resample only rates Opus cannot use, such as 44.1 kHz.* Upsampling adds no quality, and fewer steps means fewer ways to go wrong. Speech recognition uses 16 kHz anyway.

@@ -134,6 +134,14 @@ describe('toExportSummary states', () => {
     expect(adapted(file({ outdated })).outdated).toBe(outdated);
   });
 
+  it('prints every warning', () => {
+    const summary = file({
+      warnings: ['Part of the meeting could not be read.'],
+      full: { sections: [] },
+    });
+    expect(allText(printed(summary))).toContain('Part of the meeting could not be read.');
+  });
+
   it('prints the outdated note', () => {
     const summary = file({ outdated: true, full: { sections: [] } });
     expect(allText(printed(summary))).toContain('May be outdated');

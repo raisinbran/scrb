@@ -18,7 +18,6 @@
 
 Each of these needs a new field in `packages/export`, not a contract or format change.
 
-- **`warnings`:** the contract says these are always shown, but an export omits them, so a document can leave out unread parts of a meeting without saying so. This one should be fixed before export ships.
 - **`needsReview`:** weakly supported or conflicting items print like any other.
 - **`alsoAtMs`:** only the first source of a merged duplicate prints.
 

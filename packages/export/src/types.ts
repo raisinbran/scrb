@@ -55,6 +55,8 @@ export interface ExportSummary {
   decisions: readonly ExportDecision[];
   /** Transcript changed after generation ("May be outdated"). */
   outdated?: boolean;
+  /** Parts of the meeting the summary could not read. Always printed. */
+  warnings?: readonly string[];
 }
 
 export interface ExportFullSummary {
