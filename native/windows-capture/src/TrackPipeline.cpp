@@ -100,8 +100,10 @@ bool TrackPipeline::CheckDivergence(const Packet& p) {
 }
 
 // Bluetooth hands-free stamps jitter by up to 16 ms with no audio lost.
+bool TrackPipeline::HandsFree() const { return device_.transport == "bluetooth-handsfree"; }
+
 int64_t TrackPipeline::GapToleranceNs() const {
-    return device_.transport == "bluetooth-handsfree" ? cfg_.handsFreeGapToleranceNs : cfg_.gapToleranceNs;
+    return HandsFree() ? cfg_.handsFreeGapToleranceNs : cfg_.gapToleranceNs;
 }
 
 // D5: conversion to 48 kHz hides device rate changes unless the stamps show them.
@@ -142,7 +144,8 @@ void TrackPipeline::OnPacket(const Packet& p) {
         reason = "discontinuity";
         cause = "unknown";
     } else if (chunkOpen_ && havePrev_) {
-        int64_t delta = stamp - (prevStampNs_ + FramesToNs(prevFrames_));
+        // Against the chunk's end on hands-free, so small losses cannot add up unseen.
+        int64_t delta = stamp - (HandsFree() ? lastEndNs_ : prevStampNs_ + FramesToNs(prevFrames_));
         int64_t arrivalGap = p.arrivalNs - prevArrivalNs_;
         bool stalled = arrivalGap > cfg_.stallNs;
         if (stalled) lastStallArrivalNs_ = p.arrivalNs;
@@ -184,7 +187,7 @@ void TrackPipeline::OnPacket(const Packet& p) {
     }
     if (!sink_.Write(p.pcm.data(), p.frames)) ReportWriteError();
     chunk_.frames += p.frames;
-    lastEndNs_ = stamp + FramesToNs(p.frames);
+    lastEndNs_ = (HandsFree() ? chunk_.startNs + FramesToNs(chunk_.frames) : stamp + FramesToNs(p.frames));
     endKnown_ = true;
     prevStampNs_ = stamp;
     prevFrames_ = p.frames;

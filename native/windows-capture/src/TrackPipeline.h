@@ -59,6 +59,7 @@ private:
     void TrackZeros(const Packet& p, int64_t offsetFrames);
     void FinishZeroRun();
     void ReportWriteError();
+    bool HandsFree() const;
     int64_t GapToleranceNs() const;
     bool CheckDivergence(const Packet& p);
     void CheckRate(const Packet& p, int64_t stamp);

@@ -1,0 +1,21 @@
+case=bt-disconnect-picked helperExit=0
+  unexplained gap at seq 72
+microphone: chunks=119 audio=103.4 s missing=6469.5 ms bad=1 tmp=0 files=119 toneChunks=7 zeroChunks=0 peak=-14.0 dB
+  close reasons: device=1 discontinuity=104 rollover=13 stop=1
+    missing 22.0 ms before 33.894 s, cause unknown
+    missing 97.0 ms before 35.713 s, cause unknown
+    missing 30.7 ms before 35.754 s, cause unknown
+    missing 46.2 ms before 35.810 s, cause unknown
+    missing 61.6 ms before 35.882 s, cause unknown
+    missing 91.7 ms before 35.983 s, cause unknown
+    missing 109.1 ms before 36.102 s, cause unknown
+    missing 5414.8 ms before 41.527 s, cause device
+    missing 236.8 ms before 79.664 s, cause unknown
+    missing 248.0 ms before 80.792 s, cause unknown
+    missing 111.7 ms before 81.074 s, cause unknown
+meeting: chunks=24 audio=109.8 s missing=240.5 ms bad=0 tmp=0 files=24 toneChunks=23 zeroChunks=0 peak=-13.5 dB
+  close reasons: discontinuity=2 rollover=21 stop=1
+    missing 8.5 ms before 36.272 s, cause unknown
+    missing 232.0 ms before 39.334 s, cause unknown
+VERIFY FAILED
+events: discontinuity=106 handsFreeMic=1 micFallback=1 micReturned=1 streamDead=1 streamReopened=1

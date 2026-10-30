@@ -1,0 +1,17 @@
+case=bt-disconnect helperExit=0
+microphone: chunks=28 audio=109.3 s missing=821.8 ms bad=0 tmp=0 files=28 toneChunks=2 zeroChunks=0 peak=-26.3 dB
+  close reasons: discontinuity=7 rollover=20 stop=1
+    missing 148.4 ms before 37.437 s, cause unknown
+    missing 163.2 ms before 37.970 s, cause unknown
+    missing 15.3 ms before 37.996 s, cause unknown
+    missing 7.3 ms before 38.013 s, cause unknown
+    missing 134.1 ms before 79.317 s, cause unknown
+    missing 216.0 ms before 80.363 s, cause unknown
+    missing 137.5 ms before 80.661 s, cause unknown
+meeting: chunks=24 audio=109.8 s missing=416.5 ms bad=0 tmp=0 files=24 toneChunks=22 zeroChunks=0 peak=-14.2 dB
+  close reasons: discontinuity=3 rollover=20 stop=1
+    missing 153.8 ms before 38.167 s, cause unknown
+    missing 49.2 ms before 38.236 s, cause unknown
+    missing 213.6 ms before 40.760 s, cause unknown
+VERIFY OK
+events: discontinuity=10

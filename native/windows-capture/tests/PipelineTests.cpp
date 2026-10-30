@@ -90,6 +90,18 @@ void TestHandsFreeJitter() {
     r.pipe.Stop();
     CHECK(r.discontinuities == 1);
     CHECK(r.sink.closed.size() == 2);
+
+    puts("Small hands-free losses add up to a marked gap");
+    Rig d("microphone");
+    d.pipe.OnStreamOpened({"id", "name", "bluetooth-handsfree"}, "device");
+    d.Feed(10);
+    for (int i = 0; i < 6; ++i) {
+        d.stamp += 5 * kNsPerMs;
+        d.Feed(1);
+    }
+    d.pipe.Stop();
+    CHECK(d.discontinuities == 1);
+    CHECK(d.sink.closed.size() == 2 && d.sink.closed[1].missingBeforeMs > 20);
 }
 
 void TestStandbyLoss() {
