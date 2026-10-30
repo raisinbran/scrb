@@ -13,8 +13,8 @@ Sleep.
 
 ## A. Windows device and permission cases (a Windows PC) -- done
 
-Results merged into `evidence/gate-0.md`.  Only the optional
-`mic-privacy-off` and USB-unplug cases remain.
+Results merged into `evidence/gate-0.md`.  Only the optional USB-unplug
+case remains.
 
 
 Follow `HANDOFF-WINDOWS.md`.  Any Windows 10/11 PC works; it needs only the

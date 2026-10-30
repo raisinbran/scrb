@@ -57,7 +57,7 @@ See `MANIFEST.md` for exact versions and hashes.
    - Device cases: done 2026-10-29 (`evidence/gate-0.md`).
    - Metal-worker stress reruns: done (stalls not caused by the worker).
 2. **Windows device cases**: done (`HANDOFF-WINDOWS.md`, merged into
-   `evidence/gate-0.md`).  Optional: the USB-unplug and mic-privacy cases.
+   `evidence/gate-0.md`).  Optional: the USB-unplug case.
 3. Owner decisions: done 2026-10-29 (`HANDOFF-PARALLEL.md` table B,
    summarized in the Gate Decision).  Then the Gate 0 decision once the
    Mac drift run is recorded.
