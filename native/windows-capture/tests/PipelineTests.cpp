@@ -95,8 +95,8 @@ void TestWake() {
     r.Feed(300);
     r.pipe.OnSleep();
     r.t += 44 * kNsPerSec;
-    r.stamp += 42310 * kNsPerMs;
-    r.pipe.OnWake();
+    r.stamp += 44 * kNsPerSec;
+    r.pipe.OnWake(r.t);
     r.Feed(100);
     r.pipe.Stop();
     auto& c = r.sink.closed;
@@ -171,30 +171,26 @@ void TestRealStandbyLog(const char* path) {
     TrackPipeline pipe(MakeConfig("meeting", true), sink, [](const std::string&, const JsonObject&) {});
     std::string line;
     std::getline(in, line);
-    bool started = false;
-    double prevFrames = 0, firstDev = 0, lastDev = 0;
+    struct Row { double qpc, arrival, frames; };
+    std::vector<Row> rows;
     while (std::getline(in, line)) {
-        double qpc, arrival, frames;
-        if (sscanf_s(line.c_str(), "app,%lf,%lf,%lf", &qpc, &arrival, &frames) != 3) continue;
+        Row r;
+        if (sscanf_s(line.c_str(), "app,%lf,%lf,%lf", &r.qpc, &r.arrival, &r.frames) == 3) rows.push_back(r);
+    }
+    pipe.OnStreamOpened({"id", "n", "loopback"}, "start");
+    pipe.Start(static_cast<int64_t>(rows[0].qpc * kNsPerSec));
+    for (size_t i = 0; i + 1 < rows.size(); ++i) {
         Packet p;
-        p.stampNs = static_cast<int64_t>(frames * kNsPerSec / kRate);  // loopback stamps are frame-derived
-        p.arrivalNs = static_cast<int64_t>(arrival * kNsPerSec);
-        p.frames = static_cast<uint32_t>(frames - prevFrames);
-        prevFrames = frames;
-        if (!started) {
-            pipe.OnStreamOpened({"id", "n", "loopback"}, "start");
-            pipe.Start(p.stampNs);
-            firstDev = static_cast<double>(p.arrivalNs - p.stampNs);
-            started = true;
-        }
-        lastDev = static_cast<double>(p.arrivalNs - p.stampNs);
+        p.stampNs = static_cast<int64_t>(rows[i].qpc * kNsPerSec);
+        p.arrivalNs = static_cast<int64_t>(rows[i].arrival * kNsPerSec);
+        p.frames = static_cast<uint32_t>(rows[i + 1].frames - rows[i].frames);
         p.pcm.assign(p.frames, 1);
         pipe.OnPacket(p);
     }
     pipe.Stop();
     double lost = 0;
     for (const auto& c : sink.closed) lost += c.missingBeforeMs;
-    double raw = (lastDev - firstDev) / kNsPerMs;
+    double raw = (rows.back().qpc - rows[0].qpc - (rows.back().frames - rows[0].frames) / kRate) * 1000;
     printf("  raw offset %.0f ms, detected missing %.0f ms\n", raw, lost);
     CHECK(raw > 1500);
     CHECK(std::abs(lost - raw) < 100);

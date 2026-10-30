@@ -126,7 +126,9 @@ void TrackPipeline::OnPacket(const Packet& p) {
     double rms = p.pcm.empty() ? 0 : std::sqrt(sum / p.pcm.size());
     double db = rms > 0 ? 20 * std::log10(rms / 32768.0) : -120.0;
     stats_.levelCentiDb = static_cast<int>(std::max(db, -120.0) * 100);
-    if (!started_ || stopped_ || paused_ || p.stampNs < resumeAfterNs_) return;
+    if (!started_ || stopped_ || paused_ || sleeping_ || p.stampNs < resumeAfterNs_) return;
+    // After standby Windows delivers the slept span as a burst of stale silence (F11).
+    if (p.stampNs < wakeNs_ && p.arrivalNs < wakeNs_ + kNsPerSec) return;
 
     bool lostTime = CheckDivergence(p);
     int64_t stamp = p.stampNs + correctionNs_ - originNs_;
@@ -289,6 +291,7 @@ int64_t TrackPipeline::Stop() {
 }
 
 void TrackPipeline::OnSleep() {
+    sleeping_ = true;
     if (paused_) return;
     CloseChunk("sleep");
     pendingOpenReason_ = "wake";
@@ -296,7 +299,9 @@ void TrackPipeline::OnSleep() {
     havePrev_ = false;
 }
 
-void TrackPipeline::OnWake() {
+void TrackPipeline::OnWake(int64_t nowNs) {
+    sleeping_ = false;
+    wakeNs_ = nowNs;
     if (paused_) return;
     CloseChunk("wake");  // only a missed sleep notification leaves one open
     pendingOpenReason_ = "wake";
@@ -328,6 +333,7 @@ void TrackPipeline::OnPermissionChanged() {
 void TrackPipeline::OnSourceChanged(const std::string& source) {
     CloseChunk("source");
     pendingOpenReason_ = "source";
+    pendingCause_ = "source";
     cfg_.source = source;
 }
 

@@ -43,7 +43,7 @@ public:
     int64_t Resume(int64_t nowNs);  // returns the time resume took effect
     int64_t Stop();
     void OnSleep();
-    void OnWake();
+    void OnWake(int64_t nowNs);
     void OnStreamLost(const std::string& closeReason, const std::string& cause);
     void OnStreamOpened(const DeviceInfo& device, const std::string& openReason);
     void OnPermissionChanged();
@@ -70,6 +70,8 @@ private:
     bool started_ = false;
     bool paused_ = false;
     bool stopped_ = false;
+    bool sleeping_ = false;
+    int64_t wakeNs_ = 0;
     int64_t originNs_ = 0;
     int64_t resumeAfterNs_ = 0;
 
