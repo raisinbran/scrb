@@ -334,6 +334,8 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     case "checkPermission": permission = checkSystemAudioPermission()
     case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
     case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
+    case "listMics": return listingAck(id, "mics", listMics())
+    case "listApps": return listingAck(id, "apps", listApps(include: command["include"] as? [String] ?? []))
     default: ok = false; error = "unknown command"
     }
     var ack: [String: Any] = ["type": "ack", "id": id, "ok": ok,

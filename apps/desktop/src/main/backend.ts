@@ -5,6 +5,7 @@ import { Library, readLibraryLocation } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
+import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 
 export interface OpenedBackend {
@@ -26,11 +27,17 @@ export async function openBackend(
     // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
     if (helper) await recoverInterrupted(library, helper);
-    const recording = helper ? new RecordingController(library, helper, emit) : null;
+    const recording = helper
+      ? new RecordingController(library, helper, emit, {
+          read: () => settings.getSettings().audio,
+          save: (selection) => settings.updateSettings({ audio: selection }),
+        })
+      : null;
     return {
       handlers: {
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
+        ...createMeetingHandlers(library),
         ...recording?.handlers,
       },
       warning:

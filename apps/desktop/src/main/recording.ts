@@ -11,9 +11,11 @@ import {
   type RecordingSnapshot,
   type RecordingState,
   type RecordingWarning,
+  type SourceSelection,
 } from '@scrb/contracts';
 import type { Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
+import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
@@ -42,11 +44,18 @@ export async function recoverInterrupted(library: Library, helper: string): Prom
   }
 }
 
+/** Where the chosen sources live, so the Settings screen and the Live pickers share one choice. */
+export interface SourceStore {
+  read(): SourceSelection;
+  save(selection: SourceSelection): void;
+}
+
 /** Runs real recordings for the UI. One recording at a time. */
 export class RecordingController {
   private state: RecordingState = IDLE;
   private health: RecordingHealth | null = null;
   private session: RecordingSession | null = null;
+  private starting = false;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
 
@@ -54,6 +63,7 @@ export class RecordingController {
     private readonly library: Library,
     private readonly helper: string,
     private readonly emit: Emit,
+    private readonly sources: SourceStore,
   ) {}
 
   private update(patch: Partial<RecordingState>): void {
@@ -105,9 +115,23 @@ export class RecordingController {
   }
 
   private start = async ({ title }: { title?: string }): Promise<{ meetingId: string }> => {
-    if (this.session) {
+    if (this.session || this.starting) {
       throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
     }
+    this.starting = true;
+    try {
+      return await this.begin(title);
+    } catch (failure) {
+      this.session = null;
+      this.update(IDLE);
+      throw failure;
+    } finally {
+      this.starting = false;
+    }
+  };
+
+  private async begin(title: string | undefined): Promise<{ meetingId: string }> {
+    const { source, mic, micFellBack } = await resolveSources(this.helper, this.sources.read());
     const meeting = await this.library.createMeeting({
       title: title ?? 'Meeting',
       source: 'recorded',
@@ -115,6 +139,16 @@ export class RecordingController {
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
     this.state = { ...IDLE, meetingId: meeting.id };
+    if (micFellBack) {
+      this.warn(
+        {
+          kind: 'deviceChanged',
+          track: 'microphone',
+          message: 'The chosen microphone is not connected, so the system default is recording.',
+        },
+        'warning',
+      );
+    }
     const session = new RecordingSession({
       launch: () => {
         const adapter = new ProcessAdapter(this.helper);
@@ -141,12 +175,27 @@ export class RecordingController {
       name: 'open',
       sessionId: meeting.id,
       outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
-      source: 'wholeComputer',
-      mic: 'default',
+      source,
+      mic,
     });
     this.lastTick = Date.now();
     this.ticker = setInterval(() => this.tick(), 1000);
     return { meetingId: meeting.id };
+  }
+
+  /** The helper cannot switch sources mid-recording, so a change waits for Stop. */
+  private select = async (selection: SourceSelection): Promise<void> => {
+    const current = this.sources.read();
+    const changed =
+      selection.micDeviceId !== current.micDeviceId ||
+      selection.meetingAppId !== current.meetingAppId;
+    if (changed && (this.session || this.starting)) {
+      throw new ContractError({
+        code: 'conflict',
+        message: 'Stop the recording to change the meeting app or microphone.',
+      });
+    }
+    this.sources.save(selection);
   };
 
   private snapshot = async (): Promise<RecordingSnapshot> => ({
@@ -167,6 +216,9 @@ export class RecordingController {
       resumeRecording: () => this.require().resume(),
       stopRecording: () => this.require().stop(),
       getRecordingSnapshot: this.snapshot,
+      listInputDevices: () => listInputDevices(this.helper),
+      listMeetingApps: () => listMeetingApps(this.helper, this.sources.read().meetingAppId),
+      selectSources: (request) => this.select(request as SourceSelection),
     };
   }
 

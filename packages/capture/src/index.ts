@@ -21,7 +21,25 @@ export type CaptureCommand =
   | OpenCommand
   | { name: 'start' | 'pause' | 'resume' | 'stop' | 'checkPermission' }
   | { name: 'selectMic'; mic: string }
-  | { name: 'selectSource'; source: number[] | 'wholeComputer' };
+  | { name: 'selectSource'; source: number[] | 'wholeComputer' }
+  | { name: 'listMics' }
+  /** `include` names saved apps that need a row even when they are not running. */
+  | { name: 'listApps'; include: string[] };
+
+export interface HelperMic {
+  id: string;
+  name: string;
+  isSystemDefault: boolean;
+  transport: 'builtIn' | 'usb' | 'bluetooth' | 'bluetoothHandsFree' | 'other';
+}
+
+export interface HelperApp {
+  bundleId: string;
+  name: string;
+  running: boolean;
+  /** Every process of the app that has an audio object, helpers included. */
+  pids: number[];
+}
 
 /**
  * The reply to a command. A retry with the same ID returns the first reply and repeats nothing,
@@ -39,6 +57,10 @@ export interface CaptureAck {
   error?: string;
   /** The result of `checkPermission`. */
   systemAudio?: 'granted' | 'denied' | 'unknown';
+  /** The reply to `listMics`. */
+  mics?: HelperMic[];
+  /** The reply to `listApps`. */
+  apps?: HelperApp[];
 }
 
 export type CaptureEvent =
@@ -61,3 +83,4 @@ export interface CaptureAdapter {
   kill(): void;
 }
 export { ProcessAdapter } from './process-adapter.ts';
+export { readApps, readMics } from './source-lists.ts';
