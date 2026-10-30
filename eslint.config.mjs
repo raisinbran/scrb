@@ -18,6 +18,10 @@ const backendModules = [
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/dist-electron/**', 'phase0/**', 'dev-plan/**'] },
   js.configs.recommended,
+  {
+    files: ['**/*.mjs'],
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+  },
   ...tseslint.configs.recommended,
   {
     files: ['apps/desktop/src/ui/**/*.{ts,tsx}'],
@@ -30,8 +34,14 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: backendModules, message: 'UI code talks to the backend only via @scrb/contracts.' },
-            { group: ['**/main/**', '**/preload/**'], message: 'UI code cannot reach into Electron processes.' },
+            {
+              group: backendModules,
+              message: 'UI code talks to the backend only via @scrb/contracts.',
+            },
+            {
+              group: ['**/main/**', '**/preload/**'],
+              message: 'UI code cannot reach into Electron processes.',
+            },
           ],
         },
       ],

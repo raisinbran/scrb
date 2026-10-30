@@ -3,9 +3,7 @@ import type { Backend } from '@scrb/contracts';
 import { useBackend } from './backend-context.tsx';
 
 export type BackendData<T> =
-  | { status: 'loading' }
-  | { status: 'ready'; data: T }
-  | { status: 'failed'; message: string };
+  { status: 'loading' } | { status: 'ready'; data: T } | { status: 'failed'; message: string };
 
 /** Loads once on mount and on `reload`. `load` must be stable (module-level or memoized). */
 export function useBackendData<T>(load: (backend: Backend) => Promise<T>) {

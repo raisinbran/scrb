@@ -16,10 +16,7 @@ export function createBridgeBackend(bridge: ScribeBridge): Backend {
       if (!envelope.ok) throw new ContractError(envelope.error);
       return envelope.value;
     },
-    on<K extends EventName>(
-      name: K,
-      listener: (payload: BackendEvents[K]) => void,
-    ): Unsubscribe {
+    on<K extends EventName>(name: K, listener: (payload: BackendEvents[K]) => void): Unsubscribe {
       return bridge.subscribe(name, (payload) => listener(payload as BackendEvents[K]));
     },
   } as Backend;

@@ -51,11 +51,21 @@ export const MEETING_APPS: MeetingApp[] = [
   { id: 'app-teams', name: 'Microsoft Teams', kind: 'app', isRunning: true },
   { id: 'app-zoom', name: 'Zoom', kind: 'app', isRunning: false },
   { id: 'app-browser', name: 'Web browser', kind: 'browser', isRunning: true },
-  { id: WHOLE_COMPUTER_SOURCE_ID, name: 'Whole computer audio', kind: 'wholeComputer', isRunning: true },
+  {
+    id: WHOLE_COMPUTER_SOURCE_ID,
+    name: 'Whole computer audio',
+    kind: 'wholeComputer',
+    isRunning: true,
+  },
 ];
 
 export const VOICE_PROFILES: VoiceProfile[] = [
-  { id: 'profile-1', name: 'Priya Natarajan', meetingCount: 14, lastHeardAt: '2026-10-27T15:00:00Z' },
+  {
+    id: 'profile-1',
+    name: 'Priya Natarajan',
+    meetingCount: 14,
+    lastHeardAt: '2026-10-27T15:00:00Z',
+  },
   { id: 'profile-2', name: 'Tomas Lindgren', meetingCount: 9, lastHeardAt: '2026-10-23T17:30:00Z' },
   { id: 'profile-3', name: null, meetingCount: 2, lastHeardAt: '2026-10-20T14:00:00Z' },
 ];
@@ -90,10 +100,7 @@ export const VOCABULARY_TERMS: VocabularyTerm[] = [
   },
 ];
 
-const base: Pick<
-  MeetingDetail,
-  'gaps' | 'speakerCount' | 'origin' | 'status' | 'summaryState'
-> = {
+const base: Pick<MeetingDetail, 'gaps' | 'speakerCount' | 'origin' | 'status' | 'summaryState'> = {
   gaps: [],
   speakerCount: 4,
   origin: 'recorded',
@@ -152,7 +159,10 @@ export function createLibrary(): MeetingDetail[] {
   ];
 }
 
-export function createSummary(meetingId: string, state: MeetingSummaryDoc['state']): MeetingSummaryDoc {
+export function createSummary(
+  meetingId: string,
+  state: MeetingSummaryDoc['state'],
+): MeetingSummaryDoc {
   const empty = state === 'notGenerated';
   return {
     meetingId,
@@ -230,15 +240,46 @@ export function createSummary(meetingId: string, state: MeetingSummaryDoc['state
         ],
     openQuestions: empty
       ? []
-      : [{ id: 'q-1', question: 'Who owns the on-call rota after launch?', sourceMs: 3_300_000, edited: false }],
+      : [
+          {
+            id: 'q-1',
+            question: 'Who owns the on-call rota after launch?',
+            sourceMs: 3_300_000,
+            edited: false,
+          },
+        ],
   };
 }
 
 export const MODELS: ModelInfo[] = [
-  { role: 'liveSpeech', name: 'whisper small (quantized)', version: 'mock-1', installed: true, sizeBytes: 190_000_000 },
-  { role: 'finalSpeech', name: 'whisper large-v3-turbo (quantized)', version: 'mock-1', installed: true, sizeBytes: 570_000_000 },
-  { role: 'speaker', name: 'speaker embedding', version: 'mock-1', installed: true, sizeBytes: 40_000_000 },
-  { role: 'summary', name: 'summary 8B (4-bit)', version: 'mock-1', installed: true, sizeBytes: 5_000_000_000 },
+  {
+    role: 'liveSpeech',
+    name: 'whisper small (quantized)',
+    version: 'mock-1',
+    installed: true,
+    sizeBytes: 190_000_000,
+  },
+  {
+    role: 'finalSpeech',
+    name: 'whisper large-v3-turbo (quantized)',
+    version: 'mock-1',
+    installed: true,
+    sizeBytes: 570_000_000,
+  },
+  {
+    role: 'speaker',
+    name: 'speaker embedding',
+    version: 'mock-1',
+    installed: true,
+    sizeBytes: 40_000_000,
+  },
+  {
+    role: 'summary',
+    name: 'summary 8B (4-bit)',
+    version: 'mock-1',
+    installed: true,
+    sizeBytes: 5_000_000_000,
+  },
 ];
 
 export const MODEL_UPDATES: ModelUpdate[] = [
@@ -261,6 +302,16 @@ export const APP_INFO: AppInfo = {
 };
 
 export const LICENSES: LicenseEntry[] = [
-  { name: 'Electron', version: '45.1.0', license: 'MIT', text: 'Placeholder: real notices come from THIRD_PARTY_NOTICES.md.' },
-  { name: 'React', version: '19.3.1', license: 'MIT', text: 'Placeholder: real notices come from THIRD_PARTY_NOTICES.md.' },
+  {
+    name: 'Electron',
+    version: '45.1.0',
+    license: 'MIT',
+    text: 'Placeholder: real notices come from THIRD_PARTY_NOTICES.md.',
+  },
+  {
+    name: 'React',
+    version: '19.3.1',
+    license: 'MIT',
+    text: 'Placeholder: real notices come from THIRD_PARTY_NOTICES.md.',
+  },
 ];

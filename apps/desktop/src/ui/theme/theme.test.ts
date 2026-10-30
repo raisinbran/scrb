@@ -66,7 +66,10 @@ describe.each(['light', 'dark'] as const)('%s tokens', (theme) => {
   });
 
   it('meets WCAG AA for text on the accent color', () => {
-    const ratio = contrast(tokens['--color-on-accent'] as string, tokens['--color-accent'] as string);
+    const ratio = contrast(
+      tokens['--color-on-accent'] as string,
+      tokens['--color-accent'] as string,
+    );
     expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
