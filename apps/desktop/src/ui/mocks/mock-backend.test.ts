@@ -49,7 +49,7 @@ describe('MockBackend', () => {
   it('keeps elapsed time still while paused', async () => {
     await backend.call('startRecording', {});
     vi.advanceTimersByTime(18_000);
-    const { elapsedMs } = await backend.call('getRecordingState');
+    const { elapsedMs } = (await backend.call('getRecordingSnapshot')).state;
     expect(elapsedMs).toBe(14_000);
   });
 
@@ -108,6 +108,84 @@ describe('MockBackend', () => {
     const settings = await backend.call('updateSettings', { audio: { echoCancellation: false } });
     expect(settings.audio.echoCancellation).toBe(false);
     expect(settings.audio.preset).toBe('voiceIsolation');
+  });
+
+  it('refuses a malformed request', async () => {
+    const failure = await backend
+      .call('getTranscript', { meetingId: LONG_MEETING_ID, offset: -1, limit: 10 })
+      .catch((error: unknown) => error);
+    expect((failure as ContractError).code).toBe('invalidRequest');
+  });
+
+  it('restores recording health and transcription status after a reload', async () => {
+    await backend.call('startRecording', {});
+    const warning = { kind: 'lowDisk', message: 'Low disk.', atMs: 0 } as const;
+    backend.emit('recordingHealth', { level: 'warning', warnings: [warning], diskFreeBytes: 1 });
+    backend.emit('transcriptionLag', { status: 'lagging', lagMs: 9000 });
+
+    const snapshot = await backend.call('getRecordingSnapshot');
+
+    expect(snapshot.state.status).toBe('recording');
+    expect(snapshot.health?.level).toBe('warning');
+    expect(snapshot.transcription?.status).toBe('lagging');
+  });
+
+  describe('import cancellation', () => {
+    const start = async () => {
+      const ended: string[] = [];
+      backend.on('importFinished', () => ended.push('finished'));
+      backend.on('importFailed', () => ended.push('failed'));
+      backend.on('importCancelled', () => ended.push('cancelled'));
+      const before = (await backend.call('listMeetings', {})).length;
+      const { importId } = await backend.call('importAudioFile', {
+        fileToken: 'file-1',
+        buildVoiceProfiles: false,
+      });
+      return { ended, before, importId };
+    };
+
+    it('ends a running import with one event and creates no meeting', async () => {
+      const { ended, before, importId } = await start();
+      await backend.call('cancelImport', { importId });
+      vi.advanceTimersByTime(5000);
+      expect(ended).toEqual(['cancelled']);
+      expect(await backend.call('listMeetings', {})).toHaveLength(before);
+    });
+
+    it('does nothing when cancelled twice', async () => {
+      const { ended, importId } = await start();
+      await backend.call('cancelImport', { importId });
+      await backend.call('cancelImport', { importId });
+      expect(ended).toEqual(['cancelled']);
+    });
+
+    it('does nothing once the import has finished', async () => {
+      const { ended, importId } = await start();
+      vi.advanceTimersByTime(5000);
+      await backend.call('cancelImport', { importId });
+      expect(ended).toEqual(['finished']);
+    });
+
+    it('reports an import that never existed', async () => {
+      const failure = await backend
+        .call('cancelImport', { importId: 'import-999' })
+        .catch((error: unknown) => error);
+      expect((failure as ContractError).code).toBe('notFound');
+    });
+  });
+
+  it('counts transcript revisions per meeting', async () => {
+    const seen: number[] = [];
+    backend.on('transcriptChanged', ({ revision }) => seen.push(revision));
+    const { meetingId } = await backend.call('startRecording', {});
+    vi.advanceTimersByTime(3000);
+    await backend.call('stopRecording');
+    await backend.call('startRecording', {});
+    vi.advanceTimersByTime(1000);
+
+    expect(seen).toEqual([1, 2, 3, 1]);
+    const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+    expect(page.revision).toBe(3);
   });
 
   it('runs every developer trigger without throwing', () => {

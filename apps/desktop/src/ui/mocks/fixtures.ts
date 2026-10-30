@@ -159,6 +159,8 @@ export function createLibrary(): MeetingDetail[] {
   ];
 }
 
+const UNREVIEWED = { alsoAtMs: [], needsReview: false, edited: false };
+
 export function createSummary(
   meetingId: string,
   state: MeetingSummaryDoc['state'],
@@ -204,18 +206,22 @@ export function createSummary(
             action: 'Send updated storage cost estimate',
             owner: 'Priya Natarajan',
             deadline: 'Friday',
-            status: 'open',
+            ownerUnconfirmed: false,
+            deadlineUnconfirmed: false,
+            status: 'agreed',
             sourceMs: 412_000,
-            edited: false,
+            ...UNREVIEWED,
           },
           {
             id: 'a-2',
             action: 'Check budget approval with finance',
             owner: null,
             deadline: null,
+            ownerUnconfirmed: true,
+            deadlineUnconfirmed: false,
             status: 'unconfirmed',
             sourceMs: 1_840_000,
-            edited: false,
+            ...UNREVIEWED,
           },
         ],
     decisions: empty
@@ -227,7 +233,7 @@ export function createSummary(
             status: 'decided',
             impactArea: 'risk',
             sourceMs: 905_000,
-            edited: false,
+            ...UNREVIEWED,
           },
           {
             id: 'd-2',
@@ -235,7 +241,7 @@ export function createSummary(
             status: 'tentativelyAgreed',
             impactArea: 'schedule',
             sourceMs: 2_210_000,
-            edited: false,
+            ...UNREVIEWED,
           },
         ],
     openQuestions: empty
@@ -245,9 +251,10 @@ export function createSummary(
             id: 'q-1',
             question: 'Who owns the on-call rota after launch?',
             sourceMs: 3_300_000,
-            edited: false,
+            ...UNREVIEWED,
           },
         ],
+    warnings: [],
   };
 }
 

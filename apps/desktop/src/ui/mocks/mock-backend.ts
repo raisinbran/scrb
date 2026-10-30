@@ -1,5 +1,6 @@
 import {
   ContractError,
+  isValidRequest,
   type AppSettings,
   type Backend,
   type BackendCalls,
@@ -59,6 +60,7 @@ type Handlers = {
   ) => BackendCalls[K]['response'] | Promise<BackendCalls[K]['response']>;
 };
 type Listener = (payload: never) => void;
+type Timer = ReturnType<typeof setTimeout>;
 
 function mergeSettings(settings: AppSettings, patch: SettingsPatch): AppSettings {
   return {
@@ -105,11 +107,18 @@ export class MockBackend implements Backend {
   };
   private ticker: ReturnType<typeof setInterval> | undefined;
   private second = 0;
-  private revision = 0;
+  private readonly revisions = new Map<string, number>();
+  private readonly activeImports = new Map<string, { fileName: string; timer: Timer }>();
+  private readonly endedImports = new Set<string>();
+  private health: RecordingHealth | null = null;
+  private lag: TranscriptionLag | null = null;
   private liveStartMs = 0;
   private nextId = 1;
 
   call = (async (name: CallName, request?: unknown) => {
+    if (!isValidRequest(name, request)) {
+      throw new ContractError({ code: 'invalidRequest', message: 'That request is not valid.' });
+    }
     const handler = this.handlers[name] as (request: unknown) => unknown;
     return handler(request);
   }) as Backend['call'];
@@ -122,6 +131,8 @@ export class MockBackend implements Backend {
   };
 
   emit<K extends EventName>(name: K, payload: BackendEvents[K]): void {
+    if (name === 'recordingHealth') this.health = payload as RecordingHealth;
+    if (name === 'transcriptionLag') this.lag = payload as TranscriptionLag;
     this.listeners
       .get(name)
       ?.forEach((listener) => (listener as (value: unknown) => void)(payload));
@@ -179,6 +190,20 @@ export class MockBackend implements Backend {
     return segments;
   }
 
+  private revisionOf(meetingId: string): number {
+    return this.revisions.get(meetingId) ?? 0;
+  }
+
+  /** Runs one import's last step, unless the import was cancelled first. */
+  private finishImportLater(importId: string, fileName: string, delayMs: number, end: () => void) {
+    const timer = setTimeout(() => {
+      this.activeImports.delete(importId);
+      this.endedImports.add(importId);
+      end();
+    }, delayMs);
+    this.activeImports.set(importId, { fileName, timer });
+  }
+
   private summaryOf(meetingId: string): MeetingSummaryDoc {
     const meeting = this.findMeeting(meetingId);
     let summary = this.summaries.get(meetingId);
@@ -221,10 +246,11 @@ export class MockBackend implements Backend {
     segments.push(segment);
     this.transcripts.set(meetingId, segments);
     this.liveStartMs = segment.endMs;
-    this.revision += 1;
+    const revision = this.revisionOf(meetingId) + 1;
+    this.revisions.set(meetingId, revision);
     this.emit('transcriptChanged', {
       meetingId,
-      revision: this.revision,
+      revision,
       change: { kind: 'append', segments: [segment] },
       speakers: [],
     });
@@ -307,8 +333,13 @@ export class MockBackend implements Backend {
         privacyBannerRequired: false,
       });
       this.emit('transcriptionLag', { status: 'off', lagMs: 0 });
+      this.health = null;
     },
-    getRecordingState: () => this.recording,
+    getRecordingSnapshot: () => ({
+      state: this.recording,
+      health: this.health,
+      transcription: this.lag,
+    }),
 
     pickAudioFile: () => ({
       fileToken: this.id('file'),
@@ -326,12 +357,12 @@ export class MockBackend implements Backend {
           reason: 'unreadable',
           message: 'This file could not be read. It may be damaged or not an audio file.',
         } as const;
-        setTimeout(() => this.emit('importFailed', failure), 300);
+        this.finishImportLater(importId, fileName, 300, () => this.emit('importFailed', failure));
         return { importId };
       }
       void fileToken;
       this.emit('importProgress', { importId, fileName, stage: 'decoding', fraction: 0.1 });
-      setTimeout(() => {
+      this.finishImportLater(importId, fileName, 1500, () => {
         const meetingId = this.id('meeting-import');
         this.library = [
           {
@@ -348,10 +379,20 @@ export class MockBackend implements Backend {
           ...this.library,
         ];
         this.emit('importFinished', { importId, meetingId });
-      }, 1500);
+      });
       return { importId };
     },
-    cancelImport: () => undefined,
+    cancelImport: ({ importId }) => {
+      if (this.endedImports.has(importId)) return;
+      const running = this.activeImports.get(importId);
+      if (!running) {
+        throw new ContractError({ code: 'notFound', message: 'That import no longer exists.' });
+      }
+      clearTimeout(running.timer);
+      this.activeImports.delete(importId);
+      this.endedImports.add(importId);
+      this.emit('importCancelled', { importId, fileName: running.fileName });
+    },
 
     listInputDevices: () => INPUT_DEVICES,
     listMeetingApps: () => MEETING_APPS,
@@ -363,7 +404,7 @@ export class MockBackend implements Backend {
       const all = this.transcriptOf(meetingId);
       return {
         meetingId,
-        revision: this.revision,
+        revision: this.revisionOf(meetingId),
         totalSegments: all.length,
         totalWords: all.reduce((sum, segment) => sum + segment.words.length, 0),
         segments: all.slice(offset, offset + limit),

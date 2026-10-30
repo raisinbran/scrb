@@ -15,6 +15,7 @@ import type {
   ExportFinished,
   ExportId,
   ExportRequest,
+  ImportCancelled,
   ImportFailed,
   ImportFinished,
   ImportId,
@@ -38,6 +39,7 @@ import type {
   PlaybackPosition,
   ProfileId,
   RecordingHealth,
+  RecordingSnapshot,
   RecordingState,
   SearchResult,
   SettingsPatch,
@@ -69,7 +71,7 @@ export interface BackendCalls {
   resumeRecording: { request: void; response: void };
   stopRecording: { request: void; response: void };
   /** @addition */
-  getRecordingState: { request: void; response: RecordingState };
+  getRecordingSnapshot: { request: void; response: RecordingSnapshot };
 
   // Import
   /** @addition */
@@ -78,6 +80,12 @@ export interface BackendCalls {
     request: { fileToken: string; buildVoiceProfiles: boolean };
     response: { importId: ImportId };
   };
+  /**
+   * Asks a running import to stop. Every import ends in exactly one of `importFinished`,
+   * `importFailed` or `importCancelled`, and only the last means no meeting exists. Cancelling an
+   * import that already ended, or cancelling twice, does nothing. An id that never existed is
+   * `notFound`.
+   */
   cancelImport: { request: { importId: ImportId }; response: void };
 
   // Devices
@@ -189,6 +197,8 @@ export interface BackendEvents {
   importProgress: ImportProgress;
   importFinished: ImportFinished;
   importFailed: ImportFailed;
+  /** @addition */
+  importCancelled: ImportCancelled;
 
   // Devices
   deviceChanged: DeviceChange;
@@ -274,7 +284,7 @@ const CALL_TABLE: Record<CallName, true> = {
   pauseRecording: true,
   resumeRecording: true,
   stopRecording: true,
-  getRecordingState: true,
+  getRecordingSnapshot: true,
   pickAudioFile: true,
   importAudioFile: true,
   cancelImport: true,
@@ -327,6 +337,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   importProgress: true,
   importFinished: true,
   importFailed: true,
+  importCancelled: true,
   deviceChanged: true,
   levelMeter: true,
   transcriptChanged: true,

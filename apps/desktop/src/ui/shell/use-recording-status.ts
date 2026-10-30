@@ -22,7 +22,14 @@ export function useRecordingStatus() {
       backend.on('recordingHealth', setHealth),
       backend.on('transcriptionLag', setLag),
     ];
-    void backend.call('getRecordingState').then(setRecording, () => undefined);
+    void backend.call('getRecordingSnapshot').then(
+      (snapshot) => {
+        setRecording(snapshot.state);
+        setHealth(snapshot.health);
+        setLag(snapshot.transcription);
+      },
+      () => undefined,
+    );
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [backend]);
 
