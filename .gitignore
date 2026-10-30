@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-electron/
+out/
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env*
+# Models, recordings and generated data never go in git.
+*.gguf
+*.onnx
+*.bin
