@@ -201,11 +201,11 @@ const SENTENCES = [
 ];
 
 /**
- * A meeting of the given hours at the given speaking rate. The default 180
- * words a minute with no silence is well above a real 8-hour recording.
+ * A meeting of the given hours at the given speaking rate. The defaults, 180
+ * words a minute with no silence in 3-second segments, are well above a real
+ * 8-hour recording.
  */
-export function longMeeting(hours: number, wordsPerMinute = 180): ExportMeeting {
-  const segmentMs = 12_000;
+export function longMeeting(hours: number, wordsPerMinute = 180, segmentMs = 3000): ExportMeeting {
   const wordsPerSegment = Math.round((wordsPerMinute * segmentMs) / MINUTE);
   const durationMs = hours * HOUR;
   const speakers = Array.from({ length: 8 }, (_, index) => ({
