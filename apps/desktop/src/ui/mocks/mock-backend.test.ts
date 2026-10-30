@@ -252,6 +252,50 @@ describe('MockBackend', () => {
       expect(after.actionItems[0]?.action).toBe('Changed');
     });
 
+    it('applies each kind of submitted item and marks it edited', async () => {
+      const before = await backend.call('getSummary', { meetingId });
+      const update = (item: Parameters<typeof backend.call<'updateSummaryItem'>>[1]['update']) =>
+        backend.call('updateSummaryItem', { meetingId, update: item });
+      const [action, decision, question] = [
+        before.actionItems[0],
+        before.decisions[0],
+        before.openQuestions[0],
+      ] as [
+        (typeof before.actionItems)[number],
+        (typeof before.decisions)[number],
+        (typeof before.openQuestions)[number],
+      ];
+      const section = before.narrative.brief?.[0] as NonNullable<
+        typeof before.narrative.brief
+      >[number];
+
+      await update({
+        kind: 'actionItem',
+        item: { ...action, owner: 'New owner', status: 'proposed' },
+      });
+      await update({
+        kind: 'decision',
+        item: { ...decision, status: 'unresolved', impactArea: null },
+      });
+      await update({ kind: 'openQuestion', item: { ...question, question: 'New question?' } });
+      await update({ kind: 'narrative', item: { ...section, text: 'New text.' } });
+
+      const after = await backend.call('getSummary', { meetingId });
+      expect(after.actionItems[0]).toMatchObject({
+        owner: 'New owner',
+        status: 'proposed',
+        edited: true,
+      });
+      expect(after.decisions[0]).toMatchObject({
+        status: 'unresolved',
+        impactArea: null,
+        edited: true,
+      });
+      expect(after.openQuestions[0]).toMatchObject({ question: 'New question?', edited: true });
+      expect(after.narrative.brief?.[0]).toMatchObject({ text: 'New text.', edited: true });
+      expect(after.actionItems[1]).toEqual(before.actionItems[1]);
+    });
+
     it('generates only the requested length', async () => {
       await backend.call('generateSummary', { meetingId: 'meeting-imported', length: 'brief' });
       vi.advanceTimersByTime(5000);
