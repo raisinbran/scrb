@@ -27,6 +27,13 @@ Environment notes:
 - Default-device, privacy and sleep actions are owner steps: give numbered
   clicks with clock times.
 
+## Owner decisions (2026-10-30)
+
+- Pushing `windows-capture` is approved (never `main`).
+- Restarting the Windows Audio service is approved for this adapter task.
+- Split a chunk on every OS discontinuity flag, as built.
+- Q6, Q10 and Q12 are still open.
+
 ## Design decided (build this)
 
 Files in `src/`: `Common.h`, `TrackPipeline` (pure rules, no WASAPI, unit
