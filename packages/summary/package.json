@@ -13,7 +13,7 @@
     "eval": "node dist/eval/run.js"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.5",
     "typescript": "^5.9.0",
     "vitest": "5.0.5"
   }
