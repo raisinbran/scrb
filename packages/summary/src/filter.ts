@@ -18,6 +18,7 @@ const MIN_CONTENT_TOKENS = 2;
 /** Why this is not a real item, or null if it passes. Procedure, not substance, is what gets cut. */
 export function nonItemReason(text: string): string | null {
   if (contentTokens(text).size < MIN_CONTENT_TOKENS) return "too short to be an item";
+  if (/^\[?\d{1,3}:\d{2}\]?/.test(text)) return "a copied transcript line";
   for (const [pattern, reason] of NON_ITEM_PATTERNS) if (pattern.test(text)) return reason;
   return null;
 }

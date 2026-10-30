@@ -35,23 +35,24 @@ export const COVERAGE_FOCI: CoverageFocus[] = [
     name: "coverage-next-steps",
     schemaKey: "action_items",
     instruction:
-      "List only follow-up work: anything a person or the whole group is expected to do after this meeting. Include " +
-      "work that is assigned in passing, each person's task for the next meeting, things to prepare or present " +
-      "next time, things to send, post, research or find out. An empty list is a good answer.",
+      "List only follow-up work: a task that a person or the whole group took on, to be done after this meeting has " +
+      "ended. Include work assigned in passing, each person's task for the next meeting, and things to prepare, " +
+      "present, send, post or find out next time. Not what people do during this meeting, not their general job " +
+      "description, and not a topic someone only mentioned.",
   },
   {
     name: "coverage-settled",
     schemaKey: "decisions",
     instruction:
-      "List only points that are now settled for the project. Include choices the group accepted without much " +
-      "debate, options that were ruled out, and requirements or constraints that someone stated as given and nobody " +
-      "challenged (including instructions passed on from management or a client). Each item is one specific point. " +
-      "An empty list is a good answer.",
+      "List only points now settled for the project: a choice the group accepted, an option ruled out, or a " +
+      "requirement stated as given (including instructions passed on from management or a client) that nobody " +
+      "challenged. Not a fact about how things work, not a finding from a presentation, not a suggestion that " +
+      "nobody took up, and not the meeting's own arrangements.",
   },
 ];
 
 export function coverageSystem(focus: CoverageFocus, speakers: string[]): string {
-  return `You check a short stretch of a meeting transcript. ${LINE_FORMAT} Speakers: ${speakers.join(", ")}. ${focus.instruction} ${EVIDENCE_RULES}`;
+  return `You check a short stretch of a meeting transcript. ${LINE_FORMAT} Speakers: ${speakers.join(", ")}. ${focus.instruction} Write each item as your own one complete sentence, never as a copied transcript line. Only the most important few; an empty list is a good answer. ${EVIDENCE_RULES}`;
 }
 
 const PROSE_RULES =
