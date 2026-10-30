@@ -30,3 +30,4 @@ artifacts/capture/devices/*.wav
 
 # macOS device-case recordings
 artifacts/capture/macos/devices/*.wav
+probes/macos-dual-capture/SetDefaultDevice
