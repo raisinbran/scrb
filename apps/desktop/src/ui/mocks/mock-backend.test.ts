@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ContractError, CALL_NAMES } from '@scrb/contracts';
+import {
+  ContractError,
+  CALL_NAMES,
+  type TranscriptChanged,
+  type TranscriptSegment,
+} from '@scrb/contracts';
 import { MockBackend } from './mock-backend.ts';
 import { DEV_TRIGGERS } from './dev-triggers.ts';
 import { LONG_MEETING_ID } from './fixtures.ts';
@@ -28,7 +33,9 @@ describe('MockBackend', () => {
     const seen: string[] = [];
     let status = '';
     let appended = 0;
-    backend.on('transcriptChanged', () => (appended += 1));
+    backend.on('transcriptChanged', ({ change }) => {
+      if (change.kind === 'append') appended += 1;
+    });
     backend.on('recordingStateChanged', (state) => {
       if (status !== state.status) seen.push(state.status);
       status = state.status;
@@ -186,6 +193,128 @@ describe('MockBackend', () => {
     expect(seen).toEqual([1, 2, 3, 1]);
     const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
     expect(page.revision).toBe(3);
+  });
+
+  it('leaves only the newest live segments provisional', async () => {
+    const { meetingId } = await backend.call('startRecording', {});
+    vi.advanceTimersByTime(10_000);
+    const { segments } = await backend.call('getTranscript', { meetingId, offset: 0, limit: 50 });
+    expect(segments.map((segment) => segment.words[0]?.state)).toEqual([
+      ...Array<string>(6).fill('final'),
+      ...Array<string>(4).fill('provisional'),
+    ]);
+  });
+
+  it('applies, undoes and redoes a correction across two segments', async () => {
+    const { meetingId } = await backend.call('startRecording', {});
+    vi.advanceTimersByTime(2000);
+    const read = () => backend.call('getTranscript', { meetingId, offset: 0, limit: 10 });
+    const original = await read();
+    const [first, second] = original.segments as [TranscriptSegment, TranscriptSegment];
+    const range = {
+      firstWordId: first.words.at(-1)?.id as string,
+      lastWordId: second.words[0]?.id as string,
+    };
+
+    const state = await backend.call('applyCorrection', {
+      meetingId,
+      range,
+      text: 'Halden Depot rollout',
+      remember: true,
+    });
+
+    expect(state).toEqual({ canUndo: true, canRedo: false });
+    const corrected = (await read()).segments[0] as TranscriptSegment;
+    expect(corrected.words.slice(-3).map((word) => word.text)).toEqual([
+      'Halden',
+      'Depot',
+      'rollout',
+    ]);
+    expect(corrected.words.at(-1)?.state).toBe('corrected');
+    expect((await read()).segments[1]?.words[0]?.id).toBe(second.words[1]?.id);
+    expect((await backend.call('listTerms')).at(-1)?.term).toBe('Halden Depot rollout');
+
+    expect(await backend.call('undo', { meetingId })).toEqual({ canUndo: false, canRedo: true });
+    expect((await read()).segments.slice(0, 2)).toEqual([first, second]);
+
+    await backend.call('redo', { meetingId });
+    expect((await read()).segments[0]).toEqual(corrected);
+  });
+
+  it('reassigns part of a segment, emits the change, and undoes and redoes it', async () => {
+    const { meetingId } = await backend.call('startRecording', {});
+    vi.advanceTimersByTime(1000);
+    backend.dispose();
+    const read = () => backend.call('getTranscript', { meetingId, offset: 0, limit: 10 });
+    const original = await read();
+    const segment = original.segments[0] as TranscriptSegment;
+    const speakerId = segment.speakerId === 'sp-2' ? 'sp-3' : 'sp-2';
+    const changes: TranscriptChanged['change'][] = [];
+    backend.on('transcriptChanged', ({ change }) => changes.push(change));
+
+    const state = await backend.call('reassignSpeaker', {
+      meetingId,
+      range: {
+        firstWordId: segment.words[1]?.id as string,
+        lastWordId: segment.words[2]?.id as string,
+      },
+      speakerId,
+    });
+
+    expect(state).toEqual({ canUndo: true, canRedo: false });
+    expect(changes).toHaveLength(1);
+    const parts = (await read()).segments;
+    expect(parts.map((part) => part.speakerId)).toEqual([
+      segment.speakerId,
+      speakerId,
+      segment.speakerId,
+    ]);
+    expect(parts.flatMap((part) => part.words)).toEqual(segment.words);
+    expect(parts[1]?.words.map((word) => word.text)).toEqual(
+      segment.words.slice(1, 3).map((word) => word.text),
+    );
+
+    await backend.call('undo', { meetingId });
+    expect((await read()).segments).toEqual([segment]);
+    expect(changes).toHaveLength(2);
+
+    await backend.call('redo', { meetingId });
+    expect((await read()).segments).toEqual(parts);
+  });
+
+  it('refuses a reassignment of text that is gone', async () => {
+    const failure = await backend
+      .call('reassignSpeaker', {
+        meetingId: LONG_MEETING_ID,
+        range: { firstWordId: 'missing', lastWordId: 'missing' },
+        speakerId: 'sp-2',
+      })
+      .catch((error: unknown) => error);
+    expect((failure as ContractError).code).toBe('notFound');
+  });
+
+  it('runs a live meeting that already holds 8 hours of text', async () => {
+    backend.startLongLiveMeeting();
+    const { state } = await backend.call('getRecordingSnapshot');
+    const page = await backend.call('getTranscript', {
+      meetingId: state.meetingId as string,
+      offset: 0,
+      limit: 1,
+    });
+    expect(page.totalWords).toBeGreaterThanOrEqual(80_000);
+    expect(state.elapsedMs).toBeGreaterThan(7 * 3_600_000);
+  });
+
+  it('reports playback moving until it is stopped', async () => {
+    const positions: number[] = [];
+    backend.on('playbackPosition', ({ positionMs, isPlaying }) => {
+      if (isPlaying) positions.push(positionMs);
+    });
+    await backend.call('seekAudio', { meetingId: LONG_MEETING_ID, positionMs: 1000 });
+    vi.advanceTimersByTime(1000);
+    await backend.call('pauseAudio', { meetingId: LONG_MEETING_ID });
+    vi.advanceTimersByTime(1000);
+    expect(positions).toEqual([1000, 1500, 2000]);
   });
 
   it('runs every developer trigger without throwing', () => {

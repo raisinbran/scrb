@@ -18,6 +18,7 @@ import {
   type TranscriptionLag,
   type VocabularyTerm,
   type VoiceProfile,
+  type WordRange,
 } from '@scrb/contracts';
 import {
   APP_INFO,
@@ -33,6 +34,12 @@ import {
   createLibrary,
   createSummary,
 } from './fixtures.ts';
+import {
+  correctWordRange,
+  finalizeProvisionalWords,
+  reassignWordRange,
+  type TranscriptEdit,
+} from './corrections.ts';
 import { createPrng } from './prng.ts';
 import { SCRIPT, type ScriptStep } from './scripted-meeting.ts';
 import { MOCK_SPEAKERS, generateSegment, generateTranscript } from './transcript.ts';
@@ -42,6 +49,10 @@ const SETTINGS_KEY = 'scrb.mock.settings';
 const LONG_MEETING_WORDS = 80_000;
 const SHORT_MEETING_WORDS = 2_000;
 const FULL_DISK_BYTES = 180_000_000_000;
+const METER_INTERVAL_MS = 120;
+const PLAYBACK_INTERVAL_MS = 500;
+/** How many of the newest live segments stay provisional before the live pass confirms them. */
+const PROVISIONAL_SEGMENTS = 4;
 
 /** Armed faults change what the next matching call does; see `dev-triggers.ts`. */
 export type ArmedFault =
@@ -52,7 +63,8 @@ export type ArmedFault =
   | 'modelDownloadFails'
   | 'permissionDenied'
   | 'noModelInfo'
-  | 'modelsMissing';
+  | 'modelsMissing'
+  | 'startDenied';
 
 type Handlers = {
   [K in CallName]: (
@@ -91,7 +103,7 @@ export class MockBackend implements Backend {
   private readonly prng = createPrng(20261030);
   private readonly transcripts = new Map<string, TranscriptSegment[]>();
   private readonly summaries = new Map<string, MeetingSummaryDoc>();
-  private readonly undoDepth = new Map<string, { undo: number; redo: number }>();
+  private readonly history = new Map<string, { undo: TranscriptEdit[]; redo: TranscriptEdit[] }>();
   private settings: AppSettings = mergeSettings(
     DEFAULT_SETTINGS,
     readStored<SettingsPatch>(SETTINGS_KEY) ?? {},
@@ -106,6 +118,9 @@ export class MockBackend implements Backend {
     privacyBannerRequired: false,
   };
   private ticker: ReturnType<typeof setInterval> | undefined;
+  private meterTicker: ReturnType<typeof setInterval> | undefined;
+  private playbackTicker: ReturnType<typeof setInterval> | undefined;
+  private readonly meterPrng = createPrng(20261031);
   private second = 0;
   private readonly revisions = new Map<string, number>();
   private readonly activeImports = new Map<string, { fileName: string; timer: Timer }>();
@@ -166,7 +181,23 @@ export class MockBackend implements Backend {
 
   dispose(): void {
     clearInterval(this.ticker);
+    clearInterval(this.meterTicker);
+    clearInterval(this.playbackTicker);
     this.ticker = undefined;
+    this.meterTicker = undefined;
+    this.playbackTicker = undefined;
+  }
+
+  /** Starts a live meeting that already holds 8 hours of text, for performance checks. */
+  startLongLiveMeeting(): void {
+    if (this.recording.status !== 'idle') void this.handlers.stopRecording();
+    const { meetingId } = this.handlers.startRecording({ title: '8-hour live meeting' }) as {
+      meetingId: string;
+    };
+    const { segments, durationMs } = generateTranscript(meetingId, LONG_MEETING_WORDS, 8);
+    this.transcripts.set(meetingId, segments);
+    this.liveStartMs = durationMs;
+    this.setRecording({ elapsedMs: durationMs });
   }
 
   private id(prefix: string): string {
@@ -226,11 +257,91 @@ export class MockBackend implements Backend {
     if (this.recording.status !== 'recording') return;
     this.recording = { ...this.recording, elapsedMs: this.recording.elapsedMs + 1000 };
     this.emit('recordingStateChanged', this.recording);
-    this.emit('levelMeter', {
-      micDb: -60 + this.prng.int(0, 40),
-      meetingDb: -55 + this.prng.int(0, 35),
-    });
     this.appendLiveSegment();
+    this.confirmOlderSegments();
+  }
+
+  private emitLevels(): void {
+    if (this.recording.status !== 'recording') return;
+    this.emit('levelMeter', {
+      micDb: -60 + this.meterPrng.int(0, 40),
+      meetingDb: -55 + this.meterPrng.int(0, 35),
+    });
+  }
+
+  private publishTranscriptChange(
+    meetingId: string,
+    change: BackendEvents['transcriptChanged']['change'],
+  ): void {
+    const revision = this.revisionOf(meetingId) + 1;
+    this.revisions.set(meetingId, revision);
+    this.emit('transcriptChanged', { meetingId, revision, change, speakers: [] });
+  }
+
+  private confirmOlderSegments(): void {
+    const meetingId = this.recording.meetingId as string;
+    const segments = this.transcripts.get(meetingId) ?? [];
+    const index = segments.length - 1 - PROVISIONAL_SEGMENTS;
+    const confirmed = index >= 0 ? finalizeProvisionalWords(segments[index]) : null;
+    if (!confirmed) return;
+    segments[index] = confirmed;
+    this.publishTranscriptChange(meetingId, {
+      kind: 'replace',
+      segments: [confirmed],
+      removedSegmentIds: [],
+    });
+  }
+
+  /** Moves through the audio from `positionMs` until something stops it. */
+  private playFrom(meetingId: string, positionMs: number): void {
+    clearInterval(this.playbackTicker);
+    let position = positionMs;
+    this.emit('playbackPosition', { meetingId, positionMs: position, isPlaying: true });
+    this.playbackTicker = setInterval(() => {
+      position += PLAYBACK_INTERVAL_MS;
+      this.emit('playbackPosition', { meetingId, positionMs: position, isPlaying: true });
+    }, PLAYBACK_INTERVAL_MS);
+  }
+
+  private correct(meetingId: string, range: WordRange, text: string, remember: boolean) {
+    const segments = this.transcriptOf(meetingId);
+    const edit = correctWordRange(segments, range, text, this.id('correction'));
+    if (!edit) {
+      throw new ContractError({ code: 'notFound', message: 'That text is no longer available.' });
+    }
+    if (remember) this.rememberTerm(text, edit.originalText);
+    this.applyEdit(meetingId, edit.before, edit.after);
+    return this.pushUndo(meetingId, { before: edit.before, after: edit.after });
+  }
+
+  private rememberTerm(term: string, misheard: string): void {
+    this.terms = [
+      ...this.terms,
+      {
+        id: this.id('term'),
+        term,
+        misheard: [misheard],
+        contexts: [],
+        enabled: true,
+        history: [{ at: new Date().toISOString(), action: 'created', detail: 'From a correction' }],
+      },
+    ];
+  }
+
+  /** Swaps `from` for `to` in a meeting's transcript and tells the UI what changed. */
+  private applyEdit(meetingId: string, from: TranscriptSegment[], to: TranscriptSegment[]): void {
+    const segments = this.transcriptOf(meetingId);
+    const kept = new Set(to.map((segment) => segment.id));
+    const removedSegmentIds = from.map((segment) => segment.id).filter((id) => !kept.has(id));
+    const next = segments.filter((segment) => !removedSegmentIds.includes(segment.id));
+    for (const segment of to) {
+      const index = next.findIndex((item) => item.id === segment.id);
+      if (index >= 0) next[index] = segment;
+      else next.push(segment);
+    }
+    next.sort((a, b) => a.startMs - b.startMs);
+    segments.splice(0, segments.length, ...next);
+    this.publishTranscriptChange(meetingId, { kind: 'replace', segments: to, removedSegmentIds });
   }
 
   private appendLiveSegment(): void {
@@ -246,14 +357,7 @@ export class MockBackend implements Backend {
     segments.push(segment);
     this.transcripts.set(meetingId, segments);
     this.liveStartMs = segment.endMs;
-    const revision = this.revisionOf(meetingId) + 1;
-    this.revisions.set(meetingId, revision);
-    this.emit('transcriptChanged', {
-      meetingId,
-      revision,
-      change: { kind: 'append', segments: [segment] },
-      speakers: [],
-    });
+    this.publishTranscriptChange(meetingId, { kind: 'append', segments: [segment] });
   }
 
   private runStep(step: ScriptStep): void {
@@ -285,6 +389,12 @@ export class MockBackend implements Backend {
       if (this.recording.status !== 'idle') {
         throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
       }
+      if (this.armed.delete('startDenied')) {
+        throw new ContractError({
+          code: 'permissionDenied',
+          message: 'Meeting Scribe does not have permission to use the microphone.',
+        });
+      }
       const meetingId = this.id('meeting-live');
       this.library = [
         {
@@ -300,6 +410,7 @@ export class MockBackend implements Backend {
         },
         ...this.library,
       ];
+      this.transcripts.set(meetingId, []);
       this.second = 0;
       this.liveStartMs = 0;
       this.setRecording({
@@ -313,6 +424,7 @@ export class MockBackend implements Backend {
       const lag: TranscriptionLag = { status: 'ok', lagMs: 1200 };
       this.emit('transcriptionLag', lag);
       this.ticker = setInterval(() => this.tick(), 1000);
+      this.meterTicker = setInterval(() => this.emitLevels(), METER_INTERVAL_MS);
       return { meetingId };
     },
     pauseRecording: () => this.setRecording({ status: 'paused' }),
@@ -411,14 +523,21 @@ export class MockBackend implements Backend {
         speakers: MOCK_SPEAKERS,
       };
     },
-    applyCorrection: ({ meetingId }) => this.pushUndo(meetingId),
-    reassignSpeaker: ({ meetingId }) => this.pushUndo(meetingId),
+    applyCorrection: ({ meetingId, range, text, remember }) =>
+      this.correct(meetingId, range, text, remember),
+    reassignSpeaker: ({ meetingId, range, speakerId }) => {
+      const edit = reassignWordRange(this.transcriptOf(meetingId), range, speakerId);
+      if (!edit) {
+        throw new ContractError({ code: 'notFound', message: 'That text is no longer available.' });
+      }
+      this.applyEdit(meetingId, edit.before, edit.after);
+      return this.pushUndo(meetingId, edit);
+    },
     undo: ({ meetingId }) => this.moveUndo(meetingId, -1),
     redo: ({ meetingId }) => this.moveUndo(meetingId, 1),
-    seekAudio: ({ meetingId, positionMs }) => {
-      this.emit('playbackPosition', { meetingId, positionMs, isPlaying: true });
-    },
+    seekAudio: ({ meetingId, positionMs }) => this.playFrom(meetingId, positionMs),
     pauseAudio: ({ meetingId }) => {
+      clearInterval(this.playbackTicker);
       this.emit('playbackPosition', { meetingId, positionMs: 0, isPlaying: false });
     },
 
@@ -562,22 +681,33 @@ export class MockBackend implements Backend {
     openLogsFolder: () => undefined,
   };
 
-  private undoStateOf(meetingId: string) {
-    const depth = this.undoDepth.get(meetingId) ?? { undo: 0, redo: 0 };
-    return { canUndo: depth.undo > 0, canRedo: depth.redo > 0 };
+  private historyOf(meetingId: string) {
+    const history = this.history.get(meetingId) ?? { undo: [], redo: [] };
+    this.history.set(meetingId, history);
+    return history;
   }
 
-  private pushUndo(meetingId: string) {
-    const depth = this.undoDepth.get(meetingId) ?? { undo: 0, redo: 0 };
-    this.undoDepth.set(meetingId, { undo: depth.undo + 1, redo: 0 });
+  private undoStateOf(meetingId: string) {
+    const { undo, redo } = this.historyOf(meetingId);
+    return { canUndo: undo.length > 0, canRedo: redo.length > 0 };
+  }
+
+  private pushUndo(meetingId: string, edit: TranscriptEdit) {
+    const history = this.historyOf(meetingId);
+    history.undo.push(edit);
+    history.redo = [];
     return this.undoStateOf(meetingId);
   }
 
   private moveUndo(meetingId: string, direction: 1 | -1) {
-    const depth = this.undoDepth.get(meetingId) ?? { undo: 0, redo: 0 };
-    const available = direction === -1 ? depth.undo : depth.redo;
-    if (available > 0) {
-      this.undoDepth.set(meetingId, { undo: depth.undo + direction, redo: depth.redo - direction });
+    const history = this.historyOf(meetingId);
+    const [source, target] =
+      direction === -1 ? [history.undo, history.redo] : [history.redo, history.undo];
+    const edit = source.pop();
+    if (edit) {
+      target.push(edit);
+      if (direction === -1) this.applyEdit(meetingId, edit.after, edit.before);
+      else this.applyEdit(meetingId, edit.before, edit.after);
     }
     return this.undoStateOf(meetingId);
   }
