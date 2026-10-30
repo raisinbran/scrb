@@ -1,0 +1,28 @@
+case=bt-connect start=14:21:58 actionAt=14:22:58 tonePid=85640
+14:21:58 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2%
+14:23:17 output: Headphones (No Air 3) muted=1 volume=64%
+exited=True exit= end=14:27:01 elapsed=303s
+--- stderr
+--- stdout (tail)
+Capturing 300 seconds.
+60 s app_frames=2896800 mic_frames=2881440
+120 s app_frames=5779200 mic_frames=5763840
+180 s app_frames=8661120 mic_frames=8645760
+240 s app_frames=11543040 mic_frames=11528160
+300 s app_frames=14425440 mic_frames=14410080
+Finished. drift(sample-count)=0.060 ms
+--- summary
+{
+  "requested_seconds": 300,
+  "wall_seconds": 300.643,
+  "start_offset_ms": 311.910,
+  "sample_count_drift_ms": 0.060,
+  "arrival_drift_ms": -0.438,
+  "cpu_seconds": 3.562,
+  "avg_cpu_percent_of_machine": 0.0987,
+  "peak_working_set_mib": 13.1,
+  "app": {"hresult": "0x00000000", "packets": 30054, "frames": 14425920, "seconds_by_frames": 300.540000, "effective_rate_hz": 48000.0000, "frame_vs_clock_error_ms": 0.000, "discontinuities": 0, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.000, "arrival_error_ms": -0.298, "max_inter_arrival_ms": 13.674},
+  "mic": {"hresult": "0x00000000", "packets": 30022, "frames": 14410560, "seconds_by_frames": 300.220000, "effective_rate_hz": 47999.9905, "frame_vs_clock_error_ms": -0.060, "discontinuities": 1, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.746, "arrival_error_ms": 0.139, "max_inter_arrival_ms": 12.908}
+}
+
+[exited with code 0]

@@ -1,0 +1,7 @@
+Capturing 300 seconds.
+60 s app_frames=2881920 mic_frames=2880865
+120 s app_frames=5764320 mic_frames=3500359
+180 s app_frames=8646240 mic_frames=3500359
+240 s app_frames=11529120 mic_frames=3500359
+300 s app_frames=14411040 mic_frames=3500359
+Finished. drift(sample-count)=-3.660 ms
