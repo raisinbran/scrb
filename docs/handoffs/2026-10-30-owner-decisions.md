@@ -13,4 +13,4 @@ All accepted by the owner on 2026-10-30.
 
 - Written plans for the chunk format and manifest, corrections, index upgrades, delete and capture.
 - Mock corrections, speaker changes and summary edits do not change data (QA-05).
-- `packages/export` has no adapter from the summary file. `impactInferred`, `criticalDecisions` and `projectDevelopments` have no source yet.
+- The summary-to-export adapter is on `backend-export-adapter`. Its open gaps are in `2026-10-30-export-summary-gaps.md`.

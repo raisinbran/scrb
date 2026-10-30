@@ -30,6 +30,8 @@ export type GeneratedSummary = Omit<
 >;
 
 export const IMPACTS_HEADING = 'Project-impacting developments';
+export const OVERVIEW_SECTION_ID = 'full-overview';
+export const IMPACTS_SECTION_ID = 'full-impacts';
 
 // Exhaustive records, so a value added to any side fails the compiler here.
 const ACTION_STATUS: Record<EngineActionStatus, ActionStatus> = {
@@ -117,14 +119,14 @@ function toBody(summary: MeetingSummary): SummaryBody {
     };
   }
   const sections = [
-    section('full-overview', 'Overview', body.overview),
+    section(OVERVIEW_SECTION_ID, 'Overview', body.overview),
     ...body.mainTopics.map((topic, index) =>
       section(`full-topic-${index}`, topic.title, topic.summary),
     ),
   ];
   if (summary.impacts.length > 0) {
     const text = summary.impacts.map(impactLine).join('\n');
-    sections.push(section('full-impacts', IMPACTS_HEADING, text));
+    sections.push(section(IMPACTS_SECTION_ID, IMPACTS_HEADING, text));
   }
   return { sections };
 }
