@@ -121,6 +121,82 @@ describe('file format upgrades', () => {
     ]);
   });
 
+  describe('summary v2 words', () => {
+    const upgrade = (decision: object, item: object = {}) =>
+      upgradeDocument(SUMMARY_FORMAT, {
+        schemaVersion: 2,
+        meetingId: 'm',
+        revision: 1,
+        transcriptRevision: 1,
+        outdated: false,
+        brief: null,
+        full: null,
+        actionItems: [
+          { id: 'a', action: 'Ship', owner: 'Ana', deadline: 'Friday', status: 'Agreed', sourceMs: 5, edited: false, ...item },
+        ],
+        decisions: [{ id: 'd', decision: 'Ship', sourceMs: 5, edited: false, ...decision }],
+        openQuestions: [],
+      });
+
+    it.each([
+      ['Decided', 'decided'],
+      ['decided', 'decided'],
+      ['Proposed', 'proposed'],
+      ['Unresolved', 'unresolved'],
+      ['Tentatively agreed', 'tentativelyAgreed'],
+      ['tentatively agreed', 'tentativelyAgreed'],
+    ])('reads decision status %s', (status, expected) => {
+      expect(upgrade({ status, impactArea: 'scope' }).decisions[0]?.status).toBe(expected);
+    });
+
+    it.each(['Open', 'done', '', 'constructor', null, undefined, 7])(
+      'reads the unknown decision status %s as unresolved',
+      (status) => {
+        expect(upgrade({ status, impactArea: 'scope' }).decisions[0]?.status).toBe('unresolved');
+      },
+    );
+
+    it.each([
+      ['Technical approach', 'technicalApproach'],
+      ['technical approach', 'technicalApproach'],
+      ['Schedule', 'schedule'],
+      ['not specified', null],
+      ['Not specified', null],
+      ['constructor', null],
+      [null, null],
+      [undefined, null],
+    ])('reads impact area %s', (impactArea, expected) => {
+      expect(upgrade({ status: 'decided', impactArea }).decisions[0]?.impactArea).toBe(expected);
+    });
+
+    it.each([
+      ['not specified', null, false],
+      ['Not Specified', null, false],
+      ['', null, false],
+      ['  ', null, false],
+      ['unconfirmed', null, true],
+      ['UNCONFIRMED', null, true],
+      ['Ana', 'Ana', false],
+    ])('reads owner and deadline %j', (word, value, unconfirmed) => {
+      const action = upgrade(
+        { status: 'decided', impactArea: 'scope' },
+        { owner: word, deadline: word },
+      ).actionItems[0];
+      expect(action).toMatchObject({
+        owner: value,
+        ownerUnconfirmed: unconfirmed,
+        deadline: value,
+        deadlineUnconfirmed: unconfirmed,
+      });
+    });
+  });
+
+  it('carries summary v1 through every step with contract values', () => {
+    const upgraded = upgradeDocument(SUMMARY_FORMAT, structuredClone(summaryV1));
+    expect(upgraded.actionItems[0]).toMatchObject({ owner: null, status: 'unconfirmed' });
+    expect(upgraded.decisions[0]).toMatchObject({ status: 'decided', impactArea: 'schedule' });
+  });
+
   it('reads an old file, leaves it alone, and keeps a backup when saving over it', async () => {
     const { library, id } = await libraryWithMeeting();
     const file = library.meetingPaths(id).transcript;
@@ -165,6 +241,42 @@ describe('file format upgrades', () => {
     ]) {
       await writeFile(file, bad);
       await expect(library.readTranscript(id)).rejects.toBeInstanceOf(CorruptFileError);
+    }
+    await library.close();
+  });
+
+  it('rejects summaries whose items or sections would break the app', async () => {
+    const { library, id } = await libraryWithMeeting();
+    const file = library.meetingPaths(id).summary;
+    const good: SummaryFile = {
+      schemaVersion: 3,
+      meetingId: id,
+      revision: 1,
+      transcriptRevision: 1,
+      outdated: false,
+      generatedAt: null,
+      brief: null,
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    };
+    await writeFile(file, JSON.stringify(good));
+    expect(await library.readSummary(id)).toEqual(good);
+    for (const bad of [
+      { ...good, transcriptRevision: undefined },
+      { ...good, brief: undefined },
+      { ...good, generatedAt: 5 },
+      { ...good, actionItems: [null] },
+      { ...good, actionItems: [{ id: 'a', edited: false, alsoAtMs: [] }] },
+      { ...good, decisions: [{ id: 'd', decision: 'x', alsoAtMs: [] }] },
+      { ...good, openQuestions: ['a plain string'] },
+      { ...good, full: { sections: [null] } },
+      { ...good, full: { sections: [{ id: 's', edited: false }] } },
+    ]) {
+      await writeFile(file, JSON.stringify(bad));
+      await expect(library.readSummary(id)).rejects.toBeInstanceOf(CorruptFileError);
     }
     await library.close();
   });
@@ -227,6 +339,87 @@ describe('summary regeneration', () => {
     expect(merged.full?.sections[0]?.text).toBe('new full');
     expect(merged.actionItems.map((item) => item.action)).toEqual(['edited', 'fresh']);
     expect(merged.openQuestions.map((item) => item.question)).toEqual(['kept']);
+  });
+
+  it('keeps a new item that only shares its run-numbered id with an edited one', () => {
+    const edited = action({ id: 'action-3', action: 'mine', sourceMs: 1000, edited: true });
+    const merged = mergeRegeneratedSummary(
+      { ...base, actionItems: [edited] },
+      {
+        ...base,
+        actionItems: [
+          action({ id: 'action-3', action: 'a different task', sourceMs: 90_000 }),
+          action({ id: 'action-3-2', action: 'next task', sourceMs: 95_000 }),
+        ],
+      },
+    );
+    expect(merged.actionItems.map(({ id, action: text }) => [id, text])).toEqual([
+      ['action-3', 'mine'],
+      ['action-3-3', 'a different task'],
+      ['action-3-2', 'next task'],
+    ]);
+  });
+
+  describe('narrative sections', () => {
+    const section = (id: string, heading: string | null, text: string, edited = false) => ({
+      id,
+      heading,
+      text,
+      edited,
+    });
+
+    it('updates the sections the user did not edit', () => {
+      const merged = mergeRegeneratedSummary(
+        {
+          ...base,
+          full: {
+            sections: [
+              section('full-overview', 'Overview', 'old overview'),
+              section('full-topic-0', 'Budget', 'my words', true),
+            ],
+          },
+        },
+        {
+          ...base,
+          full: {
+            sections: [
+              section('full-overview', 'Overview', 'new overview'),
+              section('full-topic-0', 'Budget', 'model words'),
+              section('full-topic-1', 'Hiring', 'new topic'),
+            ],
+          },
+        },
+      );
+      expect(merged.full?.sections.map(({ text }) => text)).toEqual([
+        'new overview',
+        'my words',
+        'new topic',
+      ]);
+    });
+
+    it('keeps an edit and the new section when a numbered slot changes topic', () => {
+      const merged = mergeRegeneratedSummary(
+        { ...base, full: { sections: [section('full-topic-0', 'Budget', 'my words', true)] } },
+        { ...base, full: { sections: [section('full-topic-0', 'Hiring', 'new topic')] } },
+      );
+      expect(merged.full?.sections).toEqual([
+        section('full-topic-0-2', 'Hiring', 'new topic'),
+        section('full-topic-0', 'Budget', 'my words', true),
+      ]);
+    });
+
+    it('keeps an edit from a file upgraded to one section', () => {
+      const merged = mergeRegeneratedSummary(
+        { ...base, full: { sections: [section('full-0', null, 'my words', true)] } },
+        { ...base, full: { sections: [section('full-overview', 'Overview', 'new')] } },
+      );
+      expect(merged.full?.sections.map(({ text }) => text)).toEqual(['new', 'my words']);
+    });
+
+    it('keeps the old length untouched when only the other was generated', () => {
+      const merged = mergeRegeneratedSummary(base, { ...base, brief: null, full: body('new full') });
+      expect(merged.brief).toEqual(base.brief);
+    });
   });
 
   it('a transcript edit flags the summary; regenerating clears it and keeps edits', async () => {

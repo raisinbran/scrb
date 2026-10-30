@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ContractError, isValidRequest, type SummaryItemUpdate } from '@scrb/contracts';
-import type { SummaryFile } from '@scrb/storage';
+import { mergeRegeneratedSummary, SUMMARY_FORMAT, type SummaryFile } from '@scrb/storage';
 import type { BaseItem, MeetingSummary } from '../../summary/src/types.ts';
 import {
   IMPACTS_HEADING,
@@ -165,12 +165,107 @@ describe('summary engine to the UI contract', () => {
   });
 });
 
+function updates(doc: ReturnType<typeof toSummaryDoc>): SummaryItemUpdate[] {
+  const narrative = [...(doc.narrative.brief ?? []), ...(doc.narrative.full ?? [])];
+  return [
+    ...narrative.map((item): SummaryItemUpdate => ({ kind: 'narrative', item })),
+    ...doc.actionItems.map((item): SummaryItemUpdate => ({ kind: 'actionItem', item })),
+    ...doc.decisions.map((item): SummaryItemUpdate => ({ kind: 'decision', item })),
+    ...doc.openQuestions.map((item): SummaryItemUpdate => ({ kind: 'openQuestion', item })),
+  ];
+}
+
+describe('what the UI sends back', () => {
+  const meetingId = '6f1c2b1e-7a44-4f6e-9a55-0f5d8c1e2d3a';
+
+  it('accepts every item of a generated summary, with engine ids and timings', () => {
+    const summary = engineSummary();
+    summary.actions[0]!.id = 'action-12';
+    summary.actions[0]!.evidence.timestampSec = 12.3456;
+    summary.actions[0]!.alsoAt[0]!.timestampSec = 90.0004;
+    summary.decisions[0]!.id = 'decision-13';
+    summary.openQuestions[0]!.id = 'openQuestion-14';
+    const all = updates(toSummaryDoc(meetingId, stored(summary)));
+    expect(all).toHaveLength(8);
+    for (const update of all) {
+      expect(isValidRequest('updateSummaryItem', { meetingId, update }), update.item.id).toBe(true);
+    }
+  });
+
+  it('accepts every item of a summary upgraded from v2', () => {
+    const upgraded = SUMMARY_FORMAT.validate(
+      SUMMARY_FORMAT.upgrades[2]!({
+        schemaVersion: 2,
+        meetingId,
+        revision: 1,
+        transcriptRevision: 1,
+        outdated: false,
+        brief: { text: 'Brief', edited: false },
+        full: null,
+        actionItems: [
+          { id: 'a', action: 'Ship', owner: 'not specified', deadline: 'Unconfirmed', status: 'Open', sourceMs: 5, edited: false },
+        ],
+        decisions: [
+          { id: 'd1', decision: 'Ship', status: 'Decided', impactArea: 'Not specified', sourceMs: 5, edited: false },
+          { id: 'd2', decision: 'Hold', status: 'Tentatively agreed', impactArea: 'Technical approach', sourceMs: 6, edited: true },
+          { id: 'd3', decision: 'Wait', status: 'Pending', impactArea: 'Morale', sourceMs: 7, edited: false },
+        ],
+        openQuestions: ['Who owns it?'],
+      }),
+    );
+    const all = updates(toSummaryDoc(meetingId, upgraded));
+    expect(all).toHaveLength(6);
+    for (const update of all) {
+      expect(isValidRequest('updateSummaryItem', { meetingId, update }), update.item.id).toBe(true);
+    }
+  });
+});
+
+describe('regenerating with the engine numbering', () => {
+  it('keeps the edit and every item of the new run when numbers repeat', () => {
+    const first = engineSummary();
+    first.actions = [{ ...first.actions[0]!, id: 'action-1' }];
+    const edited = applySummaryUpdate(stored(first), {
+      kind: 'actionItem',
+      item: { ...toSummaryDoc('m-1', stored(first)).actionItems[0]!, action: 'My wording' },
+    });
+
+    const second = engineSummary();
+    second.actions = [
+      { ...second.actions[1]!, id: 'action-1', text: 'A new task' },
+      { ...second.actions[1]!, id: 'action-2', text: 'Another new task', evidence: { lineIndex: 1, timestampSec: 25 } },
+    ];
+    const merged = mergeRegeneratedSummary(edited, stored(second));
+
+    expect(merged.actionItems.map((item) => item.action)).toEqual([
+      'My wording',
+      'A new task',
+      'Another new task',
+    ]);
+    expect(new Set(merged.actionItems.map((item) => item.id)).size).toBe(3);
+    expect(toSummaryDoc('m-1', merged).state).toBe('edited');
+  });
+});
+
 describe('summary state', () => {
   it('reports each state', () => {
     expect(toSummaryDoc('m-1', null).state).toBe('notGenerated');
     expect(toSummaryDoc('m-1', null, true).state).toBe('generating');
     expect(toSummaryDoc('m-1', stored()).state).toBe('ready');
     expect(toSummaryDoc('m-1', { ...stored(), outdated: true }).state).toBe('outdated');
+  });
+
+  it('shows a running job over any stored state', () => {
+    expect(toSummaryDoc('m-1', { ...stored(), outdated: true }, true).state).toBe('generating');
+  });
+
+  it('shows outdated over edited, so the regenerate prompt is not hidden', () => {
+    const file = { ...stored(), outdated: true };
+    const edited = applySummaryUpdate(file, {
+      kind: 'decision',
+      item: toSummaryDoc('m-1', file).decisions[0]!,
+    });
+    expect(toSummaryDoc('m-1', edited).state).toBe('outdated');
   });
 });
 
@@ -203,6 +298,26 @@ describe('applySummaryUpdate', () => {
     const next = applySummaryUpdate(file, update);
     expect(read(next)).toEqual({ ...update.item, edited: true });
     expect(toSummaryDoc('m-1', next).state).toBe('edited');
+  });
+
+  it('edits a brief section when no full summary exists', () => {
+    const summary = engineSummary();
+    summary.body = { length: 'brief', paragraphs: ['One.', 'Two.'] };
+    const brief = stored(summary);
+    const item = { ...toSummaryDoc('m-1', brief).narrative.brief![1]!, text: 'Changed' };
+    const next = applySummaryUpdate(brief, { kind: 'narrative', item });
+    expect(next.brief?.sections.map((section) => section.text)).toEqual(['One.', 'Changed']);
+    expect(next.full).toBeNull();
+  });
+
+  it.each<SummaryItemUpdate>([
+    { kind: 'actionItem', item: { ...doc.actionItems[0]!, id: 'gone' } },
+    { kind: 'decision', item: { ...doc.decisions[0]!, id: 'gone' } },
+    { kind: 'openQuestion', item: { ...doc.openQuestions[0]!, id: 'gone' } },
+  ])('reports a $kind that no longer exists', (update) => {
+    expect(() => applySummaryUpdate(file, update)).toThrow(
+      expect.objectContaining({ code: 'notFound' }),
+    );
   });
 
   it('reports an item that no longer exists', () => {

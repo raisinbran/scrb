@@ -75,27 +75,71 @@ export interface SummaryFile {
   warnings: string[];
 }
 
+function assertItems(key: string, textKey: string, items: unknown[]): void {
+  for (const item of items as (JsonObject | null)[]) {
+    assertFormat(
+      typeof item?.['id'] === 'string' &&
+        typeof item[textKey] === 'string' &&
+        typeof item['edited'] === 'boolean' &&
+        Array.isArray(item['alsoAtMs']),
+      key,
+    );
+  }
+}
+
 function validateSummary(doc: JsonObject): SummaryFile {
   assertFormat(typeof doc['meetingId'] === 'string', 'meetingId');
   assertFormat(Number.isInteger(doc['revision']), 'revision');
+  assertFormat(Number.isInteger(doc['transcriptRevision']), 'transcriptRevision');
   assertFormat(typeof doc['outdated'] === 'boolean', 'outdated');
+  assertFormat(doc['generatedAt'] === null || typeof doc['generatedAt'] === 'string', 'generatedAt');
   assertFormat(Array.isArray(doc['actionItems']), 'actionItems');
   assertFormat(Array.isArray(doc['decisions']), 'decisions');
   assertFormat(Array.isArray(doc['openQuestions']), 'openQuestions');
   assertFormat(Array.isArray(doc['warnings']), 'warnings');
-  for (const body of [doc['brief'], doc['full']]) {
-    assertFormat(body === null || Array.isArray((body as SummaryBody).sections), 'summary body');
+  assertItems('actionItems', 'action', doc['actionItems'] as unknown[]);
+  assertItems('decisions', 'decision', doc['decisions'] as unknown[]);
+  assertItems('openQuestions', 'question', doc['openQuestions'] as unknown[]);
+  for (const body of [doc['brief'], doc['full']] as (SummaryBody | null | undefined)[]) {
+    assertFormat(body === null || Array.isArray(body?.sections), 'summary body');
+    for (const section of body?.sections ?? []) {
+      assertFormat(
+        typeof section?.id === 'string' &&
+          typeof section.text === 'string' &&
+          typeof section.edited === 'boolean',
+        'summary section',
+      );
+    }
   }
   return doc as unknown as SummaryFile;
 }
 
-const NOT_SPECIFIED = 'Not specified';
-const UNCONFIRMED = 'Unconfirmed';
+/** v2 files hold the declared lowercase words or the engine's capitalised ones. */
+function wordKey(value: unknown): string {
+  return typeof value === 'string' ? value.toLowerCase().replace(/[\s_-]+/g, '') : '';
+}
+
+const UPGRADED_DECISION_STATUS = new Map<string, DecisionStatus>([
+  ['decided', 'decided'],
+  ['proposed', 'proposed'],
+  ['tentativelyagreed', 'tentativelyAgreed'],
+  ['unresolved', 'unresolved'],
+]);
+
+const UPGRADED_IMPACT_AREA = new Map<string, ImpactArea>([
+  ['scope', 'scope'],
+  ['schedule', 'schedule'],
+  ['cost', 'cost'],
+  ['risk', 'risk'],
+  ['deliverables', 'deliverables'],
+  ['technicalapproach', 'technicalApproach'],
+]);
 
 function upgradeDetail(value: unknown): { value: string | null; unconfirmed: boolean } {
-  if (value === UNCONFIRMED) return { value: null, unconfirmed: true };
-  if (value === NOT_SPECIFIED || typeof value !== 'string') return { value: null, unconfirmed: false };
-  return { value, unconfirmed: false };
+  const key = wordKey(value);
+  if (key === 'unconfirmed') return { value: null, unconfirmed: true };
+  if (key === 'notspecified' || key === '') return { value: null, unconfirmed: false };
+  return { value: value as string, unconfirmed: false };
 }
 
 const UNREVIEWED = { alsoAtMs: [], needsReview: false };
@@ -103,7 +147,7 @@ const UNREVIEWED = { alsoAtMs: [], needsReview: false };
 function upgradeAction(item: JsonObject): JsonObject {
   const owner = upgradeDetail(item['owner']);
   const deadline = upgradeDetail(item['deadline']);
-  const status = String(item['status']).toLowerCase();
+  const status = wordKey(item['status']);
   return {
     ...item,
     ...UNREVIEWED,
@@ -116,13 +160,12 @@ function upgradeAction(item: JsonObject): JsonObject {
 }
 
 function upgradeDecision(item: JsonObject): JsonObject {
-  const camel = (value: unknown) =>
-    typeof value === 'string' ? value.replace(/ (\w)/g, (_, letter: string) => letter.toUpperCase()) : null;
   return {
     ...item,
     ...UNREVIEWED,
-    status: camel(item['status']),
-    impactArea: camel(item['impactArea']),
+    // An unreadable status must not read as settled, so it falls back to the weakest one.
+    status: UPGRADED_DECISION_STATUS.get(wordKey(item['status'])) ?? 'unresolved',
+    impactArea: UPGRADED_IMPACT_AREA.get(wordKey(item['impactArea'])) ?? null,
   };
 }
 
@@ -175,14 +218,45 @@ export const SUMMARY_FORMAT: FileFormat<SummaryFile> = {
   validate: validateSummary,
 };
 
-function keepEdited<T extends { id: string; edited: boolean }>(previous: T[], next: T[]): T[] {
-  const edited = previous.filter((item) => item.edited);
-  const editedIds = new Set(edited.map((item) => item.id));
-  return [...edited, ...next.filter((item) => !editedIds.has(item.id))];
+/** Gives each fresh item whose id a kept edit holds a free id, so both stay addressable. */
+function withFreeIds<T extends { id: string }>(fresh: T[], kept: T[]): T[] {
+  const keptIds = new Set(kept.map((item) => item.id));
+  const taken = new Set([...keptIds, ...fresh.map((item) => item.id)]);
+  return fresh.map((item) => {
+    if (!keptIds.has(item.id)) return item;
+    let suffix = 2;
+    while (taken.has(`${item.id}-${suffix}`)) suffix += 1;
+    const id = `${item.id}-${suffix}`;
+    taken.add(id);
+    return { ...item, id };
+  });
 }
 
+/**
+ * The engine numbers ids per run, so an id alone does not identify an item across runs: a new item
+ * replaces an edited one only when it also comes from the same moment.
+ */
+function keepEdited<T extends { id: string; edited: boolean; sourceMs: number | null }>(
+  previous: T[],
+  next: T[],
+): T[] {
+  const edited = previous.filter((item) => item.edited);
+  const fresh = next.filter(
+    (item) => !edited.some((old) => old.id === item.id && old.sourceMs === item.sourceMs),
+  );
+  return [...edited, ...withFreeIds(fresh, edited)];
+}
+
+/** An edited section keeps its place while its slot still holds the same heading. */
 function keepEditedBody(previous: SummaryBody | null, next: SummaryBody | null): SummaryBody | null {
-  return previous?.sections.some((section) => section.edited) === true ? previous : next;
+  const edits = previous?.sections.filter((section) => section.edited) ?? [];
+  if (next === null || edits.length === 0) return next;
+  const placed = next.sections.map(
+    (section) =>
+      edits.find((edit) => edit.id === section.id && edit.heading === section.heading) ?? section,
+  );
+  const unplaced = edits.filter((edit) => !placed.includes(edit));
+  return { sections: [...withFreeIds(placed, unplaced), ...unplaced] };
 }
 
 /** Regeneration rule: anything the user edited stays; everything else takes the new text. */
