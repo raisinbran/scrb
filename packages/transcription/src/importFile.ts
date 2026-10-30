@@ -5,6 +5,7 @@ import { basename, dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { probe, type ProbeResult } from './audio.js';
 import type { ModelPaths, ToolPaths } from './config.js';
+import { clearPreSkip } from './ogg.js';
 import { runFinalPass, type FinalPassOptions } from './finalPass.js';
 import type { AudioChunk, FinalPhase, FinalTranscript, Progress, RecordingGuard } from './types.js';
 import { WorkerFailed, WorkerProcess } from './worker.js';
@@ -152,6 +153,7 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     await decode(o, stop.signal, stagedChunks, listPath, wavPath, info.durationMs);
 
     const staged = parseChunkList(await readFile(listPath, 'utf8'), stagedChunks);
+    for (const chunk of staged.slice(1)) await clearPreSkip(chunk.path);
     const wavBytes = (await stat(wavPath)).size - 44;
     const durationMs = Math.round((wavBytes / 2 / MODEL_RATE) * 1000);
     if (staged.length === 0 || durationMs <= 0) throw new ImportError('unreadable', 'no audio decoded');

@@ -16,6 +16,7 @@ import {
   type FinalTranscript,
   type LiveSegment,
   type ModelPaths,
+  type Span,
   type ToolPaths,
 } from '../src/index.js';
 
@@ -95,11 +96,13 @@ if (want.includes('live')) {
   const chunks = await readChunkManifest(meetingDir);
   const segments: LiveSegment[] = [];
   const merges: [string, string][] = [];
+  const spans: Span[] = [];
   let maxQueued = 0;
   const live = new LivePass({
     tools, models, workDir: join(work, 'live-work'),
     onSegment: (s) => segments.push(s),
     onMerge: (m) => merges.push([m.from, m.into]),
+    onSpeakerSpan: (s) => spans.push(s),
     onLag: (l) => (maxQueued = Math.max(maxQueued, l.queuedChunks)),
     onFailed: (reason) => console.log(JSON.stringify({ stage: 'live-failed', reason })),
   });
@@ -131,8 +134,8 @@ if (want.includes('live')) {
     relabels: merges.length,
     labels: [...new Set(segments.map((s) => s.speakerLabel))],
     wer: await scoreWords('live', segments.map((s) => s.text).join(' ')),
-    der: await scoreSpans('live', segments.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`)),
+    der: await scoreSpans('live', spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`)),
     derPostMerge: await scoreSpans('live-merged',
-      segments.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${resolve(s.speakerId)}`)),
+      spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${resolve(s.speakerId)}`)),
   }));
 }

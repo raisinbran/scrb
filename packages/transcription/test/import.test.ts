@@ -197,11 +197,21 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
     await expect(sweepAbandonedImports(join(dir, 'absent'))).resolves.toEqual([]);
   });
 
+  it('keeps every sample across chunks, with no drift', async () => {
+    const result = await run(join(fixtures, 'speech.wav'));
+    const decoded = await Promise.all(result.chunks.map((c) => decodeChunk(tools, c.path)));
+    const total = decoded.reduce((sum, pcm) => sum + pcm.length, 0);
+    expect(Math.abs(total / 16 - result.durationMs)).toBeLessThan(25);
+    for (const [i, pcm] of decoded.slice(0, -1).entries()) {
+      expect(Math.abs(pcm.length / 16 - result.chunks[i]!.durationMs)).toBeLessThan(25);
+    }
+  });
+
   it('assembles chunks onto the timeline with pauses kept as silence', async () => {
     const result = await run(join(fixtures, 'speech.wav'));
     const [a, b] = result.chunks;
     const out = join(dir, 'out.wav');
-    await assembleChunks(tools, [a!, { ...b!, startMs: 8000 }], out, dir);
+    await assembleChunks(tools, [a!, { ...b!, startMs: 8000 }], out);
     const samples = (statSync(out).size - 44) / 2;
     expect(samples / 16_000).toBeCloseTo(8 + b!.durationMs / 1000, 0);
     const wav = await readFile(out);

@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './config.js';
 export * from './worker.js';
 export * from './audio.js';
+export * from './ogg.js';
 export * from './whisper.js';
 export * from './sherpa.js';
 export * from './speakers.js';

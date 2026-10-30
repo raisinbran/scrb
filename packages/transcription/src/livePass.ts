@@ -38,6 +38,8 @@ export interface LiveLag {
 export interface LiveEvents {
   onSegment?: (s: LiveSegment) => void;
   onMerge?: (m: LiveMerge) => void;
+  /** A stretch of the meeting track attributed to a speaker. */
+  onSpeakerSpan?: (s: Span) => void;
   onSkipped?: (track: TrackKind, startMs: number, endMs: number) => void;
   onLag?: (lag: LiveLag) => void;
   /** The live pass stopped for good; the recording is unaffected. */
@@ -65,6 +67,16 @@ interface TrackState {
   /** Timeline position of samples[0]. */
   baseMs: number;
   nextEndMs: number | null;
+  /** The last WINDOW_MS of audio for diarization, kept apart from `samples`. */
+  recent: Int16Array;
+  recentBaseMs: number;
+}
+
+function joined(a: Int16Array, b: Int16Array): Int16Array {
+  const out = new Int16Array(a.length + b.length);
+  out.set(a);
+  out.set(b, a.length);
+  return out;
 }
 
 /**
@@ -115,7 +127,10 @@ export class LivePass {
     if (this.stopped) return;
     let track = this.tracks.get(kind);
     if (!track) {
-      track = { kind, queue: [], samples: new Int16Array(0), baseMs: chunk.startMs, nextEndMs: null };
+      track = {
+        kind, queue: [], samples: new Int16Array(0), baseMs: chunk.startMs, nextEndMs: null,
+        recent: new Int16Array(0), recentBaseMs: chunk.startMs,
+      };
       this.tracks.set(kind, track);
     }
     track.queue.push(chunk);
@@ -239,13 +254,17 @@ export class LivePass {
     if (track.nextEndMs !== null && Math.abs(chunk.startMs - track.nextEndMs) > 100) {
       await this.transcribeReady(track, true);
       track.samples = new Int16Array(0);
-      track.baseMs = chunk.startMs;
+      track.recent = new Int16Array(0);
     }
     if (track.samples.length === 0) track.baseMs = chunk.startMs;
-    const joined = new Int16Array(track.samples.length + pcm.length);
-    joined.set(track.samples);
-    joined.set(pcm, track.samples.length);
-    track.samples = joined;
+    if (track.recent.length === 0) track.recentBaseMs = chunk.startMs;
+    track.samples = joined(track.samples, pcm);
+    track.recent = joined(track.recent, pcm);
+    const excess = track.recent.length - (WINDOW_MS * MODEL_RATE) / 1000;
+    if (excess > 0) {
+      track.recent = track.recent.slice(excess);
+      track.recentBaseMs += (excess * 1000) / MODEL_RATE;
+    }
     track.nextEndMs = chunk.startMs + chunk.durationMs;
 
     if (track.kind === 'meeting') await this.updateSpeakers(track, chunk);
@@ -258,7 +277,7 @@ export class LivePass {
     try {
       const hopStart = chunk.startMs;
       const hopEnd = chunk.startMs + chunk.durationMs;
-      const windowStart = Math.max(track.baseMs, hopEnd - WINDOW_MS);
+      const windowStart = track.recentBaseMs;
       const window = this.floats(track, windowStart, hopEnd);
       if (window.length === 0) return;
       const local = await sherpa.diarizeWindow(window);
@@ -273,6 +292,7 @@ export class LivePass {
         if (!vector) continue;
         const speakerId = this.clusterer.add(vector, b - a);
         this.spans.push({ startMs: a, endMs: b, speakerId });
+        this.o.onSpeakerSpan?.({ startMs: a, endMs: b, speakerId });
       }
       for (const m of this.clusterer.mergeConverged()) {
         this.o.onMerge?.(m);
@@ -287,10 +307,10 @@ export class LivePass {
   }
 
   private floats(track: TrackState, startMs: number, endMs: number): Float32Array {
-    const a = Math.max(0, Math.round(((startMs - track.baseMs) * MODEL_RATE) / 1000));
-    const b = Math.min(track.samples.length, Math.round(((endMs - track.baseMs) * MODEL_RATE) / 1000));
+    const a = Math.max(0, Math.round(((startMs - track.recentBaseMs) * MODEL_RATE) / 1000));
+    const b = Math.min(track.recent.length, Math.round(((endMs - track.recentBaseMs) * MODEL_RATE) / 1000));
     const out = new Float32Array(Math.max(0, b - a));
-    for (let i = 0; i < out.length; i++) out[i] = track.samples[a + i]! / 32768;
+    for (let i = 0; i < out.length; i++) out[i] = track.recent[a + i]! / 32768;
     return out;
   }
 

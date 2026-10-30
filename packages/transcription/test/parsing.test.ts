@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { contiguousRuns, parseProbe, wavHeader } from '../src/audio.js';
+import { parseProbe, wavHeader } from '../src/audio.js';
+import { oggCrc } from '../src/ogg.js';
 import { buildTurns, decideSpeakers } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
 import { parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
@@ -86,12 +87,6 @@ describe('import checks', () => {
 });
 
 describe('audio helpers', () => {
-  it('splits chunks at gaps and sorts them', () => {
-    const c = (startMs: number, durationMs = 5000) => ({ path: `${startMs}`, startMs, durationMs });
-    const runs = contiguousRuns([c(5000), c(0), c(10_000), c(60_000)]);
-    expect(runs.map((r) => r.map((x) => x.startMs))).toEqual([[0, 5000, 10_000], [60_000]]);
-  });
-
   it('writes a 16 kHz mono PCM header', () => {
     const h = wavHeader(32000);
     expect(h.length).toBe(44);
@@ -130,5 +125,11 @@ describe('final-pass assembly', () => {
     expect(speakers.map((s) => s.label)).toEqual(['Speaker 1', 'Speaker 2']);
     expect(spans.map((s) => s.speakerId)).toEqual(['speaker-1', 'speaker-2', 'speaker-1']);
     expect(speakers[0]?.embeddingSegments).toBe(2);
+  });
+});
+
+describe('oggCrc', () => {
+  it('matches the known Ogg checksum', () => {
+    expect(oggCrc(new TextEncoder().encode('123456789'))).toBe(0x89a1897f);
   });
 });
