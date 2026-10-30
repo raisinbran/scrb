@@ -1,5 +1,6 @@
 import { _electron as electron, expect, test, type Page } from '@playwright/test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -50,14 +51,40 @@ test('a library that cannot open leaves the app usable', async () => {
   writeFileSync(blocked, '');
   pointAtTestLibrary(userData, blocked);
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
-  await app.evaluate(({ dialog }) => {
-    dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as never;
-  });
   const page = await app.firstWindow();
   await answerFirstLaunch(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('radio', { name: 'Dark' }).check();
   await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+  await app.close();
+});
+
+test('a damaged index is set aside and the app still opens with defaults', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-damaged-'));
+  const library = join(userData, 'library');
+  mkdirSync(library, { recursive: true });
+  pointAtTestLibrary(userData, library);
+  writeFileSync(join(library, 'index.sqlite'), 'this is not a database, '.repeat(200));
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  const page = await app.firstWindow();
+  await expect
+    .poll(() => page.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)))
+    .toMatchObject({ ok: true, value: { theme: 'system' } });
+  expect(readdirSync(library).some((name) => name.startsWith('index.sqlite.corrupt-'))).toBe(true);
+  await app.close();
+});
+
+test('a second copy quits and the first keeps working', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-second-'));
+  pointAtTestLibrary(userData);
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  const page = await app.firstWindow();
+  const binary = await app.evaluate(() => process.execPath);
+  const second = spawn(binary, ['.', `--user-data-dir=${userData}`], { stdio: 'ignore' });
+  const exitCode = await new Promise((resolve) => second.once('exit', resolve));
+  expect(exitCode).toBe(0);
+  const settings = await page.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined));
+  expect(settings).toMatchObject({ ok: true });
   await app.close();
 });
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, dialog, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
@@ -20,7 +20,7 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   return url !== undefined && new URL(url).origin === appOrigin;
 }
 
-function createMainWindow(): void {
+function createMainWindow(warning: string | null = null): void {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -40,7 +40,10 @@ function createMainWindow(): void {
     },
   });
   lockDownContents(window.webContents, appOrigin);
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => {
+    window.show();
+    if (warning) void dialog.showMessageBox(window, { type: 'warning', message: warning });
+  });
   void window.loadURL(appUrl);
 }
 
@@ -61,7 +64,7 @@ void app.whenReady().then(async () => {
   const backend = await openBackend();
   registerCallHandlers(backend.handlers, isTrustedSender);
   app.once('will-quit', () => void backend.close());
-  createMainWindow();
+  createMainWindow(backend.warning);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
