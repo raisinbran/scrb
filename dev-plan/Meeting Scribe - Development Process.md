@@ -10,7 +10,6 @@ These tools govern how code is written and reviewed. None of them ships in the a
 
 | Tool | Source | Used for |
 | --- | --- | --- |
-| Planner | [personal-dev-env/planner](https://github.com/henrico813/personal-dev-env/tree/main/planner) | Guarded diff plans for high-risk changes |
 | pde-comment-checker | [personal-dev-env/pde-comment-checker](https://github.com/henrico813/personal-dev-env/tree/main/pde-comment-checker) | Automated comment and naming checks on Go and Python files |
 | pde-comment-review | [personal-dev-env/pde-comment-review](https://github.com/henrico813/personal-dev-env/tree/main/pde-comment-review) | Owner review of Go comments |
 | skill-lessons | [personal-dev-env/skill-lessons](https://github.com/henrico813/personal-dev-env/tree/main/skill-lessons) | Saving repeated corrections to AI coding skills |
@@ -25,7 +24,7 @@ These tools govern how code is written and reviewed. None of them ships in the a
 Each slice of work is one small, testable change, settled in this order:
 
 1. Record the full commit ID the slice starts from.
-2. Decide whether the slice needs a Planner plan (next section).
+2. Decide whether the slice needs a written plan (next section).
 3. Get the behavior and tests right.
 4. Settle function, class and file names.
 5. Write or adjust comments, only where they add a needed fact.
@@ -33,25 +32,22 @@ Each slice of work is one small, testable change, settled in this order:
 7. Run comment review last, after the code has stopped changing.
 8. Merge, and add the results to the phase's gate evidence.
 
-## Planner
+## Risky-change plans
 
-Use Planner for any change that could lose recordings or data; routine UI and small fixes use an ordinary branch with the same tests.
+Any change that could lose recordings or data gets a short written plan first; routine UI and small fixes use an ordinary branch with the same tests. (Owner decision, 2026-10-30: this replaces the Planner tool, which was never installed.)
 
-**Planner required for:** audio capture, chunk writing and recovery, pause/resume, file-format and index upgrades, correction precedence and frozen spans, deletion and auto-delete, security settings and IPC.
+**Plan required for:** audio capture, chunk writing and recovery, pause/resume, file-format and index upgrades, correction precedence and frozen spans, deletion and auto-delete, security settings and IPC.
 
-**Guarded change cycle**
+**Cycle**
 
-1. Run `planner new` and write the plan: title up to 66 characters, overview up to 250, goals, a `### Current State` whose first line is the full base commit, steps with one unified diff per file, and verification.
-2. Revise diffs only through `inspect` and `patch`, never by hand-editing a guarded block.
-3. Run `check` until it reports no errors.
-4. Run `export` to a new folder, then build and test that folder. A passing `check` proves only that the diffs apply, not that the code works.
-5. Review the diff and test results before applying.
+1. Write `docs/plans/<topic>.md` in plain language: what changes, how it could lose data, and the test that proves each failure is handled.
+2. The owner approves the plan before code is written.
+3. Build on a branch, with a test for each failure the plan names.
+4. Report test results against the plan; the owner approves the merge.
 
-**Initial plans, in order:** capture contract and session clock; Windows capture adapter; macOS capture adapter; crash-safe chunks and recovery; pause/resume; transcript layers and frozen spans; vocabulary rules; index upgrades; delete and auto-delete.
+**Initial plans, in order:** capture contract and session clock; Windows capture adapter; macOS capture adapter; crash-safe chunks and recovery; pause/resume; transcript layers and frozen spans; vocabulary rules; index upgrades; delete and auto-delete. The chunk format and manifest (`chunks.json`, `transcript.final.json`) belong in the crash-safe chunks plan.
 
 The secure shell, screens and exports usually go through ordinary branches unless a change touches IPC or security settings.
-
-Command reference: [planner/docs/reference/commands.md](https://github.com/henrico813/personal-dev-env/blob/main/planner/docs/reference/commands.md).
 
 ## Code documentation and comment review
 
@@ -179,7 +175,7 @@ Dependencies are updated deliberately in the repository, never inside the runnin
 
 ## Gate evidence
 
-Each gate gets a short evidence note before you approve it. A passing build, Planner check or demo alone is not enough.
+Each gate gets a short evidence note before you approve it. A passing build or demo alone is not enough.
 
 - [ ] Build ID and commit
 - [ ] Machines, OS versions, devices and meeting apps tested

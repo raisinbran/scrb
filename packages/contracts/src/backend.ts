@@ -1,7 +1,7 @@
 /**
  * The typed UI/backend contract: every call and event the UI may use.
  *
- * DRAFT: awaiting owner approval.
+ * Approved by the owner on 2026-10-30. Changes need the owner's approval.
  *
  * Entries tagged `@addition` are not in the UI Specification's contract table. They are proposed
  * because a listed screen cannot work without them; `README.md` gives the reason for each.

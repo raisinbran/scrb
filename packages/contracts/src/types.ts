@@ -1,7 +1,7 @@
 /**
  * Shared data types for the UI/backend contract.
  *
- * DRAFT: awaiting owner approval.
+ * Approved by the owner on 2026-10-30. Changes need the owner's approval.
  *
  * Units: every `...Ms` is milliseconds on the meeting timeline (0 = meeting start), except where
  * noted. Every `...At` is an ISO 8601 UTC string.

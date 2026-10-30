@@ -1,8 +1,6 @@
 /**
  * Runtime checks for every call's request. Types vanish at the process boundary, so a compromised
  * or buggy renderer can send anything; the main process refuses what does not pass here.
- *
- * DRAFT: awaiting owner approval.
  */
 
 import type { BackendCalls, CallName, CallRequest } from './backend.ts';
