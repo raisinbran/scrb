@@ -1,0 +1,40 @@
+case=input-switch start=14:46:12 actionAt=14:47:12 tonePid=102416
+14:46:12 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:46:18 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:46:23 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:46:27 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:46:31 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:46:35 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:46:39 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:46:43 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:46:47 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:46:52 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:46:56 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:47:00 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+14:47:06 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Headset (No Air 3)
+14:47:08 output: Speakers (2- Realtek(R) Audio) muted=1 volume=2% | comms mic: Microphone Array (2- Realtek(R) Audio)
+exited=True exit=0 end=14:51:14 elapsed=302s
+--- stderr
+--- stdout (tail)
+Capturing 300 seconds.
+60 s app_frames=2879040 mic_frames=2607925
+120 s app_frames=5760480 mic_frames=5458606
+180 s app_frames=8643360 mic_frames=8312174
+240 s app_frames=11526240 mic_frames=11165946
+300 s app_frames=14410080 mic_frames=14311043
+Finished. drift(sample-count)=5.355 ms
+--- summary
+{
+  "requested_seconds": 300,
+  "wall_seconds": 300.432,
+  "start_offset_ms": 2062.140,
+  "sample_count_drift_ms": 5.355,
+  "arrival_drift_ms": 5.208,
+  "cpu_seconds": 2.734,
+  "avg_cpu_percent_of_machine": 0.0758,
+  "peak_working_set_mib": 13.6,
+  "app": {"hresult": "0x00000000", "packets": 30023, "frames": 14411040, "seconds_by_frames": 300.230000, "effective_rate_hz": 48000.0000, "frame_vs_clock_error_ms": 0.000, "discontinuities": 0, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.000, "arrival_error_ms": -0.115, "max_inter_arrival_ms": 176.652},
+  "mic": {"hresult": "0x00000000", "packets": 7548, "frames": 14311523, "seconds_by_frames": 298.156729, "effective_rate_hz": 47999.1379, "frame_vs_clock_error_ms": -5.355, "discontinuities": 604, "gap_fill_frames": 10688578, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 5474.787, "arrival_error_ms": -5.323, "max_inter_arrival_ms": 501.335}
+}
+
+[exited with code 0]
