@@ -65,7 +65,7 @@ public:
     }
     STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR) override {
         Session* s = session_;
-        if (flow == eCapture && role == eCommunications) s->Post([s] { s->OnDefaultChanged(true); });
+        if (flow == eCapture && role == eConsole) s->Post([s] { s->OnDefaultChanged(true); });
         if (flow == eRender && role == eConsole) s->Post([s] { s->OnDefaultChanged(false); });
         return S_OK;
     }

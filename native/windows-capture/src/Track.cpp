@@ -178,7 +178,7 @@ void ReadWall(std::string* utc, int64_t* wallNs) {
     *utc = buf;
 }
 
-bool ResolveDefaultMicId(std::wstring* id) { return ResolveId(eCapture, eCommunications, id); }
+bool ResolveDefaultMicId(std::wstring* id) { return ResolveId(eCapture, eConsole, id); }
 bool ResolveDefaultOutputId(std::wstring* id) { return ResolveId(eRender, eConsole, id); }
 
 std::string ListMicsJson() {
@@ -233,7 +233,9 @@ HRESULT Track::OpenStream(const StreamSpec& spec, DeviceInfo* info) {
         hr = ActivateProcessLoopback(spec.pid, client);
         described = {"process:" + std::to_string(spec.pid), "Process tree " + std::to_string(spec.pid), "loopback"};
     } else {
-        hr = spec.kind == StreamSpec::Kind::Mic ? GetDevice(eCapture, eCommunications, spec.deviceId, device)
+        // Owner decision on Q10: eConsole is the Input choice in Settings;
+        // eCommunications ignores it and moves when a headset connects.
+        hr = spec.kind == StreamSpec::Kind::Mic ? GetDevice(eCapture, eConsole, spec.deviceId, device)
                                                 : GetDevice(eRender, eConsole, L"", device);
         if (SUCCEEDED(hr)) hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &client);
         if (SUCCEEDED(hr)) described = DescribeDevice(device.Get());
