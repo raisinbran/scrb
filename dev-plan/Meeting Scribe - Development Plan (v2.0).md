@@ -8,6 +8,8 @@ Author: BJC
 
 Build the app in nine gated phases, proving audio capture on both machines before anything else. This plan implements V1 Requirements v1.2 and replaces Development Plan v1.3. How the work is done (Planner, skill-lessons, comment review, AI subagents) lives in the separate Development Process document.
 
+**Amendment, Oct 29, 2026 (owner approved):** audio file import added to V1 (Requirements item 15). It adds work to Phases 3, 4 and 7 and no new phase.
+
 **Authorization:** Phase 0 throwaway spikes are authorized now, in a separate scratch repository, exempt from Planner and comment review. Phase 1 starts the real repository after Gate 0 passes.
 
 **Team:** one developer (you), assisted by AI coding agents. Every gate is approved by you.
@@ -140,15 +142,15 @@ Capture adapters behind one shared interface, the app picker and fallback, the m
 
 ### Phase 3: Live and final transcription
 
-The live speech worker reading saved chunks through a bounded queue, provisional text labeled "You" or "Meeting," the final pass after Stop, word timing, click-to-play, the lag indicator, and a transcript view that stays fast at 8 hours.
+The live speech worker reading saved chunks through a bounded queue, provisional text labeled "You" or "Meeting," the final pass after Stop, word timing, click-to-play, the lag indicator, and a transcript view that stays fast at 8 hours. Also the audio file import pipeline: decode and convert a supported file into a meeting's `audio/meeting/` folder and run the final pass on it, with progress, cancel and clean failure. Check the decoder's license before choosing it, and keep a recording in progress ahead of any import work.
 
-**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate; killing the worker never affects recording.
+**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate; killing the worker never affects recording; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
 
 ### Phase 4: Speakers
 
-Live multi-speaker diarization on the meeting track, speaker relabeling in the final pass, silently built voice profiles, confidence-gated name assignment, the Speakers screen with rename/merge/split/delete, and the location-based privacy banner.
+Live multi-speaker diarization on the meeting track, speaker relabeling in the final pass, silently built voice profiles, confidence-gated name assignment, the Speakers screen with rename/merge/split/delete, and the location-based privacy banner. Imported files get final-pass diarization, and build profiles only when the user chooses it for that file.
 
-**Gate 4:** speaker accuracy and wrong-match rate meet targets; every assignment can be undone; the banner reappears on each new recording where the rule applies.
+**Gate 4:** speaker accuracy and wrong-match rate meet targets; every assignment can be undone; the banner reappears on each new recording where the rule applies; an imported file changes no profile unless the user turned that on for it.
 
 ### Phase 5: Corrections and vocabulary
 
@@ -164,9 +166,9 @@ Structured extraction of actions, decisions, impacts and open questions; the cov
 
 ### Phase 7: Library, export and cleanup
 
-The Recordings list and search, meeting detail tabs, open-folder buttons, DOCX and PDF export for transcript, summary or both, manual delete with verification, and auto-delete.
+The Recordings list and search, the Import audio file action, meeting detail tabs, open-folder buttons, DOCX and PDF export for transcript, summary or both, manual delete with verification, and auto-delete.
 
-**Gate 7:** a meeting can be found, reviewed, exported in both formats with matching content, and fully deleted; auto-delete removes exactly the chosen data.
+**Gate 7:** a file can be imported from the Recordings screen; a meeting can be found, reviewed, exported in both formats with matching content, and fully deleted; auto-delete removes exactly the chosen data.
 
 ### Phase 8: Packaging and hardening
 
@@ -216,7 +218,7 @@ Every phase adds automated tests; gates also need hands-on runs on both machines
 - Add 3–5 of your own meetings where every participant agreed to be recorded for testing.
 - You mark the true action items and decisions in those meetings once; this takes a few hours.
 - Keep evaluation recordings in a separate test folder, never mixed with normal meetings.
-- Imported audio files are supported only inside the test harness.
+- The test harness uses the same import pipeline as the user feature, so evaluation recordings stay in the test folder and never build profiles.
 
 ## Risks and fallbacks
 
