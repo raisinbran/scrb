@@ -350,7 +350,7 @@ export class LivePass {
     const a = Math.round((startMs * MODEL_RATE) / 1000);
     const b = Math.round((endMs * MODEL_RATE) / 1000);
     const text = await this.whisper!.transcribe(track.samples.subarray(a, b));
-    if (!text || /^[\[(].*[\])]$/.test(text)) return;
+    if (!text || /^[[(].*[\])]$/.test(text)) return;
     const absStart = track.baseMs + startMs;
     const absEnd = track.baseMs + endMs;
     const { speakerId, speakerLabel } = this.labelFor(track.kind, absStart, absEnd);

@@ -766,7 +766,7 @@ export class Library {
 
       const folder = meetingFolderPath(this.paths, name);
       await removeTempFiles(folder);
-      let meta: MeetingMeta | null = null;
+      let meta: MeetingMeta | null;
       try {
         meta = (await loadDocument(MEETING_FORMAT, meetingPaths(folder).meta))?.doc ?? null;
       } catch {

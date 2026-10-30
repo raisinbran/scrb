@@ -70,7 +70,8 @@ export const SUMMARY_FORMAT: FileFormat<SummaryFile> = {
     // v1 held one body of a chosen length, with no outdated tracking or edit marks.
     1: (doc) => {
       const body = { text: doc['body'], edited: false };
-      const { body: _body, length, ...rest } = doc;
+      const { length, ...rest } = doc;
+      delete rest['body'];
       const markUnedited = (item: JsonObject): JsonObject => ({ ...item, edited: false });
       return {
         ...rest,

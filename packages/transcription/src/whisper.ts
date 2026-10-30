@@ -48,7 +48,7 @@ interface RawJson {
 }
 
 /** Sound tags such as [BLANK_AUDIO] are not spoken words. */
-const SOUND_TAG = /^[\[(].*[\])]$/;
+const SOUND_TAG = /^[[(].*[\])]$/;
 
 export function parseWords(json: string): WhisperWord[] {
   const raw = JSON.parse(json) as RawJson;

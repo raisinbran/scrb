@@ -1,5 +1,6 @@
 // Characters XML 1.0 cannot carry, plus Unicode non-characters. A single one
 // makes Word refuse the whole file, so they are removed before any rendering.
+// eslint-disable-next-line no-control-regex -- matching control characters is the point.
 const UNSAFE_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u0084\u0086-\u009F\uFDD0-\uFDEF\uFFFE\uFFFF]/g;
 const LINE_BREAKS = /\s*[\r\n\u0085\u2028\u2029]+\s*/g;
 const SPACE_RUNS = /[ \t]+/g;
