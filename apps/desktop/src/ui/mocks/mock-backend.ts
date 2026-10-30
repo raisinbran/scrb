@@ -318,9 +318,7 @@ export class MockBackend implements Backend {
         misheard: [misheard],
         contexts: [],
         enabled: true,
-        history: [
-          { at: new Date().toISOString(), action: 'created', detail: 'From a correction' },
-        ],
+        history: [{ at: new Date().toISOString(), action: 'created', detail: 'From a correction' }],
       },
     ];
   }
