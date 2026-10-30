@@ -69,7 +69,7 @@ Meeting Scribe is a personal, solo-developed desktop tool for Windows 11 and App
 | Memory target | Runs well on 16 GB RAM, apart from rare edge cases |
 | App memory budget | About 6 GB or less during recording plus live transcription |
 | GPU | Used when available (Apple GPU on Mac, NVIDIA or other GPUs on Windows); never required |
-| Meeting length | Up to 8 hours; 4+ hours is routine |
+| Meeting length | Up to 8 hours; usually 0.5 to 2 hours, rarely over 4 |
 | Resource behavior | Background processing at lower priority; models unloaded when idle; never all models at once |
 
 Recording has absolute priority. Under heavy load, live transcription may fall behind, but the recording never does.

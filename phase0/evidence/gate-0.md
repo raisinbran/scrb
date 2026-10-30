@@ -1,13 +1,17 @@
 # Gate 0 Evidence
 
-Status: **In progress; macOS long-run and device cases still required**
+Status: **Approved by owner (2026-10-30), with the deferrals listed under
+Gate Decision**
 
-This is Phase 0 throwaway evidence.  No production application code has been
-created in `C:\Users\brand\Documents\GitHub\scrb`; Phase 1 remains gated.
+This is Phase 0 throwaway evidence.  Production code in this repository was
+started before this approval, under a temporary owner waiver of sequential
+gates (2026-10-29/30): the desktop shell, draft contract and backend packages.
+The waiver has ended.  That code is provisional until the contract is
+approved; approving these findings does not by itself approve it.
 
 ## Build and Source IDs
 
-- Meeting Scribe production commit: not created; Phase 1 has not started
+- Meeting Scribe production commit: none at the time of these measurements; see the note above
 - Meetily: `a2cb62e827da7ef59f65064c97233efb2313878e`
 - Microsoft ApplicationLoopback sample:
   `434f6002bdf9cf9829406c3ff2b33387982d6168`
@@ -748,8 +752,9 @@ Streaming devices as targets); the owner did sleep/wake and the AirPods Pro
 Sleep/wake detail: host time (`mach_absolute_time`) does not advance during
 sleep, so the probe saw a single 24 s arrival jump (1 discontinuity, nothing
 padded) for 55 s of sleep.  Both tracks stayed aligned with each other
-(25 ms), but the recording is about 41 s shorter than the wall-clock span
-(217 s of audio in 282 s; the probe's own timer also stopped while asleep).
+(25 ms), but the recording holds 217 s of audio for a 282 s wall-clock span,
+65 s short.  The probe saw 24 s of that as the arrival jump; the other 41 s
+were invisible to it.  Its own timer also stopped while asleep.
 
 **Design consequences for the Phase 2 macOS adapter:**
 
@@ -767,16 +772,32 @@ padded) for 55 s of sleep.  Both tracks stayed aligned with each other
    chunk at every gap" design covers both platforms once wake and device
    changes force a chunk boundary.
 
-### Not run on the Mac yet
+### Long drift run (2 h 09 m of a planned 8 h)
 
-- 8 h drift run: started 2026-10-29 19:32 from the Claude app's terminal pane.
-  **Capture ended at 2 h 09 m:** `coreaudiod` restarted at 21:41:15 (cause
-  unknown; a clean exit, no crash report, no sleep) and the probe silently
-  received nothing afterwards, with no error.  The first 7,733 s of both
-  tracks exist; timing is written when the run ends at about 03:32.  The
-  owner agreed the full 8 h is not needed for Gate 0: the Gate 2 8-hour
-  recording on the real adapter covers it.  New adapter rule in
+`scripts/run-macos-drift.sh` from the Claude app's terminal pane, tone plus
+built-in mic, speakers muted, 2026-10-29 from 19:32.  The Mac was in use (video
+playback and background benchmarks), so this is not an idle baseline.
+
+| Measure | Result |
+| --- | ---: |
+| Audio captured before `coreaudiod` restarted | 7,733 s (2 h 09 m), both tracks |
+| Stall events (almost all on both tracks at once) | 14 app, 13 mic: about 6.5 per hour |
+| Audio padded, app / mic | 608 / 687 ms |
+| Longest wait between packets, app / mic | 171 / 180 ms |
+| Sample-count drift at end / maximum | 0.001 / 0.008 ms |
+| Chunk-timestamp sync, maximum | 0.028 ms |
+| Capture CPU (whole machine) / peak RSS | 0.03% / 16.2 MiB |
+
+- **Drift is effectively zero** on the built-in devices, which share a clock.
+  This says nothing about USB or Bluetooth mics.
+- **Stall rate was higher than the earlier Metal runs** (3--5 per hour), so
+  the machine's other activity, not only an AI worker, drives it.
+- **`coreaudiod` restarted at 21:41:15** (cause unknown; a clean exit, no
+  crash report, no sleep).  The probe then received nothing and reported no
+  error for the remaining 5 h 50 m; it still exited 0.  New adapter rule in
   `design/capture-contract-draft.md` (audio service restart).
+- The owner accepted skipping a full 8 h rerun: Gate 2's 8-hour recording on
+  the real adapter covers it.
 
 ## Gate Checklist
 
@@ -787,15 +808,16 @@ padded) for 55 s of sleep.  Both tracks stayed aligned with each other
   changes, silent stream death, 1.7 s offset after standby) are handled by
   the adapter rules above, not blockers.  The mic-privacy case ran too;
   USB unplug not run (no USB mic).
-- [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
-  passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
-  load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
-  Metal-worker reruns (with real app audio) show 3--5 stalls per hour not
-  caused by the worker.  Device cases ran: the probe never crashed; mic does
-  not follow device changes, Bluetooth hands-free halves the app-track rate,
-  and sleep is invisible to host time (adapter rules above).  8 h drift run
-  in progress.
-- [ ] Recording survives a crashed AI worker on both machines.  Windows
+- [x] Synced dual-track capture works on Apple Silicon macOS (**deferred in
+  part by the owner**: the 8 h run did not complete).  Isolation
+  passes; sync stays within 0.03 ms over 60 min and 2 h 09 m.  Stalls of
+  3--7 per hour (up to about 0.4 s, both tracks) happen with and without
+  heavy load.  Device cases ran: no crash; the mic does not follow changes,
+  Bluetooth hands-free halves the app-track rate, sleep is invisible to
+  host time, and an audio-service restart kills capture silently (adapter
+  rules above).  **The planned 8 h run ended at 2 h 09 m; the owner accepted
+  that, pending Gate 2.**
+- [x] Recording survives a crashed AI worker on both machines.  Windows
   passes (120 runs, 16 killed, 0 app-track gaps).  macOS: recording survives
   every kill (3 x 121 runs, 36 killed, no kill-related gaps); the load stalls
   above are a separate finding.
@@ -810,11 +832,24 @@ padded) for 55 s of sleep.  Both tracks stayed aligned with each other
 
 ## Gate Decision
 
-**Not ready for approval.** Phase 1 remains blocked by Gate 0.  Remaining:
-the Mac 8 h drift run (in progress) and the macOS capture and crash-worker
-checklist items it closes.  The owner decided every open item on
+**Approved by owner on 2026-10-30 ("the Gate 0 checklist is acceptable").**
+Every checklist item is met or accepted with the caveats above.  The owner
+decided every open item on
 2026-10-29 (`HANDOFF-PARALLEL.md`, table B): all recommendations accepted;
 final DER pass line ~25% and summary recall pass line ~80%, with 20% and 90%
 kept as stretch goals; live-versus-final WER stays at 15%; RAM 16 GB
 minimum, 32 GB recommended.
+
+**What this approval does not prove.**  External QA
+(`gpt-QA-reports/20261030_gate-0-qa-findings.md`) rightly separates these from
+the passes:
+
+| Open item | Why it is open | Tested at |
+| --- | --- | --- |
+| Full 8 h macOS capture | Run stopped at 2 h 09 m; exit 0 proves nothing about audio | Gate 2 |
+| Stopped streams on both OSes | Probes neither detect nor recover them | Gate 2 |
+| Sync in a real Teams or Zoom call, measured from audio content | Evidence is tone generators and device timestamps | Gate 2 |
+| Worker killed during audible app capture on macOS | CPU runs had a silent app track; Metal reruns killed no worker | Gate 3 |
+| Windows mic loss under load | 8 h run lost about 160 s to stalls; timestamps keep sync, not audio | Gate 2 |
+| 15% final-pass word-error gain | Live and final use the same GPU model, so no method is shown yet | Gate 3 |
 

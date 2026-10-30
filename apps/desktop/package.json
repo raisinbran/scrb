@@ -1,0 +1,35 @@
+{
+  "name": "@scrb/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/build-electron.mjs",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:smoke": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@scrb/app-core": "*",
+    "@scrb/capture": "*",
+    "@scrb/contracts": "*",
+    "@scrb/storage": "*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.1.0",
+    "esbuild": "0.28.2",
+    "jsdom": "30.1.3",
+    "playwright": "1.64.1",
+    "vite": "8.3.5"
+  }
+}

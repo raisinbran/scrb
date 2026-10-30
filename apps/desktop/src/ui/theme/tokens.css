@@ -1,0 +1,103 @@
+/* Design tokens: the only place color values live. Components use these variables. */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  --titlebar-height: 40px;
+  --transcript-font-size: 15px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-app: #e3e5e8;
+  --color-surface: #ffffff;
+  --color-surface-sidebar: #f2f3f5;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #e6e8eb;
+  --color-surface-selected: #dcdfe4;
+  --color-border: #c9cdd3;
+  --color-text: #1f2328;
+  --color-text-muted: #4e5560;
+  --color-accent: #4149b8;
+  --color-on-accent: #ffffff;
+  --color-focus: #4149b8;
+  --color-recording: #c02626;
+  --color-paused: #8a5a00;
+  --color-ok: #16703b;
+  --color-warning: #8a5a00;
+  --color-danger: #b42020;
+  --color-backdrop: #00000066;
+  --shadow-overlay: 0 4px 16px #0000002e;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-app: #1a1b1e;
+  --color-surface: #2b2d31;
+  --color-surface-sidebar: #232428;
+  --color-surface-raised: #313338;
+  --color-surface-hover: #35373c;
+  --color-surface-selected: #404249;
+  --color-border: #4a4d55;
+  --color-text: #f2f3f5;
+  --color-text-muted: #b5bac1;
+  --color-accent: #9aa1f7;
+  --color-on-accent: #16171a;
+  --color-focus: #a5abf8;
+  --color-recording: #f58585;
+  --color-paused: #f0b232;
+  --color-ok: #57c98a;
+  --color-warning: #f0b232;
+  --color-danger: #f58585;
+  --color-backdrop: #00000099;
+  --shadow-overlay: 0 4px 16px #00000080;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--color-text);
+  background: var(--color-app);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

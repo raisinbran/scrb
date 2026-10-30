@@ -1,0 +1,66 @@
+.bar {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  height: var(--titlebar-height);
+  padding-inline: var(--space-4);
+  font-size: var(--text-sm);
+  background: var(--color-surface-sidebar);
+  border-bottom: 1px solid var(--color-border);
+  app-region: drag;
+}
+
+/* Room for the native window controls: left on macOS, right on Windows. */
+:global([data-platform='darwin']) .bar {
+  padding-inline-start: 84px;
+}
+
+:global([data-platform='win32']) .bar {
+  padding-inline-end: 150px;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.status {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.indicator {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-weight: 600;
+}
+
+.elapsed {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot[data-state='recording'] {
+  background: var(--color-recording);
+}
+
+.dot[data-state='paused'] {
+  background: var(--color-paused);
+}
+
+.lag {
+  color: var(--color-text-muted);
+}
+
+.lag[data-level='warning'],
+.warning {
+  color: var(--color-warning);
+}

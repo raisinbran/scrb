@@ -1,0 +1,46 @@
+# Contracts
+
+**Approved by the owner on 2026-10-30.** The typed UI/backend contract: `src/backend.ts` for calls and events, `src/types.ts` for shared data. Only the owner approves changes.
+
+Calls and events go through `Backend.call` and `Backend.on`. Failures reject with `ContractError`, whose `code` survives IPC.
+
+## Additions to the UI Specification table
+
+These were not in the UI Specification's contract table. Each is tagged `@addition` in the source.
+
+| Item                                                        | Why it is needed                                                                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `getRecordingSnapshot`                                      | The UI must catch up after a reload, including health and transcription status, which only arrive as events  |
+| `importCancelled`                                           | Each import needs one definite end; this is the only one that means no meeting exists                        |
+| `pickAudioFile`                                             | A sandboxed renderer cannot open a file dialog. Returns an opaque token, so the renderer never passes a path |
+| `getTranscript`                                             | Paged loading for stored transcripts; `transcriptChanged` only carries changes                               |
+| `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                            |
+| `listProfiles`                                              | The Speakers screen has nothing to show without it                                                           |
+| `splitSpeaker`                                              | V1 Requirements list split; the table does not                                                               |
+| `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                          |
+| `getSummary`, `getMeeting`                                  | Meeting detail and the Summary tab must load stored data                                                     |
+| `updateMeeting`                                             | Import requires the meeting date to be editable                                                              |
+| `startAudioCheck`, `stopAudioCheck`, `audioCheck`           | The mic test the requirements ask for; meters otherwise run only while recording                             |
+| `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                        |
+| `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                              |
+| `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                      |
+
+## Decisions
+
+1. Words carry only the display text, with the correction already applied, so the UI cannot decide precedence. The model's original text is not exposed; the "show corrections" export option is backend-side.
+2. Failures of summaries travel in `summaryProgress` (stage `failed`) and of exports in `exportFinished` (`ok: false`), instead of adding `summaryFailed` and `exportFailed` events.
+3. `SpeakerTarget` and `SpeakerMerge` cover both meeting speakers and voice profiles under one call.
+4. Times are milliseconds on the meeting timeline. The capture draft's nanosecond timeline stays backend-side.
+5. Action-item status is `agreed`, `proposed` or `unconfirmed`, matching the summary engine. It records agreement, not completion; V1 does not track completion. The requirements name the column but not its values.
+6. An unknown owner or deadline is null. `ownerUnconfirmed` and `deadlineUnconfirmed` tell "Unconfirmed" apart from "Not specified".
+7. Summary items carry `alsoAtMs` and `needsReview`, so merged sources and weak or conflicting evidence stay visible. Inferred impacts have no table in the requirements; they appear as a labelled section of the full narrative.
+8. Transcript revisions are counted per meeting.
+9. Transcription quality is `fast`, `balanced` or `accurate`; the requirements do not name the levels.
+
+## Known gaps
+
+- Chunk metadata and adapter events (capture draft Q14) are not here.
+
+## Request validation
+
+`isValidRequest` checks every call's request in the main process and in the mock: shapes, id format, string lengths, number ranges, and a transcript page of at most `MAX_TRANSCRIPT_PAGE` segments. Unknown keys are refused. The compiler ties each check to its request type, in one direction: a check can be stricter than the type, but not looser on required fields.

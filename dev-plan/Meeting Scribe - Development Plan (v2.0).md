@@ -138,13 +138,13 @@ Create the real repository, the desktop shell, the sidebar and screens as empty 
 
 Capture adapters behind one shared interface, the app picker and fallback, the mic picker, meters, start/pause/resume/stop, crash-safe chunks, crash recovery, low-disk and silent-mic warnings, synced playback, the recording indicator, and the audio settings and presets.
 
-**Gate 2:** an 8-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target.
+**Gate 2:** a 4-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target. On both operating systems: a real Teams or Zoom call has its start offset and drift measured from a shared sound in both tracks; a stopped stream, including an audio-service restart, is detected and either recovers or warns the user, with the missing span marked; and mic audio lost under representative load is measured against a stated limit, reported apart from sync.
 
 ### Phase 3: Live and final transcription
 
 The live speech worker reading saved chunks through a bounded queue, provisional text labeled "You" or "Meeting," the final pass after Stop, word timing, click-to-play, the lag indicator, and a transcript view that stays fast at 8 hours. Also the audio file import pipeline: decode and convert a supported file into a meeting's `audio/meeting/` folder and run the final pass on it, with progress, cancel and clean failure. Check the decoder's license before choosing it, and keep a recording in progress ahead of any import work.
 
-**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate; killing the worker never affects recording; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
+**Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate, against the 15% word-error target, compared with the actual live output on the same clips; killing the worker during audible capture never affects recording on either operating system; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
 
 ### Phase 4: Speakers
 
@@ -178,12 +178,12 @@ Installers, the first-launch model download with checksums, offline operation, u
 
 ## Quality targets
 
-These are the release thresholds. Phase 0 may loosen a target only if a measurement shows it cannot be met on 16 GB hardware, and the change is written down here.
+These are the release thresholds. The owner may change a target at a gate when measurements show it cannot be met, and the change and its reason are written down here. The Gate 0 changes below were made this way.
 
 | Measure | Target |
 | --- | --- |
 | Lost audio | None; any gap is shown and marked |
-| Mic-to-meeting sync drift | Under 100 ms over 8 hours |
+| Mic-to-meeting sync drift | Under 50 ms over 4 hours, the same rate as the original 100 ms over 8 hours; measured over 8 hours at Gate 8 |
 | Crash recovery | All saved chunks recovered; the end point marked |
 | Live transcript delay | Median 3 s or less; 95% of segments within 6 s |
 | Memory during recording + live transcription | About 6 GB or less for the whole app |
@@ -192,9 +192,9 @@ These are the release thresholds. Phase 0 may loosen a target only if a measurem
 | Final-pass time | No longer than the meeting itself, on a GPU-capable machine |
 | Corrections preserved | 100% |
 | Vocabulary false replacements | Under 1 per hour of audio |
-| Speaker diarization (final) | Diarization error rate 20% or less on AMI test meetings |
+| Speaker diarization (final) | Diarization error rate about 25% or less on AMI test meetings; 20% is a stretch goal (changed at Gate 0: best measured 21–28%, mainly missed overlapped speech) |
 | Wrong automatic voice-name match | Under 2%; below the confidence line, suggest instead |
-| Action-item and decision recall | 90% or more on the evaluation set |
+| Action-item and decision recall | About 80% or more on the evaluation set; 90% is a stretch goal (changed at Gate 0: best measured 76–84%) |
 | Invented action items or decisions | Under 5% of items; none accepted at release review |
 | Evidence links | 100% of summary items link to valid source text |
 | UI responsiveness | Record, pause and stop respond within 200 ms under full AI load |
@@ -209,7 +209,7 @@ Every phase adds automated tests; gates also need hands-on runs on both machines
 - **Unit:** correction precedence, frozen spans, vocabulary rules, the summary schema, file-format upgrades.
 - **Integration:** chunk writing and recovery, queue behavior, index-versus-folder consistency, delete and auto-delete.
 - **Fault injection:** worker crash, app kill, disk full, permission revoked, device unplugged, sleep/wake, pause during a device change.
-- **Long run:** an 8-hour recording on each machine before Gates 2, 3 and 8.
+- **Long run:** a 4-hour recording on each machine before Gates 2 and 3, and one 8-hour recording on each machine before Gate 8 (owner decision, 2026-10-30).
 - **Hardware:** built-in mic, USB headset, Bluetooth headset, docking station; Teams, Zoom and a browser meeting on each OS.
 
 **Evaluation data**
@@ -242,11 +242,11 @@ Live multi-speaker diarization and per-app capture are the two risks most likely
 
 No decisions remain for you before Phase 0. These items are settled by measurement and recorded at Gate 0.
 
-- [ ] Desktop shell: Tauri (Meetily fork) or Electron.
-- [ ] Exact live and final whisper.cpp model sizes.
-- [ ] Live diarization method, or whether the fallback is needed.
-- [ ] Summary model choice among the benchmarked 7–9B models.
-- [ ] Audio chunk length and Opus bitrate.
-- [ ] Voice-match confidence line that meets the under-2% wrong-match target.
-- [ ] DOCX library, which follows from the shell choice.
-- [ ] Any quality target that measurement shows must change, with the reason.
+- [x] Desktop shell: Electron.
+- [x] Whisper models: GPU, large-v3-turbo-q5_0 live and final, per VAD segment; CPU-only, small.en-q5_1 live, turbo final.
+- [x] Live diarization: incremental clustering with the "Speaker ?" rule; no fallback needed.
+- [x] Summary model: Qwen3.5-9B Q4_K_M.
+- [x] Audio: 5 s Opus chunks, mono 32 kbps per track.
+- [x] Voice-match confidence line: 0.55–0.60 cosine.
+- [x] DOCX library: `docx`.
+- [x] Quality targets changed: final DER and summary recall (see Quality targets); RAM guidance 16 GB minimum, 32 GB recommended.

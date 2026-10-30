@@ -1,0 +1,15 @@
+.handle {
+  flex: none;
+  width: 5px;
+  cursor: col-resize;
+  background: var(--color-border);
+  background-clip: content-box;
+  padding-inline: 2px;
+  touch-action: none;
+}
+
+.handle:hover,
+.handle:focus-visible {
+  padding-inline: 1px;
+  background-color: var(--color-accent);
+}
