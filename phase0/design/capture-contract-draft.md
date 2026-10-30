@@ -211,6 +211,15 @@ duration inside one chunk.
   (`ES_SYSTEM_REQUIRED`; macOS `PreventUserIdleSystemSleep`) so only lid
   close or user sleep can cause this.
 
+### Audio service restart (added from the Mac drift run)
+
+On 2026-10-29 at 21:41 macOS restarted `coreaudiod` 2 h 09 m into a capture.
+The probe process survived, reported no error and received no more audio.
+The arrival watchdog must treat this as stream death on all tracks at once,
+then rebuild the tap, aggregate device and mic stream and start a new chunk.
+Test it on both platforms (`killall coreaudiod` needs an owner-approved run;
+on Windows, a restart of the Windows Audio service).
+
 ## 5. Per-platform notes
 
 **Windows**
