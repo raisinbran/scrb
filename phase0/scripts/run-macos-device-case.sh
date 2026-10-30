@@ -52,9 +52,12 @@ probes/macos-dual-capture/DualCapture "$tone" "$prefix" "$seconds" >"$prefix.std
 state=running; warned=0; acted=0
 while kill -0 "$probe" 2>/dev/null; do
   t=$(( $(date +%s) - start ))
-  if (( t >= act_at - 10 && !warned )); then warned=1; echo ">>> get ready: action in 10 s"; fi
+  # Live timer on one line (the person at the Mac may have no seconds clock).
+  if (( !acted )); then printf '\r  %3d s elapsed -- ACTION IN %3d s   ' "$t" $(( act_at - t ))
+  else printf '\r  %3d s elapsed -- capture ends in %3d s   ' "$t" $(( seconds - t )); fi
+  if (( t >= act_at - 10 && !warned )); then warned=1; printf '\a'; fi
   if (( t >= act_at && !acted )); then
-    acted=1
+    acted=1; echo
     if [[ -n "${ACTION:-}" ]]; then echo ">>> action at $(date +%H:%M:%S): $(eval "$ACTION" 2>&1)" | tee "$prefix-action.txt"
     else printf '\a'; echo ">>> DO THE ACTION NOW ($(date +%H:%M:%S))"; fi
   fi

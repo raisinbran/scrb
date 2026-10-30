@@ -22,7 +22,7 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Survives crashed AI worker | Pass (120 whisper runs, 16 killed, 0 app-track gaps) | Survives all kills (363 runs, 36 killed); load stalls are separate |
 | Models fit 6 GB recording budget | Pass on measured parts (see evidence) | Pass (~1.1--1.5 GiB) |
 | Live diarization usable | Usable (~25--29% DER, incremental mode) | Same (~26--32% DER) |
-| Device change / sleep-wake / Bluetooth | Run on a second PC: probe survives all; mic does not follow device changes, dies silently on BT disconnect, 1.7 s app offset after standby (adapter rules in evidence) | In progress 2026-10-29 evening |
+| Device change / sleep-wake / Bluetooth | Run on a second PC: probe survives all; mic does not follow device changes, dies silently on BT disconnect, 1.7 s app offset after standby (adapter rules in evidence) | Run 2026-10-29: probe survives all; mic does not follow changes, BT hands-free halves the app-track rate, sleep invisible to host time |
 | Framework | Electron (Meetily fails rule 1); owner approval pending | n/a |
 
 Also measured on Windows (CPU and RTX 3080 GPU): Opus storage, vocabulary
@@ -52,15 +52,15 @@ See `MANIFEST.md` for exact versions and hashes.
    Claude Code's Bash tool, and on 2026-10-29 also Terminal.app, got a
    silent app track (see the permission finding in `evidence/gate-0.md`).
    Wrap runs in `scripts/run-muted.sh` so the speakers stay silent.
-   - 8 h drift run: needs 8 unbroken awake hours on AC, lid open; it also
-     gives the idle-machine stall rate.
-   - Device cases: output switch, input switch, Bluetooth headset,
-     sleep/wake; record what the probe reports.
+   - 8 h drift run: started 2026-10-29 19:32 (`scripts/run-macos-drift.sh`);
+     record the result, which also gives the idle-machine stall rate.
+   - Device cases: done 2026-10-29 (`evidence/gate-0.md`).
    - Metal-worker stress reruns: done (stalls not caused by the worker).
 2. **Windows device cases**: done (`HANDOFF-WINDOWS.md`, merged into
    `evidence/gate-0.md`).  Optional: the USB-unplug and mic-privacy cases.
-3. Owner decisions listed at the end of `evidence/gate-0.md`, then the Gate 0
-   decision.
+3. Owner decisions: done 2026-10-29 (`HANDOFF-PARALLEL.md` table B,
+   summarized in the Gate Decision).  Then the Gate 0 decision once the
+   Mac drift run is recorded.
 
 macOS build notes: no Homebrew on the Mac; CMake and Ninja come from
 `python3 -m venv tools/venv && tools/venv/bin/pip install cmake ninja`.

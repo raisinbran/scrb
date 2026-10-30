@@ -1,0 +1,5 @@
+probe exited, exit code 0, 282 s wall
+app: 217.2 s, discontinuities 1, padded 0 ms, longest wait 23857 ms
+mic: 217.2 s, discontinuities 1, padded 0 ms, longest wait 23882 ms
+app per 10 s (peak): 655 655 655 655 655 655 686 655 655 655 655 655 655 655 655 655 655 655 655 655 655 655
+mic per 10 s (rms): 483 409 487 1136 560 476 468 491 474 473 458 494 471 483 501 676 616 640 479 476 507 588
