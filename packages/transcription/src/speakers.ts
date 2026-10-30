@@ -210,7 +210,7 @@ function closestPair(groups: Group[]): { i: number; j: number; sim: number } | n
  * sherpa threshold holds: the usable band is narrow and moved 11 points of DER
  * between onnxruntime builds.  So sherpa runs below that band and clusters are
  * merged here on voice similarity, where 0.60--0.70 gave the same result on
- * all three AMI meetings, from WAV and from Opus chunks alike.
+ * three AMI meetings, from WAV and from Opus chunks alike.
  *
  * Returns a map from raw cluster to final speaker index, biggest speaker first.
  */
