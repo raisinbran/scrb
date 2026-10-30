@@ -75,6 +75,21 @@ export function generateSegment(options: SegmentOptions): TranscriptSegment {
   };
 }
 
+/** Sets every word's state, leaving a few words corrected so all three styles can be seen. */
+export function withWordStates(
+  segments: TranscriptSegment[],
+  state: WordState,
+): TranscriptSegment[] {
+  return segments.map((segment, index) => ({
+    ...segment,
+    words: segment.words.map((word, wordIndex) =>
+      index % 7 === 3 && wordIndex === 2
+        ? { ...word, state: 'corrected', correctionId: `correction-${index}` }
+        : { ...word, state },
+    ),
+  }));
+}
+
 /** Builds a finished transcript of at least `targetWords` words. */
 export function generateTranscript(meetingId: MeetingId, targetWords: number, seed: number) {
   const prng = createPrng(seed);

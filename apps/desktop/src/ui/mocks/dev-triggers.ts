@@ -1,3 +1,4 @@
+import type { RecordingWarningKind } from '@scrb/contracts';
 import type { MockBackend } from './mock-backend.ts';
 
 export interface DevTrigger {
@@ -7,7 +8,7 @@ export interface DevTrigger {
   run(backend: MockBackend): void;
 }
 
-function warn(backend: MockBackend, kind: 'micSilent' | 'lowDisk', message: string): void {
+function warn(backend: MockBackend, kind: RecordingWarningKind, message: string): void {
   backend.emit('recordingHealth', {
     level: 'warning',
     warnings: [{ kind, message, atMs: 0 }],
@@ -25,6 +26,18 @@ export const DEV_TRIGGERS: DevTrigger[] = [
   },
   { id: 'stop', group: 'Live', label: 'Stop meeting', run: (b) => void b.call('stopRecording') },
   {
+    id: 'start-8-hours',
+    group: 'Live',
+    label: 'Start 8-hour live meeting',
+    run: (b) => b.startLongLiveMeeting(),
+  },
+  {
+    id: 'start-denied',
+    group: 'Live',
+    label: 'Next start is denied',
+    run: (b) => b.arm('startDenied'),
+  },
+  {
     id: 'lagging',
     group: 'Live',
     label: 'Transcription lagging',
@@ -37,6 +50,18 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.emit('transcriptionLag', { status: 'failed', lagMs: 0 }),
   },
   {
+    id: 'transcription-restarting',
+    group: 'Live',
+    label: 'Transcription restarting',
+    run: (b) => b.emit('transcriptionLag', { status: 'restarting', lagMs: 0 }),
+  },
+  {
+    id: 'transcription-ok',
+    group: 'Live',
+    label: 'Transcription back to normal',
+    run: (b) => b.emit('transcriptionLag', { status: 'ok', lagMs: 1200 }),
+  },
+  {
     id: 'mic-silent',
     group: 'Live',
     label: 'Mic silent',
@@ -47,6 +72,65 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     group: 'Live',
     label: 'Low disk',
     run: (b) => warn(b, 'lowDisk', 'Less than 1 GB of disk space left.'),
+  },
+  {
+    id: 'permission-lost',
+    group: 'Live',
+    label: 'Permission lost',
+    run: (b) => warn(b, 'permissionLost', 'Microphone permission was turned off.'),
+  },
+  {
+    id: 'audio-missing',
+    group: 'Live',
+    label: 'Audio missing',
+    run: (b) => warn(b, 'audioMissing', 'No meeting audio for the last 2 minutes.'),
+  },
+  {
+    id: 'bluetooth-mic',
+    group: 'Live',
+    label: 'Bluetooth hands-free mic',
+    run: (b) =>
+      warn(b, 'bluetoothHandsFreeMic', 'This Bluetooth mic is in low-quality hands-free mode.'),
+  },
+  {
+    id: 'recording-failed',
+    group: 'Live',
+    label: 'Recording failed',
+    run: (b) =>
+      b.emit('recordingHealth', {
+        level: 'failed',
+        warnings: [{ kind: 'lowDisk', message: 'The disk is full. Recording stopped.', atMs: 0 }],
+        diskFreeBytes: 0,
+      }),
+  },
+  {
+    id: 'health-ok',
+    group: 'Live',
+    label: 'Clear recording warnings',
+    run: (b) =>
+      b.emit('recordingHealth', { level: 'ok', warnings: [], diskFreeBytes: 180_000_000_000 }),
+  },
+  {
+    id: 'mic-removed',
+    group: 'Live',
+    label: 'Selected mic removed',
+    run: (b) =>
+      b.emit('deviceChanged', {
+        kind: 'removed',
+        device: {
+          id: 'mic-usb',
+          name: 'USB Conference Headset',
+          isSystemDefault: false,
+          transport: 'usb',
+        },
+        fallbackDevice: {
+          id: 'mic-builtin',
+          name: 'Built-in Microphone',
+          isSystemDefault: true,
+          transport: 'builtIn',
+        },
+        suggestSwitch: false,
+      }),
   },
   {
     id: 'device-changed',
@@ -83,6 +167,36 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.arm('importFails'),
   },
   {
+    id: 'import-unsupported',
+    group: 'Recordings',
+    label: 'Next import is an unsupported file',
+    run: (b) => b.arm('importUnsupported'),
+  },
+  {
+    id: 'import-disk-full',
+    group: 'Recordings',
+    label: 'Next import runs out of disk',
+    run: (b) => b.arm('importDiskFull'),
+  },
+  {
+    id: 'picker-cancelled',
+    group: 'Recordings',
+    label: 'Next file picker is cancelled',
+    run: (b) => b.arm('pickerCancelled'),
+  },
+  {
+    id: 'finish-final-pass',
+    group: 'Recordings',
+    label: 'Finish final pass',
+    run: (b) => b.finishFinalPass(),
+  },
+  {
+    id: 'delete-slow',
+    group: 'Recordings',
+    label: 'Next delete is slow',
+    run: (b) => b.arm('deleteSlow'),
+  },
+  {
     id: 'delete-fails',
     group: 'Recordings',
     label: 'Next delete leaves files behind',
@@ -101,6 +215,12 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.arm('summaryFails'),
   },
   {
+    id: 'summary-stalls',
+    group: 'Summary',
+    label: 'Next summary stays generating',
+    run: (b) => b.arm('summaryStalls'),
+  },
+  {
     id: 'summary-outdated',
     group: 'Summary',
     label: 'Mark summary outdated',
@@ -117,6 +237,30 @@ export const DEV_TRIGGERS: DevTrigger[] = [
         profileId: 'profile-2',
         profileName: 'Tomas Lindgren',
       }),
+  },
+  {
+    id: 'empty-profiles',
+    group: 'Speakers',
+    label: 'No voice profiles',
+    run: (b) => b.setProfiles([]),
+  },
+  {
+    id: 'profile-delete-fails',
+    group: 'Speakers',
+    label: 'Next profile delete fails',
+    run: (b) => b.arm('profileDeleteFails'),
+  },
+  {
+    id: 'empty-vocabulary',
+    group: 'Vocabulary',
+    label: 'No terms',
+    run: (b) => b.setTerms([]),
+  },
+  {
+    id: 'location-unset',
+    group: 'Setup',
+    label: 'Clear location (then reload)',
+    run: (b) => void b.call('updateSettings', { location: { country: null, usState: null } }),
   },
   {
     id: 'models-missing',
