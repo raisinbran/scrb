@@ -2,10 +2,14 @@
 # DualCapture: same tone target and output mute, driving scrb-capture instead.
 # -Script holds "<seconds>=<json command>" entries, sent at that time after start.
 # A command of "kill" force-kills the helper; "killtone" ends the target app.
+# -Actions holds "<seconds>=<what the owner does>", shown in a countdown window.
+# With -Actions the run waits -LeadSeconds so the owner can read the first step.
 param(
     [Parameter(Mandatory)][string]$Case,
     [int]$Seconds = 60,
     [string[]]$Script = @(),
+    [string[]]$Actions = @(),
+    [int]$LeadSeconds = 20,
     [string]$HelperArgs = '--test-hooks',
     [string]$Mic = 'default',
     [switch]$WholeComputer
@@ -24,6 +28,18 @@ $tonePlayer = Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe'
 
 $tone = Start-Process $tonePlayer -ArgumentList 880, ($Seconds + 60), 1 -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 2
+if ($Actions.Count) {
+    # Encoded so quotes in an action survive the command line.
+    $startAt = (Get-Date).AddSeconds($LeadSeconds + 1)
+    $call = "& '$PSScriptRoot\countdown.ps1' -Case '$Case' -StartAt ([datetime]'$($startAt.ToString('o'))') -Seconds $Seconds -Actions @($(($Actions | ForEach-Object { "'" + ($_ -replace "'", "''") + "'" }) -join ','))"
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($call))
+    # CreateNoWindow, not -WindowStyle Hidden, which also hides the form.
+    $cd = [System.Diagnostics.ProcessStartInfo]::new('powershell.exe', "-NoProfile -Sta -EncodedCommand $encoded")
+    $cd.UseShellExecute = $false
+    $cd.CreateNoWindow = $true
+    [void][System.Diagnostics.Process]::Start($cd)
+    while ((Get-Date) -lt $startAt.AddSeconds(-1)) { Start-Sleep -Milliseconds 100 }
+}
 $events = Join-Path $out 'events.jsonl'
 $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe')
 $psi.Arguments = "/c `"`"$bin\scrb-capture.exe`" $HelperArgs > `"$events`" 2> `"$out\stderr.txt`"`""
