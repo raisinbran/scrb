@@ -77,6 +77,21 @@ void TestRolloverAndGaps() {
     CHECK(r.sink.written == 720 * 480);
 }
 
+void TestHandsFreeJitter() {
+    puts("Hands-free stamp jitter does not split; a larger jump does");
+    Rig r("microphone");
+    r.pipe.OnStreamOpened({"id", "name", "bluetooth-handsfree"}, "device");
+    for (int i = 0; i < 50; ++i) {
+        r.stamp += i % 2 ? -6 * kNsPerMs : 6 * kNsPerMs;
+        r.Feed(1);
+    }
+    r.stamp += 30 * kNsPerMs;
+    r.Feed(10);
+    r.pipe.Stop();
+    CHECK(r.discontinuities == 1);
+    CHECK(r.sink.closed.size() == 2);
+}
+
 void TestStandbyLoss() {
     puts("T3 loopback time loss with clean stamps is re-anchored");
     Rig r("meeting", true);
@@ -200,6 +215,7 @@ void TestRealStandbyLog(const char* path) {
 
 int main(int argc, char** argv) {
     TestRolloverAndGaps();
+    TestHandsFreeJitter();
     TestStandbyLoss();
     TestWake();
     TestDrainBurst();

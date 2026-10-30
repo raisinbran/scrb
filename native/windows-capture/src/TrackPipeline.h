@@ -15,6 +15,7 @@ struct PipelineConfig {
     bool arrivalCheck = false;  // D2: only loopback stamps can hide lost time (F3)
     int64_t chunkTargetFrames = 5 * kRate;
     int64_t gapToleranceNs = 2 * kNsPerMs;         // D1
+    int64_t handsFreeGapToleranceNs = 20 * kNsPerMs;
     int64_t stallNs = 500 * kNsPerMs;              // D3
     int64_t divergenceNs = 50 * kNsPerMs;          // D2
     int64_t divergenceConfirmNs = 250 * kNsPerMs;  // D2: must outlast a stall's drain burst
@@ -58,6 +59,7 @@ private:
     void TrackZeros(const Packet& p, int64_t offsetFrames);
     void FinishZeroRun();
     void ReportWriteError();
+    int64_t GapToleranceNs() const;
     bool CheckDivergence(const Packet& p);
     void CheckRate(const Packet& p, int64_t stamp);
     void ResetStreamState();

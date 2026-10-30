@@ -99,6 +99,11 @@ bool TrackPipeline::CheckDivergence(const Packet& p) {
     return true;
 }
 
+// Bluetooth hands-free stamps jitter by up to 16 ms with no audio lost.
+int64_t TrackPipeline::GapToleranceNs() const {
+    return device_.transport == "bluetooth-handsfree" ? cfg_.handsFreeGapToleranceNs : cfg_.gapToleranceNs;
+}
+
 // D5: conversion to 48 kHz hides device rate changes unless the stamps show them.
 void TrackPipeline::CheckRate(const Packet& p, int64_t stamp) {
     if (!chunkOpen_) return;
@@ -143,7 +148,7 @@ void TrackPipeline::OnPacket(const Packet& p) {
         if (stalled) lastStallArrivalNs_ = p.arrivalNs;
         // A jump inside the burst that drains a stall belongs to that stall.
         bool afterStall = lastStallArrivalNs_ && p.arrivalNs - lastStallArrivalNs_ < kNsPerSec;
-        bool stampJump = std::llabs(delta) > cfg_.gapToleranceNs;
+        bool stampJump = std::llabs(delta) > GapToleranceNs();
         if (stampJump || p.flagDiscontinuity) {
             reason = stalled ? "stall" : "discontinuity";
             cause = stalled || afterStall ? "stall" : "unknown";
@@ -258,11 +263,11 @@ void TrackPipeline::OpenChunk(int64_t startNs, int64_t rawStamp, int64_t arrival
     }
     if (endKnown_) {
         int64_t gap = startNs - lastEndNs_;
-        if (gap > cfg_.gapToleranceNs) {
+        if (gap > GapToleranceNs()) {
             chunk_.missingBeforeMs = NsToMs(gap);
             chunk_.missingCause = pendingCause_.empty() ? "unknown" : pendingCause_;
             stats_.missingMs += static_cast<uint64_t>(chunk_.missingBeforeMs);
-        } else if (gap < -cfg_.gapToleranceNs) {
+        } else if (gap < -GapToleranceNs()) {
             chunk_.overlapMs = NsToMs(-gap);
         }
     }

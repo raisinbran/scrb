@@ -190,12 +190,17 @@ std::string ListMicsJson() {
         SUCCEEDED(enumerator->EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE, &all))) {
         all->GetCount(&count);
     }
+    std::wstring console, comms;
+    ResolveId(eCapture, eConsole, &console);
+    ResolveId(eCapture, eCommunications, &comms);
     for (UINT i = 0; i < count; ++i) {
         ComPtr<IMMDevice> d;
         if (FAILED(all->Item(i, &d))) continue;
         DeviceInfo info = DescribeDevice(d.Get());
         if (out.size() > 1) out += ",";
-        out += JsonObject().Str("id", info.id).Str("name", info.name).Str("transport", info.transport).Done();
+        out += JsonObject().Str("id", info.id).Str("name", info.name).Str("transport", info.transport)
+                   .Bool("defaultConsole", info.id == Narrow(console))
+                   .Bool("defaultCommunications", info.id == Narrow(comms)).Done();
     }
     return out + "]";
 }
