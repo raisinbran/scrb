@@ -119,8 +119,7 @@ export function LiveAlerts(props: LiveAlertsProps) {
       )}
       {active && lag?.status === 'failed' && (
         <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription stopped.</strong> Your recording is still running and is not
-          affected.
+          <strong>Live transcription stopped.</strong> Your recording is not affected.
         </div>
       )}
       {device && <DeviceNotice {...props} device={device} />}

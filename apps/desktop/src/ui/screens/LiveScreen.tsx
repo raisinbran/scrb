@@ -143,7 +143,7 @@ export function LiveScreen() {
             onSelect={selectSources}
           />
         )}
-        <LevelMeters active={active} />
+        <LevelMeters active={status === 'recording'} />
       </div>
       <div className={styles.indicators}>
         <HealthIndicator health={health} active={active} />

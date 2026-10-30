@@ -174,7 +174,7 @@ describe('LiveScreen', () => {
       await trigger('transcription-failed');
       expect(screen.getByTestId('recording-health').textContent).toBe('Recording: healthy');
       expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: stopped');
-      expect(screen.getByRole('alert').textContent).toContain('still running');
+      expect(screen.getByRole('alert').textContent).toContain('not affected');
     });
 
     it('shows how far behind transcription is', async () => {
