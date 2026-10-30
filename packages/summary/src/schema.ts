@@ -64,15 +64,33 @@ export const EXTRACTION_SCHEMA = {
   required: ["gist", "action_items", "decisions", "impacts", "open_questions"],
 };
 
+/**
+ * The coverage pass has no "unresolved" or "proposed" to reach for, and a short
+ * list: with both it copied whole stretches of transcript, marked unresolved.
+ */
+const COVERAGE_MAX_LIST = 6;
+
 export const ACTIONS_ONLY_SCHEMA = {
   type: "object",
-  properties: { action_items: list(action) },
+  properties: {
+    action_items: {
+      type: "array",
+      items: { ...action, properties: { ...action.properties, status: { enum: ["agreed"] } } },
+      maxItems: COVERAGE_MAX_LIST,
+    },
+  },
   required: ["action_items"],
 };
 
 export const DECISIONS_ONLY_SCHEMA = {
   type: "object",
-  properties: { decisions: list(decision) },
+  properties: {
+    decisions: {
+      type: "array",
+      items: { ...decision, properties: { ...decision.properties, status: { enum: ["decided", "tentatively agreed"] } } },
+      maxItems: COVERAGE_MAX_LIST,
+    },
+  },
   required: ["decisions"],
 };
 

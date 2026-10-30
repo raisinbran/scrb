@@ -130,6 +130,15 @@ describe("dedupe", () => {
     expect(dedupe([decision("The remote will have large buttons."), decision("The remote will have a charging station.")])).toHaveLength(2);
   });
 
+  it("does not merge items close in time that share only a word or two", () => {
+    const kept = dedupe([action("Complete a questionnaire and a summary", "Everyone", 100), action("Note any frustrations in the summary", "Everyone", 110)]);
+    expect(kept).toHaveLength(2);
+  });
+
+  it("merges looser wording when two items are close in time", () => {
+    expect(dedupe([decision("The remote has a rounded shape that fits the hand", 100), decision("A rounded remote shape, easy to hold", 120)])).toHaveLength(1);
+  });
+
   it("does not merge a decision with its opposite, and flags both", () => {
     const items = dedupe([decision("The remote will include an LCD screen."), decision("The remote will not include an LCD screen.")]);
     expect(items).toHaveLength(2);

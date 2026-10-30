@@ -25,7 +25,7 @@ import type {
   SummaryItem,
   Transcript,
 } from "./types.js";
-import { NOT_SPECIFIED, UNCONFIRMED } from "./types.js";
+import { EVERYONE, NOT_SPECIFIED, UNCONFIRMED } from "./types.js";
 
 export interface ExtractOptions {
   /** Section size for the first pass; about 6k tokens, well inside the context. */
@@ -38,7 +38,7 @@ export interface ExtractOptions {
   onProgress?: (done: number, total: number) => void;
 }
 
-const DEFAULTS = { sectionChars: 16000, overlapChars: 600, coverageChars: 6000, maxTokens: 4096 };
+const DEFAULTS = { sectionChars: 16000, overlapChars: 600, coverageChars: 8000, maxTokens: 4096 };
 /** A section that keeps failing is halved this many times before it is reported lost. */
 const MAX_SPLIT_DEPTH = 2;
 
@@ -81,7 +81,7 @@ function checkOwner(owner: string | undefined, speakers: Set<string>, sectionWor
   const value = owner?.trim() ?? "";
   if (UNKNOWN.test(value)) return { owner: NOT_SPECIFIED };
   if (speakers.has(value.toLowerCase())) return { owner: value };
-  if (COLLECTIVE.test(value)) return { owner: "Everyone" };
+  if (COLLECTIVE.test(value)) return { owner: EVERYONE };
   // A name or role the model read must be in the section; otherwise it was invented.
   const parts = words(value);
   if (parts.length > 0 && parts.every((part) => sectionWords.has(part))) return { owner: value };
@@ -175,7 +175,9 @@ class Extractor {
       const status = capitalised<ActionStatus>(entry.status, ["Agreed", "Proposed", "Unconfirmed"], "Unconfirmed");
       this.items.push({ ...base, kind, owner: owner.owner, deadline: deadline.deadline, status });
     } else if (kind === "decision") {
-      const status = capitalised<DecisionStatus>(entry.status, ["Decided", "Proposed", "Tentatively agreed", "Unresolved"], "Unresolved");
+      const read = capitalised<DecisionStatus>(entry.status, ["Decided", "Proposed", "Tentatively agreed", "Unresolved"], "Unresolved");
+      // The narrow prompt over-calls "decided", so only the first pass may say so.
+      const status = pass !== "primary" && read === "Decided" ? "Tentatively agreed" : read;
       this.items.push({ ...base, kind, status, impactArea });
     } else if (kind === "impact") {
       // Anything not plainly marked as stated counts as inferred.

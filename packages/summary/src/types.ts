@@ -51,6 +51,7 @@ export type ImpactBasis = "Stated" | "Inferred";
 
 export const NOT_SPECIFIED = "Not specified";
 export const UNCONFIRMED = "Unconfirmed";
+export const EVERYONE = "Everyone";
 
 export interface ActionItem extends BaseItem {
   kind: "action";

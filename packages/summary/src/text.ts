@@ -6,7 +6,7 @@ const STOPWORDS = new Set(
     "group each all any make made").split(" "),
 );
 
-export const NEGATIONS = new Set(["not", "no", "never", "without", "exclude", "excluded", "remove", "removed", "drop", "dropped", "neither"]);
+export const NEGATIONS = new Set(["not", "no", "never", "without", "exclude", "excluded", "remove", "removed", "drop", "dropped", "neither", "ruled", "rule", "excluding", "removing"]);
 
 function stem(word: string): string {
   if (word.length > 5 && word.endsWith("ing")) return word.slice(0, -3);

@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     const extractStart = Date.now();
     const extraction = await extractItems(transcript, llm, {
       sectionChars: arg(rest, "--section-chars", 16000),
-      coverageChars: rest.includes("--no-coverage") ? 0 : arg(rest, "--coverage-chars", 6000),
+      coverageChars: rest.includes("--no-coverage") ? 0 : arg(rest, "--coverage-chars", 8000),
       onProgress: (done, total) => console.error(`${meeting}: ${done}/${total}`),
     });
     const extractSeconds = (Date.now() - extractStart) / 1000;
