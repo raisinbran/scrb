@@ -18,7 +18,7 @@ Read `evidence/gate-0.md` first; it holds every measurement.  In short:
 | Gate 0 item | Windows | macOS |
 | --- | --- | --- |
 | Per-app capture isolation | Pass (Codex) | Pass (135 dB rejection) |
-| Synced dual-track capture | 60 min and 8 h pass with per-chunk timestamps; mic loses audio during heavy-load stalls (see evidence) | 60 min: sync within 0.03 ms; 2--5 stalls/hour on both tracks (up to ~0.4 s), with or without heavy load; 8 h not run |
+| Synced dual-track capture | 60 min and 8 h pass with per-chunk timestamps; mic loses audio during heavy-load stalls (see evidence) | Sync within 0.03 ms over 2 h 09 m; 3--7 stalls/hour on both tracks (up to ~0.4 s); 8 h run ended early when `coreaudiod` restarted (accepted) |
 | Survives crashed AI worker | Pass (120 whisper runs, 16 killed, 0 app-track gaps) | Survives all kills (363 runs, 36 killed); load stalls are separate |
 | Models fit 6 GB recording budget | Pass on measured parts (see evidence) | Pass (~1.1--1.5 GiB) |
 | Live diarization usable | Usable (~25--29% DER, incremental mode) | Same (~26--32% DER) |
@@ -52,8 +52,7 @@ See `MANIFEST.md` for exact versions and hashes.
    Claude Code's Bash tool, and on 2026-10-29 also Terminal.app, got a
    silent app track (see the permission finding in `evidence/gate-0.md`).
    Wrap runs in `scripts/run-muted.sh` so the speakers stay silent.
-   - 8 h drift run: started 2026-10-29 19:32 (`scripts/run-macos-drift.sh`);
-     record the result, which also gives the idle-machine stall rate.
+   - 8 h drift run: ended at 2 h 09 m, recorded in `evidence/gate-0.md`.
    - Device cases: done 2026-10-29 (`evidence/gate-0.md`).
    - Metal-worker stress reruns: done (stalls not caused by the worker).
 2. **Windows device cases**: done (`HANDOFF-WINDOWS.md`, merged into

@@ -192,9 +192,9 @@ These are the release thresholds. Phase 0 may loosen a target only if a measurem
 | Final-pass time | No longer than the meeting itself, on a GPU-capable machine |
 | Corrections preserved | 100% |
 | Vocabulary false replacements | Under 1 per hour of audio |
-| Speaker diarization (final) | Diarization error rate 20% or less on AMI test meetings |
+| Speaker diarization (final) | Diarization error rate about 25% or less on AMI test meetings; 20% is a stretch goal (changed at Gate 0: best measured 21–28%, mainly missed overlapped speech) |
 | Wrong automatic voice-name match | Under 2%; below the confidence line, suggest instead |
-| Action-item and decision recall | 90% or more on the evaluation set |
+| Action-item and decision recall | About 80% or more on the evaluation set; 90% is a stretch goal (changed at Gate 0: best measured 76–84%) |
 | Invented action items or decisions | Under 5% of items; none accepted at release review |
 | Evidence links | 100% of summary items link to valid source text |
 | UI responsiveness | Record, pause and stop respond within 200 ms under full AI load |
@@ -242,11 +242,11 @@ Live multi-speaker diarization and per-app capture are the two risks most likely
 
 No decisions remain for you before Phase 0. These items are settled by measurement and recorded at Gate 0.
 
-- [ ] Desktop shell: Tauri (Meetily fork) or Electron.
-- [ ] Exact live and final whisper.cpp model sizes.
-- [ ] Live diarization method, or whether the fallback is needed.
-- [ ] Summary model choice among the benchmarked 7–9B models.
-- [ ] Audio chunk length and Opus bitrate.
-- [ ] Voice-match confidence line that meets the under-2% wrong-match target.
-- [ ] DOCX library, which follows from the shell choice.
-- [ ] Any quality target that measurement shows must change, with the reason.
+- [x] Desktop shell: Electron.
+- [x] Whisper models: GPU, large-v3-turbo-q5_0 live and final, per VAD segment; CPU-only, small.en-q5_1 live, turbo final.
+- [x] Live diarization: incremental clustering with the "Speaker ?" rule; no fallback needed.
+- [x] Summary model: Qwen3.5-9B Q4_K_M.
+- [x] Audio: 5 s Opus chunks, mono 32 kbps per track.
+- [x] Voice-match confidence line: 0.55–0.60 cosine.
+- [x] DOCX library: `docx`.
+- [x] Quality targets changed: final DER and summary recall (see Quality targets); RAM guidance 16 GB minimum, 32 GB recommended.
