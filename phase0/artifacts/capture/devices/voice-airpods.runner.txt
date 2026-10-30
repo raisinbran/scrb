@@ -1,0 +1,25 @@
+case=voice-airpods start=17:58:01 actionAt=17:59:01 tonePid=59380
+17:58:01 output: Headphones (No Air 3) muted=1 volume=10% | comms mic: Headset (No Air 3)
+17:58:03 output: Headphones (No Air 3) muted=1 volume=33% | comms mic: Headset (No Air 3)
+exited=True exit=0 end=18:00:03 elapsed=122s
+--- stderr
+--- stdout (tail)
+Capturing 120 seconds.
+60 s app_frames=2944800 mic_frames=2881345
+120 s app_frames=5826240 mic_frames=5762785
+Finished. drift(sample-count)=5.979 ms
+--- summary
+{
+  "requested_seconds": 120,
+  "wall_seconds": 121.432,
+  "start_offset_ms": 1315.747,
+  "sample_count_drift_ms": 5.979,
+  "arrival_drift_ms": 5.379,
+  "cpu_seconds": 1.469,
+  "avg_cpu_percent_of_machine": 0.1008,
+  "peak_working_set_mib": 13.0,
+  "app": {"hresult": "0x00000000", "packets": 12140, "frames": 5827200, "seconds_by_frames": 121.400000, "effective_rate_hz": 48000.0000, "frame_vs_clock_error_ms": -0.000, "discontinuities": 0, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 0.000, "arrival_error_ms": -0.559, "max_inter_arrival_ms": 38.583},
+  "mic": {"hresult": "0x00000000", "packets": 12007, "frames": 5763265, "seconds_by_frames": 120.068021, "effective_rate_hz": 47997.6098, "frame_vs_clock_error_ms": -5.979, "discontinuities": 126, "gap_fill_frames": 0, "silent_flag_packets": 0, "null_qpc_packets": 0, "max_position_jitter_ms": 14.291, "arrival_error_ms": -5.939, "max_inter_arrival_ms": 93.115}
+}
+
+[exited with code 0]
