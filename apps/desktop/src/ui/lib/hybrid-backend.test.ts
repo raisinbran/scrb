@@ -33,6 +33,22 @@ describe('createHybridBackend', () => {
     expect(real.call).not.toHaveBeenCalledWith('listTerms', undefined);
   });
 
+  it('sends the source pickers to the real backend without copying them to the mock', async () => {
+    const devices = [{ id: 'uid', name: 'Mic', isSystemDefault: true, transport: 'usb' }];
+    const real = {
+      call: vi.fn(async (name: string) => (name === 'listInputDevices' ? devices : undefined)),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const backend = createHybridBackend(real, mock);
+    expect(await backend.call('listInputDevices')).toEqual(devices);
+    await backend.call('listMeetingApps');
+    const selection = { micDeviceId: 'uid', meetingAppId: 'com.example.app' };
+    await backend.call('selectSources', selection);
+    expect(real.call).toHaveBeenCalledWith('listMeetingApps', undefined);
+    expect(real.call).toHaveBeenCalledWith('selectSources', selection);
+    expect((await mock.call('getSettings')).audio.meetingAppId).toBe('app-teams');
+  });
+
   it('brings the mock up to date before any other call', async () => {
     const real = await realReturning();
     const status = await createHybridBackend(real, mock).call('getSetupStatus');
