@@ -80,7 +80,8 @@ describe("extractItems", () => {
     ]);
     const result = await extractItems(transcript, llm, { coverageChars: 100000 });
     expect(llm.requests).toHaveLength(3);
-    expect(result.decisions.map((item) => item.pass).sort()).toEqual(["coverage-settled", "primary"]);
+    expect(result.decisions).toHaveLength(2);
+    expect(result.decisions.flatMap((item) => item.alsoAt)).toHaveLength(1);
   });
 
   it("filters procedure before it reaches the tables", async () => {
