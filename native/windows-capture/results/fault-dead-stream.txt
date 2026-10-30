@@ -1,0 +1,8 @@
+case=fault-dead-stream helperExit=0
+microphone: chunks=7 audio=28.7 s missing=11969.0 ms bad=0 tmp=0 files=7 toneChunks=2 zeroChunks=0 peak=-36.7 dB
+  close reasons: device=1 rollover=5 stop=1
+    missing 11969.0 ms before 22.031 s, cause device
+meeting: chunks=9 audio=40.8 s missing=0.0 ms bad=0 tmp=0 files=9 toneChunks=9 zeroChunks=0 peak=-13.7 dB
+  close reasons: rollover=8 stop=1
+VERIFY OK
+events: streamDead=2 streamReopened=2 streamStalled=3

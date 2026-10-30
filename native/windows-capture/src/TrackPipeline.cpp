@@ -140,10 +140,13 @@ void TrackPipeline::OnPacket(const Packet& p) {
         int64_t delta = stamp - (prevStampNs_ + FramesToNs(prevFrames_));
         int64_t arrivalGap = p.arrivalNs - prevArrivalNs_;
         bool stalled = arrivalGap > cfg_.stallNs;
+        if (stalled) lastStallArrivalNs_ = p.arrivalNs;
+        // A jump inside the burst that drains a stall belongs to that stall.
+        bool afterStall = lastStallArrivalNs_ && p.arrivalNs - lastStallArrivalNs_ < kNsPerSec;
         bool stampJump = std::llabs(delta) > cfg_.gapToleranceNs;
         if (stampJump || p.flagDiscontinuity) {
             reason = stalled ? "stall" : "discontinuity";
-            cause = stalled ? "stall" : "unknown";
+            cause = stalled || afterStall ? "stall" : "unknown";
             emit_("discontinuity", JsonObject().Str("track", cfg_.track)
                       .Str("kind", stampJump ? "stamp" : "flag")
                       .Num("missingMs", NsToMs(std::max<int64_t>(delta, 0)))

@@ -1,0 +1,9 @@
+case=baseline-pause helperExit=0
+microphone: chunks=7 audio=26.6 s missing=5049.9 ms bad=0 tmp=0 files=7 toneChunks=1 zeroChunks=0 peak=-35.7 dB
+  close reasons: pause=1 rollover=5 stop=1
+    missing 5049.9 ms before 15.069 s, cause pause
+meeting: chunks=7 audio=26.6 s missing=5040.0 ms bad=0 tmp=0 files=7 toneChunks=7 zeroChunks=0 peak=-13.9 dB
+  close reasons: pause=1 rollover=5 stop=1
+    missing 5040.0 ms before 15.071 s, cause pause
+VERIFY OK
+events: 

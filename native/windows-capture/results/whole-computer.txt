@@ -1,0 +1,7 @@
+case=whole-computer helperExit=0
+microphone: chunks=5 audio=20.7 s missing=0.0 ms bad=0 tmp=0 files=5 toneChunks=0 zeroChunks=0 peak=-29.0 dB
+  close reasons: rollover=4 stop=1
+meeting: chunks=5 audio=20.7 s missing=0.0 ms bad=0 tmp=0 files=5 toneChunks=5 zeroChunks=0 peak=-14.9 dB
+  close reasons: rollover=4 stop=1
+VERIFY OK
+events: 

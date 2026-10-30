@@ -91,6 +91,7 @@ private:
     int64_t prevStampNs_ = 0;  // corrected, timeline ns
     uint32_t prevFrames_ = 0;
     int64_t prevArrivalNs_ = 0;
+    int64_t lastStallArrivalNs_ = 0;
 
     int baselineCount_ = 0;
     int64_t baselineNs_ = 0;

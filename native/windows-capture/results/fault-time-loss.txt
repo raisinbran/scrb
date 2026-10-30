@@ -1,0 +1,8 @@
+case=fault-time-loss helperExit=0
+microphone: chunks=6 audio=27.0 s missing=0.0 ms bad=0 tmp=0 files=6 toneChunks=1 zeroChunks=0 peak=-36.7 dB
+  close reasons: rollover=5 stop=1
+meeting: chunks=7 audio=27.0 s missing=1700.2 ms bad=0 tmp=0 files=7 toneChunks=7 zeroChunks=0 peak=-14.4 dB
+  close reasons: discontinuity=1 rollover=5 stop=1
+    missing 1700.2 ms before 10.062 s, cause unknown
+VERIFY OK
+events: discontinuity=2

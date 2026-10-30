@@ -52,7 +52,6 @@ foreach ($s in $steps) {
     "$((Get-Date).ToString('HH:mm:ss')) +$($s.At)s $($s.Cmd)"
     if ($s.Cmd -eq 'kill') { Stop-Process -Name scrb-capture -Force; $killed = $true; break }
     elseif ($s.Cmd -eq 'killtone') { $tone.Kill() }
-    elseif ($s.Cmd -eq 'restartaudio') { Restart-Service Audiosrv -Force }
     else { Send $s.Cmd }
 }
 while (-not $killed -and ((Get-Date) - $start).TotalSeconds -lt $Seconds) { & $mute on | Out-Null; Start-Sleep 2 }

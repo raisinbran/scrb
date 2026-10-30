@@ -1,0 +1,7 @@
+case=fault-kill helperExit=-1
+microphone: chunks=2 audio=10.0 s missing=0.0 ms bad=0 tmp=1 files=2 toneChunks=0 zeroChunks=0 peak=-36.8 dB
+  close reasons: rollover=2
+meeting: chunks=2 audio=10.0 s missing=0.0 ms bad=0 tmp=1 files=2 toneChunks=2 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=2
+VERIFY OK
+events: 

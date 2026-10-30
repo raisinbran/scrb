@@ -1,0 +1,9 @@
+case=switch-source-mic helperExit=0
+microphone: chunks=5 audio=21.9 s missing=430.1 ms bad=0 tmp=0 files=5 toneChunks=2 zeroChunks=0 peak=-35.0 dB
+  close reasons: device=1 rollover=3 stop=1
+    missing 430.1 ms before 14.439 s, cause device
+meeting: chunks=5 audio=22.4 s missing=28.0 ms bad=0 tmp=0 files=5 toneChunks=5 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=3 source=1 stop=1
+    missing 28.0 ms before 8.141 s, cause source
+VERIFY OK
+events: streamReopened=1
