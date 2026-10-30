@@ -7,8 +7,8 @@ const SAME_CONTAINMENT = 0.8;
 const CONFLICT_JACCARD = 0.5;
 /** Two items raised this close together need less likeness to be the same point. */
 const NEARBY_SECONDS = 60;
-const NEARBY_JACCARD = 0.4;
-const NEARBY_CONTAINMENT = 0.6;
+const NEARBY_JACCARD = 0.5;
+const NEARBY_CONTAINMENT = 0.7;
 /** Likeness means little when it rests on one or two words. */
 const MIN_SHARED = 3;
 const TOPIC_SHARE = 0.15;

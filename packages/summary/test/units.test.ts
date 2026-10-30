@@ -135,8 +135,16 @@ describe("dedupe", () => {
     expect(kept).toHaveLength(2);
   });
 
+  it("keeps two tasks apart when one only shares its setting with the other", () => {
+    const kept = dedupe([
+      action("All participants are to complete a questionnaire and a summary of their individual work", "Everyone", 100),
+      action("All participants must note any frustrations encountered during their individual work in their summary", "Everyone", 150),
+    ]);
+    expect(kept).toHaveLength(2);
+  });
+
   it("merges looser wording when two items are close in time", () => {
-    expect(dedupe([decision("The remote has a rounded shape that fits the hand", 100), decision("A rounded remote shape, easy to hold", 120)])).toHaveLength(1);
+    expect(dedupe([decision("The remote has a rounded shape that fits the hand", 100), decision("A rounded remote shape that fits", 120)])).toHaveLength(1);
   });
 
   it("does not merge a decision with its opposite, and flags both", () => {
