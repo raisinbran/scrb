@@ -94,8 +94,8 @@ For each case, record in the table below:
    | mic-unplug | — | — | — | — | Not run: no USB mic available. |
 
    All runs: output muted (the probe still captures at full level; verified with a
-   15 s muted test), mic content is room ambient only.  Voice checks for the
-   Realtek array and the No Air 3 hands-free mic are still to do.  Device and
+   15 s muted test), mic content is room ambient only (voice checks are
+   in the second table below).  Device and
    comms-mic changes are logged every 2 s in `<case>.runner.txt` by
    `scripts/run-windows-device-case.ps1` (helper: `probes/windows-mute/Mute.cpp`).
 
