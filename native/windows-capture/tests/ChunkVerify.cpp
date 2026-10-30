@@ -154,7 +154,8 @@ int main(int argc, char** argv) {
                          Field(line, "missingCause").c_str());
                 gaps.push_back(g);
             }
-            if (chunks > 1 && std::abs(start - nextStart) > 2000000 && miss == 0) {
+            int64_t overlap = int64_t(atof(Field(line, "overlapMs").c_str()) * 1000000);
+            if (chunks > 1 && std::abs(start + overlap - nextStart) > 2000000 && miss == 0) {
                 ++bad;
                 printf("  unexplained gap at seq %d\n", seq);
             }

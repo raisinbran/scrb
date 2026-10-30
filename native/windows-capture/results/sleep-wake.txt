@@ -1,0 +1,12 @@
+case=sleep-wake helperExit=0
+microphone: chunks=31 audio=109.1 s missing=71403.9 ms bad=0 tmp=0 files=31 toneChunks=3 zeroChunks=4 peak=-14.0 dB
+  close reasons: discontinuity=9 rollover=20 sleep=1 stop=1
+    missing 71383.7 ms before 104.741 s, cause sleep
+    missing 12.4 ms before 124.684 s, cause unknown
+    missing 7.7 ms before 124.908 s, cause unknown
+meeting: chunks=24 audio=109.4 s missing=71140.0 ms bad=0 tmp=0 files=24 toneChunks=21 zeroChunks=0 peak=-14.4 dB
+  close reasons: rollover=21 sleep=2 stop=1
+    missing 71120.0 ms before 104.490 s, cause sleep
+    missing 20.0 ms before 104.560 s, cause sleep
+VERIFY OK
+events: discontinuity=9 sleeping=2 woke=2

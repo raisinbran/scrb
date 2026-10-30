@@ -1,7 +1,8 @@
 # Derived from phase0/scripts/run-windows-device-case.ps1, which hardcodes
 # DualCapture: same tone target and output mute, driving scrb-capture instead.
 # -Script holds "<seconds>=<json command>" entries, sent at that time after start.
-# A command of "kill" force-kills the helper; "killtone" ends the target app.
+# A command of "kill" force-kills the helper; "killtone" ends the target app;
+# "restartaudio" restarts Windows Audio through an elevation prompt.
 # -Actions holds "<seconds>=<what the owner does>", shown in a countdown window.
 # With -Actions the run waits -LeadSeconds so the owner can read the first step.
 param(
@@ -68,6 +69,7 @@ foreach ($s in $steps) {
     "$((Get-Date).ToString('HH:mm:ss')) +$($s.At)s $($s.Cmd)"
     if ($s.Cmd -eq 'kill') { Stop-Process -Name scrb-capture -Force; $killed = $true; break }
     elseif ($s.Cmd -eq 'killtone') { $tone.Kill() }
+    elseif ($s.Cmd -eq 'restartaudio') { Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', 'Restart-Service Audiosrv -Force' }
     else { Send $s.Cmd }
 }
 while (-not $killed -and ((Get-Date) - $start).TotalSeconds -lt $Seconds) { & $mute on | Out-Null; Start-Sleep 2 }

@@ -1,0 +1,8 @@
+case=mic-privacy-off helperExit=0
+microphone: chunks=16 audio=73.9 s missing=45690.1 ms bad=0 tmp=0 files=16 toneChunks=0 zeroChunks=0 peak=-28.3 dB
+  close reasons: device=1 rollover=14 stop=1
+    missing 45690.1 ms before 76.336 s, cause permission
+meeting: chunks=24 audio=119.7 s missing=0.0 ms bad=0 tmp=0 files=24 toneChunks=24 zeroChunks=0 peak=-14.3 dB
+  close reasons: rollover=23 stop=1
+VERIFY OK
+events: permissionLost=2 permissionRestored=1 streamDead=1 streamReopened=1
