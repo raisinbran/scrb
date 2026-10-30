@@ -9,6 +9,13 @@ import IOKit.pwr_mgt
 setlinebuf(stdout)
 rt_init()
 
+// `check-lock <path>` tells recovery whether a worker still holds that lock. The OS drops the lock
+// the moment a worker dies, however it dies.
+if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "check-lock" {
+    let fd = Darwin.open(CommandLine.arguments[2], O_RDONLY)
+    exit(fd >= 0 && flock(fd, LOCK_EX | LOCK_NB) != 0 ? 3 : 0)
+}
+
 let stallLimitSeconds = 5.0
 let chunkSeconds = 5.0
 
