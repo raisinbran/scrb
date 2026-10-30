@@ -232,7 +232,8 @@ and notes: `HANDOFF-WINDOWS.md`; outputs `artifacts/capture/devices/`.
 | Bluetooth disconnect | ran to end | silent from the disconnect (the tone player's own stream died) | **stopped at 72.9 s: no packets, no error, no padding** |
 | AirPods enter hands-free | ran to end | **1.4 s of digital silence, no discontinuity flagged** | Realtek mic live; 1 discontinuity at the profile switch |
 | Sleep/wake (Modern Standby, 44 s) | ran to end (343 s wall for 300 s) | 42 s silent frames, 0 discontinuities, **ends 1.69 s short of the clock** | gap-filled 42 s, stays aligned (-7 ms) |
-| USB mic unplug, mic privacy off | not run | | |
+| Mic privacy off (either switch), back on after ~16 s | ran to end | tone continuous | **stopped at the toggle: no packets, no error, no padding; did not resume** when access returned |
+| USB mic unplug | not run (no USB mic) | | |
 
 Voice checks (no device change): Realtek mic voice about 20 dB over room
 noise; AirPods hands-free mic gates noise by about 50 dB and shows frequent
@@ -245,8 +246,9 @@ discontinuities (HFP jitter) with no lost frames in that run.
 
 1. Listen for default-device changes (`IMMNotificationClient`) and reopen
    the mic stream on the new default, debounced (the default can flap).
-2. Detect a dead stream with a packet-arrival watchdog: a removed device
-   stops delivering with no error.
+2. Detect a dead stream with a packet-arrival watchdog: a removed device or
+   revoked mic permission stops delivering with no error.  Warn the user,
+   and reopen the stream when access returns; it does not recover itself.
 3. Re-anchor every track to QPC after resume and after any arrival gap:
    after Modern Standby the app track was 1.7 s off with no discontinuity
    flag, so flags alone cannot find gaps.  Per-chunk timestamps (already
@@ -776,8 +778,8 @@ padded) for 55 s of sleep.  Both tracks stayed aligned with each other
   0.56% to load stalls, app track lost nothing).  Device cases ran: the
   probe never crashed, and the failures (mic does not follow device
   changes, silent stream death, 1.7 s offset after standby) are handled by
-  the adapter rules above, not blockers.  USB unplug and mic-privacy cases
-  not run.
+  the adapter rules above, not blockers.  The mic-privacy case ran too;
+  USB unplug not run (no USB mic).
 - [ ] Synced dual-track capture works on Apple Silicon macOS.  Isolation
   passes; 60 min keeps per-chunk sync within 0.03 ms, but CPU-saturating
   load causes 2 audio-engine stalls per hour on both tracks (100--200 ms);
