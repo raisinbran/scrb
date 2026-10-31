@@ -6,6 +6,7 @@ import { ProcessAdapter, type Track } from '@scrb/capture';
 import {
   ContractError,
   type BackendEvents,
+  type ConfirmedPauseSpan,
   type EventName,
   type RecordingHealth,
   type RecordingSnapshot,
@@ -63,6 +64,8 @@ export interface SourceStore {
 /** Runs real recordings for the UI. One recording at a time. */
 export class RecordingController {
   private state: RecordingState = IDLE;
+  private pauseSpans: ConfirmedPauseSpan[] = [];
+  private startedAtWallMs = 0;
   private health: RecordingHealth | null = null;
   private session: RecordingSession | null = null;
   private starting = false;
@@ -89,7 +92,24 @@ export class RecordingController {
   }
 
   private update(patch: Partial<RecordingState>): void {
+    const previous = this.state;
     this.state = { ...this.state, ...patch };
+    const meetingId = previous.meetingId ?? this.state.meetingId;
+    if (meetingId && this.startedAtWallMs > 0) {
+      const atMs = Math.max(0, Date.now() - this.startedAtWallMs);
+      if (previous.status !== 'paused' && this.state.status === 'paused') {
+        this.pauseSpans.push({
+          startMs: atMs, endMs: null, reason: this.state.pauseReason ?? 'user',
+        });
+        this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+      } else if (previous.status === 'paused' && this.state.status !== 'paused') {
+        const last = this.pauseSpans.at(-1);
+        if (last?.endMs === null) {
+          this.pauseSpans[this.pauseSpans.length - 1] = { ...last, endMs: atMs };
+          this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+        }
+      }
+    }
     this.emit('recordingStateChanged', this.state);
   }
 
@@ -176,6 +196,8 @@ export class RecordingController {
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
     this.writeErrors.clear();
+    this.pauseSpans = [];
+    this.startedAtWallMs = Date.now();
     this.state = {
       ...IDLE,
       meetingId: meeting.id,
@@ -271,6 +293,7 @@ export class RecordingController {
 
   private snapshot = async (): Promise<RecordingSnapshot> => ({
     state: this.state,
+    pauseSpans: [...this.pauseSpans],
     health: this.health,
     transcription: null,
   });

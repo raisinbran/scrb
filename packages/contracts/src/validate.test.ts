@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CALL_NAMES, MAX_TRANSCRIPT_PAGE, isValidRequest } from './index.ts';
+import { CALL_NAMES, EVENT_NAMES, MAX_TRANSCRIPT_PAGE, isValidRequest } from './index.ts';
 
 const page = (offset: unknown, limit: unknown) => ({ meetingId: 'm-1', offset, limit });
 
 describe('isValidRequest', () => {
+  it('exports the confirmed pause event on the shared allowlist', () => {
+    expect(EVENT_NAMES).toContain('pauseSpansChanged');
+  });
+
   it('has a check for every call', () => {
     for (const name of CALL_NAMES) expect(() => isValidRequest(name, {})).not.toThrow();
   });

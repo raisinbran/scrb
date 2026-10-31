@@ -10,6 +10,7 @@
 import type {
   ActiveImport,
   AppInfo,
+  PauseSpansChanged,
   AppSettings,
   AudioCheckStatus,
   DeleteResult,
@@ -211,6 +212,7 @@ export interface BackendCalls {
 export interface BackendEvents {
   // Session
   recordingStateChanged: RecordingState;
+  pauseSpansChanged: PauseSpansChanged;
   recordingHealth: RecordingHealth;
 
   // Import
@@ -366,6 +368,7 @@ const CALL_TABLE: Record<CallName, true> = {
 
 const EVENT_TABLE: Record<EventName, true> = {
   recordingStateChanged: true,
+  pauseSpansChanged: true,
   recordingHealth: true,
   importProgress: true,
   importFinished: true,

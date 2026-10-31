@@ -67,6 +67,23 @@ describe('MockBackend', () => {
     expect(appended).toBe(65);
   });
 
+  it('replays confirmed pause spans in events and snapshots', async () => {
+    const seen: number[] = [];
+    backend.on('pauseSpansChanged', ({ spans }) => seen.push(spans.length));
+    await backend.call('startRecording', {});
+    vi.advanceTimersByTime(1_000);
+    await backend.call('pauseRecording');
+    expect((await backend.call('getRecordingSnapshot')).pauseSpans).toMatchObject([
+      { startMs: 1_000, endMs: null, reason: 'user' },
+    ]);
+    vi.advanceTimersByTime(2_000);
+    await backend.call('resumeRecording');
+    expect((await backend.call('getRecordingSnapshot')).pauseSpans).toMatchObject([
+      { startMs: 1_000, endMs: 3_000, reason: 'user' },
+    ]);
+    expect(seen).toEqual([1, 1]);
+  });
+
   it('keeps elapsed time still while paused', async () => {
     await backend.call('startRecording', {});
     vi.advanceTimersByTime(18_000);

@@ -26,6 +26,17 @@ export type RecordingStatus = 'idle' | 'starting' | 'recording' | 'paused' | 'st
 
 export type PauseReason = 'user' | 'meetingAppExited';
 
+export interface ConfirmedPauseSpan {
+  startMs: number;
+  endMs: number | null;
+  reason: PauseReason;
+}
+
+export interface PauseSpansChanged {
+  meetingId: MeetingId;
+  spans: ConfirmedPauseSpan[];
+}
+
 export interface RecordingState {
   status: RecordingStatus;
   /** Null only while `status` is `idle`. */
@@ -75,6 +86,7 @@ export interface TranscriptionLag {
 /** Everything a reloaded UI needs to catch up, so a degraded recording never looks healthy. */
 export interface RecordingSnapshot {
   state: RecordingState;
+  pauseSpans: ConfirmedPauseSpan[];
   /** Null when nothing has been reported yet, such as while idle. */
   health: RecordingHealth | null;
   transcription: TranscriptionLag | null;

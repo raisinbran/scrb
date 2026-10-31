@@ -12,6 +12,7 @@ import {
   type ActiveImport,
   type ImportFailureReason,
   type ImportStage,
+  type ConfirmedPauseSpan,
   type MeetingDetail,
   type MeetingFilter,
   type MeetingListItem,
@@ -283,6 +284,8 @@ export class MockBackend implements Backend {
   private meterTicker: ReturnType<typeof setInterval> | undefined;
   private readonly meterPrng = createPrng(20261031);
   private second = 0;
+  private pauseSpans: ConfirmedPauseSpan[] = [];
+  private recordingStartedAt = 0;
   private readonly revisions = new Map<string, number>();
   private readonly activeImports = new Map<string, ActiveImport & { timer: Timer }>();
   private readonly pickedFiles = new Map<string, PickedAudioFile>();
@@ -656,7 +659,24 @@ export class MockBackend implements Backend {
   }
 
   private setRecording(patch: Partial<RecordingState>): void {
+    const previous = this.recording;
     this.recording = { ...this.recording, ...patch };
+    const meetingId = previous.meetingId ?? this.recording.meetingId;
+    if (meetingId && this.recordingStartedAt > 0) {
+      const atMs = Math.max(0, Date.now() - this.recordingStartedAt);
+      if (previous.status !== 'paused' && this.recording.status === 'paused') {
+        this.pauseSpans.push({
+          startMs: atMs, endMs: null, reason: this.recording.pauseReason ?? 'user',
+        });
+        this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+      } else if (previous.status === 'paused' && this.recording.status !== 'paused') {
+        const last = this.pauseSpans.at(-1);
+        if (last?.endMs === null) {
+          this.pauseSpans[this.pauseSpans.length - 1] = { ...last, endMs: atMs };
+          this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+        }
+      }
+    }
     this.emit('recordingStateChanged', this.recording);
   }
 
@@ -823,6 +843,8 @@ export class MockBackend implements Backend {
       this.transcripts.set(meetingId, []);
       this.second = 0;
       this.liveStartMs = 0;
+      this.recordingStartedAt = Date.now();
+      this.pauseSpans = [];
       this.setRecording({
         status: 'recording',
         meetingId,
@@ -864,6 +886,7 @@ export class MockBackend implements Backend {
     },
     getRecordingSnapshot: () => ({
       state: this.recording,
+      pauseSpans: [...this.pauseSpans],
       health: this.health,
       transcription: this.lag,
     }),
