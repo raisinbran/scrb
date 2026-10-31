@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import { readdir, rename, rm, stat, statfs, unlink } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { lstat, open, readFile, readdir, rename, rm, stat, statfs, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { StorageError, UnsupportedVersionError } from '../errors.ts';
@@ -69,8 +70,78 @@ function verifyPreserved(db: DatabaseSync, before: ReturnType<typeof currentTabl
 
 export interface OpenedIndex {
   db: DatabaseSync;
+  retainedSnapshot: boolean;
   /** Kept for existing callers; corrupt indexes are no longer replaced. */
   replacedCorruptIndex: string | null;
+}
+
+type UpgradePhase = 'copying' | 'snapshotVerified' | 'migrationVerified';
+interface UpgradeJournal {
+  attemptId: string;
+  oldVersion: number;
+  targetVersion: number;
+  phase: UpgradePhase;
+  snapshotHash: string | null;
+}
+
+async function sha256(file: string): Promise<string> {
+  const digest = createHash('sha256');
+  for await (const part of createReadStream(file)) digest.update(part);
+  return digest.digest('hex');
+}
+
+function journalPath(file: string): string {
+  return `${file}.upgrade-state.json`;
+}
+
+async function saveJournal(file: string, state: UpgradeJournal): Promise<void> {
+  const target = journalPath(file);
+  const temporary = `${target}.tmp`;
+  const handle = await open(temporary, 'w');
+  try {
+    await handle.writeFile(JSON.stringify(state));
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await rename(temporary, target);
+}
+
+async function loadJournal(file: string): Promise<UpgradeJournal | null> {
+  let source: string;
+  try {
+    source = await readFile(journalPath(file), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+  const value = JSON.parse(source) as Partial<UpgradeJournal>;
+  if (!/^[0-9a-f-]{36}$/.test(value.attemptId ?? '') ||
+      !Number.isInteger(value.oldVersion) ||
+      !Number.isInteger(value.targetVersion) ||
+      !['copying', 'snapshotVerified', 'migrationVerified'].includes(value.phase ?? '') ||
+      (value.snapshotHash !== null && !/^[0-9a-f]{64}$/.test(value.snapshotHash ?? ''))) {
+    throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The index recovery record is invalid.');
+  }
+  return value as UpgradeJournal;
+}
+
+async function ordinaryFile(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function verifyReadOnly(file: string): number {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    verify(db);
+    return readIndexVersion(db);
+  } finally {
+    db.close();
+  }
 }
 
 interface IndexUpgradeChecks {
