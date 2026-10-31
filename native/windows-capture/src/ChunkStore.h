@@ -49,7 +49,7 @@ private:
 
 class ChunkStore : public ChunkSink {
 public:
-    explicit ChunkStore(const std::wstring& dir);  // dir must exist
+    explicit ChunkStore(const std::wstring& dir, bool continuing = false);  // dir must exist
     ~ChunkStore() override;
     bool Begin(const ChunkMeta& meta) override;
     bool Write(const int16_t* pcm, uint32_t frames) override;
@@ -70,7 +70,7 @@ private:
 // can never delay a command.
 class SessionLog {
 public:
-    SessionLog(const std::wstring& path, EventFn emit);
+    SessionLog(const std::wstring& path, EventFn emit, bool continuing = false);
     ~SessionLog();  // writes whatever is queued first
     void Record(const std::string& jsonObject);  // gains its seq here
 
