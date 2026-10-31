@@ -40,27 +40,31 @@ Tasks 14 to 36, covering the rest of V1, are in `2026-10-31-chatgpt-remaining-wo
 
 ## What ChatGPT must follow
 
-- Work from `main` of the public repo `raisinbran/scrb`. Read `CLAUDE.md` first, then the source documents it lists.
+- Work in the public repo `raisinbran/scrb`, on your existing branch, or a new one if that fits better. Never push to `main`. Read `CLAUDE.md` first, then the source documents it lists.
+- A task assigned to you is approved: do not stop to wait for approval.
+- Do not settle an outstanding decision or conflict yourself. Document it with your recommendation and leave it open for Claude Code.
 - Never ask for or accept recordings, transcripts, names from real meetings, passwords or tokens. Test data is AMI fixtures or invented data.
 - Do not change `packages/contracts/` without the owner's approval. UI code stays in `apps/desktop/src/ui/`, backend code stays outside it.
 - Keep plans lean. Comments state a needed fact the code does not.
-- One task at a time. Return a plan file, or a unified diff against a named `main` commit.
+- One task at a time. Commit and push it to your branch, and name the branch and commit.
 - Say what was not run. If `npm run check` was not run, say so; never report a test result that did not happen.
 
 ## How work comes back
 
-Paste the result to Claude Code with the task number. Claude Code applies it on a branch, runs `npm run check`, reads the diff, and either merges it or lists exact fixes to paste back. Plans go to the owner for approval first.
+Give Claude Code the task number, branch and commit. Claude Code runs `npm run check`, reads the diff, and either merges it or lists exact fixes. Claude Code makes the final decision on each open decision or conflict, with the owner if necessary.
 
 ## Prompt to start a ChatGPT task
 
 ```text
 You are working on Meeting Scribe, a local desktop meeting recorder, in the public GitHub repo
-raisinbran/scrb, branch main. Read CLAUDE.md and docs/handoffs/2026-10-30-chatgpt-split.md, and
-follow the rules under "What ChatGPT must follow".
+raisinbran/scrb. Continue on your existing branch, or make a new one if that fits better. Read
+CLAUDE.md and docs/handoffs/2026-10-30-chatgpt-split.md, and follow the rules under "What ChatGPT
+must follow".
 
 Your task is number <N> in that file's "Goes to ChatGPT" table.
 
-First tell me whether you can read the repo. If you cannot, stop and ask me to paste the files you
-need. Do not guess at code you have not read. Name the main commit you worked from, and list
+This task is approved, so do not stop for approval. Document each outstanding decision or conflict
+with your recommendation and leave it open for Claude Code to settle. Do not guess at code you have
+not read. Commit and push to your branch, never to main. Name the branch and commit, and list
 anything you did not run or check.
 ```

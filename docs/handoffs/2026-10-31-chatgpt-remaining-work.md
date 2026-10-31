@@ -2,13 +2,15 @@
 
 Every remaining V1 task that needs no owner computer, from the state of `main` on 2026-10-31. Rules and return path are in `2026-10-30-chatgpt-split.md`; they all apply here. Tasks 9 to 13 in that file come first, then these, one at a time.
 
-**Gates:** the owner made a one-time exception so this list could be written ahead of the gates. It does not start any phase. A task runs only when the owner names its number. A diff for a phase whose earlier gate has not passed stays on its own branch and does not reach `main` until that gate is approved.
+**Status:** a first pass of tasks 9 to 36 is on `rosmont/meeting-scribe-remaining-20261031`, with QA fixes on `qa/chatgpt-tasks-09-36`. Start from `docs/handoffs/2026-10-31-tasks-09-36-qa.md` on that QA branch: it lists open bugs and what is still partial. Merge the QA branch and `main` into your branch before continuing.
+
+**Gates:** the owner made a one-time exception so this list could be written ahead of the gates. It does not start any phase. A task runs only when the owner assigns its number, and an assigned task is approved. Work for a phase whose earlier gate has not passed stays on its branch and does not reach `main` until that gate is approved.
 
 **Checked before writing:** of the 51 calls in `CALL_TABLE`, 16 reach real handlers in `apps/desktop/src/main/` or the settings handlers. `getSummary` returns an empty summary and `deleteMeeting` returns `notImplemented`. The rest fall back to `notImplemented`. Packages for live and final transcription, import, speakers, summary and export exist, but only the final pass reaches the app. Check this against the code before relying on it.
 
 ## Tasks
 
-**Type:** Plan = a file in `docs/plans/`, for owner approval, before any code. Diff = a unified diff with tests. Contract = needs the owner's approval of the exact TypeScript first. Native = patch that cannot be built in the cloud, kept on its own branch.
+**Type:** Plan = a file in `docs/plans/`, committed before any code. Diff = commits with tests. Contract = exact TypeScript as a proposal, left open with a recommendation. Native = code that cannot be built in the cloud, kept on its own branch.
 
 ### Phase 2, Gate 2
 
@@ -71,18 +73,20 @@ These need a real machine or the owner, so they are not above: every hands-on ca
 
 ```text
 You are working on Meeting Scribe, a local desktop meeting recorder, in the public GitHub repo
-raisinbran/scrb, branch main. Read CLAUDE.md, docs/handoffs/2026-10-30-chatgpt-split.md and
+raisinbran/scrb. Continue on your existing branch, or make a new one if that fits better. Read
+CLAUDE.md, docs/handoffs/2026-10-30-chatgpt-split.md and
 docs/handoffs/2026-10-31-chatgpt-remaining-work.md, and follow the rules under "What ChatGPT must
 follow".
 
-Your task is number <N> in the remaining-work file, or in the split file for 9 to 13. Respect its
-Type: return a plan before code where it says Plan, and propose exact TypeScript without changing
-packages/contracts/ where it says Contract.
+Your task is number <N> in the remaining-work file, or in the split file for 9 to 13. It is
+approved, so do not stop for approval. Respect its Type: commit a plan before code where it says
+Plan, and propose exact TypeScript without changing packages/contracts/ where it says Contract.
+Document each outstanding decision or conflict with your recommendation and leave it open for
+Claude Code to settle.
 
 The goal of plans and QA is to find and fix true bugs and flaws without bloating code or plans or
 inflating scope. Judge findings by real risk and prefer the smallest fix.
 
-First tell me whether you can read the repo. If you cannot, stop and ask me to paste the files you
-need. Do not guess at code you have not read. Name the main commit you worked from, and list
-anything you did not run or check.
+Do not guess at code you have not read. Commit and push to your branch, never to main. Name the
+branch and commit, and list anything you did not run or check.
 ```
