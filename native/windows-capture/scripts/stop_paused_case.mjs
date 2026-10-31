@@ -21,6 +21,9 @@ const rounds = Number(process.argv[3]);
 rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+// One packet. The cutoff is accurate to a packet (docs/plans/pause-resume.md): a packet read just
+// before Pause can be stamped past it, and a mic chunk's end drifts slightly from its stamps.
+const PACKET_TOLERANCE_NS = 10e6;
 
 async function round(n, player) {
   const worker = spawn(helper, [], { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -54,7 +57,7 @@ async function round(n, player) {
       .split('\n')
       .map((line) => JSON.parse(line));
     const past = chunks
-      .filter((chunk) => chunk.endNs > cutoff)
+      .filter((chunk) => chunk.endNs > cutoff + PACKET_TOLERANCE_NS)
       .map((chunk) => `${chunk.file} +${((chunk.endNs - cutoff) / 1e6).toFixed(3)} ms`);
     console.log(n, track, 'chunks', chunks.length, 'past cutoff', JSON.stringify(past));
     leaks += past.length + Math.abs(chunks.length - 1);

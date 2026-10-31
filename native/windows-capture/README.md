@@ -105,17 +105,20 @@ needs tone on the meeting track, one chunk per track and Stop's own time.
 | Run | Result |
 | --- | --- |
 | Before the fix, 8 rounds | Fail as it should: paused mic audio reached a new chunk in all 8, about 1 s past the cutoff |
-| After the fix, 40 rounds (`results/stop-paused-case.txt`) | **Fail, 1 leak:** round 39's mic chunk ended 0.028 ms past the cutoff.  The other 79 track checks were clean |
-| Diagnostic copy after the fix, 40 rounds | **Fail, 1 leak:** round 8's meeting chunk ended 0.031 ms past the cutoff, by its packet stamp as well |
-| `pause_case.mjs` after the fix | Pass: pause ack 0.5 ms, marker 9.5 against 4492, -17.9 dB at the stream while paused |
+| After the fix, no tolerance, 2 runs of 40 rounds | Fail, 1 late chunk each: 0.028 ms and 0.031 ms past the cutoff |
+| Instrumented scratch build, 120 rounds, 35,718 packets | 7 late chunks of 240 track checks, at most 0.587 ms.  No packet ending past the cutoff passed a closed gate |
+| After the fix, 10 ms tolerance, 40 rounds (`results/stop-paused-case.txt`) | Pass: all 80 track checks clean |
+| `pause_case.mjs` after the fix | Pass: pause ack 0.5 ms, marker 3.6 against 4483, -17.9 dB at the stream while paused |
 | PipelineTests after the fix | Pass, 0 failures |
 
-The roughly 1 s leak is gone.  **The case still fails its rule that no chunk ends
-after the cutoff.**  The likely cause, not proven, is a packet that passed the
-open gate just before Pause closed it, with a stamped end microseconds later.  That
-would be audio captured before the pause, which `docs/plans/pause-resume.md` keeps,
-and that plan puts the cutoff's accuracy at about a packet.  The script has no
-tolerance, and adding one is the owner's decision.
+The case allows one packet, 10 ms, by owner decision: the plan puts the cutoff's
+accuracy at about a packet.  The 120 rounds showed two causes, both harmless.  In 6
+late chunks a packet saw the gate still open and had left Windows 0.12 to 0.35 ms
+before the cutoff, with a stamped end just past it.  In 1 no packet went past the
+cutoff, and the end calculated from the frame count ran 0.038 ms late.  That run
+also had 54 packets read after the gate closed, each stamped as ending by the
+cutoff; how late they arrived was not recorded.  The old bug, about 1 s, still
+fails this case by far.
 
 ## Results on this PC
 
