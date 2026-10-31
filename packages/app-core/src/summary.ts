@@ -221,6 +221,7 @@ export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate)
         case 'openQuestions':
           return { ...file, openQuestions: [...file.openQuestions, { ...update.item, id: randomUUID(), ...evidence }] };
       }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     }
     case 'remove':
       switch (update.collection) {
@@ -231,6 +232,7 @@ export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate)
         case 'openQuestions':
           return { ...file, openQuestions: removed(file.openQuestions, update.itemId) };
       }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     case 'narrative': {
       const item = { ...update.item, edited: true };
       const brief = replacedInBody(file.brief, item);
