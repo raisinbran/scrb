@@ -256,6 +256,35 @@ export class Library {
     return run;
   }
 
+  private readonly activeExports = new Set<string>();
+
+  /** Snapshot the three files under one meeting lock and refuse deletion until export finishes. */
+  beginExport(meetingId: string): Promise<{
+    meeting: MeetingMeta;
+    transcript: TranscriptFile;
+    summary: SummaryFile | null;
+    release(): void;
+  }> {
+    return this.withLock(meetingId, async () => {
+      this.requireRow(meetingId);
+      if (this.activeExports.has(meetingId)) {
+        throw new StorageError('ACTIVE_MEETING', 'An export is already in progress.');
+      }
+      const meeting = await this.getMeeting(meetingId);
+      if (meeting.status === 'recording' || meeting.status === 'importing' || meeting.status === 'finalPassRunning') {
+        throw new StorageError('ACTIVE_MEETING', 'Finish the meeting operation before exporting.');
+      }
+      const [transcript, summary] = await Promise.all([
+        this.readTranscript(meetingId), this.readSummary(meetingId),
+      ]);
+      this.activeExports.add(meetingId);
+      return {
+        meeting, transcript, summary,
+        release: () => { this.activeExports.delete(meetingId); },
+      };
+    });
+  }
+
   private requireRow(meetingId: string): MeetingRow {
     const row = getMeetingRow(this.db, meetingId);
     if (row === null) throw new MeetingNotFoundError(meetingId);
@@ -783,6 +812,9 @@ export class Library {
   deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
+      if (this.activeExports.has(meetingId)) {
+        throw new StorageError('ACTIVE_MEETING', 'Wait for the export to finish.');
+      }
       await this.assertDeletionIdle(row, importCleanup);
       const remaining = await this.removeMeeting(meetingId, row.folder);
       const ok = remaining.length === 0;

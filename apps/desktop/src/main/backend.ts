@@ -17,6 +17,7 @@ import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { ImportCoordinator } from './imports.ts';
 import { SummaryCoordinator, createConfiguredSummaryRunner } from './summaries.ts';
+import { ExportCoordinator, printPdf } from './exports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -100,6 +101,7 @@ export async function openBackend(
     const summaries = summaryConfig
       ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit)
       : null;
+    const exports = new ExportCoordinator(library, emit, printPdf);
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
@@ -121,6 +123,7 @@ export async function openBackend(
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
         ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses, summaries),
         ...summaries?.handlers,
+        ...exports.handlers,
         ...recording?.handlers,
       },
       warning: library.retainedIndexSnapshot
@@ -132,6 +135,7 @@ export async function openBackend(
         stopRetention();
         await imports?.shutdown();
         await summaries?.shutdown();
+        await exports.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();
