@@ -257,7 +257,14 @@ export async function openIndex(
         if (version !== journal.oldVersion && version !== journal.targetVersion) {
           throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index version is unexpected.');
         }
-        verifyPreserved(live, originalRows);
+        try {
+          verifyPreserved(live, originalRows);
+        } catch {
+          throw new StorageError(
+            'INDEX_RECOVERY_REQUIRED',
+            'The live index differs from its verified snapshot.',
+          );
+        }
       } finally {
         live.close();
       }
