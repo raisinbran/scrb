@@ -87,6 +87,7 @@ const either =
     a(value) || b(value);
 
 const meeting = shape({ meetingId: id });
+const meetingFilter = shape({}, { origin: oneOf('recorded', 'imported'), from: date, to: date });
 const wordRange = shape({ firstWordId: id, lastWordId: id });
 const modelRole = oneOf('liveSpeech', 'finalSpeech', 'speaker', 'summary');
 
@@ -303,16 +304,11 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   generateSummary: shape({ meetingId: id, length: oneOf('brief', 'full') }),
   updateSummaryItem: shape({ meetingId: id, update: summaryUpdate }),
 
-  listMeetings: shape(
-    {},
-    {
-      filter: shape({}, { origin: oneOf('recorded', 'imported'), from: date, to: date }),
-    },
-  ),
+  listMeetings: shape({}, { filter: meetingFilter }),
   getMeeting: meeting,
   retryFinalPass: meeting,
   updateMeeting: shape({ meetingId: id }, { title: filled(MAX_NAME), startedAt: date }),
-  searchMeetings: shape({ query: text(MAX_NAME) }),
+  searchMeetings: shape({ query: text(MAX_NAME) }, { filter: meetingFilter }),
   deleteMeeting: meeting,
   openMeetingFolder: shape({ meetingId: id, folder: oneOf('meeting', 'audio', 'exports') }),
   exportMeeting: exportRequest,

@@ -175,7 +175,7 @@ export interface BackendCalls {
     request: { meetingId: MeetingId; title?: string; startedAt?: string };
     response: MeetingDetail;
   };
-  searchMeetings: { request: { query: string }; response: SearchResult[] };
+  searchMeetings: { request: { query: string; filter?: MeetingFilter }; response: SearchResult[] };
   deleteMeeting: { request: { meetingId: MeetingId }; response: DeleteResult };
   openMeetingFolder: { request: { meetingId: MeetingId; folder: MeetingFolder }; response: void };
   exportMeeting: { request: ExportRequest; response: { exportId: ExportId } };

@@ -82,6 +82,20 @@ describe('isValidRequest', () => {
     }
   });
 
+  it('shares the exact meeting-filter check between list and search', () => {
+    for (const filter of [
+      { origin: 'recorded', from: '2026-10-01', to: '2026-11-01' },
+      { origin: 'imported' },
+    ]) {
+      expect(isValidRequest('listMeetings', { filter })).toBe(true);
+      expect(isValidRequest('searchMeetings', { query: 'invented', filter })).toBe(true);
+    }
+    const invalid = { origin: 'other', from: 'yesterday' };
+    expect(isValidRequest('listMeetings', { filter: invalid })).toBe(false);
+    expect(isValidRequest('searchMeetings', { query: 'invented', filter: invalid })).toBe(false);
+    expect(isValidRequest('searchMeetings', { query: 'invented', filter: { path: '/secret' } })).toBe(false);
+  });
+
   it('checks date formats', () => {
     const ok = { filter: { from: '2026-10-01', to: '2026-10-30T12:00:00Z' } };
     expect(isValidRequest('listMeetings', ok)).toBe(true);
