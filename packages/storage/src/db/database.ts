@@ -148,7 +148,7 @@ function verifyReadOnly(file: string): number {
 
 function verifyLive(file: string): number {
   // Opening normally lets SQLite roll back any hot journal after an interrupted write.
-  const db = new DatabaseSync(file);
+  const db = new DatabaseSync(file, { readOnly: true });
   try {
     verify(db);
     return readIndexVersion(db);
