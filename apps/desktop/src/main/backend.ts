@@ -55,7 +55,7 @@ export async function openBackend(
       handlers: {
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library),
+        ...createMeetingHandlers(library, emit),
         ...recording?.handlers,
       },
       warning:

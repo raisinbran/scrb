@@ -1,6 +1,9 @@
 import { readSealedGaps, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
 import {
   ContractError,
+  type BackendEvents,
+  type EventName,
+  type WordRange,
   type MeetingDetail,
   type MeetingFilter,
   type MeetingListItem,
@@ -13,6 +16,7 @@ import {
 } from '@scrb/contracts';
 import {
   activeSpeakers,
+  CorrectionConflictError,
   errorFields,
   MeetingNotFoundError,
   resolveDisplay,
@@ -26,6 +30,58 @@ import {
 import type { CallHandlers } from './dispatch.ts';
 
 const NS_PER_MS = 1e6;
+type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
+
+/** Resolve inclusive visible endpoints back to the original words, never a guessed time range. */
+function selectedWordIds(t: TranscriptFile, range: WordRange): string[] {
+  const displayed = resolveDisplay(t).flatMap((segment) =>
+    segment.tokens.map((token) => ({ track: segment.track, token })),
+  );
+  const start = displayed.findIndex((entry) => entry.token.wordIds[0] === range.firstWordId);
+  const end = displayed.findIndex((entry) => entry.token.wordIds[0] === range.lastWordId);
+  if (start < 0 || end < start) {
+    throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+  }
+  const chosen = displayed.slice(start, end + 1);
+  const track = chosen[0]?.track;
+  if (!track || chosen.some((entry) => entry.track !== track)) {
+    throw new ContractError({ code: 'conflict', message: 'Select words on one track.' });
+  }
+  const ids = chosen.flatMap((entry) => entry.token.wordIds);
+  const original = t.segments.filter((segment) => segment.track === track)
+    .flatMap((segment) => segment.words.map((word) => word.id));
+  const offset = original.indexOf(ids[0] ?? '');
+  if (offset < 0 || original.slice(offset, offset + ids.length).some((id, i) => id !== ids[i])) {
+    throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+  }
+  return ids;
+}
+
+function editState(t: TranscriptFile): { canUndo: boolean; canRedo: boolean } {
+  return { canUndo: t.undoStack.length > 0, canRedo: t.redoStack.length > 0 };
+}
+
+/** Only persisted changes are broadcast; the UI uses the revision to notice missing events. */
+function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit): void {
+  if (!emit || before.revision === after.revision) return;
+  const oldSegments = toTranscriptPage(before, 0, Number.MAX_SAFE_INTEGER).segments;
+  const fresh = toTranscriptPage(after, 0, Number.MAX_SAFE_INTEGER);
+  const oldById = new Map(oldSegments.map((segment) => [segment.id, segment]));
+  const newIds = new Set(fresh.segments.map((segment) => segment.id));
+  emit('transcriptChanged', {
+    meetingId: after.meetingId,
+    revision: after.revision,
+    change: {
+      kind: 'replace',
+      removedSegmentIds: oldSegments.filter((segment) => !newIds.has(segment.id))
+        .map((segment) => segment.id),
+      segments: fresh.segments.filter((segment) =>
+        JSON.stringify(oldById.get(segment.id)) !== JSON.stringify(segment)),
+    },
+    speakers: fresh.speakers,
+  });
+}
+
 
 type MeetingFacts = MeetingRow | MeetingMeta;
 
@@ -156,7 +212,7 @@ function emptySummary(meetingId: string): MeetingSummaryDoc {
 }
 
 /** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
-export function createMeetingHandlers(library: Library): CallHandlers {
+export function createMeetingHandlers(library: Library, emit?: Emit): CallHandlers {
   return {
     listMeetings: async (request) => {
       const { filter = {} } = request as { filter?: MeetingFilter };
@@ -183,6 +239,44 @@ export function createMeetingHandlers(library: Library): CallHandlers {
         });
       }
       return toTranscriptPage(await library.readTranscript(meetingId), offset, limit);
+    },
+    applyCorrection: async (request) => {
+      const { meetingId, range, text, remember } = request as {
+        meetingId: string; range: WordRange; text: string; remember: boolean;
+      };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      try {
+        const after = await library.applyCorrection(meetingId, {
+          wordIds: selectedWordIds(before, range), replacement: text, remember,
+        });
+        publishEdit(before, after, emit);
+        if (before.revision !== after.revision && (await library.readSummary(meetingId))) {
+          emit?.('summaryOutdated', { meetingId });
+        }
+        return editState(after);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+        }
+        throw error;
+      }
+    },
+    undo: async (request) => {
+      const { meetingId } = request as { meetingId: string };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      const after = await library.undo(meetingId);
+      publishEdit(before, after, emit);
+      return editState(after);
+    },
+    redo: async (request) => {
+      const { meetingId } = request as { meetingId: string };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      const after = await library.redo(meetingId);
+      publishEdit(before, after, emit);
+      return editState(after);
     },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };

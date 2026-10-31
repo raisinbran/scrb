@@ -189,6 +189,60 @@ describe('createMeetingHandlers', () => {
     });
   });
 
+  it('corrects a saved phrase, re-edits it, and keeps undo/redo state', async () => {
+    const meeting = await recorded('Synthetic', '2026-10-15T10:00:00.000Z');
+    const meetingId = meeting.id;
+    await library.appendSegments(meetingId, [{
+      id: 's1', track: 'meeting', speakerId: 'person', pass: 'live',
+      words: [
+        { id: 'a', text: 'red', startMs: 10, endMs: 20 },
+        { id: 'b', text: 'blue', startMs: 21, endMs: 30 },
+        { id: 'c', text: 'green', startMs: 31, endMs: 40 },
+      ],
+    }]);
+    const change = (firstWordId: string, lastWordId: string, text: string) =>
+      dispatchCall(handlers, 'applyCorrection', {
+        meetingId, range: { firstWordId, lastWordId }, text, remember: false,
+      });
+    expect(await change('a', 'b', 'purple')).toMatchObject({
+      ok: true, value: { canUndo: true, canRedo: false },
+    });
+    const page = await value('getTranscript', { meetingId, offset: 0, limit: 10 });
+    expect(page).toMatchObject({
+      segments: [{ words: [{ id: 'a', text: 'purple', state: 'corrected' }, { id: 'c' }] }],
+    });
+    expect(await change('b', 'c', 'wrong')).toMatchObject({
+      ok: false, error: { code: 'conflict' },
+    });
+    expect(await change('a', 'a', 'violet')).toMatchObject({ ok: true });
+    expect((await library.readTranscript(meetingId)).corrections[0]).toMatchObject({
+      replacement: 'violet', original: { text: 'red blue' },
+    });
+    expect(await dispatchCall(handlers, 'undo', { meetingId })).toMatchObject({
+      ok: true, value: { canUndo: true, canRedo: true },
+    });
+    expect(await dispatchCall(handlers, 'redo', { meetingId })).toMatchObject({
+      ok: true, value: { canUndo: true, canRedo: false },
+    });
+  });
+
+  it('emits revisioned transcript changes only after a persisted correction', async () => {
+    const meetingId = (await recorded('Events', '2026-10-15T10:00:00.000Z')).id;
+    await library.appendSegments(meetingId, [{
+      id: 's1', track: 'meeting', speakerId: 'person', pass: 'live',
+      words: [{ id: 'w1', text: 'original', startMs: 1, endMs: 2 }],
+    }]);
+    const revisions: number[] = [];
+    const emitting = createMeetingHandlers(library, (name, payload) => {
+      if (name === 'transcriptChanged') revisions.push((payload as { revision: number }).revision);
+    });
+    const result = await dispatchCall(emitting, 'applyCorrection', {
+      meetingId, range: { firstWordId: 'w1', lastWordId: 'w1' }, text: 'changed', remember: true,
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(revisions).toEqual([(await library.readTranscript(meetingId)).revision]);
+  });
+
   it('refuses to delete a real meeting and leaves it in place', async () => {
     const { id: meetingId } = await recorded('Keep', '2026-10-15T10:00:00.000Z');
     const envelope = await dispatchCall(handlers, 'deleteMeeting', { meetingId });
