@@ -65,7 +65,6 @@ export interface SourceStore {
 export class RecordingController {
   private state: RecordingState = IDLE;
   private pauseSpans: ConfirmedPauseSpan[] = [];
-  private startedAtWallMs = 0;
   private health: RecordingHealth | null = null;
   private session: RecordingSession | null = null;
   private starting = false;
@@ -91,12 +90,12 @@ export class RecordingController {
     );
   }
 
-  private update(patch: Partial<RecordingState>): void {
+  private update(patch: Partial<RecordingState>, atNs: number | null = null): void {
     const previous = this.state;
     this.state = { ...this.state, ...patch };
     const meetingId = previous.meetingId ?? this.state.meetingId;
-    if (meetingId && this.startedAtWallMs > 0) {
-      const atMs = Math.max(0, Date.now() - this.startedAtWallMs);
+    if (meetingId && atNs !== null) {
+      const atMs = atNs / 1_000_000;
       if (previous.status !== 'paused' && this.state.status === 'paused') {
         this.pauseSpans.push({
           startMs: atMs, endMs: null, reason: this.state.pauseReason ?? 'user',
@@ -197,7 +196,6 @@ export class RecordingController {
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
     this.writeErrors.clear();
     this.pauseSpans = [];
-    this.startedAtWallMs = Date.now();
     this.state = {
       ...IDLE,
       meetingId: meeting.id,
@@ -225,10 +223,10 @@ export class RecordingController {
         });
         return adapter;
       },
-      onStateChanged: (status, pauseReason) => {
+      onStateChanged: (status, pauseReason, atNs) => {
         if (status === 'idle') return;
         const changed = this.state.status !== status;
-        this.update({ status, pauseReason });
+        this.update({ status, pauseReason }, atNs);
         if (changed && status === 'recording') {
           void this.library.updateMeeting(meeting.id, { status }).catch((error: unknown) => {
             this.library.logger.log('error', 'recording-status-save-failed', errorFields(error));
