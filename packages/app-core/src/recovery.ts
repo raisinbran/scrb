@@ -196,7 +196,7 @@ function readLogLines<T>(path: string): T[] {
 }
 
 interface SessionEvent {
-  event: 'open' | 'pause' | 'resume' | 'pauseFailed';
+  event: 'open' | 'restart' | 'pause' | 'resume' | 'pauseFailed';
   wholeComputer?: boolean;
   atNs: number;
   seq: number;
@@ -204,9 +204,8 @@ interface SessionEvent {
 
 /** Paused spans the session log confirms. A pause with no resume runs to the end of the meeting. */
 function pausedSpans(audioDir: string, endNs: number): { startNs: number; endNs: number }[] {
-  const events = readLogLines<SessionEvent>(join(audioDir, 'session.log')).sort(
-    (a, b) => a.seq - b.seq,
-  );
+  // File order, not `seq`: each restarted worker numbers its own lines from 1.
+  const events = readLogLines<SessionEvent>(join(audioDir, 'session.log'));
   const spans: { startNs: number; endNs: number }[] = [];
   let openedAt: number | null = null;
   for (const { event, atNs } of events) {
@@ -220,6 +219,15 @@ function pausedSpans(audioDir: string, endNs: number): { startNs: number; endNs:
   return spans;
 }
 
+/** When each restarted worker opened on the timeline. */
+function restartTimes(audioDir: string): number[] {
+  return readLogLines<SessionEvent>(join(audioDir, 'session.log'))
+    .filter(({ event }) => event === 'restart')
+    .map(({ atNs }) => atNs);
+}
+
+const MIN_GAP_NS = 2_000_000;
+
 // Timing rounds at each pause and packet edge, so a span this close to a pause is that pause.
 const EDGE_TOLERANCE_NS = 100_000_000;
 
@@ -227,12 +235,18 @@ function trackGaps(
   track: TrackName,
   chunks: SealedChunk[],
   paused: { startNs: number; endNs: number }[],
+  restarts: number[],
 ): AudioSpan[] {
   const gaps: AudioSpan[] = [];
+  const firstStart = chunks[0]?.startNs;
+  // Nothing before the restart survived, so no earlier chunk can show where the gap begins.
+  if (firstStart !== undefined && restarts.some((at) => at <= firstStart)) {
+    gaps.push({ kind: 'audioMissing', track, startNs: 0, endNs: firstStart });
+  }
   for (let i = 1; i < chunks.length; i += 1) {
     const startNs = chunks[i - 1]?.endNs ?? 0;
     const endNs = chunks[i]?.startNs ?? 0;
-    if (endNs - startNs < 2_000_000) continue;
+    if (endNs - startNs < MIN_GAP_NS) continue;
     const confirmed = paused.some(
       (span) =>
         span.startNs - startNs <= EDGE_TOLERANCE_NS &&
@@ -244,6 +258,22 @@ function trackGaps(
     gaps.push({ kind: asleep ? 'computerAsleep' : 'audioMissing', track, startNs, endNs });
   }
   return gaps;
+}
+
+/** A pause lost nothing, so a worker that was down across one leaves only the time around it. */
+function withoutPaused(gap: AudioSpan, paused: { startNs: number; endNs: number }[]): AudioSpan[] {
+  let pieces = [gap];
+  for (const span of paused) {
+    pieces = pieces.flatMap((piece) =>
+      span.endNs <= piece.startNs || span.startNs >= piece.endNs
+        ? [piece]
+        : [
+            { ...piece, endNs: span.startNs },
+            { ...piece, startNs: span.endNs },
+          ],
+    );
+  }
+  return pieces.filter((piece) => piece.endNs - piece.startNs >= MIN_GAP_NS);
 }
 
 function sealTrack(
@@ -341,7 +371,9 @@ export async function sealAudio(
     return [track, sealTrack(audioDir, track, 'crash')] as const;
   });
   const present = sealed.flatMap(([track, value]) => (value ? [[track, value] as const] : []));
-  const endNs = Math.max(0, ...present.map(([, value]) => value.endNs));
+  const restarts = restartTimes(audioDir);
+  // The meeting ran at least until the last restart, even if no audio was saved after it.
+  const endNs = Math.max(0, ...present.map(([, value]) => value.endNs), ...restarts);
   // A track with no audio cannot show how the recording ended, so it does not decide.
   const withAudio = present.filter(([, value]) => value.chunks.length > 0);
   const stopped =
@@ -355,14 +387,18 @@ export async function sealAudio(
   const tracks: RecoveredAudio['tracks'] = {};
   const gaps: AudioSpan[] = paused.map((span) => ({ kind: 'paused', track: 'both', ...span }));
   for (const [track, value] of present) {
-    const trackLevelGaps = trackGaps(track, value.chunks, paused);
-    if (value.chunks.length === 0 || (value.endNs < endNs - 2_000_000 && !stopped)) {
-      trackLevelGaps.push({ kind: 'audioMissing', track, startNs: value.endNs, endNs });
+    const found = trackGaps(track, value.chunks, paused, restarts);
+    if (value.chunks.length === 0 || (value.endNs < endNs - MIN_GAP_NS && !stopped)) {
+      found.push({ kind: 'audioMissing', track, startNs: value.endNs, endNs });
     }
     if (track === 'meeting' && wholeComputer) {
-      for (const gap of trackLevelGaps)
-        if (gap.kind === 'audioMissing') gap.kind = 'possiblyMissing';
+      for (const gap of found) {
+        // A silent computer sends nothing, but a dead worker's time is known to be lost.
+        const workerDown = restarts.some((at) => gap.startNs <= at && at <= gap.endNs);
+        if (gap.kind === 'audioMissing' && !workerDown) gap.kind = 'possiblyMissing';
+      }
     }
+    const trackLevelGaps = found.flatMap((gap) => withoutPaused(gap, paused));
     const final: SealedTrack = {
       ...value,
       endedBy: stopped ? 'stop' : 'crash',

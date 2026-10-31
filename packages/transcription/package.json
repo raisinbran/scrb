@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Meeting Scribe transcription backend: audio import, whisper.cpp and sherpa-onnx workers, final and live passes, voice-profile matching",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": { ".": "./src/index.ts" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",

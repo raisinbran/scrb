@@ -106,6 +106,7 @@ final class Session {
     var stopping = false
     private var asleep = false
     private var originNs: Int64 = 0
+    private var continuing = false
     let micTrack = Track(name: "microphone")
     let meetingTrack = Track(name: "meeting")
     lazy var micStream = MicStream(ring: micTrack.ring)
@@ -123,6 +124,8 @@ final class Session {
         ticksToNs(Int64(host) + sleepOffset()) - originNs
     }
 
+    var clockOriginNs: Int64 { originNs }
+
     private func now() -> Int64 { toSessionNs(host: mach_absolute_time()) }
 
     func open(_ command: [String: Any]) -> (Bool, String?) {
@@ -134,8 +137,21 @@ final class Session {
         try? FileManager.default.createDirectory(atPath: audio, withIntermediateDirectories: true)
         lockFd = Darwin.open(audio + "/writer.lock", O_CREAT | O_RDWR, 0o600)
         guard lockFd >= 0, flock(lockFd, LOCK_EX | LOCK_NB) == 0 else { return (false, "writer lock held") }
+        // A worker restarted during a pause gets no `start`, so all of this must happen here.
+        if let origin = (command["clockOriginNs"] as? NSNumber)?.int64Value {
+            originNs = origin
+            continuing = true
+            preventIdleSleep()
+        }
         sessionLog = fopen(audio + "/session.log", "a")
         record(["event": "open", "wholeComputer": source.isEmpty])
+        if continuing {
+            // A killed worker can leave a cut-off line, which would swallow the next one.
+            if let sessionLog { fputs("\n", sessionLog) }
+            record(["event": "restart", "atNs": now()])
+            micTrack.nextOpenReason = "workerRestarted"
+            meetingTrack.nextOpenReason = "workerRestarted"
+        }
         micTrack.writer = ChunkWriter(directory: audio + "/microphone")
         meetingTrack.writer = ChunkWriter(directory: audio + "/meeting")
         let micError = micStream.open(mic: mic)
@@ -149,15 +165,20 @@ final class Session {
         return (micTrack.active || meetingTrack.active, micTrack.active || meetingTrack.active ? nil : "no track opened")
     }
 
-    func start() -> Int64 {
+    private func preventIdleSleep() {
+        guard sleepAssertion == 0 else { return }
         IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
                                     IOPMAssertionLevel(kIOPMAssertionLevelOn), "Meeting Scribe recording" as CFString,
                                     &sleepAssertion)
-        originNs = ticksToNs(Int64(mach_absolute_time()) + sleepOffset())
+    }
+
+    func start() -> Int64 {
+        preventIdleSleep()
+        if !continuing { originNs = ticksToNs(Int64(mach_absolute_time()) + sleepOffset()) }
         micTrack.generation = rt_gate_generation() + 1
         meetingTrack.generation = micTrack.generation
-        _ = rt_gate_open()
-        return 0
+        let opened = rt_gate_open()
+        return continuing ? toSessionNs(host: opened) : 0
     }
 
     /// The gate moves first, then the record, so the disk can never delay the cutoff.
@@ -357,6 +378,7 @@ func handle(_ command: [String: Any]) -> [String: Any] {
                               "activeTracks": session.activeTracks, "atNs": at ?? NSNull()]
     if let error { ack["error"] = error }
     if let permission { ack["systemAudio"] = permission }
+    if command["name"] as? String == "start" { ack["clockOriginNs"] = session.clockOriginNs }
     acks[id] = ack
     return ack
 }

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { IPC_EVENT_CHANNEL } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
+import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
   denyAllPermissions,
@@ -68,7 +69,7 @@ void app.whenReady().then(async () => {
     }
   });
   registerCallHandlers(backend.handlers, isTrustedSender);
-  app.once('will-quit', () => void backend.close());
+  closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

@@ -185,6 +185,21 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     expect(fake.opens()).toHaveLength(2);
   });
 
+  it.each([
+    ['is refused', 'activeTracks: []'],
+    [
+      'crashes before the ack',
+      '...(command.name === "start" ? process.exit(1) : {}), activeTracks: ["microphone"]',
+    ],
+  ])('closes the meeting row when the start %s', async (_, acks) => {
+    const { handlers, library } = controller(helper([ZOOM], acks).path, store(WHOLE));
+    await expect(start(handlers)).rejects.toMatchObject({ code: 'internal' });
+    expect(library.updateMeeting).toHaveBeenCalledWith('m1', {
+      status: 'recovered',
+      durationMs: 0,
+    });
+  });
+
   it('creates no meeting when the sources cannot be read', async () => {
     const { handlers, library } = controller(deadHelper(), store('us.zoom.xos'));
     await expect(start(handlers)).rejects.toMatchObject({ code: 'internal' });

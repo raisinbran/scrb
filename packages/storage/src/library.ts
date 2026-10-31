@@ -70,7 +70,10 @@ export interface CreateMeetingInput {
 }
 
 export type MeetingChanges = Partial<
-  Pick<MeetingMeta, 'title' | 'date' | 'durationMs' | 'status' | 'buildVoiceProfiles'>
+  Pick<
+    MeetingMeta,
+    'title' | 'date' | 'durationMs' | 'status' | 'buildVoiceProfiles' | 'transcriptionFailure'
+  >
 >;
 
 export interface DeleteReport {
@@ -98,6 +101,8 @@ export interface ReconcileReport {
   finishedDeletes: string[];
   /** Status still `recording`: the capture layer owns recovering these. */
   interruptedRecordings: string[];
+  /** Status still `finalPassRunning`: the app quit or crashed during the pass. */
+  interruptedFinalPasses: string[];
   /** Folders with no readable meeting.json. Kept and not indexed, as they may hold audio. */
   unreadableFolders: string[];
 }
@@ -194,6 +199,7 @@ export class Library {
       discardedImports: [],
       finishedDeletes: [],
       interruptedRecordings: [],
+      interruptedFinalPasses: [],
       unreadableFolders: [],
     };
   }
@@ -243,6 +249,12 @@ export class Library {
   }
 
   /** Paths inside a meeting, for the capture, export and open-folder code. */
+  /** Scratch space outside the meeting folder, removed with the meeting. */
+  meetingCache(meetingId: string): string {
+    this.requireRow(meetingId);
+    return meetingCachePath(this.paths, meetingId);
+  }
+
   meetingPaths(meetingId: string): MeetingPaths {
     const row = this.requireRow(meetingId);
     return meetingPaths(meetingFolderPath(this.paths, row.folder));
@@ -746,6 +758,7 @@ export class Library {
       discardedImports: [],
       finishedDeletes: [],
       interruptedRecordings: [],
+      interruptedFinalPasses: [],
       unreadableFolders: [],
     };
     await removeTempFiles(this.paths.root);
@@ -800,6 +813,7 @@ export class Library {
         continue;
       }
       if (meta.status === 'recording') report.interruptedRecordings.push(meta.id);
+      if (meta.status === 'finalPassRunning') report.interruptedFinalPasses.push(meta.id);
       const row = getMeetingRow(this.db, meta.id);
       if (row === null) report.added.push(meta.id);
       else if (

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { RecordingSession, sealAudio, type SessionEnd } from '@scrb/app-core';
+import { RecordingSession, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
 import { ProcessAdapter } from '@scrb/capture';
 import {
   ContractError,
@@ -13,7 +13,7 @@ import {
   type RecordingWarning,
   type SourceSelection,
 } from '@scrb/contracts';
-import type { Library } from '@scrb/storage';
+import { errorFields, type Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
 
@@ -31,16 +31,25 @@ function lockHeld(helper: string, lock: string): boolean {
   return spawnSync(helper, ['check-lock', lock]).status === 3;
 }
 
-/** Finishes any recording a crash left open. Runs at launch, before the window appears. */
-export async function recoverInterrupted(library: Library, helper: string): Promise<void> {
+/**
+ * Finishes any recording a crash left open. Runs at launch, before the window appears. A recording
+ * that stopped cleanly but was cut off before its pass gets the pass now.
+ */
+export async function recoverInterrupted(
+  library: Library,
+  helper: string,
+  finalPasses: FinalPassQueue | null = null,
+): Promise<void> {
   for (const meetingId of library.openReport.interruptedRecordings) {
     const audio = library.meetingPaths(meetingId).audio;
     const sealed = await sealAudio(audio, async () => lockHeld(helper, join(audio, 'writer.lock')));
     if (sealed.outcome === 'writerAlive') continue;
+    const transcribe = sealed.outcome === 'ready' && finalPasses !== null;
     await library.updateMeeting(meetingId, {
-      status: sealed.outcome,
+      status: transcribe ? 'finalPassRunning' : sealed.outcome,
       durationMs: Math.round(sealed.endNs / 1e6),
     });
+    if (transcribe) finalPasses.enqueue(meetingId);
   }
 }
 
@@ -58,12 +67,15 @@ export class RecordingController {
   private starting = false;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
+  private finishing: Promise<void> | null = null;
 
   constructor(
     private readonly library: Library,
     private readonly helper: string,
     private readonly emit: Emit,
     private readonly sources: SourceStore,
+    /** Null leaves a stopped meeting ready with no transcript. */
+    private readonly finalPasses: FinalPassQueue | null = null,
   ) {}
 
   private update(patch: Partial<RecordingState>): void {
@@ -92,8 +104,10 @@ export class RecordingController {
     const sealed = await sealAudio(audio, async () =>
       lockHeld(this.helper, join(audio, 'writer.lock')),
     );
+    const clean = end === 'stopped' && sealed.outcome === 'ready';
+    const transcribe = clean && this.finalPasses !== null;
     await this.library.updateMeeting(meetingId, {
-      status: end === 'stopped' && sealed.outcome === 'ready' ? 'ready' : 'recovered',
+      status: transcribe ? 'finalPassRunning' : clean ? 'ready' : 'recovered',
       durationMs: Math.round(sealed.endNs / 1e6),
     });
     if (end === 'pauseFailed') {
@@ -112,10 +126,11 @@ export class RecordingController {
       );
     }
     this.update(IDLE);
+    if (transcribe) this.finalPasses?.enqueue(meetingId);
   }
 
   private start = async ({ title }: { title?: string }): Promise<{ meetingId: string }> => {
-    if (this.session || this.starting) {
+    if (this.session || this.starting || this.finishing) {
       throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
     }
     this.starting = true;
@@ -167,20 +182,47 @@ export class RecordingController {
           { kind: 'audioMissing', track, message: `The ${track} track is not recording.` },
           'warning',
         ),
-      onEnded: (end) => void this.finish(meeting.id, end),
+      onEnded: (end) => {
+        this.finishing = this.finish(meeting.id, end)
+          .catch((error: unknown) => {
+            this.library.logger.log('error', 'recording-finish-failed', errorFields(error));
+          })
+          .finally(() => {
+            this.finishing = null;
+          });
+      },
       newCommandId: randomUUID,
     });
     this.session = session;
-    await session.start({
-      name: 'open',
-      sessionId: meeting.id,
-      outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
-      source,
-      mic,
-    });
+    try {
+      await session.start({
+        name: 'open',
+        sessionId: meeting.id,
+        outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
+        source,
+        mic,
+      });
+    } catch (failure) {
+      if (this.session === session) await this.closeFailedStart(meeting.id);
+      throw failure;
+    }
     this.lastTick = Date.now();
     this.ticker = setInterval(() => this.tick(), 1000);
     return { meetingId: meeting.id };
+  }
+
+  /** A meeting with no audio stays listed as recovered, so nothing a worker saved is lost. */
+  private async closeFailedStart(meetingId: string): Promise<void> {
+    const audio = this.library.meetingPaths(meetingId).audio;
+    const sealed = await sealAudio(audio, async () =>
+      lockHeld(this.helper, join(audio, 'writer.lock')),
+    );
+    // A worker still holding the lock leaves this row for recovery at the next launch.
+    if (sealed.outcome === 'writerAlive') return;
+    await this.library.updateMeeting(meetingId, {
+      status: sealed.outcome,
+      durationMs: Math.round(sealed.endNs / 1e6),
+    });
   }
 
   /** The helper cannot switch sources mid-recording, so a change waits for Stop. */
@@ -225,5 +267,6 @@ export class RecordingController {
   /** Quitting mid-recording stops it cleanly rather than leaving it to recovery. */
   async shutdown(): Promise<void> {
     await this.session?.stop();
+    await this.finishing;
   }
 }

@@ -15,6 +15,11 @@ export interface OpenCommand {
   source: number[] | 'wholeComputer';
   /** A device ID, or `default`. */
   mic: string;
+  /**
+   * Set when a restarted worker joins a running meeting: the `clockOriginNs` the first worker
+   * reported. Times then continue on that meeting's timeline.
+   */
+  clockOriginNs?: number;
 }
 
 export type CaptureCommand =
@@ -52,6 +57,11 @@ export interface CaptureAck {
   gate: 'open' | 'closed';
   /** Session-clock time the command took effect. */
   atNs: number | null;
+  /**
+   * The reply to `start`: session time zero on the platform's system-wide clock, which keeps
+   * running across worker processes and sleep.
+   */
+  clockOriginNs?: number;
   /** Tracks audio is passing on. Shorter than both after a partial start or resume. */
   activeTracks: Track[];
   error?: string;

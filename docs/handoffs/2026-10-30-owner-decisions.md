@@ -23,10 +23,18 @@ Every recommendation in `docs/plans/` is accepted, including the proposed contra
 
 Most meetings run 0.5 to 2 hours and rarely over 4. Routine long runs are 4 hours, at Gates 2 and 3 and before maintenance releases. One 8-hour run per machine stays, before Gate 8. The drift target is under 50 ms over 4 hours. The app still supports 8 hours. Where the plans in `docs/plans/` say 8 hours for T15 or Gate 2, read 4 hours. The Gate 2 mic-loss limit scales the same way: at most 15 s per track over 4 hours, no single gap over 5 s, every gap marked.
 
+## Plans from ChatGPT, approved 2026-10-31
+
+- **Vocabulary:** only active remembered corrections influence recognition. Term edits, disables and deletes survive restarts. Hints come first, and automatic substitutions wait for passing evidence.
+- **Index upgrades:** no automatic lossy rebuild of a damaged index. Upgrades use short-lived, verified snapshots, and leftover copies count in delete checks.
+- **Delete:** "deleted" means removed from app-managed data, not physically erased, and the app says backups may still hold data. User-made copies are reported, not deleted.
+- **Contract, approved now:** the failed status with its message, `retryFinalPass`, `meetingChanged`, `hasAudio`, `getUndoState`, and `privacyBannerRequired` on imports. Batch B items 1 to 6 and 8. Exact TypeScript shapes go to the owner before `packages/contracts/` changes.
+- **Contract, approved with their screens:** pause spans event, `listImports`, summary add and remove, speaker suggestions, jurisdictions list, vocabulary undo, and the `searchMeetings` filter.
+- **Contract, deferred:** model trial, profile rebuild and summary format v4. `criticalDecisions` keeps its meaning: all decisions marked decided.
+
 ## Still needed
 
 - QA, then owner approval, of `docs/plans/pause-resume.md`.
-- Written plans for corrections, index upgrades and delete.
 - The summary-to-export adapter is on `backend-export-adapter`. Its open gaps are in `2026-10-30-export-summary-gaps.md`.
 
 ## Commit history

@@ -192,7 +192,7 @@ export class LiveWhisper {
 
   async transcribe(samples: Int16Array, signal?: AbortSignal): Promise<string> {
     const form = new FormData();
-    form.set('file', new Blob([pcmToWav(samples)], { type: 'audio/wav' }), 'segment.wav');
+    form.set('file', new Blob([new Uint8Array(pcmToWav(samples))], { type: 'audio/wav' }), 'segment.wav');
     form.set('response_format', 'json');
     const res = await fetch(`http://127.0.0.1:${this.port}/inference`, {
       method: 'POST',

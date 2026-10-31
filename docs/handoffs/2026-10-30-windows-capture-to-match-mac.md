@@ -17,3 +17,25 @@ For a Windows session on the `windows-capture` branch, which is unapproved start
 **Then run,** on the Windows PC: `pause_case.py` and `crash_case.mjs` from `native/macos-capture/scripts/`, adapted, plus the unmerged `app-recording` path with `SCRB_CAPTURE_HELPER` set.
 
 **Done 2026-10-30.** See "Matching the Mac helper" in `native/windows-capture/README.md`.
+
+## Worker restart keeps the timeline
+
+Added 2026-10-30. `native/windows-capture/` was not changed, because a test was running from it. The Mac helper does this; references are `Session.open` and `Session.start` in `native/macos-capture/src/main.swift`. Unit tests cover the app core and recovery. No real run has been done on either machine yet.
+
+The app core already sends and reads these fields, so Windows only has to honour them. Until it does, a restarted Windows worker keeps restarting its clock at 0.
+
+**`start` ack.** Add a top-level `clockOriginNs`: `originNs_`, on the same clock as `NowNs()`. The existing `origin` detail can stay. `NowNs()` is `QueryPerformanceCounter`, which is shared across processes. Whether it runs through S3 sleep is still open question Q1.
+
+**`open` with `clockOriginNs`.** When the field is present:
+- Set `originNs_` from it, and do not reset it in `DoStart`. `start` then replies with the current session time in `atNs`, not 0.
+- Pass that same origin to each `TrackPipeline`, so new chunks continue the timeline.
+- Append `{"event":"restart","atNs":<session time>,"seq":n}` to `audio/session.log`, after the `open` line. Write a newline first, because the killed worker can leave a cut-off line. Do the same for `chunks.log`.
+- Open the first chunk with `OPEN_REASON=workerRestarted`.
+
+**Restart during a pause.** The app sends `open`, then later `resume`, and never `start`. So `open` must do everything `DoStart` does except open the gate: pipeline start, generation, `SetThreadExecutionState`. `DoResume` refuses today, because it needs `state_` to be `paused` and `state_` is `open` here. So `open` with `clockOriginNs` must leave `state_` able to take `resume`, `start` and `stop`.
+
+**Numbering** already continues through `FirstSeq`. Confirm a dead worker's `.part` counts as taken, and that no chunk file can be replaced. The Mac helper had this bug.
+
+**`session.log` order.** Each worker numbers `seq` from 1. Recovery reads the file in order, so no change is needed.
+
+**Then run** `native/macos-capture/scripts/restart_case.mjs`, adapted: one `audioMissing` gap per track, about the down time, with chunk times continuing.
