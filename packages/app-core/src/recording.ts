@@ -35,6 +35,7 @@ export class RecordingSession {
   private pauseReason: PauseReason | null = null;
   private adapter: CaptureAdapter | null = null;
   private restarts = 0;
+  private restarting = false;
   /** Set before a deliberate kill, so its exit is never taken for a crash. */
   private ending = false;
   private stopping: Promise<void> | null = null;
@@ -144,24 +145,54 @@ export class RecordingSession {
   }
 
   private async workerExited(): Promise<void> {
-    if (this.ending || this.status === 'idle') return;
+    if (this.ending || this.status === 'idle' || this.restarting) return;
     if (this.status === 'starting') {
       this.adapter = null;
       this.setStatus('idle');
       return;
     }
-    if (this.restarts >= MAX_WORKER_RESTARTS) return this.finish('workerFailed');
-    this.restarts += 1;
+    this.restarting = true;
+    this.adapter = null;
     try {
-      this.attach();
-    } catch {
-      return this.workerExited();
+      while (this.running() && this.restarts < MAX_WORKER_RESTARTS) {
+        this.restarts += 1;
+        try {
+          this.attach();
+          const opened = await this.untilExit(this.reopenCommand());
+          if (!opened.ok || opened.gate !== 'closed') {
+            this.dropFailedRestart();
+            continue;
+          }
+          if (!this.running()) return;
+          // A paused session stays closed until Resume; never restart it with Start.
+          if (this.status === 'recording' && !this.pending) {
+            const started = await this.untilExit({ name: 'start' });
+            if (!started.ok || started.gate !== 'open' || started.activeTracks.length === 0) {
+              this.dropFailedRestart();
+              continue;
+            }
+            this.reportMissing(started);
+          }
+          return;
+        } catch {
+          this.dropFailedRestart();
+        }
+      }
+      if (this.running()) this.finish('workerFailed');
+    } finally {
+      this.restarting = false;
     }
-    await this.send(this.reopenCommand());
-    // A restart during a pause, or a pause still waiting, stays closed: only Resume opens the gate.
-    if (this.status === 'recording' && !this.pending) {
-      this.reportMissing(await this.send({ name: 'start' }));
-    }
+  }
+
+  /** A method, so each check reads the status again after an await. */
+  private running(): boolean {
+    return !this.ending && this.status !== 'idle';
+  }
+
+  private dropFailedRestart(): void {
+    const failed = this.adapter;
+    this.adapter = null;
+    failed?.kill();
   }
 
   private reopenCommand(): OpenCommand {
