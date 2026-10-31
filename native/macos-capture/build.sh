@@ -13,5 +13,5 @@ if [[ ! -f build/opus/libopus.a ]]; then
 fi
 clang -O2 -c src/rt.c -I"$opus/include" -o build/rt.o
 swiftc -O -import-objc-header src/rt.h -Xcc "-I$opus/include" src/main.swift src/Capture.swift src/Chunks.swift \
-  src/Resample.swift src/Permission.swift src/Devices.swift build/rt.o build/opus/libopus.a \
+  src/Resample.swift src/Permission.swift src/Devices.swift src/MicProbe.swift build/rt.o build/opus/libopus.a \
   -framework CoreAudio -framework AudioToolbox -framework AVFoundation -framework IOKit -o "${OUT:-build/scrb-capture}"
