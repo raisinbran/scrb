@@ -1,61 +1,29 @@
-# Index recovery — failed upgrades and retained snapshots (Gate 2 QA exception)
+# Index recovery — approved narrowed startup handling
 
-**Type:** Plan only; no code or `packages/contracts/` changes. **Basis:** current `packages/storage/src/db/database.ts`, Task 3/26 plans, and `2026-10-31-qa-followup-review.md`. Owner approval is for this plan; later recovery implementation and any new contract remain open for primary-agent review.
+**Approval:** Owner, 2026-10-31; implement cases A, B, C and E only. **Case D (restoring a damaged live index) is deferred.** This uses Electron's native startup dialog and no new IPC or `packages/contracts/` calls.
 
-## Safety rule
+## Invariants
 
-The SQLite index contains settings, vocabulary, speaker embeddings and deletion state that **cannot** be reconstructed from meeting folders. Preserve the original index and every potentially useful snapshot on uncertainty. Never automatically discard the only intact copy, silently roll back post-upgrade edits, or resurrect a deleted meeting.
+- Index-only settings, profile embeddings, vocabulary, and deletion state are not reconstructable from meeting files. Never discard an unverified or sole valid copy.
+- No automatic downgrade, rebuild, restoration, or overwrite. A retained `index.sqlite.upgrade-*` still counts as data remaining in delete verification.
+- The single-instance startup gate owns index repair. Only an app-created snapshot with a durable, verified provenance record may be cleaned up automatically. An unowned, symlinked, mismatched or unknown copy is preserved.
+- A plain or ambiguous SQLite error is **not** proof that the newer live index is good.
 
-## Minimal recovery flow
+## Startup cases
 
-1. **Label copies before migrating.** Under the app's single-instance/startup lock, `VACUUM INTO index.sqlite.copying-<id>`, verify integrity/foreign keys/version, and only then rename to `.upgrade-<id>`. Before the first migration commit, persist a tiny durable, app-owned recovery record containing attempt ID, old and target versions, SHA-256 of the verified snapshot, and phase (no user content). Flush it before starting the migration. Treat a mismatched/unowned copy as **untrusted**, not automatically disposable. Keep `.copying-*` cleanup for pre-migration failures; report Windows sharing violations rather than suppress them.
-2. **Examine both copies read-only on restart.** Verify existence, file ownership/type, integrity, foreign keys, `user_version`, expected schema, record digest and hashes. Compare stable IDs and row content for meetings (including `audio_deleted_at`), settings, vocabulary and profiles; also inspect whether the current index has writes beyond the old snapshot. A valid newer live index with a matching recovery record and preserved rows is the **preferred copy**. When validation after a migration failed, or the newer index is corrupt, do not infer that the older copy is authoritative solely from its version.
-3. **Classify rather than automatically roll back.** (A) Copy never verified / no migration started: keep the live original, discard only positively identified incomplete copy when unlocked, retry. (B) Migration failed or post-migration validation failed: preserve live and snapshot, block library writes, present a review/recovery choice. (C) Upgrade verified, but removing `.upgrade-*` failed (Windows AV `EPERM`, `EACCES`, `EBUSY`, antivirus-held handles): keep valid newer live index; report retained copy, retry bounded cleanup on a later startup after rechecking its identity; do not roll back. (D) Live index damaged, valid snapshot: offer verified restoration only after checking journal identity and absence of later writes/deletions; otherwise owner-directed recovery with both files preserved. (E) Both invalid or a newer-version index: preserve unchanged, block destructive actions, provide manual assistance.
-4. **User-facing outcome.** Startup dialog states clearly either “Library unavailable: recovery needed” or “Library available: old index copy could not be removed.” Show a neutral file location, what was preserved and whether meeting deletion can be verified. Offer **Retry verification/cleanup**, **Open library folder**, **Keep copies and close**, and **Restore verified copy** only when strictly proven safe. Never claim a copy was removed until `lstat` proves absence. No paths, profile names or meeting titles in logs.
-5. **Retained deleted-meeting data.** Existing `deleteMeeting` must continue reporting `verified:false` while any `.upgrade-*` copy exists; a snapshot may contain a deleted meeting or profile even if the live index does not. During approved cleanup, reverify snapshot identity and the newer live index; remove *only that verified, app-created* snapshot, then check absence. Do not modify a retained copy in-place or silently delete user-created backups. Where cleanup is impossible, show “index recovery copy still retains older data” and keep a retry path.
+| Case | Proof | Behavior and owner-visible result | Test |
+|---|---|---|---|
+| A — incomplete `.copying-*`, migration never started | App-created attempt journal, old index intact, verified phase and identity | Keep original, retry removal of the incomplete copy only if positively owned; on lock, preserve and notify | Crash/ENOSPC during copy; simulated file-lock |
+| B — failed migration or failed verification | Journal and snapshot present, but live not proven sound/newer | Block library writes; native dialog: retry verification, open library folder, or keep files and close. Never restore | SQL fault, FK/integrity/row-preservation fault, crash |
+| C — successful upgrade but old copy retained | Journal marked verified; newer live version, integrity/FK/schema and snapshot provenance verify | Continue using valid live index, native warning that an older copy may retain deleted data, retry bounded cleanup; report failure if file still exists | Snapshot deletion lock, restart, retry still locked |
+| E — both copies bad, version newer than supported, or unowned snapshot | Read-only verification fails or version unsupported | Leave all copies unchanged; native dialog offers open library folder and close | Corrupt copies, unknown journal, future version, symlink |
 
-## Failure cases and required tests
+## Implementation boundaries
 
-| Failure | Synthetic proof |
-| --- | --- |
-| Crash/ENOSPC during `.copying` | Index hash unchanged; no migration; partial copy only cleaned when known app-created and not held |
-| Incomplete/corrupt/mismatched snapshot | Reject and preserve original; no false “good snapshot” |
-| Power loss after verified snapshot, before first commit | Journal matches; live old version unchanged; safe retry without loss |
-| SQL error / crash during a migration step | Transaction remains whole at last version; live and snapshot retained; restart does not silently select a copy |
-| Post-migration integrity, foreign-key or row-preservation failure | Old copy intact, writes blocked, recovery action visible |
-| Successful upgrade but crash before cleanup | Valid newer live index is retained, not rolled back; stale snapshot identified by journal |
-| Snapshot deletion denied by Windows AV or OS lock | Newer index remains usable if validated; residual copy warning, later retry, no false deletion success |
-| Retry cleanup also fails | Bounded attempts and no exception swallowing; both files still visible |
-| Unowned copy or symlink/junction at snapshot path | Refuse automatic cleanup/restoration; paths must remain within owned library |
-| Corrupt live index, good verified copy | Restore offered only with proven provenance/no later writes; staged restore itself verified, original retained |
-| Valid live index with post-snapshot user changes | No automatic downgrade; newer settings/profiles/deletion flags survive |
-| Deleted meeting/profile still in backup | Delete check reports remaining old index data; no success until verified snapshot removal |
-| No writable space / readonly volume / indexed version newer than app | No mutation and actionable safe warning |
-| Windows file locks / macOS interruption | Run real file-handle denial and interrupted-cleanup tests on each OS; do not substitute Linux tests |
+1. Before migration, use a durable recovery record naming the app-generated attempt and phases; verify the snapshot with SQLite integrity, FK, version, and a data hash before migration.
+2. On restart, inspect both indexes read-only before touching either one; compare old/new versions and row preservation. Only positively identified C may remove a snapshot after a second verification. Check removal with `lstat`.
+3. Native main-process dialog before ordinary library UI: **Retry**, **Open library folder**, **Keep copies and close** for blocked cases; C can continue using the app after a warning. No renderer IPC addition.
+4. Avoid paths/usernames/transcripts/profile names in logs and messages; use a neutral library location for the folder-opening action.
+5. Tests use invented DB rows and injected locks. Windows AV handles, macOS locks, real power-loss and installed-app dialogs remain machine-only checks for Claude Code.
 
-**Test placement:** `packages/storage/test/index-db.test.ts` for journal/version/validation/lock fault seams; `packages/storage/test/library.test.ts` for delete and retention; Electron startup smoke for owner dialogs. No actual meetings or private profile vectors.
-
-## Contract decision (open)
-
-**Recommendation:** start with a native main-process dialog before the renderer/backend opens, avoiding an IPC expansion for a startup-only failure. If recovery must run from a regular UI screen, **do not implement until the owner approves** this exact candidate:
-
-```ts
-type IndexRecoveryState = {
-  kind: 'none' | 'cleanupBlocked' | 'recoveryRequired';
-  liveValid: boolean;
-  verifiedSnapshot: boolean;
-  message: string; // Safe human-readable text, no filesystem paths or user data
-};
-type IndexRecoveryAction = 'retryVerifiedCleanup' | 'openLibraryFolder' | 'keepAndClose';
-// Proposed BackendCalls extension, not applied:
-getIndexRecoveryState: { request: void; response: IndexRecoveryState };
-resolveIndexRecovery: {
-  request: { action: IndexRecoveryAction };
-  response: IndexRecoveryState;
-};
-// Restore is NOT in this generic action: it needs its own separately approved flow.
-```
-
-If adopted, add exact `CALL_TABLE`, `REQUEST_CHECKS`, mock, IPC allowlist and tests together.
-
-**Not run:** `npm run check`, Prettier, smoke, fail-injection tests, Windows AV locks, native/macOS tests. Plan only; no claims of completed recovery implementation.
+**Explicitly excluded:** D/restoration, automatic snapshot replacement, manual restore buttons, new IPC channels, and any attempt to erase user-created backups.
