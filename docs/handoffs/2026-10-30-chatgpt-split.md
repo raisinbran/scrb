@@ -29,6 +29,8 @@ Tasks 1 to 7 are done. Task 8 waits for a build on the PC.
 
 Do these one at a time, in order. Before returning a diff, run `npm run check` if you can, and match the repo's lint and formatting. The last batch failed type check, lint and formatting.
 
+Tasks 14 to 36, covering the rest of V1, are in `2026-10-31-chatgpt-remaining-work.md`.
+
 ## Stays with Claude Code
 
 - Anything using real capture: the 4-hour Mac run, mic switch with a permission off, USB mic, real Teams or Zoom calls, Windows long run and load test.
