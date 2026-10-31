@@ -367,6 +367,29 @@ describe('vocabulary', () => {
     db.close();
   });
 
+  it('keeps source provenance after undoing a manual vocabulary term edit', async () => {
+    const { db } = await openIndex(':memory:');
+    const vocabulary = new VocabularyStore(db, now);
+    const term = vocabulary.remember({
+      term: 'Synthetic source',
+      misheard: ['sin thetic'],
+      context: { meetingId: 'synthetic', correctionId: 'first' },
+    });
+    vocabulary.update(term.id, { enabled: false });
+    vocabulary.undo();
+    expect(vocabulary.get(term.id)?.enabled).toBe(true);
+    vocabulary.remember({
+      term: 'Synthetic source',
+      misheard: ['sin thetic'],
+      context: { meetingId: 'synthetic', correctionId: 'second' },
+    });
+    vocabulary.forgetCorrection('first', 'sin thetic');
+    expect(vocabulary.get(term.id)?.misheard).toEqual(['sin thetic']);
+    vocabulary.forgetCorrection('second', 'sin thetic');
+    expect(vocabulary.get(term.id)).toBeNull();
+    db.close();
+  });
+
   it('retains a misheard form backed by another correction, then removes the final unedited source', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);
