@@ -698,11 +698,18 @@ export class Library {
       SummaryFile,
       'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
     >,
+    expectedTranscriptRevision?: number,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
       const loaded = await loadDocument(SUMMARY_FORMAT, file);
       const transcript = await this.readTranscript(meetingId);
+      if (
+        expectedTranscriptRevision !== undefined &&
+        transcript.revision !== expectedTranscriptRevision
+      ) {
+        throw new StaleRevisionError(meetingId, expectedTranscriptRevision, transcript.revision);
+      }
       const fresh: SummaryFile = {
         ...generated,
         schemaVersion: 3,

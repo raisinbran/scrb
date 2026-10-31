@@ -16,6 +16,7 @@ import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { ImportCoordinator } from './imports.ts';
+import { SummaryCoordinator, createConfiguredSummaryRunner } from './summaries.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -95,6 +96,10 @@ export async function openBackend(
           async () => imports?.stopForRecording(),
         )
       : null;
+    const summaryConfig = app.isPackaged ? undefined : process.env['SCRB_SUMMARY_CONFIG'];
+    const summaries = summaryConfig
+      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit)
+      : null;
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
@@ -114,7 +119,8 @@ export async function openBackend(
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses, summaries),
+        ...summaries?.handlers,
         ...recording?.handlers,
       },
       warning: library.retainedIndexSnapshot
@@ -125,6 +131,7 @@ export async function openBackend(
       close: async () => {
         stopRetention();
         await imports?.shutdown();
+        await summaries?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();

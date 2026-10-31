@@ -47,6 +47,7 @@ import {
   type TranscriptFile,
 } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
+import type { SummaryCoordinator } from './summaries.ts';
 
 const NS_PER_MS = 1e6;
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
@@ -277,6 +278,7 @@ export function createMeetingHandlers(
   emit?: Emit,
   openPath?: (path: string) => Promise<string>,
   finalPasses: FinalPassQueue | null = null,
+  summaries: SummaryCoordinator | null = null,
 ): CallHandlers {
   const retrying = new Set<string>();
   return {
@@ -714,7 +716,7 @@ export function createMeetingHandlers(
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
-      return toSummaryDoc(meetingId, await library.readSummary(meetingId));
+      return toSummaryDoc(meetingId, await library.readSummary(meetingId), summaries?.isGenerating(meetingId) ?? false);
     },
     updateSummaryItem: async (request) => {
       const { meetingId, update } = request as {
