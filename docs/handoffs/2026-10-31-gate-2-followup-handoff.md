@@ -18,7 +18,7 @@
 | 4. Task 15 Windows helper | `03c6ba2` | Separate `--mic-probe` code in `native/windows-capture/src/MicProbe.{h,cpp}`, main selector and build entry. WASAPI mic-only reader; no Session/Track writer, session files, or meeting audio. |
 | 5. Task 16 | `8f885ae` | Test rejected source changes during pending Start and Pause; unchanged sources remain valid; idle changes allowed. Existing recorder conflict guard was already correct. No storage move. |
 
-**Follow-up regression/hardening commits, after the initial task commits:** `a83e73a` adds T22 integration proof that a mic check creates no recording row and yields to Start; `ae893dd` adds native terminal reasons for timeout/device loss; `3acf744` adds Windows T8 4-s flap/5-s stability and T3 stale-wake replays using a shared debounce helper; `32d0fee` makes a disconnected mic report no signal rather than falsely reporting denied permission.
+**Follow-up regression/hardening commits, after the initial task commits:** `a83e73a` adds T22 integration proof that a mic check creates no recording row and yields to Start; `ae893dd` adds native terminal reasons for timeout/device loss; `3acf744` adds Windows T8 4-s flap/5-s stability and T3 stale-wake replays using a shared debounce helper; `32d0fee` makes a disconnected mic report no signal rather than falsely reporting denied permission. `2b68b59` shows the hands-free headset warning **before** starting a test and adds UI tests; `7426cb4` keeps a denied-microphone message visible and isolates UI test instances; `7b1694e` prevents the Windows probe's detached stdin reader from retaining dead stack references.
 
 ## Test coverage and native split
 
