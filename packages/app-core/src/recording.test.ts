@@ -1,3 +1,6 @@
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContractError } from '@scrb/contracts';
 import type {
@@ -7,7 +10,9 @@ import type {
   OpenCommand,
   Track,
 } from '@scrb/capture';
+import { chunk } from './chunk-fixture.ts';
 import { MAX_WORKER_RESTARTS, RecordingSession, type SessionEnd } from './recording.ts';
+import { sealAudio } from './recovery.ts';
 
 const OPEN = {
   name: 'open',
@@ -337,6 +342,131 @@ describe('RecordingSession', () => {
       ack({ id: 'late', ok: true, gate: 'open', atNs: 0, activeTracks: BOTH });
       await vi.advanceTimersByTimeAsync(0);
       expect(session.state.status).toBe('idle');
+    });
+  });
+
+  describe('three worker kills in one recording', () => {
+    const SECOND = 1_000_000_000;
+    const ORIGIN = 500_000;
+    const TRACK_NAMES = ['microphone', 'meeting'] as const;
+    let audio: string;
+    let now: number;
+
+    const logEvent = (line: object) =>
+      appendFileSync(join(audio, 'session.log'), `${JSON.stringify(line)}\n`);
+    const saveChunk = (seq: number, from: number, to: number, reason: string) => {
+      for (const track of TRACK_NAMES) {
+        mkdirSync(join(audio, track), { recursive: true });
+        writeFileSync(
+          join(audio, track, `00000${seq}.opus`),
+          chunk(seq, from * SECOND, to - from, reason),
+        );
+      }
+    };
+    const logStop = (seq: number) => {
+      for (const track of TRACK_NAMES) {
+        const line = { file: `00000${seq}.opus`, closeReason: 'stop' };
+        writeFileSync(join(audio, track, 'chunks.log'), `${JSON.stringify(line)}\n`);
+      }
+    };
+    const crashAt = async (second: number) => {
+      now = second;
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+    };
+    const opened = (adapter: FakeAdapter) =>
+      adapter.commands.find(({ name }) => name === 'open') as OpenCommand;
+    const names = (adapter: FakeAdapter) => adapter.sent.map(({ name }) => name);
+
+    // Writes `session.log` as the helper does, and gives each worker its own clock origin.
+    beforeEach(() => {
+      audio = mkdtempSync(join(tmpdir(), 'scrb-kills-'));
+      now = 0;
+      firstReply = (command) => {
+        const atNs = now * SECOND;
+        if (command.name === 'open') {
+          logEvent({ event: 'open', seq: 1 });
+          if (command.clockOriginNs !== undefined) logEvent({ event: 'restart', atNs, seq: 2 });
+        }
+        if (command.name === 'pause' || command.name === 'resume') {
+          logEvent({ event: command.name, atNs, seq: 3 });
+        }
+        return command.name === 'start' ? { clockOriginNs: ORIGIN + adapters.length } : {};
+      };
+    });
+
+    afterEach(() => rmSync(audio, { recursive: true, force: true }));
+
+    it('keeps recording on one clock and marks only the down time', async () => {
+      await session.start(OPEN);
+      saveChunk(0, 0, 2, 'start');
+      await crashAt(3);
+      saveChunk(1, 4, 6, 'workerRestarted');
+      now = 6;
+      await session.pause();
+      await crashAt(8);
+      expect(session.state).toEqual({ status: 'paused', pauseReason: 'user' });
+      expect(names(latest())).toEqual(['open']);
+      expect(latest().gate).toBe('closed');
+      now = 9;
+      await session.resume();
+      saveChunk(2, 9, 11, 'workerRestarted');
+      await crashAt(12);
+      saveChunk(3, 13, 15, 'workerRestarted');
+      now = 15;
+      expect(session.state.status).toBe('recording');
+      await session.stop();
+      logStop(3);
+
+      expect(adapters).toHaveLength(4);
+      expect(ended).toEqual(['stopped']);
+      expect(opened(adapters[0] as FakeAdapter).clockOriginNs).toBeUndefined();
+      for (const adapter of adapters.slice(1)) {
+        expect(opened(adapter).clockOriginNs).toBe(ORIGIN + 1);
+      }
+
+      const missing = (track: string, from: number, to: number) => ({
+        kind: 'audioMissing',
+        track,
+        startNs: from * SECOND,
+        endNs: to * SECOND,
+      });
+      const sealed = await sealAudio(audio, async () => false);
+      expect(sealed.outcome).toBe('ready');
+      expect(sealed.endNs).toBe(15 * SECOND);
+      expect(sealed.gaps).toEqual([
+        missing('microphone', 2, 4),
+        missing('meeting', 2, 4),
+        { kind: 'paused', track: 'both', startNs: 6 * SECOND, endNs: 9 * SECOND },
+        missing('microphone', 11, 13),
+        missing('meeting', 11, 13),
+      ]);
+      expect(sealed.tracks.microphone?.chunks.map(({ seq }) => seq)).toEqual([0, 1, 2, 3]);
+    });
+
+    it('counts a kill during a pause against the limit, and ends on the fourth', async () => {
+      await session.start(OPEN);
+      await session.pause();
+      for (let kill = 1; kill <= MAX_WORKER_RESTARTS; kill += 1) {
+        await crashAt(kill);
+        expect(session.state.status).toBe('paused');
+        expect(adapters).toHaveLength(kill + 1);
+      }
+      expect(ended).toEqual([]);
+      await crashAt(4);
+      expect(adapters).toHaveLength(MAX_WORKER_RESTARTS + 1);
+      expect(session.state).toEqual({ status: 'idle', pauseReason: null });
+      expect(ended).toEqual(['workerFailed']);
+    });
+
+    it('starts the next recording with a full limit', async () => {
+      await session.start(OPEN);
+      for (let kill = 0; kill < MAX_WORKER_RESTARTS; kill += 1) await crashAt(kill);
+      await session.stop();
+      await session.start(OPEN);
+      for (let kill = 0; kill < MAX_WORKER_RESTARTS; kill += 1) await crashAt(kill);
+      expect(session.state.status).toBe('recording');
+      expect(ended).toEqual(['stopped']);
     });
   });
 
