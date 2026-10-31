@@ -22,7 +22,7 @@
 | # | Severity | Finding | Evidence | Blocks gate | Action |
 | --- | --- | --- | --- | --- | --- |
 | N1 | Low | The D3 regression test passes without the fix. Its transaction is too small to reach disk, so no hot journal exists. | `index-db.test.ts:364`. Passes with `verifyLive` reverted to read-only. | Yes, test only | Make the child spill to disk and assert `index.sqlite-journal` exists before reopening. |
-| N2 | Low | Two contract files still fail Prettier, and CI excludes them. | `meeting-filter.ts`, `meeting-filter.test.ts` | No | Formatting needs owner approval because they are contract files. |
+| N2 | Low | Two contract files still fail Prettier, and CI excludes them. | `meeting-filter.ts`, `meeting-filter.test.ts` | No | Owner approved formatting only, 2026-10-31. |
 | N3 | Low | A kill between the snapshot rename and the hash save blocks permanently. Retry cannot clear it. | `database.ts`, phase `copying` with a snapshot present. Reproduced. | No | Data is safe. Accepted under "anything else stays blocked". |
 | N4 | Low | Two rarer dead ends: a kill between snapshot removal and journal removal in the re-upgrade path, and a kill between two migration steps on a multi-version upgrade. | Reproduced. | No | Same as N3. |
 | N5 | Low | After a worker restart on Windows, `atNs` restarts from 0, so later pause spans would be wrong. The helper ignores `clockOriginNs` and its ack sends `origin`. This is the gap already listed in `native/windows-capture/HANDOFF.md`. | `Session.cpp:389` | No, nothing reads spans | Fix before any UI uses spans. A pause between restart tries also records no span. |
