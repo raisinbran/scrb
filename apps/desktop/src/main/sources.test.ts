@@ -225,6 +225,28 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     expect(library.createMeeting).not.toHaveBeenCalled();
   });
 
+  it('T22: a mic-only check creates no recording, and Start preempts it', async () => {
+    const probeHelper = helper();
+    const sources = store(WHOLE);
+    const { handlers, library, emit } = controller(probeHelper.path, sources);
+
+    await handlers.startAudioCheck?.({ sources: sources.read() });
+    expect(library.createMeeting).not.toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
+      active: true,
+      meetingResult: 'notChecked',
+    }));
+
+    await start(handlers);
+    expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
+      active: false,
+      endReason: 'recordingStarted',
+    }));
+    expect(library.createMeeting).toHaveBeenCalledTimes(1);
+    expect(probeHelper.opens()).toHaveLength(1);
+    await handlers.stopRecording?.(undefined);
+  });
+
   it('allows another Start after a failed one', async () => {
     const fake = helper([ZOOM], 'activeTracks: []');
     const { handlers } = controller(fake.path, store(WHOLE));
