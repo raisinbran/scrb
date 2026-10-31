@@ -17,6 +17,7 @@ import { RecordingController, recoverInterrupted } from './recording.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
+  recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
   close(): Promise<void>;
@@ -70,6 +71,7 @@ export async function openBackend(
       : null;
     const stopRetention = library.startAutoDeleteSchedule();
     return {
+      recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
         // Real import jobs are not wired into the main process yet.
         listImports: async () => [],
@@ -79,10 +81,11 @@ export async function openBackend(
         ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ...recording?.handlers,
       },
-      warning:
-        library.replacedCorruptIndex === null
+      warning: library.retainedIndexSnapshot
+        ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
+        : library.replacedCorruptIndex === null
           ? null
-          : 'The app index was damaged and has been replaced. Settings are back to their defaults.',
+          : 'The index needs review; all original files were preserved.',
       close: async () => {
         stopRetention();
         // The workers stop first, so a helper that never acks cannot leave one running.
@@ -95,6 +98,7 @@ export async function openBackend(
   } catch (error) {
     const code = error instanceof StorageError ? error.code : null;
     return {
+      recovery: { kind: 'blocked', folder: await readLibraryLocation(app.getPath('userData'), fallback) },
       handlers: {},
       warning:
         code === 'INDEX_SPACE'
