@@ -167,7 +167,7 @@ device changes, not 2.  Output mute was left to the owner after 21 min.
 | Every gap marked | Pass: 1350 mic, 8 meeting, 0 unmarked |
 | Audio against timeline minus pauses (14249.981 s) | Mic 13940.960 s, meeting 14249.084 s |
 | Worst offset under 50 ms | Pass as corrected: 1.95 ms drift on track timelines.  The run printed FAIL, 2390.04 ms, from an unsound measure (finding 11).  Not measured on the headset or against a shared sound |
-| Mic loss at most 15 s | **Fail: 309.924 s.**  308.117 s on the No Air 3 headset, 1.806 s on the built-in mic |
+| Mic loss at most 15 s | **Fail: 309.924 s.**  308.117 s on the No Air 3 headset, 1.806 s on the built-in mic.  Owner decision (2026-10-31): accepted as the known headset problem (finding 6), not counted as a pass |
 | Pause ack 99th percentile under 200 ms | Pass: 28.61 ms, the slowest of 5 |
 | No chunk crosses a pause | Pass: 0 of 5 pauses, timing check |
 | Audio lost at the kill, about 1 s or less | Pass: mic 135 ms, meeting 702 ms |
@@ -225,9 +225,12 @@ unplug (no USB mic).
     Any gap ends a chunk early and moves that track's grid, so the difference
     ranges up to a chunk length.  `long_run.mjs` now follows it only across plain
     rollovers.
-12. Timeline overlaps went unlogged in the long run: 1547 on the headset (worst
-    19.2 ms, 0 in `chunks.log`) and 1279 on the built-in mic (worst 6.4 ms, 4 in
-    `chunks.log`).  The cause is not known.
+12. The long run's timeline overlaps are stamp jitter within tolerance, not a
+    fault.  `chunks.log` records an overlap only past the gap tolerance, as with
+    gaps: 2 ms, or 20 ms on hands-free (finding 7).  All 1547 on the headset were
+    within 20 ms (worst 19.2 ms).  On the built-in mic 1275 were within 2 ms (worst
+    1.15 ms), and the 4 past it (worst 6.4 ms) were logged.  They net -954.7 ms of
+    timeline; no frames are repeated by this.
 
 ## Needs a Planner plan
 

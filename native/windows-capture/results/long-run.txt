@@ -46,3 +46,7 @@ Mic loss by period (s), pauses not counted:
   headset 307.750 (unknown 285.033, stall 19.133, device 3.584), about 1,003 s on the headset, about 31%
   built-in, rest of run 1.555 (largest gap 0.198)
 Timeline overlaps: headset 1547, worst 19.2 ms, none in chunks.log; built-in 1279, worst 6.4 ms, 4 in chunks.log
+
+Overlaps, explained: chunks.log records one only past the gap tolerance (2 ms, 20 ms on hands-free).
+  headset 1547, all within 20 ms; built-in 1275 within 2 ms (worst 1.15 ms) and 4 past it, logged (worst 6.39 ms).
+Mic loss: owner decision 2026-10-31, accepted as the known headset problem, not counted as a pass.
