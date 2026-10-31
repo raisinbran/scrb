@@ -73,7 +73,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
       </button>
       {snippets.map((match) => (
         <button
-          key={match.segmentId}
+          key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
           type="button"
           className={styles.snippet}
           onClick={() => onOpen(meeting.id, match.startMs as number)}
