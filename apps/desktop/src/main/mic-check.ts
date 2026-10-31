@@ -63,7 +63,12 @@ export class MicCheckController {
       this.status = status;
       this.emit('audioCheck', status);
       probe.onEvent((event) => {
-        if (this.probe !== probe || event.type !== 'micLevel') return;
+        if (this.probe !== probe) return;
+        if (event.type === 'micCheckEnded') {
+          this.stop(event.reason);
+          return;
+        }
+        if (event.type !== 'micLevel') return;
         const micDb = Math.max(-100, Math.min(0, event.micDb));
         this.status = {
           ...this.status,

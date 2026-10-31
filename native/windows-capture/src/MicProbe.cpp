@@ -91,7 +91,7 @@ public:
         return peak > 0 ? 20 * std::log10(peak) : -100;
     }
 
-    bool IsOpen() const { return client_ != nullptr; }
+    bool IsOpen() const { return client_.Get() != nullptr; }
     bool Expired() const { return started_ && GetTickCount64() - started_ >= 120000; }
     void Close() {
         if (client_) client_->Stop();
@@ -152,10 +152,19 @@ int RunMicProbe(const std::function<Command(const std::string&)>& parse) {
         if (inputClosed) finished = true;
         if (mic.IsOpen() && !finished) {
             if (mic.Expired()) {
+                std::cout << JsonObject().Str("type", "event").Str("event", "micCheckEnded")
+                                 .Str("reason", "timedOut").Done() << std::endl;
                 finished = true;
             } else {
-                std::cout << JsonObject().Str("type", "event").Str("event", "micLevel")
-                                 .Num("micDb", mic.Level()).Done() << std::endl;
+                const double level = mic.Level();
+                if (!mic.IsOpen()) {
+                    std::cout << JsonObject().Str("type", "event").Str("event", "micCheckEnded")
+                                     .Str("reason", "deviceLost").Done() << std::endl;
+                    finished = true;
+                } else {
+                    std::cout << JsonObject().Str("type", "event").Str("event", "micLevel")
+                                     .Num("micDb", level).Done() << std::endl;
+                }
             }
         }
         Sleep(100);

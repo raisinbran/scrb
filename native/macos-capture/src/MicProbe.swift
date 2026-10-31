@@ -44,6 +44,7 @@ private final class MicProbe {
         clock.setEventHandler { [self] in
             guard active else { return }
             if let started, Date().timeIntervalSince(started) >= 120 {
+                say(["type": "event", "event": "micCheckEnded", "reason": "timedOut"])
                 stop()
                 exit(0)
             }
@@ -52,6 +53,7 @@ private final class MicProbe {
             say(["type": "event", "event": "micLevel", "micDb": db])
             let last = rt_last_packet(ring)
             if last != 0 && (Double(mach_absolute_time() - last) / rtTicksPerSecond) > 5 {
+                say(["type": "event", "event": "micCheckEnded", "reason": "deviceLost"])
                 stop()
                 exit(0)
             }

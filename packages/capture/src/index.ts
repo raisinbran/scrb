@@ -84,6 +84,7 @@ export type CaptureEvent =
   | { type: 'sourceChanged'; alive: boolean }
   | { type: 'health'; micDb: number; meetingDb: number }
   | { type: 'micLevel'; micDb: number }
+  | { type: 'micCheckEnded'; reason: 'timedOut' | 'deviceLost' }
   /** No `track` means the whole session, such as a session log write. */
   | { type: 'writeError'; message: string; track?: Track };
 
