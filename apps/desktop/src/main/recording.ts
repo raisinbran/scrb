@@ -226,7 +226,14 @@ export class RecordingController {
         return adapter;
       },
       onStateChanged: (status, pauseReason) => {
-        if (status !== 'idle') this.update({ status, pauseReason });
+        if (status === 'idle') return;
+        const changed = this.state.status !== status;
+        this.update({ status, pauseReason });
+        if (changed && (status === 'paused' || status === 'recording')) {
+          void this.library.updateMeeting(meeting.id, { status }).catch((error: unknown) => {
+            this.library.logger.log('error', 'recording-status-save-failed', errorFields(error));
+          });
+        }
       },
       onTrackMissing: (track) =>
         this.warn(

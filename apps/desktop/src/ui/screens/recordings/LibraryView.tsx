@@ -12,11 +12,10 @@ import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/form
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
-import { STATUS_LABELS, SUMMARY_STATE_LABELS, isTransient } from './labels.ts';
+import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
 
 const SEARCH_DELAY_MS = 200;
-const POLL_MS = 3000;
 
 type Origin = NonNullable<MeetingFilter['origin']> | '';
 
@@ -142,6 +141,7 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
       backend.on('summaryProgress', ({ stage }) => {
         if (stage === 'done' || stage === 'failed') reload();
       }),
+      backend.on('meetingChanged', reload),
       backend.on('recordingStateChanged', (recording) => {
         if (recording.status !== status) reload();
         status = recording.status;
@@ -149,15 +149,6 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
     ];
     return () => stops.forEach((stop) => stop());
   }, [backend, reload]);
-
-  const busy =
-    state.status === 'ready' &&
-    state.data.some(({ meeting }) => isTransient(meeting.status, meeting.summaryState));
-  useEffect(() => {
-    if (!busy) return undefined;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [busy, reload]);
 
   const pickFile = async () => {
     setPickError(null);

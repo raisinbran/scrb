@@ -9,7 +9,7 @@ import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import { TranscriptTab, gapLabel, type JumpTarget } from './TranscriptTab.tsx';
-import { STATUS_LABELS, SUMMARY_STATE_LABELS, isTransient, isUnfinished } from './labels.ts';
+import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
 import { useTranscript } from './use-transcript.ts';
 import styles from './recordings.module.css';
@@ -17,7 +17,6 @@ import styles from './recordings.module.css';
 const TAB_KEY = 'scrb.recordings.tab';
 const TABS = ['Transcript', 'Summary', 'Audio'] as const;
 type Tab = (typeof TABS)[number];
-const POLL_MS = 3000;
 const SKIP_MS = 15_000;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
@@ -529,16 +528,15 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
   const { state: settings } = useBackendData(loadSettings);
 
   useEffect(() => {
-    const stops = [backend.on('summaryOutdated', reload), backend.on('summaryProgress', reload)];
+    const stops = [
+      backend.on('summaryOutdated', reload),
+      backend.on('summaryProgress', reload),
+      backend.on('meetingChanged', (meeting) => {
+        if (meeting.id === meetingId) reload();
+      }),
+    ];
     return () => stops.forEach((stop) => stop());
   }, [backend, reload]);
-
-  const busy = state.status === 'ready' && isTransient(state.data.status, state.data.summaryState);
-  useEffect(() => {
-    if (!busy) return undefined;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [busy, reload]);
 
   if (state.status === 'failed') {
     return (

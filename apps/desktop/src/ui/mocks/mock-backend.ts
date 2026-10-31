@@ -370,9 +370,14 @@ export class MockBackend implements Backend {
   }
 
   updateMeetingStatus(meetingId: string, patch: Partial<MeetingDetail>): void {
+    const before = this.library.find((meeting) => meeting.id === meetingId);
     this.library = this.library.map((meeting) =>
       meeting.id === meetingId ? { ...meeting, ...patch } : meeting,
     );
+    const after = this.library.find((meeting) => meeting.id === meetingId);
+    if (after && before && JSON.stringify(toListItem(after)) !== JSON.stringify(toListItem(before))) {
+      this.emit('meetingChanged', toListItem(after));
+    }
   }
 
   dispose(): void {
@@ -864,6 +869,7 @@ export class MockBackend implements Backend {
         },
         ...this.library,
       ];
+      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
       this.transcripts.set(meetingId, []);
       this.second = 0;
       this.liveStartMs = 0;
