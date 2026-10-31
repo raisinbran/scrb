@@ -216,6 +216,23 @@ describe('index stays secondary', () => {
     expect(library.listMeetings().map((row) => row.id)).toEqual([recording.id]);
     await library.close();
   });
+
+  it('reports a final pass the app quit during, and keeps a failure reason', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const running = await library.createMeeting({ title: 'Long', status: 'finalPassRunning' });
+    const failed = await library.createMeeting({ title: 'Failed', status: 'ready' });
+    await library.updateMeeting(failed.id, {
+      status: 'transcriptionFailed',
+      transcriptionFailure: 'It failed.',
+    });
+    await library.close();
+
+    library = await Library.open({ root });
+    expect(library.openReport.interruptedFinalPasses).toEqual([running.id]);
+    expect((await library.getMeeting(failed.id)).transcriptionFailure).toBe('It failed.');
+    await library.close();
+  });
 });
 
 describe('delete', () => {
