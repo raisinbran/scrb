@@ -142,6 +142,25 @@ describe('index migrations', () => {
     db.close();
   });
 
+  it('refuses a consistent but semantically altered backup before touching the source', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.prepare(`INSERT INTO settings VALUES ('theme', '"dark"')`).run();
+    old.close();
+    const original = await readFile(file);
+    await expect(openIndex(file, {
+      afterSnapshot(copy) {
+        const altered = new DatabaseSync(copy);
+        altered.prepare(`UPDATE settings SET value = '"light"' WHERE key = 'theme'`).run();
+        altered.close();
+      },
+    })).rejects.toMatchObject({ code: 'INDEX_SNAPSHOT' });
+    expect(await readFile(file)).toEqual(original);
+    expect(await readdir(root)).toEqual(['index.sqlite']);
+  });
+
   it('discards a partial copy left by a crash and upgrades the untouched index', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const old = new DatabaseSync(file);

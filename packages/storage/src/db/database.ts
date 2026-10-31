@@ -116,6 +116,7 @@ export async function openIndex(
       throw new UnsupportedVersionError('index.sqlite', version, INDEX_VERSION);
     }
     const upgrading = version > 0 && version < INDEX_VERSION;
+    const existing = upgrading ? currentTables(db) : [];
     if (upgrading && filePath !== ':memory:') {
       const [file, volume] = await Promise.all([stat(filePath), statfs(dirname(filePath))]);
       const free = checks.availableBytes ?? BigInt(volume.bavail) * BigInt(volume.bsize);
@@ -136,6 +137,11 @@ export async function openIndex(
         if (readIndexVersion(copy) !== version) {
           throw new StorageError('INDEX_SNAPSHOT', 'The index snapshot has a different version.');
         }
+        try {
+          verifyPreserved(copy, existing);
+        } catch {
+          throw new StorageError('INDEX_SNAPSHOT', 'The index snapshot differs from its source.');
+        }
       } finally {
         copy.close();
       }
@@ -143,7 +149,6 @@ export async function openIndex(
       await rename(copying, snapshot);
       copying = null;
     }
-    const existing = upgrading ? currentTables(db) : [];
     migrate(db);
     checks.afterMigration?.(db);
     verify(db);
