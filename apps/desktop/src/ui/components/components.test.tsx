@@ -6,6 +6,7 @@ import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockBackend } from '../mocks/index.ts';
 import { MOCK_SPEAKERS } from '../mocks/transcript.ts';
 import { FirstLaunchLocation } from './FirstLaunchLocation.tsx';
+import { Dialog } from './Dialog.tsx';
 import { LocationField } from './LocationField.tsx';
 import { PrivacyBanner } from './PrivacyBanner.tsx';
 import { SpeakerLabel } from './speakers/SpeakerLabel.tsx';
@@ -51,6 +52,21 @@ describe('shared components', () => {
   afterEach(() => {
     cleanup();
     backend.dispose();
+  });
+
+  it('keeps reverse Tab inside an initially focused dialog', () => {
+    render(
+      <Dialog title="Invented accessible dialog">
+        <button type="button">First action</button>
+        <button type="button">Last action</button>
+      </Dialog>,
+    );
+    const panel = screen.getByRole('dialog');
+    expect(document.activeElement).toBe(panel);
+    fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Last action' }));
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'First action' }));
   });
 
   describe('SpeakerLabel', () => {
