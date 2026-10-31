@@ -134,6 +134,29 @@ describe('MockBackend', () => {
     expect(durationMs / 3_600_000).toBeLessThan(8.5);
   });
 
+  it('reverts a completed model update and rejects installing or reverting while busy', async () => {
+    const role = 'finalSpeech';
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(true);
+    await backend.call('installModelUpdate', { role });
+    await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    await expect(backend.call('installModelUpdate', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    vi.advanceTimersByTime(2_100);
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(false);
+    expect((await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version)
+      .toBe('mock-2');
+    await backend.call('revertModel', { role });
+    expect((await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version)
+      .toBe('mock-1');
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(true);
+    await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+  });
+
   it('generates four speakers', () => {
     expect(MOCK_SPEAKERS).toHaveLength(4);
   });
