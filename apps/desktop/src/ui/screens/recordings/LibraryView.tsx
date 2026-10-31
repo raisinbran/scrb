@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { matchesMeetingFilter } from '@scrb/contracts';
 import type {
   Backend,
   MeetingFilter,
@@ -18,11 +19,6 @@ const SEARCH_DELAY_MS = 200;
 const POLL_MS = 3000;
 
 type Origin = NonNullable<MeetingFilter['origin']> | '';
-
-function matchesFilter(meeting: MeetingListItem, { origin, from, to }: MeetingFilter): boolean {
-  const day = meeting.startedAt.slice(0, 10);
-  return (!origin || meeting.origin === origin) && (!from || day >= from) && (!to || day <= to);
-}
 
 function Snippet({ text, query }: { text: string; query: string }) {
   const at = text.toLowerCase().indexOf(query.toLowerCase());
@@ -129,7 +125,7 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
       };
       if (query) {
         const results = await client.call('searchMeetings', { query });
-        return results.filter((result) => matchesFilter(result.meeting, filter));
+        return results.filter((result) => matchesMeetingFilter(result.meeting, filter));
       }
       const meetings = await client.call('listMeetings', { filter });
       return meetings.map((meeting) => ({ meeting, matches: [] }));

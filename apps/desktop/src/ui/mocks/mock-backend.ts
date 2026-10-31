@@ -1,5 +1,6 @@
 import {
   ContractError,
+  matchesMeetingFilter,
   isValidRequest,
   type AppSettings,
   type AudioCheckStatus,
@@ -141,11 +142,6 @@ function mergeSettings(settings: AppSettings, patch: SettingsPatch): AppSettings
     autoDelete: { ...settings.autoDelete, ...patch.autoDelete },
     location: { ...settings.location, ...patch.location },
   };
-}
-
-function inDateRange(startedAt: string, { from, to }: MeetingFilter): boolean {
-  const day = startedAt.slice(0, 10);
-  return (!from || day >= from.slice(0, 10)) && (!to || day <= to.slice(0, 10));
 }
 
 function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
@@ -1203,8 +1199,7 @@ export class MockBackend implements Backend {
 
     listMeetings: ({ filter }) =>
       this.library
-        .filter((meeting) => !filter?.origin || meeting.origin === filter.origin)
-        .filter((meeting) => !filter || inDateRange(meeting.startedAt, filter))
+        .filter((meeting) => matchesMeetingFilter(meeting, filter))
         .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
         .map(toListItem),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
@@ -1235,8 +1230,7 @@ export class MockBackend implements Backend {
     searchMeetings: ({ query, filter }) => {
       const needle = query.toLowerCase();
       return this.library.flatMap((meeting) => {
-        if (filter?.origin && meeting.origin !== filter.origin) return [];
-        if (filter && !inDateRange(meeting.startedAt, filter)) return [];
+        if (!matchesMeetingFilter(meeting, filter)) return [];
         const inIndex =
           meeting.title.toLowerCase().includes(needle) || meeting.startedAt.includes(needle);
         const matches = [

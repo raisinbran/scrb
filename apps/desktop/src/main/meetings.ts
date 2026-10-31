@@ -14,6 +14,7 @@ import {
 } from '@scrb/app-core';
 import {
   ContractError,
+  matchesMeetingFilter,
   type BackendEvents,
   type EventName,
   type WordRange,
@@ -184,15 +185,6 @@ function toListItem(meeting: MeetingFacts): MeetingListItem {
   };
 }
 
-function matchesFilter(item: MeetingListItem, { origin, from, to }: MeetingFilter): boolean {
-  const day = item.startedAt.slice(0, 10);
-  return (
-    (!origin || item.origin === origin) &&
-    (!from || day >= from.slice(0, 10)) &&
-    (!to || day <= to.slice(0, 10))
-  );
-}
-
 /** Reads a meeting's real facts, turning a missing one into the error the contract names. */
 async function requireMeeting(library: Library, meetingId: string): Promise<MeetingMeta> {
   try {
@@ -293,7 +285,7 @@ export function createMeetingHandlers(
       return library
         .listMeetings()
         .map(toListItem)
-        .filter((item) => matchesFilter(item, filter));
+        .filter((item) => matchesMeetingFilter(item, filter));
     },
     getMeeting: async (request) => {
       const { meetingId } = request as { meetingId: string };
@@ -616,13 +608,11 @@ export function createMeetingHandlers(
     },
     searchMeetings: async (request) => {
       const { query, filter } = request as { query: string; filter?: MeetingFilter };
-      const found = await library.search(query, {
-        hitsPerMeeting: 5,
-        ...(filter?.origin && { origin: filter.origin }),
-        ...(filter?.from && { fromDate: filter.from.slice(0, 10) }),
-        ...(filter?.to && { toDate: filter.to.slice(0, 10) }),
-      });
-      return found.results.map((result) => ({
+      // Storage UTC-date prefiltering would discard meetings on a local midnight boundary.
+      const found = await library.search(query, { hitsPerMeeting: 5 });
+      return found.results
+        .filter((result) => matchesMeetingFilter(toListItem(result.meeting), filter))
+        .map((result) => ({
         meeting: toListItem(result.meeting),
         matches: [
           ...(result.matchedIn.includes('title or date')

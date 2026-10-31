@@ -490,7 +490,7 @@ export interface SummaryProgress {
 
 export interface MeetingFilter {
   origin?: MeetingListItem['origin'];
-  /** Inclusive ISO date bounds on `startedAt`. */
+  /** Inclusive bounds by the user's local calendar day, not UTC midnight. */
   from?: string;
   to?: string;
 }
