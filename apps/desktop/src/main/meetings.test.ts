@@ -100,17 +100,30 @@ describe('createMeetingHandlers', () => {
     const { id: meetingId } = await recorded('Failed', '2026-10-04T10:00:00.000Z');
     await library.updateMeeting(meetingId, {
       status: 'transcriptionFailed',
-      transcriptionFailure: 'Tools are missing. Your audio is saved.',
+      transcriptionFailure: 'Transcription could not run because its tools or models are missing. Your audio is saved.',
     });
     expect(await value('getMeeting', { meetingId })).toMatchObject({
       status: 'transcriptionFailed',
-      transcriptionFailure: 'Tools are missing. Your audio is saved.',
+      transcriptionFailure: 'Transcription could not run because its tools or models are missing. Your audio is saved.',
       hasAudio: false,
     });
     expect(await call('getTranscript', { meetingId, offset: 0, limit: 10 })).toEqual({
       ok: false,
-      error: { code: 'internal', message: 'Tools are missing. Your audio is saved.' },
+      error: { code: 'internal', message: 'Transcription could not run because its tools or models are missing. Your audio is saved.' },
     });
+  });
+
+  it('does not expose worker output, names or paths as a transcription failure', async () => {
+    const { id } = await recorded('Synthetic', '2026-10-04T10:00:00.000Z');
+    await library.updateMeeting(id, {
+      status: 'transcriptionFailed',
+      transcriptionFailure: 'Worker /Users/private/demo.m4a printed invented spoken names',
+    });
+    const detail = await value('getMeeting', { meetingId: id });
+    expect(detail.transcriptionFailure).toBe('Transcription stopped because of an error. Your audio is saved.');
+    expect(JSON.stringify(detail)).not.toContain('/Users/private');
+    const page = await call('getTranscript', { meetingId: id, offset: 0, limit: 5 });
+    expect(JSON.stringify(page)).not.toContain('/Users/private');
   });
 
   it('applies the origin and date filter', async () => {
