@@ -341,6 +341,56 @@ describe('vocabulary', () => {
     db.close();
   });
 
+  it('retains a misheard form backed by another correction, then removes the final unedited source', async () => {
+    const { db } = await openIndex(':memory:');
+    const vocabulary = new VocabularyStore(db, now);
+    const context = (correctionId: string) => ({ meetingId: 'synthetic', correctionId });
+    const term = vocabulary.remember({
+      term: 'Invented', misheard: ['in vented'], context: context('c1'),
+    });
+    vocabulary.remember({ term: 'Invented', misheard: ['in vented'], context: context('c2') });
+    vocabulary.forgetCorrection('c1', 'in vented');
+    expect(vocabulary.get(term.id)?.misheard).toEqual(['in vented']);
+    vocabulary.forgetCorrection('c2', 'in vented');
+    expect(vocabulary.get(term.id)).toBeNull();
+    db.close();
+  });
+
+  it('keeps an explicitly entered form after its correction source is removed', async () => {
+    const { db } = await openIndex(':memory:');
+    const vocabulary = new VocabularyStore(db, now);
+    const term = vocabulary.remember({ term: 'Invented', misheard: ['in vented'] });
+    vocabulary.remember({
+      term: 'Invented', misheard: ['in vented'],
+      context: { meetingId: 'synthetic', correctionId: 'c1' },
+    });
+    vocabulary.forgetCorrection('c1', 'in vented');
+    expect(vocabulary.get(term.id)?.misheard).toEqual(['in vented']);
+    db.close();
+  });
+
+  it('never removes an untracked pre-v6 form after a later correction is undone', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const legacy = new DatabaseSync(file);
+    migrate(legacy, MIGRATIONS, 5);
+    legacy.prepare(
+      "INSERT INTO vocabulary_terms VALUES ('legacy-id', 'Synthetic', 0, ?, ?)",
+    ).run(now(), now());
+    legacy.prepare(
+      "INSERT INTO vocabulary_misheard VALUES ('legacy-id', 'sin thetic')",
+    ).run();
+    legacy.close();
+    const { db } = await openIndex(file);
+    const vocabulary = new VocabularyStore(db, now);
+    vocabulary.remember({
+      term: 'Synthetic', misheard: ['sin thetic'],
+      context: { meetingId: 'synthetic', correctionId: 'c2' },
+    });
+    vocabulary.forgetCorrection('c2', 'sin thetic');
+    expect(vocabulary.get('legacy-id')?.misheard).toEqual(['sin thetic']);
+    db.close();
+  });
+
   it('forgetting a correction removes only what that correction added', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);
