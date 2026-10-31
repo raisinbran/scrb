@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, shell } from 'electron';
 import path from 'node:path';
 import {
   createFinalPassRunner,
@@ -63,7 +63,7 @@ export async function openBackend(
       handlers: {
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library, emit),
+        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder)),
         ...recording?.handlers,
       },
       warning:

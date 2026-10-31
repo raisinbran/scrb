@@ -1,3 +1,5 @@
+import { realpath } from 'node:fs/promises';
+import { sep } from 'node:path';
 import { applySummaryUpdate, readSealedGaps, toSummaryDoc, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
 import {
   ContractError,
@@ -200,7 +202,9 @@ function toTranscriptPage(
 }
 
 /** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
-export function createMeetingHandlers(library: Library, emit?: Emit): CallHandlers {
+export function createMeetingHandlers(
+  library: Library, emit?: Emit, openPath?: (path: string) => Promise<string>,
+): CallHandlers {
   return {
     listMeetings: async (request) => {
       const { filter = {} } = request as { filter?: MeetingFilter };
@@ -388,6 +392,57 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
         throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
       }
       library.vocabulary.delete(id);
+    },
+    searchMeetings: async (request) => {
+      const { query } = request as { query: string };
+      const found = await library.search(query, { hitsPerMeeting: 5 });
+      return found.results.map((result) => ({
+        meeting: toListItem(result.meeting),
+        matches: [
+          ...(result.matchedIn.includes('title or date')
+            ? [{ segmentId: null, startMs: null, snippet: null }] : []),
+          ...result.hits.map((hit) => ({
+            segmentId: null, startMs: hit.startMs, snippet: hit.snippet,
+          })),
+        ],
+      }));
+    },
+    openMeetingFolder: async (request) => {
+      const { meetingId, folder } = request as {
+        meetingId: string; folder: 'meeting' | 'audio' | 'exports';
+      };
+      await requireMeeting(library, meetingId);
+      if (!openPath) throw new ContractError({
+        code: 'notImplemented', message: 'Open folder is unavailable in this build.',
+      });
+      const paths = library.meetingPaths(meetingId);
+      const requested = folder === 'meeting' ? paths.folder :
+        folder === 'audio' ? paths.audio : paths.exports;
+      const root = await realpath(library.paths.root);
+      const actual = await realpath(requested).catch(() => {
+        throw new ContractError({ code: 'notFound', message: 'That meeting folder is missing.' });
+      });
+      if (!actual.startsWith(root + sep)) {
+        throw new ContractError({ code: 'permissionDenied', message: 'Folder access was refused.' });
+      }
+      const failure = await openPath(actual);
+      if (failure) throw new ContractError({
+        code: 'internal', message: 'The file manager could not open that folder.',
+      });
+    },
+    openLogsFolder: async () => {
+      if (!openPath) throw new ContractError({
+        code: 'notImplemented', message: 'Open folder is unavailable in this build.',
+      });
+      const actual = await realpath(library.paths.logs);
+      const root = await realpath(library.paths.root);
+      if (!actual.startsWith(root + sep)) {
+        throw new ContractError({ code: 'permissionDenied', message: 'Folder access was refused.' });
+      }
+      const failure = await openPath(actual);
+      if (failure) throw new ContractError({
+        code: 'internal', message: 'The file manager could not open the logs.',
+      });
     },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
