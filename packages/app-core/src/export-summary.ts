@@ -1,3 +1,6 @@
+import { activeSpeakers, resolveDisplay } from '@scrb/storage';
+import type { MeetingMeta, TranscriptFile } from '@scrb/storage';
+import type { ExportMeeting } from '../../export/src/types.ts';
 import type {
   ActionItem,
   ActionStatus,
@@ -136,5 +139,42 @@ export function toExportSummary(file: SummaryFile | null): ExportSummary | null 
     decisions: file.decisions.map(toDecision),
     outdated: file.outdated,
     warnings: file.warnings,
+  };
+}
+
+
+/** Resolves corrected words once for the common DOCX and PDF export layout. */
+export function toExportMeeting(
+  meeting: MeetingMeta,
+  transcript: TranscriptFile,
+  summary: SummaryFile | null,
+): ExportMeeting {
+  return {
+    title: meeting.title,
+    startedAt: meeting.date,
+    durationMs: meeting.durationMs,
+    speakers: activeSpeakers(transcript).map((speaker) => ({
+      id: speaker.id, name: speaker.name ?? speaker.label,
+    })),
+    segments: resolveDisplay(transcript).map((segment) => ({
+      speakerId: segment.speakerId,
+      startMs: segment.tokens[0]?.startMs ?? 0,
+      parts: segment.tokens.map((token, index) => ({
+        text: `${index > 0 ? ' ' : ''}${token.text}`,
+        ...(token.originalText === null ? {} : { original: token.originalText }),
+      })),
+    })),
+    markers: [
+      ...transcript.gaps.map((gap) => ({
+        kind: gap.kind === 'paused' ? 'pause' as const : 'gap' as const,
+        startMs: gap.startMs,
+        endMs: gap.endMs,
+      })),
+      ...(meeting.status === 'recovered'
+        ? [{ kind: 'recording-ended' as const, startMs: meeting.durationMs }]
+        : []),
+    ],
+    transcriptProvisional: transcript.segments.some((segment) => segment.pass === 'live'),
+    summary: toExportSummary(summary),
   };
 }
