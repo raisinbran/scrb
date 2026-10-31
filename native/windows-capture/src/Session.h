@@ -49,7 +49,8 @@ private:
     };
 
     void Reply(const Command& cmd, bool ok, const std::string& extraKey = "", const std::string& extraJson = "",
-               std::optional<int64_t> atNs = std::nullopt);
+               std::optional<int64_t> atNs = std::nullopt,
+               std::optional<int64_t> clockOriginNs = std::nullopt);
     void ReleaseWriter();
     std::string ActiveTracks() const;
     void Emit(const std::string& name, const JsonObject& fields);
@@ -90,6 +91,7 @@ private:
     std::unique_ptr<SessionLog> log_;
     HANDLE writerLock_ = nullptr;
     int64_t originNs_ = 0;
+    bool continuing_ = false;
     int64_t lastSecondNs_ = 0;
 
     std::thread watchdog_;

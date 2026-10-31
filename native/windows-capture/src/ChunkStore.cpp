@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cinttypes>
 #include <cstring>
+#include <stdexcept>
 
 namespace scrb {
 
@@ -155,7 +156,8 @@ bool OggOpusFile::Open(const std::wstring& path, const std::vector<std::string>&
     opus_encoder_ctl(encoder_, OPUS_SET_COMPLEXITY(10));
     opus_encoder_ctl(encoder_, OPUS_GET_LOOKAHEAD(&preSkip_));
 
-    HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
+    // Never replace a killed worker's .part, even if numbering ever goes wrong.
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == INVALID_HANDLE_VALUE) return ok_ = false;
     file_ = h;
@@ -244,7 +246,7 @@ bool OggOpusFile::Close() {
     return ok_ && flushed;
 }
 
-ChunkStore::ChunkStore(const std::wstring& dir) : dir_(dir) {
+ChunkStore::ChunkStore(const std::wstring& dir, bool continuing) : dir_(dir) {
     WIN32_FIND_DATAW found;
     HANDLE search = FindFirstFileW((dir + L"\\??????.opus*").c_str(), &found);
     if (search != INVALID_HANDLE_VALUE) {
@@ -254,6 +256,13 @@ ChunkStore::ChunkStore(const std::wstring& dir) : dir_(dir) {
         FindClose(search);
     }
     log_ = _wfopen((dir + L"\\chunks.log").c_str(), L"ab");
+    if (continuing && log_) {
+        if (fwrite("\n", 1, 1, log_) != 1 || fflush(log_) != 0 || _commit(_fileno(log_)) != 0) {
+            fclose(log_);
+            log_ = nullptr;
+            throw std::runtime_error("cannot separate restarted chunks.log");
+        }
+    }
 }
 
 ChunkStore::~ChunkStore() {
@@ -282,8 +291,16 @@ bool ChunkStore::End(const ChunkMeta& meta) {
     return ok;
 }
 
-SessionLog::SessionLog(const std::wstring& path, EventFn emit) : emit_(std::move(emit)) {
+SessionLog::SessionLog(const std::wstring& path, EventFn emit, bool continuing)
+    : emit_(std::move(emit)) {
     file_ = _wfopen(path.c_str(), L"ab");
+    if (continuing && file_) {
+        if (fwrite("\n", 1, 1, file_) != 1 || fflush(file_) != 0 || _commit(_fileno(file_)) != 0) {
+            fclose(file_);
+            file_ = nullptr;
+            throw std::runtime_error("cannot separate restarted session.log");
+        }
+    }
     thread_ = std::thread([this] { Loop(); });
 }
 

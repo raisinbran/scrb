@@ -348,8 +348,9 @@ std::string ListAppsJson(const std::vector<std::string>& include) {
     return out + "]";
 }
 
-Track::Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit)
-    : gate_(gate), store_(dir), pipeline_(std::make_unique<TrackPipeline>(std::move(config), store_, std::move(emit))) {
+Track::Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit, bool continuing)
+    : gate_(gate), store_(dir, continuing),
+      pipeline_(std::make_unique<TrackPipeline>(std::move(config), store_, std::move(emit))) {
     event_ = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     writer_ = std::thread([this] { WriterLoop(); });
 }

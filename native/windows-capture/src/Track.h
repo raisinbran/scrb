@@ -43,7 +43,8 @@ struct FaultHooks {
 
 class Track {
 public:
-    Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit);
+    Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit,
+          bool continuing = false);
     ~Track();
 
     HRESULT OpenStream(const StreamSpec& spec, DeviceInfo* info);

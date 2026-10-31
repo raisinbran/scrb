@@ -4,6 +4,7 @@
 #include <mmdeviceapi.h>
 #include <powrprof.h>
 #include <shlobj.h>
+#include <stdexcept>
 
 #pragma comment(lib, "powrprof.lib")
 #pragma comment(lib, "advapi32.lib")
@@ -246,12 +247,13 @@ std::string Session::ActiveTracks() const {
 }
 
 void Session::Reply(const Command& cmd, bool ok, const std::string& extraKey, const std::string& extraJson,
-                    std::optional<int64_t> atNs) {
+                    std::optional<int64_t> atNs, std::optional<int64_t> clockOriginNs) {
     std::string id = Arg(cmd, "id"), name = Arg(cmd, "name");
     JsonObject o;
     o.Str("type", "ack").Str("id", id).Str("cmd", name).Bool("ok", ok).Str("gate", gate_.IsOpen() ? "open" : "closed")
         .Raw("activeTracks", ActiveTracks()).Raw("atNs", atNs ? std::to_string(*atNs) : "null");
     if (!extraKey.empty()) o.Raw(extraKey.c_str(), extraJson);
+    if (clockOriginNs) o.Int("clockOriginNs", *clockOriginNs);
     std::string line = o.Done();
     // Lists change nothing, so their replies are not kept for retries.
     if (!id.empty() && name != "listMics" && name != "listApps") acks_[id] = line;
@@ -305,6 +307,19 @@ bool Session::OpenMeeting(const std::string& openReason, bool announce) {
 
 void Session::DoOpen(const Command& cmd) {
     if (state_ != "idle") return Reply(cmd, false, "error", "\"conflict\"");
+    const std::string savedOrigin = Arg(cmd, "clockOriginNs");
+    continuing_ = !savedOrigin.empty();
+    if (continuing_) {
+        try {
+            size_t used = 0;
+            int64_t value = std::stoll(savedOrigin, &used);
+            if (used != savedOrigin.size() || value <= 0 || value > NowNs())
+                return Reply(cmd, false, "error", "\"bad clockOriginNs\"");
+            originNs_ = value;
+        } catch (const std::exception&) {
+            return Reply(cmd, false, "error", "\"bad clockOriginNs\"");
+        }
+    }
     sessionId_ = Arg(cmd, "sessionId", "session");
     wchar_t root[MAX_PATH * 2];
     if (!GetFullPathNameW(Widen(Arg(cmd, "outputDir", ".")).c_str(), ARRAYSIZE(root), root, nullptr))
@@ -324,8 +339,10 @@ void Session::DoOpen(const Command& cmd) {
     bool noProcess = !wholeComputer && source[0] <= 0;  // the app's marker for an app with no process
     DWORD pid = wholeComputer || noProcess ? 0 : static_cast<DWORD>(source[0]);
     EventFn emit = [this](const std::string& n, const JsonObject& f) { Emit(n, f); };
-    log_ = std::make_unique<SessionLog>(audio + L"\\session.log", emit);
+    log_ = std::make_unique<SessionLog>(audio + L"\\session.log", emit, continuing_);
     log_->Record(JsonObject().Str("event", "open").Bool("wholeComputer", wholeComputer).Done());
+    if (continuing_)
+        log_->Record(JsonObject().Str("event", "restart").Int("atNs", NowNs() - originNs_).Done());
     for (int i = 0; i < kTrackCount; ++i) {
         SHCreateDirectoryExW(nullptr, dirs[i].c_str(), nullptr);
         PipelineConfig c;
@@ -338,7 +355,7 @@ void Session::DoOpen(const Command& cmd) {
             ReadWall(utc, wall);
         };
         slots_[i] = Slot{};
-        slots_[i].track = std::make_unique<Track>(std::move(c), dirs[i], gate_, emit);
+        slots_[i].track = std::make_unique<Track>(std::move(c), dirs[i], gate_, emit, continuing_);
     }
     std::string mic = Arg(cmd, "mic", "default");
     slots_[kMic].spec.kind = StreamSpec::Kind::Mic;
@@ -347,14 +364,15 @@ void Session::DoOpen(const Command& cmd) {
     slots_[kMeeting].spec.pid = pid;
     WatchTarget(pid);
 
+    const std::string openReason = continuing_ ? "workerRestarted" : "start";
     DeviceInfo info;
     HRESULT hr = slots_[kMic].track->OpenStream(slots_[kMic].spec, &info);
     if (hr == E_ACCESSDENIED) Emit("permissionLost", JsonObject().Str("track", "microphone"));
     if (SUCCEEDED(hr)) {
-        slots_[kMic].track->Post([info](TrackPipeline& p) { p.OnStreamOpened(info, "start"); });
+        slots_[kMic].track->Post([info, openReason](TrackPipeline& p) { p.OnStreamOpened(info, openReason); });
         WarnIfHandsFree(info);
     }
-    bool meetingOk = !noProcess && OpenMeeting("start", false);
+    bool meetingOk = !noProcess && OpenMeeting(openReason, false);
     if (FAILED(hr) && !meetingOk) {
         for (auto& s : slots_) s.track.reset();
         ReleaseWriter();
@@ -370,7 +388,14 @@ void Session::DoOpen(const Command& cmd) {
         Emit("streamDead", JsonObject().Str("track", "meeting").Str("message", "meeting source did not open"));
         slots_[kMeeting].needReopen = !noProcess;
     }
-    state_ = "open";
+    if (continuing_) {
+        // Resume is legal without Start, so initialise both pipelines before acknowledging open.
+        const uint32_t generation = gate_.Generation() + 1;
+        for (auto& s : slots_)
+            s.track->Post([origin = originNs_, generation](TrackPipeline& p) { p.Start(origin, generation); });
+        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
+    }
+    state_ = continuing_ ? "paused" : "open";
     Reply(cmd, true);
 }
 
@@ -382,18 +407,22 @@ void Session::ReleaseWriter() {
 }
 
 void Session::DoStart(const Command& cmd) {
-    if (state_ != "open") return Reply(cmd, false, "error", "\"conflict\"");
-    originNs_ = NowNs();
+    if (state_ != "open" && !(continuing_ && state_ == "paused"))
+        return Reply(cmd, false, "error", "\"conflict\"");
+    if (ActiveTracks() == "[]") return Reply(cmd, false, "error", "\"no track ready\"");
+    if (!continuing_) originNs_ = NowNs();
     int64_t origin = originNs_;
     uint32_t generation = gate_.Generation() + 1;
     std::string utc;
     int64_t wall = 0;
     ReadWall(&utc, &wall);
-    for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
-    gate_.Open(origin);
+    if (!continuing_)
+        for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
+    const int64_t opened = gate_.Open(continuing_ ? NowNs() : origin);
     SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
     state_ = "recording";
-    Reply(cmd, true, "origin", JsonObject().Int("qpcNs", origin).Str("wallUtc", utc).Done(), 0);
+    Reply(cmd, true, "origin", JsonObject().Int("qpcNs", origin).Str("wallUtc", utc).Done(),
+          opened - origin, origin);
 }
 
 void Session::DoPause(const Command& cmd) {
