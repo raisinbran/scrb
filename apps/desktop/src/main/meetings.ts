@@ -365,7 +365,7 @@ export function createMeetingHandlers(
             .map((id) => dates.get(id))
             .filter((date): date is string => date !== undefined)
             .sort()
-            .at(-1) ?? null,
+            .at(-1) ?? profile.updatedAt,
       }));
     },
     renameSpeaker: async (request) => {
@@ -448,7 +448,6 @@ export function createMeetingHandlers(
         const changes = await library.deleteVoiceProfile(profileId);
         for (const { before, after } of changes) {
           publishEdit(before, after, emit);
-          await publishOutdated(library, before, after, emit);
         }
       } catch (error) {
         if (error instanceof StorageError && error.code === 'PROFILE_BUSY') {

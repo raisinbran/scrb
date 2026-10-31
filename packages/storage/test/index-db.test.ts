@@ -134,6 +134,25 @@ describe('index migrations', () => {
       }),
     ).rejects.toMatchObject({ code: 'INDEX_SNAPSHOT' });
     expect(await readFile(file)).toEqual(bytes);
+
+    // Nothing was migrated, so a bad copy must not lock the library on the next launch.
+    expect(await readdir(path.dirname(file))).toEqual(['index.sqlite']);
+    const { db } = await openIndex(file);
+    expect(readIndexVersion(db)).toBe(INDEX_VERSION);
+    db.close();
+  });
+
+  it('discards a partial copy left by a crash and upgrades the untouched index', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.close();
+    await writeFile(`${file}.copying-synthetic`, 'partial');
+
+    const { db } = await openIndex(file);
+    expect(readIndexVersion(db)).toBe(INDEX_VERSION);
+    db.close();
+    expect(await readdir(path.dirname(file))).toEqual(['index.sqlite']);
   });
 
   it('refuses an upgrade that changed pre-existing rows and keeps the recovery copy', async () => {

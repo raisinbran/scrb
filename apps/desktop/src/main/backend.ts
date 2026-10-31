@@ -80,13 +80,15 @@ export async function openBackend(
       },
     };
   } catch (error) {
-    const recoveryRequired =
-      error instanceof StorageError && error.code === 'INDEX_RECOVERY_REQUIRED';
+    const code = error instanceof StorageError ? error.code : null;
     return {
       handlers: {},
-      warning: recoveryRequired
-        ? 'An unfinished index upgrade needs review. The index and recovery snapshot are preserved; library features are unavailable until it is resolved.'
-        : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
+      warning:
+        code === 'INDEX_SPACE'
+          ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'
+          : code === 'INDEX_RECOVERY_REQUIRED'
+            ? 'An unfinished index upgrade needs review. The index and recovery snapshot are preserved; library features are unavailable until it is resolved.'
+            : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
       close: async () => undefined,
     };
   }

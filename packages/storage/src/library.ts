@@ -441,13 +441,19 @@ export class Library {
       const inSpeakers = before.speakers.some((speaker) => speaker.profileId === profileId);
       const inHistory = [...before.undoStack, ...before.redoStack].some((entry) =>
         entry.speakers.some(
-          (patch) =>
-            patch.before?.profileId === profileId || patch.after?.profileId === profileId,
+          (patch) => patch.before?.profileId === profileId || patch.after?.profileId === profileId,
         ),
       );
       if (!inSpeakers && !inHistory) continue;
-      if (row.status !== 'ready' && row.status !== 'recovered') {
-        throw new StorageError('PROFILE_BUSY', 'Wait for the meeting to finish before deleting the profile.');
+      if (
+        row.status === 'recording' ||
+        row.status === 'importing' ||
+        row.status === 'finalPassRunning'
+      ) {
+        throw new StorageError(
+          'PROFILE_BUSY',
+          'Wait for the meeting to finish before deleting the profile.',
+        );
       }
       affected.push({ meetingId: row.id, before });
     }
@@ -457,7 +463,7 @@ export class Library {
 
     const changed: { before: TranscriptFile; after: TranscriptFile }[] = [];
     for (const { meetingId, before } of affected) {
-      const after = await this.edit(meetingId, (current) => ({
+      const relink = (current: TranscriptFile): TranscriptFile => ({
         ...current,
         speakers: current.speakers.map((speaker) => unlink(speaker) as Speaker),
         undoStack: current.undoStack.map((entry) => ({
@@ -476,7 +482,9 @@ export class Library {
             after: unlink(patch.after),
           })),
         })),
-      }));
+      });
+      // The summary is built from words and names, so this edit does not outdate it.
+      const after = await this.changeTranscript(meetingId, relink, { userEdit: false });
       changed.push({ before, after });
     }
     this.voiceProfiles.delete(profileId);

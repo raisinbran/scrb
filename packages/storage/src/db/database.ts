@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { readdir, stat, statfs, unlink } from 'node:fs/promises';
-import { basename, dirname } from 'node:path';
+import { readdir, rename, rm, stat, statfs, unlink } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { StorageError, UnsupportedVersionError } from '../errors.ts';
 import { INDEX_VERSION, migrate, readIndexVersion } from './migrations.ts';
@@ -88,16 +88,26 @@ export async function openIndex(
   // A snapshot left behind by an interrupted upgrade may be the only intact old index.
   // Never resume from a newer index while that recovery evidence is unresolved.
   if (filePath !== ':memory:') {
+    const parent = dirname(filePath);
+    const names = await readdir(parent);
     const prefix = `${basename(filePath)}.upgrade-`;
-    if ((await readdir(dirname(filePath))).some((name) => name.startsWith(prefix))) {
+    if (names.some((name) => name.startsWith(prefix))) {
       throw new StorageError(
         'INDEX_RECOVERY_REQUIRED',
         'An unfinished index upgrade needs review; the index and snapshot are preserved.',
       );
     }
+    // Only an unverified copy has this name, so the index it came from was never migrated.
+    const copying = `${basename(filePath)}.copying-`;
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith(copying))
+        .map((name) => rm(join(parent, name), { force: true })),
+    );
   }
   const db = new DatabaseSync(filePath);
   let snapshot: string | null = null;
+  let copying: string | null = null;
   try {
     applyPragmas(db);
     verify(db);
@@ -111,12 +121,16 @@ export async function openIndex(
       const free = checks.availableBytes ?? BigInt(volume.bavail) * BigInt(volume.bsize);
       const required = BigInt(file.size) * 2n + 16n * 1024n * 1024n;
       if (free < required) {
-        throw new StorageError('INDEX_SPACE', 'Not enough disk space to back up and upgrade the index.');
+        throw new StorageError(
+          'INDEX_SPACE',
+          'Not enough disk space to back up and upgrade the index.',
+        );
       }
-      snapshot = `${filePath}.upgrade-${randomUUID()}`;
-      db.prepare('VACUUM INTO ?').run(snapshot);
-      checks.afterSnapshot?.(snapshot);
-      const copy = new DatabaseSync(snapshot);
+      const id = randomUUID();
+      copying = `${filePath}.copying-${id}`;
+      db.prepare('VACUUM INTO ?').run(copying);
+      checks.afterSnapshot?.(copying);
+      const copy = new DatabaseSync(copying);
       try {
         verify(copy);
         if (readIndexVersion(copy) !== version) {
@@ -125,6 +139,9 @@ export async function openIndex(
       } finally {
         copy.close();
       }
+      snapshot = `${filePath}.upgrade-${id}`;
+      await rename(copying, snapshot);
+      copying = null;
     }
     const existing = upgrading ? currentTables(db) : [];
     migrate(db);
@@ -140,6 +157,7 @@ export async function openIndex(
     return { db, replacedCorruptIndex: null };
   } catch (error) {
     db.close();
+    if (copying !== null) await rm(copying, { force: true });
     // Preserve failed upgrade snapshots for explicit recovery during Task 26.
     // A failed integrity check never moves/replaces the original index.
     throw error;

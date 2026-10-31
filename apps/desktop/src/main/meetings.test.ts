@@ -320,14 +320,25 @@ describe('createMeetingHandlers', () => {
       meetingId: meeting.id,
     });
     await library.applyFinalPass(meeting.id, {
-      segments: [{
-        id: 's1', track: 'meeting', speakerId: 'speaker-1', pass: 'final',
-        words: [{ id: 'w1', text: 'synthetic', startMs: 0, endMs: 100 }],
-      }],
-      speakers: [{
-        id: 'speaker-1', label: 'Speaker 1', name: 'Demo',
-        profileId: profile.id, userNamed: true, mergedInto: null,
-      }],
+      segments: [
+        {
+          id: 's1',
+          track: 'meeting',
+          speakerId: 'speaker-1',
+          pass: 'final',
+          words: [{ id: 'w1', text: 'synthetic', startMs: 0, endMs: 100 }],
+        },
+      ],
+      speakers: [
+        {
+          id: 'speaker-1',
+          label: 'Speaker 1',
+          name: 'Demo',
+          profileId: profile.id,
+          userNamed: true,
+          mergedInto: null,
+        },
+      ],
     });
     await library.renameSpeaker(meeting.id, 'speaker-1', 'Renamed demo');
     const result = await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id });
@@ -344,6 +355,110 @@ describe('createMeetingHandlers', () => {
     }
     await library.undo(meeting.id);
     expect((await library.readTranscript(meeting.id)).speakers[0]?.profileId).toBeNull();
+
+    await library.redo(meeting.id);
+    expect((await library.readTranscript(meeting.id)).speakers[0]?.profileId).toBeNull();
+  });
+
+  it('removes a deleted profile link waiting in redo history', async () => {
+    const meeting = await recorded('Voice redo', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    await library.applyFinalPass(meeting.id, {
+      segments: [],
+      speakers: [
+        {
+          id: 'speaker-1',
+          label: 'Speaker 1',
+          name: 'Demo',
+          profileId: profile.id,
+          userNamed: true,
+          mergedInto: null,
+        },
+      ],
+    });
+    await library.renameSpeaker(meeting.id, 'speaker-1', 'Renamed demo');
+    await library.undo(meeting.id);
+    await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id });
+    await library.redo(meeting.id);
+    expect((await library.readTranscript(meeting.id)).speakers[0]?.profileId).toBeNull();
+  });
+
+  it('still deletes a profile linked to a meeting whose transcription failed', async () => {
+    const meeting = await recorded('Failed', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    await library.appendSegments(
+      meeting.id,
+      [],
+      [
+        {
+          id: 'speaker-1',
+          label: 'Speaker 1',
+          name: 'Demo',
+          profileId: profile.id,
+          userNamed: true,
+          mergedInto: null,
+        },
+      ],
+    );
+    await library.updateMeeting(meeting.id, { status: 'transcriptionFailed' });
+
+    expect(await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id })).toMatchObject({
+      ok: true,
+    });
+    expect(library.voiceProfiles.get(profile.id)).toBeNull();
+  });
+
+  it('does not flag a summary as outdated when a voice profile is unlinked', async () => {
+    const meeting = await recorded('Summary', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    await library.applyFinalPass(meeting.id, {
+      segments: [],
+      speakers: [
+        {
+          id: 'speaker-1',
+          label: 'Speaker 1',
+          name: 'Demo',
+          profileId: profile.id,
+          userNamed: true,
+          mergedInto: null,
+        },
+      ],
+    });
+    await library.saveGeneratedSummary(meeting.id, {
+      generatedAt: null,
+      brief: null,
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    });
+    await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id });
+    expect((await library.readSummary(meeting.id))?.outdated).toBe(false);
+  });
+
+  it('gives a real date for a profile whose meetings were all deleted', async () => {
+    const meeting = await recorded('Gone', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    await library.deleteMeeting(meeting.id);
+    const result = await dispatchCall(handlers, 'listProfiles', undefined);
+    expect(result).toMatchObject({ ok: true, value: [{ lastHeardAt: profile.updatedAt }] });
   });
 
   it('derives lastHeardAt from meetings rather than renaming the voice profile', async () => {
