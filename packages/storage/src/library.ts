@@ -431,6 +431,58 @@ export class Library {
     );
   }
 
+  /** Unlink a deleted voice profile from saved speaker layers and undo history first. */
+  async deleteVoiceProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
+    const affected: { meetingId: string; before: TranscriptFile }[] = [];
+    for (const row of this.listMeetings()) {
+      const before = await this.readTranscript(row.id);
+      const inSpeakers = before.speakers.some((speaker) => speaker.profileId === profileId);
+      const inHistory = [...before.undoStack, ...before.redoStack].some((entry) =>
+        entry.speakers.some(
+          (patch) =>
+            patch.before?.profileId === profileId || patch.after?.profileId === profileId,
+        ),
+      );
+      if (!inSpeakers && !inHistory) continue;
+      if (row.status !== 'ready' && row.status !== 'recovered') {
+        throw new StorageError('PROFILE_BUSY', 'Wait for the meeting to finish before deleting the profile.');
+      }
+      affected.push({ meetingId: row.id, before });
+    }
+
+    const unlink = (speaker: Speaker | null): Speaker | null =>
+      speaker?.profileId === profileId ? { ...speaker, profileId: null } : speaker;
+
+    const changed: { before: TranscriptFile; after: TranscriptFile }[] = [];
+    for (const { meetingId, before } of affected) {
+      const after = await this.edit(meetingId, (current) => ({
+        ...current,
+        speakers: current.speakers.map((speaker) => unlink(speaker) as Speaker),
+        undoStack: current.undoStack.map((entry) => ({
+          ...entry,
+          speakers: entry.speakers.map((patch) => ({
+            ...patch,
+            before: unlink(patch.before),
+            after: unlink(patch.after),
+          })),
+        })),
+        redoStack: current.redoStack.map((entry) => ({
+          ...entry,
+          speakers: entry.speakers.map((patch) => ({
+            ...patch,
+            before: unlink(patch.before),
+            after: unlink(patch.after),
+          })),
+        })),
+      }));
+      changed.push({ before, after });
+    }
+    this.voiceProfiles.delete(profileId);
+    return changed;
+  }
+
   renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.renameSpeaker(t, speakerId, name));
   }

@@ -354,13 +354,20 @@ export function createMeetingHandlers(
       await publishOutdated(library, before, after, emit);
       return editState(after);
     },
-    listProfiles: async () =>
-      library.voiceProfiles.list().map((profile) => ({
+    listProfiles: async () => {
+      const dates = new Map(library.listMeetings().map((row) => [row.id, row.date]));
+      return library.voiceProfiles.list().map((profile) => ({
         id: profile.id,
         name: profile.name,
         meetingCount: profile.meetingIds.length,
-        lastHeardAt: profile.updatedAt,
-      })),
+        lastHeardAt:
+          profile.meetingIds
+            .map((id) => dates.get(id))
+            .filter((date): date is string => date !== undefined)
+            .sort()
+            .at(-1) ?? null,
+      }));
+    },
     renameSpeaker: async (request) => {
       const { target, name } = request as {
         target:
@@ -437,7 +444,18 @@ export function createMeetingHandlers(
           message: 'That voice profile no longer exists.',
         });
       }
-      library.voiceProfiles.delete(profileId);
+      try {
+        const changes = await library.deleteVoiceProfile(profileId);
+        for (const { before, after } of changes) {
+          publishEdit(before, after, emit);
+          await publishOutdated(library, before, after, emit);
+        }
+      } catch (error) {
+        if (error instanceof StorageError && error.code === 'PROFILE_BUSY') {
+          throw new ContractError({ code: 'conflict', message: error.message });
+        }
+        throw error;
+      }
     },
     listTerms: async () =>
       Promise.all(library.vocabulary.list().map((entry) => toTerm(library, entry))),

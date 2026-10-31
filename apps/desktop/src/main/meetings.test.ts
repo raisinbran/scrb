@@ -312,6 +312,60 @@ describe('createMeetingHandlers', () => {
     expect(await value('getMeeting', { meetingId: meeting.id })).toMatchObject({ gaps: [] });
   });
 
+  it('removes deleted profile links from stored speakers and saved history', async () => {
+    const meeting = await recorded('Voice test', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    await library.applyFinalPass(meeting.id, {
+      segments: [{
+        id: 's1', track: 'meeting', speakerId: 'speaker-1', pass: 'final',
+        words: [{ id: 'w1', text: 'synthetic', startMs: 0, endMs: 100 }],
+      }],
+      speakers: [{
+        id: 'speaker-1', label: 'Speaker 1', name: 'Demo',
+        profileId: profile.id, userNamed: true, mergedInto: null,
+      }],
+    });
+    await library.renameSpeaker(meeting.id, 'speaker-1', 'Renamed demo');
+    const result = await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id });
+    expect(result).toMatchObject({ ok: true });
+    expect(library.voiceProfiles.get(profile.id)).toBeNull();
+
+    const stored = await library.readTranscript(meeting.id);
+    expect(stored.speakers[0]?.profileId).toBeNull();
+    for (const entry of [...stored.undoStack, ...stored.redoStack]) {
+      for (const patch of entry.speakers) {
+        expect(patch.before?.profileId ?? null).toBeNull();
+        expect(patch.after?.profileId ?? null).toBeNull();
+      }
+    }
+    await library.undo(meeting.id);
+    expect((await library.readTranscript(meeting.id)).speakers[0]?.profileId).toBeNull();
+  });
+
+  it('derives lastHeardAt from meetings rather than renaming the voice profile', async () => {
+    const meeting = await recorded('Voice', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    const before = await dispatchCall(handlers, 'listProfiles', undefined);
+    library.voiceProfiles.rename(profile.id, 'Renamed');
+    const after = await dispatchCall(handlers, 'listProfiles', undefined);
+    expect(before).toMatchObject({ ok: true });
+    expect(after).toMatchObject({ ok: true });
+    if (before.ok && after.ok) {
+      const first = (before.value as { lastHeardAt: string | null }[])[0];
+      const next = (after.value as { lastHeardAt: string | null }[])[0];
+      expect(first?.lastHeardAt).toBe(meeting.date);
+      expect(next?.lastHeardAt).toBe(first?.lastHeardAt);
+    }
+  });
+
   it('returns the whole term from updateTerm and refuses a duplicate name', async () => {
     const first = library.vocabulary.remember({ term: 'Rosmont' });
     library.vocabulary.remember({ term: 'Quillon' });
