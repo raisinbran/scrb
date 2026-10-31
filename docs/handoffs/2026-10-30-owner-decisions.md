@@ -32,6 +32,21 @@ Most meetings run 0.5 to 2 hours and rarely over 4. Routine long runs are 4 hour
 - **Contract, approved with their screens:** pause spans event, `listImports`, summary add and remove, speaker suggestions, jurisdictions list, vocabulary undo, and the `searchMeetings` filter.
 - **Contract, deferred:** model trial, profile rebuild and summary format v4. `criticalDecisions` keeps its meaning: all decisions marked decided.
 
+## Exact contract approvals (2026-10-31 follow-up)
+
+The owner approved direct implementation of these exact TypeScript shapes on the isolated working branch; Claude Code still QA-reviews them before any phase-gated merge to `main`:
+
+- **Task 9:** `transcriptionFailed`, sanitized `transcriptionFailure`, `retryFinalPass`, `meetingChanged`, `MeetingDetail.hasAudio`, `getUndoState`, `importAudioFile.privacyBannerRequired`. Compute `hasAudio` from `audioDeletedAt === null` **and** the actual existence of owned audio. Place the picker-token comment directly on `PickedAudioFile.fileToken`. Update exhaustive status handling.
+- **Task 21:** `listSpeakerSuggestions` as in `2026-10-31-task-21-speaker-contract.md`.
+- **Task 22:** `getPrivacyJurisdictions` as in `2026-10-31-task-22-privacy-contract.md`.
+- **Task 24:** `VocabularyUndoState` and `undoVocabulary`, `redoVocabulary`, `getVocabularyUndoState` as in `2026-10-31-task-24-vocabulary.md`.
+- **Task 25:** add/remove summary updates. On add, the renderer sends item fields **excluding `id` and all `SummaryItemEvidence` fields**; backend generates the ID and evidence defaults; `sourceMs` is current transcript time or zero.
+- **Task 29:** optional `MeetingFilter` on `searchMeetings`. Reuse a single runtime filter checker shared with `listMeetings` and retain source segment IDs for transcript search hits.
+
+**Approved in principle, exact TypeScript still open:** `listImports`, a pause-span event, and profile rename/merge/delete undo. Draft for separate owner review; **do not apply**. Vocabulary-provenance schema changes remain proposals only.
+
+**Branch policy:** phase gates no longer prevent development on this branch; `main` remains gated by Claude Code QA and gate approval. Security/IPC changes still require an owner-approved plan.
+
 ## Still needed
 
 - QA, then owner approval, of `docs/plans/pause-resume.md`.
