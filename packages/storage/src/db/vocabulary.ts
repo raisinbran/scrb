@@ -142,9 +142,18 @@ export class VocabularyStore {
         this.db.prepare('UPDATE vocabulary_terms SET updated_at = ? WHERE id = ?').run(now, termId);
       }
       for (const text of input.misheard ?? []) {
-        this.db
-          .prepare('INSERT OR IGNORE INTO vocabulary_misheard (term_id, text) VALUES (?, ?)')
-          .run(termId, text);
+        if (input.context) {
+          this.db.prepare(
+            'INSERT OR IGNORE INTO vocabulary_misheard (term_id, text, preserved) VALUES (?, ?, 0)',
+          ).run(termId, text);
+          this.db.prepare(
+            'INSERT OR IGNORE INTO vocabulary_misheard_sources (term_id, text, meeting_id, correction_id) VALUES (?, ?, ?, ?)',
+          ).run(termId, text, input.context.meetingId, input.context.correctionId);
+        } else {
+          this.db.prepare(
+            'INSERT INTO vocabulary_misheard (term_id, text, preserved) VALUES (?, ?, 1) ON CONFLICT(term_id, text) DO UPDATE SET preserved = 1',
+          ).run(termId, text);
+        }
       }
       if (input.context !== undefined) {
         this.db
@@ -173,11 +182,12 @@ export class VocabularyStore {
           .run(changes.enabled ? 1 : 0, id);
       }
       if (changes.misheard !== undefined) {
+        this.db.prepare('DELETE FROM vocabulary_misheard_sources WHERE term_id = ?').run(id);
         this.db.prepare('DELETE FROM vocabulary_misheard WHERE term_id = ?').run(id);
         for (const text of new Set(changes.misheard)) {
-          this.db
-            .prepare('INSERT INTO vocabulary_misheard (term_id, text) VALUES (?, ?)')
-            .run(id, text);
+          this.db.prepare(
+            'INSERT INTO vocabulary_misheard (term_id, text, preserved) VALUES (?, ?, 1)',
+          ).run(id, text);
         }
       }
       this.db
@@ -317,11 +327,22 @@ export class VocabularyStore {
           if (row?.enabled === 1 && !this.isUserEdited(termId)) {
             this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);
           }
-        } else {
-          this.db
-            .prepare('DELETE FROM vocabulary_misheard WHERE term_id = ? AND text = ?')
-            .run(termId, originalText);
         }
+      }
+      const sources = this.db.prepare(
+        'SELECT term_id, text FROM vocabulary_misheard_sources WHERE correction_id = ?',
+      ).all(correctionId) as unknown as { term_id: string; text: string }[];
+      this.db.prepare(
+        'DELETE FROM vocabulary_misheard_sources WHERE correction_id = ?',
+      ).run(correctionId);
+      for (const source of sources) {
+        const remaining = this.db.prepare(
+          'SELECT 1 FROM vocabulary_misheard_sources WHERE term_id = ? AND text = ? LIMIT 1',
+        ).get(source.term_id, source.text);
+        if (remaining !== undefined) continue;
+        this.db.prepare(
+          'DELETE FROM vocabulary_misheard WHERE term_id = ? AND text = ? AND preserved = 0',
+        ).run(source.term_id, source.text);
       }
     });
   }
