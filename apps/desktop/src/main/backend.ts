@@ -61,6 +61,8 @@ export async function openBackend(
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       handlers: {
+        // Real import jobs are not wired into the main process yet.
+        listImports: async () => [],
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),

@@ -8,6 +8,7 @@
  */
 
 import type {
+  ActiveImport,
   AppInfo,
   AppSettings,
   AudioCheckStatus,
@@ -89,6 +90,7 @@ export interface BackendCalls {
    * `notFound`.
    */
   cancelImport: { request: { importId: ImportId }; response: void };
+  listImports: { request: void; response: ActiveImport[] };
 
   // Devices
   listInputDevices: { request: void; response: InputDevice[] };
@@ -309,6 +311,7 @@ const CALL_TABLE: Record<CallName, true> = {
   pickAudioFile: true,
   importAudioFile: true,
   cancelImport: true,
+  listImports: true,
   listInputDevices: true,
   listMeetingApps: true,
   selectSources: true,

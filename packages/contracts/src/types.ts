@@ -151,6 +151,14 @@ export interface PickedAudioFile {
 
 export type ImportStage = 'queued' | 'decoding' | 'transcribing' | 'diarizing' | 'finishing';
 
+export interface ActiveImport {
+  importId: ImportId;
+  fileName: string;
+  stage: ImportStage;
+  fraction: number;
+  cancelling: boolean;
+}
+
 export interface ImportProgress {
   importId: ImportId;
   fileName: string;

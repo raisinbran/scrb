@@ -9,6 +9,7 @@ import {
   type CallName,
   type DeleteResult,
   type EventName,
+  type ActiveImport,
   type ImportFailureReason,
   type ImportStage,
   type MeetingDetail,
@@ -283,7 +284,7 @@ export class MockBackend implements Backend {
   private readonly meterPrng = createPrng(20261031);
   private second = 0;
   private readonly revisions = new Map<string, number>();
-  private readonly activeImports = new Map<string, { fileName: string; timer: Timer }>();
+  private readonly activeImports = new Map<string, ActiveImport & { timer: Timer }>();
   private readonly pickedFiles = new Map<string, PickedAudioFile>();
   private playback: { meetingId: string; positionMs: number } | null = null;
   private playbackTimer: ReturnType<typeof setInterval> | undefined;
@@ -449,7 +450,9 @@ export class MockBackend implements Backend {
       () => this.runImportStages(importId, fileName, step + 1, end),
       IMPORT_STEP_MS,
     );
-    this.activeImports.set(importId, { fileName, timer });
+    this.activeImports.set(importId, {
+      importId, fileName, stage: next.stage, fraction: next.fraction, cancelling: false, timer,
+    });
   }
 
   private failImportLater(
@@ -484,7 +487,9 @@ export class MockBackend implements Backend {
       this.endedImports.add(importId);
       end();
     }, delayMs);
-    this.activeImports.set(importId, { fileName, timer });
+    this.activeImports.set(importId, {
+      importId, fileName, stage: 'finishing', fraction: 0.95, cancelling: false, timer,
+    });
   }
 
   private speakersOf(meetingId: string): Speaker[] {
@@ -907,6 +912,7 @@ export class MockBackend implements Backend {
       });
       return { importId, privacyBannerRequired };
     },
+    listImports: () => [...this.activeImports.values()].map(({ timer: _timer, ...entry }) => entry),
     cancelImport: ({ importId }) => {
       if (this.endedImports.has(importId)) return;
       const running = this.activeImports.get(importId);

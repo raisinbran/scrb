@@ -255,6 +255,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   pickAudioFile: nothing,
   importAudioFile: shape({ fileToken: id, buildVoiceProfiles: flag }),
   cancelImport: shape({ importId: id }),
+  listImports: nothing,
 
   listInputDevices: nothing,
   listMeetingApps: nothing,

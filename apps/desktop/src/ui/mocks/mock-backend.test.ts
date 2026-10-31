@@ -29,6 +29,20 @@ describe('MockBackend', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CALL_NAMES].sort());
   });
 
+  it('lists active imports without source tokens and removes cancelled jobs', async () => {
+    const picked = await backend.call('pickAudioFile');
+    expect(picked).not.toBeNull();
+    const { importId } = await backend.call('importAudioFile', {
+      fileToken: picked!.fileToken, buildVoiceProfiles: false,
+    });
+    expect(await backend.call('listImports')).toEqual([expect.objectContaining({
+      importId, stage: 'decoding', cancelling: false,
+    })]);
+    expect(JSON.stringify(await backend.call('listImports'))).not.toContain(picked!.fileToken);
+    await backend.call('cancelImport', { importId });
+    expect(await backend.call('listImports')).toEqual([]);
+  });
+
   it('runs the scripted meeting: text each second, pause, device change, lag spike', async () => {
     const seen: string[] = [];
     let status = '';

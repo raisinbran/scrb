@@ -17,6 +17,12 @@ describe('isValidRequest', () => {
     }
   });
 
+  it('validates in-memory import listing with no arguments', () => {
+    expect(isValidRequest('listImports', undefined)).toBe(true);
+    expect(isValidRequest('listImports', { token: 'private' })).toBe(false);
+    expect(CALL_NAMES).toContain('listImports');
+  });
+
   it('accepts no request for a call that takes none', () => {
     expect(isValidRequest('getSettings', undefined)).toBe(true);
     expect(isValidRequest('getSettings', { extra: true })).toBe(false);
