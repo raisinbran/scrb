@@ -270,6 +270,7 @@ export class MockBackend implements Backend {
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
   private readonly meetingSpeakers = new Map<string, Speaker[]>();
   private readonly updatedModels = new Set<string>();
+  private readonly modelUpdateTimers = new Map<ModelRole, Timer[]>();
   private recording: RecordingState = {
     status: 'idle',
     meetingId: null,
@@ -355,6 +356,9 @@ export class MockBackend implements Backend {
     this.termRedo = [];
     this.meetingSpeakers.clear();
     this.stopPlayback();
+    for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
+    this.modelUpdateTimers.clear();
+    this.updatedModels.clear();
   }
 
   /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
@@ -382,6 +386,8 @@ export class MockBackend implements Backend {
 
   dispose(): void {
     this.stopRecordingTimers();
+    for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
+    this.modelUpdateTimers.clear();
     this.stopPlayback();
   }
 
@@ -1295,20 +1301,33 @@ export class MockBackend implements Backend {
     },
     checkModelUpdates: () => MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
     installModelUpdate: ({ role }) => {
+      if (this.modelUpdateTimers.has(role) || this.updatedModels.has(role) ||
+          !MODEL_UPDATES.some((update) => update.role === role)) {
+        throw new ContractError({ code: 'conflict', message: 'No new model update is available.' });
+      }
       if (this.armed.delete('modelDownloadFails')) {
         this.emitModelProgress(role, 'failed', 0.2, 'The download stopped. Try again.');
         return;
       }
       this.emitModelProgress(role, 'downloading', 0.3);
-      setTimeout(() => this.emitModelProgress(role, 'downloading', 0.7), 700);
-      setTimeout(() => this.emitModelProgress(role, 'verifying', 1), 1400);
-      setTimeout(() => {
-        this.updatedModels.add(role);
-        this.emitModelProgress(role, 'done', 1);
-      }, 2100);
+      const timers = [
+        setTimeout(() => this.emitModelProgress(role, 'downloading', 0.7), 700),
+        setTimeout(() => this.emitModelProgress(role, 'verifying', 1), 1400),
+        setTimeout(() => {
+          this.modelUpdateTimers.delete(role);
+          this.updatedModels.add(role);
+          this.emitModelProgress(role, 'done', 1);
+        }, 2100),
+      ];
+      this.modelUpdateTimers.set(role, timers);
     },
     revertModel: ({ role }) => {
-      this.updatedModels.delete(role);
+      if (this.modelUpdateTimers.has(role)) {
+        throw new ContractError({ code: 'conflict', message: 'Wait for the model update to finish.' });
+      }
+      if (!this.updatedModels.delete(role)) {
+        throw new ContractError({ code: 'conflict', message: 'No previous model is available.' });
+      }
     },
 
     getSetupStatus: () => {
