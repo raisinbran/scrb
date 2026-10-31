@@ -61,8 +61,9 @@ describe('MockBackend', () => {
     expect((await backend.call('getProfileUndoState')).nextUndo).toBe('merge');
     await backend.call('undoProfileChange');
     expect((await backend.call('listProfiles')).some((item) => item.id === first!.id)).toBe(true);
-    await backend.call('deleteProfile', { profileId: first!.id });
+    const deleting = backend.call('deleteProfile', { profileId: first!.id });
     vi.advanceTimersByTime(500);
+    await deleting;
     expect((await backend.call('getProfileUndoState')).canUndo).toBe(false);
   });
 
