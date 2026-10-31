@@ -1,0 +1,48 @@
+case=long-run 4 h with load, kill at the end. Not the full T19 load test: no real call, no live transcription.
+Run 2026-10-30 21:31 to 2026-10-31 01:31 PDT. Output muted by repeat mute until 21:52, then left to the owner.
+Device changes: 4, not the planned 2, because the owner re-tested the switch.
+  305.6 s Array to Headset, reopened 307.8 s
+  1155.9 s Headset to Array, reopened 1156.0 s; Windows had shown Array about 12 min earlier
+  1169.6 s Array to Headset, reopened 1170.9 s
+  1325.3 s Headset to Array, reopened 1325.5 s
+
+Report as the run printed it (offset line later found unsound, see below):
+inputs {"first":"Microphone Array (2- Realtek(R) Audio)","second":"Headset (No Air 3)"}; devices seen Microphone Array (2- Realtek(R) Audio); Process tree 76080; Headset (No Air 3)
+load CPU fallback: 6 spinning threads of 12 logical cores at below-normal priority
+events {"health":14276,"trackHealth":28552,"chunkClosed":9837,"deviceChanged":4,"streamReopened":4,"handsFreeMic":2,"discontinuity":4312}
+recovery outcome recovered, repeat gives the same spans: true
+lock held before kill true, after kill false
+last chunks {"microphone":{"file":"006981.opus","state":"recovered","levels":"47688 0.8"},"meeting":{"file":"002856.opus","state":"recovered","levels":"95688 0.0"}}
+verify microphone: chunks=6981 audio=13940.0 s missing=459435.4 ms bad=0 part=1 files=6981 toneChunks=932 zeroChunks=0 peak=-15.1 dB
+verify   close reasons: device=4 discontinuity=4266 pause=5 rollover=2667 stall=39
+verify meeting: chunks=2856 audio=14247.1 s missing=150410.0 ms bad=0 part=1 files=2856 toneChunks=470 zeroChunks=0 peak=-14.5 dB
+verify   close reasons: discontinuity=7 pause=5 rollover=2844
+verify VERIFY OK
+PASS  microphone chunks: 6982 chunks, 0 numbering breaks, 0 .part or .tmp left, 0 damaged, 1 .part repaired
+PASS  meeting chunks: 2857 chunks, 0 numbering breaks, 0 .part or .tmp left, 0 damaged, 1 .part repaired
+PASS  microphone every gap marked: 1350 marked, 0 unmarked, 2827 overlaps, largest 19.243 ms
+      microphone audio 13940.960 s of timeline minus pauses 14249.981 s (difference 309.021 s); gaps 309.924 s, longest 2.191 s, under the 2 ms mark 0.311 s; by cause: none given 0.617 s, device 3.676 s, unknown 286.498 s, stall 19.133 s; by device type: internal 1.806 s, bluetooth-handsfree 308.117 s
+FAIL  mic loss at most 15 s, paused time not counted: 309.924 s
+PASS  meeting every gap marked: 8 marked, 0 unmarked, 0 overlaps, largest 0.000 ms
+      meeting audio 14249.084 s of timeline minus pauses 14249.981 s (difference 0.897 s); gaps 0.250 s, longest 0.190 s, under the 2 ms mark 0.000 s; by cause: unknown 0.250 s; by device type: loopback 0.250 s
+      meeting loss 0.250 s (no limit of its own)
+FAIL  worst offset between tracks under 50 ms: 2390.04 ms over 2486 chunk pairs; wander after the device change 4613.17 ms (track timelines, not a shared sound: output was muted)
+PASS  pause ack 99th percentile under 200 ms: 28.61 ms from 5 pauses (with 5 samples this is the slowest); all 0.36, 0.29, 28.61, 0.36, 0.31; resume 0.49, 0.22, 0.30, 0.33, 0.43
+PASS  privacy: no chunk crosses a pause: 0 crossing, furthest 0.000 ms past a cutoff (one 10 ms packet allowed), 5 pauses, 150.086 s paused
+PASS  audio lost at the kill, about 1 s or less: microphone 135 ms, meeting 702 ms
+helper CPU average 3.87% of one core (0.32% of the machine), highest minute 7.09%; system average 70.2%
+helper memory peak working set 19.6 MB, private 8.2 MB at hour 1, 8.3 MB at the end; handles 327 then 327
+LIMITS FAILED
+
+Offset, corrected: any gap moves a track's chunk grid, so the size of the gap between starts is not offset.
+Mic against meeting start, followed over plain rollovers only:
+PASS  worst offset between tracks under 50 ms: 1.95 ms drift over 2622 plain rollover steps (track timelines, not a shared sound: output was muted; not measured on the headset)
+LIMITS FAILED
+  before first switch: 0.28 ms worst over 300 s
+  after last switch: 1.95 ms worst over 12800 s; 1.01 ms at the end
+  between first and last switch: not measured
+Mic loss by period (s), pauses not counted:
+  before first switch 0.000
+  headset 307.750 (unknown 285.033, stall 19.133, device 3.584), about 1,003 s on the headset, about 31%
+  built-in, rest of run 1.555 (largest gap 0.198)
+Timeline overlaps: headset 1547, worst 19.2 ms, none in chunks.log; built-in 1279, worst 6.4 ms, 4 in chunks.log
