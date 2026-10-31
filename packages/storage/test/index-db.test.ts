@@ -163,17 +163,17 @@ describe('index migrations', () => {
     expect(await readdir(root)).toEqual(['index.sqlite']);
   });
 
-  it('discards a partial copy left by a crash and upgrades the untouched index', async () => {
+  it('preserves an unowned partial index rather than guessing it is disposable', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const old = new DatabaseSync(file);
     migrate(old, MIGRATIONS, 2);
     old.close();
     await writeFile(`${file}.copying-synthetic`, 'partial');
-
-    const { db } = await openIndex(file);
-    expect(readIndexVersion(db)).toBe(INDEX_VERSION);
-    db.close();
-    expect(await readdir(path.dirname(file))).toEqual(['index.sqlite']);
+    await expect(openIndex(file)).rejects.toMatchObject({ code: 'INDEX_RECOVERY_REQUIRED' });
+    expect(await readFile(`${file}.copying-synthetic`, 'utf8')).toBe('partial');
+    const oldIndex = new DatabaseSync(file, { readOnly: true });
+    expect(readIndexVersion(oldIndex)).toBe(2);
+    oldIndex.close();
   });
 
   it('refuses an upgrade that changed pre-existing rows and keeps the recovery copy', async () => {
@@ -234,6 +234,32 @@ describe('index migrations', () => {
     expect(readIndexVersion(db)).toBe(INDEX_VERSION);
     expect(new SettingsStore(db).get('theme', 'light')).toBe('dark');
     db.close();
+    expect((await readdir(root)).filter((name) => name.includes('.upgrade-'))).toEqual([]);
+  });
+
+  it('keeps a verified newer index usable when cleanup is blocked, then cleans on restart', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.prepare(`INSERT INTO settings VALUES ('theme', '"dark"')`).run();
+    old.close();
+    const first = await openIndex(file, {
+      beforeSnapshotRemoval() {
+        throw Object.assign(new Error('invented AV lock'), { code: 'EBUSY' });
+      },
+    });
+    expect(first.retainedSnapshot).toBe(true);
+    expect(readIndexVersion(first.db)).toBe(INDEX_VERSION);
+    expect(new SettingsStore(first.db).get('theme', 'light')).toBe('dark');
+    first.db.close();
+    expect((await readdir(root)).some((name) => name.startsWith('index.sqlite.upgrade-')))
+      .toBe(true);
+
+    const second = await openIndex(file);
+    expect(second.retainedSnapshot).toBe(false);
+    expect(new SettingsStore(second.db).get('theme', 'light')).toBe('dark');
+    second.db.close();
     expect((await readdir(root)).filter((name) => name.includes('.upgrade-'))).toEqual([]);
   });
 
