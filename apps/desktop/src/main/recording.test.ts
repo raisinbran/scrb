@@ -33,7 +33,7 @@ vi.mock('@scrb/app-core', () => ({
 
     async start(): Promise<void> {
       this.options.launch();
-      this.options.onStateChanged('recording', null);
+      this.options.onStateChanged('recording', null, null);
     }
 
     state(status: 'recording' | 'paused', atNs: number | null): void {
@@ -223,7 +223,7 @@ describe('Start while the previous recording is finishing', () => {
     fake.sessions[0]!.state('paused', 1_501_125_000);
     fake.sessions[0]!.state('recording', 3_003_250_000);
 
-    expect((await controller.handlers.getRecordingSnapshot!({})).pauseSpans).toEqual([
+    expect(((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] }).pauseSpans).toEqual([
       { startMs: 1501.125, endMs: 3003.25, reason: 'user' },
     ]);
     expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
@@ -244,9 +244,9 @@ describe('Start while the previous recording is finishing', () => {
     fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 2_000_000_000 });
     await controller.handlers.startRecording!({});
     fake.sessions[0]!.state('paused', 1_000_000_000);
-    expect((await controller.handlers.getRecordingSnapshot!()).pauseSpans).toHaveLength(1);
+    expect(((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] }).pauseSpans).toHaveLength(1);
     await controller.shutdown();
-    expect((await controller.handlers.getRecordingSnapshot!()).pauseSpans).toEqual([]);
+    expect(((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] }).pauseSpans).toEqual([]);
     expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
       meetingId: 'meeting-1',
       spans: [],
