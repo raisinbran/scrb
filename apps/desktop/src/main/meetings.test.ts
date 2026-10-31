@@ -96,13 +96,17 @@ describe('createMeetingHandlers', () => {
     });
   });
 
-  it('shows a failed meeting as ready and gives the reason with its transcript', async () => {
+  it('shows transcriptionFailed without masking its status', async () => {
     const { id: meetingId } = await recorded('Failed', '2026-10-04T10:00:00.000Z');
     await library.updateMeeting(meetingId, {
       status: 'transcriptionFailed',
       transcriptionFailure: 'Tools are missing. Your audio is saved.',
     });
-    expect(await value('getMeeting', { meetingId })).toMatchObject({ status: 'ready' });
+    expect(await value('getMeeting', { meetingId })).toMatchObject({
+      status: 'transcriptionFailed',
+      transcriptionFailure: 'Tools are missing. Your audio is saved.',
+      hasAudio: false,
+    });
     expect(await call('getTranscript', { meetingId, offset: 0, limit: 10 })).toEqual({
       ok: false,
       error: { code: 'internal', message: 'Tools are missing. Your audio is saved.' },

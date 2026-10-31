@@ -1,4 +1,5 @@
 import { realpath } from 'node:fs/promises';
+import { readdirSync } from 'node:fs';
 import { sep } from 'node:path';
 import {
   applySummaryUpdate,
@@ -6,6 +7,8 @@ import {
   toSummaryDoc,
   WORKER_FAILED_MESSAGE,
   YOU_ID,
+  sealedTracks,
+  type FinalPassQueue,
 } from '@scrb/app-core';
 import {
   ContractError,
@@ -139,9 +142,31 @@ async function toTerm(library: Library, entry: VocabularyEntry): Promise<Contrac
 
 type MeetingFacts = MeetingRow | MeetingMeta;
 
-/** The contract has no failed status, so `getTranscript` is where a failure shows. */
+/** Statuses correspond directly to the persisted meeting states. */
 function toContractStatus(status: MeetingFacts['status']): MeetingStatus {
-  return status === 'transcriptionFailed' ? 'ready' : status;
+  return status;
+}
+
+const SAFE_TRANSCRIPTION_FAILURES = new Set([
+  'Transcription could not run because its tools or models are missing. Your audio is saved.',
+  WORKER_FAILED_MESSAGE,
+  'Transcription was interrupted and is not turned on in this build. Your audio is saved.',
+]);
+
+function safeTranscriptionFailure(message: string | null | undefined): string {
+  return message && SAFE_TRANSCRIPTION_FAILURES.has(message) ? message : WORKER_FAILED_MESSAGE;
+}
+
+function hasSavedAudio(library: Library, meeting: MeetingMeta): boolean {
+  if (meeting.audioDeletedAt !== null) return false;
+  const paths = library.meetingPaths(meeting.id);
+  return [paths.audioMicrophone, paths.audioMeeting].some((dir) => {
+    try {
+      return readdirSync(dir).some((file) => file.endsWith('.opus') || file.endsWith('.opus.part'));
+    } catch {
+      return false;
+    }
+  });
 }
 
 function toListItem(meeting: MeetingFacts): MeetingListItem {
@@ -201,6 +226,10 @@ function toDetail(library: Library, meeting: MeetingMeta): MeetingDetail {
   return {
     ...toListItem(meeting),
     gaps: timelineGaps(library, meeting),
+    hasAudio: hasSavedAudio(library, meeting),
+    ...(meeting.status === 'transcriptionFailed' && {
+      transcriptionFailure: safeTranscriptionFailure(meeting.transcriptionFailure),
+    }),
     ...(meeting.status === 'recovered' && { recoveredEndMs: meeting.durationMs }),
   };
 }
@@ -253,6 +282,7 @@ export function createMeetingHandlers(
   library: Library,
   emit?: Emit,
   openPath?: (path: string) => Promise<string>,
+  finalPasses: FinalPassQueue | null = null,
 ): CallHandlers {
   return {
     listMeetings: async (request) => {
@@ -266,6 +296,26 @@ export function createMeetingHandlers(
       const { meetingId } = request as { meetingId: string };
       return toDetail(library, await requireMeeting(library, meetingId));
     },
+    retryFinalPass: async (request) => {
+      const { meetingId } = request as { meetingId: string };
+      const meeting = await requireMeeting(library, meetingId);
+      if (meeting.status !== 'transcriptionFailed' || !hasSavedAudio(library, meeting)) {
+        throw new ContractError({ code: 'conflict', message: 'No failed pass with saved audio can be retried.' });
+      }
+      if (!finalPasses) {
+        throw new ContractError({ code: 'notImplemented', message: 'Transcription is not configured.' });
+      }
+      try {
+        if (sealedTracks(library.meetingPaths(meetingId).audio).length === 0) {
+          throw new Error('No readable sealed tracks');
+        }
+      } catch {
+        throw new ContractError({ code: 'conflict', message: 'This meeting has no readable sealed audio.' });
+      }
+      await library.updateMeeting(meetingId, { status: 'finalPassRunning', transcriptionFailure: null });
+      emit?.('meetingChanged', toListItem(await requireMeeting(library, meetingId)));
+      finalPasses.enqueue(meetingId);
+    },
     getTranscript: async (request) => {
       const { meetingId, offset, limit } = request as {
         meetingId: string;
@@ -276,10 +326,15 @@ export function createMeetingHandlers(
       if (meeting.status === 'transcriptionFailed') {
         throw new ContractError({
           code: 'internal',
-          message: meeting.transcriptionFailure ?? WORKER_FAILED_MESSAGE,
+          message: safeTranscriptionFailure(meeting.transcriptionFailure),
         });
       }
       return toTranscriptPage(await library.readTranscript(meetingId), offset, limit);
+    },
+    getUndoState: async (request) => {
+      const { meetingId } = request as { meetingId: string };
+      await requireMeeting(library, meetingId);
+      return editState(await library.readTranscript(meetingId));
     },
     applyCorrection: async (request) => {
       const { meetingId, range, text, remember } = request as {

@@ -63,7 +63,7 @@ export async function openBackend(
       handlers: {
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder)),
+        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ...recording?.handlers,
       },
       warning:
