@@ -118,16 +118,20 @@ void Ack(const std::string& id, bool ok, bool active) {
 }  // namespace
 
 int RunMicProbe(const std::function<Command(const std::string&)>& parse) {
-    std::mutex guard;
-    std::deque<Command> queue;
-    std::atomic<bool> inputClosed{false};
-    std::thread([&] {
+    struct Input {
+        std::mutex mutex;
+        std::deque<Command> commands;
+        std::atomic<bool> closed{false};
+    };
+    // The stdin reader can outlive a stopped probe. Never capture its stack by reference.
+    auto input = std::make_shared<Input>();
+    std::thread([input, parse] {
         std::string line;
         while (std::getline(std::cin, line)) {
-            std::lock_guard<std::mutex> lock(guard);
-            queue.push_back(parse(line));
+            std::lock_guard<std::mutex> lock(input->mutex);
+            input->commands.push_back(parse(line));
         }
-        inputClosed = true;
+        input->closed = true;
     }).detach();
 
     MicReader mic;
@@ -135,8 +139,8 @@ int RunMicProbe(const std::function<Command(const std::string&)>& parse) {
     while (!finished) {
         std::deque<Command> pending;
         {
-            std::lock_guard<std::mutex> lock(guard);
-            pending.swap(queue);
+            std::lock_guard<std::mutex> lock(input->mutex);
+            pending.swap(input->commands);
         }
         for (const auto& command : pending) {
             const std::string name = Field(command, "name");
@@ -152,7 +156,7 @@ int RunMicProbe(const std::function<Command(const std::string&)>& parse) {
                 Ack(id, false, mic.IsOpen());
             }
         }
-        if (inputClosed) finished = true;
+        if (input->closed) finished = true;
         if (mic.IsOpen() && !finished) {
             if (mic.Expired()) {
                 std::cout << JsonObject().Str("type", "event").Str("event", "micCheckEnded")
