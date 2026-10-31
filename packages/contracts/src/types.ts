@@ -347,6 +347,11 @@ export interface VocabularyTerm {
 
 export type VocabularyTermPatch = Partial<Pick<VocabularyTerm, 'term' | 'misheard' | 'enabled'>>;
 
+export interface VocabularyUndoState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
 // Summary
 
 export type SummaryLength = 'brief' | 'full';

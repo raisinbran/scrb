@@ -74,6 +74,14 @@ describe('isValidRequest', () => {
     expect(isValidRequest('getPrivacyJurisdictions', { path: '/private' })).toBe(false);
   });
 
+  it('vocabulary history calls have no writable request parameters', () => {
+    for (const call of ['getVocabularyUndoState', 'undoVocabulary', 'redoVocabulary'] as const) {
+      expect(isValidRequest(call, undefined)).toBe(true);
+      expect(isValidRequest(call, { otherTermId: 'secret' })).toBe(false);
+      expect(CALL_NAMES).toContain(call);
+    }
+  });
+
   it('checks date formats', () => {
     const ok = { filter: { from: '2026-10-01', to: '2026-10-30T12:00:00Z' } };
     expect(isValidRequest('listMeetings', ok)).toBe(true);

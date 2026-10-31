@@ -60,6 +60,7 @@ import type {
   UndoState,
   VocabularyTerm,
   VocabularyTermPatch,
+  VocabularyUndoState,
   VoiceProfile,
   WordRange,
 } from './types.ts';
@@ -151,6 +152,9 @@ export interface BackendCalls {
   listTerms: { request: void; response: VocabularyTerm[] };
   updateTerm: { request: { id: TermId; patch: VocabularyTermPatch }; response: VocabularyTerm };
   deleteTerm: { request: { id: TermId }; response: void };
+  getVocabularyUndoState: { request: void; response: VocabularyUndoState };
+  undoVocabulary: { request: void; response: VocabularyUndoState };
+  redoVocabulary: { request: void; response: VocabularyUndoState };
 
   // Summary
   /** @addition */
@@ -328,6 +332,9 @@ const CALL_TABLE: Record<CallName, true> = {
   listTerms: true,
   updateTerm: true,
   deleteTerm: true,
+  getVocabularyUndoState: true,
+  undoVocabulary: true,
+  redoVocabulary: true,
   getSummary: true,
   generateSummary: true,
   updateSummaryItem: true,

@@ -252,6 +252,9 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
     patch: shape({}, { term: filled(MAX_NAME), misheard: list(filled(MAX_NAME)), enabled: flag }),
   }),
   deleteTerm: shape({ id }),
+  getVocabularyUndoState: nothing,
+  undoVocabulary: nothing,
+  redoVocabulary: nothing,
 
   getSummary: meeting,
   generateSummary: shape({ meetingId: id, length: oneOf('brief', 'full') }),
