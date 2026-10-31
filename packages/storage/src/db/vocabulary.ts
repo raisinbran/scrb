@@ -337,6 +337,8 @@ export class VocabularyStore {
    * Misheard forms stay when another correction still gives the term a context.
    */
   forgetCorrection(correctionId: string, originalText: string): void {
+    // Provenance is keyed by correction ID, not the obsolete original-text argument.
+    void originalText;
     inTransaction(this.db, () => {
       const owners = this.db
         .prepare('SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?')

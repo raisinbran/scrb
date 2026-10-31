@@ -15,7 +15,6 @@ import {
   type ImportStage,
   type ConfirmedPauseSpan,
   type MeetingDetail,
-  type MeetingFilter,
   type MeetingListItem,
   type MeetingSummaryDoc,
   type ModelDownloadProgress,
@@ -971,7 +970,11 @@ export class MockBackend implements Backend {
       });
       return { importId, privacyBannerRequired };
     },
-    listImports: () => [...this.activeImports.values()].map(({ timer: _timer, ...entry }) => entry),
+    listImports: () => [...this.activeImports.values()].map(
+      ({ importId, fileName, stage, fraction, cancelling }) => ({
+        importId, fileName, stage, fraction, cancelling,
+      }),
+    ),
     cancelImport: ({ importId }) => {
       if (this.endedImports.has(importId)) return;
       const running = this.activeImports.get(importId);

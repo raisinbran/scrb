@@ -536,7 +536,7 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
       }),
     ];
     return () => stops.forEach((stop) => stop());
-  }, [backend, reload]);
+  }, [backend, reload, meetingId]);
 
   if (state.status === 'failed') {
     return (

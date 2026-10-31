@@ -3,7 +3,6 @@ import { matchesMeetingFilter } from '@scrb/contracts';
 import type {
   Backend,
   MeetingFilter,
-  MeetingListItem,
   PickedAudioFile,
   SearchResult,
 } from '@scrb/contracts';
