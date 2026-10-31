@@ -236,6 +236,18 @@ export class VocabularyStore {
     return { canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0 };
   }
 
+  discardMeetingHistory(meetingId: string): void {
+    const mentionsMeeting = (change: VocabularyChange): boolean =>
+      [change.before, change.after].some((term) =>
+        term?.contexts.some((context) => context.meetingId === meetingId),
+      ) ||
+      [change.beforeProvenance, change.afterProvenance].some((provenance) =>
+        provenance.sources.some((source) => source.meeting_id === meetingId),
+      );
+    this.undoStack = this.undoStack.filter((change) => !mentionsMeeting(change));
+    this.redoStack = this.redoStack.filter((change) => !mentionsMeeting(change));
+  }
+
   private rememberChange(change: VocabularyChange): void {
     if (JSON.stringify(change.before) === JSON.stringify(change.after)) return;
     this.undoStack.push(change);

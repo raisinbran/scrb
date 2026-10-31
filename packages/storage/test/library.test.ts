@@ -368,6 +368,35 @@ describe('delete', () => {
     expect(bytes).not.toContain(id);
   });
 
+  it.each(['undo', 'redo'] as const)(
+    'never recreates deleted meeting vocabulary through %s',
+    async (direction) => {
+      const library = await Library.open({ root: await tempDir() });
+      const { id, ids } = await seeded(library);
+      await library.applyCorrection(id, {
+        wordIds: ids.slice(3, 5),
+        replacement: 'Synthetic person',
+        remember: true,
+      });
+      const term = library.vocabulary.list()[0]!;
+      library.vocabulary.delete(term.id);
+      if (direction === 'redo') {
+        library.vocabulary.undo();
+        expect(library.vocabulary.undoState().canRedo).toBe(true);
+      } else {
+        expect(library.vocabulary.undoState().canUndo).toBe(true);
+      }
+
+      expect((await library.deleteMeeting(id)).ok).toBe(true);
+      expect(library.vocabulary.undoState()).toEqual({ canUndo: false, canRedo: false });
+      library.vocabulary[direction]();
+      expect(library.vocabulary.list().flatMap((item) => item.contexts)).toEqual([]);
+      const sources = library.vocabulary.list().flatMap((item) => item.misheard);
+      expect(sources).not.toContain('jon smith');
+      await library.close();
+    },
+  );
+
   it('deleting a voice profile zeroes its data on disk', async () => {
     const root = await tempDir();
     const library = await Library.open({ root });

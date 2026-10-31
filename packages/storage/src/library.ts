@@ -828,6 +828,7 @@ export class Library {
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
     if (movedFromLibrary) {
       deleteMeetingRows(this.db, meetingId);
+      this.vocabulary.discardMeetingHistory(meetingId);
       this.settings.delete(`vocabulary.pending.${meetingId}`);
     }
 
@@ -982,6 +983,7 @@ export class Library {
         const meetingId = name.slice(DELETING_PREFIX.length);
         await fs.rm(path.join(this.paths.meetings, name), RM_OPTIONS);
         deleteMeetingRows(this.db, meetingId);
+      this.vocabulary.discardMeetingHistory(meetingId);
         await fs.rm(meetingCachePath(this.paths, meetingId), RM_OPTIONS);
         report.finishedDeletes.push(meetingId);
         continue;
@@ -1013,6 +1015,7 @@ export class Library {
     for (const row of this.listMeetings()) {
       if (!seen.has(row.id)) {
         deleteMeetingRows(this.db, row.id);
+        this.vocabulary.discardMeetingHistory(row.id);
         await fs.rm(meetingCachePath(this.paths, row.id), RM_OPTIONS);
         report.removed.push(row.id);
       }
