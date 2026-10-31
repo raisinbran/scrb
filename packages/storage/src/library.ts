@@ -153,7 +153,7 @@ async function hasAnyFile(dir: string): Promise<boolean> {
 }
 
 function isAlive(correction: Correction | undefined): boolean {
-  return correction !== undefined && correction.state !== 'reverted';
+  return correction !== undefined && correction.state === 'active';
 }
 
 /**
@@ -216,6 +216,7 @@ export class Library {
     const { db, replacedCorruptIndex } = await openIndex(paths.index);
     const library = new Library(paths, db, logger, clock, replacedCorruptIndex);
     Object.assign(library.openReport, await library.reconcile());
+    await library.repairVocabulary();
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
@@ -351,8 +352,20 @@ export class Library {
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
       if (options.userEdit) await this.flagSummaryOutdated(meetingId);
       const next = { ...changed, revision: current.revision + 1 };
+      const learningChanged = current.corrections !== next.corrections;
+      if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
       await saveDocument(file, next, loaded?.fileVersion ?? null, options.write);
-      this.syncVocabulary(meetingId, current, next);
+      if (learningChanged) {
+        try {
+          this.syncVocabulary(meetingId, current, next);
+          this.settings.delete(`vocabulary.pending.${meetingId}`);
+        } catch (error) {
+          // User corrections are saved before vocabulary; repair later, never roll back the edit.
+          this.logger.log('warn', 'vocabulary-learning-pending', {
+            meetingId, ...errorFields(error),
+          });
+        }
+      }
       return next;
     });
   }
@@ -481,6 +494,52 @@ export class Library {
         this.vocabulary.forgetCorrection(previous.id, previous.original.text);
       }
     }
+  }
+
+  /** Repairs pending links; a one-time full scan covers older interrupted saves. */
+  private async repairVocabulary(): Promise<void> {
+    const initialized = this.settings.get('vocabulary.repairInitialized', false);
+    const pending = this.settings.all();
+    for (const row of this.listMeetings()) {
+      const key = `vocabulary.pending.${row.id}`;
+      if (initialized && pending[key] !== true) continue;
+      let transcript: TranscriptFile;
+      try {
+        transcript = await this.readTranscript(row.id);
+      } catch (error) {
+        this.settings.set(key, true);
+        this.logger.log('warn', 'vocabulary-repair-deferred', {
+          meetingId: row.id, ...errorFields(error),
+        });
+        continue;
+      }
+      try {
+        const active = new Map(transcript.corrections
+          .filter((c) => c.state === 'active' && c.remember && c.replacement.trim() !== '')
+          .map((c) => [c.id, c]));
+        for (const term of this.vocabulary.list()) {
+          for (const context of term.contexts.filter((c) => c.meetingId === row.id)) {
+            if (!active.has(context.correctionId)) {
+              this.vocabulary.forgetCorrection(context.correctionId, '');
+            }
+          }
+        }
+        for (const correction of active.values()) {
+          this.vocabulary.reconcileRemember({
+            term: correction.replacement,
+            misheard: [correction.original.text],
+            context: { meetingId: row.id, correctionId: correction.id },
+          });
+        }
+        this.settings.delete(key);
+      } catch (error) {
+        this.settings.set(key, true);
+        this.logger.log('warn', 'vocabulary-repair-deferred', {
+          meetingId: row.id, ...errorFields(error),
+        });
+      }
+    }
+    this.settings.set('vocabulary.repairInitialized', true);
   }
 
   /** The words around a remembered correction, read from its meeting's file. */
@@ -662,7 +721,10 @@ export class Library {
       this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
-    if (movedFromLibrary) deleteMeetingRows(this.db, meetingId);
+    if (movedFromLibrary) {
+      deleteMeetingRows(this.db, meetingId);
+      this.settings.delete(`vocabulary.pending.${meetingId}`);
+    }
 
     for (const target of [folder, trash, cache]) {
       if (await exists(target)) problems.push(target);

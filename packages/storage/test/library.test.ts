@@ -131,6 +131,46 @@ describe('corrections through the library', () => {
   });
 });
 
+describe('vocabulary crash repair', () => {
+  it('reconciles a missing link once and respects a deleted term', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const { id, ids } = await seeded(library);
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(3, 5), replacement: 'John Smythe', remember: true,
+    });
+    const original = library.vocabulary.list()[0]!;
+    library.vocabulary.forgetCorrection(original.contexts[0]!.correctionId, 'jon smith');
+    library.settings.set(`vocabulary.pending.${id}`, true);
+    await library.close();
+    library = await Library.open({ root });
+    expect(library.vocabulary.list()).toHaveLength(1);
+    const remembered = library.vocabulary.list()[0]!;
+    library.vocabulary.delete(remembered.id);
+    library.settings.set(`vocabulary.pending.${id}`, true);
+    await library.close();
+    library = await Library.open({ root });
+    expect(library.vocabulary.list()).toEqual([]);
+    await library.close();
+  });
+
+  it('leaves a deliberately disabled term disabled during reconciliation', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const { id, ids } = await seeded(library);
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(3, 5), replacement: 'John Smythe', remember: true,
+    });
+    const term = library.vocabulary.list()[0]!;
+    library.vocabulary.update(term.id, { enabled: false });
+    library.settings.set(`vocabulary.pending.${id}`, true);
+    await library.close();
+    library = await Library.open({ root });
+    expect(library.vocabulary.list()[0]?.enabled).toBe(false);
+    await library.close();
+  });
+});
+
 describe('index stays secondary', () => {
   it('never writes transcript text into the index', async () => {
     const root = await tempDir();

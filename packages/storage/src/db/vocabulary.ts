@@ -64,6 +64,15 @@ export interface TermInput {
   context?: VocabularyContextRef;
 }
 
+function deletedKey(term: string): string {
+  return `vocabulary.deleted.${encodeURIComponent(term.normalize('NFC').toLocaleLowerCase('en-US'))}`;
+}
+function isMarked(db: DatabaseSync, key: string): boolean {
+  return db.prepare('SELECT 1 FROM settings WHERE key = ?').get(key) !== undefined;
+}
+function mark(db: DatabaseSync, key: string): void {
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, 'true')").run(key);
+}
 /** The Vocabulary list. Entries are hints for later meetings, never a find-and-replace table. */
 export class VocabularyStore {
   private readonly db: DatabaseSync;
@@ -89,12 +98,26 @@ export class VocabularyStore {
     return row as unknown as TermRow | undefined;
   }
 
+  isUserEdited(id: string): boolean {
+    return isMarked(this.db, `vocabulary.edited.${id}`);
+  }
+
+  /** Reconstruct missing links, but never resurrect deliberately deleted vocabulary. */
+  reconcileRemember(input: TermInput): void {
+    if (!input.context || isMarked(this.db, deletedKey(input.term))) return;
+    const linked = this.db.prepare(
+      'SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?',
+    ).get(input.context.correctionId);
+    if (linked === undefined) this.remember(input);
+  }
+
   /** Adds a term, or adds the misheard forms and context to the entry that already has it. */
   remember(input: TermInput): VocabularyTerm {
     const term = input.term.trim();
     if (term === '') throw new StorageError('EMPTY_TERM', 'A vocabulary term cannot be empty');
     const id = inTransaction(this.db, () => {
       const now = this.now();
+      this.db.prepare('DELETE FROM settings WHERE key = ?').run(deletedKey(term));
       const existing = this.findByTerm(term);
       const termId = existing?.id ?? randomUUID();
       if (existing === undefined) {
@@ -146,11 +169,18 @@ export class VocabularyStore {
       this.db
         .prepare('UPDATE vocabulary_terms SET updated_at = ? WHERE id = ?')
         .run(this.now(), id);
+      mark(this.db, `vocabulary.edited.${id}`);
     });
   }
 
   delete(id: string): void {
-    this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
+    const current = this.get(id);
+    if (!current) return;
+    inTransaction(this.db, () => {
+      mark(this.db, deletedKey(current.term));
+      this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
+      this.db.prepare('DELETE FROM settings WHERE key = ?').run(`vocabulary.edited.${id}`);
+    });
   }
 
   /** Terms to bias recognition with, most recently touched first. */
@@ -180,7 +210,11 @@ export class VocabularyStore {
           .prepare('SELECT COUNT(*) n FROM vocabulary_contexts WHERE term_id = ?')
           .get(termId) as { n: number };
         if (left.n === 0) {
-          this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);
+          const row = this.db.prepare('SELECT enabled FROM vocabulary_terms WHERE id = ?')
+            .get(termId) as { enabled: number } | undefined;
+          if (row?.enabled === 1 && !this.isUserEdited(termId)) {
+            this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);
+          }
         } else {
           this.db
             .prepare('DELETE FROM vocabulary_misheard WHERE term_id = ? AND text = ?')
