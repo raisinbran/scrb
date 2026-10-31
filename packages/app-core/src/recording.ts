@@ -40,6 +40,8 @@ export class RecordingSession {
   private pending: 'pausing' | 'resuming' | null = null;
   private openCommand: OpenCommand | null = null;
   private clockOriginNs: number | null = null;
+  /** Rejects when the current worker exits. A dead worker never acks what it was sent. */
+  private exited: Promise<never> = new Promise(() => undefined);
 
   constructor(private readonly options: RecordingSessionOptions) {}
 
@@ -55,7 +57,7 @@ export class RecordingSession {
     this.openCommand = open;
     this.clockOriginNs = null;
     this.attach();
-    const permission = await this.send({ name: 'checkPermission' });
+    const permission = await this.untilExit({ name: 'checkPermission' });
     if (permission.systemAudio === 'denied') this.options.onTrackMissing('meeting');
     await this.require(open);
     const ack = await this.require({ name: 'start' });
@@ -123,11 +125,23 @@ export class RecordingSession {
   private attach(): void {
     const adapter = this.options.launch();
     this.adapter = adapter;
-    adapter.onExit(() => void this.workerExited());
+    this.exited = new Promise((_, reject) => {
+      adapter.onExit(() => {
+        reject(new ContractError({ code: 'internal', message: 'The capture worker stopped.' }));
+        // A worker this session already dropped can exit during the next recording.
+        if (this.adapter === adapter) void this.workerExited();
+      });
+    });
+    this.exited.catch(() => undefined);
   }
 
   private async workerExited(): Promise<void> {
     if (this.ending || this.status === 'idle') return;
+    if (this.status === 'starting') {
+      this.adapter = null;
+      this.setStatus('idle');
+      return;
+    }
     if (this.restarts >= MAX_WORKER_RESTARTS) return this.finish('workerFailed');
     this.restarts += 1;
     this.attach();
@@ -165,8 +179,12 @@ export class RecordingSession {
     return adapter.send(this.options.newCommandId(), command);
   }
 
+  private untilExit(command: CaptureCommand): Promise<CaptureAck> {
+    return Promise.race([this.send(command), this.exited]);
+  }
+
   private async require(command: CaptureCommand): Promise<CaptureAck> {
-    const ack = await this.send(command);
+    const ack = await this.untilExit(command);
     if (ack.ok && (command.name === 'open' || ack.activeTracks.length > 0)) return ack;
     this.ending = true;
     this.adapter?.kill();

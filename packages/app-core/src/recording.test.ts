@@ -275,6 +275,71 @@ describe('RecordingSession', () => {
     });
   });
 
+  describe('a worker crash before the start ack', () => {
+    const crashWaitingFor = async (name: CaptureCommand['name']) => {
+      firstReply = (command) => (command.name === name ? 'never' : {});
+      const start = session.start(OPEN);
+      const outcome = expect(start).rejects.toThrow(ContractError);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(latest().sent.at(-1)?.name).toBe(name);
+      expect(session.state.status).toBe('starting');
+      latest().crash();
+      await outcome;
+      firstReply = () => ({});
+    };
+
+    it.each(['checkPermission', 'open', 'start'] as const)(
+      'rejects the start while waiting for %s and does not restart',
+      async (name) => {
+        await crashWaitingFor(name);
+        expect(session.state.status).toBe('idle');
+        expect(adapters).toHaveLength(1);
+        expect(ended).toEqual([]);
+        expect(seen).toEqual(['starting', 'idle']);
+      },
+    );
+
+    it('allows a later start with a full restart budget', async () => {
+      await crashWaitingFor('start');
+      await session.start(OPEN);
+      expect(session.state.status).toBe('recording');
+      for (let crash = 0; crash < MAX_WORKER_RESTARTS; crash += 1) {
+        latest().crash();
+        await vi.advanceTimersByTimeAsync(0);
+      }
+      expect(session.state.status).toBe('recording');
+      expect(adapters).toHaveLength(MAX_WORKER_RESTARTS + 2);
+    });
+
+    it('ignores a late exit from the crashed worker during a later start', async () => {
+      await crashWaitingFor('start');
+      const crashed = latest();
+      const start = session.start(OPEN);
+      crashed.crash();
+      await start;
+      expect(session.state.status).toBe('recording');
+      expect(adapters).toHaveLength(2);
+    });
+
+    it('ignores a late ack from the crashed worker', async () => {
+      let ack: (reply: CaptureAck) => void = () => undefined;
+      const start = session.start(OPEN);
+      const outcome = expect(start).rejects.toThrow(ContractError);
+      latest().send = (id, command) =>
+        command.name === 'start'
+          ? new Promise((resolve) => {
+              ack = resolve;
+            })
+          : Promise.resolve({ id, ok: true, gate: 'closed', atNs: 0, activeTracks: BOTH });
+      await vi.advanceTimersByTimeAsync(0);
+      latest().crash();
+      await outcome;
+      ack({ id: 'late', ok: true, gate: 'open', atNs: 0, activeTracks: BOTH });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(session.state.status).toBe('idle');
+    });
+  });
+
   it('keeps a crashed worker paused rather than recording', async () => {
     await session.start(OPEN);
     await session.pause();
