@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readdir, unlink } from 'node:fs/promises';
+import { readdir, stat, statfs, unlink } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { StorageError, UnsupportedVersionError } from '../errors.ts';
@@ -73,8 +73,18 @@ export interface OpenedIndex {
   replacedCorruptIndex: string | null;
 }
 
+interface IndexUpgradeChecks {
+  /** Fault-injection seams for regression tests; production uses the default checks. */
+  availableBytes?: bigint;
+  afterSnapshot?: (path: string) => void;
+  afterMigration?: (db: DatabaseSync) => void;
+}
+
 /** Upgrade from a consistent SQLite snapshot; never silently rebuild index-only user data. */
-export async function openIndex(filePath: string): Promise<OpenedIndex> {
+export async function openIndex(
+  filePath: string,
+  checks: IndexUpgradeChecks = {},
+): Promise<OpenedIndex> {
   // A snapshot left behind by an interrupted upgrade may be the only intact old index.
   // Never resume from a newer index while that recovery evidence is unresolved.
   if (filePath !== ':memory:') {
@@ -97,8 +107,15 @@ export async function openIndex(filePath: string): Promise<OpenedIndex> {
     }
     const upgrading = version > 0 && version < INDEX_VERSION;
     if (upgrading && filePath !== ':memory:') {
+      const [file, volume] = await Promise.all([stat(filePath), statfs(dirname(filePath))]);
+      const free = checks.availableBytes ?? BigInt(volume.bavail) * BigInt(volume.bsize);
+      const required = BigInt(file.size) * 2n + 16n * 1024n * 1024n;
+      if (free < required) {
+        throw new StorageError('INDEX_SPACE', 'Not enough disk space to back up and upgrade the index.');
+      }
       snapshot = `${filePath}.upgrade-${randomUUID()}`;
       db.prepare('VACUUM INTO ?').run(snapshot);
+      checks.afterSnapshot?.(snapshot);
       const copy = new DatabaseSync(snapshot);
       try {
         verify(copy);
@@ -111,6 +128,7 @@ export async function openIndex(filePath: string): Promise<OpenedIndex> {
     }
     const existing = upgrading ? currentTables(db) : [];
     migrate(db);
+    checks.afterMigration?.(db);
     verify(db);
     if (readIndexVersion(db) !== INDEX_VERSION) {
       throw new StorageError('INDEX_MIGRATION', 'Index migration did not finish.');

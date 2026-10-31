@@ -102,6 +102,61 @@ describe('index migrations', () => {
     expect(await readFile(file, 'utf8')).toBe(broken);
   });
 
+  it('refuses an upgrade before creating a snapshot if storage space is insufficient', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.close();
+    const bytes = await readFile(file);
+    await expect(openIndex(file, { availableBytes: 0n })).rejects.toMatchObject({
+      code: 'INDEX_SPACE',
+    });
+    expect(await readFile(file)).toEqual(bytes);
+    expect((await readdir(path.dirname(file))).some((name) => name.includes('.upgrade-'))).toBe(
+      false,
+    );
+  });
+
+  it('rejects an invalid snapshot version without migrating the original index', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.close();
+    const bytes = await readFile(file);
+
+    await expect(
+      openIndex(file, {
+        afterSnapshot(snapshot) {
+          const copy = new DatabaseSync(snapshot);
+          copy.exec('PRAGMA user_version = 1');
+          copy.close();
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'INDEX_SNAPSHOT' });
+    expect(await readFile(file)).toEqual(bytes);
+  });
+
+  it('refuses an upgrade that changed pre-existing rows and keeps the recovery copy', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.prepare(`INSERT INTO settings VALUES ('theme', '"dark"')`).run();
+    old.close();
+
+    await expect(
+      openIndex(file, {
+        afterMigration(db) {
+          db.prepare(`UPDATE settings SET value = '"light"' WHERE key = 'theme'`).run();
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'INDEX_MIGRATION' });
+    expect((await readdir(root)).some((name) => name.startsWith('index.sqlite.upgrade-'))).toBe(
+      true,
+    );
+    await expect(openIndex(file)).rejects.toMatchObject({ code: 'INDEX_RECOVERY_REQUIRED' });
+  });
+
   it('refuses an unresolved upgrade snapshot, preserving both versions on retry', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const older = new DatabaseSync(file);
