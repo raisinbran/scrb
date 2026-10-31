@@ -535,6 +535,12 @@ export class Library {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
   }
 
+  splitSpeaker(meetingId: string, wordIds: string[], newLabel: string): Promise<{ transcript: TranscriptFile; speakerId: string }> {
+    const speakerId = randomUUID();
+    return this.edit(meetingId, (t) => corrections.splitSpeaker(t, wordIds, newLabel, speakerId))
+      .then((transcript) => ({ transcript, speakerId }));
+  }
+
   reassignSpeaker(
     meetingId: string,
     wordIds: string[],

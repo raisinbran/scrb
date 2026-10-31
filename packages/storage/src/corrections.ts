@@ -323,6 +323,50 @@ export function reassignSpeaker(
   });
 }
 
+/** Adds a new speaker and its selected-word override in one undoable transcript change. */
+export function splitSpeaker(
+  transcript: TranscriptFile,
+  wordIds: string[],
+  newLabel: string,
+  speakerId = randomUUID(),
+): TranscriptFile {
+  const label = newLabel.trim();
+  if (!label) throw new CorrectionConflictError('A speaker name is required');
+  if (transcript.speakers.some((speaker) => speaker.id === speakerId)) {
+    throw new CorrectionConflictError('Speaker already exists');
+  }
+  const span = selectSpan(transcript, wordIds);
+  const first = span[0] as PlacedWord;
+  const last = span.at(-1) as PlacedWord;
+  const originalSpeaker = resolveSpeakerId(transcript, first.segment.speakerId);
+  if (span.some((placed) => resolveSpeakerId(transcript, placed.segment.speakerId) !== originalSpeaker)) {
+    throw new CorrectionConflictError('Selected words belong to different speakers');
+  }
+  if (transcript.speakerOverrides.some((override) =>
+    override.track === first.segment.track &&
+    override.startMs < last.word.endMs &&
+    override.endMs > first.word.startMs
+  )) {
+    throw new CorrectionConflictError('Selected words already have a speaker override');
+  }
+  const speaker: Speaker = {
+    id: speakerId, label, name: label,
+    profileId: null, userNamed: true, mergedInto: null,
+  };
+  const override: SpeakerOverride = {
+    id: randomUUID(), track: first.segment.track,
+    startMs: first.word.startMs, endMs: last.word.endMs, speakerId,
+  };
+  return pushHistory({
+    ...transcript,
+    speakers: [...transcript.speakers, speaker],
+    speakerOverrides: [...transcript.speakerOverrides, override],
+  }, 'Split speaker', {
+    speakers: [{ id: speakerId, before: null, after: speaker }],
+    overrides: [{ id: override.id, before: null, after: override }],
+  });
+}
+
 /** Adds new model text. Live segments arrive per track, so order is restored here. */
 export function appendSegments(
   transcript: TranscriptFile,

@@ -541,6 +541,33 @@ export function createMeetingHandlers(
         throw error;
       }
     },
+    splitSpeaker: async (request) => {
+      const { meetingId, range, newLabel } = request as {
+        meetingId: string;
+        range: WordRange;
+        newLabel: string;
+      };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      try {
+        const { transcript: after, speakerId } = await library.splitSpeaker(
+          meetingId,
+          selectedWordIds(before, range),
+          newLabel,
+        );
+        publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
+        return { speakerId };
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({
+            code: 'conflict',
+            message: 'The selected words or speaker changed. Select them again.',
+          });
+        }
+        throw error;
+      }
+    },
     deleteProfile: async (request) => {
       const { profileId } = request as { profileId: string };
       if (!library.voiceProfiles.get(profileId)) {

@@ -7,6 +7,7 @@ import {
   frozenWordIds,
   mergeSpeakers,
   reassignSpeaker,
+  splitSpeaker,
   redo,
   renameSpeaker,
   replaceLiveSegments,
@@ -123,6 +124,33 @@ describe('correction layer', () => {
     expect(() =>
       applyCorrection(first.transcript, { wordIds: ids(w, 4, 6), replacement: 'x' }),
     ).toThrow(CorrectionConflictError);
+  });
+
+  it('splits one speaker atomically and Undo/Redo restore both speaker and override', () => {
+    const { t, w } = live();
+    const changed = splitSpeaker(t, ids(w, 3, 5), 'Invented participant', 'speaker-new');
+    expect(changed.speakers.find((speaker) => speaker.id === 'speaker-new')).toMatchObject({
+      name: 'Invented participant',
+      profileId: null,
+    });
+    expect(changed.speakerOverrides).toHaveLength(1);
+    expect(changed.speakerOverrides[0]?.speakerId).toBe('speaker-new');
+    expect(changed.undoStack).toHaveLength(1);
+    const undone = undo(changed);
+    expect(undone.speakers).toEqual(t.speakers);
+    expect(undone.speakerOverrides).toEqual([]);
+    const redone = redo(undone);
+    expect(redone.speakers).toEqual(changed.speakers);
+    expect(redone.speakerOverrides).toEqual(changed.speakerOverrides);
+  });
+
+  it('refuses a split crossing different speakers or an existing override', () => {
+    const w1 = words('first words', 0);
+    const w2 = words('other words', 1000);
+    const t = transcript([segment('s1', 'a', w1), segment('s2', 'b', w2)], [speaker('a'), speaker('b')]);
+    expect(() => splitSpeaker(t, [w1[1]!.id, w2[0]!.id], 'Other')).toThrow(CorrectionConflictError);
+    const adjusted = reassignSpeaker(t, [w1[0]!.id], 'b');
+    expect(() => splitSpeaker(adjusted, [w1[0]!.id], 'Other')).toThrow(CorrectionConflictError);
   });
 
   it('undo and redo cover corrections and speaker edits, and a new edit clears redo', () => {
