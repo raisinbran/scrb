@@ -16,6 +16,7 @@ import {
 import { errorFields, type Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
+import { MicCheckController } from './mic-check.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
@@ -69,6 +70,7 @@ export class RecordingController {
   private lastTick = 0;
   private finishing: Promise<void> | null = null;
   private writeErrors = new Set<string>();
+  private readonly micCheck: MicCheckController;
 
   constructor(
     private readonly library: Library,
@@ -78,7 +80,13 @@ export class RecordingController {
     /** Null leaves a stopped meeting ready with no transcript. */
     private readonly finalPasses: FinalPassQueue | null = null,
     private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
-  ) {}
+  ) {
+    this.micCheck = new MicCheckController(
+      helper,
+      emit,
+      () => this.session !== null || this.starting || this.finishing !== null,
+    );
+  }
 
   private update(patch: Partial<RecordingState>): void {
     this.state = { ...this.state, ...patch };
@@ -147,6 +155,7 @@ export class RecordingController {
       throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
     }
     this.starting = true;
+    this.micCheck.stop('recordingStarted');
     try {
       return await this.begin(title);
     } catch (failure) {
@@ -281,11 +290,15 @@ export class RecordingController {
       listInputDevices: () => listInputDevices(this.helper),
       listMeetingApps: () => listMeetingApps(this.helper, this.sources.read().meetingAppId),
       selectSources: (request) => this.select(request as SourceSelection),
+      startAudioCheck: (request) =>
+        this.micCheck.start((request as { sources: SourceSelection }).sources),
+      stopAudioCheck: () => this.micCheck.stop('stopped'),
     };
   }
 
   /** Quitting mid-recording stops it cleanly rather than leaving it to recovery. */
   async shutdown(): Promise<void> {
+    this.micCheck.stop('stopped');
     await this.session?.stop();
     await this.finishing;
   }
