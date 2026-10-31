@@ -178,6 +178,7 @@ export class Library {
   private readonly locks = new Map<string, Promise<unknown>>();
   private scheduledDeletion: Promise<void> = Promise.resolve();
   private autoDeletionInFlight: Promise<AutoDeleteRun> | null = null;
+  private meetingChangedListener: ((meeting: MeetingMeta) => void) | null = null;
 
   private constructor(
     paths: LibraryPaths,
@@ -223,6 +224,10 @@ export class Library {
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
+  }
+
+  setMeetingChangedListener(listener: ((meeting: MeetingMeta) => void) | null): void {
+    this.meetingChangedListener = listener;
   }
 
   async close(): Promise<void> {
@@ -290,6 +295,7 @@ export class Library {
     await saveDocument(files.meta, meta, null);
     upsertMeeting(this.db, meta, folder);
     this.logger.log('info', 'meeting-created', { meetingId: meta.id, source: meta.source });
+    this.meetingChangedListener?.(meta);
     return meta;
   }
 
@@ -328,6 +334,7 @@ export class Library {
     const next = { ...loaded.doc, ...changes };
     await saveDocument(file, next, loaded.fileVersion);
     upsertMeeting(this.db, next, row.folder);
+    this.meetingChangedListener?.(next);
     return next;
   }
 
