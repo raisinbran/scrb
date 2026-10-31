@@ -187,10 +187,14 @@ describe('Recordings', () => {
 
     it('renders only part of the 8-hour transcript', async () => {
       renderScreen();
+      const started = performance.now();
       await openMeeting(/Depot rollout/);
       const links = await screen.findAllByRole('button', { name: /Play from/ });
+      const elapsedMs = performance.now() - started;
       expect(links.length).toBeLessThan(100);
-    });
+      // Synthetic 8-hour fixture: include opening the page and its initial virtual window.
+      expect(elapsedMs).toBeLessThan(5_000);
+    }, { timeout: 10_000 });
 
     it('flags a recovered meeting', async () => {
       renderScreen();
