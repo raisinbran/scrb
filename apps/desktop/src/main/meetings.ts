@@ -1,4 +1,4 @@
-import { readSealedGaps, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
+import { applySummaryUpdate, readSealedGaps, toSummaryDoc, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
 import {
   ContractError,
   type BackendEvents,
@@ -8,7 +8,7 @@ import {
   type MeetingFilter,
   type MeetingListItem,
   type MeetingStatus,
-  type MeetingSummaryDoc,
+  type SummaryItemUpdate,
   type Speaker as ContractSpeaker,
   type TimelineGap,
   type TranscriptPage,
@@ -196,19 +196,6 @@ function toTranscriptPage(
     totalWords: display.reduce((sum, segment) => sum + segment.tokens.length, 0),
     segments: display.slice(offset, offset + limit).map(toContractSegment),
     speakers: activeSpeakers(transcript).map(toContractSpeaker),
-  };
-}
-
-function emptySummary(meetingId: string): MeetingSummaryDoc {
-  return {
-    meetingId,
-    state: 'notGenerated',
-    generatedAt: null,
-    narrative: { brief: null, full: null },
-    actionItems: [],
-    decisions: [],
-    openQuestions: [],
-    warnings: [],
   };
 }
 
@@ -405,7 +392,23 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
-      return emptySummary(meetingId);
+      return toSummaryDoc(meetingId, await library.readSummary(meetingId));
+    },
+    updateSummaryItem: async (request) => {
+      const { meetingId, update } = request as {
+        meetingId: string; update: SummaryItemUpdate;
+      };
+      await requireMeeting(library, meetingId);
+      try {
+        const doc = await library.updateSummary(meetingId, (current) =>
+          applySummaryUpdate(current, update));
+        return toSummaryDoc(meetingId, doc);
+      } catch (error) {
+        if (error instanceof StorageError && error.code === 'NO_SUMMARY') {
+          throw new ContractError({ code: 'notFound', message: 'Generate a summary before editing.' });
+        }
+        throw error;
+      }
     },
     deleteMeeting: async (request) => {
       const { meetingId } = request as { meetingId: string };
