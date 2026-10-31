@@ -263,6 +263,23 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
         throw error;
       }
     },
+    reassignSpeaker: async (request) => {
+      const { meetingId, range, speakerId } = request as {
+        meetingId: string; range: WordRange; speakerId: string;
+      };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      try {
+        const after = await library.reassignSpeaker(meetingId, selectedWordIds(before, range), speakerId);
+        publishEdit(before, after, emit);
+        return editState(after);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({ code: 'conflict', message: 'The selected speaker or text changed.' });
+        }
+        throw error;
+      }
+    },
     undo: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);

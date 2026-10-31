@@ -684,16 +684,25 @@ function mergeModel(
 }
 
 /**
- * Replaces the whole model layer with final-pass text. Frozen words keep their IDs and text and
- * may only move in time. Undo history stops here: older entries refer to words and speakers that
- * no longer exist, so restoring them could break a kept correction. `revertCorrection` still works.
+ * Replaces the whole model layer. Only correction-history entries referencing words retained by
+ * the frozen-span merge may survive. Speaker history needs separate verified rebasing.
  */
 export function applyFinalPass(
   transcript: TranscriptFile,
   incoming: ModelReplacement,
 ): TranscriptFile {
   const next = mergeModel(transcript, [], transcript.segments, incoming);
-  return { ...next, undoStack: [], redoStack: [] };
+  const ids = new Set(next.segments.flatMap((segment) => segment.words.map((word) => word.id)));
+  const safe = (entry: HistoryEntry): boolean =>
+    entry.speakers.length === 0 && entry.overrides.length === 0 &&
+    entry.corrections.every((patch) =>
+      [patch.before, patch.after].every((correction) =>
+        correction === null || correction.wordIds.every((wordId) => ids.has(wordId))));
+  return {
+    ...next,
+    undoStack: transcript.undoStack.filter(safe),
+    redoStack: transcript.redoStack.filter(safe),
+  };
 }
 
 /**
