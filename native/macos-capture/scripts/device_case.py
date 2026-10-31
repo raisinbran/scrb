@@ -3,7 +3,7 @@
 
 Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
-Usage: device_case.py <helper> <work dir> [devices|sleep|permission]
+Usage: device_case.py <helper> <work dir> [devices|sleep|permission|restart]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
 
@@ -27,6 +27,10 @@ if mode == "permission":
              (120, "Same list: turn Claude back ON. If asked, choose Later")]
     READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
     END = 150
+if mode == "restart":
+    STEPS = [(30, "Apple menu > Restart. Untick Reopen windows, then click Restart")]
+    READY = "Save your work and close other apps. Then press Start."
+    END = 0
 
 RATE = 8000
 tone_file = os.path.join(work, "tone.wav")
@@ -89,6 +93,12 @@ for index, (at, text) in enumerate(STEPS):
         show("Step %d of %d comes next" % (index + 1, len(STEPS)), "%d s" % math.ceil(left), "NEXT: " + text, following, index)
         time.sleep(0.2)
     print("%6.1f s NOW: %s" % (time.time() - started, text), flush=True)
+    if mode == "restart":
+        following = "After restart: open Claude and tell it you are back"
+        while time.time() - started < at + 300:  # normally ended by the restart
+            show("Step 1 of 1", "NOW", "DO THIS NOW: " + text, following, index)
+            time.sleep(0.2)
+        break
     if mode == "sleep":
         # time.monotonic stops during sleep and time.time does not.
         offset = time.time() - time.monotonic()

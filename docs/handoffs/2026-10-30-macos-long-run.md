@@ -24,3 +24,5 @@ This measures track timelines, not a shared sound on both tracks. Output was mut
 `device_case.py <helper> <work> sleep` runs this case. `pause_case.py` and `stop_paused_case.py` still pass on this build.
 
 **Permission switches, 2026-10-30, hands-on:** Microphone and System Audio Recording were turned off and back on, each for 30 s, during a recording. Neither track reacted: no event, no gap, real audio throughout. On this macOS a switch does not reach a stream already running, so `permissionLost` cannot be expected mid-recording. The Privacy condition here is at the next stream open, which this case did not test.
+
+**Restart during a recording, 2026-10-30, hands-on:** a Mac restart from the Apple menu ended the helper without a clean Stop. The lock was free after the restart, and `sealAudio` recovered 8 finished chunks on each track, 40.0 s. The open `.part` on each track held headers only, so it went to `damaged`, and less than the 1 s page interval was lost. The restart's exact moment was not logged, so that bound is the measure, not a timed loss. The test recording was deleted afterwards.
