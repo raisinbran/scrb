@@ -109,6 +109,10 @@ export class RecordingController {
         }
       }
     }
+    if (this.state.status === 'idle') {
+      this.pauseSpans = [];
+      if (meetingId) this.emit('pauseSpansChanged', { meetingId, spans: [] });
+    }
     this.emit('recordingStateChanged', this.state);
   }
 

@@ -233,6 +233,26 @@ describe('Start while the previous recording is finishing', () => {
     await controller.shutdown();
   });
 
+  it('clears confirmed pause spans after the recording becomes idle', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 2_000_000_000 });
+    await controller.handlers.startRecording!({});
+    fake.sessions[0]!.state('paused', 1_000_000_000);
+    expect((await controller.handlers.getRecordingSnapshot!()).pauseSpans).toHaveLength(1);
+    await controller.shutdown();
+    expect((await controller.handlers.getRecordingSnapshot!()).pauseSpans).toEqual([]);
+    expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
+      meetingId: 'meeting-1',
+      spans: [],
+    });
+  });
+
   it('warns once per track on a write error and keeps the level meter', async () => {
     const emit = vi.fn();
     const controller = new RecordingController(
