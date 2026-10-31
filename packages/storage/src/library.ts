@@ -177,6 +177,7 @@ export class Library {
   private readonly clock: () => Date;
   private readonly locks = new Map<string, Promise<unknown>>();
   private scheduledDeletion: Promise<void> = Promise.resolve();
+  private autoDeletionInFlight: Promise<AutoDeleteRun> | null = null;
 
   private constructor(
     paths: LibraryPaths,
@@ -226,6 +227,7 @@ export class Library {
 
   async close(): Promise<void> {
     await this.scheduledDeletion;
+    await this.autoDeletionInFlight;
     await Promise.allSettled(this.locks.values());
     this.db.close();
     await this.logger.flush();
@@ -896,7 +898,17 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  async runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(): Promise<AutoDeleteRun> {
+    if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
+    const run = this.runAutoDeleteOnce();
+    this.autoDeletionInFlight = run;
+    void run.finally(() => {
+      if (this.autoDeletionInFlight === run) this.autoDeletionInFlight = null;
+    }).catch(() => undefined);
+    return run;
+  }
+
+  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };

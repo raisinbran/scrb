@@ -528,6 +528,21 @@ describe('auto-delete', () => {
     await library.close();
   });
 
+  it('coalesces overlapping retention runs and never deletes one meeting twice', async () => {
+    const clock = { t: start };
+    const { library, old, young } = await aged(clock);
+    library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
+    const first = library.runAutoDelete();
+    const second = library.runAutoDelete();
+    expect(second).toBe(first);
+    const [a, b] = await Promise.all([first, second]);
+    expect(a).toEqual(b);
+    expect(a.results.map((result) => result.meetingId)).toEqual([old]);
+    expect(a.results[0]?.ok).toBe(true);
+    expect(library.listMeetings().map((row) => row.id)).toEqual([young]);
+    await library.close();
+  });
+
   it('whole meeting: removes exactly the old meeting', async () => {
     const clock = { t: start };
     const { library, young } = await aged(clock);
