@@ -284,6 +284,25 @@ describe('vocabulary', () => {
     expect(left.n).toBe(0);
   });
 
+  it('undoes and redoes user vocabulary edits and deletes without retaining deleted terms in a backup', async () => {
+    const { db } = await openIndex(':memory:');
+    const vocabulary = new VocabularyStore(db, now);
+    const a = vocabulary.remember({ term: 'Synthetic', misheard: ['syn thetic'] });
+    expect(vocabulary.undoState().canUndo).toBe(false);
+    vocabulary.update(a.id, { term: 'Edited synthetic', enabled: false });
+    expect(vocabulary.undo().canRedo).toBe(true);
+    expect(vocabulary.get(a.id)).toMatchObject({ term: 'Synthetic', enabled: true });
+    vocabulary.redo();
+    expect(vocabulary.get(a.id)).toMatchObject({ term: 'Edited synthetic', enabled: false });
+    vocabulary.delete(a.id);
+    expect(vocabulary.get(a.id)).toBeNull();
+    vocabulary.undo();
+    expect(vocabulary.get(a.id)?.id).toBe(a.id);
+    vocabulary.redo();
+    expect(vocabulary.get(a.id)).toBeNull();
+    db.close();
+  });
+
   it('forgetting a correction removes only what that correction added', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);

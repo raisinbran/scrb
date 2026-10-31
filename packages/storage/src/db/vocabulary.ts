@@ -17,6 +17,14 @@ export interface VocabularyTerm {
   updatedAt: string;
 }
 
+interface VocabularyChange {
+  id: string;
+  before: VocabularyTerm | null;
+  after: VocabularyTerm | null;
+  wasEdited: boolean;
+  nowEdited: boolean;
+}
+
 interface TermRow {
   id: string;
   term: string;
@@ -78,6 +86,8 @@ function mark(db: DatabaseSync, key: string): void {
 /** The Vocabulary list. Entries are hints for later meetings, never a find-and-replace table. */
 export class VocabularyStore {
   private readonly db: DatabaseSync;
+  private undoStack: VocabularyChange[] = [];
+  private redoStack: VocabularyChange[] = [];
   private readonly now: () => string;
 
   constructor(db: DatabaseSync, now: () => string) {
@@ -149,6 +159,8 @@ export class VocabularyStore {
   }
 
   update(id: string, changes: { term?: string; enabled?: boolean; misheard?: string[] }): void {
+    const before = this.get(id);
+    const wasEdited = this.isUserEdited(id);
     inTransaction(this.db, () => {
       if (changes.term !== undefined) {
         this.db
@@ -173,16 +185,78 @@ export class VocabularyStore {
         .run(this.now(), id);
       mark(this.db, `vocabulary.edited.${id}`);
     });
+    this.rememberChange({ id, before, after: this.get(id), wasEdited, nowEdited: true });
   }
 
   delete(id: string): void {
     const current = this.get(id);
     if (!current) return;
+    const wasEdited = this.isUserEdited(id);
     inTransaction(this.db, () => {
       mark(this.db, deletedKey(current.term));
       this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
       this.db.prepare('DELETE FROM settings WHERE key = ?').run(`vocabulary.edited.${id}`);
     });
+    this.rememberChange({ id, before: current, after: null, wasEdited, nowEdited: false });
+  }
+
+  undoState(): { canUndo: boolean; canRedo: boolean } {
+    return { canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0 };
+  }
+
+  private rememberChange(change: VocabularyChange): void {
+    if (JSON.stringify(change.before) === JSON.stringify(change.after)) return;
+    this.undoStack.push(change);
+    if (this.undoStack.length > 50) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private restore(id: string, wanted: VocabularyTerm | null, previous: VocabularyTerm | null, edited: boolean): void {
+    inTransaction(this.db, () => {
+      this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
+      if (wanted) {
+        this.db.prepare(
+          'INSERT INTO vocabulary_terms (id, term, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        ).run(id, wanted.term, wanted.enabled ? 1 : 0, wanted.createdAt, wanted.updatedAt);
+        for (const text of wanted.misheard) {
+          this.db.prepare('INSERT INTO vocabulary_misheard (term_id, text) VALUES (?, ?)').run(id, text);
+        }
+        for (const context of wanted.contexts) {
+          this.db.prepare(
+            'INSERT INTO vocabulary_contexts (term_id, meeting_id, correction_id) VALUES (?, ?, ?)',
+          ).run(id, context.meetingId, context.correctionId);
+        }
+        this.db.prepare('DELETE FROM settings WHERE key = ?').run(deletedKey(wanted.term));
+      } else if (previous) {
+        mark(this.db, deletedKey(previous.term));
+      }
+      if (edited) mark(this.db, `vocabulary.edited.${id}`);
+      else this.db.prepare('DELETE FROM settings WHERE key = ?').run(`vocabulary.edited.${id}`);
+    });
+  }
+
+  undo(): { canUndo: boolean; canRedo: boolean } {
+    const change = this.undoStack.at(-1);
+    if (!change) return this.undoState();
+    if (JSON.stringify(this.get(change.id)) !== JSON.stringify(change.after)) {
+      throw new StorageError('VOCABULARY_CHANGED', 'Vocabulary changed since the edit.');
+    }
+    this.restore(change.id, change.before, change.after, change.wasEdited);
+    this.undoStack.pop();
+    this.redoStack.push(change);
+    return this.undoState();
+  }
+
+  redo(): { canUndo: boolean; canRedo: boolean } {
+    const change = this.redoStack.at(-1);
+    if (!change) return this.undoState();
+    if (JSON.stringify(this.get(change.id)) !== JSON.stringify(change.before)) {
+      throw new StorageError('VOCABULARY_CHANGED', 'Vocabulary changed since the undo.');
+    }
+    this.restore(change.id, change.after, change.before, change.nowEdited);
+    this.redoStack.pop();
+    this.undoStack.push(change);
+    return this.undoState();
   }
 
   /** Terms to bias recognition with, most recently touched first. */
