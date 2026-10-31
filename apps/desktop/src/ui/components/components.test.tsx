@@ -70,6 +70,37 @@ describe('shared components', () => {
     expect(document.activeElement).toBe(first);
   });
 
+  it('does not focus hidden or disabled controls, and restores focus to the opener', () => {
+    const opener = document.createElement('button');
+    opener.textContent = 'Open accessible dialog';
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(
+      <Dialog title="Hidden controls">
+        <div hidden><button type="button">Hidden action</button></div>
+        <button type="button" disabled>Disabled action</button>
+        <button type="button">Visible action</button>
+      </Dialog>,
+    );
+    const visible = screen.getByRole('button', { name: 'Visible action' });
+    expect(document.activeElement).toBe(visible);
+    fireEvent.keyDown(visible, { key: 'Tab' });
+    expect(document.activeElement).toBe(visible);
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('keeps focus on a modal panel with no interactive controls', () => {
+    render(<Dialog title="Busy">Loading…</Dialog>);
+    const panel = screen.getByRole('dialog');
+    expect(document.activeElement).toBe(panel);
+    fireEvent.keyDown(panel, { key: 'Tab' });
+    expect(document.activeElement).toBe(panel);
+    fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(panel);
+  });
+
   describe('SpeakerLabel', () => {
     const unknown = MOCK_SPEAKERS[2] as Speaker;
 

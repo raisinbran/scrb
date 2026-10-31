@@ -6,6 +6,12 @@ import styles from './Dialog.module.css';
 
 const FOCUSABLE = 'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])';
 
+function tabStops(panel: HTMLElement): HTMLElement[] {
+  return [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (item) => !item.matches(':disabled') && !item.closest('[hidden], [inert]'),
+  );
+}
+
 interface DialogProps {
   title: string;
   /** Omit to make the dialog impossible to dismiss, as for a required first-launch question. */
@@ -20,7 +26,8 @@ export function Dialog({ title, onClose, children }: DialogProps) {
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    const first = panel.current?.querySelector<HTMLElement>('[data-autofocus], ' + FOCUSABLE);
+    const choices = panel.current ? tabStops(panel.current) : [];
+    const first = choices.find((item) => item.hasAttribute('data-autofocus')) ?? choices[0];
     (first ?? panel.current)?.focus();
     return () => opener?.focus();
   }, []);
@@ -31,9 +38,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       onClose();
     }
     if (event.key !== 'Tab' || !panel.current) return;
-    const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-      (item) => !item.matches(':disabled'),
-    );
+    const items = tabStops(panel.current);
     const first = items[0];
     const last = items[items.length - 1];
     if (!first) {
