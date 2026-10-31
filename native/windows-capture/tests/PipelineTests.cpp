@@ -240,6 +240,30 @@ void TestMarks() {
     CHECK(!r.sink.closed[0].allZero);
 }
 
+void TestFlagStorm() {
+    puts("T21 synthetic: 1281 flags in 300 seconds, bounded splits; real gaps still split");
+    Rig r("microphone");
+    r.pipe.OnStreamOpened({"id", "hands-free", "bluetooth-handsfree"}, "device");
+    constexpr int packets = 30000;
+    constexpr int flags = 1281;
+    for (int i = 0; i < packets; ++i) {
+        // An invented 300 s log: 1281 evenly spaced discontinuity flags, no missing audio.
+        const bool flag = (i * flags / packets) != ((i + 1) * flags / packets);
+        if (i == 18000) r.stamp += 40 * kNsPerMs;  // One real gap must still split.
+        r.Feed(1, 1, flag);
+    }
+    r.pipe.Stop();
+    const auto& chunks = r.sink.closed;
+    CHECK(r.sink.written == static_cast<uint64_t>(packets) * 480);
+    // 60 regular 5-second chunks + at most ~300 flag-only boundaries + real gap.
+    CHECK(chunks.size() <= 365);
+    CHECK(chunks.size() >= 60);
+    bool markedGap = false;
+    for (const auto& chunk : chunks) markedGap |= chunk.missingBeforeMs >= 39;
+    CHECK(markedGap);
+    for (size_t i = 1; i < chunks.size(); ++i) CHECK(chunks[i].seq == chunks[i - 1].seq + 1);
+}
+
 void TestRealStandbyLog(const char* path) {
     printf("F11 replay of the logged standby run: %s\n", path);
     std::ifstream in(path);
@@ -286,6 +310,7 @@ int main(int argc, char** argv) {
     TestFastPause();
     TestStartMoved();
     TestMarks();
+    TestFlagStorm();
     if (argc > 1) TestRealStandbyLog(argv[1]);
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "PASSED", g_failures);
     return g_failures ? 1 : 0;

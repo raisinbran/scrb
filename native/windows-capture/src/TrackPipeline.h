@@ -95,6 +95,7 @@ private:
     uint32_t prevFrames_ = 0;
     int64_t prevArrivalNs_ = 0;
     int64_t lastStallArrivalNs_ = 0;
+    int64_t lastFlagSplitNs_ = -1;  // T21: rate-limit zero-loss discontinuity flags.
 
     int baselineCount_ = 0;
     int64_t baselineNs_ = 0;

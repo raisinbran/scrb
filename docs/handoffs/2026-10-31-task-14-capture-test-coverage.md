@@ -1,16 +1,18 @@
-# Task 14 — capture replay coverage against main 7790843
+# Task 14 — Gate 2 capture test mapping (QA follow-up)
 
-**Branch:** `rosmont/meeting-scribe-remaining-20261031`. Added focused cases to `packages/app-core/src/recovery.test.ts`. The table distinguishes verification already expressed in tests from the actual Gate 2 measurements, which remain unperformed.
+Baseline: `docs/plans/capture-contract-and-clock.md` and native/JS replay source at `qa/chatgpt-followup` `042c326`. **Native tests were authored, not compiled or run here.** T21 uses an **invented** 300-second flag stream, because the original 300-second/1281-flag log was not found in the repository.
 
-| Case | Existing evidence | New test / outstanding |
-|---|---|---|
-| T1: packet timestamps within 100 ms | Clock-origin and worker-restart assertions in `packages/app-core/src/recording.test.ts` | **Outstanding:** actual packet-timestamp deviation against a shared sound on both machines. JS tests do not prove device timestamps |
-| T2: hidden gap | Recovery test "marks a span ... missing" | **Added:** T2 3 ms synthetic gap |
-| T3: sleep stale packet burst | Recovery test "marks a span after a sleep close" | **Outstanding:** stale burst drop in Windows native pipeline and hardware replay |
-| T3b: headset mode switch, possibly missing | Recovery test "does not call a silent whole-computer track lost"; native output-switch window logic exists | **Outstanding:** actual hands-free switching fixture or real hardware check |
-| T8: default device flaps | Windows `Session.cpp` has default-change handling | **Outstanding:** replay 4-second flaps and assert five-second stability + bounded reopens |
-| T13: pause spans | Several recovery tests for pause and worker restart | **Added:** T13 two separate confirmed pauses |
-| T14: complete chunks, no missing sequences | `readPages` CRC checks and crash-repair tests | **Added:** T14 clean seal with sequences 0,1,2 and full pages. Native missing-sequence injection remains outstanding |
-| T21: 1281 flags in 300 s | Native `TrackPipeline.cpp` currently splits when `p.flagDiscontinuity`, even with zero stamp gap | **Not passing/covered.** The 300-second source log is not in this repository. Use invented 1281 evenly spaced flag events in a 300-second synthetic stream, with 5-second chunks, asserting no more than ~300 additional flag-only splits plus all real gaps separately. Change the pipeline's flag-only debounce before running this. Do not claim this test passes yet |
+| Case | Test and present coverage | Remaining verification |
+| --- | --- | --- |
+| T1 — timestamps and drift ≤100 ms | `native/windows-capture/tests/PipelineTests.cpp`: `TestRolloverAndGaps` verifies 5s timestamp-derived boundaries; `packages/app-core/src/recording.test.ts` verifies one clock origin across restarts | **No real packet-to-shared-sound or two-track hardware drift test**; Gate 2 Mac/Windows runs |
+| T2 — invisible ≥2 ms gap | `packages/app-core/src/recovery.test.ts` `T2: marks a real 3 ms discontinuity`; native `TestRolloverAndGaps` checks stamp jump | Run native replay; hardware confirmation outstanding |
+| T3 — standby stale packet burst | Native `TestStandbyLoss`, `TestWake` and optional `TestRealStandbyLog`; `TrackPipeline::OnPacket` drops pre-wake stale packets | Replay original standby CSV and real sleep/wake on Windows; cannot prove device behavior in JS |
+| T3b — silent hands-free switch | Native `TestMarks` tests `possibly-missing` near output change, preserving silent marker | Real headset mode-switch window; no direct Mac hardware test |
+| T8 — default device flaps every 4 s | `Session.cpp` has default-device change tracking; **no standalone 4s/5s debounce test seam found** | Add Session replay seam/fault injection on Windows; run 4s toggles and confirm no thrashing |
+| T13 — confirmed pause spans | `packages/app-core/src/recovery.test.ts` `T13: preserves two confirmed pauses`; native `TestPauseAndLoss`, `TestFastPause` | Real pause/device change |
+| T14 — valid complete chunks and sequence | `packages/app-core/src/recovery.test.ts` `T14: retains original chunk sequence and every Ogg page`; native `TestRolloverAndGaps` | Run real chunk CRC checks; damaged/missing native file injection |
+| T21 — 1281 discontinuity flags in 300s | **Added** native `TestFlagStorm` (invented flags plus one real 40ms gap); `TrackPipeline` rate-limits flag-only splits to at most once/second while still splitting real stamp gaps. Asserts bounded chunk count, all frames, sequential seq, and detected gap | Build/run `PipelineTests.exe` on Windows; compare against real 300s log when available |
 
-**Follow-up recommendations (primary agent decides):** Make the packet replay seam directly test `TrackPipeline` on Windows; use invented T21 flags if original log unavailable. No real meeting audio. Gate 2 stays blocked on native runs for T1/T3/T3b/T8/T21. Exact `npm run check`, Windows build, real mic/call, and hardware checks **not run** for this commit.
+Run native `build.cmd` on Windows and invoke `build\\bin\\PipelineTests.exe` with optional standby CSV. The T21 fixture is **not the original log**. No Task 14 hardware evidence is being claimed.
+
+**Not run:** `npm run check`, Prettier, `npm run test:smoke`, Windows C++ compiler, native PipelineTests, Mac hardware, Gates 2/3 long runs. No contracts changed.
