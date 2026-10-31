@@ -59,11 +59,18 @@ function detail(raw: string | null, unconfirmed: boolean) {
   return { value, unconfirmed };
 }
 
+function reviewOf(item: { needsReview: boolean; alsoAtMs: number[] }) {
+  return {
+    ...(item.needsReview ? { needsReview: true } : {}),
+    ...(item.alsoAtMs.length ? { alsoAtMs: item.alsoAtMs } : {}),
+  };
+}
 function toAction(item: ActionItem): ExportActionItem {
   const owner = detail(item.owner, item.ownerUnconfirmed);
   const deadline = detail(item.deadline, item.deadlineUnconfirmed);
   return {
     action: item.action,
+    ...reviewOf(item),
     owner: owner.value,
     ownerUnconfirmed: owner.unconfirmed,
     deadline: deadline.value,
@@ -78,6 +85,7 @@ function toDecision(item: Decision): ExportDecision {
   const impactArea = item.impactArea === null ? null : (IMPACT_AREA[item.impactArea] ?? null);
   return {
     decision: item.decision,
+    ...reviewOf(item),
     status: DECISION_STATUS[item.status],
     impactArea,
     // A decision records no basis for its area, so no area can be shown as confirmed.
@@ -107,7 +115,7 @@ function toFull(body: SummaryBody, decisions: Decision[]): ExportFullSummary {
     // The rule the summary engine's own Markdown uses.
     criticalDecisions: decisions
       .filter((item) => item.status === 'decided')
-      .map((item) => ({ text: item.decision, sourceMs: item.sourceMs })),
+      .map((item) => ({ text: item.decision, sourceMs: item.sourceMs, ...reviewOf(item) })),
     // The file keeps impacts only as text. Each line keeps its "Inferred:" label from summary.ts.
     projectDevelopments: projectDevelopments.map((text) => ({ text, sourceMs: null })),
   };
@@ -122,6 +130,7 @@ export function toExportSummary(file: SummaryFile | null): ExportSummary | null 
     openQuestions: file.openQuestions.map((item) => ({
       text: item.question,
       sourceMs: item.sourceMs,
+      ...reviewOf(item),
     })),
     actionItems: file.actionItems.map(toAction),
     decisions: file.decisions.map(toDecision),

@@ -14,7 +14,7 @@ import { ExportInputError, type ExportMeeting } from '../../export/src/types.ts'
 import { toExportSummary } from './export-summary.ts';
 import { IMPACTS_HEADING, IMPACTS_SECTION_ID, OVERVIEW_SECTION_ID } from './summary.ts';
 
-const EVIDENCE = { alsoAtMs: [9_000], needsReview: true, edited: true };
+const EVIDENCE = { alsoAtMs: [], needsReview: false, edited: true };
 
 function action(overrides: Partial<ActionItem> = {}): ActionItem {
   return {
@@ -152,6 +152,21 @@ describe('toExportSummary states', () => {
     expect(text).toContain('No action items detected.');
     expect(text).toContain('No decisions detected.');
     expect(text).toContain('No open questions.');
+  });
+});
+
+describe('review provenance in shared export layout', () => {
+  it('prints weak evidence and every repeated timestamp in the same layout', () => {
+    const summary = file({
+      full: { sections: [] },
+      actionItems: [action({ needsReview: true, alsoAtMs: [9_000, 15_000] })],
+      decisions: [decision({ needsReview: true, alsoAtMs: [40_000] })],
+    });
+    const text = allText(printed(summary));
+    expect(text).toContain('Send the estimate (needs review)');
+    expect(text).toContain('Move the review (needs review)');
+    expect(text).toContain('0:00:12; 0:00:09; 0:00:15');
+    expect(text).toContain('0:00:30; 0:00:40');
   });
 });
 

@@ -256,9 +256,10 @@ function sourcedList(
 }
 
 function sourcedLine(item: ExportSourcedItem, options: SummaryOptions): Line {
-  const line = textLine(item.text);
+  const line = textLine(item.needsReview ? `${item.text} (needs review)` : item.text);
   if (options.sourceTimestamps && item.sourceMs !== null && hasText(line)) {
-    line.spans.push(span(` (${formatTimestamp(item.sourceMs)})`, 'muted'));
+    const times = [item.sourceMs, ...(item.alsoAtMs ?? [])];
+    line.spans.push(span(` (${times.map(formatTimestamp).join('; ')})`, 'muted'));
   }
   return line;
 }
@@ -269,12 +270,12 @@ function actionTable(items: readonly ExportActionItem[], options: SummaryOptions
 
   const rows = items.map((item) => {
     const row = [
-      textLine(item.action),
+      textLine(item.needsReview ? `${item.action} (needs review)` : item.action),
       flagged(item.owner, item.ownerUnconfirmed),
       flagged(item.deadline, item.deadlineUnconfirmed),
       textLine(item.status ?? LABELS.unconfirmed),
     ];
-    return withSource(row, item.sourceMs, options);
+    return withSource(row, item, options);
   });
   return { kind: 'table', columns: withSourceColumn(columns, options), rows };
 }
@@ -285,11 +286,11 @@ function decisionTable(items: readonly ExportDecision[], options: SummaryOptions
 
   const rows = items.map((item) => {
     const row = [
-      textLine(item.decision),
+      textLine(item.needsReview ? `${item.decision} (needs review)` : item.decision),
       textLine(DECISION_STATUS[item.status]),
       textLine(impactText(item)),
     ];
-    return withSource(row, item.sourceMs, options);
+    return withSource(row, item, options);
   });
   return { kind: 'table', columns: withSourceColumn(columns, options), rows };
 }
@@ -316,9 +317,15 @@ function withSourceColumn(columns: TableColumn[], options: SummaryOptions): Tabl
   return options.sourceTimestamps ? [...columns, column('Source', 18)] : columns;
 }
 
-function withSource(row: Line[], sourceMs: number | null, options: SummaryOptions): Line[] {
+function withSource(
+  row: Line[], item: { sourceMs: number | null; alsoAtMs?: readonly number[] },
+  options: SummaryOptions,
+): Line[] {
   if (!options.sourceTimestamps) return row;
-  return [...row, textLine(sourceMs === null ? LABELS.notSpecified : formatTimestamp(sourceMs))];
+  const times = [item.sourceMs, ...(item.alsoAtMs ?? [])].filter(
+    (ms): ms is number => ms !== null,
+  );
+  return [...row, textLine(times.length ? times.map(formatTimestamp).join('; ') : LABELS.notSpecified)];
 }
 
 function column(header: string, weight: number): TableColumn {
