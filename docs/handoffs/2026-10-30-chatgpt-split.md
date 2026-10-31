@@ -15,6 +15,20 @@
 | 7 | Written proposal for a restart whose `open` ack says `ok: false` | Decision for the owner, then code |
 | 8 | Windows restart changes from `2026-10-30-windows-capture-to-match-mac.md`, as a patch | Patch only. Claude Code builds and tests it on the PC. |
 
+Tasks 1 to 7 are done. Task 8 waits for a build on the PC.
+
+## Next tasks for ChatGPT, approved 2026-10-31
+
+| # | Task | Done when |
+| --- | --- | --- |
+| 9 | Exact TypeScript for the contract items approved now, from `2026-10-30-owner-decisions.md` | A diff to `packages/contracts/` for the owner to approve, with `CALL_TABLE`, `EVENT_TABLE`, `REQUEST_CHECKS`, mock and allowlist changes |
+| 10 | Corrections backend bridge, slices 2 and 4 of the corrections plan | Diff with tests. No contract change. |
+| 11 | Delete: wire the `deleteMeeting` handler and rules 1 to 3 of the delete plan | Diff with tests. No contract change. |
+| 12 | Index upgrades, Slice A | Diff with tests |
+| 13 | Vocabulary, items 1 to 3 of the plan: learning, crash repair, term choices | Diff with tests |
+
+Do these one at a time, in order. Before returning a diff, run `npm run check` if you can, and match the repo's lint and formatting. The last batch failed type check, lint and formatting.
+
 ## Stays with Claude Code
 
 - Anything using real capture: the 4-hour Mac run, mic switch with a permission off, USB mic, real Teams or Zoom calls, Windows long run and load test.

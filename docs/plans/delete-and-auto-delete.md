@@ -1,6 +1,6 @@
 # Task 4: Delete and auto-delete, including recorded meetings and cache
 
-**Status:** Approved for planning by owner, 2026-10-30. Implementation requires review through the phase gate.
+**Status:** Approved by owner on 2026-10-31, with recommendations A and B. Implementation requires review through the phase gate.
 **Base `main`:** `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a`
 **Scope:** `packages/storage/`, `apps/desktop/src/main/meetings.ts`, app startup/shutdown. Do **not** change `packages/contracts/` (the approved `deleteMeeting` call and `DeleteResult` already exist).
 

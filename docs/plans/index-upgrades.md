@@ -1,6 +1,6 @@
 # Plan: index upgrades
 
-**Task 3 | Approval pending | Baseline:** `raisinbran/scrb` `main`, commit `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a`.
+**Task 3 | Approved by owner on 2026-10-31; code not started | Baseline:** `raisinbran/scrb` `main`, commit `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a`.
 
 ## Goal and current state
 
@@ -41,6 +41,6 @@ Use synthetic meetings and invented profile vectors only. Extend existing `index
 - **Slice B:** restart/corruption recovery, snapshot cleanup and warnings; integrate Task 4's deletion guarantees.
 - **Review:** Claude Code applies the plan on a branch, runs `npm run check` plus relevant integration and platform tests, reviews the diff, and seeks owner approval before merge.
 
-**Recommend owner approval of both decisions:** (1) do not automatically perform a *lossy* rebuild when corruption affects index-only data; (2) use short-lived, verified upgrade snapshots, with leftover copies included in deletion verification.
+**Both decisions approved 2026-10-31:** (1) do not automatically perform a *lossy* rebuild when corruption affects index-only data; (2) use short-lived, verified upgrade snapshots, with leftover copies included in deletion verification.
 
 **Not run:** `npm run check`, smoke tests, fault injection, real migration, and Mac/Windows filesystem tests. No repo files or contracts were changed. This document is a proposed plan, not tested behavior.

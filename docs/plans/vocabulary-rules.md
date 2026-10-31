@@ -1,6 +1,6 @@
 # Plan: vocabulary rules and recognition hints
 
-**Task:** ChatGPT work-split #2. **Status:** Proposed; owner approval required.
+**Task:** ChatGPT work-split #2. **Status:** Approved by owner on 2026-10-31; code not started.
 **Base:** `raisinbran/scrb` `main` commit `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a` (2026-10-30).
 **Intended path:** `docs/plans/vocabulary-rules.md`.
 **Scope:** Remembered corrections, editable terms and safe recognition hints. Task #1 owns frozen corrections; tasks #3 and #5 own proposed index/contract changes.
@@ -35,7 +35,7 @@
 
 **Gate 5:** All accepted user corrections survive restarts/final passes (**100%**, task #1); learned vocabulary improves recognition with **fewer than 1 false replacement per audio hour**. Synthetic Gate 0 results are not a pass. Claude Code validates tests and measures the installed app on the relevant machines before merge.
 
-## Owner decisions (recommend approval of all three)
+## Owner decisions (all three approved 2026-10-31)
 
 1. Only active remembered corrections influence recognition; superseded entries remain undoable but inactive for hints.
 2. Editing/disabling/deleting a term must survive reconciliation without rewriting its transcript correction; approve a durable provenance/suppression design, with any schema changes separately reviewed in task #3.
