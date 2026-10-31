@@ -426,7 +426,19 @@ export type SummaryItemUpdate =
   | { kind: 'narrative'; item: NarrativeSection }
   | { kind: 'actionItem'; item: ActionItem }
   | { kind: 'decision'; item: DecisionItem }
-  | { kind: 'openQuestion'; item: OpenQuestion };
+  | { kind: 'openQuestion'; item: OpenQuestion }
+  | { kind: 'add'; collection: 'actionItems'; item: Omit<ActionItem, 'id' | keyof SummaryItemEvidence> }
+  | { kind: 'add'; collection: 'decisions'; item: Omit<DecisionItem, 'id' | keyof SummaryItemEvidence> }
+  | {
+      kind: 'add';
+      collection: 'openQuestions';
+      item: Omit<OpenQuestion, 'id' | keyof SummaryItemEvidence | 'sourceMs'> & { sourceMs: number };
+    }
+  | {
+      kind: 'remove';
+      collection: 'actionItems' | 'decisions' | 'openQuestions';
+      itemId: SummaryItemId;
+    };
 
 export type SummaryStage = 'extracting' | 'coverageCheck' | 'writing' | 'done' | 'failed';
 

@@ -96,7 +96,7 @@ const evidence = {
   edited: flag,
 };
 
-const summaryUpdate = either(
+const existingSummaryUpdate = either(
   either(
     shape({
       kind: oneOf('narrative'),
@@ -135,6 +135,49 @@ const summaryUpdate = either(
       kind: oneOf('openQuestion'),
       item: shape({ id, question: text(MAX_TEXT), sourceMs: orNull(ms), ...evidence }),
     }),
+  ),
+);
+
+const summaryUpdate = either(
+  existingSummaryUpdate,
+  either(
+    either(
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('actionItems'),
+        item: shape({
+          action: text(MAX_TEXT),
+          owner: orNull(text(MAX_NAME)),
+          ownerUnconfirmed: flag,
+          deadline: orNull(text(MAX_NAME)),
+          deadlineUnconfirmed: flag,
+          status: oneOf('agreed', 'proposed', 'unconfirmed'),
+          sourceMs: ms,
+        }),
+      }),
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('decisions'),
+        item: shape({
+          decision: text(MAX_TEXT),
+          status: oneOf('decided', 'proposed', 'tentativelyAgreed', 'unresolved'),
+          impactArea: orNull(oneOf('scope', 'schedule', 'cost', 'risk', 'deliverables', 'technicalApproach')),
+          sourceMs: ms,
+        }),
+      }),
+    ),
+    either(
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('openQuestions'),
+        item: shape({ question: text(MAX_TEXT), sourceMs: ms }),
+      }),
+      shape({
+        kind: oneOf('remove'),
+        collection: oneOf('actionItems', 'decisions', 'openQuestions'),
+        itemId: id,
+      }),
+    ),
   ),
 );
 

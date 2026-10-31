@@ -88,6 +88,34 @@ describe('isValidRequest', () => {
     expect(isValidRequest('listMeetings', { filter: { from: 'last week' } })).toBe(false);
   });
 
+  it('summary additions cannot submit an id or trusted evidence', () => {
+    const request = (update: object) => ({ meetingId: 'm-1', update });
+    const action = {
+      action: 'Invented task',
+      owner: null,
+      ownerUnconfirmed: false,
+      deadline: null,
+      deadlineUnconfirmed: false,
+      status: 'proposed',
+      sourceMs: 0,
+    };
+    expect(isValidRequest('updateSummaryItem', request({
+      kind: 'add', collection: 'actionItems', item: action,
+    }))).toBe(true);
+    expect(isValidRequest('updateSummaryItem', request({
+      kind: 'add', collection: 'actionItems', item: { ...action, id: 'spoof' },
+    }))).toBe(false);
+    expect(isValidRequest('updateSummaryItem', request({
+      kind: 'add', collection: 'actionItems', item: { ...action, edited: false },
+    }))).toBe(false);
+    expect(isValidRequest('updateSummaryItem', request({
+      kind: 'add', collection: 'openQuestions', item: { question: 'Invented?', sourceMs: 0 },
+    }))).toBe(true);
+    expect(isValidRequest('updateSummaryItem', request({
+      kind: 'remove', collection: 'decisions', itemId: 'd1',
+    }))).toBe(true);
+  });
+
   it('accepts each summary item kind', () => {
     const evidence = { alsoAtMs: [], needsReview: false, edited: true };
     const action = {
