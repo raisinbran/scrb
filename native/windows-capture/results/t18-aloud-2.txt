@@ -1,0 +1,28 @@
+case=t18-aloud-2 helperExit=0
+microphone: chunks=19 audio=90.1 s missing=0.0 ms bad=0 part=0 files=19 toneChunks=6 zeroChunks=0 peak=-22.2 dB
+  close reasons: rollover=18 stop=1
+meeting: chunks=19 audio=90.0 s missing=0.0 ms bad=0 part=0 files=19 toneChunks=0 zeroChunks=0 peak=-23.5 dB
+  close reasons: rollover=18 stop=1
+VERIFY OK
+events: 
+sweeps: meeting 39, microphone 17, paired 17
+mic minus meeting: start 64.45 ms, end 81.14 ms, over 67.4 s
+drift 16.69 ms against 50 ms; at least 20 pairs needed
+  0.839 s 61.39 ms
+  3.769 s 64.45 ms
+  6.234 s 64.11 ms
+  8.354 s 64.02 ms
+  24.751 s 64.22 ms
+  36.135 s 64.30 ms
+  38.146 s 64.94 ms
+  40.655 s 65.11 ms
+  45.084 s 80.92 ms
+  47.111 s 80.67 ms
+  49.656 s 80.69 ms
+  51.932 s 81.14 ms
+  56.139 s 81.23 ms
+  58.561 s 82.85 ms
+  60.771 s 82.80 ms
+  63.573 s 80.78 ms
+  68.221 s 83.16 ms
+FAIL

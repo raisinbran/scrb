@@ -200,6 +200,25 @@ fell to about a tenth (61--84 to 3--14), so a lower match score would not help: 
 saved mic audio.  The cause is not known.  Mic noise suppression learning a
 repeating sound and a volume change during the run are both possible.
 
+| `t18-aloud-2`: 90 s through the speakers, no call, built-in mic, volume 50% before and after | **Fail on count:** 17 pairs of the 20 needed, from 39 sweeps on the meeting track.  Mic minus meeting 64 ms, then 81 ms from 45 s.  Drift 16.69 ms against 50 ms, but on too few pairs to count.  `results/t18-aloud-2.txt` |
+
+`t18-aloud-2` rules out a volume change: the mic lost sweeps again with the volume
+at 50% before and after.  Its level at 1500 to 2500 Hz started at about 130--160,
+stayed mostly under 50 from 10 to 35 s, came back to 84--137 at 35 to 40 s, then
+faded to about 10 by 75 s.  No sweep paired after 68 s, while the meeting track
+kept all of them.  That pattern fits mic noise suppression, but this is not proven.
+A conversation about 15 ft away was also in the room.
+
+The offset did not drift: it stepped by about 16 ms between the sweeps at 40.7 and
+45.1 s, and stayed there.  Nothing logged it: no gap, no event, and chunk joins
+within 0.3 ms on both tracks, so the sample streams themselves did not jump.  The
+cause is not known.  A later change in the audio path before capture and the
+detector locking onto a room echo are both possible.  The drift limit would pass
+such a step, so read the listed offsets as well as the drift figure.
+
+The mic chunks of this run were deleted after measuring, since they held that
+conversation.
+
 Not verified: a passing offset and drift measurement, and Teams as a target.
 Whether sweeps survive Teams is not known.
 
