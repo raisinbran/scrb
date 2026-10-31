@@ -606,10 +606,10 @@ export class Library {
    * `.deleting-` folder that the next open finishes, never a half-deleted meeting in the list.
    * On failure nothing is reported as gone: `ok` is false and `remaining` says what is left.
    */
-  deleteMeeting(meetingId: string): Promise<DeleteReport> {
+  deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
-      await this.assertDeletionIdle(row);
+      await this.assertDeletionIdle(row, importCleanup);
       const remaining = await this.removeMeeting(meetingId, row.folder);
       const ok = remaining.length === 0;
       this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
@@ -622,8 +622,8 @@ export class Library {
   }
 
   /** Conservatively refuse deletion whenever a writer may still own the meeting. */
-  private async assertDeletionIdle(row: MeetingRow): Promise<void> {
-    if (row.status === 'recording' || row.status === 'importing' ||
+  private async assertDeletionIdle(row: MeetingRow, importCleanup = false): Promise<void> {
+    if (row.status === 'recording' || (row.status === 'importing' && !importCleanup) ||
         row.status === 'finalPassRunning') {
       throw new StorageError('ACTIVE_MEETING', 'Stop the meeting operation before deleting.');
     }
@@ -635,7 +635,7 @@ export class Library {
 
   /** Cancels an import. The user's original file is outside the library and is not touched. */
   discardImport(meetingId: string): Promise<DeleteReport> {
-    return this.deleteMeeting(meetingId);
+    return this.deleteMeeting(meetingId, true);
   }
 
   private async removeMeeting(meetingId: string, folderName: string): Promise<string[]> {
