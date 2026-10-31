@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
-import type {
-  Backend,
-  MeetingFilter,
-  PickedAudioFile,
-  SearchResult,
-} from '@scrb/contracts';
+import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';

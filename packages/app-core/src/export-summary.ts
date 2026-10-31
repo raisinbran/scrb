@@ -142,7 +142,6 @@ export function toExportSummary(file: SummaryFile | null): ExportSummary | null 
   };
 }
 
-
 /** Resolves corrected words once for the common DOCX and PDF export layout. */
 export function toExportMeeting(
   meeting: MeetingMeta,
@@ -154,7 +153,8 @@ export function toExportMeeting(
     startedAt: meeting.date,
     durationMs: meeting.durationMs,
     speakers: activeSpeakers(transcript).map((speaker) => ({
-      id: speaker.id, name: speaker.name ?? speaker.label,
+      id: speaker.id,
+      name: speaker.name ?? speaker.label,
     })),
     segments: resolveDisplay(transcript).map((segment) => ({
       speakerId: segment.speakerId,
@@ -166,7 +166,7 @@ export function toExportMeeting(
     })),
     markers: [
       ...transcript.gaps.map((gap) => ({
-        kind: gap.kind === 'paused' ? 'pause' as const : 'gap' as const,
+        kind: gap.kind === 'paused' ? ('pause' as const) : ('gap' as const),
         startMs: gap.startMs,
         endMs: gap.endMs,
       })),

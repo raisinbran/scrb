@@ -438,7 +438,10 @@ export function createMeetingHandlers(
         return library.voiceProfiles.undo();
       } catch (error) {
         if (error instanceof StorageError && error.code === 'PROFILE_CHANGED') {
-          throw new ContractError({ code: 'conflict', message: 'Profiles changed since this edit.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Profiles changed since this edit.',
+          });
         }
         throw error;
       }
@@ -448,7 +451,10 @@ export function createMeetingHandlers(
         return library.voiceProfiles.redo();
       } catch (error) {
         if (error instanceof StorageError && error.code === 'PROFILE_CHANGED') {
-          throw new ContractError({ code: 'conflict', message: 'Profiles changed since this edit.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Profiles changed since this edit.',
+          });
         }
         throw error;
       }
@@ -613,18 +619,18 @@ export function createMeetingHandlers(
       return found.results
         .filter((result) => matchesMeetingFilter(toListItem(result.meeting), filter))
         .map((result) => ({
-        meeting: toListItem(result.meeting),
-        matches: [
-          ...(result.matchedIn.includes('title or date')
-            ? [{ segmentId: null, startMs: null, snippet: null }]
-            : []),
-          ...result.hits.map((hit) => ({
-            segmentId: hit.segmentId,
-            startMs: hit.startMs,
-            snippet: hit.snippet,
-          })),
-        ],
-      }));
+          meeting: toListItem(result.meeting),
+          matches: [
+            ...(result.matchedIn.includes('title or date')
+              ? [{ segmentId: null, startMs: null, snippet: null }]
+              : []),
+            ...result.hits.map((hit) => ({
+              segmentId: hit.segmentId,
+              startMs: hit.startMs,
+              snippet: hit.snippet,
+            })),
+          ],
+        }));
     },
     openMeetingFolder: async (request) => {
       const { meetingId, folder } = request as {

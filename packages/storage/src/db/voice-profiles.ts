@@ -104,7 +104,9 @@ export class VoiceProfileStore {
   private link(profileId: string, meetingId: string | undefined): void {
     if (meetingId === undefined) return;
     this.db
-      .prepare('INSERT OR IGNORE INTO voice_profile_meetings (profile_id, meeting_id) VALUES (?, ?)')
+      .prepare(
+        'INSERT OR IGNORE INTO voice_profile_meetings (profile_id, meeting_id) VALUES (?, ?)',
+      )
       .run(profileId, meetingId);
   }
 
@@ -140,12 +142,7 @@ export class VoiceProfileStore {
   grow(id: string, embedding: Float32Array, sampleCount: number, meetingId?: string): void {
     const profile = this.get(id);
     if (profile === null) throw new StorageError('PROFILE_NOT_FOUND', 'No such voice profile');
-    const merged = mergeEmbeddings(
-      profile.embedding,
-      profile.sampleCount,
-      embedding,
-      sampleCount,
-    );
+    const merged = mergeEmbeddings(profile.embedding, profile.sampleCount, embedding, sampleCount);
     this.db
       .prepare(
         'UPDATE voice_profiles SET embedding = ?, sample_count = ?, updated_at = ? WHERE id = ?',
@@ -169,11 +166,13 @@ export class VoiceProfileStore {
 
   private same(a: VoiceProfile[], b: VoiceProfile[]): boolean {
     const normalize = (items: VoiceProfile[]) =>
-      items.map((profile) => ({
-        ...profile,
-        embedding: Array.from(profile.embedding),
-        meetingIds: [...profile.meetingIds].sort(),
-      })).sort((left, right) => left.id.localeCompare(right.id));
+      items
+        .map((profile) => ({
+          ...profile,
+          embedding: Array.from(profile.embedding),
+          meetingIds: [...profile.meetingIds].sort(),
+        }))
+        .sort((left, right) => left.id.localeCompare(right.id));
     return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
   }
 
@@ -190,10 +189,19 @@ export class VoiceProfileStore {
         this.db.prepare('DELETE FROM voice_profiles WHERE id = ?').run(id);
       }
       for (const profile of profiles) {
-        this.db.prepare(
-          'INSERT INTO voice_profiles (id, name, model_id, embedding, sample_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ).run(profile.id, profile.name, profile.modelId, toBlob(profile.embedding),
-          profile.sampleCount, profile.createdAt, profile.updatedAt);
+        this.db
+          .prepare(
+            'INSERT INTO voice_profiles (id, name, model_id, embedding, sample_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(
+            profile.id,
+            profile.name,
+            profile.modelId,
+            toBlob(profile.embedding),
+            profile.sampleCount,
+            profile.createdAt,
+            profile.updatedAt,
+          );
         for (const meetingId of profile.meetingIds) this.link(profile.id, meetingId);
       }
       this.db.exec('COMMIT');

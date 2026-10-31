@@ -226,15 +226,21 @@ describe('index migrations', () => {
         { encoding: 'utf8' },
       );
       expect(killed.status).not.toBe(0);
-      expect((await readdir(path.dirname(file))).some((name) => name.startsWith('index.sqlite.upgrade-')))
-        .toBe(true);
+      expect(
+        (await readdir(path.dirname(file))).some((name) =>
+          name.startsWith('index.sqlite.upgrade-'),
+        ),
+      ).toBe(true);
 
       const recovered = await openIndex(file);
       expect(readIndexVersion(recovered.db)).toBe(INDEX_VERSION);
       expect(new SettingsStore(recovered.db).get('theme', 'light')).toBe('dark');
       recovered.db.close();
-      expect((await readdir(path.dirname(file))).some((name) => name.startsWith('index.sqlite.upgrade-')))
-        .toBe(false);
+      expect(
+        (await readdir(path.dirname(file))).some((name) =>
+          name.startsWith('index.sqlite.upgrade-'),
+        ),
+      ).toBe(false);
     },
   );
 
@@ -307,8 +313,9 @@ describe('index migrations', () => {
     expect(readIndexVersion(first.db)).toBe(INDEX_VERSION);
     expect(new SettingsStore(first.db).get('theme', 'light')).toBe('dark');
     first.db.close();
-    expect((await readdir(root)).some((name) => name.startsWith('index.sqlite.upgrade-')))
-      .toBe(true);
+    expect((await readdir(root)).some((name) => name.startsWith('index.sqlite.upgrade-'))).toBe(
+      true,
+    );
 
     const second = await openIndex(file);
     expect(second.retainedSnapshot).toBe(false);
@@ -338,11 +345,9 @@ describe('index migrations', () => {
       db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('"light"', 'theme');
       process.kill(process.pid, 'SIGKILL');
     `;
-    const killed = spawnSync(
-      process.execPath,
-      ['--input-type=module', '-e', script, file],
-      { encoding: 'utf8' },
-    );
+    const killed = spawnSync(process.execPath, ['--input-type=module', '-e', script, file], {
+      encoding: 'utf8',
+    });
     expect(killed.status).not.toBe(0);
 
     const restarted = await openIndex(file);
@@ -360,11 +365,16 @@ describe('index migrations', () => {
     const original = new DatabaseSync(file);
     original.prepare('VACUUM INTO ?').run(snapshot);
     original.close();
-    const digest = createHash('sha256').update(await readFile(snapshot)).digest('hex');
+    const digest = createHash('sha256')
+      .update(await readFile(snapshot))
+      .digest('hex');
     const journalPath = `${file}.upgrade-state.json`;
     const journal = JSON.stringify({
       attemptId: '11111111-1111-4111-8111-111111111111',
-      oldVersion: 4, targetVersion: 5, phase: 'migrationVerified', snapshotHash: digest,
+      oldVersion: 4,
+      targetVersion: 5,
+      phase: 'migrationVerified',
+      snapshotHash: digest,
     });
     await writeFile(journalPath, journal);
     const upgraded = new DatabaseSync(file);
@@ -380,7 +390,7 @@ describe('index migrations', () => {
     expect(readIndexVersion(result.db)).toBe(5);
     result.db.close();
     expect(await readFile(journalPath, 'utf8')).toBe(journal);
-    expect((await readdir(path.dirname(file)))).toContain(path.basename(snapshot));
+    expect(await readdir(path.dirname(file))).toContain(path.basename(snapshot));
   });
 
   it('has no column that could hold transcript text', async () => {
@@ -515,7 +525,9 @@ describe('vocabulary', () => {
     const vocabulary = new VocabularyStore(db, now);
     const context = (correctionId: string) => ({ meetingId: 'synthetic', correctionId });
     const term = vocabulary.remember({
-      term: 'Invented', misheard: ['in vented'], context: context('c1'),
+      term: 'Invented',
+      misheard: ['in vented'],
+      context: context('c1'),
     });
     vocabulary.remember({ term: 'Invented', misheard: ['in vented'], context: context('c2') });
     vocabulary.forgetCorrection('c1', 'in vented');
@@ -530,7 +542,8 @@ describe('vocabulary', () => {
     const vocabulary = new VocabularyStore(db, now);
     const term = vocabulary.remember({ term: 'Invented', misheard: ['in vented'] });
     vocabulary.remember({
-      term: 'Invented', misheard: ['in vented'],
+      term: 'Invented',
+      misheard: ['in vented'],
       context: { meetingId: 'synthetic', correctionId: 'c1' },
     });
     vocabulary.forgetCorrection('c1', 'in vented');
@@ -542,17 +555,16 @@ describe('vocabulary', () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const legacy = new DatabaseSync(file);
     migrate(legacy, MIGRATIONS, 5);
-    legacy.prepare(
-      "INSERT INTO vocabulary_terms VALUES ('legacy-id', 'Synthetic', 0, ?, ?)",
-    ).run(now(), now());
-    legacy.prepare(
-      "INSERT INTO vocabulary_misheard VALUES ('legacy-id', 'sin thetic')",
-    ).run();
+    legacy
+      .prepare("INSERT INTO vocabulary_terms VALUES ('legacy-id', 'Synthetic', 0, ?, ?)")
+      .run(now(), now());
+    legacy.prepare("INSERT INTO vocabulary_misheard VALUES ('legacy-id', 'sin thetic')").run();
     legacy.close();
     const { db } = await openIndex(file);
     const vocabulary = new VocabularyStore(db, now);
     vocabulary.remember({
-      term: 'Synthetic', misheard: ['sin thetic'],
+      term: 'Synthetic',
+      misheard: ['sin thetic'],
       context: { meetingId: 'synthetic', correctionId: 'c2' },
     });
     vocabulary.forgetCorrection('c2', 'sin thetic');

@@ -116,11 +116,13 @@ async function loadJournal(file: string): Promise<UpgradeJournal | null> {
     throw error;
   }
   const value = JSON.parse(source) as Partial<UpgradeJournal>;
-  if (!/^[0-9a-f-]{36}$/.test(value.attemptId ?? '') ||
-      !Number.isInteger(value.oldVersion) ||
-      !Number.isInteger(value.targetVersion) ||
-      !['copying', 'snapshotVerified', 'migrationVerified'].includes(value.phase ?? '') ||
-      (value.snapshotHash !== null && !/^[0-9a-f]{64}$/.test(value.snapshotHash ?? ''))) {
+  if (
+    !/^[0-9a-f-]{36}$/.test(value.attemptId ?? '') ||
+    !Number.isInteger(value.oldVersion) ||
+    !Number.isInteger(value.targetVersion) ||
+    !['copying', 'snapshotVerified', 'migrationVerified'].includes(value.phase ?? '') ||
+    (value.snapshotHash !== null && !/^[0-9a-f]{64}$/.test(value.snapshotHash ?? ''))
+  ) {
     throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The index recovery record is invalid.');
   }
   return value as UpgradeJournal;
@@ -181,25 +183,40 @@ export async function openIndex(
     const journal = await loadJournal(filePath);
     const managedCopy = journal && `${prefix}.copying-${journal.attemptId}`;
     const managedSnapshot = journal && `${prefix}.upgrade-${journal.attemptId}`;
-    const unknown = names.filter((name) =>
-      (name.startsWith(`${prefix}.copying-`) || name.startsWith(`${prefix}.upgrade-`)) &&
-      name !== managedCopy && name !== managedSnapshot &&
-      name !== `${prefix}.upgrade-state.json` && name !== temporaryJournalName,
+    const unknown = names.filter(
+      (name) =>
+        (name.startsWith(`${prefix}.copying-`) || name.startsWith(`${prefix}.upgrade-`)) &&
+        name !== managedCopy &&
+        name !== managedSnapshot &&
+        name !== `${prefix}.upgrade-state.json` &&
+        name !== temporaryJournalName,
     );
     if (unknown.length > 0) {
-      throw new StorageError('INDEX_RECOVERY_REQUIRED', 'Unidentified index copies require review.');
+      throw new StorageError(
+        'INDEX_RECOVERY_REQUIRED',
+        'Unidentified index copies require review.',
+      );
     }
     if (journal?.phase === 'copying') {
       if (managedSnapshot && names.includes(managedSnapshot)) {
-        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An interrupted index upgrade requires review.');
+        throw new StorageError(
+          'INDEX_RECOVERY_REQUIRED',
+          'An interrupted index upgrade requires review.',
+        );
       }
       if (verifyReadOnly(filePath) !== journal.oldVersion) {
-        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The original index changed during copying.');
+        throw new StorageError(
+          'INDEX_RECOVERY_REQUIRED',
+          'The original index changed during copying.',
+        );
       }
       if (managedCopy && names.includes(managedCopy)) {
         const target = join(parent, managedCopy);
         if (!(await ordinaryFile(target))) {
-          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The incomplete index copy is untrusted.');
+          throw new StorageError(
+            'INDEX_RECOVERY_REQUIRED',
+            'The incomplete index copy is untrusted.',
+          );
         }
         try {
           await unlink(target);
@@ -210,10 +227,15 @@ export async function openIndex(
       await rm(journalPath(filePath), { force: true });
     } else if (journal?.phase === 'snapshotVerified') {
       const target = join(parent, managedSnapshot as string);
-      if (!names.includes(managedSnapshot as string) ||
-          !(await ordinaryFile(target)) ||
-          (await sha256(target)) !== journal.snapshotHash) {
-        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The interrupted index snapshot is untrusted.');
+      if (
+        !names.includes(managedSnapshot as string) ||
+        !(await ordinaryFile(target)) ||
+        (await sha256(target)) !== journal.snapshotHash
+      ) {
+        throw new StorageError(
+          'INDEX_RECOVERY_REQUIRED',
+          'The interrupted index snapshot is untrusted.',
+        );
       }
       const snapshotDb = new DatabaseSync(target, { readOnly: true });
       try {
@@ -228,7 +250,10 @@ export async function openIndex(
           verify(live);
           const version = readIndexVersion(live);
           if (version !== journal.oldVersion && version !== journal.targetVersion) {
-            throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index version is unexpected.');
+            throw new StorageError(
+              'INDEX_RECOVERY_REQUIRED',
+              'The live index version is unexpected.',
+            );
           }
           verifyPreserved(live, originalRows);
           if (version === journal.oldVersion) {
@@ -245,14 +270,18 @@ export async function openIndex(
         snapshotDb.close();
       }
     }
-    if (journal?.phase === 'migrationVerified' ||
-        (journal?.phase === 'snapshotVerified' && retainedSnapshot)) {
+    if (
+      journal?.phase === 'migrationVerified' ||
+      (journal?.phase === 'snapshotVerified' && retainedSnapshot)
+    ) {
       const target = join(parent, managedSnapshot as string);
       if (names.includes(managedSnapshot as string)) {
-        if (!(await ordinaryFile(target)) ||
-            (await sha256(target)) !== journal.snapshotHash ||
-            verifyReadOnly(target) !== journal.oldVersion ||
-            verifyLive(filePath) !== journal.targetVersion) {
+        if (
+          !(await ordinaryFile(target)) ||
+          (await sha256(target)) !== journal.snapshotHash ||
+          verifyReadOnly(target) !== journal.oldVersion ||
+          verifyLive(filePath) !== journal.targetVersion
+        ) {
           throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An index copy failed verification.');
         }
         try {
@@ -298,8 +327,11 @@ export async function openIndex(
       const id = randomUUID();
       copying = `${filePath}.copying-${id}`;
       upgrade = {
-        attemptId: id, oldVersion: version, targetVersion: INDEX_VERSION,
-        phase: 'copying', snapshotHash: null,
+        attemptId: id,
+        oldVersion: version,
+        targetVersion: INDEX_VERSION,
+        phase: 'copying',
+        snapshotHash: null,
       };
       await saveJournal(filePath, upgrade);
       db.prepare('VACUUM INTO ?').run(copying);

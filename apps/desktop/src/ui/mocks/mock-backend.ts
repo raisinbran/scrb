@@ -262,8 +262,16 @@ export class MockBackend implements Backend {
   );
   private library: MeetingDetail[] = createLibrary();
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
-  private profileUndo: { kind: 'rename' | 'merge'; before: VoiceProfile[]; after: VoiceProfile[] }[] = [];
-  private profileRedo: { kind: 'rename' | 'merge'; before: VoiceProfile[]; after: VoiceProfile[] }[] = [];
+  private profileUndo: {
+    kind: 'rename' | 'merge';
+    before: VoiceProfile[];
+    after: VoiceProfile[];
+  }[] = [];
+  private profileRedo: {
+    kind: 'rename' | 'merge';
+    before: VoiceProfile[];
+    after: VoiceProfile[];
+  }[] = [];
   private termUndo: VocabularyTerm[][] = [];
   private termRedo: VocabularyTerm[][] = [];
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
@@ -378,7 +386,11 @@ export class MockBackend implements Backend {
       meeting.id === meetingId ? { ...meeting, ...patch } : meeting,
     );
     const after = this.library.find((meeting) => meeting.id === meetingId);
-    if (after && before && JSON.stringify(toListItem(after)) !== JSON.stringify(toListItem(before))) {
+    if (
+      after &&
+      before &&
+      JSON.stringify(toListItem(after)) !== JSON.stringify(toListItem(before))
+    ) {
       this.emit('meetingChanged', toListItem(after));
     }
   }
@@ -488,7 +500,12 @@ export class MockBackend implements Backend {
       IMPORT_STEP_MS,
     );
     this.activeImports.set(importId, {
-      importId, fileName, stage: next.stage, fraction: next.fraction, cancelling: false, timer,
+      importId,
+      fileName,
+      stage: next.stage,
+      fraction: next.fraction,
+      cancelling: false,
+      timer,
     });
   }
 
@@ -525,7 +542,12 @@ export class MockBackend implements Backend {
       end();
     }, delayMs);
     this.activeImports.set(importId, {
-      importId, fileName, stage: 'finishing', fraction: 0.95, cancelling: false, timer,
+      importId,
+      fileName,
+      stage: 'finishing',
+      fraction: 0.95,
+      cancelling: false,
+      timer,
     });
   }
 
@@ -700,7 +722,9 @@ export class MockBackend implements Backend {
       const atMs = Math.max(0, Date.now() - this.recordingStartedAt);
       if (previous.status !== 'paused' && this.recording.status === 'paused') {
         this.pauseSpans.push({
-          startMs: atMs, endMs: null, reason: this.recording.pauseReason ?? 'user',
+          startMs: atMs,
+          endMs: null,
+          reason: this.recording.pauseReason ?? 'user',
         });
         this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
       } else if (previous.status === 'paused' && this.recording.status !== 'paused') {
@@ -970,11 +994,16 @@ export class MockBackend implements Backend {
       });
       return { importId, privacyBannerRequired };
     },
-    listImports: () => [...this.activeImports.values()].map(
-      ({ importId, fileName, stage, fraction, cancelling }) => ({
-        importId, fileName, stage, fraction, cancelling,
-      }),
-    ),
+    listImports: () =>
+      [...this.activeImports.values()].map(
+        ({ importId, fileName, stage, fraction, cancelling }) => ({
+          importId,
+          fileName,
+          stage,
+          fraction,
+          cancelling,
+        }),
+      ),
     cancelImport: ({ importId }) => {
       if (this.endedImports.has(importId)) return;
       const running = this.activeImports.get(importId);
@@ -1304,8 +1333,11 @@ export class MockBackend implements Backend {
     },
     checkModelUpdates: () => MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
     installModelUpdate: ({ role }) => {
-      if (this.modelUpdateTimers.has(role) || this.updatedModels.has(role) ||
-          !MODEL_UPDATES.some((update) => update.role === role)) {
+      if (
+        this.modelUpdateTimers.has(role) ||
+        this.updatedModels.has(role) ||
+        !MODEL_UPDATES.some((update) => update.role === role)
+      ) {
         throw new ContractError({ code: 'conflict', message: 'No new model update is available.' });
       }
       if (this.armed.delete('modelDownloadFails')) {
@@ -1326,7 +1358,10 @@ export class MockBackend implements Backend {
     },
     revertModel: ({ role }) => {
       if (this.modelUpdateTimers.has(role)) {
-        throw new ContractError({ code: 'conflict', message: 'Wait for the model update to finish.' });
+        throw new ContractError({
+          code: 'conflict',
+          message: 'Wait for the model update to finish.',
+        });
       }
       if (!this.updatedModels.delete(role)) {
         throw new ContractError({ code: 'conflict', message: 'No previous model is available.' });

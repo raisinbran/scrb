@@ -52,30 +52,32 @@ function createMainWindow(
       const buttons = available
         ? ['Continue', 'Retry cleanup', 'Open library folder', 'Keep copies and close']
         : ['Retry verification', 'Open library folder', 'Keep copies and close'];
-      void dialog.showMessageBox(window, {
-        type: 'warning',
-        title: 'Index recovery',
-        message: warning ?? 'The library index needs review.',
-        detail: available
-          ? 'The verified live library remains available; an older index copy may still contain data.'
-          : 'The library is unavailable until the index is verified. No file was restored or discarded.',
-        buttons,
-        cancelId: buttons.length - 1,
-        noLink: true,
-      }).then(async ({ response }) => {
-        if (available && response === 0) return;
-        if (response === (available ? 1 : 0)) {
-          app.relaunch();
-          app.exit(0);
-          return;
-        }
-        if (response === (available ? 2 : 1)) {
-          await shell.openPath(recovery.folder);
-          if (!available) app.quit();
-          return;
-        }
-        app.quit();
-      });
+      void dialog
+        .showMessageBox(window, {
+          type: 'warning',
+          title: 'Index recovery',
+          message: warning ?? 'The library index needs review.',
+          detail: available
+            ? 'The verified live library remains available; an older index copy may still contain data.'
+            : 'The library is unavailable until the index is verified. No file was restored or discarded.',
+          buttons,
+          cancelId: buttons.length - 1,
+          noLink: true,
+        })
+        .then(async ({ response }) => {
+          if (available && response === 0) return;
+          if (response === (available ? 1 : 0)) {
+            app.relaunch();
+            app.exit(0);
+            return;
+          }
+          if (response === (available ? 2 : 1)) {
+            await shell.openPath(recovery.folder);
+            if (!available) app.quit();
+            return;
+          }
+          app.quit();
+        });
     } else if (warning) {
       void dialog.showMessageBox(window, { type: 'warning', message: warning });
     }

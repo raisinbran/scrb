@@ -126,20 +126,44 @@ describe('corrected transcript export adapter', () => {
       buildVoiceProfiles: false,
     };
     const transcript = emptyTranscript(meeting.id);
-    transcript.speakers = [{
-      id: 'speaker', label: 'Speaker 1', name: null,
-      profileId: null, userNamed: false, mergedInto: null,
-    }];
-    transcript.segments = [{
-      id: 'segment', speakerId: 'speaker', track: 'meeting', pass: 'final',
-      words: [{ id: 'word', text: 'invented', startMs: 100, endMs: 300 }],
-    }];
-    transcript.corrections = [{
-      id: 'correction', wordIds: ['word'], replacement: 'Corrected',
-      original: { text: 'invented', startMs: 100, endMs: 300, speakerId: 'speaker', track: 'meeting' },
-      remember: false, state: 'active', supersededBy: null,
-      createdAt: meeting.createdAt, updatedAt: meeting.createdAt,
-    }];
+    transcript.speakers = [
+      {
+        id: 'speaker',
+        label: 'Speaker 1',
+        name: null,
+        profileId: null,
+        userNamed: false,
+        mergedInto: null,
+      },
+    ];
+    transcript.segments = [
+      {
+        id: 'segment',
+        speakerId: 'speaker',
+        track: 'meeting',
+        pass: 'final',
+        words: [{ id: 'word', text: 'invented', startMs: 100, endMs: 300 }],
+      },
+    ];
+    transcript.corrections = [
+      {
+        id: 'correction',
+        wordIds: ['word'],
+        replacement: 'Corrected',
+        original: {
+          text: 'invented',
+          startMs: 100,
+          endMs: 300,
+          speakerId: 'speaker',
+          track: 'meeting',
+        },
+        remember: false,
+        state: 'active',
+        supersededBy: null,
+        createdAt: meeting.createdAt,
+        updatedAt: meeting.createdAt,
+      },
+    ];
     transcript.gaps = [{ id: 'gap', kind: 'paused', startMs: 400, endMs: 600 }];
     const adapted = toExportMeeting(meeting, transcript, null);
     expect(adapted.segments[0]?.parts[0]).toEqual({ text: 'Corrected', original: 'invented' });
@@ -148,7 +172,8 @@ describe('corrected transcript export adapter', () => {
       { kind: 'recording-ended', startMs: 1000 },
     ]);
     const doc = buildExportDocument(adapted, {
-      scope: 'transcript', transcript: { showCorrections: true },
+      scope: 'transcript',
+      transcript: { showCorrections: true },
     });
     expect(JSON.stringify(doc.blocks)).toContain('Corrected');
     expect(JSON.stringify(doc.blocks)).toContain('invented');

@@ -32,16 +32,18 @@ export async function openBackend(
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
     const settings = createSettingsHandlers(library.settings, root);
-    library.setMeetingChangedListener((meeting) => emit('meetingChanged', {
-      id: meeting.id,
-      title: meeting.title,
-      startedAt: meeting.date,
-      durationMs: meeting.durationMs,
-      origin: meeting.source,
-      status: meeting.status,
-      summaryState: 'notGenerated',
-      speakerCount: 0,
-    }));
+    library.setMeetingChangedListener((meeting) =>
+      emit('meetingChanged', {
+        id: meeting.id,
+        title: meeting.title,
+        startedAt: meeting.date,
+        durationMs: meeting.durationMs,
+        origin: meeting.source,
+        status: meeting.status,
+        summaryState: 'notGenerated',
+        speakerCount: 0,
+      }),
+    );
     // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
     // Same rule for the final pass: it needs models and tools that packaging does not ship yet.
@@ -108,7 +110,10 @@ export async function openBackend(
   } catch (error) {
     const code = error instanceof StorageError ? error.code : null;
     return {
-      recovery: { kind: 'blocked', folder: await readLibraryLocation(app.getPath('userData'), fallback) },
+      recovery: {
+        kind: 'blocked',
+        folder: await readLibraryLocation(app.getPath('userData'), fallback),
+      },
       handlers: {},
       warning:
         code === 'INDEX_SPACE'

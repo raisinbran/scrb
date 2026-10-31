@@ -531,10 +531,14 @@ describe('profile change undo', () => {
     const library = await Library.open({ root: await tempDir() });
     const store = library.voiceProfiles;
     const first = store.create({
-      name: 'Invented one', modelId: 'invented-model', embedding: new Float32Array([1, 0]),
+      name: 'Invented one',
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
     });
     const second = store.create({
-      name: 'Invented two', modelId: 'invented-model', embedding: new Float32Array([0, 1]),
+      name: 'Invented two',
+      modelId: 'invented-model',
+      embedding: new Float32Array([0, 1]),
     });
     store.rename(first.id, 'Invented changed');
     expect(store.undoState().nextUndo).toBe('rename');

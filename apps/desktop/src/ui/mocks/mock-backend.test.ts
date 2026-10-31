@@ -33,11 +33,16 @@ describe('MockBackend', () => {
     const picked = await backend.call('pickAudioFile');
     expect(picked).not.toBeNull();
     const { importId } = await backend.call('importAudioFile', {
-      fileToken: picked!.fileToken, buildVoiceProfiles: false,
+      fileToken: picked!.fileToken,
+      buildVoiceProfiles: false,
     });
-    expect(await backend.call('listImports')).toEqual([expect.objectContaining({
-      importId, stage: 'decoding', cancelling: false,
-    })]);
+    expect(await backend.call('listImports')).toEqual([
+      expect.objectContaining({
+        importId,
+        stage: 'decoding',
+        cancelling: false,
+      }),
+    ]);
     expect(JSON.stringify(await backend.call('listImports'))).not.toContain(picked!.fileToken);
     await backend.call('cancelImport', { importId });
     expect(await backend.call('listImports')).toEqual([]);
@@ -49,14 +54,18 @@ describe('MockBackend', () => {
     expect(first).toBeDefined();
     expect(second).toBeDefined();
     await backend.call('renameSpeaker', {
-      target: { kind: 'profile', profileId: first!.id }, name: 'Invented rename',
+      target: { kind: 'profile', profileId: first!.id },
+      name: 'Invented rename',
     });
     expect((await backend.call('getProfileUndoState')).nextUndo).toBe('rename');
     await backend.call('undoProfileChange');
-    expect((await backend.call('listProfiles')).find((item) => item.id === first!.id)?.name)
-      .toBe(first!.name);
+    expect((await backend.call('listProfiles')).find((item) => item.id === first!.id)?.name).toBe(
+      first!.name,
+    );
     await backend.call('mergeSpeakers', {
-      kind: 'profiles', from: first!.id, into: second!.id,
+      kind: 'profiles',
+      from: first!.id,
+      into: second!.id,
     });
     expect((await backend.call('getProfileUndoState')).nextUndo).toBe('merge');
     await backend.call('undoProfileChange');
@@ -136,7 +145,9 @@ describe('MockBackend', () => {
 
   it('reverts a completed model update and rejects installing or reverting while busy', async () => {
     const role = 'finalSpeech';
-    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(true);
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      true,
+    );
     await backend.call('installModelUpdate', { role });
     await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
       code: 'conflict',
@@ -145,13 +156,19 @@ describe('MockBackend', () => {
       code: 'conflict',
     });
     vi.advanceTimersByTime(2_100);
-    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(false);
-    expect((await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version)
-      .toBe('mock-2');
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      false,
+    );
+    expect(
+      (await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version,
+    ).toBe('mock-2');
     await backend.call('revertModel', { role });
-    expect((await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version)
-      .toBe('mock-1');
-    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(true);
+    expect(
+      (await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version,
+    ).toBe('mock-1');
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      true,
+    );
     await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
       code: 'conflict',
     });

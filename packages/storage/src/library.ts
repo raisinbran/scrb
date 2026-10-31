@@ -846,9 +846,12 @@ export class Library {
     const parent = path.dirname(this.paths.index);
     const prefix = `${path.basename(this.paths.index)}.upgrade-`;
     return (await fs.readdir(parent))
-      .filter((name) => name.startsWith(prefix) &&
-        name !== `${path.basename(this.paths.index)}.upgrade-state.json` &&
-        name !== `${path.basename(this.paths.index)}.upgrade-state.json.tmp`)
+      .filter(
+        (name) =>
+          name.startsWith(prefix) &&
+          name !== `${path.basename(this.paths.index)}.upgrade-state.json` &&
+          name !== `${path.basename(this.paths.index)}.upgrade-state.json.tmp`,
+      )
       .map((name) => path.join(parent, name));
   }
 
@@ -983,7 +986,7 @@ export class Library {
         const meetingId = name.slice(DELETING_PREFIX.length);
         await fs.rm(path.join(this.paths.meetings, name), RM_OPTIONS);
         deleteMeetingRows(this.db, meetingId);
-      this.vocabulary.discardMeetingHistory(meetingId);
+        this.vocabulary.discardMeetingHistory(meetingId);
         await fs.rm(meetingCachePath(this.paths, meetingId), RM_OPTIONS);
         report.finishedDeletes.push(meetingId);
         continue;

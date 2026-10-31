@@ -98,7 +98,9 @@ export class RecordingController {
       const atMs = atNs / 1_000_000;
       if (previous.status !== 'paused' && this.state.status === 'paused') {
         this.pauseSpans.push({
-          startMs: atMs, endMs: null, reason: this.state.pauseReason ?? 'user',
+          startMs: atMs,
+          endMs: null,
+          reason: this.state.pauseReason ?? 'user',
         });
         this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
       } else if (previous.status === 'paused' && this.state.status !== 'paused') {

@@ -19,7 +19,11 @@ export type SessionEnd = 'stopped' | 'pauseFailed' | 'workerFailed';
 export interface RecordingSessionOptions {
   /** Starts a worker. Called again for each restart in the same meeting. */
   launch(): CaptureAdapter;
-  onStateChanged(status: RecordingStatus, pauseReason: PauseReason | null, atNs: number | null): void;
+  onStateChanged(
+    status: RecordingStatus,
+    pauseReason: PauseReason | null,
+    atNs: number | null,
+  ): void;
   onTrackMissing(track: Track): void;
   onEnded(end: SessionEnd): void;
   newCommandId(): string;
