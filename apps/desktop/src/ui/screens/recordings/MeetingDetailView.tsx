@@ -289,6 +289,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   );
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const playback = usePlayback(meetingId);
   const transcript = useTranscript(meetingId, meeting.status);
 
@@ -376,6 +377,27 @@ function LoadedDetail(props: LoadedDetailProps) {
             {meeting.recoveredEndMs !== undefined &&
               ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
           </p>
+        )}
+        {meeting.status === 'transcriptionFailed' && (
+          <div role="status" className={styles.bannerWarning}>
+            <p>{meeting.transcriptionFailure ?? 'Transcription could not finish.'}</p>
+            {meeting.hasAudio && (
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => {
+                  setRetryError(null);
+                  void backend.call('retryFinalPass', { meetingId }).then(
+                    () => onChanged(),
+                    () => setRetryError('The final pass could not be retried.'),
+                  );
+                }}
+              >
+                Retry transcription
+              </button>
+            )}
+            {retryError && <p role="alert">{retryError}</p>}
+          </div>
         )}
         {meeting.status === 'finalPassRunning' && (
           <p role="status" className={styles.bannerInfo}>
