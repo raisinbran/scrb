@@ -121,6 +121,7 @@ export interface SearchOutcome {
 }
 
 export interface SearchOptions {
+  origin?: 'recorded' | 'imported';
   fromDate?: string;
   toDate?: string;
   hitsPerMeeting?: number;
@@ -709,7 +710,9 @@ export class Library {
       ...(options.fromDate !== undefined && { fromDate: options.fromDate }),
       ...(options.toDate !== undefined && { toDate: options.toDate }),
     };
-    const rows = findMeetingRows(this.db, dates).filter((row) => row.status !== 'importing');
+    const rows = findMeetingRows(this.db, dates).filter(
+      (row) => row.status !== 'importing' && (!options.origin || row.source === options.origin),
+    );
     const trimmed = query.trim();
     const indexed = new Set(
       findMeetingRows(this.db, { ...dates, text: trimmed }).map((row) => row.id),

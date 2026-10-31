@@ -561,8 +561,13 @@ export function createMeetingHandlers(
       library.vocabulary.delete(id);
     },
     searchMeetings: async (request) => {
-      const { query } = request as { query: string };
-      const found = await library.search(query, { hitsPerMeeting: 5 });
+      const { query, filter } = request as { query: string; filter?: MeetingFilter };
+      const found = await library.search(query, {
+        hitsPerMeeting: 5,
+        ...(filter?.origin && { origin: filter.origin }),
+        ...(filter?.from && { fromDate: filter.from.slice(0, 10) }),
+        ...(filter?.to && { toDate: filter.to.slice(0, 10) }),
+      });
       return found.results.map((result) => ({
         meeting: toListItem(result.meeting),
         matches: [
@@ -570,7 +575,7 @@ export function createMeetingHandlers(
             ? [{ segmentId: null, startMs: null, snippet: null }]
             : []),
           ...result.hits.map((hit) => ({
-            segmentId: null,
+            segmentId: hit.segmentId,
             startMs: hit.startMs,
             snippet: hit.snippet,
           })),

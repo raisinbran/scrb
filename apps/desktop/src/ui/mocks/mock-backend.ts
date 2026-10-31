@@ -1144,9 +1144,11 @@ export class MockBackend implements Backend {
       this.updateMeetingStatus(meetingId, patch);
       return this.findMeeting(meetingId);
     },
-    searchMeetings: ({ query }) => {
+    searchMeetings: ({ query, filter }) => {
       const needle = query.toLowerCase();
       return this.library.flatMap((meeting) => {
+        if (filter?.origin && meeting.origin !== filter.origin) return [];
+        if (filter && !inDateRange(meeting.startedAt, filter)) return [];
         const inIndex =
           meeting.title.toLowerCase().includes(needle) || meeting.startedAt.includes(needle);
         const matches = [
