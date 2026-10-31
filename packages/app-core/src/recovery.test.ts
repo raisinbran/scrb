@@ -142,7 +142,8 @@ describe('sealAudio', () => {
         rmSync(join(audio, 'meeting', 'chunks.json'), { force: true });
       }
     }
-  });
+    // Each round syncs files to disk, which took over 5 s in all on the Windows CI machine.
+  }, 60_000);
 
   it('trusts the finished chunk when a crash left it and its part', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 3, 'start'));
