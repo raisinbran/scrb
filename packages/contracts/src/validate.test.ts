@@ -8,6 +8,15 @@ describe('isValidRequest', () => {
     for (const name of CALL_NAMES) expect(() => isValidRequest(name, {})).not.toThrow();
   });
 
+  it('validates retry and undo state requests and allowlists both calls', () => {
+    for (const name of ['getUndoState', 'retryFinalPass'] as const) {
+      expect(isValidRequest(name, { meetingId: 'm-1' })).toBe(true);
+      expect(isValidRequest(name, { meetingId: '../secret' })).toBe(false);
+      expect(isValidRequest(name, { meetingId: 'm-1', path: '/tmp' })).toBe(false);
+      expect(CALL_NAMES).toContain(name);
+    }
+  });
+
   it('accepts no request for a call that takes none', () => {
     expect(isValidRequest('getSettings', undefined)).toBe(true);
     expect(isValidRequest('getSettings', { extra: true })).toBe(false);

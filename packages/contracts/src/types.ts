@@ -141,6 +141,7 @@ export type ImportAudioExtension = (typeof IMPORT_AUDIO_EXTENSIONS)[number];
  * a compromised renderer cannot ask the backend to open arbitrary files.
  */
 export interface PickedAudioFile {
+  /** A successful import consumes this token; pick again after failure. */
   fileToken: string;
   fileName: string;
   sizeBytes: number;
@@ -183,7 +184,14 @@ export interface ImportFailed {
 // Meetings and transcript
 
 export type MeetingStatus =
-  'recording' | 'paused' | 'finalPassRunning' | 'ready' | 'recovered' | 'importing' | 'deleting';
+  | 'recording'
+  | 'paused'
+  | 'finalPassRunning'
+  | 'transcriptionFailed'
+  | 'ready'
+  | 'recovered'
+  | 'importing'
+  | 'deleting';
 
 export type SummaryState = 'notGenerated' | 'generating' | 'ready' | 'edited' | 'outdated';
 
@@ -200,6 +208,10 @@ export interface MeetingListItem {
 }
 
 export interface MeetingDetail extends MeetingListItem {
+  /** True only while app-owned audio exists and has not been deleted. */
+  hasAudio: boolean;
+  /** Allowlisted user-safe failure reason, never model output or paths. */
+  transcriptionFailure?: string | null;
   /** Paused and missing spans, in timeline order. */
   gaps: TimelineGap[];
   /** Set on a recovered meeting: where the recording ended. */
@@ -244,7 +256,7 @@ export interface TranscriptSegment {
   words: TranscriptWord[];
 }
 
-/** Change events are small: an 8-hour transcript is never resent whole. */
+/** Change events are small. For replace, remove removedSegmentIds before upserting by ID. */
 export type TranscriptChange =
   | { kind: 'append'; segments: TranscriptSegment[] }
   | { kind: 'replace'; segments: TranscriptSegment[]; removedSegmentIds: SegmentId[] }

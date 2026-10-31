@@ -79,7 +79,7 @@ export interface BackendCalls {
   pickAudioFile: { request: void; response: PickedAudioFile | null };
   importAudioFile: {
     request: { fileToken: string; buildVoiceProfiles: boolean };
-    response: { importId: ImportId };
+    response: { importId: ImportId; privacyBannerRequired: boolean };
   };
   /**
    * Asks a running import to stop. Every import ends in exactly one of `importFinished`,
@@ -109,6 +109,7 @@ export interface BackendCalls {
     request: { meetingId: MeetingId; offset: number; limit: number };
     response: TranscriptPage;
   };
+  getUndoState: { request: { meetingId: MeetingId }; response: UndoState };
   applyCorrection: {
     request: { meetingId: MeetingId; range: WordRange; text: string; remember: boolean };
     response: UndoState;
@@ -163,6 +164,7 @@ export interface BackendCalls {
   listMeetings: { request: { filter?: MeetingFilter }; response: MeetingListItem[] };
   /** @addition */
   getMeeting: { request: { meetingId: MeetingId }; response: MeetingDetail };
+  retryFinalPass: { request: { meetingId: MeetingId }; response: void };
   /** @addition */
   updateMeeting: {
     request: { meetingId: MeetingId; title?: string; startedAt?: string };
@@ -231,6 +233,7 @@ export interface BackendEvents {
 
   // Library
   exportFinished: ExportFinished;
+  meetingChanged: MeetingListItem;
 
   // Settings
   modelDownloadProgress: ModelDownloadProgress;
@@ -306,6 +309,7 @@ const CALL_TABLE: Record<CallName, true> = {
   startAudioCheck: true,
   stopAudioCheck: true,
   getTranscript: true,
+  getUndoState: true,
   applyCorrection: true,
   reassignSpeaker: true,
   undo: true,
@@ -326,6 +330,7 @@ const CALL_TABLE: Record<CallName, true> = {
   updateSummaryItem: true,
   listMeetings: true,
   getMeeting: true,
+  retryFinalPass: true,
   updateMeeting: true,
   searchMeetings: true,
   deleteMeeting: true,
@@ -362,6 +367,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   summaryProgress: true,
   summaryOutdated: true,
   exportFinished: true,
+  meetingChanged: true,
   modelDownloadProgress: true,
 };
 
