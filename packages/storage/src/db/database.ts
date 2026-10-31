@@ -149,6 +149,7 @@ interface IndexUpgradeChecks {
   availableBytes?: bigint;
   afterSnapshot?: (path: string) => void;
   afterMigration?: (db: DatabaseSync) => void;
+  beforeSnapshotRemoval?: () => void;
 }
 
 /** Upgrade from a consistent SQLite snapshot; never silently rebuild index-only user data. */
@@ -276,6 +277,7 @@ export async function openIndex(
       upgrade = { ...upgrade!, phase: 'migrationVerified' };
       await saveJournal(filePath, upgrade);
       try {
+        checks.beforeSnapshotRemoval?.();
         await unlink(snapshot);
         if (await ordinaryFile(snapshot)) retainedSnapshot = true;
       } catch {
