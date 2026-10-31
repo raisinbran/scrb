@@ -169,8 +169,30 @@ function hasEdits(summary: MeetingSummaryDoc): boolean {
   ].some((item) => item.edited);
 }
 
-function withItem(summary: MeetingSummaryDoc, update: SummaryItemUpdate): MeetingSummaryDoc {
+function withItem(
+  summary: MeetingSummaryDoc,
+  update: SummaryItemUpdate,
+  assignedId: string,
+): MeetingSummaryDoc {
   switch (update.kind) {
+    case 'add': {
+      const evidence = { id: assignedId, alsoAtMs: [], needsReview: false, edited: true };
+      switch (update.collection) {
+        case 'actionItems':
+          return { ...summary, actionItems: [...summary.actionItems, { ...update.item, ...evidence }] };
+        case 'decisions':
+          return { ...summary, decisions: [...summary.decisions, { ...update.item, ...evidence }] };
+        case 'openQuestions':
+          return { ...summary, openQuestions: [...summary.openQuestions, { ...update.item, ...evidence }] };
+      }
+    }
+    case 'remove': {
+      const list = summary[update.collection];
+      if (!list.some((entry) => entry.id === update.itemId)) {
+        throw new ContractError({ code: 'notFound', message: 'That summary item no longer exists.' });
+      }
+      return { ...summary, [update.collection]: list.filter((entry) => entry.id !== update.itemId) };
+    }
     case 'narrative': {
       const item = { ...update.item, edited: true };
       const { brief, full } = summary.narrative;
@@ -1091,7 +1113,7 @@ export class MockBackend implements Backend {
     updateSummaryItem: ({ meetingId, update }) => {
       const summary = this.summaryOf(meetingId);
       const state = summary.state === 'outdated' ? 'outdated' : 'edited';
-      const updated = { ...withItem(summary, update), state } as const;
+      const updated = { ...withItem(summary, update, this.id('summary-item')), state } as const;
       this.summaries.set(meetingId, updated);
       this.updateMeetingStatus(meetingId, { summaryState: state });
       return updated;
