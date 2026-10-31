@@ -3,10 +3,11 @@ import { useBackendData } from '../lib/use-backend-data.ts';
 import { DataView, Item, ItemList, Screen } from './Screen.tsx';
 
 const load = (backend: Backend) => backend.call('getAppInfo');
+const loadLicenses = (backend: Backend) => backend.call('getLicenses');
 
 export function HelpScreen() {
   const { state } = useBackendData(load);
-  const { state: licenses } = useBackendData((backend: Backend) => backend.call('getLicenses'));
+  const { state: licenses } = useBackendData(loadLicenses);
   return (
     <Screen title="Help">
       <p>The User Manual arrives with each phase and is finished in Phase 8.</p>
