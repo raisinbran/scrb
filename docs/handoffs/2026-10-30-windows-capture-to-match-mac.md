@@ -24,7 +24,7 @@ Added 2026-10-30. `native/windows-capture/` was not changed, because a test was 
 
 The app core already sends and reads these fields, so Windows only has to honour them. Until it does, a restarted Windows worker keeps restarting its clock at 0.
 
-**`start` ack.** Add a top-level `clockOriginNs`: `originNs_`, on the same clock as `NowNs()`. The existing `origin` detail can stay. `NowNs()` must keep running across processes and sleep; check this before relying on it.
+**`start` ack.** Add a top-level `clockOriginNs`: `originNs_`, on the same clock as `NowNs()`. The existing `origin` detail can stay. `NowNs()` is `QueryPerformanceCounter`, which is shared across processes. Whether it runs through S3 sleep is still open question Q1.
 
 **`open` with `clockOriginNs`.** When the field is present:
 - Set `originNs_` from it, and do not reset it in `DoStart`. `start` then replies with the current session time in `atNs`, not 0.
@@ -32,7 +32,7 @@ The app core already sends and reads these fields, so Windows only has to honour
 - Append `{"event":"restart","atNs":<session time>,"seq":n}` to `audio/session.log`, after the `open` line. Write a newline first, because the killed worker can leave a cut-off line. Do the same for `chunks.log`.
 - Open the first chunk with `OPEN_REASON=workerRestarted`.
 
-**Restart during a pause.** The app sends `open`, then later `resume`, and never `start`. So `open` must do everything `DoStart` does except open the gate: pipeline start, generation, `SetThreadExecutionState`. `DoResume` must accept this state. `state_` is `open` at that point, so check that it does not refuse.
+**Restart during a pause.** The app sends `open`, then later `resume`, and never `start`. So `open` must do everything `DoStart` does except open the gate: pipeline start, generation, `SetThreadExecutionState`. `DoResume` refuses today, because it needs `state_` to be `paused` and `state_` is `open` here. So `open` with `clockOriginNs` must leave `state_` able to take `resume`, `start` and `stop`.
 
 **Numbering** already continues through `FirstSeq`. Confirm a dead worker's `.part` counts as taken, and that no chunk file can be replaced. The Mac helper had this bug.
 
