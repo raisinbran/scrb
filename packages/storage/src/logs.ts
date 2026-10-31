@@ -12,7 +12,14 @@ const SAFE_STRING = /^[\w.:+-]{0,64}$/;
 
 /** These never go in a log, however short or harmless the value looks. */
 const BANNED_KEYS =
-  /text|transcript|word|title|name|term|replacement|original|query|snippet|path|folder|message|stack|summary|audio/i;
+  /text|transcript|word|title|name|term|replacement|original|query|snippet|path|folder|message|stack|summary|audio|stderr|stdout|output|prompt|response|detail/i;
+
+const SAFE_ERROR_NAMES = new Set([
+  'Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'AbortError',
+  'WorkerFailed', 'ImportError', 'StorageError', 'ContractError',
+  'StaleRevisionError', 'CorrectionConflictError', 'FinalPassUnavailableError',
+]);
+const SAFE_ERROR_CODE = /^(?:ERR_[A-Z0-9_]{1,40}|INDEX_[A-Z0-9_]{1,40}|PROFILE_[A-Z0-9_]{1,40}|VOCABULARY_[A-Z0-9_]{1,40}|E(?:ACCES|BUSY|EXIST|INTR|IO|ISDIR|NOENT|NOSPC|PERM|PIPE|TIMEDOUT)|ACTIVE_MEETING|NO_SUMMARY)$/;
 
 export type LogLevel = 'info' | 'warn' | 'error';
 export type LogFields = Record<string, unknown>;
@@ -26,8 +33,15 @@ function cleanValue(key: string, value: unknown): string | number | boolean | nu
 
 /** Keeps only the error's type: messages from the OS carry paths, and paths carry titles. */
 export function errorFields(error: unknown): LogFields {
-  const { name, code } = error as { name?: unknown; code?: unknown };
-  return { error: name ?? 'Error', code: code ?? 'unknown' };
+  const record = error !== null && typeof error === 'object'
+    ? error as { name?: unknown; code?: unknown }
+    : {};
+  return {
+    error: typeof record.name === 'string' && SAFE_ERROR_NAMES.has(record.name)
+      ? record.name : 'Error',
+    code: typeof record.code === 'string' && SAFE_ERROR_CODE.test(record.code)
+      ? record.code : 'unknown',
+  };
 }
 
 /**
