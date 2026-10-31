@@ -8,7 +8,7 @@ import {
   needsPrivacyBanner,
   privacyJurisdictions,
 } from '@scrb/app-core';
-import { Library, readLibraryLocation } from '@scrb/storage';
+import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
@@ -79,10 +79,14 @@ export async function openBackend(
         await library.close();
       },
     };
-  } catch {
+  } catch (error) {
+    const recoveryRequired =
+      error instanceof StorageError && error.code === 'INDEX_RECOVERY_REQUIRED';
     return {
       handlers: {},
-      warning: 'The library could not be opened, so settings changes will not be saved.',
+      warning: recoveryRequired
+        ? 'An unfinished index upgrade needs review. The index and recovery snapshot are preserved; library features are unavailable until it is resolved.'
+        : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
       close: async () => undefined,
     };
   }

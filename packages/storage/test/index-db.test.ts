@@ -102,6 +102,32 @@ describe('index migrations', () => {
     expect(await readFile(file, 'utf8')).toBe(broken);
   });
 
+  it('refuses an unresolved upgrade snapshot, preserving both versions on retry', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const older = new DatabaseSync(file);
+    migrate(older, MIGRATIONS, 3);
+    older.prepare("INSERT INTO settings VALUES ('theme', '\"dark\"')").run();
+    older.close();
+    const before = await readFile(file);
+    const snapshot = `${file}.upgrade-synthetic`;
+    await writeFile(snapshot, before);
+
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+    expect(await readFile(file)).toEqual(before);
+    expect(await readFile(snapshot)).toEqual(before);
+
+    // Even a completed migration is not proof that the leftover snapshot is safe to erase.
+    const completed = new DatabaseSync(file);
+    migrate(completed);
+    completed.close();
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+    expect(await readFile(snapshot)).toEqual(before);
+  });
+
   it('cleans up verified upgrade snapshots after successful migration', async () => {
     const root = await tempDir();
     const file = path.join(root, 'index.sqlite');

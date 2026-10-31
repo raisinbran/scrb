@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { unlink } from 'node:fs/promises';
+import { readdir, unlink } from 'node:fs/promises';
+import { basename, dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { StorageError, UnsupportedVersionError } from '../errors.ts';
 import { INDEX_VERSION, migrate, readIndexVersion } from './migrations.ts';
@@ -74,6 +75,17 @@ export interface OpenedIndex {
 
 /** Upgrade from a consistent SQLite snapshot; never silently rebuild index-only user data. */
 export async function openIndex(filePath: string): Promise<OpenedIndex> {
+  // A snapshot left behind by an interrupted upgrade may be the only intact old index.
+  // Never resume from a newer index while that recovery evidence is unresolved.
+  if (filePath !== ':memory:') {
+    const prefix = `${basename(filePath)}.upgrade-`;
+    if ((await readdir(dirname(filePath))).some((name) => name.startsWith(prefix))) {
+      throw new StorageError(
+        'INDEX_RECOVERY_REQUIRED',
+        'An unfinished index upgrade needs review; the index and snapshot are preserved.',
+      );
+    }
+  }
   const db = new DatabaseSync(filePath);
   let snapshot: string | null = null;
   try {
