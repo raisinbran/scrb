@@ -33,8 +33,8 @@ stops and finalizes the recording.  A worker exits after `stop`.
 
 | Command | Fields | Notes |
 | --- | --- | --- |
-| `open` | `sessionId`, `outputDir`, `source` (process IDs; `[]` = whole computer), `mic` (`default` or device ID) | Streams open, meters run, nothing written.  Succeeds if either track opens |
-| `start` | | Ack also carries the session origin |
+| `open` | `sessionId`, `outputDir`, `source` (process IDs; `[]` = whole computer), `mic` (`default` or device ID), `clockOriginNs` (optional) | Streams open, meters run, nothing written.  Succeeds if either track opens.  With `clockOriginNs` the worker rejoins that timeline, gate closed, and takes `start`, `resume` or `stop` |
+| `start` | | Ack also carries the session origin and `clockOriginNs`.  A restarted worker's `atNs` is the current session time, not 0 |
 | `pause`, `resume` | `cause` (optional) | One shared gate.  Resume is refused if neither stream is ready |
 | `stop` | | Files closed and lock released before the ack |
 | `checkPermission` | | Always `granted`: Windows has no system-audio permission |
@@ -128,6 +128,40 @@ cutoff, and the end calculated from the frame count ran 0.038 ms late.  That run
 also had 54 packets read after the gate closed, each stamped as ending by the
 cutoff; how late they arrived was not recorded.  The old bug, about 1 s, still
 fails this case by far.
+
+### Worker restart (2026-10-31)
+
+The draft from ChatGPT compiled, and its `restart_case.mjs` printed PASS, but that
+pass proved little: the script never checked for tone, and the tone was silent
+(below).  `restart_case.mjs` now kills one worker while recording and one during a
+pause, and checks numbering, chunk times, one gap per track of about the down
+time, and 880 Hz from all 3 workers.  Run with a new work directory; output muted.
+
+| Run | Result |
+| --- | --- |
+| Draft, stronger case | Fail as it should: `start` during a pause succeeded, opening the gate with no `resume` in `session.log` |
+| First fix only, stronger case | Fail as it should: a worker waiting with the gate closed read that as a pause, so its first chunk said `resume`, not `workerRestarted`, and `paused_` stayed set |
+| Both fixes (`results/restart-case.txt`) | Pass: microphone 000000 to 000003 and meeting 000000 to 000003 gap-free, 0 to 21.7 s on the first clock; `workerRestarted` on both rejoins; one `audioMissing` per track, 3.19 s against 2 s down plus the 1 s of the killed worker's unflushed page; 880 Hz level 4490, 4490 and 4520 |
+| `pause_case.mjs` | Pass: marker 2.7 against 4517, -17.9 dB at the stream while paused |
+| `crash_case.mjs` | Pass: lock freed by the kill, `.part` repaired, 339 ms lost of 7354 ms, 880 Hz level 4489 |
+| PipelineTests with the logged standby replay | Pass, 0 failures |
+
+The pipelines now start at the first `start` or `resume`, as in a fresh session.
+A chunk's numbers and earlier chunks are unchanged by the restart.
+
+Not tested: a write failure on the blank separator line in `chunks.log` or
+`session.log`.  That throws out of `DoOpen`, so the worker exits with no ack and
+the app treats it as a worker failure.  A mic that fails to open during a rejoin
+reopens with reason `device`, so that track has no `workerRestarted` chunk;
+recovery does not depend on the reason.
+
+**`TonePlayer.exe` is muted in the Volume Mixer on this PC.**  Windows keeps
+per-app settings by path, and `phase0\probes\windows-tone-player\TonePlayer.exe`
+is saved at 30% and muted on the speakers, so it reads about -96 dB, even in
+whole-computer capture.  A copy at another path reads -17.9 dB.  Set `SCRB_TONE`
+to such a copy; `restart_case.mjs`, `pause_case.mjs`, `crash_case.mjs` and
+`run-case.ps1` read it.  `stop_paused_case.mjs` and `long_run.mjs` do not.
+When the mute was saved is not known, and the setting was left as it is.
 
 ## Results on this PC
 

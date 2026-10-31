@@ -28,7 +28,7 @@ if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null
 $results = Join-Path $root 'results'
 $mute = Join-Path $repo 'phase0\probes\windows-mute\Mute.exe'
-$tonePlayer = Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe'
+$tonePlayer = if ($env:SCRB_TONE) { $env:SCRB_TONE } else { Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe' }
 & $mute on | Out-Null
 
 $tone = if ($TreeTarget) {

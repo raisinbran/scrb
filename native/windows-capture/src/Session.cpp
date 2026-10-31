@@ -388,13 +388,9 @@ void Session::DoOpen(const Command& cmd) {
         Emit("streamDead", JsonObject().Str("track", "meeting").Str("message", "meeting source did not open"));
         slots_[kMeeting].needReopen = !noProcess;
     }
-    if (continuing_) {
-        // Resume is legal without Start, so initialise both pipelines before acknowledging open.
-        const uint32_t generation = gate_.Generation() + 1;
-        for (auto& s : slots_)
-            s.track->Post([origin = originNs_, generation](TrackPipeline& p) { p.Start(origin, generation); });
-        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
-    }
+    // The pipelines start at the first Start or Resume: one started here would read the closed
+    // gate as a pause and lose the workerRestarted reason.
+    if (continuing_) SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
     state_ = continuing_ ? "paused" : "open";
     Reply(cmd, true);
 }
@@ -416,9 +412,9 @@ void Session::DoStart(const Command& cmd) {
     std::string utc;
     int64_t wall = 0;
     ReadWall(&utc, &wall);
-    if (!continuing_)
-        for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
+    for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
     const int64_t opened = gate_.Open(continuing_ ? NowNs() : origin);
+    continuing_ = false;
     SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
     state_ = "recording";
     Reply(cmd, true, "origin", JsonObject().Int("qpcNs", origin).Str("wallUtc", utc).Done(),
@@ -439,6 +435,12 @@ void Session::DoResume(const Command& cmd) {
     if (state_ != "paused") return Reply(cmd, false, "error", "\"conflict\"");
     // With neither stream ready the gate stays closed and the app offers Retry or Stop.
     if (ActiveTracks() == "[]") return Reply(cmd, false, "error", "\"no track ready\"");
+    if (continuing_) {  // restarted during a pause, so no Start comes
+        int64_t origin = originNs_;
+        uint32_t generation = gate_.Generation() + 1;
+        for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
+        continuing_ = false;
+    }
     int64_t at = gate_.Open(NowNs()) - originNs_;
     log_->Record(JsonObject().Str("event", "resume").Str("commandId", Arg(cmd, "id"))
                      .Str("cause", Arg(cmd, "cause", "user")).Int("atNs", at).Done());
