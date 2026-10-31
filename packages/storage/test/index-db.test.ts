@@ -316,6 +316,40 @@ describe('index migrations', () => {
     expect((await readdir(root)).filter((name) => name.includes('.upgrade-'))).toEqual([]);
   });
 
+  it('rolls back a killed writer before verifying a retained migrated index', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 5);
+    old.prepare('INSERT INTO settings VALUES (?, ?)').run('theme', '"dark"');
+    old.close();
+    const first = await openIndex(file, {
+      beforeSnapshotRemoval() {
+        throw new Error('synthetic retained copy');
+      },
+    });
+    expect(first.retainedSnapshot).toBe(true);
+    first.db.close();
+
+    const script = `
+      import { DatabaseSync } from 'node:sqlite';
+      const db = new DatabaseSync(process.argv[1]);
+      db.exec('BEGIN IMMEDIATE');
+      db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('"light"', 'theme');
+      process.kill(process.pid, 'SIGKILL');
+    `;
+    const killed = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', script, file],
+      { encoding: 'utf8' },
+    );
+    expect(killed.status).not.toBe(0);
+
+    const restarted = await openIndex(file);
+    expect(new SettingsStore(restarted.db).get('theme', 'light')).toBe('dark');
+    expect(restarted.retainedSnapshot).toBe(false);
+    restarted.db.close();
+  });
+
   it('has no column that could hold transcript text', async () => {
     const { db } = await openIndex(':memory:');
     const columns = tables(db).flatMap((table) => {

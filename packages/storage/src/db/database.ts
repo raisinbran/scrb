@@ -144,6 +144,17 @@ function verifyReadOnly(file: string): number {
   }
 }
 
+function verifyLive(file: string): number {
+  // Opening normally lets SQLite roll back any hot journal after an interrupted write.
+  const db = new DatabaseSync(file);
+  try {
+    verify(db);
+    return readIndexVersion(db);
+  } finally {
+    db.close();
+  }
+}
+
 interface IndexUpgradeChecks {
   /** Fault-injection seams for regression tests; production uses the default checks. */
   availableBytes?: bigint;
@@ -241,7 +252,7 @@ export async function openIndex(
         if (!(await ordinaryFile(target)) ||
             (await sha256(target)) !== journal.snapshotHash ||
             verifyReadOnly(target) !== journal.oldVersion ||
-            verifyReadOnly(filePath) !== journal.targetVersion) {
+            verifyLive(filePath) !== journal.targetVersion) {
           throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An index copy failed verification.');
         }
         try {
@@ -250,7 +261,7 @@ export async function openIndex(
         } catch {
           retainedSnapshot = true;
         }
-      } else if (verifyReadOnly(filePath) !== journal.targetVersion) {
+      } else if (verifyLive(filePath) !== journal.targetVersion) {
         throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index failed verification.');
       }
       if (!retainedSnapshot) await rm(journalPath(filePath), { force: true });
