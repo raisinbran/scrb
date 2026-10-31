@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 // Inventory only. npm metadata is not a substitute for redistributable license text.
 const lockfiles = [
