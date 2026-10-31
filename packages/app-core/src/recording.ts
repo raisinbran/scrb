@@ -39,6 +39,7 @@ export class RecordingSession {
   private ending = false;
   private pending: 'pausing' | 'resuming' | null = null;
   private openCommand: OpenCommand | null = null;
+  private clockOriginNs: number | null = null;
 
   constructor(private readonly options: RecordingSessionOptions) {}
 
@@ -52,11 +53,13 @@ export class RecordingSession {
     this.ending = false;
     this.restarts = 0;
     this.openCommand = open;
+    this.clockOriginNs = null;
     this.attach();
     const permission = await this.send({ name: 'checkPermission' });
     if (permission.systemAudio === 'denied') this.options.onTrackMissing('meeting');
     await this.require(open);
     const ack = await this.require({ name: 'start' });
+    this.clockOriginNs = ack.clockOriginNs ?? null;
     this.reportMissing(ack);
     this.setStatus('recording');
   }
@@ -128,9 +131,14 @@ export class RecordingSession {
     if (this.restarts >= MAX_WORKER_RESTARTS) return this.finish('workerFailed');
     this.restarts += 1;
     this.attach();
-    await this.send(this.openCommand as OpenCommand);
+    await this.send(this.reopenCommand());
     // A restart during a pause stays paused: the gate only opens on Resume.
     if (this.status === 'recording') this.reportMissing(await this.send({ name: 'start' }));
+  }
+
+  private reopenCommand(): OpenCommand {
+    const open = this.openCommand as OpenCommand;
+    return this.clockOriginNs === null ? open : { ...open, clockOriginNs: this.clockOriginNs };
   }
 
   private reportMissing(ack: CaptureAck): void {
