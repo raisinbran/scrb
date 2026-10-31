@@ -168,7 +168,7 @@ export function summarize(pairs) {
   return { startMs, endMs, driftMs, pass: pairs.length >= MIN_PAIRS && Math.abs(driftMs) < DRIFT_LIMIT_MS };
 }
 
-function chunksOf(audioDir, track) {
+export function chunksOf(audioDir, track) {
   const folder = join(audioDir, track);
   const log = join(folder, 'chunks.log');
   if (!existsSync(log)) return JSON.parse(readFileSync(join(folder, 'chunks.json'), 'utf8')).chunks;

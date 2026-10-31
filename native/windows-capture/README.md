@@ -219,8 +219,17 @@ such a step, so read the listed offsets as well as the drift figure.
 The mic chunks of this run were deleted after measuring, since they held that
 conversation.
 
-Not verified: a passing offset and drift measurement, and Teams as a target.
-Whether sweeps survive Teams is not known.
+Sweeps were dropped for the real call (owner decision, 2026-10-31).  In place of
+the plan's click train, the second device plays an invented conversation, from
+`scripts/make_conversation.ps1 -Out out/t18-conversation.wav`: 65 minutes, two
+Windows voices, seeded.  `scripts/call_offset.mjs <dir>` measures it the way the
+Mac's script does, by matching the tracks' loudness in 20 s windows, and prints
+every window so a step shows.  On that speech with a made-up 64 then 81 ms delay,
+0.1 gain and noise, it returned both delays.  Tests: `node --test
+scripts/call_offset.test.mjs`.
+
+Not verified: a passing offset and drift measurement, Teams as a target, and
+`call_offset.mjs` on speech that has really crossed a room.
 
 ## Results on this PC
 
