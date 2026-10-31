@@ -271,3 +271,5 @@ export async function resumeFinalPasses(
     }
   }
 }
+
+export type { ImportResult, ImportPhase, Progress } from '@scrb/transcription';

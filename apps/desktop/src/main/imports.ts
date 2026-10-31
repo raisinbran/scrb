@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { Library } from '@scrb/storage';
-import { toModelReplacement } from '@scrb/app-core';
+import { toModelReplacement, type ImportResult, type ImportPhase, type Progress } from '@scrb/app-core';
 import {
   ContractError,
   type ActiveImport,
@@ -10,7 +10,6 @@ import {
   type EventName,
   type ImportFailureReason,
 } from '@scrb/contracts';
-import type { ImportResult, ImportPhase, Progress } from '@scrb/transcription';
 import type { CallHandlers } from './dispatch.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
@@ -41,12 +40,14 @@ const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
 /** One model-heavy import at a time. File selection grants no general filesystem access to the UI. */
 export class ImportCoordinator {
   private readonly tokens = new Map<string, string>();
+  private starting = false;
   private running: {
     state: ActiveImport;
     abort: AbortController;
     done: Promise<void>;
   } | null = null;
   private readonly completed = new Set<string>();
+  private interruptedByRecording = false;
 
   constructor(private readonly deps: ImportDependencies) {}
 
@@ -72,21 +73,33 @@ export class ImportCoordinator {
     importId: string;
     privacyBannerRequired: boolean;
   }> {
-    if (this.running || this.deps.recordingBusy()) {
+    if (this.running || this.starting || this.deps.recordingBusy()) {
       throw new ContractError({ code: 'conflict', message: 'Finish recording or importing first.' });
     }
-    const sourcePath = this.tokens.get(input.fileToken);
-    if (!sourcePath) {
-      throw new ContractError({ code: 'notFound', message: 'Choose the audio file again.' });
+    this.starting = true;
+    let sourcePath: string;
+    let privacyBannerRequired: boolean;
+    try {
+      const selected = this.tokens.get(input.fileToken);
+      if (!selected) {
+        throw new ContractError({ code: 'notFound', message: 'Choose the audio file again.' });
+      }
+      sourcePath = selected;
+      privacyBannerRequired = await this.deps.privacyBanner().catch(() => true);
+      if (this.deps.recordingBusy()) {
+        throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
+      }
+      this.tokens.delete(input.fileToken);
+    } finally {
+      this.starting = false;
     }
-    const privacyBannerRequired = await this.deps.privacyBanner().catch(() => true);
-    this.tokens.delete(input.fileToken);
     const importId = randomUUID();
     const state: ActiveImport = {
       importId, fileName: basename(sourcePath), stage: 'queued', fraction: 0, cancelling: false,
     };
     const abort = new AbortController();
     const done = this.perform(state, sourcePath, abort, input.buildVoiceProfiles);
+    this.interruptedByRecording = false;
     this.running = { state, abort, done };
     return { importId, privacyBannerRequired };
   }
@@ -138,7 +151,14 @@ export class ImportCoordinator {
           // Reconciliation on next open handles unfinished import folders.
         }
       }
-      if (abort.signal.aborted) {
+      if (abort.signal.aborted && this.interruptedByRecording) {
+        this.deps.emit('importFailed', {
+          importId: state.importId,
+          fileName: state.fileName,
+          reason: 'recordingInProgress',
+          message: 'Recording took priority. Retry the import.',
+        });
+      } else if (abort.signal.aborted) {
         this.deps.emit('importCancelled', { importId: state.importId, fileName: state.fileName });
       } else {
         const code = (error as { code?: string }).code;
@@ -182,6 +202,7 @@ export class ImportCoordinator {
     const running = this.running;
     if (!running) return;
     running.state.cancelling = true;
+    this.interruptedByRecording = true;
     running.abort.abort();
     await running.done;
   }
