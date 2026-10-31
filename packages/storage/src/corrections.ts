@@ -328,7 +328,7 @@ export function splitSpeaker(
   transcript: TranscriptFile,
   wordIds: string[],
   newLabel: string,
-  speakerId = randomUUID(),
+  speakerId: string = randomUUID(),
 ): TranscriptFile {
   const label = newLabel.trim();
   if (!label) throw new CorrectionConflictError('A speaker name is required');

@@ -22,7 +22,7 @@ async function fixture() {
     updateMeeting: update,
     discardImport: discard,
   } as unknown as Library;
-  const run = vi.fn(async ({ meetingDir }: { meetingDir: string }): Promise<ImportResult> => {
+  const run = vi.fn(async ({ meetingDir, signal: _signal }: { meetingDir: string; signal: AbortSignal }): Promise<ImportResult> => {
     await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
     await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
     return {
@@ -30,6 +30,7 @@ async function fixture() {
       sourceName: 'invented.wav',
       fileDate: new Date('2026-10-31T00:00:00Z'),
       durationMs: 1000,
+      truncated: false,
       chunks: [],
       transcript: {
         version: 1,
@@ -87,7 +88,7 @@ describe('Electron import coordination', () => {
 
   it('cancels running imports, emits one terminal cancellation and never creates a meeting', async () => {
     const f = await fixture();
-    f.deps.run.mockImplementation(async ({ signal }: { signal: AbortSignal }) => {
+    f.deps.run.mockImplementation(async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
       await new Promise<void>((_resolve, reject) => {
         signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
       });
@@ -110,7 +111,7 @@ describe('Electron import coordination', () => {
 
   it('a recording preempts an import and reports the recording rather than user cancellation', async () => {
     const f = await fixture();
-    f.deps.run.mockImplementation(async ({ signal }: { signal: AbortSignal }) => {
+    f.deps.run.mockImplementation(async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
       await new Promise<void>((_resolve, reject) => {
         signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
       });
