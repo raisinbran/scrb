@@ -142,7 +142,7 @@ void TestDrainBurst() {
     Rig r("meeting", true);
     r.Feed(300);
     r.t += 13 * kNsPerSec;
-    r.Feed(1300, 5, false, false, 20 * 1000);
+    r.Feed(1300, 500, false, false, 20 * 1000);
     r.t = r.stamp;
     r.Feed(100);
     r.pipe.Stop();
@@ -152,6 +152,68 @@ void TestDrainBurst() {
     CHECK(lost == 0);
     CHECK(r.sink.written == 1700 * 480);
     CHECK(r.sink.closed[0].closeReason == "stall");
+}
+
+void TestStaleSilence() {
+    puts("T23 process stall: a near-silent drain is dropped and marked as a gap");
+    Rig r("meeting", true);
+    r.Feed(300);
+    r.t += 13 * kNsPerSec;
+    r.Feed(1300, 3, false, false, 20 * 1000);
+    r.t = r.stamp;
+    r.Feed(100);
+    r.pipe.Stop();
+    auto& c = r.sink.closed;
+    CHECK(c.size() == 2);
+    CHECK(c[0].closeReason == "stall");
+    CHECK(c[1].missingCause == "stall");
+    CHECK(std::abs(c[1].missingBeforeMs - 13000) < 60);
+    CHECK(r.sink.written < 410 * 480);
+
+    puts("Quiet audio on time is kept; the mic track never drops");
+    Rig quiet("meeting", true);
+    quiet.Feed(300);
+    quiet.Feed(300, 3);
+    quiet.pipe.Stop();
+    CHECK(quiet.sink.written == 600 * 480);
+    Rig mic("microphone");
+    mic.Feed(300);
+    mic.t += 2 * kNsPerSec;
+    mic.Feed(200, 3, false, false, 20 * 1000);
+    mic.pipe.Stop();
+    CHECK(mic.sink.written == 500 * 480);
+}
+
+void TestResumeOnDeadStream() {
+    puts("T24 stream lost during a pause stays a pause; lost after resume is a device gap");
+    Rig during("microphone");
+    during.Feed(100);
+    during.pipe.OnGateClosed();
+    during.pipe.OnStreamLost("device", "device");
+    during.pipe.OnStreamOpened({"id", "name", "internal"}, "device");
+    during.t += 2 * kNsPerSec;
+    during.stamp += 2 * kNsPerSec;
+    during.pipe.OnGateOpened();
+    ++during.generation;
+    during.Feed(100);
+    during.pipe.Stop();
+    CHECK(during.sink.closed[1].missingCause == "pause");
+
+    Rig after("microphone");
+    after.Feed(100);
+    after.pipe.OnGateClosed();
+    after.t += 2 * kNsPerSec;
+    after.stamp += 2 * kNsPerSec;
+    after.pipe.OnGateOpened();
+    after.t += 4 * kNsPerSec;
+    after.stamp += 4 * kNsPerSec;
+    after.pipe.OnStreamLost("device", "device");
+    after.pipe.OnStreamOpened({"id", "name", "internal"}, "device");
+    ++after.generation;
+    after.Feed(100);
+    after.pipe.Stop();
+    CHECK(after.sink.closed[1].missingCause == "device");
+    CHECK(std::abs(after.sink.closed[1].missingBeforeMs - 6000) < 1);
 }
 
 void TestPauseAndLoss() {
@@ -281,6 +343,8 @@ int main(int argc, char** argv) {
     TestStandbyLoss();
     TestWake();
     TestDrainBurst();
+    TestStaleSilence();
+    TestResumeOnDeadStream();
     TestPauseAndLoss();
     TestGate();
     TestFastPause();

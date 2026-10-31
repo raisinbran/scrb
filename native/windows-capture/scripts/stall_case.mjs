@@ -1,7 +1,7 @@
 // T23: does meeting audio survive a stall? A player sends a pulse every 600 ms with output muted while
 // the whole helper process is frozen, then only its reader stops. Counts the pulses saved in each
 // stall; any pulse missing from audio the chunks claim to hold is unmarked loss and fails the case.
-// Usage: node stall_case.mjs <work dir> [--load]
+// Usage: node stall_case.mjs <work dir> [--load] [--whole]
 import { Buffer } from 'node:buffer';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -120,7 +120,8 @@ function analyse(audioDir, stalls) {
 }
 
 const work = resolve(process.argv[2]);
-const load = process.argv[3] === '--load';
+const load = process.argv.includes('--load');
+const whole = process.argv.includes('--whole');
 rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 const wav = join(work, 'pulses.wav');
@@ -156,7 +157,7 @@ let ok;
 try {
   await suspenderLines.next();
   await sleep(1000);
-  const opened = await send('o', { name: 'open', sessionId: 's', outputDir: work, source: [player.pid], mic: 'default' });
+  const opened = await send('o', { name: 'open', sessionId: 's', outputDir: work, source: whole ? [] : [player.pid], mic: 'default' });
   if (!opened.ok) throw new Error(`open refused: ${JSON.stringify(opened)}`);
   const started = await send('s', { name: 'start' });
   const startedAt = performance.now() - started.atNs / 1e6;

@@ -115,7 +115,8 @@ for (const track of TRACKS) {
   resumed.forEach((chunk, i) => {
     const pausedMs = pausedSpans[i];
     console.log(`${track} resume ${i + 1}: paused ${pausedMs.toFixed(0)} ms, gap ${chunk.missingBeforeMs.toFixed(0)} ms marked ${chunk.missingCause}`);
-    check(chunk.missingBeforeMs < pausedMs + MARK_SLACK_MS, `${track} resume ${i + 1}: ${(chunk.missingBeforeMs - pausedMs).toFixed(0)} ms after the resume is marked as pause`);
+    const wantedCause = chunk.missingBeforeMs < pausedMs + MARK_SLACK_MS ? 'pause' : 'device';
+    check(chunk.missingCause === wantedCause, `${track} resume ${i + 1}: ${(chunk.missingBeforeMs - pausedMs).toFixed(0)} ms past the pause, marked ${chunk.missingCause}`);
   });
   if (track !== 'meeting') continue;
   const resumes = chunks.filter((c) => ['resume', 'device'].includes(c.openReason));

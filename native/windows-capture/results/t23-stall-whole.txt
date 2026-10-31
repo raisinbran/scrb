@@ -1,0 +1,44 @@
+load: none
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:21.775Z","track":"meeting","kind":"stamp","missingMs":399.996,"arrivalGapMs":4017.716,"atNs":8405485900}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:21.789Z","track":"meeting","kind":"stamp","missingMs":520.121,"arrivalGapMs":0.041,"atNs":9005601200}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:21.795Z","track":"meeting","kind":"stamp","missingMs":520.071,"arrivalGapMs":0.098,"atNs":9605471300}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:21.800Z","track":"meeting","kind":"stamp","missingMs":2329.774,"arrivalGapMs":1.866,"atNs":12015279900}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:21.806Z","track":"microphone","kind":"stamp","missingMs":2010.090,"arrivalGapMs":1.182,"atNs":12013613900}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:43.788Z","track":"meeting","kind":"stamp","missingMs":380.170,"arrivalGapMs":14010.432,"atNs":20405624400}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:43.796Z","track":"meeting","kind":"stamp","missingMs":520.092,"arrivalGapMs":0.088,"atNs":21005547000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:43.802Z","track":"meeting","kind":"stamp","missingMs":520.042,"arrivalGapMs":0.071,"atNs":21605471700}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:43.808Z","track":"meeting","kind":"stamp","missingMs":12350.400,"arrivalGapMs":9.528,"atNs":34035622700}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:43.813Z","track":"microphone","kind":"stamp","missingMs":12009.963,"arrivalGapMs":8.180,"atNs":34033541200}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:24:52.316Z","track":"microphone","gapMs":519.601,"watchdogLate":false}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:24:52.316Z","track":"meeting","gapMs":518.573,"watchdogLate":false}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:55.818Z","track":"meeting","kind":"stamp","missingMs":520.191,"arrivalGapMs":0.071,"atNs":42605530700}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:55.824Z","track":"meeting","kind":"stamp","missingMs":520.034,"arrivalGapMs":0.072,"atNs":43205451100}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:55.829Z","track":"meeting","kind":"stamp","missingMs":520.097,"arrivalGapMs":0.080,"atNs":43805520800}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:55.835Z","track":"meeting","kind":"stamp","missingMs":2169.873,"arrivalGapMs":9.768,"atNs":46055437700}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:24:55.835Z","track":"microphone","kind":"stamp","missingMs":2010.019,"arrivalGapMs":9.265,"atNs":46053551600}
+pulses found 64, expected 90, worst distance from the 600 ms grid 0.38 ms
+process stall 4000 ms at 8.01-12.03 s: kept 4 of 7 pulses
+process stall 14000 ms at 20.03-34.04 s: kept 3 of 23 pulses
+reader stall 4000 ms at 42.05-46.06 s: kept 3 of 6 pulses
+missing inside saved audio (unmarked): 0; missing away from any stall: 0
+microphone: chunks=11 audio=38.0 s missing=16030.1 ms bad=0 part=0 files=11 toneChunks=1 zeroChunks=0 peak=-26.9 dB
+  close reasons: discontinuity=3 rollover=4 stall=3 stop=1
+    missing 2010.1 ms before 12.014 s, cause stall
+    missing 12010.0 ms before 34.034 s, cause stall
+    missing 2010.0 ms before 46.054 s, cause stall
+meeting: chunks=18 audio=32.8 s missing=21270.9 ms bad=0 part=0 files=18 toneChunks=0 zeroChunks=0 peak=-8.4 dB
+  close reasons: discontinuity=10 rollover=4 stall=3 stop=1
+    missing 400.0 ms before 8.405 s, cause stall
+    missing 520.1 ms before 9.006 s, cause stall
+    missing 520.1 ms before 9.605 s, cause stall
+    missing 2329.8 ms before 12.015 s, cause stall
+    missing 380.2 ms before 20.406 s, cause stall
+    missing 520.1 ms before 21.006 s, cause stall
+    missing 520.0 ms before 21.605 s, cause stall
+    missing 12350.4 ms before 34.036 s, cause stall
+    missing 520.2 ms before 42.606 s, cause stall
+    missing 520.0 ms before 43.205 s, cause stall
+    missing 520.1 ms before 43.806 s, cause stall
+    missing 2169.9 ms before 46.055 s, cause stall
+VERIFY OK
+PASS

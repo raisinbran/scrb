@@ -443,6 +443,7 @@ void Session::DoResume(const Command& cmd) {
         for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
         continuing_ = false;
     }
+    for (auto& s : slots_) s.track->Post([](TrackPipeline& p) { p.OnGateOpened(); });
     int64_t at = gate_.Open(NowNs()) - originNs_;
     log_->Record(JsonObject().Str("event", "resume").Str("commandId", Arg(cmd, "id"))
                      .Str("cause", Arg(cmd, "cause", "user")).Int("atNs", at).Done());

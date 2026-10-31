@@ -130,20 +130,33 @@ void TrackPipeline::CheckRate(const Packet& p, int64_t stamp) {
     rateWindowFrames_ += p.frames;
 }
 
+// T23: a process stall's span comes back well stamped and unflagged, but as near silence: the
+// sound is gone.  Anything louder is kept, and a late packet alone proves nothing.
+bool TrackPipeline::IsStaleSilence(const Packet& p) {
+    if (!cfg_.arrivalCheck || baselineCount_ < 20) return false;
+    int64_t lateNs = p.arrivalNs - (p.stampNs + correctionNs_) - baselineNs_;
+    // Lateness shrinks through the drain, so once dropping, go on until it has caught up.
+    if (lateNs <= (dropping_ ? cfg_.divergenceNs : cfg_.stallNs)) return dropping_ = false;
+    return dropping_ = std::all_of(p.pcm.begin(), p.pcm.end(), [this](int16_t s) { return std::abs(s) <= cfg_.stalePeak; });
+}
+
 void TrackPipeline::OnPacket(const Packet& p) {
     stats_.packets++;
     if (!started_ || stopped_ || sleeping_) return;
     // After standby Windows delivers the slept span as a burst of stale silence (F11).
     if (p.stampNs < wakeNs_ && p.arrivalNs < wakeNs_ + kNsPerSec) return;
+    // The next kept packet's stamp jump marks this as a gap.
+    if (p.generation == generation_ && IsStaleSilence(p)) return;
     // A pause too short for the queue to empty still splits here.
     if (p.generation != generation_) {
         CloseChunk("pause");
         generation_ = p.generation;
         paused_ = false;
         pendingOpenReason_ = "resume";
-        pendingCause_ = "pause";
+        pendingCause_ = lostAfterResume_ ? "device" : "pause";
         havePrev_ = false;
     }
+    resumedNoPacket_ = lostAfterResume_ = false;
 
     bool lostTime = CheckDivergence(p);
     int64_t stamp = p.stampNs + correctionNs_ - originNs_;
@@ -298,6 +311,8 @@ void TrackPipeline::OnGateClosed() {
     havePrev_ = false;
 }
 
+void TrackPipeline::OnGateOpened() { resumedNoPacket_ = true; }
+
 void TrackPipeline::Stop() {
     CloseChunk("stop");
     stopped_ = true;
@@ -323,6 +338,7 @@ void TrackPipeline::OnWake(int64_t nowNs) {
 }
 
 void TrackPipeline::OnStreamLost(const std::string& closeReason, const std::string& cause) {
+    if (resumedNoPacket_) lostAfterResume_ = true;
     CloseChunk(closeReason);
     pendingOpenReason_ = closeReason;
     pendingCause_ = cause;

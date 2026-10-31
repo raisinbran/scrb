@@ -1,126 +1,26 @@
 load: 6 spinning threads of 12 at below-normal priority
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.934Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.011,"atNs":8024571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.939Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.008,"atNs":8044571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.946Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.007,"atNs":8174571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.952Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.015,"atNs":8324571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.956Z","track":"microphone","kind":"stamp","missingMs":2010.124,"arrivalGapMs":5.057,"atNs":12015842900}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.961Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.016,"atNs":8654571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.967Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":8814571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.973Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":8954571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.978Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.015,"atNs":9004571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.987Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":9324571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:01.993Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":9394571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.001Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.009,"atNs":9594571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.007Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":9704571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.011Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":9754571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.026Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.022,"atNs":10544571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.032Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.009,"atNs":10654571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.037Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":10674571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:02.049Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":11204571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.943Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.011,"atNs":20044571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.957Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":20954571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.962Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":20984571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.965Z","track":"microphone","kind":"stamp","missingMs":12010.004,"arrivalGapMs":2.989,"atNs":34025747600}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.970Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":21234571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.976Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":21304571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:23.991Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":22214571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.098Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":22254571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.106Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":22354571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.116Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":22784571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.122Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":22864571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.131Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":23034571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.136Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":23084571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.145Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":23504571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.153Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":23924571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.163Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.009,"atNs":24634571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.174Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":25204571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.180Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":25334571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.188Z","track":"meeting","kind":"stamp","missingMs":30.000,"arrivalGapMs":0.013,"atNs":25694571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.195Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":25994571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.210Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27054571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.215Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27084571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.221Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27124571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.226Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27144571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.232Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27174571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.239Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27214571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.244Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27234571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.249Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27254571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.255Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27304571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.261Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27394571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.266Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27434571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.272Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27454571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.277Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27474571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.282Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27494571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.287Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27524571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.292Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27544571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.298Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27564571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.303Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27584571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.309Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27614571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.316Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27654571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.322Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27694571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.327Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27714571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.333Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27734571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.348Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28684571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.354Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28734571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.360Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28784571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.365Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28804571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.371Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28824571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.376Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28844571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.382Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28924571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.388Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28944571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.393Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28964571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.399Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28984571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.406Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29064571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.411Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29084571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.423Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29584571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.433Z","track":"meeting","kind":"stamp","missingMs":40.000,"arrivalGapMs":0.015,"atNs":30164571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.439Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":30234571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.445Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":30334571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.451Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":30354571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.457Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":30434571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.462Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":30454571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.469Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.005,"atNs":30574571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.477Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.017,"atNs":30974571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.488Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":31664571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.493Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":31684571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.500Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":31904571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.505Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":31984571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.511Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.005,"atNs":32004571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.516Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32024571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.524Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32214571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.530Z","track":"meeting","kind":"stamp","missingMs":40.000,"arrivalGapMs":0.015,"atNs":32384571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.534Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32434571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.542Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32754571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.547Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32804571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:24.553Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32864571500}
-{"type":"event","event":"streamStalled","wall":"2026-10-31T22:14:32.534Z","track":"microphone","gapMs":588.063,"watchdogLate":false}
-{"type":"event","event":"streamStalled","wall":"2026-10-31T22:14:32.534Z","track":"meeting","gapMs":595.446,"watchdogLate":false}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:35.949Z","track":"meeting","kind":"stamp","missingMs":3980.000,"arrivalGapMs":4010.108,"atNs":46024571500}
-{"type":"event","event":"discontinuity","wall":"2026-10-31T22:14:35.981Z","track":"microphone","kind":"stamp","missingMs":2009.942,"arrivalGapMs":9.719,"atNs":46055805800}
-pulses found 54, expected 90, worst distance from the 600 ms grid 40.04 ms
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:18.005Z","track":"meeting","kind":"stamp","missingMs":3960.000,"arrivalGapMs":4017.546,"atNs":11977159400}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:18.042Z","track":"microphone","kind":"stamp","missingMs":2019.936,"arrivalGapMs":6.616,"atNs":12023953600}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:40.024Z","track":"meeting","kind":"stamp","missingMs":13970.000,"arrivalGapMs":14026.547,"atNs":33997159400}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:40.054Z","track":"microphone","kind":"stamp","missingMs":12010.001,"arrivalGapMs":0.425,"atNs":34033907100}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:23:48.604Z","track":"microphone","gapMs":583.628,"watchdogLate":false}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:23:48.604Z","track":"meeting","gapMs":586.447,"watchdogLate":false}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:52.037Z","track":"meeting","kind":"stamp","missingMs":3990.000,"arrivalGapMs":4019.564,"atNs":46037159400}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:23:52.064Z","track":"microphone","kind":"stamp","missingMs":2010.063,"arrivalGapMs":9.857,"atNs":46053974600}
+pulses found 54, expected 90, worst distance from the 600 ms grid 30.04 ms
 process stall 4000 ms at 8.01-12.03 s: kept 0 of 6 pulses
-process stall 14000 ms at 20.03-34.04 s: kept 0 of 23 pulses
-reader stall 4000 ms at 42.05-46.06 s: kept 0 of 6 pulses
-missing inside saved audio (unmarked): 22; missing away from any stall: 0
-microphone: chunks=11 audio=38.0 s missing=16030.1 ms bad=0 part=0 files=11 toneChunks=1 zeroChunks=0 peak=-37.7 dB
+process stall 14000 ms at 20.03-34.05 s: kept 0 of 23 pulses
+reader stall 4000 ms at 42.06-46.06 s: kept 0 of 7 pulses
+missing inside saved audio (unmarked): 0; missing away from any stall: 0
+microphone: chunks=11 audio=38.0 s missing=16040.0 ms bad=0 part=0 files=11 toneChunks=1 zeroChunks=0 peak=-33.4 dB
   close reasons: discontinuity=3 rollover=4 stall=3 stop=1
-    missing 2010.1 ms before 12.016 s, cause stall
-    missing 12010.0 ms before 34.026 s, cause stall
-    missing 2009.9 ms before 46.056 s, cause stall
-meeting: chunks=100 audio=49.0 s missing=5020.0 ms bad=0 part=0 files=100 toneChunks=0 zeroChunks=0 peak=-18.9 dB
-  close reasons: discontinuity=92 rollover=4 stall=3 stop=1
-    missing 10.0 ms before 8.025 s, cause stall
-    missing 10.0 ms before 8.045 s, cause stall
-    missing 10.0 ms before 8.175 s, cause stall
-    missing 10.0 ms before 8.325 s, cause stall
-    missing 10.0 ms before 8.655 s, cause stall
-    missing 10.0 ms before 8.815 s, cause stall
-    missing 10.0 ms before 8.955 s, cause stall
-    missing 10.0 ms before 9.005 s, cause stall
-    missing 10.0 ms before 9.325 s, cause stall
-    missing 10.0 ms before 9.395 s, cause stall
-    missing 20.0 ms before 9.595 s, cause stall
-    missing 10.0 ms before 9.705 s, cause stall
-    ... 81 more
+    missing 2019.9 ms before 12.024 s, cause stall
+    missing 12010.0 ms before 34.034 s, cause stall
+    missing 2010.1 ms before 46.054 s, cause stall
+meeting: chunks=8 audio=32.1 s missing=21920.0 ms bad=0 part=0 files=8 toneChunks=0 zeroChunks=0 peak=-18.8 dB
+  close reasons: rollover=4 stall=3 stop=1
+    missing 3960.0 ms before 11.977 s, cause stall
+    missing 13970.0 ms before 33.997 s, cause stall
+    missing 3990.0 ms before 46.037 s, cause stall
 VERIFY OK
-FAIL
+PASS

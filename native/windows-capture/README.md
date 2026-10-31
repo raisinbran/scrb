@@ -353,8 +353,15 @@ unplug (no USB mic).
     `audioMissing` when the next chunk opened with `device` or the Mac's
     `serviceRestarted`.  The Mac's `streamDead` stays softened, because a silent
     computer can cause it.  The Mac reason is checked by unit test only.
-14. **T23 fails: a whole-process stall loses meeting audio and saves it as near
-    silence, unmarked.**  `stall_case.mjs` froze the helper with
+14. **T23: a whole-process stall loses meeting audio; that loss is now marked.**
+    The numbers below are the first run, which failed.  The pipeline now drops
+    meeting packets over 500 ms late with peak 16 or under, until lateness falls
+    to 50 ms, so the next kept packet marks a `stall` gap.  Reruns pass with no
+    unmarked loss, including `t23-stall-whole.txt`: whole-computer capture kept 3
+    or 4 pulses per stall and no 20 to 40 ms shift.  The audio is still lost: this
+    is the known limit under C6, not a recovery.  A genuinely quiet meeting
+    during a stall is also marked missing, which is correct, as it cannot be
+    told apart.  `stall_case.mjs` froze the helper with
     `NtSuspendProcess` while a muted player sent a pulse every 600 ms
     (`results/t23-stall-idle.txt`, `t23-stall-load.txt`).  Pulses kept: 0 of 6 in
     a 4 s freeze and 0 of 23 in a 14 s freeze, with and without load (6 spinning
@@ -368,15 +375,17 @@ unplug (no USB mic).
     20 to 40 ms late against the 600 ms grid; cause not looked at.  The freeze is
     forced, so a natural stall is unproven, and it was not tried with output
     unmuted.
-15. **T24 fails on marking: time lost after a resume is marked as pause.**
+15. **T24 passes with a fault hook; a real device change is untested.**
     `pause_fault_case.mjs` forces silent stream death with the blackhole hook
-    (`results/t24-pause-fault.txt`).  Death found during a pause passes: both
-    tracks reopen while paused and the tone returns after resume.  Resuming onto
-    an unnoticed dead stream recovers too, but the 4.0 s from resume to reopen is
-    marked `pause` (gap 6.5 s, pause 2.5 s), so sealed audio would show lost
-    recording as a chosen pause.  The limit was 5 s here and is 30 s by default.
-    The resume reply says the gate is open throughout.  No real device change
-    was tried: this PC has one mic, so T24 is fault-injected only.
+    (`results/t24-pause-fault.txt`).  Death found during a pause: both tracks
+    reopen while paused and the tone returns after resume.  Resuming onto an
+    unnoticed dead stream also recovers.  The first run failed because that gap
+    (6.5 s, of which 2.5 s was the pause) said `pause` in `chunks.log`; it now says
+    `device`.  `sealAudio` was already right: it takes pauses from `session.log`,
+    so the 4 s after the resume sealed as `audioMissing`.  An earlier version of
+    this finding said otherwise.  The audio loss itself stands: the limit was 5 s
+    here and is 30 s by default without a device signal, and the resume reply
+    says the gate is open throughout.  This PC has one mic, so no real change ran.
 
 ## Needs a Planner plan
 
