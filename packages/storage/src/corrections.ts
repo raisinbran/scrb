@@ -765,6 +765,11 @@ function overrideFor(
 
 /** The transcript as shown, exported and searched. A user correction always wins. */
 export function resolveDisplay(transcript: TranscriptFile): DisplaySegment[] {
+  const wordEndById = new Map(
+    transcript.segments.flatMap((segment) =>
+      segment.words.map((word) => [word.id, word.endMs] as const),
+    ),
+  );
   const active = new Map<string, Correction>();
   for (const correction of transcript.corrections) {
     if (correction.state !== 'active') continue;
@@ -805,12 +810,11 @@ export function resolveDisplay(transcript: TranscriptFile): DisplaySegment[] {
         push(token, speakerId);
       } else if (correction.wordIds[0] === word.id) {
         const last = correction.wordIds.at(-1) as string;
-        const endWord = segment.words.find((w) => w.id === last);
         push(
           {
             text: correction.replacement,
             startMs: word.startMs,
-            endMs: endWord?.endMs ?? correction.original.endMs,
+            endMs: wordEndById.get(last) ?? correction.original.endMs,
             wordIds: correction.wordIds,
             correctionId: correction.id,
             originalText: correction.original.text,

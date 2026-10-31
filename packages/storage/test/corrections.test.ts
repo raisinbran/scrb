@@ -73,6 +73,23 @@ describe('correction layer', () => {
     expect(() => applyCorrection(mixed, across)).toThrow(CorrectionConflictError);
   });
 
+  it('cross-segment correction uses the final selected word time, including after model retiming', () => {
+    const first = words('please ask', 0);
+    const second = words('john today', 1000);
+    const original = transcript(
+      [segment('first', 'a', first), segment('second', 'a', second)],
+      [speaker('a')],
+    );
+    const ids = [first[1]!.id, second[0]!.id];
+    const corrected = applyCorrection(original, { wordIds: ids, replacement: 'ask Jane' });
+    const view = resolveDisplay(corrected.transcript).flatMap((s) => s.tokens);
+    const selected = view.find((token) => token.correctionId === corrected.correction.id);
+    expect(selected?.startMs).toBe(first[1]?.startMs);
+    expect(selected?.endMs).toBe(second[0]?.endMs);
+    expect(shown(corrected.transcript)).toBe('please ask Jane today');
+    expect(shown(undo(corrected.transcript))).toBe('please ask john today');
+  });
+
   it('re-editing the exact span updates the same correction and keeps the original', () => {
     const { t, w } = live();
     const first = applyCorrection(t, { wordIds: ids(w, 3, 5), replacement: 'John Smith' });

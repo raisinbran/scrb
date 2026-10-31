@@ -85,6 +85,32 @@ describe('corrections through the library', () => {
     await library.close();
   });
 
+  it('keeps undo of a cross-segment correction through final pass and reopening', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const meeting = await library.createMeeting({ title: 'Synthetic two segments' });
+    const a = words('ask jon', 0);
+    const b = words('smith today', 1000);
+    await library.appendSegments(meeting.id,
+      [segment('one', 'a', a), segment('two', 'a', b)], [speaker('a')]);
+    await library.applyCorrection(meeting.id, {
+      wordIds: [a[1]!.id, b[0]!.id], replacement: 'John Smythe',
+    });
+    await library.applyFinalPass(meeting.id, {
+      segments: [segment('final', 'a', words('ask john smit today', 0, 'f'), 'final')],
+      speakers: [speaker('a')],
+    });
+    await library.close();
+
+    library = await Library.open({ root });
+    expect(shown(await library.readTranscript(meeting.id))).toContain('John Smythe');
+    await library.undo(meeting.id);
+    expect(shown(await library.readTranscript(meeting.id))).not.toContain('John Smythe');
+    await library.redo(meeting.id);
+    expect(shown(await library.readTranscript(meeting.id))).toContain('John Smythe');
+    await library.close();
+  });
+
   it('a correction made while the final pass runs is kept', async () => {
     const library = await Library.open({ root: await tempDir() });
     const { id, ids } = await seeded(library);
