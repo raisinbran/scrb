@@ -120,7 +120,9 @@ describe('createMeetingHandlers', () => {
       transcriptionFailure: 'Worker /Users/private/demo.m4a printed invented spoken names',
     });
     const detail = await value('getMeeting', { meetingId: id });
-    expect(detail.transcriptionFailure).toBe('Transcription stopped because of an error. Your audio is saved.');
+    expect(detail).toMatchObject({
+      transcriptionFailure: 'Transcription stopped because of an error. Your audio is saved.',
+    });
     expect(JSON.stringify(detail)).not.toContain('/Users/private');
     const page = await call('getTranscript', { meetingId: id, offset: 0, limit: 5 });
     expect(JSON.stringify(page)).not.toContain('/Users/private');
