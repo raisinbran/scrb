@@ -33,4 +33,9 @@ describe.skipIf(process.platform === 'win32')('ProcessAdapter', () => {
     adapter.kill();
     await exited;
   });
+
+  it('reports exit when the helper never launches', async () => {
+    const adapter = new ProcessAdapter(join(tmpdir(), 'scrb-no-such-helper'));
+    await new Promise<void>((resolve) => adapter.onExit(resolve));
+  });
 });

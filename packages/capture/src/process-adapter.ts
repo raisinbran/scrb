@@ -49,6 +49,10 @@ export class ProcessAdapter implements CaptureAdapter {
 
   onExit(listener: () => void): void {
     this.child.once('exit', listener);
+    // A process that never launched has no pid and emits `error` instead of `exit`.
+    this.child.once('error', () => {
+      if (this.child.pid === undefined) listener();
+    });
   }
 
   kill(): void {

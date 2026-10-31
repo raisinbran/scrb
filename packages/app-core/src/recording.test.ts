@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContractError } from '@scrb/contracts';
+import { ProcessAdapter } from '@scrb/capture';
 import type {
   CaptureAck,
   CaptureAdapter,
@@ -520,5 +521,19 @@ describe('RecordingSession', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(session.state.status).toBe('paused');
     expect(latest().sent.map(({ name }) => name)).toEqual(['open']);
+  });
+});
+
+describe('a helper that never launches', () => {
+  it('rejects the start', async () => {
+    const session = new RecordingSession({
+      launch: () => new ProcessAdapter(join(tmpdir(), 'scrb-no-such-helper')),
+      onStateChanged: () => undefined,
+      onTrackMissing: () => undefined,
+      onEnded: () => undefined,
+      newCommandId: () => 'c',
+    });
+    await expect(session.start(OPEN)).rejects.toThrow(ContractError);
+    expect(session.state.status).toBe('idle');
   });
 });
