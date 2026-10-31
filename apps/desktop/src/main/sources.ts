@@ -8,6 +8,9 @@ import {
 } from '@scrb/contracts';
 
 const BROWSERS: ReadonlySet<string> = new Set([
+  'Arc.exe',
+  'brave.exe',
+  'chrome.exe',
   'com.apple.Safari',
   'com.brave.Browser',
   'com.google.Chrome',
@@ -15,7 +18,11 @@ const BROWSERS: ReadonlySet<string> = new Set([
   'com.operasoftware.Opera',
   'com.vivaldi.Vivaldi',
   'company.thebrowser.Browser',
+  'firefox.exe',
+  'msedge.exe',
+  'opera.exe',
   'org.mozilla.firefox',
+  'vivaldi.exe',
 ]);
 
 const WHOLE_COMPUTER: MeetingApp = {
