@@ -229,7 +229,7 @@ export class RecordingController {
         if (status === 'idle') return;
         const changed = this.state.status !== status;
         this.update({ status, pauseReason });
-        if (changed && (status === 'paused' || status === 'recording')) {
+        if (changed && status === 'recording') {
           void this.library.updateMeeting(meeting.id, { status }).catch((error: unknown) => {
             this.library.logger.log('error', 'recording-status-save-failed', errorFields(error));
           });

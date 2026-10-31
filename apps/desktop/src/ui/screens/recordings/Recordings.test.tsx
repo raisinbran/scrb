@@ -194,7 +194,7 @@ describe('Recordings', () => {
       expect(links.length).toBeLessThan(100);
       // Synthetic 8-hour fixture: include opening the page and its initial virtual window.
       expect(elapsedMs).toBeLessThan(5_000);
-    }, { timeout: 10_000 });
+    }, 10_000);
 
     it('flags a recovered meeting', async () => {
       renderScreen();
