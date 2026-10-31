@@ -35,6 +35,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
       <button
         type="button"
         className={styles.button}
+        disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       >
         {isPlaying ? 'Pause' : 'Play'}
@@ -43,6 +44,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="button"
         className={styles.button}
         aria-label="Back 15 seconds"
+        disabled={!meeting.hasAudio}
         onClick={() => move(positionMs - SKIP_MS)}
       >
         −15 s
@@ -51,6 +53,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="button"
         className={styles.button}
         aria-label="Forward 15 seconds"
+        disabled={!meeting.hasAudio}
         onClick={() => move(positionMs + SKIP_MS)}
       >
         +15 s
@@ -59,6 +62,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="range"
         className={styles.slider}
         aria-label="Playback position"
+        disabled={!meeting.hasAudio}
         aria-valuetext={formatElapsed(positionMs)}
         min={0}
         max={durationMs}
@@ -106,8 +110,10 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
             />
           ))}
         </div>
-        {gaps.length === 0 ? (
-          <p className={styles.muted}>No gaps. Audio covers the whole meeting.</p>
+        {!meeting.hasAudio ? (
+          <p className={styles.muted}>No saved audio is available for playback.</p>
+        ) : gaps.length === 0 ? (
+          <p className={styles.muted}>No gaps are recorded in the audio timeline.</p>
         ) : (
           <ul className={styles.plainList}>
             {gaps.map((gap) => (
