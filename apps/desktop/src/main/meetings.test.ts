@@ -21,7 +21,7 @@ describe('createMeetingHandlers', () => {
   afterEach(() => library.close());
 
   const call = (
-    name: 'listMeetings' | 'getMeeting' | 'getTranscript' | 'deleteMeeting' | 'updateTerm',
+    name: 'listMeetings' | 'getMeeting' | 'getTranscript' | 'deleteMeeting' | 'updateTerm' | 'searchMeetings' | 'getUndoState' | 'retryFinalPass',
     request: unknown,
   ) => dispatchCall(handlers, name, request);
 
@@ -126,6 +126,64 @@ describe('createMeetingHandlers', () => {
     expect(JSON.stringify(detail)).not.toContain('/Users/private');
     const page = await call('getTranscript', { meetingId: id, offset: 0, limit: 5 });
     expect(JSON.stringify(page)).not.toContain('/Users/private');
+  });
+
+  it('keeps segment ids for filtered searches, so a match can jump to its words', async () => {
+    const recordedMeeting = await recorded('Synthetic recorded', '2026-10-15T10:00:00.000Z');
+    await library.applyFinalPass(recordedMeeting.id, {
+      segments: [{
+        id: 'seg-search',
+        track: 'meeting',
+        speakerId: 'speaker',
+        pass: 'final',
+        words: [{ id: 'word-search', text: 'InventedSearch', startMs: 10, endMs: 40 }],
+      }],
+      speakers: [{
+        id: 'speaker', label: 'Speaker 1', name: null,
+        profileId: null, userNamed: false, mergedInto: null,
+      }],
+    });
+    await library.createMeeting({
+      title: 'InventedSearch imported',
+      date: '2026-10-15T10:00:00.000Z',
+      source: 'imported',
+      status: 'ready',
+    });
+    expect(await value('searchMeetings', {
+      query: 'InventedSearch',
+      filter: { origin: 'recorded', from: '2026-10-15', to: '2026-10-15' },
+    })).toMatchObject([{
+      meeting: { id: recordedMeeting.id },
+      matches: [{ segmentId: 'seg-search', startMs: 10 }],
+    }]);
+    expect(await value('searchMeetings', {
+      query: 'InventedSearch',
+      filter: { from: '2026-10-16' },
+    })).toEqual([]);
+  });
+
+  it('only retries a failed pass with sealed audio and an available queue', async () => {
+    const meeting = await recorded('Synthetic retry', '2026-10-15T10:00:00.000Z');
+    await library.updateMeeting(meeting.id, { status: 'transcriptionFailed' });
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
+      ok: false, error: { code: 'conflict' },
+    });
+    const paths = library.meetingPaths(meeting.id);
+    writeFileSync(join(paths.audioMicrophone, '000.opus'), 'invented');
+    writeFileSync(join(paths.audioMicrophone, 'chunks.json'), JSON.stringify({
+      chunks: [{ file: '000.opus', startNs: 0, endNs: 1_000_000 }],
+    }));
+    const enqueue = vi.fn();
+    const events = vi.fn();
+    handlers = createMeetingHandlers(library, events, undefined, { enqueue } as never);
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({ ok: true });
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(meeting.id);
+    expect(events).toHaveBeenCalledWith('meetingChanged', expect.objectContaining({
+      id: meeting.id, status: 'finalPassRunning',
+    }));
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
+      ok: false, error: { code: 'conflict' },
+    });
   });
 
   it('applies the origin and date filter', async () => {
