@@ -19,6 +19,7 @@ import {
   CorrectionConflictError,
   errorFields,
   MeetingNotFoundError,
+  StorageError,
   resolveDisplay,
   type DisplaySegment,
   type Library,
@@ -286,10 +287,15 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
     deleteMeeting: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
-      throw new ContractError({
-        code: 'notImplemented',
-        message: 'Deleting a recorded meeting is not available yet.',
-      });
+      try {
+        const result = await library.deleteMeeting(meetingId);
+        return { verified: result.ok, remaining: result.remaining };
+      } catch (error) {
+        if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
+          throw new ContractError({ code: 'conflict', message: error.message });
+        }
+        throw error;
+      }
     },
   };
 }

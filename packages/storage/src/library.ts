@@ -609,6 +609,7 @@ export class Library {
   deleteMeeting(meetingId: string): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
+      await this.assertDeletionIdle(row);
       const remaining = await this.removeMeeting(meetingId, row.folder);
       const ok = remaining.length === 0;
       this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
@@ -618,6 +619,18 @@ export class Library {
       });
       return { meetingId, ok, remaining };
     });
+  }
+
+  /** Conservatively refuse deletion whenever a writer may still own the meeting. */
+  private async assertDeletionIdle(row: MeetingRow): Promise<void> {
+    if (row.status === 'recording' || row.status === 'importing' ||
+        row.status === 'finalPassRunning') {
+      throw new StorageError('ACTIVE_MEETING', 'Stop the meeting operation before deleting.');
+    }
+    const lock = path.join(meetingFolderPath(this.paths, row.folder), 'audio', 'writer.lock');
+    if (await exists(lock)) {
+      throw new StorageError('ACTIVE_MEETING', 'Audio recording may still be writing.');
+    }
   }
 
   /** Cancels an import. The user's original file is outside the library and is not touched. */
@@ -631,19 +644,25 @@ export class Library {
     const cache = meetingCachePath(this.paths, meetingId);
     const problems: string[] = [];
 
-    let folderGone = true;
+    let movedFromLibrary = false;
     try {
       if (await exists(folder)) await fs.rename(folder, trash);
-      await fs.rm(trash, RM_OPTIONS);
+      movedFromLibrary = true;
     } catch (error) {
-      folderGone = false;
       this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+    }
+    if (movedFromLibrary) {
+      try {
+        await fs.rm(trash, RM_OPTIONS);
+      } catch (error) {
+        this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+      }
     }
     await fs.rm(cache, RM_OPTIONS).catch((error: unknown) => {
       this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
-    if (folderGone) deleteMeetingRows(this.db, meetingId);
+    if (movedFromLibrary) deleteMeetingRows(this.db, meetingId);
 
     for (const target of [folder, trash, cache]) {
       if (await exists(target)) problems.push(target);
@@ -669,25 +688,23 @@ export class Library {
   /** Removes a meeting's audio and anything derived from it. Transcript and summary stay. */
   deleteAudio(meetingId: string): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
+      const row = this.requireRow(meetingId);
+      await this.assertDeletionIdle(row);
       const files = this.meetingPaths(meetingId);
       const cache = meetingCachePath(this.paths, meetingId);
       const remaining: string[] = [];
-      for (const dir of [files.audioMicrophone, files.audioMeeting]) {
+      for (const target of [files.audio, cache]) {
         try {
-          await fs.rm(dir, RM_OPTIONS);
-          await fs.mkdir(dir, { recursive: true });
+          await fs.rm(target, RM_OPTIONS);
         } catch (error) {
           this.logger.log('error', 'audio-delete-step-failed', errorFields(error));
         }
+        if (await exists(target)) remaining.push(target);
       }
-      await fs.rm(cache, RM_OPTIONS).catch((error: unknown) => {
-        this.logger.log('error', 'audio-delete-step-failed', errorFields(error));
-      });
-      if (await hasAnyFile(files.audio).catch(() => false)) remaining.push(files.audio);
-      if (await exists(cache)) remaining.push(cache);
       const ok = remaining.length === 0;
-      // Only a clean delete sets the mark, so a failed one is retried on the next run.
-      if (ok) await this.writeMeta(meetingId, { audioDeletedAt: this.nowIso() });
+      if (ok && row.audioDeletedAt === null) {
+        await this.writeMeta(meetingId, { audioDeletedAt: this.nowIso() });
+      }
       this.logger.log(ok ? 'info' : 'error', 'audio-deleted', { meetingId, ok });
       return { meetingId, ok, remaining };
     });

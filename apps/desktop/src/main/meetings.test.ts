@@ -243,17 +243,41 @@ describe('createMeetingHandlers', () => {
     expect(revisions).toEqual([(await library.readTranscript(meetingId)).revision]);
   });
 
-  it('refuses to delete a real meeting and leaves it in place', async () => {
-    const { id: meetingId } = await recorded('Keep', '2026-10-15T10:00:00.000Z');
-    const envelope = await dispatchCall(handlers, 'deleteMeeting', { meetingId });
-    expect(envelope).toEqual({
-      ok: false,
-      error: {
-        code: 'notImplemented',
-        message: 'Deleting a recorded meeting is not available yet.',
-      },
+  it('deletes a recorded meeting and verifies the folder and index are gone', async () => {
+    const { id: meetingId } = await recorded('Remove', '2026-10-15T10:00:00.000Z');
+    expect(await dispatchCall(handlers, 'deleteMeeting', { meetingId })).toEqual({
+      ok: true, value: { verified: true, remaining: [] },
     });
+    expect(library.listMeetings()).toHaveLength(0);
+  });
+
+  it.each(['recording', 'importing', 'finalPassRunning'] as const)(
+    'refuses to delete a meeting with active status %s', async (status) => {
+      const meeting = await library.createMeeting({ title: 'Busy', status });
+      const result = await dispatchCall(handlers, 'deleteMeeting', { meetingId: meeting.id });
+      expect(result).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(library.listMeetings()).toHaveLength(1);
+    },
+  );
+
+  it('refuses deletion while an audio writer lock exists', async () => {
+    const meeting = await recorded('Locked', '2026-10-15T10:00:00.000Z');
+    writeFileSync(join(library.meetingPaths(meeting.id).audio, 'writer.lock'), 'synthetic');
+    expect(await dispatchCall(handlers, 'deleteMeeting', { meetingId: meeting.id }))
+      .toMatchObject({ ok: false, error: { code: 'conflict' } });
     expect(library.listMeetings()).toHaveLength(1);
+  });
+
+  it('audio-only deletion removes session logs and metadata, retaining transcript and meeting', async () => {
+    const meeting = await recorded('Audio', '2026-10-15T10:00:00.000Z');
+    const audio = library.meetingPaths(meeting.id).audio;
+    writeFileSync(join(audio, 'session.log'), 'synthetic');
+    writeFileSync(join(audio, 'session.json'), '{"synthetic":true}');
+    const result = await library.deleteAudio(meeting.id);
+    expect(result).toMatchObject({ ok: true, remaining: [] });
+    expect((await library.getMeeting(meeting.id)).audioDeletedAt).not.toBeNull();
+    expect((await library.readTranscript(meeting.id)).meetingId).toBe(meeting.id);
+    expect(await library.deleteAudio(meeting.id)).toMatchObject({ ok: true });
   });
 
   it.each(['getMeeting', 'getSummary', 'deleteMeeting'] as const)(
