@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
@@ -91,13 +91,26 @@ describe('index migrations', () => {
     check.close();
   });
 
-  it('sets a corrupt index aside and starts clean', async () => {
+  it('preserves a corrupt index instead of silently rebuilding index-only data', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
-    await writeFile(file, 'this is not a database, it just has enough bytes to be read as one');
-    const { db, replacedCorruptIndex } = await openIndex(file);
-    expect(replacedCorruptIndex).toContain('.corrupt-');
+    const broken = 'this is not a database, it just has enough bytes to be read as one';
+    await writeFile(file, broken);
+    await expect(openIndex(file)).rejects.toThrow();
+    expect(await readFile(file, 'utf8')).toBe(broken);
+  });
+
+  it('cleans up verified upgrade snapshots after successful migration', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 2);
+    old.prepare(`INSERT INTO settings VALUES ('theme', '"dark"')`).run();
+    old.close();
+    const { db } = await openIndex(file);
     expect(readIndexVersion(db)).toBe(INDEX_VERSION);
+    expect(new SettingsStore(db).get('theme', 'light')).toBe('dark');
     db.close();
+    expect((await readdir(root)).filter((name) => name.includes('.upgrade-'))).toEqual([]);
   });
 
   it('has no column that could hold transcript text', async () => {

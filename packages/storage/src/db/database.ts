@@ -1,61 +1,105 @@
-import { rename } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { StorageError, UnsupportedVersionError } from '../errors.ts';
-import { migrate } from './migrations.ts';
+import { INDEX_VERSION, migrate, readIndexVersion } from './migrations.ts';
 
 export type { DatabaseSync };
 
 function applyPragmas(db: DatabaseSync): void {
-  // Rollback journal, not WAL: the user picks the library location, WAL fails on network and
-  // synced folders, and one file makes "nothing left behind" simple to check.
   db.exec('PRAGMA journal_mode = DELETE');
   db.exec('PRAGMA synchronous = FULL');
   db.exec('PRAGMA foreign_keys = ON');
-  // Deleted names and voice data are zeroed on disk, not just unlinked from the b-tree.
   db.exec('PRAGMA secure_delete = ON');
 }
 
-function isHealthy(db: DatabaseSync): boolean {
-  const row = db.prepare('PRAGMA quick_check(1)').get() as { quick_check: string };
-  return row.quick_check === 'ok';
+function verify(db: DatabaseSync): void {
+  const integrity = db.prepare('PRAGMA integrity_check').all() as { integrity_check: string }[];
+  if (integrity.length !== 1 || integrity[0]?.integrity_check !== 'ok') {
+    throw new StorageError('INDEX_CORRUPT', 'The index integrity check failed.');
+  }
+  const badKeys = db.prepare('PRAGMA foreign_key_check').all();
+  if (badKeys.length !== 0) {
+    throw new StorageError('INDEX_CORRUPT', 'The index has invalid references.');
+  }
+}
+
+function currentTables(db: DatabaseSync): { name: string; columns: string[]; rows: string[] }[] {
+  const names = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+  ).all() as { name: string }[];
+  return names.map(({ name }) => {
+    const quoted = '"' + name.replaceAll('"', '""') + '"';
+    const schema = db.prepare(`PRAGMA table_info(${quoted})`).all() as { name: string }[];
+    const columns = schema.map((column) => column.name);
+    const selected = columns.map((col) => '"' + col.replaceAll('"', '""') + '"').join(', ');
+    const rows = (db.prepare(`SELECT ${selected} FROM ${quoted}`).all() as Record<string, unknown>[])
+      .map((row) => JSON.stringify(row, (_key, value: unknown) =>
+        typeof value === 'bigint' ? value.toString() : value))
+      .sort();
+    return { name, columns, rows };
+  });
+}
+
+function verifyPreserved(db: DatabaseSync, before: ReturnType<typeof currentTables>): void {
+  for (const table of before) {
+    const quoted = '"' + table.name.replaceAll('"', '""') + '"';
+    const selected = table.columns.map((col) => '"' + col.replaceAll('"', '""') + '"').join(', ');
+    const rows = (db.prepare(`SELECT ${selected} FROM ${quoted}`).all() as Record<string, unknown>[])
+      .map((row) => JSON.stringify(row, (_key, value: unknown) =>
+        typeof value === 'bigint' ? value.toString() : value))
+      .sort();
+    if (JSON.stringify(rows) !== JSON.stringify(table.rows)) {
+      throw new StorageError('INDEX_MIGRATION', `Index migration changed existing ${table.name} rows.`);
+    }
+  }
 }
 
 export interface OpenedIndex {
   db: DatabaseSync;
-  /** Set when the old index was unreadable and set aside. Settings and vocabulary start empty. */
+  /** Kept for existing callers; corrupt indexes are no longer replaced. */
   replacedCorruptIndex: string | null;
 }
 
-function openAndMigrate(filePath: string): DatabaseSync {
+/** Upgrade from a consistent SQLite snapshot; never silently rebuild index-only user data. */
+export async function openIndex(filePath: string): Promise<OpenedIndex> {
   const db = new DatabaseSync(filePath);
+  let snapshot: string | null = null;
   try {
     applyPragmas(db);
-    if (!isHealthy(db)) throw new StorageError('INDEX_CORRUPT', 'index failed its check');
+    verify(db);
+    const version = readIndexVersion(db);
+    if (version > INDEX_VERSION) {
+      throw new UnsupportedVersionError('index.sqlite', version, INDEX_VERSION);
+    }
+    if (version > 0 && version < INDEX_VERSION && filePath !== ':memory:') {
+      snapshot = `${filePath}.upgrade-${randomUUID()}`;
+      db.prepare('VACUUM INTO ?').run(snapshot);
+      const copy = new DatabaseSync(snapshot);
+      try {
+        verify(copy);
+        if (readIndexVersion(copy) !== version) {
+          throw new StorageError('INDEX_SNAPSHOT', 'The index snapshot has a different version.');
+        }
+      } finally {
+        copy.close();
+      }
+    }
+    const existing = version > 0 ? currentTables(db) : [];
     migrate(db);
-    return db;
+    verify(db);
+    if (readIndexVersion(db) !== INDEX_VERSION) {
+      throw new StorageError('INDEX_MIGRATION', 'Index migration did not finish.');
+    }
+    verifyPreserved(db, existing);
+    if (snapshot !== null) {
+      await unlink(snapshot);
+    }
+    return { db, replacedCorruptIndex: null };
   } catch (error) {
     db.close();
+    // Preserve failed upgrade snapshots for explicit recovery during Task 26.
+    // A failed integrity check never moves/replaces the original index.
     throw error;
-  }
-}
-
-/**
- * Opens and upgrades the index. Meetings can be rebuilt from their folders, so a corrupt index is
- * moved aside and replaced rather than blocking the app; the old file is kept for the user.
- * An index from a newer build is not corrupt, and is refused.
- */
-export async function openIndex(filePath: string): Promise<OpenedIndex> {
-  try {
-    return { db: openAndMigrate(filePath), replacedCorruptIndex: null };
-  } catch (error) {
-    if (error instanceof UnsupportedVersionError) throw error;
-    const code = (error as { code?: string }).code;
-    const message = String((error as Error).message);
-    const corrupt =
-      code === 'INDEX_CORRUPT' || /malformed|not a database|file is encrypted/i.test(message);
-    if (!corrupt) throw error;
-    const aside = `${filePath}.corrupt-${Date.now()}`;
-    await rename(filePath, aside);
-    return { db: openAndMigrate(filePath), replacedCorruptIndex: aside };
   }
 }
