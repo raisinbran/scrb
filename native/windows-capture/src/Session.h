@@ -30,6 +30,7 @@ public:
     void Handle(const Command& cmd);
     void RequestQuit();
 
+    void OnDefaultNotice(bool capture, const char* role, const std::string& id, int64_t atNs);
     void OnDefaultChanged(bool capture);
     void OnDeviceGone(const std::string& id);
     void OnDeviceActive(const std::string& id);
@@ -68,6 +69,7 @@ private:
     void MarkDead(int index, const std::string& reason, HRESULT hr);
     void TryReopen(int index, int64_t now);
     void WarnIfHandsFree(const DeviceInfo& info);
+    void EmitDefaultApplied(const char* track, const char* outcome, const std::string& resolved);
     void ApplyMicDebounce();
     void ApplyOutputDebounce();
     void CheckConsent();

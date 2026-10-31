@@ -1,0 +1,9 @@
+case=default-notice-log open only, nothing recorded. 2026-10-31, owner switched Input in Settings.
+Built-in mic to Headset (No Air 3):
+  2 notices, console then multimedia, 4 ms apart; queuedMs 0.071, 0.049; armed false, true
+  defaultApplied moved 5.03 s after the first notice; streamReopened 1.80 s later
+  meeting streamStalled 572 ms during the move
+Headset to built-in mic:
+  2 notices, console then multimedia, 2 ms apart; queuedMs 1.913, 0.031; armed false, true
+  defaultApplied moved 5.02 s after the first notice; streamReopened 0.10 s later
+The 12 minute delay of the long run did not come back in these 2 switches.

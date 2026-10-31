@@ -1,7 +1,7 @@
 # scrb-capture (Windows capture adapter)
 
-Status: **device cases rerun on this PC; real meeting apps, load and the 8 h
-run are not done.**  Design source:
+Status: **device cases and the 4 h long run done on this PC; real meeting apps
+are not done.**  Design source:
 `phase0/design/capture-contract-draft.md` (still a draft).
 
 ## Build
@@ -49,7 +49,8 @@ Process loopback captures one process tree, so `open` uses the first ID in
 `source`.  A second instance of an app with a separate tree is not captured.
 
 Events (`{"type":"event"}`): `chunkClosed`, `discontinuity`, `streamStalled`,
-`streamDead`, `streamReopened`, `deviceChanged`, `rateChanged`, `permissionLost`,
+`streamDead`, `streamReopened`, `deviceChanged`, `defaultNotice`,
+`defaultApplied`, `rateChanged`, `permissionLost`,
 `permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `micFallback`,
 `micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`, `writeError`,
 `health` (`micDb`, `meetingDb`), `trackHealth`.
@@ -79,6 +80,14 @@ is not yet confirmed, so it is not counted.
   core, not built here.**  It never widens to whole-computer on its own, and
   that now holds for a failed per-app open too (W2): it retries and warns.
 - A chunk splits on every OS discontinuity flag.
+
+## Owner decisions (2026-10-31)
+
+- The 4 h run with CPU load counts as Gate 2's representative load.  Full T19
+  moves to the 8 h run before Gate 8, because it needs live transcription, which
+  is built after Gate 2.
+- The track-timeline offset is accepted for the 4 h run.  The shared-sound check
+  is Gate 2's real-call test.
 
 ## Matching the Mac helper (2026-10-30)
 
@@ -153,9 +162,30 @@ timer:
 | `audio-restart-tree` | Mac capture died silently | Pass after finding 5: meeting back in about 1.8 s, mic in 5.6 s |
 | `default-debounce` | None | Pass, weakly: no `deviceChanged` with an 8 s debounce.  The log cannot show that the two quick changes happened |
 
+4 h long run with load (2026-10-30, `results/long-run.txt`).  **This is not the
+full T19 load test: it had no real call and no live transcription.**  Load was
+the CPU fallback, 6 spinning threads of 12 logical cores at below-normal
+priority, because the Phase 0 speech tools and AMI audio are not on this PC.
+System CPU averaged 70.2%.  The owner re-tested the switch, so there were 4
+device changes, not 2.  Output mute was left to the owner after 21 min.
+
+| Limit | Result |
+| --- | --- |
+| Chunks numbered, no `.part` after recovery | Pass: 6982 mic, 2857 meeting, 0 breaks, 0 left, 0 damaged |
+| Every gap marked | Pass: 1350 mic, 8 meeting, 0 unmarked |
+| Audio against timeline minus pauses (14249.981 s) | Mic 13940.960 s, meeting 14249.084 s |
+| Worst offset under 50 ms | Pass as corrected: 1.95 ms drift on track timelines.  The run printed FAIL, 2390.04 ms, from an unsound measure (finding 11).  Not measured on the headset or against a shared sound |
+| Mic loss at most 15 s | **Fail: 309.924 s.**  308.117 s on the No Air 3 headset, 1.806 s on the built-in mic.  Owner decision (2026-10-31): accepted as the known headset problem (finding 6), not counted as a pass |
+| Pause ack 99th percentile under 200 ms | Pass: 28.61 ms, the slowest of 5 |
+| No chunk crosses a pause | Pass: 0 of 5 pauses, timing check |
+| Audio lost at the kill, about 1 s or less | Pass: mic 135 ms, meeting 702 ms |
+
+Helper: 3.87% of one core on average, highest minute 7.09%; peak working set
+19.6 MB, private 8.2 MB at hour 1 and 8.3 MB at the end; 327 handles at both.
+
 Not run: Windows Audio restart with whole-computer capture.  Unverified: real
-Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
-(no USB mic).
+Teams/Zoom/browser targets, the full T19 load test, the 8 h run, and USB
+unplug (no USB mic).
 
 ## Findings
 
@@ -188,6 +218,27 @@ Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
 9. A picked or restarted mic retries every 5 s, which costs up to about 5 s of
    mic audio on a disconnect or service restart.  A shorter retry is worth
    testing.
+10. **The mic followed a default change about 12 minutes late in the long run.**
+    Windows showed the built-in mic by 21:39:32 at the latest; the helper moved at
+    21:50:27, after 13.7 min on the headset in all.  The cause is not known: the
+    helper does not log default-change notices, so repeated notices re-arming the
+    5 s debounce and a missed notice both remain possible.  `defaultNotice` (each
+    Windows notice, its role and device, `armed` if a debounce was pending,
+    `queuedMs` on the control thread) and `defaultApplied` (`moved`, `sameDevice`,
+    `streamClosed`, `unresolved` or `suggested`) now log this for the next run.
+    Both fired in a real switch each way (`results/default-notice-log.txt`): the
+    mic moved 5.03 s and 5.02 s after the first notice, so the delay did not come
+    back and its cause is still not known.
+11. Offset cannot be read from the size of the difference between chunk starts.
+    Any gap ends a chunk early and moves that track's grid, so the difference
+    ranges up to a chunk length.  `long_run.mjs` now follows it only across plain
+    rollovers.
+12. The long run's timeline overlaps are stamp jitter within tolerance, not a
+    fault.  `chunks.log` records an overlap only past the gap tolerance, as with
+    gaps: 2 ms, or 20 ms on hands-free (finding 7).  All 1547 on the headset were
+    within 20 ms (worst 19.2 ms).  On the built-in mic 1275 were within 2 ms (worst
+    1.15 ms), and the 4 past it (worst 6.4 ms) were logged.  They net -954.7 ms of
+    timeline; no frames are repeated by this.
 
 ## Needs a Planner plan
 
