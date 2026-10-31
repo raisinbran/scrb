@@ -191,8 +191,17 @@ up.  It finds no app started from the same process tree as the helper.
 | False sweeps | Pass: 0 on the mic above and 0 in the 60 s `audio-restart-whole` run.  A first threshold based on the median gave 10 false sweeps on the mic, so a match score replaced it |
 | `-TargetExe TonePlayer.exe`, player started outside this tree | Pass: -17.9 dB; an unknown exe stops with a clear error |
 
-Not verified: the mic hearing the speakers, a real measured offset, and Teams as
-a target.  Whether sweeps survive Teams is not known.
+| `t18-aloud`: 40 s through the speakers, no call, built-in mic, final volume 20% | **Fail on count, as a 40 s run must:** 6 pairs of the 20 needed, at most 16 possible.  Mic minus meeting 70.4 to 74.7 ms, median 73.8 ms, on the first clock.  `results/t18-aloud.txt` |
+
+In `t18-aloud` the meeting track kept all 16 sweeps, but the mic caught 5 in the
+first 10 s and 1 after.  From 10 s to the end the mic's level at 1500 to 2500 Hz
+fell to about a tenth (61--84 to 3--14), so a lower match score would not help: at
+0.2 it adds false sweeps and pairs only 1 more.  The sweeps are gone from the
+saved mic audio.  The cause is not known.  Mic noise suppression learning a
+repeating sound and a volume change during the run are both possible.
+
+Not verified: a passing offset and drift measurement, and Teams as a target.
+Whether sweeps survive Teams is not known.
 
 ## Results on this PC
 
