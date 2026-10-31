@@ -18,3 +18,7 @@ This measures track timelines, not a shared sound on both tracks. Output was mut
 **Device switches, 2026-10-30, hands-on with AirPods:** recording continued through connecting them, setting Input to the MacBook mic, and returning them to the case. The first run found a chunk at the wrong rate after a switch, because the writer read the rate from the ring and slots from the old device outlived the switch: 5 s of audio was stored as 10 s at half speed. Each slot now carries its rate, and a change closes the chunk. The rerun had no wrong durations, with 4 mic switches, 186 ms lost in total, all shown as gaps, and no loss on the meeting track.
 
 `device_case.py` runs this with the floating window from `Countdown.swift`. `pause_case.py` now skips slivers at the end of a chunk, which gave false marker readings. After both fixes it passes 8 of 8, and `stop_paused_case.py` passes 10 of 10.
+
+**Sleep and wake, 2026-10-30, hands-on, lid closed about 2 minutes:** the first two runs found stream restarts during sleep and, after wake, two mic streams feeding one ring, because a restart from the writer thread raced the wake restart: chunks held twice the audio for their time and overlapped. Restarts now run only on the main queue and wait for wake. The third run: 126 s gap marked on both tracks, timeline correct at Stop, tone and mic present after wake, no overlaps. Gaps just after wake were 18 ms on the mic and 90 ms on the meeting track.
+
+`device_case.py <helper> <work> sleep` runs this case. `pause_case.py` and `stop_paused_case.py` still pass on this build.

@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-"""Hands-on device switches during a recording, with a live countdown for each step.
+"""Hands-on device switches or sleep during a recording, with a floating countdown window.
 
 Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
-Usage: device_case.py <helper> <work dir>
+Usage: device_case.py <helper> <work dir> [devices|sleep]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
 
 helper, work = sys.argv[1:3]
+mode = sys.argv[3] if len(sys.argv) > 3 else "devices"
 os.makedirs(work, exist_ok=True)
 STEPS = [(30, "Put the AirPods in your ears"),
          (75, "In System Settings > Sound > Input, choose the MacBook microphone"),
          (120, "Put the AirPods back in their case")]
+READY = "Put the AirPods in their case and set Input to the MacBook microphone. Then press Start."
 END = 165
+if mode == "sleep":
+    STEPS = [(30, "Close the lid. Wait until the minute on your phone changes twice, then open it")]
+    READY = "Leave the lid open. Then press Start."
+    END = 45  # counted again from waking
 DO_SECONDS = 15  # how long a step's instruction stays up as NOW
 
 RATE = 8000
@@ -20,7 +26,7 @@ tone_file = os.path.join(work, "tone.wav")
 with wave.open(tone_file, "wb") as w:
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(RATE)
     one = struct.pack("<%dh" % RATE, *(int(9000 * math.sin(2 * math.pi * 880 * i / RATE)) for i in range(RATE)))
-    for _ in range(END + 20):
+    for _ in range(END + 600):
         w.writeframes(one)
 
 window = subprocess.Popen([os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "countdown")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
@@ -32,8 +38,7 @@ def show(status, big, action, following, step=-1):
     window.stdin.flush()
 
 
-show("Not started", "Ready", "Put the AirPods in their case and set Input to the MacBook microphone. Then press Start.",
-     "The test takes %d s and tells you each step." % END)
+show("Not started", "Ready", READY, "The window tells you each step.")
 print("Press Start in the floating window.", flush=True)
 window.stdout.readline()
 player = subprocess.Popen(["afplay", "-v", "0.05", tone_file])
@@ -71,10 +76,23 @@ send("s", name="start")
 started = time.time()
 for index, (at, text) in enumerate(STEPS):
     following = "Then: " + STEPS[index + 1][1] if index + 1 < len(STEPS) else "Then: nothing more, the test stops itself"
+    if mode == "sleep":
+        following = "Then: leave the lid open while the test finishes"
     while (left := at - (time.time() - started)) > 0:
         show("Step %d of %d comes next" % (index + 1, len(STEPS)), "%d s" % math.ceil(left), "NEXT: " + text, following, index)
         time.sleep(0.2)
     print("%6.1f s NOW: %s" % (time.time() - started, text), flush=True)
+    if mode == "sleep":
+        # time.monotonic stops during sleep and time.time does not.
+        offset = time.time() - time.monotonic()
+        limit = time.time() + 300
+        while time.time() - time.monotonic() - offset < 20 and time.time() < limit:
+            show("Step 1 of 1", "NOW", "DO THIS NOW: " + text, following, index)
+            time.sleep(0.2)
+        slept = time.time() - time.monotonic() - offset
+        print("%6.1f s slept for %.1f s" % (time.time() - started, slept), flush=True)
+        END += time.time() - started
+        break
     while (left := at + DO_SECONDS - (time.time() - started)) > 0:
         show("Step %d of %d" % (index + 1, len(STEPS)), "NOW", "DO THIS NOW: " + text, following, index)
         time.sleep(0.2)
@@ -94,6 +112,7 @@ for track in ("microphone", "meeting"):
     print(track, "chunks", len(lines), "end s", round(lines[-1]["endNs"] / 1e9, 2))
     print("  breaks", breaks)
     print("  gaps (at s, ms)", gaps, "total ms", sum(g[1] for g in gaps))
+    print("  overlaps over 1 ms", len([1 for a, b in zip(lines, lines[1:]) if a["endNs"] - b["startNs"] > 1e6]))
 print("stop at s", round(stop["atNs"] / 1e9, 2), "active", stop["activeTracks"])
 print("FINISHED")
 time.sleep(3)

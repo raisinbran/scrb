@@ -104,6 +104,7 @@ final class Session {
     var source: [Int32] = []
     var mic = "default"
     var stopping = false
+    private var asleep = false
     private var originNs: Int64 = 0
     let micTrack = Track(name: "microphone")
     let meetingTrack = Track(name: "meeting")
@@ -223,12 +224,20 @@ final class Session {
         for track in [micTrack, meetingTrack] {
             let dropped = rt_take_dropped(track.ring)
             if dropped > 0 { say(["type": "event", "event": "framesDropped", "track": track.name, "frames": dropped]) }
-            let last = rt_last_packet(track.ring)
-            let silent = (Double(mach_absolute_time()) - Double(last)) / rtTicksPerSecond
-            if track.active && last != 0 && silent > stallLimitSeconds { rebuild(reason: "streamDead", track: track) }
+            guard streamSilent(track) else { continue }
+            // Rebuilds stay on the main queue: two at once would leave a second stream feeding the ring.
+            DispatchQueue.main.async { [self] in
+                if streamSilent(track) { rebuild(reason: "streamDead", track: track) }
+            }
         }
         say(["type": "event", "event": "health", "micDb": toDb(rt_peak(micTrack.ring)),
              "meetingDb": toDb(rt_peak(meetingTrack.ring))])
+    }
+
+    private func streamSilent(_ track: Track) -> Bool {
+        let last = rt_last_packet(track.ring)
+        let silent = (Double(mach_absolute_time()) - Double(last)) / rtTicksPerSecond
+        return track.active && !asleep && !stopping && last != 0 && silent > stallLimitSeconds
     }
 
     /// The one rebuild path: output changes, audio service restarts and dead streams all come here.
@@ -293,6 +302,7 @@ final class Session {
             IOAllowPowerChange(rootPort, Int(bitPattern: argument))
         case 0xE000_0280:  // kIOMessageSystemWillSleep
             say(["type": "event", "event": "sleeping"])
+            asleep = true
             for track in [micTrack, meetingTrack] {
                 track.drain(session: self)
                 track.close(reason: "sleep")
@@ -301,6 +311,7 @@ final class Session {
         case 0xE000_0300:  // kIOMessageSystemHasPoweredOn
             say(["type": "event", "event": "woke"])
             rebuild(reason: "wake")
+            asleep = false
         default: break
         }
     }
