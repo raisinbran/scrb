@@ -267,6 +267,8 @@ export class MockBackend implements Backend {
   );
   private library: MeetingDetail[] = createLibrary();
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
+  private profileUndo: { kind: 'rename' | 'merge'; before: VoiceProfile[]; after: VoiceProfile[] }[] = [];
+  private profileRedo: { kind: 'rename' | 'merge'; before: VoiceProfile[]; after: VoiceProfile[] }[] = [];
   private termUndo: VocabularyTerm[][] = [];
   private termRedo: VocabularyTerm[][] = [];
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
@@ -380,6 +382,32 @@ export class MockBackend implements Backend {
   dispose(): void {
     this.stopRecordingTimers();
     this.stopPlayback();
+  }
+
+  private profileHistoryState() {
+    return {
+      canUndo: this.profileUndo.length > 0,
+      canRedo: this.profileRedo.length > 0,
+      nextUndo: this.profileUndo.at(-1)?.kind ?? null,
+      nextRedo: this.profileRedo.at(-1)?.kind ?? null,
+    };
+  }
+
+  private changeProfileHistory(undoing: boolean) {
+    const from = undoing ? this.profileUndo : this.profileRedo;
+    const to = undoing ? this.profileRedo : this.profileUndo;
+    const last = from.pop();
+    if (last) {
+      this.profiles = structuredClone(undoing ? last.before : last.after);
+      to.push(last);
+    }
+    return this.profileHistoryState();
+  }
+
+  private recordProfileHistory(kind: 'rename' | 'merge', before: VoiceProfile[]) {
+    this.profileUndo.push({ kind, before, after: structuredClone(this.profiles) });
+    if (this.profileUndo.length > 30) this.profileUndo.shift();
+    this.profileRedo = [];
   }
 
   private stopRecordingTimers(): void {
@@ -1008,12 +1036,17 @@ export class MockBackend implements Backend {
       if (meetingId) this.findMeeting(meetingId);
       return [];
     },
+    getProfileUndoState: () => this.profileHistoryState(),
+    undoProfileChange: () => this.changeProfileHistory(true),
+    redoProfileChange: () => this.changeProfileHistory(false),
     listProfiles: () => this.profiles,
     renameSpeaker: ({ target, name }) => {
       if (target.kind === 'profile') {
+        const before = structuredClone(this.profiles);
         this.profiles = this.profiles.map((profile) =>
           profile.id === target.profileId ? { ...profile, name } : profile,
         );
+        this.recordProfileHistory('rename', before);
         return;
       }
       const { meetingId, speakerId } = target;
@@ -1027,6 +1060,7 @@ export class MockBackend implements Backend {
     },
     mergeSpeakers: (merge) => {
       if (merge.kind === 'profiles') {
+        const before = structuredClone(this.profiles);
         const from = this.profiles.find((profile) => profile.id === merge.from);
         this.profiles = this.profiles
           .filter((profile) => profile.id !== merge.from)
@@ -1035,6 +1069,7 @@ export class MockBackend implements Backend {
               ? { ...profile, meetingCount: profile.meetingCount + (from?.meetingCount ?? 0) }
               : profile,
           );
+        this.recordProfileHistory('merge', before);
         return;
       }
       const { meetingId, from, into } = merge;
@@ -1072,6 +1107,8 @@ export class MockBackend implements Backend {
             return;
           }
           this.profiles = this.profiles.filter((profile) => profile.id !== profileId);
+          this.profileUndo = [];
+          this.profileRedo = [];
           resolve();
         }, 500);
       }),
