@@ -1,7 +1,7 @@
 # scrb-capture (Windows capture adapter)
 
-Status: **device cases rerun on this PC; real meeting apps, load and the 8 h
-run are not done.**  Design source:
+Status: **device cases and the 4 h long run done on this PC; real meeting apps
+are not done.**  Design source:
 `phase0/design/capture-contract-draft.md` (still a draft).
 
 ## Build
@@ -80,6 +80,14 @@ is not yet confirmed, so it is not counted.
   core, not built here.**  It never widens to whole-computer on its own, and
   that now holds for a failed per-app open too (W2): it retries and warns.
 - A chunk splits on every OS discontinuity flag.
+
+## Owner decisions (2026-10-31)
+
+- The 4 h run with CPU load counts as Gate 2's representative load.  Full T19
+  moves to the 8 h run before Gate 8, because it needs live transcription, which
+  is built after Gate 2.
+- The track-timeline offset is accepted for the 4 h run.  The shared-sound check
+  is Gate 2's real-call test.
 
 ## Matching the Mac helper (2026-10-30)
 
@@ -176,7 +184,7 @@ Helper: 3.87% of one core on average, highest minute 7.09%; peak working set
 19.6 MB, private 8.2 MB at hour 1 and 8.3 MB at the end; 327 handles at both.
 
 Not run: Windows Audio restart with whole-computer capture.  Unverified: real
-Teams/Zoom/browser targets, the full T19 load test, the 8 h Gate 2 run, and USB
+Teams/Zoom/browser targets, the full T19 load test, the 8 h run, and USB
 unplug (no USB mic).
 
 ## Findings

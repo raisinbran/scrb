@@ -8,6 +8,8 @@
 //
 // Usage: node long_run.mjs [--rehearse] [--input <part of the second mic's name>]
 //        node long_run.mjs --analyse <work dir>
+import { Buffer } from 'node:buffer';
+import { clearTimeout } from 'node:timers';
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
