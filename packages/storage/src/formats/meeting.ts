@@ -6,10 +6,25 @@ export type MeetingSource = 'recorded' | 'imported';
  * - `recording`, `importing`: still being created.
  * - `ready`: normal meeting.
  * - `recovered`: recording ended in a crash; saved chunks kept.
+ * - `finalPassRunning`: audio is sealed and being transcribed.
+ * - `transcriptionFailed`: the final pass could not finish; the audio is kept.
  */
-export type MeetingStatus = 'recording' | 'importing' | 'ready' | 'recovered';
+export type MeetingStatus =
+  | 'recording'
+  | 'importing'
+  | 'ready'
+  | 'recovered'
+  | 'finalPassRunning'
+  | 'transcriptionFailed';
 
-const STATUSES: readonly string[] = ['recording', 'importing', 'ready', 'recovered'];
+const STATUSES: readonly string[] = [
+  'recording',
+  'importing',
+  'ready',
+  'recovered',
+  'finalPassRunning',
+  'transcriptionFailed',
+];
 
 /** `meeting.json`: what the index is rebuilt from, so it must hold every indexed fact. */
 export interface MeetingMeta {
@@ -26,6 +41,8 @@ export interface MeetingMeta {
   audioDeletedAt: string | null;
   /** Import-only: build or grow voice profiles from this file. Off unless the user chose it. */
   buildVoiceProfiles: boolean;
+  /** Shown to the user. Plain text written by the app, never tool output. */
+  transcriptionFailure?: string | null;
 }
 
 function validateMeeting(doc: JsonObject): MeetingMeta {
@@ -38,6 +55,8 @@ function validateMeeting(doc: JsonObject): MeetingMeta {
   assertFormat(STATUSES.includes(doc['status'] as string), 'status');
   assertFormat(doc['audioDeletedAt'] === null || typeof doc['audioDeletedAt'] === 'string', 'audio');
   assertFormat(typeof doc['buildVoiceProfiles'] === 'boolean', 'buildVoiceProfiles');
+  const failure = doc['transcriptionFailure'];
+  assertFormat(failure == null || typeof failure === 'string', 'transcriptionFailure');
   return doc as unknown as MeetingMeta;
 }
 
