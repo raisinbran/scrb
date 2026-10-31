@@ -421,6 +421,15 @@ describe('delete', () => {
     await library.close();
   });
 
+  it('does not report an abandoned journal temporary file as a retained meeting copy', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library);
+    await writeFile(path.join(root, 'index.sqlite.upgrade-state.json.tmp'), 'incomplete');
+    expect(await library.deleteMeeting(id)).toEqual({ meetingId: id, ok: true, remaining: [] });
+    await library.close();
+  });
+
   it('does not verify a delete while an upgrade snapshot may retain the meeting', async () => {
     const root = await tempDir();
     const library = await Library.open({ root });

@@ -263,6 +263,19 @@ describe('index migrations', () => {
     expect(await readFile(snapshot)).toEqual(before);
   });
 
+  it('removes an abandoned journal temporary file without blocking an index upgrade', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 5);
+    old.close();
+    await writeFile(`${file}.upgrade-state.json.tmp`, '{interrupted');
+
+    const { db } = await openIndex(file);
+    expect(readIndexVersion(db)).toBe(INDEX_VERSION);
+    db.close();
+    expect(await readdir(path.dirname(file))).toEqual(['index.sqlite']);
+  });
+
   it('cleans up verified upgrade snapshots after successful migration', async () => {
     const root = await tempDir();
     const file = path.join(root, 'index.sqlite');

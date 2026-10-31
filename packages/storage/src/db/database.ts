@@ -163,12 +163,17 @@ export async function openIndex(
     const parent = dirname(filePath);
     const names = await readdir(parent);
     const prefix = basename(filePath);
+    const temporaryJournalName = `${prefix}.upgrade-state.json.tmp`;
+    if (names.includes(temporaryJournalName)) {
+      await rm(join(parent, temporaryJournalName), { force: true }).catch(() => undefined);
+    }
     const journal = await loadJournal(filePath);
     const managedCopy = journal && `${prefix}.copying-${journal.attemptId}`;
     const managedSnapshot = journal && `${prefix}.upgrade-${journal.attemptId}`;
     const unknown = names.filter((name) =>
       (name.startsWith(`${prefix}.copying-`) || name.startsWith(`${prefix}.upgrade-`)) &&
-      name !== managedCopy && name !== managedSnapshot && name !== `${prefix}.upgrade-state.json`,
+      name !== managedCopy && name !== managedSnapshot &&
+      name !== `${prefix}.upgrade-state.json` && name !== temporaryJournalName,
     );
     if (unknown.length > 0) {
       throw new StorageError('INDEX_RECOVERY_REQUIRED', 'Unidentified index copies require review.');
