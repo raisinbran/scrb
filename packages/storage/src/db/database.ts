@@ -156,29 +156,67 @@ export async function openIndex(
   filePath: string,
   checks: IndexUpgradeChecks = {},
 ): Promise<OpenedIndex> {
-  // A snapshot left behind by an interrupted upgrade may be the only intact old index.
-  // Never resume from a newer index while that recovery evidence is unresolved.
+  let retainedSnapshot = false;
   if (filePath !== ':memory:') {
     const parent = dirname(filePath);
     const names = await readdir(parent);
-    const prefix = `${basename(filePath)}.upgrade-`;
-    if (names.some((name) => name.startsWith(prefix))) {
-      throw new StorageError(
-        'INDEX_RECOVERY_REQUIRED',
-        'An unfinished index upgrade needs review; the index and snapshot are preserved.',
-      );
-    }
-    // Only an unverified copy has this name, so the index it came from was never migrated.
-    const copying = `${basename(filePath)}.copying-`;
-    await Promise.all(
-      names
-        .filter((name) => name.startsWith(copying))
-        .map((name) => rm(join(parent, name), { force: true })),
+    const prefix = basename(filePath);
+    const journal = await loadJournal(filePath);
+    const managedCopy = journal && `${prefix}.copying-${journal.attemptId}`;
+    const managedSnapshot = journal && `${prefix}.upgrade-${journal.attemptId}`;
+    const unknown = names.filter((name) =>
+      (name.startsWith(`${prefix}.copying-`) || name.startsWith(`${prefix}.upgrade-`)) &&
+      name !== managedCopy && name !== managedSnapshot,
     );
+    if (unknown.length > 0) {
+      throw new StorageError('INDEX_RECOVERY_REQUIRED', 'Unidentified index copies require review.');
+    }
+    if (journal?.phase === 'copying') {
+      if (managedSnapshot && names.includes(managedSnapshot)) {
+        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An interrupted index upgrade requires review.');
+      }
+      if (verifyReadOnly(filePath) !== journal.oldVersion) {
+        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The original index changed during copying.');
+      }
+      if (managedCopy && names.includes(managedCopy)) {
+        const target = join(parent, managedCopy);
+        if (!(await ordinaryFile(target))) {
+          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The incomplete index copy is untrusted.');
+        }
+        try {
+          await unlink(target);
+        } catch {
+          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The incomplete index copy is locked.');
+        }
+      }
+      await rm(journalPath(filePath), { force: true });
+    } else if (journal?.phase === 'snapshotVerified') {
+      throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The interrupted index migration requires review.');
+    } else if (journal?.phase === 'migrationVerified') {
+      const target = join(parent, managedSnapshot as string);
+      if (names.includes(managedSnapshot as string)) {
+        if (!(await ordinaryFile(target)) ||
+            (await sha256(target)) !== journal.snapshotHash ||
+            verifyReadOnly(target) !== journal.oldVersion ||
+            verifyReadOnly(filePath) !== journal.targetVersion) {
+          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An index copy failed verification.');
+        }
+        try {
+          await unlink(target);
+          if (await ordinaryFile(target)) retainedSnapshot = true;
+        } catch {
+          retainedSnapshot = true;
+        }
+      } else if (verifyReadOnly(filePath) !== journal.targetVersion) {
+        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index failed verification.');
+      }
+      if (!retainedSnapshot) await rm(journalPath(filePath), { force: true });
+    }
   }
   const db = new DatabaseSync(filePath);
   let snapshot: string | null = null;
   let copying: string | null = null;
+  let upgrade: UpgradeJournal | null = null;
   try {
     applyPragmas(db);
     verify(db);
@@ -200,6 +238,11 @@ export async function openIndex(
       }
       const id = randomUUID();
       copying = `${filePath}.copying-${id}`;
+      upgrade = {
+        attemptId: id, oldVersion: version, targetVersion: INDEX_VERSION,
+        phase: 'copying', snapshotHash: null,
+      };
+      await saveJournal(filePath, upgrade);
       db.prepare('VACUUM INTO ?').run(copying);
       checks.afterSnapshot?.(copying);
       const copy = new DatabaseSync(copying);
@@ -219,6 +262,8 @@ export async function openIndex(
       snapshot = `${filePath}.upgrade-${id}`;
       await rename(copying, snapshot);
       copying = null;
+      upgrade = { ...upgrade!, phase: 'snapshotVerified', snapshotHash: await sha256(snapshot) };
+      await saveJournal(filePath, upgrade);
     }
     migrate(db);
     checks.afterMigration?.(db);
@@ -228,12 +273,25 @@ export async function openIndex(
     }
     verifyPreserved(db, existing);
     if (snapshot !== null) {
-      await unlink(snapshot);
+      upgrade = { ...upgrade!, phase: 'migrationVerified' };
+      await saveJournal(filePath, upgrade);
+      try {
+        await unlink(snapshot);
+        if (await ordinaryFile(snapshot)) retainedSnapshot = true;
+      } catch {
+        retainedSnapshot = true;
+      }
+      if (!retainedSnapshot) await rm(journalPath(filePath), { force: true });
     }
-    return { db, replacedCorruptIndex: null };
+    return { db, replacedCorruptIndex: null, retainedSnapshot };
   } catch (error) {
     db.close();
-    if (copying !== null) await rm(copying, { force: true });
+    if (copying !== null) {
+      await rm(copying, { force: true });
+      if (upgrade?.phase === 'copying') {
+        await rm(journalPath(filePath), { force: true });
+      }
+    }
     // Preserve failed upgrade snapshots for explicit recovery during Task 26.
     // A failed integrity check never moves/replaces the original index.
     throw error;
