@@ -145,6 +145,13 @@ final class Session {
         }
         sessionLog = fopen(audio + "/session.log", "a")
         record(["event": "open", "wholeComputer": source.isEmpty])
+        if continuing {
+            // A killed worker can leave a cut-off line, which would swallow the next one.
+            if let sessionLog { fputs("\n", sessionLog) }
+            record(["event": "restart", "atNs": now()])
+            micTrack.nextOpenReason = "workerRestarted"
+            meetingTrack.nextOpenReason = "workerRestarted"
+        }
         micTrack.writer = ChunkWriter(directory: audio + "/microphone")
         meetingTrack.writer = ChunkWriter(directory: audio + "/meeting")
         let micError = micStream.open(mic: mic)
