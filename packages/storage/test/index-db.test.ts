@@ -63,7 +63,10 @@ describe('index migrations', () => {
         expect.arrayContaining(['meetings', 'settings', 'vocabulary_terms', 'voice_profiles']),
       );
       if (start >= 1) {
-        expect(getMeetingRow(db, 'm1')).toMatchObject({ title: 'Kept title', audioDeletedAt: null });
+        expect(getMeetingRow(db, 'm1')).toMatchObject({
+          title: 'Kept title',
+          audioDeletedAt: null,
+        });
       }
       if (start >= 2) expect(new SettingsStore(db).get('theme', 'light')).toBe('dark');
       db.close();
@@ -216,7 +219,9 @@ describe('voice profiles', () => {
 
     profiles.delete(a.id);
     expect(profiles.list()).toEqual([]);
-    const links = db.prepare('SELECT COUNT(*) n FROM voice_profile_meetings').get() as { n: number };
+    const links = db.prepare('SELECT COUNT(*) n FROM voice_profile_meetings').get() as {
+      n: number;
+    };
     expect(links.n).toBe(0);
   });
 

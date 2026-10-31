@@ -181,9 +181,12 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     const sources = store(WHOLE, MIC.id);
     const { handlers } = controller(helper().path, sources);
     await start(handlers);
-    await expect(handlers.selectSources?.({
-      meetingAppId: WHOLE, micDeviceId: 'another-mic',
-    })).rejects.toMatchObject({ code: 'conflict' });
+    await expect(
+      handlers.selectSources?.({
+        meetingAppId: WHOLE,
+        micDeviceId: 'another-mic',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
     expect(sources.read().micDeviceId).toBe(MIC.id);
     await handlers.selectSources?.({ meetingAppId: WHOLE, micDeviceId: MIC.id });
     await handlers.stopRecording?.(undefined);

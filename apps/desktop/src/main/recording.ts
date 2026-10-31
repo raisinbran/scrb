@@ -154,7 +154,9 @@ export class RecordingController {
       status: 'recording',
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
-    this.state = { ...IDLE, meetingId: meeting.id,
+    this.state = {
+      ...IDLE,
+      meetingId: meeting.id,
       privacyBannerRequired: await this.shouldShowPrivacyBanner().catch(() => true),
     };
     if (micFellBack) {

@@ -1,6 +1,12 @@
 import { realpath } from 'node:fs/promises';
 import { sep } from 'node:path';
-import { applySummaryUpdate, readSealedGaps, toSummaryDoc, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
+import {
+  applySummaryUpdate,
+  readSealedGaps,
+  toSummaryDoc,
+  WORKER_FAILED_MESSAGE,
+  YOU_ID,
+} from '@scrb/app-core';
 import {
   ContractError,
   type BackendEvents,
@@ -11,6 +17,8 @@ import {
   type MeetingListItem,
   type MeetingStatus,
   type SummaryItemUpdate,
+  type VocabularyTerm as ContractTerm,
+  type VocabularyTermPatch,
   type Speaker as ContractSpeaker,
   type TimelineGap,
   type TranscriptPage,
@@ -25,6 +33,8 @@ import {
   resolveDisplay,
   type DisplaySegment,
   type Library,
+  meetingCachePath,
+  type VocabularyTerm as VocabularyEntry,
   type MeetingMeta,
   type MeetingRow,
   type Speaker,
@@ -43,7 +53,10 @@ function selectedWordIds(t: TranscriptFile, range: WordRange): string[] {
   const start = displayed.findIndex((entry) => entry.token.wordIds[0] === range.firstWordId);
   const end = displayed.findIndex((entry) => entry.token.wordIds[0] === range.lastWordId);
   if (start < 0 || end < start) {
-    throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+    throw new ContractError({
+      code: 'conflict',
+      message: 'Selection changed. Select the text again.',
+    });
   }
   const chosen = displayed.slice(start, end + 1);
   const track = chosen[0]?.track;
@@ -51,11 +64,15 @@ function selectedWordIds(t: TranscriptFile, range: WordRange): string[] {
     throw new ContractError({ code: 'conflict', message: 'Select words on one track.' });
   }
   const ids = chosen.flatMap((entry) => entry.token.wordIds);
-  const original = t.segments.filter((segment) => segment.track === track)
+  const original = t.segments
+    .filter((segment) => segment.track === track)
     .flatMap((segment) => segment.words.map((word) => word.id));
   const offset = original.indexOf(ids[0] ?? '');
   if (offset < 0 || original.slice(offset, offset + ids.length).some((id, i) => id !== ids[i])) {
-    throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+    throw new ContractError({
+      code: 'conflict',
+      message: 'Selection changed. Select the text again.',
+    });
   }
   return ids;
 }
@@ -76,15 +93,49 @@ function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit)
     revision: after.revision,
     change: {
       kind: 'replace',
-      removedSegmentIds: oldSegments.filter((segment) => !newIds.has(segment.id))
+      removedSegmentIds: oldSegments
+        .filter((segment) => !newIds.has(segment.id))
         .map((segment) => segment.id),
-      segments: fresh.segments.filter((segment) =>
-        JSON.stringify(oldById.get(segment.id)) !== JSON.stringify(segment)),
+      segments: fresh.segments.filter(
+        (segment) => JSON.stringify(oldById.get(segment.id)) !== JSON.stringify(segment),
+      ),
     },
     speakers: fresh.speakers,
   });
 }
 
+/** Later edits only flag a summary that exists, so the UI is told about nothing else. */
+async function publishOutdated(
+  library: Library,
+  before: TranscriptFile,
+  after: TranscriptFile,
+  emit?: Emit,
+): Promise<void> {
+  if (emit && before.revision !== after.revision && (await library.readSummary(after.meetingId))) {
+    emit('summaryOutdated', { meetingId: after.meetingId });
+  }
+}
+
+async function toTerm(library: Library, entry: VocabularyEntry): Promise<ContractTerm> {
+  const snippets = await Promise.all(
+    entry.contexts.slice(0, 5).map((context) => library.vocabularyContext(context)),
+  );
+  return {
+    id: entry.id,
+    term: entry.term,
+    enabled: entry.enabled,
+    misheard: entry.misheard,
+    contexts: snippets
+      .filter((snippet) => snippet !== null)
+      .map((snippet) => `${snippet.before} ${entry.term} ${snippet.after}`.trim()),
+    history: [
+      { at: entry.createdAt, action: 'created' as const, detail: 'Remembered term' },
+      ...(entry.updatedAt === entry.createdAt
+        ? []
+        : [{ at: entry.updatedAt, action: 'edited' as const, detail: 'Last vocabulary update' }]),
+    ],
+  };
+}
 
 type MeetingFacts = MeetingRow | MeetingMeta;
 
@@ -166,11 +217,7 @@ function toContractSegment(segment: DisplaySegment): TranscriptSegment {
       text: token.text,
       startMs: token.startMs,
       endMs: token.endMs,
-      state: token.correctionId
-        ? 'corrected'
-        : segment.pass === 'final'
-          ? 'final'
-          : 'provisional',
+      state: token.correctionId ? 'corrected' : segment.pass === 'final' ? 'final' : 'provisional',
       correctionId: token.correctionId,
     })),
   };
@@ -203,7 +250,9 @@ function toTranscriptPage(
 
 /** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
 export function createMeetingHandlers(
-  library: Library, emit?: Emit, openPath?: (path: string) => Promise<string>,
+  library: Library,
+  emit?: Emit,
+  openPath?: (path: string) => Promise<string>,
 ): CallHandlers {
   return {
     listMeetings: async (request) => {
@@ -234,39 +283,55 @@ export function createMeetingHandlers(
     },
     applyCorrection: async (request) => {
       const { meetingId, range, text, remember } = request as {
-        meetingId: string; range: WordRange; text: string; remember: boolean;
+        meetingId: string;
+        range: WordRange;
+        text: string;
+        remember: boolean;
       };
       await requireMeeting(library, meetingId);
       const before = await library.readTranscript(meetingId);
       try {
         const after = await library.applyCorrection(meetingId, {
-          wordIds: selectedWordIds(before, range), replacement: text, remember,
+          wordIds: selectedWordIds(before, range),
+          replacement: text,
+          remember,
         });
         publishEdit(before, after, emit);
-        if (before.revision !== after.revision && (await library.readSummary(meetingId))) {
-          emit?.('summaryOutdated', { meetingId });
-        }
+        await publishOutdated(library, before, after, emit);
         return editState(after);
       } catch (error) {
         if (error instanceof CorrectionConflictError) {
-          throw new ContractError({ code: 'conflict', message: 'Selection changed. Select the text again.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Selection changed. Select the text again.',
+          });
         }
         throw error;
       }
     },
     reassignSpeaker: async (request) => {
       const { meetingId, range, speakerId } = request as {
-        meetingId: string; range: WordRange; speakerId: string;
+        meetingId: string;
+        range: WordRange;
+        speakerId: string;
       };
       await requireMeeting(library, meetingId);
       const before = await library.readTranscript(meetingId);
       try {
-        const after = await library.reassignSpeaker(meetingId, selectedWordIds(before, range), speakerId);
+        const after = await library.reassignSpeaker(
+          meetingId,
+          selectedWordIds(before, range),
+          speakerId,
+        );
         publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
         return editState(after);
       } catch (error) {
         if (error instanceof CorrectionConflictError) {
-          throw new ContractError({ code: 'conflict', message: 'The selected speaker or text changed.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'The selected speaker or text changed.',
+          });
         }
         throw error;
       }
@@ -277,6 +342,7 @@ export function createMeetingHandlers(
       const before = await library.readTranscript(meetingId);
       const after = await library.undo(meetingId);
       publishEdit(before, after, emit);
+      await publishOutdated(library, before, after, emit);
       return editState(after);
     },
     redo: async (request) => {
@@ -285,6 +351,7 @@ export function createMeetingHandlers(
       const before = await library.readTranscript(meetingId);
       const after = await library.redo(meetingId);
       publishEdit(before, after, emit);
+      await publishOutdated(library, before, after, emit);
       return editState(after);
     },
     listProfiles: async () =>
@@ -296,13 +363,17 @@ export function createMeetingHandlers(
       })),
     renameSpeaker: async (request) => {
       const { target, name } = request as {
-        target: { kind: 'profile'; profileId: string } |
-          { kind: 'meetingSpeaker'; meetingId: string; speakerId: string };
+        target:
+          | { kind: 'profile'; profileId: string }
+          | { kind: 'meetingSpeaker'; meetingId: string; speakerId: string };
         name: string;
       };
       if (target.kind === 'profile') {
         if (!library.voiceProfiles.get(target.profileId)) {
-          throw new ContractError({ code: 'notFound', message: 'That voice profile no longer exists.' });
+          throw new ContractError({
+            code: 'notFound',
+            message: 'That voice profile no longer exists.',
+          });
         }
         library.voiceProfiles.rename(target.profileId, name);
         return;
@@ -312,6 +383,7 @@ export function createMeetingHandlers(
       try {
         const after = await library.renameSpeaker(target.meetingId, target.speakerId, name);
         publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
       } catch (error) {
         if (error instanceof CorrectionConflictError) {
           throw new ContractError({ code: 'conflict', message: 'That speaker no longer exists.' });
@@ -327,10 +399,16 @@ export function createMeetingHandlers(
         const first = library.voiceProfiles.get(merge.from);
         const second = library.voiceProfiles.get(merge.into);
         if (!first || !second) {
-          throw new ContractError({ code: 'notFound', message: 'A voice profile no longer exists.' });
+          throw new ContractError({
+            code: 'notFound',
+            message: 'A voice profile no longer exists.',
+          });
         }
         if (first.modelId !== second.modelId || merge.from === merge.into) {
-          throw new ContractError({ code: 'conflict', message: 'Those profiles cannot be merged.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Those profiles cannot be merged.',
+          });
         }
         library.voiceProfiles.merge(merge.from, merge.into);
         return;
@@ -340,9 +418,13 @@ export function createMeetingHandlers(
       try {
         const after = await library.mergeSpeakers(merge.meetingId, merge.from, merge.into);
         publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
       } catch (error) {
         if (error instanceof CorrectionConflictError) {
-          throw new ContractError({ code: 'conflict', message: 'Those speakers cannot be merged.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Those speakers cannot be merged.',
+          });
         }
         throw error;
       }
@@ -350,41 +432,29 @@ export function createMeetingHandlers(
     deleteProfile: async (request) => {
       const { profileId } = request as { profileId: string };
       if (!library.voiceProfiles.get(profileId)) {
-        throw new ContractError({ code: 'notFound', message: 'That voice profile no longer exists.' });
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That voice profile no longer exists.',
+        });
       }
       library.voiceProfiles.delete(profileId);
     },
-    listTerms: async () => {
-      const entries = library.vocabulary.list();
-      return Promise.all(entries.map(async (entry) => {
-        const snippets = await Promise.all(entry.contexts.slice(0, 5)
-          .map((context) => library.vocabularyContext(context)));
-        return {
-          id: entry.id, term: entry.term, enabled: entry.enabled,
-          misheard: entry.misheard,
-          contexts: snippets.filter((snippet) => snippet !== null)
-            .map((snippet) => `${snippet.before} ${entry.term} ${snippet.after}`.trim()),
-          history: [{ at: entry.createdAt, action: 'created', detail: 'Remembered term' },
-            ...(entry.updatedAt === entry.createdAt ? [] : [
-              { at: entry.updatedAt, action: 'edited', detail: 'Last vocabulary update' },
-            ])],
-        };
-      }));
-    },
+    listTerms: async () =>
+      Promise.all(library.vocabulary.list().map((entry) => toTerm(library, entry))),
     updateTerm: async (request) => {
-      const { id, patch } = request as { id: string; patch: {
-        term?: string; enabled?: boolean; misheard?: string[];
-      } };
+      const { id, patch } = request as { id: string; patch: VocabularyTermPatch };
       if (!library.vocabulary.get(id)) {
         throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
       }
-      library.vocabulary.update(id, patch);
-      const entry = library.vocabulary.get(id)!;
-      return {
-        id: entry.id, term: entry.term, enabled: entry.enabled,
-        misheard: entry.misheard, contexts: [],
-        history: [{ at: entry.createdAt, action: 'created', detail: 'Remembered term' }],
-      };
+      try {
+        library.vocabulary.update(id, patch);
+      } catch (error) {
+        if (/UNIQUE constraint/.test(String(error))) {
+          throw new ContractError({ code: 'conflict', message: 'That term is already listed.' });
+        }
+        throw error;
+      }
+      return toTerm(library, library.vocabulary.get(id)!);
     },
     deleteTerm: async (request) => {
       const { id } = request as { id: string };
@@ -400,49 +470,67 @@ export function createMeetingHandlers(
         meeting: toListItem(result.meeting),
         matches: [
           ...(result.matchedIn.includes('title or date')
-            ? [{ segmentId: null, startMs: null, snippet: null }] : []),
+            ? [{ segmentId: null, startMs: null, snippet: null }]
+            : []),
           ...result.hits.map((hit) => ({
-            segmentId: null, startMs: hit.startMs, snippet: hit.snippet,
+            segmentId: null,
+            startMs: hit.startMs,
+            snippet: hit.snippet,
           })),
         ],
       }));
     },
     openMeetingFolder: async (request) => {
       const { meetingId, folder } = request as {
-        meetingId: string; folder: 'meeting' | 'audio' | 'exports';
+        meetingId: string;
+        folder: 'meeting' | 'audio' | 'exports';
       };
       await requireMeeting(library, meetingId);
-      if (!openPath) throw new ContractError({
-        code: 'notImplemented', message: 'Open folder is unavailable in this build.',
-      });
+      if (!openPath)
+        throw new ContractError({
+          code: 'notImplemented',
+          message: 'Open folder is unavailable in this build.',
+        });
       const paths = library.meetingPaths(meetingId);
-      const requested = folder === 'meeting' ? paths.folder :
-        folder === 'audio' ? paths.audio : paths.exports;
+      const requested =
+        folder === 'meeting' ? paths.folder : folder === 'audio' ? paths.audio : paths.exports;
       const root = await realpath(library.paths.root);
       const actual = await realpath(requested).catch(() => {
         throw new ContractError({ code: 'notFound', message: 'That meeting folder is missing.' });
       });
       if (!actual.startsWith(root + sep)) {
-        throw new ContractError({ code: 'permissionDenied', message: 'Folder access was refused.' });
+        throw new ContractError({
+          code: 'permissionDenied',
+          message: 'Folder access was refused.',
+        });
       }
       const failure = await openPath(actual);
-      if (failure) throw new ContractError({
-        code: 'internal', message: 'The file manager could not open that folder.',
-      });
+      if (failure)
+        throw new ContractError({
+          code: 'internal',
+          message: 'The file manager could not open that folder.',
+        });
     },
     openLogsFolder: async () => {
-      if (!openPath) throw new ContractError({
-        code: 'notImplemented', message: 'Open folder is unavailable in this build.',
-      });
+      if (!openPath)
+        throw new ContractError({
+          code: 'notImplemented',
+          message: 'Open folder is unavailable in this build.',
+        });
       const actual = await realpath(library.paths.logs);
       const root = await realpath(library.paths.root);
       if (!actual.startsWith(root + sep)) {
-        throw new ContractError({ code: 'permissionDenied', message: 'Folder access was refused.' });
+        throw new ContractError({
+          code: 'permissionDenied',
+          message: 'Folder access was refused.',
+        });
       }
       const failure = await openPath(actual);
-      if (failure) throw new ContractError({
-        code: 'internal', message: 'The file manager could not open the logs.',
-      });
+      if (failure)
+        throw new ContractError({
+          code: 'internal',
+          message: 'The file manager could not open the logs.',
+        });
     },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
@@ -451,16 +539,21 @@ export function createMeetingHandlers(
     },
     updateSummaryItem: async (request) => {
       const { meetingId, update } = request as {
-        meetingId: string; update: SummaryItemUpdate;
+        meetingId: string;
+        update: SummaryItemUpdate;
       };
       await requireMeeting(library, meetingId);
       try {
         const doc = await library.updateSummary(meetingId, (current) =>
-          applySummaryUpdate(current, update));
+          applySummaryUpdate(current, update),
+        );
         return toSummaryDoc(meetingId, doc);
       } catch (error) {
         if (error instanceof StorageError && error.code === 'NO_SUMMARY') {
-          throw new ContractError({ code: 'notFound', message: 'Generate a summary before editing.' });
+          throw new ContractError({
+            code: 'notFound',
+            message: 'Generate a summary before editing.',
+          });
         }
         throw error;
       }
@@ -470,7 +563,11 @@ export function createMeetingHandlers(
       await requireMeeting(library, meetingId);
       try {
         const result = await library.deleteMeeting(meetingId);
-        return { verified: result.ok, remaining: result.remaining };
+        const cache = meetingCachePath(library.paths, meetingId);
+        const names = result.remaining.map((left) =>
+          left === cache ? 'Temporary files' : 'Meeting files',
+        );
+        return { verified: result.ok, remaining: [...new Set(names)] };
       } catch (error) {
         if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
           throw new ContractError({ code: 'conflict', message: error.message });

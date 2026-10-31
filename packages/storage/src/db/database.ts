@@ -7,9 +7,12 @@ import { INDEX_VERSION, migrate, readIndexVersion } from './migrations.ts';
 export type { DatabaseSync };
 
 function applyPragmas(db: DatabaseSync): void {
+  // Rollback journal, not WAL: the user picks the library location, WAL fails on network and
+  // synced folders, and one file makes "nothing left behind" simple to check.
   db.exec('PRAGMA journal_mode = DELETE');
   db.exec('PRAGMA synchronous = FULL');
   db.exec('PRAGMA foreign_keys = ON');
+  // Deleted names and voice data are zeroed on disk, not just unlinked from the b-tree.
   db.exec('PRAGMA secure_delete = ON');
 }
 
@@ -24,33 +27,41 @@ function verify(db: DatabaseSync): void {
   }
 }
 
+function quoted(name: string): string {
+  return '"' + name.replaceAll('"', '""') + '"';
+}
+
+function tableRows(db: DatabaseSync, table: string, columns: string[]): string[] {
+  const selected = columns.map(quoted).join(', ');
+  const rows = db.prepare(`SELECT ${selected} FROM ${quoted(table)}`).all();
+  return rows
+    .map((row) =>
+      JSON.stringify(row, (_key, value: unknown) =>
+        typeof value === 'bigint' ? value.toString() : value,
+      ),
+    )
+    .sort();
+}
+
 function currentTables(db: DatabaseSync): { name: string; columns: string[]; rows: string[] }[] {
-  const names = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-  ).all() as { name: string }[];
+  const names = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .all() as { name: string }[];
   return names.map(({ name }) => {
-    const quoted = '"' + name.replaceAll('"', '""') + '"';
-    const schema = db.prepare(`PRAGMA table_info(${quoted})`).all() as { name: string }[];
+    const schema = db.prepare(`PRAGMA table_info(${quoted(name)})`).all() as { name: string }[];
     const columns = schema.map((column) => column.name);
-    const selected = columns.map((col) => '"' + col.replaceAll('"', '""') + '"').join(', ');
-    const rows = (db.prepare(`SELECT ${selected} FROM ${quoted}`).all() as Record<string, unknown>[])
-      .map((row) => JSON.stringify(row, (_key, value: unknown) =>
-        typeof value === 'bigint' ? value.toString() : value))
-      .sort();
-    return { name, columns, rows };
+    return { name, columns, rows: tableRows(db, name, columns) };
   });
 }
 
 function verifyPreserved(db: DatabaseSync, before: ReturnType<typeof currentTables>): void {
   for (const table of before) {
-    const quoted = '"' + table.name.replaceAll('"', '""') + '"';
-    const selected = table.columns.map((col) => '"' + col.replaceAll('"', '""') + '"').join(', ');
-    const rows = (db.prepare(`SELECT ${selected} FROM ${quoted}`).all() as Record<string, unknown>[])
-      .map((row) => JSON.stringify(row, (_key, value: unknown) =>
-        typeof value === 'bigint' ? value.toString() : value))
-      .sort();
+    const rows = tableRows(db, table.name, table.columns);
     if (JSON.stringify(rows) !== JSON.stringify(table.rows)) {
-      throw new StorageError('INDEX_MIGRATION', `Index migration changed existing ${table.name} rows.`);
+      throw new StorageError(
+        'INDEX_MIGRATION',
+        `Index migration changed existing ${table.name} rows.`,
+      );
     }
   }
 }
@@ -72,7 +83,8 @@ export async function openIndex(filePath: string): Promise<OpenedIndex> {
     if (version > INDEX_VERSION) {
       throw new UnsupportedVersionError('index.sqlite', version, INDEX_VERSION);
     }
-    if (version > 0 && version < INDEX_VERSION && filePath !== ':memory:') {
+    const upgrading = version > 0 && version < INDEX_VERSION;
+    if (upgrading && filePath !== ':memory:') {
       snapshot = `${filePath}.upgrade-${randomUUID()}`;
       db.prepare('VACUUM INTO ?').run(snapshot);
       const copy = new DatabaseSync(snapshot);
@@ -85,7 +97,7 @@ export async function openIndex(filePath: string): Promise<OpenedIndex> {
         copy.close();
       }
     }
-    const existing = version > 0 ? currentTables(db) : [];
+    const existing = upgrading ? currentTables(db) : [];
     migrate(db);
     verify(db);
     if (readIndexVersion(db) !== INDEX_VERSION) {

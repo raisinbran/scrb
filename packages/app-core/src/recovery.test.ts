@@ -92,8 +92,12 @@ describe('sealAudio', () => {
     put('meeting', '000001.opus', chunk(1, 2 * SECOND + 3_000_000, 1, 'discontinuity'));
     const { gaps } = await sealAudio(audio, dead);
     expect(gaps).toEqual([
-      { kind: 'audioMissing', track: 'meeting', startNs: 2 * SECOND,
-        endNs: 2 * SECOND + 3_000_000 },
+      {
+        kind: 'audioMissing',
+        track: 'meeting',
+        startNs: 2 * SECOND,
+        endNs: 2 * SECOND + 3_000_000,
+      },
     ]);
   });
 
@@ -116,12 +120,19 @@ describe('sealAudio', () => {
 
   it('T14: retains original chunk sequence and every Ogg page on a clean seal', async () => {
     for (const index of [0, 1, 2]) {
-      put('meeting', `${String(index).padStart(6, '0')}.opus`,
-        chunk(index, index * 2 * SECOND, 2, index === 0 ? 'start' : 'rollover'));
+      put(
+        'meeting',
+        `${String(index).padStart(6, '0')}.opus`,
+        chunk(index, index * 2 * SECOND, 2, index === 0 ? 'start' : 'rollover'),
+      );
     }
-    logLine('meeting', [0, 1, 2].map((index) => ({
-      file: `${String(index).padStart(6, '0')}.opus`, closeReason: 'stop',
-    })));
+    logLine(
+      'meeting',
+      [0, 1, 2].map((index) => ({
+        file: `${String(index).padStart(6, '0')}.opus`,
+        closeReason: 'stop',
+      })),
+    );
     const result = await sealAudio(audio, dead);
     const sealed = result.tracks.meeting?.chunks ?? [];
     expect(sealed.map((part) => part.seq)).toEqual([0, 1, 2]);

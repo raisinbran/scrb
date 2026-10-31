@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { StorageError } from '../errors.ts';
 
@@ -65,7 +65,9 @@ export interface TermInput {
 }
 
 function deletedKey(term: string): string {
-  return `vocabulary.deleted.${encodeURIComponent(term.normalize('NFC').toLocaleLowerCase('en-US'))}`;
+  // A hash, so the marker does not keep the text of a term the user deleted.
+  const key = term.normalize('NFC').toLocaleLowerCase('en-US');
+  return `vocabulary.deleted.${createHash('sha256').update(key).digest('hex')}`;
 }
 function isMarked(db: DatabaseSync, key: string): boolean {
   return db.prepare('SELECT 1 FROM settings WHERE key = ?').get(key) !== undefined;
@@ -105,9 +107,9 @@ export class VocabularyStore {
   /** Reconstruct missing links, but never resurrect deliberately deleted vocabulary. */
   reconcileRemember(input: TermInput): void {
     if (!input.context || isMarked(this.db, deletedKey(input.term))) return;
-    const linked = this.db.prepare(
-      'SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?',
-    ).get(input.context.correctionId);
+    const linked = this.db
+      .prepare('SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?')
+      .get(input.context.correctionId);
     if (linked === undefined) this.remember(input);
   }
 
@@ -210,7 +212,8 @@ export class VocabularyStore {
           .prepare('SELECT COUNT(*) n FROM vocabulary_contexts WHERE term_id = ?')
           .get(termId) as { n: number };
         if (left.n === 0) {
-          const row = this.db.prepare('SELECT enabled FROM vocabulary_terms WHERE id = ?')
+          const row = this.db
+            .prepare('SELECT enabled FROM vocabulary_terms WHERE id = ?')
             .get(termId) as { enabled: number } | undefined;
           if (row?.enabled === 1 && !this.isUserEdited(termId)) {
             this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);

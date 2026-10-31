@@ -17,7 +17,7 @@ export type {
 } from './corrections.ts';
 export { foldText } from './search.ts';
 export type { TranscriptHit } from './search.ts';
-export { libraryPaths, meetingFolderName, meetingPaths } from './layout.ts';
+export { libraryPaths, meetingCachePath, meetingFolderName, meetingPaths } from './layout.ts';
 export type { LibraryPaths, MeetingPaths } from './layout.ts';
 export { emptyTranscript, TRANSCRIPT_FORMAT } from './formats/transcript.ts';
 export type * from './formats/transcript.ts';

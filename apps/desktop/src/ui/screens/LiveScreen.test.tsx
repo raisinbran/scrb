@@ -189,7 +189,7 @@ describe('LiveScreen', () => {
       await backend.call('updateSettings', { location: { usState: 'IL' } });
       await startMeeting();
       expect(screen.getAllByText(/Voice profiles are being built/)).toHaveLength(1);
-      fireEvent.click(button('Dismiss'));
+      fireEvent.click(button(/^Dismiss/));
       expect(screen.queryByText(/Voice profiles are being built/)).toBeNull();
 
       fireEvent.click(button('Stop'));

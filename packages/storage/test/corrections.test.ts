@@ -144,7 +144,10 @@ describe('freeze rules through the final pass', () => {
 
   it('keeps corrected text when the final pass hears it differently', () => {
     const { t, w } = live();
-    const { transcript: c } = applyCorrection(t, { wordIds: ids(w, 3, 5), replacement: 'J. Smythe' });
+    const { transcript: c } = applyCorrection(t, {
+      wordIds: ids(w, 3, 5),
+      replacement: 'J. Smythe',
+    });
     const next = applyFinalPass(c, {
       ...finalPass('we should ask john smit about the budget before friday.'),
       speakers: finalSpeakers,
@@ -162,7 +165,9 @@ describe('freeze rules through the final pass', () => {
       speakers: finalSpeakers,
     });
     expect(shown(next)).toBe('we should ask John about the budget before friday');
-    const frozen = next.segments.flatMap((s) => s.words).filter((x) => c.corrections[0]!.wordIds.includes(x.id));
+    const frozen = next.segments
+      .flatMap((s) => s.words)
+      .filter((x) => c.corrections[0]!.wordIds.includes(x.id));
     expect(frozen[0]?.startMs).toBe(4500);
     expect(frozen.map((x) => x.text)).toEqual(['jon', 'smith']);
   });
@@ -173,7 +178,10 @@ describe('freeze rules through the final pass', () => {
     const empty = applyFinalPass(c, { segments: [], speakers: [] });
     expect(shown(empty)).toBe('John');
     expectSurvives(c, empty);
-    const elsewhere = applyFinalPass(c, { ...finalPass('completely different words', 600_000), speakers: finalSpeakers });
+    const elsewhere = applyFinalPass(c, {
+      ...finalPass('completely different words', 600_000),
+      speakers: finalSpeakers,
+    });
     expectSurvives(c, elsewhere);
     expect(shown(elsewhere)).toBe('John completely different words');
   });
@@ -189,7 +197,14 @@ describe('freeze rules through the final pass', () => {
     });
     expect(shown(once)).toBe('we should ask John Smythe about the budget before Monday');
     const twice = applyFinalPass(once, {
-      segments: [segment('f2', 'G', words('we should ask jon smyth about a budget by friday', 200, 'g'), 'final')],
+      segments: [
+        segment(
+          'f2',
+          'G',
+          words('we should ask jon smyth about a budget by friday', 200, 'g'),
+          'final',
+        ),
+      ],
       speakers: [speaker('G')],
     });
     expect(shown(twice)).toBe('we should ask John Smythe about a budget by Monday');
@@ -211,7 +226,10 @@ describe('freeze rules through the final pass', () => {
     const { t, w } = live();
     const a = applyCorrection(t, { wordIds: ids(w, 3, 4), replacement: 'John' });
     const reverted = revertCorrection(a.transcript, a.correction.id);
-    const next = applyFinalPass(reverted, { ...finalPass('we should ask john'), speakers: finalSpeakers });
+    const next = applyFinalPass(reverted, {
+      ...finalPass('we should ask john'),
+      speakers: finalSpeakers,
+    });
     expect(shown(next)).toBe('we should ask john');
     expect(next.corrections).toHaveLength(1);
   });
@@ -219,8 +237,15 @@ describe('freeze rules through the final pass', () => {
   it('keeps tracks apart: a mic correction is untouched by meeting text at the same time', () => {
     const { t } = live();
     const mic = words('yes i agree', 1000, 'mic');
-    const both = appendSegments(t, [segment('m', 'you', mic, 'live', 'microphone')], [speaker('you', 'You')]);
-    const { transcript: c } = applyCorrection(both, { wordIds: [mic[2]!.id], replacement: 'concur' });
+    const both = appendSegments(
+      t,
+      [segment('m', 'you', mic, 'live', 'microphone')],
+      [speaker('you', 'You')],
+    );
+    const { transcript: c } = applyCorrection(both, {
+      wordIds: [mic[2]!.id],
+      replacement: 'concur',
+    });
     const next = applyFinalPass(c, {
       segments: [
         segment('f1', 'F', words('we should ask john smith', 0, 'f'), 'final'),
@@ -238,8 +263,11 @@ describe('freeze rules through the final pass', () => {
       seed = (seed * 1664525 + 1013904223) % 4294967296;
       return seed % n;
     };
-    const vocab = 'the a project budget meeting friday team plan risk scope ship ok yes no'.split(' ');
-    const text = (n: number): string => Array.from({ length: n }, () => vocab[rand(vocab.length)]).join(' ');
+    const vocab = 'the a project budget meeting friday team plan risk scope ship ok yes no'.split(
+      ' ',
+    );
+    const text = (n: number): string =>
+      Array.from({ length: n }, () => vocab[rand(vocab.length)]).join(' ');
     for (let round = 0; round < 40; round += 1) {
       const liveWords = words(text(300), 0);
       let t = transcript([segment('s', 'a', liveWords)], [speaker('a')]);
@@ -254,11 +282,19 @@ describe('freeze rules through the final pass', () => {
       }
       const offset = rand(4000) - 2000;
       const finalWords = words(text(150 + rand(300)), Math.max(0, offset), 'f');
-      const next = applyFinalPass(t, { segments: [segment('f', 'F', finalWords, 'final')], speakers: [speaker('F')] });
+      const next = applyFinalPass(t, {
+        segments: [segment('f', 'F', finalWords, 'final')],
+        speakers: [speaker('F')],
+      });
       expectSurvives(t, next);
       const token = resolveDisplay(next).flatMap((s) => s.tokens);
       const expected = t.corrections.filter((c) => c.state === 'active').map((c) => c.replacement);
-      expect(token.filter((x) => x.correctionId !== null).map((x) => x.text).sort()).toEqual(expected.sort());
+      expect(
+        token
+          .filter((x) => x.correctionId !== null)
+          .map((x) => x.text)
+          .sort(),
+      ).toEqual(expected.sort());
     }
   });
 
@@ -319,5 +355,19 @@ describe('speakers', () => {
     const display = resolveDisplay(final);
     expect(display.map((s) => s.speakerId)).toEqual(['X', 'Y', 'X', 'Y']);
     expect(final.undoStack).toEqual([]);
+  });
+
+  it('keeps undo and redo of a correction through a final pass', () => {
+    const t = transcript([segment('1', 'a', words('one two', 0))], [speaker('a')]);
+    const two = t.segments[0]!.words[1]!;
+    const edited = applyCorrection(t, { wordIds: [two.id], replacement: 'Twain' }).transcript;
+    const final = applyFinalPass(edited, {
+      segments: [segment('f1', 'X', words('won too', 0, 'f'), 'final')],
+      speakers: [speaker('X')],
+    });
+    expect(final.undoStack).toHaveLength(1);
+    const undone = undo(final);
+    expect(shown(undone)).not.toContain('Twain');
+    expect(shown(redo(undone))).toContain('Twain');
   });
 });

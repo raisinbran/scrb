@@ -213,10 +213,7 @@ export function applyCorrection(
   const absorbedById = new Map(absorbed.map(({ after }) => [after.id, after]));
   const next: TranscriptFile = {
     ...transcript,
-    corrections: [
-      ...transcript.corrections.map((c) => absorbedById.get(c.id) ?? c),
-      correction,
-    ],
+    corrections: [...transcript.corrections.map((c) => absorbedById.get(c.id) ?? c), correction],
   };
   return {
     transcript: pushHistory(next, 'Correct text', {
@@ -479,8 +476,7 @@ function locateRun(
   if (lastBefore !== undefined && firstAfter !== undefined) {
     const lo = windowStart + lastBefore[1] + 1;
     const hi = windowStart + firstAfter[1];
-    const shiftMs =
-      (incoming[lo - 1] as Word).endMs - (before[lastBefore[0]] as Word).endMs;
+    const shiftMs = (incoming[lo - 1] as Word).endMs - (before[lastBefore[0]] as Word).endMs;
     const span = lo < hi ? (incoming[hi - 1] as Word).endMs - (incoming[lo] as Word).startMs : 0;
     if (span <= runEnd - runStart + REGION_SLACK_MS) return { lo, hi, shiftMs };
     return timeRegion(incoming, run, shiftMs);
@@ -694,10 +690,14 @@ export function applyFinalPass(
   const next = mergeModel(transcript, [], transcript.segments, incoming);
   const ids = new Set(next.segments.flatMap((segment) => segment.words.map((word) => word.id)));
   const safe = (entry: HistoryEntry): boolean =>
-    entry.speakers.length === 0 && entry.overrides.length === 0 &&
+    entry.speakers.length === 0 &&
+    entry.overrides.length === 0 &&
     entry.corrections.every((patch) =>
-      [patch.before, patch.after].every((correction) =>
-        correction === null || correction.wordIds.every((wordId) => ids.has(wordId))));
+      [patch.before, patch.after].every(
+        (correction) =>
+          correction === null || correction.wordIds.every((wordId) => ids.has(wordId)),
+      ),
+    );
   return {
     ...next,
     undoStack: transcript.undoStack.filter(safe),

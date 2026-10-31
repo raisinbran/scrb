@@ -138,7 +138,12 @@ async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models
 export function createFinalPassRunner(configPath: string): RunFinalPass {
   return async ({ tracks, workDir, signal, vocabularyHint: hint }) => {
     const { tools, models } = await loadSetup(configPath);
-    return runFinalPass({ tools, models, tracks, workDir, signal,
+    return runFinalPass({
+      tools,
+      models,
+      tracks,
+      workDir,
+      signal,
       ...(hint ? { vocabularyHint: hint } : {}),
     });
   };

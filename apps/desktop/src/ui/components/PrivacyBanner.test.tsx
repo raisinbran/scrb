@@ -5,8 +5,11 @@ import { PrivacyBanner } from './PrivacyBanner.tsx';
 vi.mock('../shell/use-recording-status.ts', () => ({
   useRecordingStatus: () => ({
     recording: {
-      status: 'recording', meetingId: 'synthetic-meeting-1', elapsedMs: 100,
-      pauseReason: null, privacyBannerRequired: true,
+      status: 'recording',
+      meetingId: 'synthetic-meeting-1',
+      elapsedMs: 100,
+      pauseReason: null,
+      privacyBannerRequired: true,
     },
   }),
 }));

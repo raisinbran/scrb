@@ -53,7 +53,7 @@ export async function openBackend(
           finalPasses,
           async () => {
             const rules = await privacyJurisdictions(library.paths.root);
-            const region = new Intl.Locale(app.getLocale()).region ?? null;
+            const region = app.getLocaleCountryCode() || null;
             return needsPrivacyBanner(settings.getSettings().location, rules, region);
           },
         )

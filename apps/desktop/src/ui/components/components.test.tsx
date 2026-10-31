@@ -160,7 +160,7 @@ describe('shared components', () => {
     it('can be dismissed, and returns at the next recording', async () => {
       await renderBanner();
       recordingState('m1');
-      fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Dismiss/ }));
       expect(screen.queryByText(/Voice profiles are being built/)).toBeNull();
       recordingState('m2');
       expect(await screen.findByText(/Voice profiles are being built/)).toBeTruthy();

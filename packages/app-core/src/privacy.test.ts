@@ -12,7 +12,11 @@ describe('privacy banner jurisdiction', () => {
     expect(needsPrivacyBanner({ country, usState: null }, DEFAULT_JURISDICTIONS, null)).toBe(true);
   });
   it('uses OS country only when the user did not set a country', () => {
-    expect(needsPrivacyBanner({ country: null, usState: null }, DEFAULT_JURISDICTIONS, 'DE')).toBe(true);
-    expect(needsPrivacyBanner({ country: 'US', usState: 'OR' }, DEFAULT_JURISDICTIONS, 'DE')).toBe(false);
+    expect(needsPrivacyBanner({ country: null, usState: null }, DEFAULT_JURISDICTIONS, 'DE')).toBe(
+      true,
+    );
+    expect(needsPrivacyBanner({ country: 'US', usState: 'OR' }, DEFAULT_JURISDICTIONS, 'DE')).toBe(
+      false,
+    );
   });
 });

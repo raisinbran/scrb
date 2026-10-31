@@ -5,7 +5,8 @@ describe('eight-hour transcript row virtualization', () => {
   it('indexes 80,000 invented words within 1000 ms on the test runner', () => {
     const totalRows = 8000;
     const heights = new RowHeights((index) => ({
-      id: `synthetic-${index}`, wordCount: 10,
+      id: `synthetic-${index}`,
+      wordCount: 10,
     }));
     heights.setLayout({ widthPx: 740, fontPx: 15 });
     const start = performance.now();
@@ -24,7 +25,8 @@ describe('eight-hour transcript row virtualization', () => {
   it('recalculates only affected row tops after a tail update', () => {
     const totalRows = 8000;
     const heights = new RowHeights((index) => ({
-      id: `synthetic-${index}`, wordCount: 10,
+      id: `synthetic-${index}`,
+      wordCount: 10,
     }));
     const oldExtent = heights.totalHeight(totalRows);
     const delta = heights.measure(totalRows - 1, `synthetic-${totalRows - 1}`, 250);

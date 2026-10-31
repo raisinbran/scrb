@@ -1,8 +1,8 @@
 // @vitest-environment node
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
@@ -20,8 +20,10 @@ describe('createMeetingHandlers', () => {
 
   afterEach(() => library.close());
 
-  const call = (name: 'listMeetings' | 'getMeeting' | 'getTranscript', request: unknown) =>
-    dispatchCall(handlers, name, request);
+  const call = (
+    name: 'listMeetings' | 'getMeeting' | 'getTranscript' | 'deleteMeeting' | 'updateTerm',
+    request: unknown,
+  ) => dispatchCall(handlers, name, request);
 
   const value = async (name: Parameters<typeof call>[0], request: unknown) => {
     const envelope = await call(name, request);
@@ -69,7 +71,14 @@ describe('createMeetingHandlers', () => {
         },
       ],
       speakers: [
-        { id: 'you', label: 'You', name: null, profileId: null, userNamed: false, mergedInto: null },
+        {
+          id: 'you',
+          label: 'You',
+          name: null,
+          profileId: null,
+          userNamed: false,
+          mergedInto: null,
+        },
       ],
     });
     expect(await value('getTranscript', { meetingId, offset: 0, limit: 10 })).toMatchObject({
@@ -192,52 +201,73 @@ describe('createMeetingHandlers', () => {
   it('corrects a saved phrase, re-edits it, and keeps undo/redo state', async () => {
     const meeting = await recorded('Synthetic', '2026-10-15T10:00:00.000Z');
     const meetingId = meeting.id;
-    await library.appendSegments(meetingId, [{
-      id: 's1', track: 'meeting', speakerId: 'person', pass: 'live',
-      words: [
-        { id: 'a', text: 'red', startMs: 10, endMs: 20 },
-        { id: 'b', text: 'blue', startMs: 21, endMs: 30 },
-        { id: 'c', text: 'green', startMs: 31, endMs: 40 },
-      ],
-    }]);
+    await library.appendSegments(meetingId, [
+      {
+        id: 's1',
+        track: 'meeting',
+        speakerId: 'person',
+        pass: 'live',
+        words: [
+          { id: 'a', text: 'red', startMs: 10, endMs: 20 },
+          { id: 'b', text: 'blue', startMs: 21, endMs: 30 },
+          { id: 'c', text: 'green', startMs: 31, endMs: 40 },
+        ],
+      },
+    ]);
     const change = (firstWordId: string, lastWordId: string, text: string) =>
       dispatchCall(handlers, 'applyCorrection', {
-        meetingId, range: { firstWordId, lastWordId }, text, remember: false,
+        meetingId,
+        range: { firstWordId, lastWordId },
+        text,
+        remember: false,
       });
     expect(await change('a', 'b', 'purple')).toMatchObject({
-      ok: true, value: { canUndo: true, canRedo: false },
+      ok: true,
+      value: { canUndo: true, canRedo: false },
     });
     const page = await value('getTranscript', { meetingId, offset: 0, limit: 10 });
     expect(page).toMatchObject({
       segments: [{ words: [{ id: 'a', text: 'purple', state: 'corrected' }, { id: 'c' }] }],
     });
     expect(await change('b', 'c', 'wrong')).toMatchObject({
-      ok: false, error: { code: 'conflict' },
+      ok: false,
+      error: { code: 'conflict' },
     });
     expect(await change('a', 'a', 'violet')).toMatchObject({ ok: true });
     expect((await library.readTranscript(meetingId)).corrections[0]).toMatchObject({
-      replacement: 'violet', original: { text: 'red blue' },
+      replacement: 'violet',
+      original: { text: 'red blue' },
     });
     expect(await dispatchCall(handlers, 'undo', { meetingId })).toMatchObject({
-      ok: true, value: { canUndo: true, canRedo: true },
+      ok: true,
+      value: { canUndo: true, canRedo: true },
     });
     expect(await dispatchCall(handlers, 'redo', { meetingId })).toMatchObject({
-      ok: true, value: { canUndo: true, canRedo: false },
+      ok: true,
+      value: { canUndo: true, canRedo: false },
     });
   });
 
   it('emits revisioned transcript changes only after a persisted correction', async () => {
     const meetingId = (await recorded('Events', '2026-10-15T10:00:00.000Z')).id;
-    await library.appendSegments(meetingId, [{
-      id: 's1', track: 'meeting', speakerId: 'person', pass: 'live',
-      words: [{ id: 'w1', text: 'original', startMs: 1, endMs: 2 }],
-    }]);
+    await library.appendSegments(meetingId, [
+      {
+        id: 's1',
+        track: 'meeting',
+        speakerId: 'person',
+        pass: 'live',
+        words: [{ id: 'w1', text: 'original', startMs: 1, endMs: 2 }],
+      },
+    ]);
     const revisions: number[] = [];
     const emitting = createMeetingHandlers(library, (name, payload) => {
       if (name === 'transcriptChanged') revisions.push((payload as { revision: number }).revision);
     });
     const result = await dispatchCall(emitting, 'applyCorrection', {
-      meetingId, range: { firstWordId: 'w1', lastWordId: 'w1' }, text: 'changed', remember: true,
+      meetingId,
+      range: { firstWordId: 'w1', lastWordId: 'w1' },
+      text: 'changed',
+      remember: true,
     });
     expect(result).toMatchObject({ ok: true });
     expect(revisions).toEqual([(await library.readTranscript(meetingId)).revision]);
@@ -246,13 +276,15 @@ describe('createMeetingHandlers', () => {
   it('deletes a recorded meeting and verifies the folder and index are gone', async () => {
     const { id: meetingId } = await recorded('Remove', '2026-10-15T10:00:00.000Z');
     expect(await dispatchCall(handlers, 'deleteMeeting', { meetingId })).toEqual({
-      ok: true, value: { verified: true, remaining: [] },
+      ok: true,
+      value: { verified: true, remaining: [] },
     });
     expect(library.listMeetings()).toHaveLength(0);
   });
 
   it.each(['recording', 'importing', 'finalPassRunning'] as const)(
-    'refuses to delete a meeting with active status %s', async (status) => {
+    'refuses to delete a meeting with active status %s',
+    async (status) => {
       const meeting = await library.createMeeting({ title: 'Busy', status });
       const result = await dispatchCall(handlers, 'deleteMeeting', { meetingId: meeting.id });
       expect(result).toMatchObject({ ok: false, error: { code: 'conflict' } });
@@ -260,11 +292,91 @@ describe('createMeetingHandlers', () => {
     },
   );
 
+  it('names what a failed delete left in plain language, not as paths', async () => {
+    const meeting = await recorded('Stuck', '2026-10-15T10:00:00.000Z');
+    const spy = vi.spyOn(library, 'deleteMeeting').mockResolvedValue({
+      meetingId: meeting.id,
+      ok: false,
+      remaining: [join(library.paths.root, 'meetings', '.deleting-x')],
+    });
+    expect(await value('deleteMeeting', { meetingId: meeting.id })).toEqual({
+      verified: false,
+      remaining: ['Meeting files'],
+    });
+    spy.mockRestore();
+  });
+
+  it('opens a meeting after its audio folder is removed', async () => {
+    const meeting = await recorded('No audio', '2026-10-15T10:00:00.000Z');
+    await library.deleteAudio(meeting.id);
+    expect(await value('getMeeting', { meetingId: meeting.id })).toMatchObject({ gaps: [] });
+  });
+
+  it('returns the whole term from updateTerm and refuses a duplicate name', async () => {
+    const first = library.vocabulary.remember({ term: 'Rosmont' });
+    library.vocabulary.remember({ term: 'Quillon' });
+    expect(await value('updateTerm', { id: first.id, patch: { enabled: false } })).toEqual(
+      expect.objectContaining({ enabled: false, history: expect.any(Array) }),
+    );
+    expect(
+      await dispatchCall(handlers, 'updateTerm', { id: first.id, patch: { term: 'quillon' } }),
+    ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+  });
+
+  it('tells the UI the summary is outdated after undo as well as an edit', async () => {
+    const events: string[] = [];
+    const emitting = createMeetingHandlers(library, (name) => void events.push(name));
+    const meeting = await recorded('Summary', '2026-10-15T10:00:00.000Z');
+    await library.appendSegments(meeting.id, [
+      {
+        id: 's1',
+        track: 'meeting',
+        speakerId: 'person',
+        pass: 'live',
+        words: [{ id: 'w1', text: 'hello', startMs: 0, endMs: 100 }],
+      },
+    ]);
+    const edit = {
+      meetingId: meeting.id,
+      range: { firstWordId: 'w1', lastWordId: 'w1' },
+      text: 'Hullo',
+      remember: false,
+    };
+    expect((await dispatchCall(emitting, 'applyCorrection', edit)).ok).toBe(true);
+    vi.spyOn(library, 'readSummary').mockResolvedValue({} as never);
+    events.length = 0;
+    expect((await dispatchCall(emitting, 'undo', { meetingId: meeting.id })).ok).toBe(true);
+    expect(events).toContain('summaryOutdated');
+  });
+
+  it('opens a real meeting folder but refuses a link that leaves the library', async () => {
+    const opened: string[] = [];
+    const opening = createMeetingHandlers(library, undefined, async (folder) => {
+      opened.push(folder);
+      return '';
+    });
+    const meeting = await recorded('Folders', '2026-10-15T10:00:00.000Z');
+    const paths = library.meetingPaths(meeting.id);
+    const open = (folder: string) =>
+      dispatchCall(opening, 'openMeetingFolder', { meetingId: meeting.id, folder });
+    expect((await open('meeting')).ok).toBe(true);
+    expect(opened).toHaveLength(1);
+    rmSync(paths.exports, { recursive: true });
+    symlinkSync(tmpdir(), paths.exports);
+    expect(await open('exports')).toMatchObject({
+      ok: false,
+      error: { code: 'permissionDenied' },
+    });
+    expect(opened).toHaveLength(1);
+  });
+
   it('refuses deletion while an audio writer lock exists', async () => {
     const meeting = await recorded('Locked', '2026-10-15T10:00:00.000Z');
     writeFileSync(join(library.meetingPaths(meeting.id).audio, 'writer.lock'), 'synthetic');
-    expect(await dispatchCall(handlers, 'deleteMeeting', { meetingId: meeting.id }))
-      .toMatchObject({ ok: false, error: { code: 'conflict' } });
+    expect(await dispatchCall(handlers, 'deleteMeeting', { meetingId: meeting.id })).toMatchObject({
+      ok: false,
+      error: { code: 'conflict' },
+    });
     expect(library.listMeetings()).toHaveLength(1);
   });
 

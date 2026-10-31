@@ -71,7 +71,9 @@ describe('corrections through the library', () => {
 
     library = await Library.open({ root });
     const final = await library.applyFinalPass(id, {
-      segments: [segment('f', 'F', words('we should ask john smit about the budget', 100, 'f'), 'final')],
+      segments: [
+        segment('f', 'F', words('we should ask john smit about the budget', 100, 'f'), 'final'),
+      ],
       speakers: [speaker('F')],
     });
     await library.close();
@@ -132,12 +134,22 @@ describe('corrections through the library', () => {
 });
 
 describe('vocabulary crash repair', () => {
+  it('keeps no readable copy of a deleted term', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const term = library.vocabulary.remember({ term: 'Secret Project' });
+    library.vocabulary.delete(term.id);
+    expect(JSON.stringify(library.settings.all()).toLowerCase()).not.toContain('secret');
+    await library.close();
+  });
+
   it('reconciles a missing link once and respects a deleted term', async () => {
     const root = await tempDir();
     let library = await Library.open({ root });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, {
-      wordIds: ids.slice(3, 5), replacement: 'John Smythe', remember: true,
+      wordIds: ids.slice(3, 5),
+      replacement: 'John Smythe',
+      remember: true,
     });
     const original = library.vocabulary.list()[0]!;
     library.vocabulary.forgetCorrection(original.contexts[0]!.correctionId, 'jon smith');
@@ -159,7 +171,9 @@ describe('vocabulary crash repair', () => {
     let library = await Library.open({ root });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, {
-      wordIds: ids.slice(3, 5), replacement: 'John Smythe', remember: true,
+      wordIds: ids.slice(3, 5),
+      replacement: 'John Smythe',
+      remember: true,
     });
     const term = library.vocabulary.list()[0]!;
     library.vocabulary.update(term.id, { enabled: false });
@@ -176,7 +190,11 @@ describe('index stays secondary', () => {
     const root = await tempDir();
     const library = await Library.open({ root });
     const { id, ids } = await seeded(library, 'Sync', 'zebrafish quartermaster tangerine');
-    await library.applyCorrection(id, { wordIds: ids.slice(0, 1), replacement: 'kiwi', remember: true });
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'kiwi',
+      remember: true,
+    });
     await library.close();
     const bytes = await readFile(path.join(root, 'index.sqlite'), 'latin1');
     expect(bytes).not.toContain('quartermaster');
@@ -244,9 +262,17 @@ describe('index stays secondary', () => {
   it('an interrupted import leaves nothing; an interrupted recording is kept and reported', async () => {
     const root = await tempDir();
     let library = await Library.open({ root });
-    const importing = await library.createMeeting({ title: 'Upload', source: 'imported', status: 'importing' });
+    const importing = await library.createMeeting({
+      title: 'Upload',
+      source: 'imported',
+      status: 'importing',
+    });
     const recording = await library.createMeeting({ title: 'Live', status: 'recording' });
-    const cancelled = await library.createMeeting({ title: 'Nope', source: 'imported', status: 'importing' });
+    const cancelled = await library.createMeeting({
+      title: 'Nope',
+      source: 'imported',
+      status: 'importing',
+    });
     expect((await library.discardImport(cancelled.id)).ok).toBe(true);
     await library.close();
 
@@ -281,7 +307,11 @@ describe('delete', () => {
     const library = await Library.open({ root });
     const { id, ids } = await seeded(library, 'Secret plans');
     const { id: other } = await seeded(library, 'Other');
-    await library.applyCorrection(id, { wordIds: ids.slice(0, 1), replacement: 'Kiwi', remember: true });
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'Kiwi',
+      remember: true,
+    });
     const profile = library.voiceProfiles.create({
       modelId: 'm',
       embedding: new Float32Array([1, 2]),
@@ -320,24 +350,27 @@ describe('delete', () => {
     expect((await readFile(path.join(root, 'index.sqlite'))).includes(needle)).toBe(false);
   });
 
-  itPosix('reports failure when the folder cannot go, keeps the meeting, and a retry finishes', async () => {
-    const root = await tempDir();
-    const library = await Library.open({ root });
-    const { id } = await seeded(library);
-    const meetings = path.join(root, 'meetings');
-    await chmod(meetings, 0o555);
-    const failed = await library.deleteMeeting(id);
-    await chmod(meetings, 0o755);
+  itPosix(
+    'reports failure when the folder cannot go, keeps the meeting, and a retry finishes',
+    async () => {
+      const root = await tempDir();
+      const library = await Library.open({ root });
+      const { id } = await seeded(library);
+      const meetings = path.join(root, 'meetings');
+      await chmod(meetings, 0o555);
+      const failed = await library.deleteMeeting(id);
+      await chmod(meetings, 0o755);
 
-    expect(failed.ok).toBe(false);
-    expect(failed.remaining.length).toBeGreaterThan(0);
-    expect(failed.remaining).toContain('index:meetings');
-    expect(library.listMeetings()).toHaveLength(1);
-    expect((await library.readTranscript(id)).segments).toHaveLength(1);
+      expect(failed.ok).toBe(false);
+      expect(failed.remaining.length).toBeGreaterThan(0);
+      expect(failed.remaining).toContain('index:meetings');
+      expect(library.listMeetings()).toHaveLength(1);
+      expect((await library.readTranscript(id)).segments).toHaveLength(1);
 
-    expect((await library.deleteMeeting(id)).ok).toBe(true);
-    await library.close();
-  });
+      expect((await library.deleteMeeting(id)).ok).toBe(true);
+      await library.close();
+    },
+  );
 
   itPosix('reports a cache file that would not go, and the next open sweeps it', async () => {
     const root = await tempDir();
@@ -389,7 +422,9 @@ describe('delete', () => {
   it('rejects an index row that points outside the library', async () => {
     const library = await Library.open({ root: await tempDir() });
     const { id } = await seeded(library);
-    const db = (library as unknown as { db: { prepare(sql: string): { run(...a: string[]): void } } }).db;
+    const db = (
+      library as unknown as { db: { prepare(sql: string): { run(...a: string[]): void } } }
+    ).db;
     db.prepare('UPDATE meetings SET folder = ? WHERE id = ?').run('../../etc', id);
     await expect(library.deleteMeeting(id)).rejects.toThrow('plain name');
     await library.close();
@@ -406,7 +441,9 @@ describe('auto-delete', () => {
   const DAY = 86_400_000;
   const start = Date.parse('2026-01-01T00:00:00.000Z');
 
-  async function aged(clock: { t: number }): Promise<{ library: Library; old: string; young: string; root: string }> {
+  async function aged(clock: {
+    t: number;
+  }): Promise<{ library: Library; old: string; young: string; root: string }> {
     const root = await tempDir();
     const library = await Library.open({ root, now: () => new Date(clock.t) });
     const { id: old } = await seeded(library, 'Old');
@@ -436,7 +473,7 @@ describe('auto-delete', () => {
     const run = await library.runAutoDelete();
     expect(run.results).toEqual([{ meetingId: old, ok: true, remaining: [] }]);
     const files = library.meetingPaths(old);
-    expect(await readdir(files.audioMeeting)).toEqual([]);
+    await expect(readdir(files.audio)).rejects.toMatchObject({ code: 'ENOENT' });
     expect(shown(await library.readTranscript(old))).toContain('budget');
     expect((await library.getMeeting(old)).audioDeletedAt).not.toBeNull();
     expect(await readdir(library.meetingPaths(young).audioMicrophone)).toEqual(['chunk.opus']);
@@ -543,7 +580,9 @@ describe('search', () => {
     expect(byText.results[0]?.hits[0]).toMatchObject({ startMs: 500, speakerId: 'a' });
     expect(byText.results[1]?.matchedIn).toEqual(['title or date']);
 
-    expect((await library.search('2026-05')).results.map((r) => r.meeting.title)).toEqual(['Lunch']);
+    expect((await library.search('2026-05')).results.map((r) => r.meeting.title)).toEqual([
+      'Lunch',
+    ]);
     await library.close();
   });
 
@@ -555,7 +594,9 @@ describe('search', () => {
 
     expect((await library.search('ZOE muller')).results).toHaveLength(1);
     expect((await library.search('jon smith')).results).toHaveLength(0);
-    expect((await library.search('cafe, at noon')).results[0]?.hits[0]?.snippet).toContain('at noon');
+    expect((await library.search('cafe, at noon')).results[0]?.hits[0]?.snippet).toContain(
+      'at noon',
+    );
     await library.close();
   });
 
@@ -576,7 +617,11 @@ describe('search', () => {
   it('stops when cancelled, and leaves unfinished imports out', async () => {
     const library = await Library.open({ root: await tempDir() });
     await seeded(library, 'One', 'hello');
-    const { id } = await library.createMeeting({ title: 'hello', source: 'imported', status: 'importing' });
+    const { id } = await library.createMeeting({
+      title: 'hello',
+      source: 'imported',
+      status: 'importing',
+    });
     expect((await library.search('hello')).results.map((r) => r.meeting.id)).not.toContain(id);
     const signal = AbortSignal.abort();
     expect((await library.search('hello', { signal })).results).toEqual([]);
@@ -613,7 +658,11 @@ describe('logs', () => {
   it('library activity leaks nothing into the logs', async () => {
     const root = await tempDir();
     const library = await Library.open({ root });
-    const { id, ids } = await seeded(library, 'Confidential merger', 'zebrafish quartermaster tangerine');
+    const { id, ids } = await seeded(
+      library,
+      'Confidential merger',
+      'zebrafish quartermaster tangerine',
+    );
     await library.applyCorrection(id, { wordIds: ids.slice(0, 1), replacement: 'kiwi' });
     await library.search('quartermaster');
     await library.deleteMeeting(id);

@@ -317,10 +317,7 @@ export class Library {
     return this.withLock(meetingId, () => this.writeMeta(meetingId, changes));
   }
 
-  private async writeMeta(
-    meetingId: string,
-    changes: Partial<MeetingMeta>,
-  ): Promise<MeetingMeta> {
+  private async writeMeta(meetingId: string, changes: Partial<MeetingMeta>): Promise<MeetingMeta> {
     const row = this.requireRow(meetingId);
     const file = this.meetingPaths(meetingId).meta;
     const loaded = await loadDocument(MEETING_FORMAT, file);
@@ -364,7 +361,8 @@ export class Library {
         } catch (error) {
           // User corrections are saved before vocabulary; repair later, never roll back the edit.
           this.logger.log('warn', 'vocabulary-learning-pending', {
-            meetingId, ...errorFields(error),
+            meetingId,
+            ...errorFields(error),
           });
         }
       }
@@ -465,11 +463,7 @@ export class Library {
   }
 
   /** Keeps the Vocabulary list in step with "Remember correction", through undo and redo. */
-  private syncVocabulary(
-    meetingId: string,
-    before: TranscriptFile,
-    after: TranscriptFile,
-  ): void {
+  private syncVocabulary(meetingId: string, before: TranscriptFile, after: TranscriptFile): void {
     if (before.corrections === after.corrections) return;
     const old = new Map(before.corrections.map((c) => [c.id, c]));
     const seen = new Set<string>();
@@ -511,18 +505,22 @@ export class Library {
       } catch (error) {
         this.settings.set(key, true);
         this.logger.log('warn', 'vocabulary-repair-deferred', {
-          meetingId: row.id, ...errorFields(error),
+          meetingId: row.id,
+          ...errorFields(error),
         });
         continue;
       }
       try {
-        const active = new Map(transcript.corrections
-          .filter((c) => c.state === 'active' && c.remember && c.replacement.trim() !== '')
-          .map((c) => [c.id, c]));
+        const active = new Map(
+          transcript.corrections
+            .filter((c) => c.state === 'active' && c.remember && c.replacement.trim() !== '')
+            .map((c) => [c.id, c]),
+        );
         for (const term of this.vocabulary.list()) {
           for (const context of term.contexts.filter((c) => c.meetingId === row.id)) {
             if (!active.has(context.correctionId)) {
-              this.vocabulary.forgetCorrection(context.correctionId, '');
+              const gone = transcript.corrections.find((c) => c.id === context.correctionId);
+              this.vocabulary.forgetCorrection(context.correctionId, gone?.original.text ?? '');
             }
           }
         }
@@ -537,7 +535,8 @@ export class Library {
       } catch (error) {
         this.settings.set(key, true);
         this.logger.log('warn', 'vocabulary-repair-deferred', {
-          meetingId: row.id, ...errorFields(error),
+          meetingId: row.id,
+          ...errorFields(error),
         });
       }
     }
@@ -593,7 +592,10 @@ export class Library {
   /** Stores a generated summary. User-edited items carry over and the outdated flag clears. */
   saveGeneratedSummary(
     meetingId: string,
-    generated: Omit<SummaryFile, 'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'>,
+    generated: Omit<
+      SummaryFile,
+      'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
+    >,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
@@ -684,8 +686,11 @@ export class Library {
 
   /** Conservatively refuse deletion whenever a writer may still own the meeting. */
   private async assertDeletionIdle(row: MeetingRow, importCleanup = false): Promise<void> {
-    if (row.status === 'recording' || (row.status === 'importing' && !importCleanup) ||
-        row.status === 'finalPassRunning') {
+    if (
+      row.status === 'recording' ||
+      (row.status === 'importing' && !importCleanup) ||
+      row.status === 'finalPassRunning'
+    ) {
       throw new StorageError('ACTIVE_MEETING', 'Stop the meeting operation before deleting.');
     }
     const lock = path.join(meetingFolderPath(this.paths, row.folder), 'audio', 'writer.lock');
@@ -743,7 +748,9 @@ export class Library {
     for (const name of names) {
       if (name.startsWith('.')) continue;
       const folder = meetingFolderPath(this.paths, name);
-      const loaded = await loadDocument(MEETING_FORMAT, meetingPaths(folder).meta).catch(() => null);
+      const loaded = await loadDocument(MEETING_FORMAT, meetingPaths(folder).meta).catch(
+        () => null,
+      );
       if (loaded?.doc.id === meetingId) found.push(folder);
     }
     return found;
@@ -817,6 +824,7 @@ export class Library {
       if (running) return;
       running = true;
       this.scheduledDeletion = this.runAutoDelete()
+        .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));
         })
@@ -925,10 +933,7 @@ export class Library {
 }
 
 /** Points at the library, which the user can place anywhere; lives in the app's config folder. */
-export async function readLibraryLocation(
-  configDir: string,
-  defaultRoot: string,
-): Promise<string> {
+export async function readLibraryLocation(configDir: string, defaultRoot: string): Promise<string> {
   try {
     const text = await fs.readFile(path.join(configDir, 'library-location.json'), 'utf8');
     const { root } = JSON.parse(text) as { root?: unknown };

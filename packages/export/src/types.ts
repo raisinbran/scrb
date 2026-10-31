@@ -96,12 +96,7 @@ export interface ExportActionItem {
 export type DecisionStatus = 'decided' | 'proposed' | 'tentatively-agreed' | 'unresolved';
 
 export type ImpactArea =
-  | 'scope'
-  | 'schedule'
-  | 'cost'
-  | 'risk'
-  | 'deliverables'
-  | 'technical-approach';
+  'scope' | 'schedule' | 'cost' | 'risk' | 'deliverables' | 'technical-approach';
 
 export interface ExportDecision {
   needsReview?: boolean;
