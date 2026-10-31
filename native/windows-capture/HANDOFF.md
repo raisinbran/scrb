@@ -4,7 +4,8 @@ Branch `windows-capture`, cut from 3fc9931.  State and results: `README.md`.
 
 Remaining for this phase: nothing on this PC.  Still needed elsewhere:
 
-1. Real Teams, Zoom and browser targets with a shared-sound offset and drift check.
+1. Real Teams, Zoom and browser targets with a shared-sound offset and drift check;
+   the tools are in `scripts/shared_sound.mjs` (README, "T18 tools").
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
 2. A shorter retry (README finding 9).

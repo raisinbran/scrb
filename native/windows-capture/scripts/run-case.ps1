@@ -17,7 +17,13 @@ param(
     # Target a parent shell that outlives the tone and starts it again, as a
     # real app outlives a lost stream.  TonePlayer exits when Windows Audio
     # restarts.
-    [switch]$TreeTarget
+    [switch]$TreeTarget,
+    # T18.  Plays this WAV instead of the tone, and captures the player.
+    [string]$PlayFile,
+    # T18.  Captures this running app, by exe file name, instead of a player.
+    [string]$TargetExe,
+    # T18.  Leaves output alone, so the mic can hear the speakers.
+    [switch]$NoMute
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -29,9 +35,19 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $results = Join-Path $root 'results'
 $mute = Join-Path $repo 'phase0\probes\windows-mute\Mute.exe'
 $tonePlayer = if ($env:SCRB_TONE) { $env:SCRB_TONE } else { Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe' }
-& $mute on | Out-Null
+if (-not $NoMute) { & $mute on | Out-Null }
 
-$tone = if ($TreeTarget) {
+$tone = if ($TargetExe) {
+    # An app has an audio session only once it has played or opened a call.
+    $list = '{"id":1,"name":"listApps"}' | & "$bin\scrb-capture.exe" | Where-Object { $_ -match '"type":"ack"' } | ConvertFrom-Json
+    $app = @($list.apps | Where-Object { $_.bundleId -eq $TargetExe })[0]
+    if (-not $app -or -not $app.pids.Count) { throw "$TargetExe has no audio session; listed: $(@($list.apps.bundleId) -join ', ')" }
+    if ($app.pids.Count -gt 1) { "more than one process tree, capturing the first: $($app.pids -join ',')" }
+    [pscustomobject]@{ Id = $app.pids[0] }
+} elseif ($PlayFile) {
+    $sound = "(New-Object Media.SoundPlayer '$((Resolve-Path $PlayFile).Path)').PlaySync()"
+    Start-Process powershell.exe -ArgumentList '-NoProfile', '-Command', $sound -PassThru -WindowStyle Hidden
+} elseif ($TreeTarget) {
     Start-Process cmd.exe -ArgumentList '/k', "for /l %i in (1,1,9) do (@`"$tonePlayer`" 880 $($Seconds + 60) 1 & ping -n 3 127.0.0.1 >nul)" -PassThru -WindowStyle Hidden
 } else {
     Start-Process $tonePlayer -ArgumentList 880, ($Seconds + 60), 1 -PassThru -WindowStyle Hidden
@@ -82,7 +98,7 @@ foreach ($s in $steps) {
     elseif ($s.Cmd -eq 'restartaudio') { Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', 'Restart-Service Audiosrv -Force' }
     else { Send $s.Cmd }
 }
-while (-not $killed -and ((Get-Date) - $start).TotalSeconds -lt $Seconds) { & $mute on | Out-Null; Start-Sleep 2 }
+while (-not $killed -and ((Get-Date) - $start).TotalSeconds -lt $Seconds) { if (-not $NoMute) { & $mute on | Out-Null }; Start-Sleep 2 }
 if (-not $killed) { Send '{"name":"quit"}' }
 $p.StandardInput.Close()
 if (-not $p.WaitForExit(20000)) { 'HUNG; killing'; Stop-Process -Name scrb-capture -Force }

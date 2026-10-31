@@ -3,6 +3,7 @@
 // Usage: ChunkVerify.exe <dir holding audio/> [-v]
 //        ChunkVerify.exe --levels <chunk> <hz>...   prints the frames, then each
 //        tone's highest level in any half second
+//        ChunkVerify.exe --pcm <chunk> <out>        writes the decoded 16-bit samples
 #define _CRT_SECURE_NO_WARNINGS
 #include <opus.h>
 
@@ -125,6 +126,14 @@ int Levels(int argc, char** argv) {
     return 0;
 }
 
+int WritePcm(const char* chunk, const char* path) {
+    Decoded d = DecodeChunk(chunk);
+    if (!d.ok) { puts("BAD"); return 1; }
+    std::ofstream out(path, std::ios::binary);
+    out.write(reinterpret_cast<const char*>(d.pcm.data()), d.pcm.size() * sizeof(int16_t));
+    return out ? 0 : 1;
+}
+
 std::string Field(const std::string& line, const std::string& key) {
     auto at = line.find("\"" + key + "\":");
     if (at == std::string::npos) return {};
@@ -138,6 +147,7 @@ std::string Field(const std::string& line, const std::string& key) {
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
     if (argc > 3 && !strcmp(argv[1], "--levels")) return Levels(argc, argv);
+    if (argc == 4 && !strcmp(argv[1], "--pcm")) return WritePcm(argv[2], argv[3]);
     bool verbose = argc > 2;
     int failures = 0;
     for (const char* track : {"microphone", "meeting"}) {

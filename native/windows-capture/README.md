@@ -163,6 +163,37 @@ to such a copy; `restart_case.mjs`, `pause_case.mjs`, `crash_case.mjs` and
 `run-case.ps1` read it.  `stop_paused_case.mjs` and `long_run.mjs` do not.
 When the mute was saved is not known, and the setting was left as it is.
 
+### T18 tools (2026-10-31)
+
+`scripts/shared_sound.mjs` makes the invented sound and measures it.  It replaces
+the plan's clicks with 60 ms sweeps, 800 to 3200 Hz, at irregular spacing of 2 to
+3 s, because a sweep gives a sharp peak after a call's codec and is less likely
+to be taken for noise.  `measure` decodes each chunk with `ChunkVerify --pcm`,
+places sweeps by `startNs`, pairs them across tracks, and reports mic minus
+meeting at the start and end, using the median of 10 pairs at each end.  It passes
+with at least 20 pairs and drift under 50 ms.  The start offset includes speaker
+and room delay, so only its change is drift.  Decoded audio is deleted after.
+
+```
+node scripts\shared_sound.mjs make out\sweeps.wav 10
+pwsh -File scripts\run-case.ps1 -Case t18-call -Seconds 600 -TargetExe ms-teams.exe -NoMute -Actions '...'
+node scripts\shared_sound.mjs measure out\t18-call
+```
+
+`-TargetExe` needs the app to have an audio session, so run it once the call is
+up.  It finds no app started from the same process tree as the helper.
+`-PlayFile <wav>` plays a file as the target, for a run with no call.
+
+| Check | Result |
+| --- | --- |
+| `shared_sound.test.mjs` (`node --test`) | Pass, 6 of 6, synthetic audio only |
+| 22 s of the WAV through the helper, output muted | Pass: 8 sweeps on meeting, 0 on the muted mic |
+| False sweeps | Pass: 0 on the mic above and 0 in the 60 s `audio-restart-whole` run.  A first threshold based on the median gave 10 false sweeps on the mic, so a match score replaced it |
+| `-TargetExe TonePlayer.exe`, player started outside this tree | Pass: -17.9 dB; an unknown exe stops with a clear error |
+
+Not verified: the mic hearing the speakers, a real measured offset, and Teams as
+a target.  Whether sweeps survive Teams is not known.
+
 ## Results on this PC
 
 Output muted; tone target; each case in `results/<case>.txt`.  Every run
