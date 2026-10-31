@@ -313,8 +313,11 @@ unplug (no USB mic).
    mic audio on a disconnect or service restart.  Both tracks now retry every
    1 s.  A picked mic still falls back to the default after 5 s, so a brief
    dropout does not swap mics: `retry-fallback` fell back about 5.5 s after an
-   unknown mic was picked.  Not verified: the shorter recovery itself, which
-   needs a new Windows Audio restart.
+   unknown mic was picked.  `audio-restart-retry` repeated the Windows Audio
+   restart: both tracks were back within 2.3 s, against 5.6 s before.  Meeting
+   missing 1.58 s, mic 2.22 s, against 5.80 s and 5.71 s; tone in all 13 meeting
+   chunks; VERIFY OK.  One run, so the size of the gain is not established.  Not
+   tested: a real picked-mic disconnect at 1 s.
 10. **The mic followed a default change about 12 minutes late in the long run.**
     Windows showed the built-in mic by 21:39:32 at the latest; the helper moved at
     21:50:27, after 13.7 min on the headset in all.  The cause is not known: the

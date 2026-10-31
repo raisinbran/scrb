@@ -8,9 +8,7 @@ Remaining for this phase: nothing on this PC.  Still needed elsewhere:
    the tools are in `scripts/shared_sound.mjs` (README, "T18 tools").
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
-2. Confirm the 1 s retry with a Windows Audio restart, which needs an admin yes
-   (README finding 9).
-3. Updates to `phase0/design/capture-contract-draft.md` from the README findings:
+2. Updates to `phase0/design/capture-contract-draft.md` from the README findings:
    F11, D2 and T3, Q10, and the new process loopback silent death.  These do not
    touch `packages/contracts/`.
 

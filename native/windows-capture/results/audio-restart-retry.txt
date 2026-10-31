@@ -1,0 +1,9 @@
+case=audio-restart-retry helperExit=0
+microphone: chunks=13 audio=59.7 s missing=2219.9 ms bad=0 part=0 files=13 toneChunks=4 zeroChunks=0 peak=-25.3 dB
+  close reasons: device=1 rollover=11 stop=1
+    missing 2219.9 ms before 23.445 s, cause device
+meeting: chunks=13 audio=60.3 s missing=1584.0 ms bad=0 part=0 files=13 toneChunks=13 zeroChunks=0 peak=-15.4 dB
+  close reasons: device=1 rollover=11 stop=1
+    missing 1584.0 ms before 22.800 s, cause device
+VERIFY OK
+events: defaultApplied=2 defaultNotice=11 streamDead=2 streamReopened=2
