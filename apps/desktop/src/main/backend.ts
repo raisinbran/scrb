@@ -1,6 +1,7 @@
-import { app, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
 import path from 'node:path';
 import {
+  createConfiguredImportRunner,
   createFinalPassRunner,
   createSettingsHandlers,
   FinalPassQueue,
@@ -14,6 +15,7 @@ import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
+import { ImportCoordinator } from './imports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -54,7 +56,32 @@ export async function openBackend(
         : null;
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
-    const recording = helper
+    const privacyBanner = async (): Promise<boolean> => {
+      const rules = await privacyJurisdictions(library.paths.root);
+      return needsPrivacyBanner(
+        settings.getSettings().location,
+        rules,
+        app.getLocaleCountryCode() || null,
+      );
+    };
+    let recording: RecordingController | null = null;
+    const imports = finalPassConfig
+      ? new ImportCoordinator({
+          library,
+          chooseFile: async () => {
+            const picked = await dialog.showOpenDialog({
+              properties: ['openFile'],
+              filters: [{ name: 'Audio files', extensions: ['wav', 'mp3', 'm4a', 'flac', 'opus'] }],
+            });
+            return picked.canceled ? null : (picked.filePaths[0] ?? null);
+          },
+          run: createConfiguredImportRunner(finalPassConfig),
+          recordingBusy: () => recording?.isBusy() ?? false,
+          privacyBanner,
+          emit,
+        })
+      : null;
+    recording = helper
       ? new RecordingController(
           library,
           helper,
@@ -64,11 +91,8 @@ export async function openBackend(
             save: (selection) => settings.updateSettings({ audio: selection }),
           },
           finalPasses,
-          async () => {
-            const rules = await privacyJurisdictions(library.paths.root);
-            const region = app.getLocaleCountryCode() || null;
-            return needsPrivacyBanner(settings.getSettings().location, rules, region);
-          },
+          privacyBanner,
+          async () => imports?.stopForRecording(),
         )
       : null;
     const stopRetention = library.startAutoDeleteSchedule();
@@ -85,8 +109,8 @@ export async function openBackend(
         }),
         // An empty list is explicit until redistribution licenses are verified.
         getLicenses: async () => [],
-        // Real import jobs are not wired into the main process yet.
-        listImports: async () => [],
+        listImports: async () => imports?.list() ?? [],
+        ...imports?.handlers,
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
@@ -100,6 +124,7 @@ export async function openBackend(
           : 'The index needs review; all original files were preserved.',
       close: async () => {
         stopRetention();
+        await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();

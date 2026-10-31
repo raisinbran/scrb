@@ -10,10 +10,14 @@ import {
   type Speaker,
 } from '@scrb/storage';
 import {
+  importAudioFile,
   runFinalPass,
   toolsIn,
   YOU_ID,
   type FinalTranscript,
+  type ImportResult,
+  type Progress,
+  type ImportPhase,
   type ModelPaths,
   type ToolPaths,
   type TrackInput,
@@ -129,6 +133,24 @@ async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models
   const missing = paths.filter((path) => !path || !existsSync(path));
   if (missing.length > 0) throw new FinalPassUnavailableError(`${missing.length} paths missing`);
   return { tools: toolsIn('', tools), models: models as ModelPaths };
+}
+
+/** Imports never publish partial results; the library owns the final meeting commit. */
+export function createConfiguredImportRunner(configPath: string) {
+  return async (input: {
+    sourcePath: string;
+    meetingDir: string;
+    signal: AbortSignal;
+    onProgress: (progress: Progress<ImportPhase>) => void;
+  }): Promise<ImportResult> => {
+    const { tools, models } = await loadSetup(configPath);
+    if (!existsSync(tools.ffprobe)) throw new FinalPassUnavailableError('ffprobe is missing');
+    return importAudioFile({
+      ...input,
+      tools,
+      transcribe: { models },
+    });
+  };
 }
 
 /**
