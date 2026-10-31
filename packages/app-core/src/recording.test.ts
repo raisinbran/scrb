@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContractError } from '@scrb/contracts';
-import type { CaptureAck, CaptureAdapter, CaptureCommand, Track } from '@scrb/capture';
+import type {
+  CaptureAck,
+  CaptureAdapter,
+  CaptureCommand,
+  OpenCommand,
+  Track,
+} from '@scrb/capture';
 import { MAX_WORKER_RESTARTS, RecordingSession, type SessionEnd } from './recording.ts';
 
 const OPEN = {
@@ -14,6 +20,7 @@ const BOTH: Track[] = ['microphone', 'meeting'];
 
 class FakeAdapter implements CaptureAdapter {
   sent: { id: string; name: string }[] = [];
+  commands: CaptureCommand[] = [];
   killed = false;
   gate: 'open' | 'closed' = 'closed';
   reply: (command: CaptureCommand) => Partial<CaptureAck> | 'never' = () => ({});
@@ -21,6 +28,7 @@ class FakeAdapter implements CaptureAdapter {
 
   async send(id: string, command: CaptureCommand): Promise<CaptureAck> {
     this.sent.push({ id, name: command.name });
+    this.commands.push(command);
     const custom = this.reply(command);
     if (custom === 'never') return new Promise(() => undefined);
     if (command.name === 'start' || command.name === 'resume') this.gate = 'open';
@@ -210,6 +218,61 @@ describe('RecordingSession', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(adapters).toHaveLength(MAX_WORKER_RESTARTS + 1);
     expect(ended).toEqual(['workerFailed']);
+  });
+
+  describe('the session clock across a restart', () => {
+    const ORIGIN = 123_456_789;
+    const opened = (adapter: FakeAdapter) =>
+      adapter.commands.find(({ name }) => name === 'open') as OpenCommand;
+    const reportOrigin: FakeAdapter['reply'] = (command) =>
+      command.name === 'start' ? { clockOriginNs: ORIGIN } : {};
+    const crash = async () => {
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+    };
+
+    it('does not send an origin to the first worker', async () => {
+      firstReply = reportOrigin;
+      await session.start(OPEN);
+      expect(opened(latest())).toEqual(OPEN);
+    });
+
+    it('gives every restarted worker the first worker origin', async () => {
+      firstReply = (command) =>
+        command.name === 'start' ? { clockOriginNs: ORIGIN + adapters.length } : {};
+      await session.start(OPEN);
+      const first = ORIGIN + 1;
+      await crash();
+      expect(opened(latest())).toEqual({ ...OPEN, clockOriginNs: first });
+      await crash();
+      expect(opened(latest())).toEqual({ ...OPEN, clockOriginNs: first });
+    });
+
+    it('gives the origin to a worker restarted during a pause', async () => {
+      firstReply = reportOrigin;
+      await session.start(OPEN);
+      await session.pause();
+      await crash();
+      expect(opened(latest()).clockOriginNs).toBe(ORIGIN);
+      await session.resume();
+      expect(session.state.status).toBe('recording');
+    });
+
+    it('opens as before when the helper reports no origin', async () => {
+      await session.start(OPEN);
+      await crash();
+      expect(opened(latest())).toEqual(OPEN);
+    });
+
+    it('does not carry an origin into the next recording', async () => {
+      firstReply = reportOrigin;
+      await session.start(OPEN);
+      await session.stop();
+      firstReply = () => ({});
+      await session.start(OPEN);
+      await crash();
+      expect(opened(latest())).toEqual(OPEN);
+    });
   });
 
   it('keeps a crashed worker paused rather than recording', async () => {
