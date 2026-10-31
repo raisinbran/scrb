@@ -77,8 +77,12 @@ describe('shared components', () => {
     opener.focus();
     const { unmount } = render(
       <Dialog title="Hidden controls">
-        <div hidden><button type="button">Hidden action</button></div>
-        <button type="button" disabled>Disabled action</button>
+        <div hidden>
+          <button type="button">Hidden action</button>
+        </div>
+        <button type="button" disabled>
+          Disabled action
+        </button>
         <button type="button">Visible action</button>
       </Dialog>,
     );

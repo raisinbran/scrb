@@ -339,32 +339,50 @@ export function splitSpeaker(
   const first = span[0] as PlacedWord;
   const last = span.at(-1) as PlacedWord;
   const originalSpeaker = resolveSpeakerId(transcript, first.segment.speakerId);
-  if (span.some((placed) => resolveSpeakerId(transcript, placed.segment.speakerId) !== originalSpeaker)) {
+  if (
+    span.some(
+      (placed) => resolveSpeakerId(transcript, placed.segment.speakerId) !== originalSpeaker,
+    )
+  ) {
     throw new CorrectionConflictError('Selected words belong to different speakers');
   }
-  if (transcript.speakerOverrides.some((override) =>
-    override.track === first.segment.track &&
-    override.startMs < last.word.endMs &&
-    override.endMs > first.word.startMs
-  )) {
+  if (
+    transcript.speakerOverrides.some(
+      (override) =>
+        override.track === first.segment.track &&
+        override.startMs < last.word.endMs &&
+        override.endMs > first.word.startMs,
+    )
+  ) {
     throw new CorrectionConflictError('Selected words already have a speaker override');
   }
   const speaker: Speaker = {
-    id: speakerId, label, name: label,
-    profileId: null, userNamed: true, mergedInto: null,
+    id: speakerId,
+    label,
+    name: label,
+    profileId: null,
+    userNamed: true,
+    mergedInto: null,
   };
   const override: SpeakerOverride = {
-    id: randomUUID(), track: first.segment.track,
-    startMs: first.word.startMs, endMs: last.word.endMs, speakerId,
+    id: randomUUID(),
+    track: first.segment.track,
+    startMs: first.word.startMs,
+    endMs: last.word.endMs,
+    speakerId,
   };
-  return pushHistory({
-    ...transcript,
-    speakers: [...transcript.speakers, speaker],
-    speakerOverrides: [...transcript.speakerOverrides, override],
-  }, 'Split speaker', {
-    speakers: [{ id: speakerId, before: null, after: speaker }],
-    overrides: [{ id: override.id, before: null, after: override }],
-  });
+  return pushHistory(
+    {
+      ...transcript,
+      speakers: [...transcript.speakers, speaker],
+      speakerOverrides: [...transcript.speakerOverrides, override],
+    },
+    'Split speaker',
+    {
+      speakers: [{ id: speakerId, before: null, after: speaker }],
+      overrides: [{ id: override.id, before: null, after: override }],
+    },
+  );
 }
 
 /** Adds new model text. Live segments arrive per track, so order is restored here. */

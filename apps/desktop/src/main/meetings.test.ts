@@ -109,32 +109,51 @@ describe('createMeetingHandlers', () => {
     try {
       const meeting = await recorded('Invented orchard', '2026-11-01T00:15:00Z');
       await library.applyFinalPass(meeting.id, {
-        segments: [{
-          id: 'invented-source-segment', speakerId: 'invented-speaker',
-          track: 'meeting', pass: 'final',
-          words: [
-            { id: 'word-1', text: 'the', startMs: 120, endMs: 240 },
-            { id: 'word-2', text: 'orchard', startMs: 250, endMs: 500 },
-          ],
-        }],
-        speakers: [{
-          id: 'invented-speaker', label: 'Speaker 1', name: null,
-          profileId: null, userNamed: false, mergedInto: null,
-        }],
+        segments: [
+          {
+            id: 'invented-source-segment',
+            speakerId: 'invented-speaker',
+            track: 'meeting',
+            pass: 'final',
+            words: [
+              { id: 'word-1', text: 'the', startMs: 120, endMs: 240 },
+              { id: 'word-2', text: 'orchard', startMs: 250, endMs: 500 },
+            ],
+          },
+        ],
+        speakers: [
+          {
+            id: 'invented-speaker',
+            label: 'Speaker 1',
+            name: null,
+            profileId: null,
+            userNamed: false,
+            mergedInto: null,
+          },
+        ],
       });
       const found = await value('searchMeetings', {
-        query: 'orchard', filter: { from: '2026-10-31', to: '2026-10-31' },
+        query: 'orchard',
+        filter: { from: '2026-10-31', to: '2026-10-31' },
       });
-      expect(found).toEqual([expect.objectContaining({
-        meeting: expect.objectContaining({ id: meeting.id }),
-        matches: expect.arrayContaining([{
-          segmentId: 'invented-source-segment', startMs: 250,
-          snippet: expect.stringContaining('orchard'),
-        }]),
-      })]);
-      expect(await value('searchMeetings', {
-        query: 'orchard', filter: { from: '2026-11-01' },
-      })).toEqual([]);
+      expect(found).toEqual([
+        expect.objectContaining({
+          meeting: expect.objectContaining({ id: meeting.id }),
+          matches: expect.arrayContaining([
+            {
+              segmentId: 'invented-source-segment',
+              startMs: 250,
+              snippet: expect.stringContaining('orchard'),
+            },
+          ]),
+        }),
+      ]);
+      expect(
+        await value('searchMeetings', {
+          query: 'orchard',
+          filter: { from: '2026-11-01' },
+        }),
+      ).toEqual([]);
     } finally {
       vi.unstubAllEnvs();
     }

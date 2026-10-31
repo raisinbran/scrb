@@ -716,7 +716,11 @@ export function createMeetingHandlers(
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
-      return toSummaryDoc(meetingId, await library.readSummary(meetingId), summaries?.isGenerating(meetingId) ?? false);
+      return toSummaryDoc(
+        meetingId,
+        await library.readSummary(meetingId),
+        summaries?.isGenerating(meetingId) ?? false,
+      );
     },
     updateSummaryItem: async (request) => {
       const { meetingId, update } = request as {

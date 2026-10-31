@@ -147,7 +147,10 @@ describe('correction layer', () => {
   it('refuses a split crossing different speakers or an existing override', () => {
     const w1 = words('first words', 0);
     const w2 = words('other words', 1000);
-    const t = transcript([segment('s1', 'a', w1), segment('s2', 'b', w2)], [speaker('a'), speaker('b')]);
+    const t = transcript(
+      [segment('s1', 'a', w1), segment('s2', 'b', w2)],
+      [speaker('a'), speaker('b')],
+    );
     expect(() => splitSpeaker(t, [w1[1]!.id, w2[0]!.id], 'Other')).toThrow(CorrectionConflictError);
     const adjusted = reassignSpeaker(t, [w1[0]!.id], 'b');
     expect(() => splitSpeaker(adjusted, [w1[0]!.id], 'Other')).toThrow(CorrectionConflictError);

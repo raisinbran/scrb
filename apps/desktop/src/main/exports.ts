@@ -10,7 +10,10 @@ import {
   type ExportRequest,
 } from '@scrb/contracts';
 import {
-  buildExportDocument, renderDocx, renderPdf, ExportInputError,
+  buildExportDocument,
+  renderDocx,
+  renderPdf,
+  ExportInputError,
 } from '../../../../packages/export/src/index.ts';
 import type { PrintHtmlToPdf } from '../../../../packages/export/src/render-pdf.ts';
 import type { CallHandlers } from './dispatch.ts';
@@ -21,7 +24,12 @@ type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 export const printPdf: PrintHtmlToPdf = async (html, options) => {
   const window = new BrowserWindow({
     show: false,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+    },
   });
   try {
     await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
@@ -59,19 +67,29 @@ export class ExportCoordinator {
     try {
       const data = toExportMeeting(snapshot.meeting, snapshot.transcript, snapshot.summary);
       const document = buildExportDocument(data, {
-        scope: input.content, transcript: input.transcript, summary: input.summary,
+        scope: input.content,
+        transcript: input.transcript,
+        summary: input.summary,
       });
-      const bytes = input.format === 'docx'
-        ? await renderDocx(document)
-        : await renderPdf(document, this.print);
+      const bytes =
+        input.format === 'docx'
+          ? await renderDocx(document)
+          : await renderPdf(document, this.print);
       const fileName = `meeting-${exportId}.${input.format}`;
-      await atomicWriteFile(join(this.library.meetingPaths(input.meetingId).exports, fileName), bytes);
+      await atomicWriteFile(
+        join(this.library.meetingPaths(input.meetingId).exports, fileName),
+        bytes,
+      );
       this.emit('exportFinished', { exportId, meetingId: input.meetingId, ok: true, fileName });
     } catch (error) {
       this.emit('exportFinished', {
-        exportId, meetingId: input.meetingId, ok: false,
-        message: error instanceof ExportInputError
-          ? error.message : 'Could not export the meeting. Its original files are unchanged.',
+        exportId,
+        meetingId: input.meetingId,
+        ok: false,
+        message:
+          error instanceof ExportInputError
+            ? error.message
+            : 'Could not export the meeting. Its original files are unchanged.',
       });
     } finally {
       snapshot.release();

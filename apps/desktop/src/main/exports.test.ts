@@ -14,8 +14,12 @@ const REQUEST = {
   content: 'transcript',
   format: 'pdf',
   transcript: {
-    title: true, date: true, duration: true,
-    speakerNames: true, timestamps: true, showCorrections: true,
+    title: true,
+    date: true,
+    duration: true,
+    speakerNames: true,
+    timestamps: true,
+    showCorrections: true,
   },
   summary: { length: 'brief', openQuestions: true, sourceTimestamps: true },
 } satisfies ExportRequest;
@@ -32,15 +36,21 @@ describe('desktop export jobs', () => {
         return Buffer.from('%PDF invented test bytes');
       });
       const exporter = new ExportCoordinator(library, events, html);
-      const result = await exporter.handlers.exportMeeting!({
-        ...REQUEST, meetingId: meeting.id,
-      }) as { exportId: string };
-      await vi.waitFor(() => expect(events).toHaveBeenCalledWith('exportFinished',
-        expect.objectContaining({ exportId: result.exportId, ok: true })));
+      const result = (await exporter.handlers.exportMeeting!({
+        ...REQUEST,
+        meetingId: meeting.id,
+      })) as { exportId: string };
+      await vi.waitFor(() =>
+        expect(events).toHaveBeenCalledWith(
+          'exportFinished',
+          expect.objectContaining({ exportId: result.exportId, ok: true }),
+        ),
+      );
       const files = await readdir(library.meetingPaths(meeting.id).exports);
       expect(files).toEqual([`meeting-${result.exportId}.pdf`]);
-      expect(await readFile(join(library.meetingPaths(meeting.id).exports, files[0]!)))
-        .toEqual(Buffer.from('%PDF invented test bytes'));
+      expect(await readFile(join(library.meetingPaths(meeting.id).exports, files[0]!))).toEqual(
+        Buffer.from('%PDF invented test bytes'),
+      );
       await exporter.shutdown();
     } finally {
       await library.close();
@@ -55,8 +65,12 @@ describe('desktop export jobs', () => {
       const events = vi.fn();
       let finish!: (bytes: Uint8Array) => void;
       const exporter = new ExportCoordinator(
-        library, events,
-        async () => new Promise<Uint8Array>((resolve) => { finish = resolve; }),
+        library,
+        events,
+        async () =>
+          new Promise<Uint8Array>((resolve) => {
+            finish = resolve;
+          }),
       );
       await exporter.handlers.exportMeeting!({ ...REQUEST, meetingId: meeting.id });
       await expect(library.deleteMeeting(meeting.id)).rejects.toMatchObject({

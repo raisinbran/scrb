@@ -271,16 +271,25 @@ export class Library {
         throw new StorageError('ACTIVE_MEETING', 'An export is already in progress.');
       }
       const meeting = await this.getMeeting(meetingId);
-      if (meeting.status === 'recording' || meeting.status === 'importing' || meeting.status === 'finalPassRunning') {
+      if (
+        meeting.status === 'recording' ||
+        meeting.status === 'importing' ||
+        meeting.status === 'finalPassRunning'
+      ) {
         throw new StorageError('ACTIVE_MEETING', 'Finish the meeting operation before exporting.');
       }
       const [transcript, summary] = await Promise.all([
-        this.readTranscript(meetingId), this.readSummary(meetingId),
+        this.readTranscript(meetingId),
+        this.readSummary(meetingId),
       ]);
       this.activeExports.add(meetingId);
       return {
-        meeting, transcript, summary,
-        release: () => { this.activeExports.delete(meetingId); },
+        meeting,
+        transcript,
+        summary,
+        release: () => {
+          this.activeExports.delete(meetingId);
+        },
       };
     });
   }
@@ -564,10 +573,15 @@ export class Library {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
   }
 
-  splitSpeaker(meetingId: string, wordIds: string[], newLabel: string): Promise<{ transcript: TranscriptFile; speakerId: string }> {
+  splitSpeaker(
+    meetingId: string,
+    wordIds: string[],
+    newLabel: string,
+  ): Promise<{ transcript: TranscriptFile; speakerId: string }> {
     const speakerId = randomUUID();
-    return this.edit(meetingId, (t) => corrections.splitSpeaker(t, wordIds, newLabel, speakerId))
-      .then((transcript) => ({ transcript, speakerId }));
+    return this.edit(meetingId, (t) =>
+      corrections.splitSpeaker(t, wordIds, newLabel, speakerId),
+    ).then((transcript) => ({ transcript, speakerId }));
   }
 
   reassignSpeaker(

@@ -22,16 +22,24 @@ describe('logger privacy at worker failure boundaries', () => {
     expect(file).not.toContain(leaked);
     const entry = JSON.parse(file) as Record<string, unknown>;
     expect(entry).toMatchObject({
-      stdout: '[redacted]', stderr: '[redacted]',
-      workerOutput: '[redacted]', workerMessage: '[redacted]',
-      error: 'Error', code: 'unknown',
+      stdout: '[redacted]',
+      stderr: '[redacted]',
+      workerOutput: '[redacted]',
+      workerMessage: '[redacted]',
+      error: 'Error',
+      code: 'unknown',
     });
   });
 
   it('retains safe diagnostic type and known OS error codes without error messages', () => {
-    expect(errorFields(Object.assign(new Error('Invented private transcript'), {
-      name: 'StorageError', code: 'EACCES',
-    }))).toEqual({ error: 'StorageError', code: 'EACCES' });
+    expect(
+      errorFields(
+        Object.assign(new Error('Invented private transcript'), {
+          name: 'StorageError',
+          code: 'EACCES',
+        }),
+      ),
+    ).toEqual({ error: 'StorageError', code: 'EACCES' });
     expect(errorFields(null)).toEqual({ error: 'Error', code: 'unknown' });
   });
 });

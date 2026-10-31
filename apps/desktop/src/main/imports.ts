@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { Library } from '@scrb/storage';
-import { toModelReplacement, type ImportResult, type ImportPhase, type Progress } from '@scrb/app-core';
+import {
+  toModelReplacement,
+  type ImportResult,
+  type ImportPhase,
+  type Progress,
+} from '@scrb/app-core';
 import {
   ContractError,
   type ActiveImport,
@@ -66,7 +71,12 @@ export class ImportCoordinator {
     const fileToken = randomUUID();
     if (this.tokens.size >= 8) this.tokens.delete(this.tokens.keys().next().value as string);
     this.tokens.set(fileToken, file);
-    return { fileToken, fileName: basename(file), sizeBytes: info.size, fileDate: info.mtime.toISOString() };
+    return {
+      fileToken,
+      fileName: basename(file),
+      sizeBytes: info.size,
+      fileDate: info.mtime.toISOString(),
+    };
   }
 
   private async start(input: { fileToken: string; buildVoiceProfiles: boolean }): Promise<{
@@ -74,7 +84,10 @@ export class ImportCoordinator {
     privacyBannerRequired: boolean;
   }> {
     if (this.running || this.starting || this.deps.recordingBusy()) {
-      throw new ContractError({ code: 'conflict', message: 'Finish recording or importing first.' });
+      throw new ContractError({
+        code: 'conflict',
+        message: 'Finish recording or importing first.',
+      });
     }
     this.starting = true;
     let sourcePath: string;
@@ -95,7 +108,11 @@ export class ImportCoordinator {
     }
     const importId = randomUUID();
     const state: ActiveImport = {
-      importId, fileName: basename(sourcePath), stage: 'queued', fraction: 0, cancelling: false,
+      importId,
+      fileName: basename(sourcePath),
+      stage: 'queued',
+      fraction: 0,
+      cancelling: false,
     };
     const abort = new AbortController();
     const done = this.perform(state, sourcePath, abort, input.buildVoiceProfiles);
@@ -117,21 +134,28 @@ export class ImportCoordinator {
     try {
       await mkdir(stageRoot, { recursive: true });
       const result = await this.deps.run({
-        sourcePath, meetingDir: staging, signal: abort.signal,
+        sourcePath,
+        meetingDir: staging,
+        signal: abort.signal,
         onProgress: (progress) => {
           state.stage = STAGES[progress.phase];
           state.fraction = Math.max(0, Math.min(1, progress.fraction));
           this.deps.emit('importProgress', {
-            importId: state.importId, fileName: state.fileName,
-            stage: state.stage, fraction: state.fraction,
+            importId: state.importId,
+            fileName: state.fileName,
+            stage: state.stage,
+            fraction: state.fraction,
           });
         },
       });
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({
-        title: state.fileName, source: 'imported', status: 'importing',
-        date: result.fileDate.toISOString(), durationMs: result.durationMs,
+        title: state.fileName,
+        source: 'imported',
+        status: 'importing',
+        date: result.fileDate.toISOString(),
+        durationMs: result.durationMs,
         buildVoiceProfiles,
       });
       meetingId = created.id;
@@ -163,23 +187,34 @@ export class ImportCoordinator {
       } else {
         const code = (error as { code?: string }).code;
         const reason: ImportFailureReason =
-          code === 'disk_full' ? 'diskFull' :
-          code === 'recording_active' ? 'recordingInProgress' :
-          code === 'unsupported_format' || code === 'video_not_accepted' ? 'unsupportedFormat' :
-          code === 'no_permission' || code === 'not_found' || code === 'unreadable' ? 'unreadable' :
-          'internal';
+          code === 'disk_full'
+            ? 'diskFull'
+            : code === 'recording_active'
+              ? 'recordingInProgress'
+              : code === 'unsupported_format' || code === 'video_not_accepted'
+                ? 'unsupportedFormat'
+                : code === 'no_permission' || code === 'not_found' || code === 'unreadable'
+                  ? 'unreadable'
+                  : 'internal';
         this.deps.emit('importFailed', {
-          importId: state.importId, fileName: state.fileName, reason,
-          message: reason === 'diskFull' ? 'There is not enough space to import this audio.' :
-            reason === 'recordingInProgress' ? 'Recording took priority. Retry the import.' :
-            reason === 'unsupportedFormat' ? 'This audio format is not supported.' :
-            'Import did not finish. No meeting was saved.',
+          importId: state.importId,
+          fileName: state.fileName,
+          reason,
+          message:
+            reason === 'diskFull'
+              ? 'There is not enough space to import this audio.'
+              : reason === 'recordingInProgress'
+                ? 'Recording took priority. Retry the import.'
+                : reason === 'unsupportedFormat'
+                  ? 'This audio format is not supported.'
+                  : 'Import did not finish. No meeting was saved.',
         });
       }
     } finally {
       await rm(staging, { recursive: true, force: true }).catch(() => undefined);
       this.completed.add(state.importId);
-      if (this.completed.size > 50) this.completed.delete(this.completed.values().next().value as string);
+      if (this.completed.size > 50)
+        this.completed.delete(this.completed.values().next().value as string);
       if (this.running?.state.importId === state.importId) this.running = null;
     }
   }
@@ -215,7 +250,8 @@ export class ImportCoordinator {
   get handlers(): CallHandlers {
     return {
       pickAudioFile: () => this.pick(),
-      importAudioFile: (input) => this.start(input as { fileToken: string; buildVoiceProfiles: boolean }),
+      importAudioFile: (input) =>
+        this.start(input as { fileToken: string; buildVoiceProfiles: boolean }),
       cancelImport: (input) => this.cancel((input as { importId: string }).importId),
     };
   }

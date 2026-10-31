@@ -26,10 +26,18 @@ async function fixture() {
     await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
     await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
     return {
-      meetingDir, sourceName: 'invented.wav', fileDate: new Date('2026-10-31T00:00:00Z'),
-      durationMs: 1000, chunks: [],
+      meetingDir,
+      sourceName: 'invented.wav',
+      fileDate: new Date('2026-10-31T00:00:00Z'),
+      durationMs: 1000,
+      chunks: [],
       transcript: {
-        version: 1, durationMs: 1000, words: [], turns: [], speakers: [], spans: [],
+        version: 1,
+        durationMs: 1000,
+        words: [],
+        turns: [],
+        speakers: [],
+        spans: [],
         models: { speech: 'synthetic', segmentation: 'synthetic', embedding: 'synthetic' },
         timing: { transcribeMs: 1, diarizeMs: 1 },
       },
@@ -50,22 +58,29 @@ async function fixture() {
 describe('Electron import coordination', () => {
   it('keeps chosen paths private, consumes file tokens once, and publishes a completed meeting', async () => {
     const f = await fixture();
-    const file = await f.coordinator.handlers.pickAudioFile!(undefined) as {
-      fileToken: string; fileName: string; sizeBytes: number; fileDate: string;
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+      fileName: string;
+      sizeBytes: number;
+      fileDate: string;
     };
     expect(file).toMatchObject({ fileName: 'invented.wav' });
     expect(JSON.stringify(file)).not.toContain(f.root);
-    const { importId } = await f.coordinator.handlers.importAudioFile!({
-      fileToken: file.fileToken, buildVoiceProfiles: false,
-    }) as { importId: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
     await vi.waitFor(() => {
       expect(f.emit).toHaveBeenCalledWith('importFinished', { importId, meetingId: 'imported-1' });
     });
     expect(f.applied).toHaveBeenCalledTimes(1);
     expect(f.update).toHaveBeenCalledWith('imported-1', { status: 'ready' });
-    await expect(f.coordinator.handlers.importAudioFile!({
-      fileToken: file.fileToken, buildVoiceProfiles: false,
-    })).rejects.toMatchObject({ code: 'notFound' });
+    await expect(
+      f.coordinator.handlers.importAudioFile!({
+        fileToken: file.fileToken,
+        buildVoiceProfiles: false,
+      }),
+    ).rejects.toMatchObject({ code: 'notFound' });
     expect(f.coordinator.list()).toEqual([]);
     await f.coordinator.shutdown();
   });
@@ -78,13 +93,15 @@ describe('Electron import coordination', () => {
       });
       throw new Error('unreachable');
     });
-    const file = await f.coordinator.handlers.pickAudioFile!(undefined) as { fileToken: string };
-    const { importId } = await f.coordinator.handlers.importAudioFile!({
-      fileToken: file.fileToken, buildVoiceProfiles: false,
-    }) as { importId: string };
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
     await f.coordinator.handlers.cancelImport!({ importId });
     expect(f.emit).toHaveBeenCalledWith('importCancelled', {
-      importId, fileName: 'invented.wav',
+      importId,
+      fileName: 'invented.wav',
     });
     expect(f.deps.library.createMeeting).not.toHaveBeenCalled();
     await f.coordinator.handlers.cancelImport!({ importId });
@@ -99,14 +116,19 @@ describe('Electron import coordination', () => {
       });
       throw new Error('unreachable');
     });
-    const file = await f.coordinator.handlers.pickAudioFile!(undefined) as { fileToken: string };
-    const { importId } = await f.coordinator.handlers.importAudioFile!({
-      fileToken: file.fileToken, buildVoiceProfiles: false,
-    }) as { importId: string };
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
     await f.coordinator.stopForRecording();
-    expect(f.emit).toHaveBeenCalledWith('importFailed', expect.objectContaining({
-      importId, reason: 'recordingInProgress',
-    }));
+    expect(f.emit).toHaveBeenCalledWith(
+      'importFailed',
+      expect.objectContaining({
+        importId,
+        reason: 'recordingInProgress',
+      }),
+    );
     expect(f.deps.library.createMeeting).not.toHaveBeenCalled();
     await f.coordinator.shutdown();
   });
