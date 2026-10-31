@@ -218,6 +218,9 @@ unplug (no USB mic).
     Windows notice, its role and device, `armed` if a debounce was pending,
     `queuedMs` on the control thread) and `defaultApplied` (`moved`, `sameDevice`,
     `streamClosed`, `unresolved` or `suggested`) now log this for the next run.
+    Both fired in a real switch each way (`results/default-notice-log.txt`): the
+    mic moved 5.03 s and 5.02 s after the first notice, so the delay did not come
+    back and its cause is still not known.
 11. Offset cannot be read from the size of the difference between chunk starts.
     Any gap ends a chunk early and moves that track's grid, so the difference
     ranges up to a chunk length.  `long_run.mjs` now follows it only across plain
