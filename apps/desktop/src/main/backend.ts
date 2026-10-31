@@ -73,6 +73,16 @@ export async function openBackend(
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
+        getAppInfo: async () => ({
+          name: app.getName(),
+          version: app.getVersion(),
+          buildDate: 'Not recorded',
+          copyright: '© 2026 BJC, all rights reserved; personal use only',
+          storageStatement: 'Recordings, transcripts and voice profiles stay on this computer.',
+          models: [],
+        }),
+        // An empty list is explicit until redistribution licenses are verified.
+        getLicenses: async () => [],
         // Real import jobs are not wired into the main process yet.
         listImports: async () => [],
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
