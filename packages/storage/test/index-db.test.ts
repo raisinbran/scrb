@@ -244,6 +244,43 @@ describe('index migrations', () => {
     },
   );
 
+  it('recovers when a real child is killed inside a schema migration transaction', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 5);
+    old.prepare('INSERT INTO settings VALUES (?, ?)').run('theme', '"dark"');
+    old.close();
+    const reached = `${file}.migration-reached`;
+
+    const script = `
+      import { DatabaseSync } from 'node:sqlite';
+      import { writeFileSync } from 'node:fs';
+      import { openIndex } from ${JSON.stringify(new URL('../src/db/database.ts', import.meta.url).href)};
+      const original = DatabaseSync.prototype.exec;
+      DatabaseSync.prototype.exec = function (sql) {
+        const result = original.call(this, sql);
+        if (sql.includes('CREATE TABLE vocabulary_misheard_sources')) {
+          writeFileSync(process.argv[2], 'inside-transaction');
+          process.kill(process.pid, 'SIGKILL');
+        }
+        return result;
+      };
+      await openIndex(process.argv[1]);
+    `;
+    const killed = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', '--input-type=module', '-e', script, file, reached],
+      { encoding: 'utf8' },
+    );
+    expect(killed.status).not.toBe(0);
+    expect(await readFile(reached, 'utf8')).toBe('inside-transaction');
+
+    const { db } = await openIndex(file);
+    expect(readIndexVersion(db)).toBe(INDEX_VERSION);
+    expect(new SettingsStore(db).get('theme', 'light')).toBe('dark');
+    db.close();
+  });
+
   it('refuses an unresolved upgrade snapshot, preserving both versions on retry', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const older = new DatabaseSync(file);
