@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { RecordingSession, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
-import { ProcessAdapter } from '@scrb/capture';
+import { ProcessAdapter, type Track } from '@scrb/capture';
 import {
   ContractError,
   type BackendEvents,
@@ -68,6 +68,7 @@ export class RecordingController {
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
   private finishing: Promise<void> | null = null;
+  private writeErrors = new Set<string>();
 
   constructor(
     private readonly library: Library,
@@ -88,6 +89,17 @@ export class RecordingController {
     const warnings = [...(this.health?.warnings ?? []), { ...warning, atMs: this.state.elapsedMs }];
     this.health = { level, warnings, diskFreeBytes: this.health?.diskFreeBytes ?? 0 };
     this.emit('recordingHealth', this.health);
+  }
+
+  /** A failed writer must be reported even if the other track keeps recording. */
+  private writeError(track: Track | undefined): void {
+    const key = track ?? 'session';
+    if (this.writeErrors.has(key)) return;
+    this.writeErrors.add(key);
+    const message = track
+      ? `The ${track} track is not being saved.`
+      : 'Part of this recording could not be saved.';
+    this.warn({ kind: 'audioMissing', message, ...(track ? { track } : {}) }, 'failed');
   }
 
   private tick(): void {
@@ -154,6 +166,7 @@ export class RecordingController {
       status: 'recording',
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
+    this.writeErrors.clear();
     this.state = {
       ...IDLE,
       meetingId: meeting.id,
@@ -175,6 +188,8 @@ export class RecordingController {
         adapter.onEvent((event) => {
           if (event.type === 'health') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
+          } else if (event.type === 'writeError') {
+            this.writeError(event.track);
           }
         });
         return adapter;

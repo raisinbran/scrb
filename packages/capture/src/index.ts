@@ -80,7 +80,8 @@ export type CaptureEvent =
     }
   | { type: 'sourceChanged'; alive: boolean }
   | { type: 'health'; micDb: number; meetingDb: number }
-  | { type: 'writeError'; message: string };
+  /** No `track` means the whole session, such as a session log write. */
+  | { type: 'writeError'; message: string; track?: Track };
 
 /** One running audio worker. */
 export interface CaptureAdapter {
