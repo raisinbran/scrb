@@ -26,4 +26,6 @@
 4. Avoid paths/usernames/transcripts/profile names in logs and messages; use a neutral library location for the folder-opening action.
 5. Tests use invented DB rows and injected locks. Windows AV handles, macOS locks, real power-loss and installed-app dialogs remain machine-only checks for Claude Code.
 
+**Owner decision, 2026-10-31 (narrows case B):** after a crash before the migration commits, let SQLite roll the live index back. If it is at the old version and its rows match the hash-verified snapshot, remove the snapshot and upgrade again. If live is at the target version, sound and row-preserving, continue as case C. Anything else stays blocked.
+
 **Explicitly excluded:** D/restoration, automatic snapshot replacement, manual restore buttons, new IPC channels, and any attempt to erase user-created backups.
