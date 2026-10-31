@@ -167,6 +167,7 @@ export class Library {
   readonly settings: SettingsStore;
   readonly vocabulary: VocabularyStore;
   readonly voiceProfiles: VoiceProfileStore;
+  readonly retainedIndexSnapshot: boolean;
   readonly logger: Logger;
   /** Where a corrupt index was moved. Vocabulary and voice profiles must be rebuilt if set. */
   readonly replacedCorruptIndex: string | null;
@@ -186,12 +187,14 @@ export class Library {
     logger: Logger,
     clock: () => Date,
     replacedCorruptIndex: string | null,
+    retainedIndexSnapshot: boolean,
   ) {
     this.paths = paths;
     this.db = db;
     this.logger = logger;
     this.clock = clock;
     this.replacedCorruptIndex = replacedCorruptIndex;
+    this.retainedIndexSnapshot = retainedIndexSnapshot;
     const now = (): string => clock().toISOString();
     this.settings = new SettingsStore(db);
     this.vocabulary = new VocabularyStore(db, now);
@@ -217,8 +220,8 @@ export class Library {
     );
     const clock = options.now ?? (() => new Date());
     const logger = options.logger ?? new Logger(paths.logs, clock);
-    const { db, replacedCorruptIndex } = await openIndex(paths.index);
-    const library = new Library(paths, db, logger, clock, replacedCorruptIndex);
+    const { db, replacedCorruptIndex, retainedSnapshot } = await openIndex(paths.index);
+    const library = new Library(paths, db, logger, clock, replacedCorruptIndex, retainedSnapshot);
     Object.assign(library.openReport, await library.reconcile());
     await library.repairVocabulary();
     await logger.prune();
