@@ -79,6 +79,9 @@ Your task is number <N> in the remaining-work file, or in the split file for 9 t
 Type: return a plan before code where it says Plan, and propose exact TypeScript without changing
 packages/contracts/ where it says Contract.
 
+The goal of plans and QA is to find and fix true bugs and flaws without bloating code or plans or
+inflating scope. Judge findings by real risk and prefer the smallest fix.
+
 First tell me whether you can read the repo. If you cannot, stop and ask me to paste the files you
 need. Do not guess at code you have not read. Name the main commit you worked from, and list
 anything you did not run or check.

@@ -1,6 +1,6 @@
 // Real worker test of the app's restart limit, through RecordingSession and ProcessAdapter. Play a
 // sound throughout, or the whole-computer track has no chunks. Run under run-muted.sh.
-// Usage: node --experimental-transform-types three_kill_case.mjs <helper> <work dir> [lock]
+// Usage: node --experimental-transform-types three_kill_case.mjs <helper> <work dir> [lock [seconds held]]
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,7 +8,7 @@ import { ProcessAdapter } from '../../../packages/capture/src/process-adapter.ts
 import { RecordingSession } from '../../../packages/app-core/src/recording.ts';
 import { sealAudio } from '../../../packages/app-core/src/recovery.ts';
 
-const [helper, work, only] = process.argv.slice(2);
+const [helper, work, only, held = '3'] = process.argv.slice(2);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function session(dir, onLaunch = () => undefined) {
@@ -125,7 +125,7 @@ if (only !== 'lock') {
   await report(dir, run.log);
 }
 
-console.log('=== brief fault: writer lock held 3 s after a kill');
+console.log(`=== brief fault: writer lock held ${held} s after a kill`);
 {
   const dir = join(work, 'lock');
   // The child keeps the flock after the parent exits, so the lock is held before launch returns.
@@ -134,20 +134,22 @@ import fcntl, os, sys, time
 fd = os.open(sys.argv[1], os.O_CREAT | os.O_RDWR, 0o600)
 fcntl.flock(fd, fcntl.LOCK_EX)
 if os.fork() == 0:
-    time.sleep(3)
+    time.sleep(float(sys.argv[2]))
 `;
   const run = session(dir, (launch) => {
     if (launch === 2)
-      spawnSync('python3', ['-c', hold, join(dir, 'audio', 'writer.lock')], { stdio: 'ignore' });
+      spawnSync('python3', ['-c', hold, join(dir, 'audio', 'writer.lock'), held], {
+        stdio: 'ignore',
+      });
   });
   await run.recording.start(run.open);
   await sleep(6000);
   const killedAt = Date.now();
   run.kill();
-  await Promise.race([run.finished, sleep(10_000)]);
+  await Promise.race([run.finished, sleep(Number(held) * 1000 + 7000)]);
   console.log(run.log.ended ? `ended ${run.log.endedAt - killedAt} ms after the kill` : 'survived');
   if (!run.log.ended) await run.recording.stop();
-  await sleep(3500);
+  await sleep(Number(held) * 1000 + 500);
   await report(dir, run.log);
 }
 process.exit(0);

@@ -3,11 +3,13 @@
 
 Plays 880 Hz for 6 s, a marker of 2000 Hz for 6 s, then 880 Hz again, and pauses across the marker.
 Passes if no marker reached any chunk, the tone either side did, and the paused span is recorded.
-Usage: pause_case.py <helper> <ffmpeg> <work dir>
+Usage: pause_case.py <helper> <ffmpeg> <work dir> [pause seconds]
+A device that starts playing late needs a longer pause, or the marker outlasts it and fails the check.
 """
 import json, math, os, struct, subprocess, sys, time, wave
 
 helper, ffmpeg, work = sys.argv[1:4]
+pause_seconds = float(sys.argv[4]) if len(sys.argv) > 4 else 7.5
 os.makedirs(work, exist_ok=True)
 RATE = 8000
 tone_file = os.path.join(work, "tones.wav")
@@ -27,6 +29,8 @@ def send(id_, **fields):
         message = json.loads(worker.stdout.readline())
         if message.get("type") == "ack":
             print(id_, message); return message
+        if message.get("event") == "converting":
+            print(message)
 
 time.sleep(0.5)
 out = os.path.join(work, "meeting")
@@ -36,7 +40,7 @@ started = time.time()
 time.sleep(4.8)
 t0 = time.time(); pause = send("p", name="pause"); print("pause ms", (time.time() - t0) * 1000)
 assert send("p", name="pause") == pause, "retry must return the first reply"
-time.sleep(7.5)
+time.sleep(pause_seconds)
 send("r", name="resume")
 time.sleep(5.0)
 send("x", name="stop")

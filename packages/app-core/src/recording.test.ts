@@ -4,15 +4,14 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContractError } from '@scrb/contracts';
 import { ProcessAdapter } from '@scrb/capture';
-import type {
-  CaptureAck,
-  CaptureAdapter,
-  CaptureCommand,
-  OpenCommand,
-  Track,
-} from '@scrb/capture';
+import type { CaptureAck, CaptureAdapter, CaptureCommand, OpenCommand, Track } from '@scrb/capture';
 import { chunk } from './chunk-fixture.ts';
-import { MAX_WORKER_RESTARTS, RecordingSession, type SessionEnd } from './recording.ts';
+import {
+  MAX_WORKER_RESTARTS,
+  RESTART_WAITS_MS,
+  RecordingSession,
+  type SessionEnd,
+} from './recording.ts';
 import { sealAudio } from './recovery.ts';
 
 const OPEN = {
@@ -497,7 +496,7 @@ describe('RecordingSession', () => {
       await session.start(OPEN);
       launchFailures = 1;
       latest().crash();
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(session.state.status).toBe('recording');
       expect(adapters).toHaveLength(2);
       expect(latest().sent.map(({ name }) => name)).toEqual(['open', 'start']);
@@ -513,11 +512,67 @@ describe('RecordingSession', () => {
       await session.start(OPEN);
       launchFailures = MAX_WORKER_RESTARTS;
       latest().crash();
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(3500);
       expect(adapters).toHaveLength(1);
       expect(launchFailures).toBe(0);
       expect(session.state).toEqual({ status: 'idle', pauseReason: null });
       expect(ended).toEqual(['workerFailed']);
+    });
+  });
+
+  describe('the wait between restart tries', () => {
+    const refuseOpen: FakeAdapter['reply'] = (command) =>
+      command.name === 'open' ? { ok: false } : {};
+    const failFirstRestart = async () => {
+      await session.start(OPEN);
+      firstReply = refuseOpen;
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(adapters).toHaveLength(2);
+      firstReply = () => ({});
+    };
+
+    it('restarts at once, then tries again after each wait', async () => {
+      await session.start(OPEN);
+      firstReply = refuseOpen;
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(adapters).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync((RESTART_WAITS_MS[0] as number) - 1);
+      expect(adapters).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(adapters).toHaveLength(3);
+      firstReply = () => ({});
+      await vi.advanceTimersByTimeAsync(RESTART_WAITS_MS[1] as number);
+      expect(adapters).toHaveLength(4);
+      expect(latest().sent.map(({ name }) => name)).toEqual(['open', 'start']);
+      expect(session.state.status).toBe('recording');
+    });
+
+    it('lets Stop finish at once, and starts no further worker', async () => {
+      await failFirstRestart();
+      await session.stop();
+      expect(ended).toEqual(['stopped']);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(adapters).toHaveLength(2);
+    });
+
+    it('confirms Pause at once, and keeps the next worker closed', async () => {
+      await failFirstRestart();
+      await session.pause();
+      expect(session.state).toEqual({ status: 'paused', pauseReason: 'user' });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(adapters).toHaveLength(3);
+      expect(latest().sent.map(({ name }) => name)).toEqual(['open']);
+      await session.resume();
+      expect(session.state.status).toBe('recording');
+    });
+
+    it('refuses Resume and stays Paused', async () => {
+      await failFirstRestart();
+      await session.pause();
+      await expect(session.resume()).rejects.toThrow(ContractError);
+      expect(session.state.status).toBe('paused');
     });
   });
 

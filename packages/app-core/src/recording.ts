@@ -11,6 +11,8 @@ import {
 /** Pause must be confirmed in this time. Above it, the privacy promise cannot be shown to hold. */
 export const COMMAND_TIMEOUT_MS = 200;
 export const MAX_WORKER_RESTARTS = 3;
+/** Waits before the second and third tries, so a brief fault can clear within the 5 s gap limit. */
+export const RESTART_WAITS_MS = [1000, 2500];
 
 export type SessionEnd = 'stopped' | 'pauseFailed' | 'workerFailed';
 
@@ -22,6 +24,7 @@ export interface RecordingSessionOptions {
   onEnded(end: SessionEnd): void;
   newCommandId(): string;
   timeoutMs?: number;
+  restartWaitsMs?: number[];
 }
 
 const conflict = (message: string) => new ContractError({ code: 'conflict', message });
@@ -44,6 +47,7 @@ export class RecordingSession {
   private clockOriginNs: number | null = null;
   /** Rejects when the current worker exits. A dead worker never acks what it was sent. */
   private exited: Promise<never> = new Promise(() => undefined);
+  private endWait: () => void = () => undefined;
 
   constructor(private readonly options: RecordingSessionOptions) {}
 
@@ -71,6 +75,12 @@ export class RecordingSession {
 
   async pause(reason: PauseReason = 'user'): Promise<void> {
     if (this.status !== 'recording' || this.pending) throw conflict('Not recording.');
+    // Between restart tries no worker exists, so nothing is being captured.
+    if (!this.adapter) {
+      this.pauseReason = reason;
+      this.setStatus('paused');
+      return;
+    }
     this.pending = 'pausing';
     try {
       const ack = await this.confirmPause();
@@ -127,7 +137,7 @@ export class RecordingSession {
     this.ending = true;
     this.setStatus('stopping');
     // A crash here leaves the same saved audio for sealing as a finished stop.
-    await this.untilExit({ name: 'stop' }).catch(() => undefined);
+    if (this.adapter) await this.untilExit({ name: 'stop' }).catch(() => undefined);
     this.finish('stopped');
   }
 
@@ -154,7 +164,11 @@ export class RecordingSession {
     this.restarting = true;
     this.adapter = null;
     try {
-      while (this.running() && this.restarts < MAX_WORKER_RESTARTS) {
+      for (let tries = 0; this.running() && this.restarts < MAX_WORKER_RESTARTS; tries += 1) {
+        if (tries > 0) {
+          await this.waitToRetry(tries - 1);
+          if (!this.running()) return;
+        }
         this.restarts += 1;
         try {
           this.attach();
@@ -184,6 +198,17 @@ export class RecordingSession {
     }
   }
 
+  private waitToRetry(index: number): Promise<void> {
+    const waits = this.options.restartWaitsMs ?? RESTART_WAITS_MS;
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, waits[index]);
+      this.endWait = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+  }
+
   /** A method, so each check reads the status again after an await. */
   private running(): boolean {
     return !this.ending && this.status !== 'idle';
@@ -207,6 +232,7 @@ export class RecordingSession {
   }
 
   private finish(end: SessionEnd): void {
+    this.endWait();
     this.adapter = null;
     this.pauseReason = null;
     this.setStatus('idle');

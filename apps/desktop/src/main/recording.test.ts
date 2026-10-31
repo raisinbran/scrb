@@ -11,6 +11,7 @@ const fake = vi.hoisted(() => ({
   spawnSync: vi.fn(),
   resolveSources: vi.fn(),
   sessions: [] as { end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void }[],
+  workerEvents: [] as ((event: unknown) => void)[],
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
@@ -19,6 +20,7 @@ vi.mock('@scrb/app-core', () => ({
   RecordingSession: class {
     constructor(
       private readonly options: {
+        launch: () => unknown;
         onStateChanged: (status: 'recording', reason: null) => void;
         onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
       },
@@ -27,6 +29,7 @@ vi.mock('@scrb/app-core', () => ({
     }
 
     async start(): Promise<void> {
+      this.options.launch();
       this.options.onStateChanged('recording', null);
     }
 
@@ -39,7 +42,13 @@ vi.mock('@scrb/app-core', () => ({
     }
   },
 }));
-vi.mock('@scrb/capture', () => ({ ProcessAdapter: class {} }));
+vi.mock('@scrb/capture', () => ({
+  ProcessAdapter: class {
+    onEvent(listener: (event: unknown) => void): void {
+      fake.workerEvents.push(listener);
+    }
+  },
+}));
 vi.mock('./sources.ts', () => ({
   resolveSources: fake.resolveSources,
   listInputDevices: vi.fn(),
@@ -71,6 +80,7 @@ function completion() {
 beforeEach(() => {
   vi.resetAllMocks();
   fake.sessions.length = 0;
+  fake.workerEvents.length = 0;
   fake.resolveSources.mockResolvedValue({
     source: 'wholeComputer',
     mic: 'default',
@@ -190,6 +200,37 @@ describe('Start while the previous recording is finishing', () => {
       expect(await start({ title: 'second' })).toEqual({ meetingId: 'meeting-2' });
     });
     expect(library.createMeeting).toHaveBeenCalledTimes(2);
+    await controller.shutdown();
+  });
+
+  it('warns once per track on a write error and keeps the level meter', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
+    send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
+    send({ type: 'writeError', message: 'session.log write failed' });
+    send({ type: 'health', micDb: -20, meetingDb: -30 });
+
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
+    expect(health).toHaveLength(2);
+    expect(health.at(-1)?.[1]).toMatchObject({
+      level: 'failed',
+      warnings: [
+        { kind: 'audioMissing', track: 'microphone' },
+        { kind: 'audioMissing', message: 'Part of this recording could not be saved.' },
+      ],
+    });
+    expect(emit).toHaveBeenCalledWith('levelMeter', { micDb: -20, meetingDb: -30 });
     await controller.shutdown();
   });
 });

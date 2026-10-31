@@ -36,6 +36,9 @@ final class Track {
     var generation: UInt32 = 0
     var nextHost: UInt64 = 0
     var nextOpenReason = "start"
+    var deviceRate = 0.0
+    var converter: RateConverter?
+    var writeErrorReported = false
     let mutex = NSLock()
 
     init(name: String) { self.name = name }
@@ -50,25 +53,28 @@ final class Track {
             let gapSeconds = nextHost == 0 ? 0 : (Double(slot.pointee.host) - Double(nextHost)) / rtTicksPerSecond
             var reason: String?
             if slot.pointee.generation != generation {
-                if writer.isOpen { writer.close(reason: "pause") }
+                endChunk(reason: "pause")
                 generation = slot.pointee.generation
                 nextOpenReason = "resume"
-            } else if writer.isOpen && writer.rate != Int(rate) {
+            } else if writer.isOpen && deviceRate != rate {
                 reason = "deviceChanged"
             } else if gapSeconds > 0.05 {
                 reason = "discontinuity"
-            } else if Double(writer.frames) >= chunkSeconds * rate {
+            } else if Double(writer.frames) >= chunkSeconds * Double(writer.rate) {
                 reason = "rollover"
             }
             if let reason, writer.isOpen {
-                writer.close(reason: reason)
+                endChunk(reason: reason)
                 nextOpenReason = reason
             }
             if !writer.isOpen {
                 let tags = ["TRACK=\(name)", "SESSION=\(session.id)"]
                 let start = session.toSessionNs(host: slot.pointee.host)
-                if !writer.open(startNs: start, rate: Int(rate), reason: nextOpenReason, tags: tags) {
-                    say(["type": "event", "event": "writeError", "track": name, "message": "unsupported rate \(rate)"])
+                deviceRate = rate
+                if !prepareConverter(rate: rate)
+                    || !writer.open(startNs: start, rate: converter == nil ? Int(rate) : RateConverter.outputRate,
+                                    reason: nextOpenReason, tags: tags) {
+                    reportWriteError("could not open a chunk at \(rate) Hz")
                     rt_advance(ring)
                     continue
                 }
@@ -76,22 +82,54 @@ final class Track {
             let frames = Int(slot.pointee.frames)
             withUnsafePointer(to: &slot.pointee.samples) { pointer in
                 pointer.withMemoryRebound(to: Int16.self, capacity: frames) {
-                    writer.write(UnsafeBufferPointer(start: $0, count: frames))
+                    let samples = UnsafeBufferPointer(start: $0, count: frames)
+                    guard let converter else { return writer.write(samples) }
+                    guard let converted = converter.convert(samples) else {
+                        return reportWriteError("could not convert \(rate) Hz audio")
+                    }
+                    converted.withUnsafeBufferPointer { writer.write($0) }
                 }
             }
+            if writer.failed { reportWriteError("disk write failed") }
             nextHost = slot.pointee.host + UInt64(Double(frames) / rate * rtTicksPerSecond)
             rt_advance(ring)
         }
         // Everything before the cutoff is written, so a closed gate can end the chunk now.
         if rt_gate_is_open() == 0 && writer.isOpen && rt_empty(ring) != 0 {
-            writer.close(reason: session.stopping ? "stop" : "pause")
+            endChunk(reason: session.stopping ? "stop" : "pause")
             nextOpenReason = "resume"
         }
     }
 
+    /// A rollover keeps the converter, because the audio carries straight on.
+    private func endChunk(reason: String) {
+        guard let writer else { return }
+        if reason != "rollover", let converter {
+            if writer.isOpen, let tail = converter.convert(nil) {
+                tail.withUnsafeBufferPointer { writer.write($0) }
+            }
+            self.converter = nil
+        }
+        guard writer.isOpen else { return }
+        if writer.close(reason: reason) { writeErrorReported = false } else { reportWriteError("chunk could not be saved") }
+    }
+
+    private func prepareConverter(rate: Double) -> Bool {
+        guard !OggOpusFile.supports(rate), converter == nil else { return true }
+        converter = RateConverter(deviceRate: rate)
+        if converter != nil { say(["type": "event", "event": "converting", "track": name, "deviceRate": rate]) }
+        return converter != nil
+    }
+
+    private func reportWriteError(_ message: String) {
+        guard !writeErrorReported else { return }
+        writeErrorReported = true
+        say(["type": "event", "event": "writeError", "track": name, "message": message])
+    }
+
     func close(reason: String) {
         mutex.lock()
-        writer?.close(reason: reason)
+        endChunk(reason: reason)
         nextOpenReason = reason
         nextHost = 0
         mutex.unlock()
