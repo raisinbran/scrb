@@ -76,6 +76,7 @@ export class RecordingController {
     private readonly sources: SourceStore,
     /** Null leaves a stopped meeting ready with no transcript. */
     private readonly finalPasses: FinalPassQueue | null = null,
+    private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
   ) {}
 
   private update(patch: Partial<RecordingState>): void {
@@ -153,7 +154,9 @@ export class RecordingController {
       status: 'recording',
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
-    this.state = { ...IDLE, meetingId: meeting.id };
+    this.state = { ...IDLE, meetingId: meeting.id,
+      privacyBannerRequired: await this.shouldShowPrivacyBanner().catch(() => true),
+    };
     if (micFellBack) {
       this.warn(
         {

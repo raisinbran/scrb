@@ -5,6 +5,8 @@ import {
   createSettingsHandlers,
   FinalPassQueue,
   resumeFinalPasses,
+  needsPrivacyBanner,
+  privacyJurisdictions,
 } from '@scrb/app-core';
 import { Library, readLibraryLocation } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
@@ -49,6 +51,11 @@ export async function openBackend(
             save: (selection) => settings.updateSettings({ audio: selection }),
           },
           finalPasses,
+          async () => {
+            const rules = await privacyJurisdictions(library.paths.root);
+            const region = new Intl.Locale(app.getLocale()).region ?? null;
+            return needsPrivacyBanner(settings.getSettings().location, rules, region);
+          },
         )
       : null;
     return {
