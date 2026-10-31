@@ -363,6 +363,45 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
       }
       library.voiceProfiles.delete(profileId);
     },
+    listTerms: async () => {
+      const entries = library.vocabulary.list();
+      return Promise.all(entries.map(async (entry) => {
+        const snippets = await Promise.all(entry.contexts.slice(0, 5)
+          .map((context) => library.vocabularyContext(context)));
+        return {
+          id: entry.id, term: entry.term, enabled: entry.enabled,
+          misheard: entry.misheard,
+          contexts: snippets.filter((snippet) => snippet !== null)
+            .map((snippet) => `${snippet.before} ${entry.term} ${snippet.after}`.trim()),
+          history: [{ at: entry.createdAt, action: 'created', detail: 'Remembered term' },
+            ...(entry.updatedAt === entry.createdAt ? [] : [
+              { at: entry.updatedAt, action: 'edited', detail: 'Last vocabulary update' },
+            ])],
+        };
+      }));
+    },
+    updateTerm: async (request) => {
+      const { id, patch } = request as { id: string; patch: {
+        term?: string; enabled?: boolean; misheard?: string[];
+      } };
+      if (!library.vocabulary.get(id)) {
+        throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
+      }
+      library.vocabulary.update(id, patch);
+      const entry = library.vocabulary.get(id)!;
+      return {
+        id: entry.id, term: entry.term, enabled: entry.enabled,
+        misheard: entry.misheard, contexts: [],
+        history: [{ at: entry.createdAt, action: 'created', detail: 'Remembered term' }],
+      };
+    },
+    deleteTerm: async (request) => {
+      const { id } = request as { id: string };
+      if (!library.vocabulary.get(id)) {
+        throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
+      }
+      library.vocabulary.delete(id);
+    },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
