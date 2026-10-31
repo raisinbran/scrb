@@ -3,7 +3,7 @@
 
 Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
-Usage: device_case.py <helper> <work dir> [devices|sleep|permission|restart]
+Usage: device_case.py <helper> <work dir> [devices|sleep|permission|restart|call]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
 
@@ -31,6 +31,10 @@ if mode == "restart":
     STEPS = [(30, "Apple menu > Restart. Untick Reopen windows, then click Restart")]
     READY = "Save your work and close other apps. Then press Start."
     END = 0
+if mode == "call":
+    STEPS = [(45, "Take the phone to another room, shut the door, and read aloud for 10 minutes")]
+    READY = "Teams call running on the Mac and phone. Mac muted in Teams, phone unmuted, Mac volume at half, no headphones. Then press Start."
+    END = 660
 
 RATE = 8000
 tone_file = os.path.join(work, "tone.wav")
@@ -52,7 +56,7 @@ def show(status, big, action, following, step=-1):
 show("Not started", "Ready", READY, "The window tells you each step.")
 print("Press Start in the floating window.", flush=True)
 window.stdout.readline()
-player = subprocess.Popen(["afplay", "-v", "0.05", tone_file])
+player = subprocess.Popen(["afplay", "-v", "0.05", tone_file]) if mode != "call" else None
 time.sleep(0.5)
 worker = subprocess.Popen([helper], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 acks = {}
@@ -82,13 +86,24 @@ def send(id_, **fields):
     raise SystemExit("no reply to " + id_)
 
 
-send("o", name="open", sessionId="s", outputDir=work, source=[player.pid], mic="default")
+source = [player.pid] if player else []
+if mode == "call":
+    apps = [a for a in send("l", name="listApps").get("apps", []) if "teams" in a["name"].lower() and a["pids"]]
+    print("Teams processes", apps, flush=True)
+    if not apps:
+        show("Stopped", "No call", "Teams has no audio running. Start the call, then tell Claude.", "")
+        time.sleep(30)
+        raise SystemExit("no Teams audio")
+    source = [pid for a in apps for pid in a["pids"]]
+send("o", name="open", sessionId="s", outputDir=work, source=source, mic="default")
 send("s", name="start")
 started = time.time()
 for index, (at, text) in enumerate(STEPS):
     following = "Then: " + STEPS[index + 1][1] if index + 1 < len(STEPS) else "Then: nothing more, the test stops itself"
     if mode == "sleep":
         following = "Then: leave the lid open while the test finishes"
+    if mode == "call":
+        following = "Then: come back when you finish. The test stops itself"
     while (left := at - (time.time() - started)) > 0:
         show("Step %d of %d comes next" % (index + 1, len(STEPS)), "%d s" % math.ceil(left), "NEXT: " + text, following, index)
         time.sleep(0.2)
@@ -118,7 +133,9 @@ while (left := END - (time.time() - started)) > 0:
     time.sleep(0.2)
 show("Finished", "Done", "You can tell Claude it finished.", "")
 stop = send("x", name="stop")
-worker.wait(); player.kill()
+worker.wait()
+if player:
+    player.kill()
 
 for track in ("microphone", "meeting"):
     lines = [json.loads(l) for l in open(os.path.join(work, "audio", track, "chunks.log"))]
