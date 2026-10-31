@@ -261,6 +261,117 @@ describe('sealAudio', () => {
     ]);
   });
 
+  describe('after a worker restart', () => {
+    const OPENED = { event: 'open', seq: 1 };
+    const restart = (at: number) => ({ event: 'restart', atNs: at * SECOND, seq: 2 });
+    const missing = (track: TrackName, start: number, end: number) => ({
+      kind: 'audioMissing',
+      track,
+      startNs: start * SECOND,
+      endNs: end * SECOND,
+    });
+
+    it('marks the down time on both tracks', async () => {
+      for (const track of ['microphone', 'meeting'] as const) {
+        put(track, '000000.opus', chunk(0, 0, 2, 'start'));
+        put(track, '000001.opus', chunk(1, 5 * SECOND, 2, 'workerRestarted'));
+      }
+      events([OPENED, OPENED, restart(4)]);
+      const { gaps, endNs } = await sealAudio(audio, dead);
+      expect(gaps).toEqual(expect.arrayContaining([missing('microphone', 2, 5)]));
+      expect(gaps).toEqual(expect.arrayContaining([missing('meeting', 2, 5)]));
+      expect(gaps).toHaveLength(2);
+      expect(endNs).toBe(7 * SECOND);
+    });
+
+    it('keeps pauses apart when each worker numbers its log from 1', async () => {
+      put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('microphone', '000001.opus', chunk(1, 3 * SECOND, 1, 'resume'));
+      put('microphone', '000002.opus', chunk(2, 6 * SECOND, 1, 'workerRestarted'));
+      put('microphone', '000003.opus', chunk(3, 9 * SECOND, 1, 'resume'));
+      events([
+        OPENED,
+        { event: 'pause', atNs: 2 * SECOND, seq: 2 },
+        { event: 'resume', atNs: 3 * SECOND, seq: 3 },
+        OPENED,
+        restart(6),
+        { event: 'pause', atNs: 7 * SECOND, seq: 3 },
+        { event: 'resume', atNs: 9 * SECOND, seq: 4 },
+      ]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'paused', track: 'both', startNs: 2 * SECOND, endNs: 3 * SECOND },
+        missing('microphone', 4, 6),
+        { kind: 'paused', track: 'both', startNs: 7 * SECOND, endNs: 9 * SECOND },
+      ]);
+    });
+
+    it('calls the meeting track lost, not possibly lost, on whole-computer audio', async () => {
+      put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, 'workerRestarted'));
+      events([{ event: 'open', wholeComputer: true, seq: 1 }, restart(4)]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([missing('meeting', 2, 5)]);
+    });
+
+    it('marks the start when nothing before the restart was saved', async () => {
+      put('microphone', '000000.opus', chunk(0, 3 * SECOND, 2, 'workerRestarted'));
+      events([OPENED, restart(3)]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([missing('microphone', 0, 3)]);
+    });
+
+    it('marks the end when nothing after the restart was saved', async () => {
+      put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+      events([OPENED, restart(6)]);
+      const { gaps, endNs } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([missing('microphone', 2, 6)]);
+      expect(endNs).toBe(6 * SECOND);
+    });
+
+    it('does not mark a restart during a pause as lost', async () => {
+      put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('microphone', '000001.opus', chunk(1, 8 * SECOND, 2, 'resume'));
+      events([
+        OPENED,
+        { event: 'pause', atNs: 2 * SECOND, seq: 2 },
+        OPENED,
+        restart(5),
+        { event: 'resume', atNs: 8 * SECOND, seq: 3 },
+      ]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'paused', track: 'both', startNs: 2 * SECOND, endNs: 8 * SECOND },
+      ]);
+    });
+
+    it('leaves only the time around a pause taken while the worker was down', async () => {
+      put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('microphone', '000001.opus', chunk(1, 10 * SECOND, 2, 'workerRestarted'));
+      events([
+        OPENED,
+        OPENED,
+        restart(3),
+        { event: 'pause', atNs: 4 * SECOND, seq: 3 },
+        { event: 'resume', atNs: 6 * SECOND, seq: 4 },
+      ]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        missing('microphone', 2, 4),
+        { kind: 'paused', track: 'both', startNs: 4 * SECOND, endNs: 6 * SECOND },
+        missing('microphone', 6, 10),
+      ]);
+    });
+
+    it('gives the same gaps when sealed twice', async () => {
+      put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('microphone', '000001.opus', chunk(1, 5 * SECOND, 2, 'workerRestarted'));
+      events([OPENED, restart(4)]);
+      const first = await sealAudio(audio, dead);
+      expect((await sealAudio(audio, dead)).gaps).toEqual(first.gaps);
+    });
+  });
+
   it('marks a span after a sleep close as asleep, not lost', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
     put('meeting', '000001.opus', chunk(1, 60 * SECOND, 2, 'wake'));
