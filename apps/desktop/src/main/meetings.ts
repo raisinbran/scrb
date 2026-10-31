@@ -440,6 +440,27 @@ export function createMeetingHandlers(
       // No suggestion store exists yet: do not invent a voice match.
       return [];
     },
+    getProfileUndoState: async () => library.voiceProfiles.undoState(),
+    undoProfileChange: async () => {
+      try {
+        return library.voiceProfiles.undo();
+      } catch (error) {
+        if (error instanceof StorageError && error.code === 'PROFILE_CHANGED') {
+          throw new ContractError({ code: 'conflict', message: 'Profiles changed since this edit.' });
+        }
+        throw error;
+      }
+    },
+    redoProfileChange: async () => {
+      try {
+        return library.voiceProfiles.redo();
+      } catch (error) {
+        if (error instanceof StorageError && error.code === 'PROFILE_CHANGED') {
+          throw new ContractError({ code: 'conflict', message: 'Profiles changed since this edit.' });
+        }
+        throw error;
+      }
+    },
     listProfiles: async () => {
       const dates = new Map(library.listMeetings().map((row) => [row.id, row.date]));
       return library.voiceProfiles.list().map((profile) => ({
