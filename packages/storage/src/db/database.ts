@@ -150,6 +150,7 @@ interface IndexUpgradeChecks {
   afterSnapshot?: (path: string) => void;
   afterMigration?: (db: DatabaseSync) => void;
   beforeSnapshotRemoval?: () => void;
+  beforeMigration?: () => void;
 }
 
 /** Upgrade from a consistent SQLite snapshot; never silently rebuild index-only user data. */
@@ -192,8 +193,44 @@ export async function openIndex(
       }
       await rm(journalPath(filePath), { force: true });
     } else if (journal?.phase === 'snapshotVerified') {
-      throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The interrupted index migration requires review.');
-    } else if (journal?.phase === 'migrationVerified') {
+      const target = join(parent, managedSnapshot as string);
+      if (!names.includes(managedSnapshot as string) ||
+          !(await ordinaryFile(target)) ||
+          (await sha256(target)) !== journal.snapshotHash) {
+        throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The interrupted index snapshot is untrusted.');
+      }
+      const snapshotDb = new DatabaseSync(target, { readOnly: true });
+      try {
+        verify(snapshotDb);
+        if (readIndexVersion(snapshotDb) !== journal.oldVersion) {
+          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The snapshot version changed.');
+        }
+        const originalRows = currentTables(snapshotDb);
+        // A normal SQLite open rolls back an interrupted write before examining live rows.
+        const live = new DatabaseSync(filePath);
+        try {
+          verify(live);
+          const version = readIndexVersion(live);
+          if (version !== journal.oldVersion && version !== journal.targetVersion) {
+            throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index version is unexpected.');
+          }
+          verifyPreserved(live, originalRows);
+          if (version === journal.oldVersion) {
+            await unlink(target);
+            await rm(journalPath(filePath), { force: true });
+          } else {
+            await saveJournal(filePath, { ...journal, phase: 'migrationVerified' });
+            retainedSnapshot = true;
+          }
+        } finally {
+          live.close();
+        }
+      } finally {
+        snapshotDb.close();
+      }
+    }
+    if (journal?.phase === 'migrationVerified' ||
+        (journal?.phase === 'snapshotVerified' && retainedSnapshot)) {
       const target = join(parent, managedSnapshot as string);
       if (names.includes(managedSnapshot as string)) {
         if (!(await ordinaryFile(target)) ||
@@ -266,6 +303,7 @@ export async function openIndex(
       upgrade = { ...upgrade!, phase: 'snapshotVerified', snapshotHash: await sha256(snapshot) };
       await saveJournal(filePath, upgrade);
     }
+    checks.beforeMigration?.();
     migrate(db);
     checks.afterMigration?.(db);
     verify(db);

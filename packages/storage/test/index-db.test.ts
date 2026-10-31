@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -196,6 +197,45 @@ describe('index migrations', () => {
     );
     await expect(openIndex(file)).rejects.toMatchObject({ code: 'INDEX_RECOVERY_REQUIRED' });
   });
+
+  it.each(['beforeMigration', 'afterMigration'] as const)(
+    'recovers after a real child process is killed at %s',
+    async (phase) => {
+      const file = path.join(await tempDir(), 'index.sqlite');
+      const old = new DatabaseSync(file);
+      migrate(old, MIGRATIONS, 5);
+      old.prepare('INSERT INTO settings VALUES (?, ?)').run('theme', '"dark"');
+      old.close();
+
+      const script = `
+        import { openIndex } from ${JSON.stringify(new URL('../src/db/database.ts', import.meta.url).href)};
+        await openIndex(process.argv[1], {
+          ${phase}(db) {
+            if (db) {
+              db.exec('BEGIN IMMEDIATE');
+              db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('"light"', 'theme');
+            }
+            process.kill(process.pid, 'SIGKILL');
+          }
+        });
+      `;
+      const killed = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', '--input-type=module', '-e', script, file],
+        { encoding: 'utf8' },
+      );
+      expect(killed.status).not.toBe(0);
+      expect((await readdir(path.dirname(file))).some((name) => name.startsWith('index.sqlite.upgrade-')))
+        .toBe(true);
+
+      const recovered = await openIndex(file);
+      expect(readIndexVersion(recovered.db)).toBe(INDEX_VERSION);
+      expect(new SettingsStore(recovered.db).get('theme', 'light')).toBe('dark');
+      recovered.db.close();
+      expect((await readdir(path.dirname(file))).some((name) => name.startsWith('index.sqlite.upgrade-')))
+        .toBe(false);
+    },
+  );
 
   it('refuses an unresolved upgrade snapshot, preserving both versions on retry', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
