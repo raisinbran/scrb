@@ -387,6 +387,52 @@ describe('createMeetingHandlers', () => {
     expect((await library.readTranscript(meeting.id)).speakers[0]?.profileId).toBeNull();
   });
 
+  it('skips a damaged transcript, logs safely, unlinks a readable one, and deletes the profile', async () => {
+    const broken = await recorded('Synthetic corrupt', '2026-10-15T10:00:00.000Z');
+    const readable = await recorded('Synthetic intact', '2026-10-16T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'synthetic-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: broken.id,
+    });
+    library.voiceProfiles.grow(profile.id, new Float32Array([1, 0]), 1, readable.id);
+    await library.appendSegments(readable.id, [], [{
+      id: 'speaker-a', label: 'Speaker 1', name: null,
+      profileId: profile.id, userNamed: false, mergedInto: null,
+    }]);
+    writeFileSync(library.meetingPaths(broken.id).transcript, '{"schemaVersion":2,"secret":"invented speech"');
+
+    expect(await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id })).toMatchObject({
+      ok: true,
+    });
+    expect(library.voiceProfiles.get(profile.id)).toBeNull();
+    expect((await library.readTranscript(readable.id)).speakers[0]?.profileId).toBeNull();
+    await library.logger.flush();
+    const log = await import('node:fs/promises').then(({ readFile }) =>
+      readFile(join(library.paths.logs, 'scrb-' + new Date().toISOString().slice(0, 10) + '.log'), 'utf8'),
+    );
+    expect(log).toContain('profile-unlink-transcript-unreadable');
+    expect(log).not.toContain('invented speech');
+  });
+
+  it.each(['recording', 'importing', 'finalPassRunning'] as const)(
+    'refuses profile deletion for a busy damaged %s transcript',
+    async (status) => {
+      const meeting = await library.createMeeting({ title: 'Synthetic busy', status });
+      const profile = library.voiceProfiles.create({
+        modelId: 'synthetic-model',
+        embedding: new Float32Array([1, 0]),
+        meetingId: meeting.id,
+      });
+      writeFileSync(library.meetingPaths(meeting.id).transcript, '{not valid');
+      expect(await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id })).toMatchObject({
+        ok: false,
+        error: { code: 'conflict' },
+      });
+      expect(library.voiceProfiles.get(profile.id)).not.toBeNull();
+    },
+  );
+
   it('still deletes a profile linked to a meeting whose transcription failed', async () => {
     const meeting = await recorded('Failed', '2026-10-15T10:00:00.000Z');
     const profile = library.voiceProfiles.create({

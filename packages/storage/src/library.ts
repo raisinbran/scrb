@@ -436,8 +436,35 @@ export class Library {
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
     const affected: { meetingId: string; before: TranscriptFile }[] = [];
+    const linkedMeetings = new Set(this.voiceProfiles.get(profileId)?.meetingIds ?? []);
     for (const row of this.listMeetings()) {
-      const before = await this.readTranscript(row.id);
+      const busy =
+        row.status === 'recording' ||
+        row.status === 'importing' ||
+        row.status === 'finalPassRunning';
+      if (busy && linkedMeetings.has(row.id)) {
+        throw new StorageError(
+          'PROFILE_BUSY',
+          'Wait for the meeting to finish before deleting the profile.',
+        );
+      }
+      let before: TranscriptFile;
+      try {
+        before = await this.readTranscript(row.id);
+      } catch (error) {
+        // An unreadable active meeting might hold an unindexed link; do not delete it blindly.
+        if (busy) {
+          throw new StorageError(
+            'PROFILE_BUSY',
+            'Wait for the meeting to finish before deleting the profile.',
+          );
+        }
+        this.logger.log('warn', 'profile-unlink-transcript-unreadable', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+        continue;
+      }
       const inSpeakers = before.speakers.some((speaker) => speaker.profileId === profileId);
       const inHistory = [...before.undoStack, ...before.redoStack].some((entry) =>
         entry.speakers.some(
