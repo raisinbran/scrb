@@ -564,8 +564,13 @@ export function createMeetingHandlers(
       try {
         const result = await library.deleteMeeting(meetingId);
         const cache = meetingCachePath(library.paths, meetingId);
+        const prefix = `${library.paths.index}.upgrade-`;
         const names = result.remaining.map((left) =>
-          left === cache ? 'Temporary files' : 'Meeting files',
+          left === cache
+            ? 'Temporary files'
+            : left.startsWith(prefix)
+              ? 'Index recovery copy'
+              : 'Meeting files',
         );
         return { verified: result.ok, remaining: [...new Set(names)] };
       } catch (error) {

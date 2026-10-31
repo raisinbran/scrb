@@ -737,8 +737,18 @@ export class Library {
       if (await exists(target)) problems.push(target);
     }
     problems.push(...indexTraces(this.db, meetingId));
+    problems.push(...(await this.indexUpgradeCopies()));
     problems.push(...(await this.foldersHolding(meetingId)));
     return [...new Set(problems)];
+  }
+
+  /** A prior upgrade copy may still contain this meeting's index records. */
+  private async indexUpgradeCopies(): Promise<string[]> {
+    const parent = path.dirname(this.paths.index);
+    const prefix = `${path.basename(this.paths.index)}.upgrade-`;
+    return (await fs.readdir(parent))
+      .filter((name) => name.startsWith(prefix))
+      .map((name) => path.join(parent, name));
   }
 
   /** Copies the user made count as "left behind", so the check looks at every meeting.json. */

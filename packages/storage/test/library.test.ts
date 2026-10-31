@@ -391,6 +391,27 @@ describe('delete', () => {
     await library.close();
   });
 
+  it('does not verify a delete while an upgrade snapshot may retain the meeting', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library);
+    const backup = path.join(root, 'index.sqlite.upgrade-synthetic');
+    await writeFile(backup, await readFile(path.join(root, 'index.sqlite')));
+
+    const report = await library.deleteMeeting(id);
+    expect(report.ok).toBe(false);
+    expect(report.remaining).toContain(backup);
+    expect(library.listMeetings()).toEqual([]);
+    await library.close();
+
+    // The copy is retained for review, not silently removed by deletion.
+    expect((await readFile(backup)).length).toBeGreaterThan(0);
+    await rm(backup);
+    const reopened = await Library.open({ root });
+    expect(reopened.listMeetings()).toEqual([]);
+    await reopened.close();
+  });
+
   it('reports a copy of the meeting left in the library', async () => {
     const root = await tempDir();
     const library = await Library.open({ root });
