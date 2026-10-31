@@ -10,7 +10,11 @@ Remaining for this phase: nothing on this PC.  Still needed elsewhere:
    before Gate 8.
 2. Rerun the 4 h load run on the built-in mic, after T18 (owner decision,
    2026-10-31).  The first run failed the mic loss limit on the headset.
-3. Updates to `phase0/design/capture-contract-draft.md` from the README findings:
+3. T23 and T24 ran and failed (README findings 14 and 15): meeting audio lost in a
+   whole-process freeze is saved as unmarked near silence, and time lost after a
+   resume on a dead stream is marked as pause.  Neither is fixed.  T24 needs a real
+   device change once a second device is here.
+4. Updates to `phase0/design/capture-contract-draft.md` from the README findings:
    F11, D2 and T3, Q10, and the new process loopback silent death.  These do not
    touch `packages/contracts/`.
 

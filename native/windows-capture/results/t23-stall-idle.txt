@@ -1,0 +1,133 @@
+load: none
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.586Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.038,"atNs":8042649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.592Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.053,"atNs":8062649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.598Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.009,"atNs":8132649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.605Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":8152649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.610Z","track":"microphone","kind":"stamp","missingMs":2010.020,"arrivalGapMs":8.078,"atNs":12024215500}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.614Z","track":"meeting","kind":"stamp","missingMs":40.000,"arrivalGapMs":0.021,"atNs":8632649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.621Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.007,"atNs":8762649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.630Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.008,"atNs":9082649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.639Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":9422649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.646Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":9592649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.654Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.013,"atNs":9622649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.664Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":9972649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.672Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":10292649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.680Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":10592649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.689Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":10642649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.696Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.007,"atNs":10682649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.703Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.011,"atNs":10802649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.712Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.024,"atNs":10922649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.719Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":11042649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.724Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":11082649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.731Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":11182649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.741Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":11252649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:11:48.748Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":11342649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.607Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.037,"atNs":20062649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.622Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":20862649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.630Z","track":"microphone","kind":"stamp","missingMs":12010.013,"arrivalGapMs":0.198,"atNs":34034232600}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.631Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":21342649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.636Z","track":"meeting","kind":"stamp","missingMs":60.000,"arrivalGapMs":0.104,"atNs":21462649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.644Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":21662649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.648Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":21682649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.653Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.006,"atNs":21702649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.661Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":21982649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.666Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":22002649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.674Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":22292649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.680Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":22352649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.688Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":22632649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.693Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":22652649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.702Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23052649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.708Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23072649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.713Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23092649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.719Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23122649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.725Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23142649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.731Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23212649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.738Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23232649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.743Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23252649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.754Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":23852649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.764Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":24522649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.770Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":24542649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.780Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25112649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.785Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25132649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.791Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25152649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.797Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25192649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.803Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25262649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.815Z","track":"meeting","kind":"stamp","missingMs":30.000,"arrivalGapMs":0.012,"atNs":25872649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.823Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25932649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.830Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":25952649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.837Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":26002649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.849Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":26092649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.856Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":26132649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.873Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27242649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.880Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27412649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.884Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":27432649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.889Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27452649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.894Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27472649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.899Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27492649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.904Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27532649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.909Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":27552649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.919Z","track":"meeting","kind":"stamp","missingMs":20.000,"arrivalGapMs":0.016,"atNs":28052649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.929Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28682649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.933Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28702649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.939Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28742649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.946Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28812649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.951Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28832649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.956Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":28852649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.963Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29072649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.968Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29092649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.973Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29112649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.980Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29162649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.986Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29182649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:10.992Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":29252649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.005Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30152649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.010Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30202649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.016Z","track":"meeting","kind":"stamp","missingMs":40.000,"arrivalGapMs":0.015,"atNs":30262649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.022Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30332649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.027Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30352649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.032Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30372649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.038Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30432649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.044Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30592649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.049Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30632649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.054Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":30652649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.065Z","track":"meeting","kind":"stamp","missingMs":200.000,"arrivalGapMs":0.073,"atNs":31452649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.072Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":31862649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.077Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":31902649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.083Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":31962649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.089Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":31982649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.095Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":32002649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.100Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":32102649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.107Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":32282649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.113Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.003,"atNs":32302649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.120Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.004,"atNs":32452649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:11.129Z","track":"meeting","kind":"stamp","missingMs":10.000,"arrivalGapMs":0.019,"atNs":32952649000}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:12:19.108Z","track":"microphone","gapMs":502.906,"watchdogLate":false}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:12:19.108Z","track":"meeting","gapMs":511.227,"watchdogLate":false}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:22.607Z","track":"meeting","kind":"stamp","missingMs":3980.000,"arrivalGapMs":4009.457,"atNs":46032649000}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:12:22.637Z","track":"microphone","kind":"stamp","missingMs":2009.906,"arrivalGapMs":9.371,"atNs":46064181500}
+pulses found 54, expected 90, worst distance from the 600 ms grid 30.04 ms
+process stall 4000 ms at 8.01-12.03 s: kept 0 of 6 pulses
+process stall 14000 ms at 20.04-34.05 s: kept 0 of 23 pulses
+reader stall 4000 ms at 42.06-46.06 s: kept 0 of 7 pulses
+missing inside saved audio (unmarked): 24; missing away from any stall: 0
+microphone: chunks=11 audio=38.0 s missing=16029.9 ms bad=0 part=0 files=11 toneChunks=2 zeroChunks=0 peak=-37.0 dB
+  close reasons: discontinuity=3 rollover=4 stall=3 stop=1
+    missing 2010.0 ms before 12.024 s, cause stall
+    missing 12010.0 ms before 34.034 s, cause stall
+    missing 2009.9 ms before 46.064 s, cause stall
+meeting: chunks=107 audio=48.7 s missing=5330.0 ms bad=0 part=0 files=107 toneChunks=0 zeroChunks=0 peak=-18.7 dB
+  close reasons: discontinuity=99 rollover=4 stall=3 stop=1
+    missing 10.0 ms before 8.043 s, cause stall
+    missing 10.0 ms before 8.063 s, cause stall
+    missing 10.0 ms before 8.133 s, cause stall
+    missing 10.0 ms before 8.153 s, cause stall
+    missing 40.0 ms before 8.633 s, cause stall
+    missing 10.0 ms before 8.763 s, cause stall
+    missing 10.0 ms before 9.083 s, cause stall
+    missing 10.0 ms before 9.423 s, cause stall
+    missing 10.0 ms before 9.593 s, cause stall
+    missing 20.0 ms before 9.623 s, cause stall
+    missing 10.0 ms before 9.973 s, cause stall
+    missing 10.0 ms before 10.293 s, cause stall
+    ... 88 more
+VERIFY OK
+FAIL

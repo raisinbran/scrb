@@ -353,6 +353,30 @@ unplug (no USB mic).
     `audioMissing` when the next chunk opened with `device` or the Mac's
     `serviceRestarted`.  The Mac's `streamDead` stays softened, because a silent
     computer can cause it.  The Mac reason is checked by unit test only.
+14. **T23 fails: a whole-process stall loses meeting audio and saves it as near
+    silence, unmarked.**  `stall_case.mjs` froze the helper with
+    `NtSuspendProcess` while a muted player sent a pulse every 600 ms
+    (`results/t23-stall-idle.txt`, `t23-stall-load.txt`).  Pulses kept: 0 of 6 in
+    a 4 s freeze and 0 of 23 in a 14 s freeze, with and without load (6 spinning
+    threads of 12).  After each freeze Windows delivers the span with stamps
+    and no silent flag, peak about 3 of 32767, with scattered 10 ms holes.  So
+    about 17 of 18 frozen seconds count as audio: `allZero` false, no
+    `paddedSpans`, VERIFY OK.  Only the holes are marked (about 1 s, cause `stall`).
+    This answers finding 2 and F4: "lost nothing" was a frame count, not audio.
+    The 4 s reader-only stall also kept no pulses, but its 3.98 s is marked.  The
+    mic keeps its 2 s buffer and marks the rest.  Pulses after the freezes sit
+    20 to 40 ms late against the 600 ms grid; cause not looked at.  The freeze is
+    forced, so a natural stall is unproven, and it was not tried with output
+    unmuted.
+15. **T24 fails on marking: time lost after a resume is marked as pause.**
+    `pause_fault_case.mjs` forces silent stream death with the blackhole hook
+    (`results/t24-pause-fault.txt`).  Death found during a pause passes: both
+    tracks reopen while paused and the tone returns after resume.  Resuming onto
+    an unnoticed dead stream recovers too, but the 4.0 s from resume to reopen is
+    marked `pause` (gap 6.5 s, pause 2.5 s), so sealed audio would show lost
+    recording as a chosen pause.  The limit was 5 s here and is 30 s by default.
+    The resume reply says the gate is open throughout.  No real device change
+    was tried: this PC has one mic, so T24 is fault-injected only.
 
 ## Needs a Planner plan
 
