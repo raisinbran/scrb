@@ -323,7 +323,8 @@ export class MockBackend implements Backend {
       const segments = this.transcripts.get(meeting.id);
       if (segments) this.transcripts.set(meeting.id, segments.map(finalized));
       this.rewriteHistory(meeting.id, finalized);
-      this.updateMeetingStatus(meeting.id, { status: 'ready' });
+      this.updateMeetingStatus(meeting.id, { status: 'ready', transcriptionFailure: null });
+      this.emit('meetingChanged', toListItem(this.findMeeting(meeting.id)));
     }
   }
 
@@ -771,6 +772,7 @@ export class MockBackend implements Backend {
           summaryState: 'notGenerated',
           speakerCount: MOCK_SPEAKERS.length,
           gaps: [],
+          hasAudio: true,
         },
         ...this.library,
       ];
@@ -828,7 +830,8 @@ export class MockBackend implements Backend {
       this.pickedFiles.set(file.fileToken, file);
       return file;
     },
-    importAudioFile: ({ fileToken }) => {
+    importAudioFile: ({ fileToken, buildVoiceProfiles }) => {
+      const privacyBannerRequired = buildVoiceProfiles && this.settings.location.usState === 'IL';
       const importId = this.id('import');
       const { fileName, fileDate } = this.pickedFiles.get(fileToken) ?? PICKED_FILE;
       if (this.recording.status !== 'idle') {
@@ -836,12 +839,12 @@ export class MockBackend implements Backend {
           reason: 'recordingInProgress',
           message: 'A recording is running. Try this import again after the recording.',
         });
-        return { importId };
+        return { importId, privacyBannerRequired };
       }
       for (const fault of ['importFails', 'importUnsupported', 'importDiskFull'] as const) {
         if (this.armed.delete(fault)) {
           this.failImportLater(importId, fileName, IMPORT_FAULTS[fault]);
-          return { importId };
+          return { importId, privacyBannerRequired };
         }
       }
       this.runImportStages(importId, fileName, 0, () => {
@@ -857,12 +860,13 @@ export class MockBackend implements Backend {
             summaryState: 'notGenerated',
             speakerCount: 2,
             gaps: [],
+            hasAudio: true,
           },
           ...this.library,
         ];
         this.emit('importFinished', { importId, meetingId });
       });
-      return { importId };
+      return { importId, privacyBannerRequired };
     },
     cancelImport: ({ importId }) => {
       if (this.endedImports.has(importId)) return;
@@ -907,6 +911,10 @@ export class MockBackend implements Backend {
         segments: all.slice(offset, offset + limit),
         speakers: this.speakersOf(meetingId),
       };
+    },
+    getUndoState: ({ meetingId }) => {
+      this.findMeeting(meetingId);
+      return this.undoStateOf(meetingId);
     },
     applyCorrection: ({ meetingId, range, text, remember }) =>
       this.correct(meetingId, range, text, remember),
@@ -1065,6 +1073,20 @@ export class MockBackend implements Backend {
         .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
         .map(toListItem),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
+    retryFinalPass: ({ meetingId }) => {
+      const meeting = this.findMeeting(meetingId);
+      if (meeting.status !== 'transcriptionFailed' || !meeting.hasAudio) {
+        throw new ContractError({ code: 'conflict', message: 'No failed pass with audio is available to retry.' });
+      }
+      this.updateMeetingStatus(meetingId, { status: 'finalPassRunning', transcriptionFailure: null });
+      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      setTimeout(() => {
+        const current = this.library.find((item) => item.id === meetingId);
+        if (current?.status !== 'finalPassRunning') return;
+        this.updateMeetingStatus(meetingId, { status: 'ready' });
+        this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      }, 1000);
+    },
     updateMeeting: ({ meetingId, ...patch }) => {
       this.updateMeetingStatus(meetingId, patch);
       return this.findMeeting(meetingId);
