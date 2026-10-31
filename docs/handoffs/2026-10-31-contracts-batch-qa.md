@@ -34,4 +34,4 @@ Also: type errors in `recording.ts` and `summary.test.ts`, repeated failure stri
 - Profile undo: rename and merge approved, in memory. `nextUndo` and `nextRedo` drop `'delete'`. Profile delete stays permanent, behind a confirmation, because keeping embeddings would break permanent deletion.
 - Vocabulary undo stays in memory for V1.
 - Vocabulary provenance migration: approved as proposed.
-- Index recovery: awaiting owner approval. Recommended first scope is a native startup dialog for cases A, B, C and E, with restore (case D) deferred.
+- Index recovery: owner approved a narrowed `docs/plans/index-recovery.md`: a native startup dialog for cases A, B, C and E, no new IPC, and restore (case D) deferred.
