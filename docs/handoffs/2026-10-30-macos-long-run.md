@@ -2,12 +2,12 @@
 
 **Run:** 2026-10-30, 11:50 to 15:50, real helper, tone plus default mic, 5 pauses of 30 s, helper built before the merge.
 
-| Measure | Microphone | Meeting |
-| --- | --- | --- |
-| Chunks, numbered without a break | 2850 | 2850 |
-| Audio against timeline minus pauses | 14249.941 s of 14249.959 s | 14249.931 s of 14249.940 s |
-| Gaps over 1 ms, all reasons | 3, 62 ms in total, longest 23 ms | 2, 43 ms in total, longest 21 ms |
-| Chunks crossing a pause | 0 | 0 |
+| Measure                             | Microphone                       | Meeting                          |
+| ----------------------------------- | -------------------------------- | -------------------------------- |
+| Chunks, numbered without a break    | 2850                             | 2850                             |
+| Audio against timeline minus pauses | 14249.941 s of 14249.959 s       | 14249.931 s of 14249.940 s       |
+| Gaps over 1 ms, all reasons         | 3, 62 ms in total, longest 23 ms | 2, 43 ms in total, longest 21 ms |
+| Chunks crossing a pause             | 0                                | 0                                |
 
 The two tracks' chunk starts stayed between -14.8 and +4.8 ms apart. Streams never stalled. No `.part` was left.
 
@@ -30,3 +30,21 @@ This measures track timelines, not a shared sound on both tracks. Output was mut
 **Test Teams call, 2026-10-30, hands-on, 11 minutes, own devices only:** the Mac recorded Teams by app, on all 4 of its audio processes, while a phone in another room read a public article into the call and the Mac played it aloud. No gaps on either track. `call_offset.mjs` compared the tracks' loudness in 20 s windows, and 20 of 21 matched. The mic followed the meeting track by 58 ms at first, settling to 44 ms by 150 s, then stayed at 43 to 45 ms to the end. The 44 ms includes output delay and travel through the room, so it is not all sync error. This is a test call, not T18: the real call still needs a call of about an hour. The recording was deleted afterwards.
 
 **Worker restart, 2026-10-30, real helper, tone playing, muted:** `restart_case.mjs` killed the worker at about 7.3 s and started another 2 s later on the same clock. Times carried on after the kill, the new chunks took numbers 2 and 3 on both tracks, and nothing was replaced. Recovery marked one `audioMissing` gap per track: 2.47 s on the mic and 3.19 s on the meeting track. The meeting track's open `.part` had no finished page, so it went to `damaged` with about 1 s of audio, the page interval. With nothing playing, the whole-computer track has no chunks and all of it is marked missing, so this case needs a sound playing. It drives the helper directly, so the app's restart path still has unit tests only. The test recordings were deleted afterwards.
+
+**Gate 2 long run (T15), 2026-10-31, 01:24 to 05:24, unattended and muted, real helper through `RecordingSession`, tone on the meeting track, default mic:** `long_run_app.mjs` ran 5 pauses of 30 s, a device change of 288 s, a worker kill, and a pause spanning a second device change. Timeline 14400.121 s, status `ready`, no `.part` left, no write errors, no numbering clash, no chunk over 5.2 s.
+
+| Measure                   | Microphone             | Meeting              |
+| ------------------------- | ---------------------- | -------------------- |
+| Chunks                    | 2854                   | 2850                 |
+| Audio missing, all marked | 4.71 s                 | 0.71 s               |
+| Longest gap               | 3.85 s (device switch) | 0.71 s (worker kill) |
+
+This meets the 4-hour limit of 15 s per track with no single gap over 5 s. Audio plus gaps exceeds the timeline by 22 and 31 ms, so nothing is unaccounted for. Chunk starts on the two tracks stayed -16.5 to +36.1 ms apart where they line up; device switches shift the mic's chunk boundaries, so 712 of 2854 pairs do not line up and are left out. This is a timeline measure with no shared sound, because the run was muted overnight, so T18 still has to measure drift. The second input was "No Microphone", a virtual device, because the AirPods were in use. It was silent, and only the hardware cases with AirPods and the USB mic cover real devices. The recording was deleted.
+
+**Worker limit, 2026-10-31, real helper, `three_kill_case.mjs`:** kills while recording and while paused restarted the worker with a gap of about 1.2 s each, and Resume worked after the paused kill. The fourth kill ended the session as `workerFailed` in 8 ms, after 3 restarts. Saved chunks were intact.
+
+**Open fault, brief refusal:** with `writer.lock` held 3 s after a kill, all three restarts were refused in 90 ms and the recording ended. Retries need a delay. Not fixed.
+
+**Open fault, 44.1 kHz input:** `Chunks.swift` accepts 8, 12, 16, 24 and 48 kHz only. On a 44.1 kHz input every chunk open fails with `writeError`, so mic audio is lost while the app still shows Recording, and nothing in `apps/desktop/src/main` or `packages/app-core/src` handles `writeError`. "Steam Streaming Microphone" showed this for 0.6 s in a rehearsal. A USB mic at 44.1 kHz would likely fail the same way, so fix this before the USB case. Not fixed. The Windows helper was not checked.
+
+**Electron with the final pass, 2026-10-31, `real-final-pass.spec.ts`, muted AMI clip, 60 s:** Stop reached `ready` within about 8 s, the 2 s poll being the limit of that figure, and 113 words showed on the Recordings screen. The mic line in that transcript is one short phrase from a quiet room, possibly a hallucination, so check the VAD on quiet mics. The list shows 0 speakers because `meetings.ts` hard-codes `speakerCount`. The test recordings were deleted.
