@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   errorFields,
@@ -140,6 +140,10 @@ export function createFinalPassRunner(configPath: string): RunFinalPass {
   };
 }
 
+function finalPassDir(library: Library, meetingId: string): string {
+  return join(library.meetingCache(meetingId), 'final-pass');
+}
+
 /** Runs final passes one at a time, so only one large model is ever loaded. */
 export class FinalPassQueue {
   private waiting: string[] = [];
@@ -179,12 +183,13 @@ export class FinalPassQueue {
   }
 
   private async process(meetingId: string): Promise<void> {
+    const workDir = finalPassDir(this.library, meetingId);
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
         const transcript = await this.run({
           tracks,
-          workDir: join(this.library.meetingCache(meetingId), 'final-pass'),
+          workDir,
           signal: this.abort.signal,
         });
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
@@ -193,6 +198,8 @@ export class FinalPassQueue {
     } catch (error) {
       if (this.abort.signal.aborted) return;
       await this.fail(meetingId, error);
+    } finally {
+      await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 
@@ -224,6 +231,7 @@ export async function resumeFinalPasses(
   for (const meetingId of library.openReport.interruptedFinalPasses) {
     if (queue) queue.enqueue(meetingId);
     else {
+      await rm(finalPassDir(library, meetingId), { recursive: true, force: true });
       await library.updateMeeting(meetingId, {
         status: 'transcriptionFailed',
         transcriptionFailure: NOT_ENABLED_MESSAGE,

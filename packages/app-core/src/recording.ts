@@ -37,6 +37,7 @@ export class RecordingSession {
   private restarts = 0;
   /** Set before a deliberate kill, so its exit is never taken for a crash. */
   private ending = false;
+  private stopping: Promise<void> | null = null;
   private pending: 'pausing' | 'resuming' | null = null;
   private openCommand: OpenCommand | null = null;
   private clockOriginNs: number | null = null;
@@ -53,6 +54,7 @@ export class RecordingSession {
     if (this.status !== 'idle') throw conflict('A recording is already running.');
     this.setStatus('starting');
     this.ending = false;
+    this.stopping = null;
     this.restarts = 0;
     this.openCommand = open;
     this.clockOriginNs = null;
@@ -114,8 +116,13 @@ export class RecordingSession {
   }
 
   /** Allowed in any active state, including during a pause or resume. */
-  async stop(): Promise<void> {
-    if (this.status === 'idle' || this.status === 'stopping') return;
+  stop(): Promise<void> {
+    if (this.status === 'idle') return Promise.resolve();
+    this.stopping ??= this.runStop();
+    return this.stopping;
+  }
+
+  private async runStop(): Promise<void> {
     this.ending = true;
     this.setStatus('stopping');
     // A crash here leaves the same saved audio for sealing as a finished stop.

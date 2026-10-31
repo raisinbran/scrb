@@ -31,16 +31,25 @@ function lockHeld(helper: string, lock: string): boolean {
   return spawnSync(helper, ['check-lock', lock]).status === 3;
 }
 
-/** Finishes any recording a crash left open. Runs at launch, before the window appears. */
-export async function recoverInterrupted(library: Library, helper: string): Promise<void> {
+/**
+ * Finishes any recording a crash left open. Runs at launch, before the window appears. A recording
+ * that stopped cleanly but was cut off before its pass gets the pass now.
+ */
+export async function recoverInterrupted(
+  library: Library,
+  helper: string,
+  finalPasses: FinalPassQueue | null = null,
+): Promise<void> {
   for (const meetingId of library.openReport.interruptedRecordings) {
     const audio = library.meetingPaths(meetingId).audio;
     const sealed = await sealAudio(audio, async () => lockHeld(helper, join(audio, 'writer.lock')));
     if (sealed.outcome === 'writerAlive') continue;
+    const transcribe = sealed.outcome === 'ready' && finalPasses !== null;
     await library.updateMeeting(meetingId, {
-      status: sealed.outcome,
+      status: transcribe ? 'finalPassRunning' : sealed.outcome,
       durationMs: Math.round(sealed.endNs / 1e6),
     });
+    if (transcribe) finalPasses.enqueue(meetingId);
   }
 }
 
@@ -121,7 +130,7 @@ export class RecordingController {
   }
 
   private start = async ({ title }: { title?: string }): Promise<{ meetingId: string }> => {
-    if (this.session || this.starting) {
+    if (this.session || this.starting || this.finishing) {
       throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
     }
     this.starting = true;
@@ -174,9 +183,13 @@ export class RecordingController {
           'warning',
         ),
       onEnded: (end) => {
-        this.finishing = this.finish(meeting.id, end).catch((error: unknown) => {
-          this.library.logger.log('error', 'recording-finish-failed', errorFields(error));
-        });
+        this.finishing = this.finish(meeting.id, end)
+          .catch((error: unknown) => {
+            this.library.logger.log('error', 'recording-finish-failed', errorFields(error));
+          })
+          .finally(() => {
+            this.finishing = null;
+          });
       },
       newCommandId: randomUUID,
     });

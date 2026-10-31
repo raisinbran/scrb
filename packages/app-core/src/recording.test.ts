@@ -95,6 +95,21 @@ describe('RecordingSession', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('makes a second stop wait for the first, so quitting cannot pass a stop in progress', async () => {
+    await session.start(OPEN);
+    latest().reply = (command) => (command.name === 'stop' ? 'never' : {});
+    const first = session.stop();
+    let secondDone = false;
+    const second = session.stop().then(() => {
+      secondDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(secondDone).toBe(false);
+    latest().crash();
+    await Promise.all([first, second]);
+    expect(ended).toEqual(['stopped']);
+  });
+
   it('runs start, pause, resume and stop', async () => {
     await session.start(OPEN);
     await session.pause();

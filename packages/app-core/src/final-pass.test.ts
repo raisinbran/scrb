@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  existsSync,
   chmodSync,
   mkdirSync,
   mkdtempSync,
@@ -201,6 +202,17 @@ describe('final pass after Stop', () => {
       transcriptionFailure: WORKER_FAILED_MESSAGE,
     });
     expect(hashTree(audio)).toEqual(before);
+  });
+
+  it('removes scratch files when the pass fails before it starts', async () => {
+    const { id } = await sealedMeeting();
+    const scratch = join(library.meetingCache(id), 'final-pass');
+    await runQueue(id, async ({ workDir }) => {
+      mkdirSync(workDir, { recursive: true });
+      writeFileSync(join(workDir, 'track-0.wav'), 'invented');
+      throw new Error('no tools');
+    });
+    expect(existsSync(scratch)).toBe(false);
   });
 
   it('marks a damaged chunk list failed rather than leaving it running', async () => {

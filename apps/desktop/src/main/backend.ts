@@ -37,7 +37,7 @@ export async function openBackend(
       helper && finalPassConfig
         ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
         : null;
-    if (helper) await recoverInterrupted(library, helper);
+    if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
     const recording = helper
       ? new RecordingController(
@@ -63,8 +63,10 @@ export async function openBackend(
           ? null
           : 'The app index was damaged and has been replaced. Settings are back to their defaults.',
       close: async () => {
+        // The workers stop first, so a helper that never acks cannot leave one running.
+        const passes = finalPasses?.shutdown();
         await recording?.shutdown();
-        await finalPasses?.shutdown();
+        await passes;
         await library.close();
       },
     };
