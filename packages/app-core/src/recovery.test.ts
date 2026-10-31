@@ -87,6 +87,51 @@ describe('sealAudio', () => {
     expect(tracks.meeting?.chunks.map(({ file }) => file)).toEqual(['000001.opus']);
   });
 
+  it('T2: marks a real 3 ms discontinuity, not just second-sized gaps', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000001.opus', chunk(1, 2 * SECOND + 3_000_000, 1, 'discontinuity'));
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      { kind: 'audioMissing', track: 'meeting', startNs: 2 * SECOND,
+        endNs: 2 * SECOND + 3_000_000 },
+    ]);
+  });
+
+  it('T13: preserves two confirmed pauses as separate spans', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 1, 'start'));
+    put('meeting', '000001.opus', chunk(1, 3 * SECOND, 1, 'resume'));
+    put('meeting', '000002.opus', chunk(2, 6 * SECOND, 1, 'resume'));
+    events([
+      { event: 'pause', atNs: SECOND, seq: 1 },
+      { event: 'resume', atNs: 3 * SECOND, seq: 2 },
+      { event: 'pause', atNs: 4 * SECOND, seq: 3 },
+      { event: 'resume', atNs: 6 * SECOND, seq: 4 },
+    ]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      { kind: 'paused', track: 'both', startNs: SECOND, endNs: 3 * SECOND },
+      { kind: 'paused', track: 'both', startNs: 4 * SECOND, endNs: 6 * SECOND },
+    ]);
+  });
+
+  it('T14: retains original chunk sequence and every Ogg page on a clean seal', async () => {
+    for (const index of [0, 1, 2]) {
+      put('meeting', `${String(index).padStart(6, '0')}.opus`,
+        chunk(index, index * 2 * SECOND, 2, index === 0 ? 'start' : 'rollover'));
+    }
+    logLine('meeting', [0, 1, 2].map((index) => ({
+      file: `${String(index).padStart(6, '0')}.opus`, closeReason: 'stop',
+    })));
+    const result = await sealAudio(audio, dead);
+    const sealed = result.tracks.meeting?.chunks ?? [];
+    expect(sealed.map((part) => part.seq)).toEqual([0, 1, 2]);
+    expect(sealed.map((part) => part.state)).toEqual(['complete', 'complete', 'complete']);
+    expect(result.gaps).toEqual([]);
+    for (const part of sealed) {
+      expect(readPages(readFileSync(join(audio, 'meeting', part.file)))).toHaveLength(4);
+    }
+  });
+
   it('marks a span with no pause record as missing, never paused', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
     put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, 'discontinuity'));
