@@ -56,6 +56,50 @@ describe('createMeetingHandlers', () => {
     ]);
   });
 
+  it('returns final text, and speakers with the You kind', async () => {
+    const { id: meetingId } = await recorded('Spoken', '2026-10-03T10:00:00.000Z');
+    await library.applyFinalPass(meetingId, {
+      segments: [
+        {
+          id: 's1',
+          speakerId: 'you',
+          track: 'microphone',
+          pass: 'final',
+          words: [{ id: 'w1', text: 'hello', startMs: 10, endMs: 20 }],
+        },
+      ],
+      speakers: [
+        { id: 'you', label: 'You', name: null, profileId: null, userNamed: false, mergedInto: null },
+      ],
+    });
+    expect(await value('getTranscript', { meetingId, offset: 0, limit: 10 })).toMatchObject({
+      totalSegments: 1,
+      totalWords: 1,
+      speakers: [{ id: 'you', label: 'You', kind: 'you' }],
+      segments: [
+        {
+          track: 'microphone',
+          startMs: 10,
+          endMs: 20,
+          words: [{ id: 'w1', text: 'hello', state: 'final', correctionId: null }],
+        },
+      ],
+    });
+  });
+
+  it('shows a failed meeting as ready and gives the reason with its transcript', async () => {
+    const { id: meetingId } = await recorded('Failed', '2026-10-04T10:00:00.000Z');
+    await library.updateMeeting(meetingId, {
+      status: 'transcriptionFailed',
+      transcriptionFailure: 'Tools are missing. Your audio is saved.',
+    });
+    expect(await value('getMeeting', { meetingId })).toMatchObject({ status: 'ready' });
+    expect(await call('getTranscript', { meetingId, offset: 0, limit: 10 })).toEqual({
+      ok: false,
+      error: { code: 'internal', message: 'Tools are missing. Your audio is saved.' },
+    });
+  });
+
   it('applies the origin and date filter', async () => {
     const october = await recorded('October', '2026-10-15T10:00:00.000Z');
     await recorded('November', '2026-11-15T10:00:00.000Z');

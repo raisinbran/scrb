@@ -1,6 +1,11 @@
 import { app } from 'electron';
 import path from 'node:path';
-import { createSettingsHandlers } from '@scrb/app-core';
+import {
+  createFinalPassRunner,
+  createSettingsHandlers,
+  FinalPassQueue,
+  resumeFinalPasses,
+} from '@scrb/app-core';
 import { Library, readLibraryLocation } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
@@ -26,12 +31,25 @@ export async function openBackend(
     const settings = createSettingsHandlers(library.settings, root);
     // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
+    // Same rule for the final pass: it needs models and tools that packaging does not ship yet.
+    const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
+    const finalPasses =
+      helper && finalPassConfig
+        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        : null;
     if (helper) await recoverInterrupted(library, helper);
+    await resumeFinalPasses(library, finalPasses);
     const recording = helper
-      ? new RecordingController(library, helper, emit, {
-          read: () => settings.getSettings().audio,
-          save: (selection) => settings.updateSettings({ audio: selection }),
-        })
+      ? new RecordingController(
+          library,
+          helper,
+          emit,
+          {
+            read: () => settings.getSettings().audio,
+            save: (selection) => settings.updateSettings({ audio: selection }),
+          },
+          finalPasses,
+        )
       : null;
     return {
       handlers: {
@@ -46,6 +64,7 @@ export async function openBackend(
           : 'The app index was damaged and has been replaced. Settings are back to their defaults.',
       close: async () => {
         await recording?.shutdown();
+        await finalPasses?.shutdown();
         await library.close();
       },
     };

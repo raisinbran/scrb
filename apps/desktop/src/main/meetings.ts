@@ -1,25 +1,38 @@
-import { readSealedGaps } from '@scrb/app-core';
+import { readSealedGaps, WORKER_FAILED_MESSAGE, YOU_ID } from '@scrb/app-core';
 import {
   ContractError,
   type MeetingDetail,
   type MeetingFilter,
   type MeetingListItem,
+  type MeetingStatus,
   type MeetingSummaryDoc,
+  type Speaker as ContractSpeaker,
   type TimelineGap,
   type TranscriptPage,
+  type TranscriptSegment,
 } from '@scrb/contracts';
 import {
+  activeSpeakers,
   errorFields,
   MeetingNotFoundError,
+  resolveDisplay,
+  type DisplaySegment,
   type Library,
   type MeetingMeta,
   type MeetingRow,
+  type Speaker,
+  type TranscriptFile,
 } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 
 const NS_PER_MS = 1e6;
 
 type MeetingFacts = MeetingRow | MeetingMeta;
+
+/** The contract has no failed status, so `getTranscript` is where a failure shows. */
+function toContractStatus(status: MeetingFacts['status']): MeetingStatus {
+  return status === 'transcriptionFailed' ? 'ready' : status;
+}
 
 function toListItem(meeting: MeetingFacts): MeetingListItem {
   return {
@@ -28,7 +41,7 @@ function toListItem(meeting: MeetingFacts): MeetingListItem {
     startedAt: meeting.date,
     durationMs: meeting.durationMs,
     origin: meeting.source,
-    status: meeting.status,
+    status: toContractStatus(meeting.status),
     summaryState: 'notGenerated',
     speakerCount: 0,
   };
@@ -82,8 +95,51 @@ function toDetail(library: Library, meeting: MeetingMeta): MeetingDetail {
   };
 }
 
-function emptyTranscriptPage(meetingId: string): TranscriptPage {
-  return { meetingId, revision: 0, totalSegments: 0, totalWords: 0, segments: [], speakers: [] };
+function toContractSegment(segment: DisplaySegment): TranscriptSegment {
+  return {
+    id: segment.id,
+    speakerId: segment.speakerId,
+    track: segment.track,
+    startMs: segment.tokens[0]?.startMs ?? 0,
+    endMs: segment.tokens.at(-1)?.endMs ?? 0,
+    words: segment.tokens.map((token) => ({
+      id: token.wordIds[0] ?? '',
+      text: token.text,
+      startMs: token.startMs,
+      endMs: token.endMs,
+      state: token.correctionId
+        ? 'corrected'
+        : segment.pass === 'final'
+          ? 'final'
+          : 'provisional',
+      correctionId: token.correctionId,
+    })),
+  };
+}
+
+function toContractSpeaker(speaker: Speaker): ContractSpeaker {
+  return {
+    id: speaker.id,
+    label: speaker.name ?? speaker.label,
+    kind: speaker.id === YOU_ID ? 'you' : speaker.name ? 'named' : 'unknown',
+    profileId: speaker.profileId,
+  };
+}
+
+function toTranscriptPage(
+  transcript: TranscriptFile,
+  offset: number,
+  limit: number,
+): TranscriptPage {
+  const display = resolveDisplay(transcript);
+  return {
+    meetingId: transcript.meetingId,
+    revision: transcript.revision,
+    totalSegments: display.length,
+    totalWords: display.reduce((sum, segment) => sum + segment.tokens.length, 0),
+    segments: display.slice(offset, offset + limit).map(toContractSegment),
+    speakers: activeSpeakers(transcript).map(toContractSpeaker),
+  };
 }
 
 function emptySummary(meetingId: string): MeetingSummaryDoc {
@@ -114,9 +170,19 @@ export function createMeetingHandlers(library: Library): CallHandlers {
       return toDetail(library, await requireMeeting(library, meetingId));
     },
     getTranscript: async (request) => {
-      const { meetingId } = request as { meetingId: string };
-      await requireMeeting(library, meetingId);
-      return emptyTranscriptPage(meetingId);
+      const { meetingId, offset, limit } = request as {
+        meetingId: string;
+        offset: number;
+        limit: number;
+      };
+      const meeting = await requireMeeting(library, meetingId);
+      if (meeting.status === 'transcriptionFailed') {
+        throw new ContractError({
+          code: 'internal',
+          message: meeting.transcriptionFailure ?? WORKER_FAILED_MESSAGE,
+        });
+      }
+      return toTranscriptPage(await library.readTranscript(meetingId), offset, limit);
     },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };

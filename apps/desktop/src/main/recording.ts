@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { RecordingSession, sealAudio, type SessionEnd } from '@scrb/app-core';
+import { RecordingSession, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
 import { ProcessAdapter } from '@scrb/capture';
 import {
   ContractError,
@@ -13,7 +13,7 @@ import {
   type RecordingWarning,
   type SourceSelection,
 } from '@scrb/contracts';
-import type { Library } from '@scrb/storage';
+import { errorFields, type Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
 
@@ -58,12 +58,15 @@ export class RecordingController {
   private starting = false;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
+  private finishing: Promise<void> | null = null;
 
   constructor(
     private readonly library: Library,
     private readonly helper: string,
     private readonly emit: Emit,
     private readonly sources: SourceStore,
+    /** Null leaves a stopped meeting ready with no transcript. */
+    private readonly finalPasses: FinalPassQueue | null = null,
   ) {}
 
   private update(patch: Partial<RecordingState>): void {
@@ -92,8 +95,10 @@ export class RecordingController {
     const sealed = await sealAudio(audio, async () =>
       lockHeld(this.helper, join(audio, 'writer.lock')),
     );
+    const clean = end === 'stopped' && sealed.outcome === 'ready';
+    const transcribe = clean && this.finalPasses !== null;
     await this.library.updateMeeting(meetingId, {
-      status: end === 'stopped' && sealed.outcome === 'ready' ? 'ready' : 'recovered',
+      status: transcribe ? 'finalPassRunning' : clean ? 'ready' : 'recovered',
       durationMs: Math.round(sealed.endNs / 1e6),
     });
     if (end === 'pauseFailed') {
@@ -112,6 +117,7 @@ export class RecordingController {
       );
     }
     this.update(IDLE);
+    if (transcribe) this.finalPasses?.enqueue(meetingId);
   }
 
   private start = async ({ title }: { title?: string }): Promise<{ meetingId: string }> => {
@@ -167,7 +173,11 @@ export class RecordingController {
           { kind: 'audioMissing', track, message: `The ${track} track is not recording.` },
           'warning',
         ),
-      onEnded: (end) => void this.finish(meeting.id, end),
+      onEnded: (end) => {
+        this.finishing = this.finish(meeting.id, end).catch((error: unknown) => {
+          this.library.logger.log('error', 'recording-finish-failed', errorFields(error));
+        });
+      },
       newCommandId: randomUUID,
     });
     this.session = session;
@@ -244,5 +254,6 @@ export class RecordingController {
   /** Quitting mid-recording stops it cleanly rather than leaving it to recovery. */
   async shutdown(): Promise<void> {
     await this.session?.stop();
+    await this.finishing;
   }
 }

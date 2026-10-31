@@ -12,6 +12,7 @@
   "dependencies": {
     "@scrb/capture": "*",
     "@scrb/contracts": "*",
-    "@scrb/storage": "*"
+    "@scrb/storage": "*",
+    "@scrb/transcription": "*"
   }
 }
