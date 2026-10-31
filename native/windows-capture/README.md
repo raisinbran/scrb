@@ -194,7 +194,7 @@ timer:
 | `sleep-wake` | 1.7 s offset | Pass: 71.1 s `sleep` on meeting, 71.4 s on mic, against 72 s in the Windows log.  See finding 8 |
 | `mic-privacy-off` | Mic stopped, never resumed | Pass: 45.7 s `permission` missing; reopened 0.45 s after access returned |
 | `audio-restart-tree` | Mac capture died silently | Pass after finding 5: meeting back in about 1.8 s, mic in 5.6 s |
-| `audio-restart-whole` (2026-10-31) | Not run before | Pass: whole-computer capture, tree target, `SCRB_TONE` copy.  Both tracks `streamDead`, `deviceSignal` 0x88890004, not a silent death; both back in 5.6 s, the 5 s retry of finding 9.  Meeting missing 5.80 s, mic 5.71 s; tone in all 12 meeting chunks, level 4052--4056 before and 3780--3781 after, cause of the drop not checked.  Sealed, the meeting gap reads `possiblyMissing`, not `audioMissing`: see finding 13 |
+| `audio-restart-whole` (2026-10-31) | Not run before | Pass: whole-computer capture, tree target, `SCRB_TONE` copy.  Both tracks `streamDead`, `deviceSignal` 0x88890004, not a silent death; both back in 5.6 s, the 5 s retry of finding 9.  Meeting missing 5.80 s, mic 5.71 s; tone in all 12 meeting chunks, level 4052--4056 before and 3780--3781 after, cause of the drop not checked.  Sealed, the meeting gap reads `audioMissing` after the fix in finding 13 |
 | `default-debounce` | None | Pass, weakly: no `deviceChanged` with an 8 s debounce.  The log cannot show that the two quick changes happened |
 
 4 h long run with load (2026-10-30, `results/long-run.txt`).  **This is not the
@@ -273,11 +273,11 @@ unplug (no USB mic).
     within 20 ms (worst 19.2 ms).  On the built-in mic 1275 were within 2 ms (worst
     1.15 ms), and the 4 past it (worst 6.4 ms) were logged.  They net -954.7 ms of
     timeline; no frames are repeated by this.
-13. **A known loss on whole-computer meeting audio seals as `possiblyMissing`.**
-    `sealAudio` in `packages/app-core/src/recovery.ts` softens every whole-computer
-    meeting gap unless a worker died, because a silent computer sends nothing.  So
-    a Windows Audio restart, where the log has `missingCause: device`, reads as
-    possibly missing.  The span is still marked.  Not changed here.
+13. A known loss on whole-computer meeting audio sealed as `possiblyMissing`,
+    because `sealAudio` softened every such gap unless a worker died.  It now stays
+    `audioMissing` when the next chunk opened with `device` or the Mac's
+    `serviceRestarted`.  The Mac's `streamDead` stays softened, because a silent
+    computer can cause it.  The Mac reason is checked by unit test only.
 
 ## Needs a Planner plan
 

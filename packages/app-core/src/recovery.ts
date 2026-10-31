@@ -228,6 +228,10 @@ function restartTimes(audioDir: string): number[] {
 
 const MIN_GAP_NS = 2_000_000;
 
+// Why a chunk reopened when the stream itself failed. Not the Mac's `streamDead`, which a silent
+// computer also causes.
+const KNOWN_LOSS_REASONS = new Set(['device', 'serviceRestarted']);
+
 // Timing rounds at each pause and packet edge, so a span this close to a pause is that pause.
 const EDGE_TOLERANCE_NS = 100_000_000;
 
@@ -393,9 +397,14 @@ export async function sealAudio(
     }
     if (track === 'meeting' && wholeComputer) {
       for (const gap of found) {
-        // A silent computer sends nothing, but a dead worker's time is known to be lost.
+        // A silent computer sends nothing, but a dead worker or stream's time is known to be lost.
         const workerDown = restarts.some((at) => gap.startNs <= at && at <= gap.endNs);
-        if (gap.kind === 'audioMissing' && !workerDown) gap.kind = 'possiblyMissing';
+        const streamFailed = value.chunks.some(
+          (chunk) => chunk.startNs === gap.endNs && KNOWN_LOSS_REASONS.has(chunk.openReason),
+        );
+        if (gap.kind === 'audioMissing' && !workerDown && !streamFailed) {
+          gap.kind = 'possiblyMissing';
+        }
       }
     }
     const trackLevelGaps = found.flatMap((gap) => withoutPaused(gap, paused));

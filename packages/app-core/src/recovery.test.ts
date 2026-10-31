@@ -216,6 +216,32 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it.each(['device', 'serviceRestarted'])(
+    'calls whole-computer audio lost when the stream failed: %s',
+    async (reason) => {
+      put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, reason));
+      events([{ event: 'open', wholeComputer: true, seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'audioMissing', track: 'meeting', startNs: 2 * SECOND, endNs: 5 * SECOND },
+      ]);
+    },
+  );
+
+  it.each(['discontinuity', 'streamDead'])(
+    'keeps whole-computer audio possibly lost after a %s, which silence can cause',
+    async (reason) => {
+      put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, reason));
+      events([{ event: 'open', wholeComputer: true, seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'possiblyMissing', track: 'meeting', startNs: 2 * SECOND, endNs: 5 * SECOND },
+      ]);
+    },
+  );
+
   describe('after a worker restart', () => {
     const OPENED = { event: 'open', seq: 1 };
     const restart = (at: number) => ({ event: 'restart', atNs: at * SECOND, seq: 2 });
