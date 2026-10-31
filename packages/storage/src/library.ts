@@ -737,7 +737,7 @@ export class Library {
         expectedTranscriptRevision !== undefined &&
         transcript.revision !== expectedTranscriptRevision
       ) {
-        throw new StaleRevisionError(meetingId, expectedTranscriptRevision, transcript.revision);
+        throw new StaleRevisionError(expectedTranscriptRevision, transcript.revision);
       }
       const fresh: SummaryFile = {
         ...generated,
