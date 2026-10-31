@@ -324,6 +324,11 @@ export interface PlaybackPosition {
 
 // Speakers
 
+export interface ProfileUndoState extends UndoState {
+  nextUndo: 'rename' | 'merge' | null;
+  nextRedo: 'rename' | 'merge' | null;
+}
+
 export interface VoiceProfile {
   id: ProfileId;
   /** Null until the user names it. */

@@ -64,6 +64,14 @@ describe('isValidRequest', () => {
     expect(isValidRequest('listSpeakerSuggestions', { path: '/tmp' })).toBe(false);
   });
 
+  it('allows profile history calls without any payload', () => {
+    for (const name of ['getProfileUndoState', 'undoProfileChange', 'redoProfileChange'] as const) {
+      expect(isValidRequest(name, undefined)).toBe(true);
+      expect(isValidRequest(name, { profileId: 'p1' })).toBe(false);
+      expect(CALL_NAMES).toContain(name);
+    }
+  });
+
   it('checks unions by kind', () => {
     const profile = { target: { kind: 'profile', profileId: 'p-1' }, name: 'Ana' };
     expect(isValidRequest('renameSpeaker', profile)).toBe(true);

@@ -277,6 +277,9 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   pauseAudio: meeting,
 
   listProfiles: nothing,
+  getProfileUndoState: nothing,
+  undoProfileChange: nothing,
+  redoProfileChange: nothing,
   listSpeakerSuggestions: shape({}, { meetingId: id }),
   renameSpeaker: shape({
     target: either(

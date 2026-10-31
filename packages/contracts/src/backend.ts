@@ -41,6 +41,7 @@ import type {
   PickedAudioFile,
   PlaybackPosition,
   ProfileId,
+  ProfileUndoState,
   RecordingHealth,
   RecordingSnapshot,
   RecordingState,
@@ -131,6 +132,9 @@ export interface BackendCalls {
   // Speakers
   /** @addition */
   listProfiles: { request: void; response: VoiceProfile[] };
+  getProfileUndoState: { request: void; response: ProfileUndoState };
+  undoProfileChange: { request: void; response: ProfileUndoState };
+  redoProfileChange: { request: void; response: ProfileUndoState };
   listSpeakerSuggestions: { request: { meetingId?: MeetingId }; response: SpeakerSuggestion[] };
   renameSpeaker: { request: { target: SpeakerTarget; name: string }; response: void };
   mergeSpeakers: { request: SpeakerMerge; response: void };
@@ -328,6 +332,9 @@ const CALL_TABLE: Record<CallName, true> = {
   seekAudio: true,
   pauseAudio: true,
   listProfiles: true,
+  getProfileUndoState: true,
+  undoProfileChange: true,
+  redoProfileChange: true,
   listSpeakerSuggestions: true,
   renameSpeaker: true,
   mergeSpeakers: true,
