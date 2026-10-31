@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Hands-on device switches or sleep during a recording, with a floating countdown window.
+"""Hands-on device switches, sleep or permission changes during a recording, with a floating countdown window.
 
 Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
-Usage: device_case.py <helper> <work dir> [devices|sleep]
+Usage: device_case.py <helper> <work dir> [devices|sleep|permission]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
 
@@ -20,6 +20,13 @@ if mode == "sleep":
     READY = "Leave the lid open. Then press Start."
     END = 45  # counted again from waking
 DO_SECONDS = 15  # how long a step's instruction stays up as NOW
+if mode == "permission":
+    STEPS = [(30, "Microphone list: turn Claude OFF. If asked, choose Later"),
+             (60, "Microphone list: turn Claude back ON. If asked, choose Later"),
+             (90, "Go back. Open Screen & System Audio Recording. Turn Claude OFF. If asked, choose Later"),
+             (120, "Same list: turn Claude back ON. If asked, choose Later")]
+    READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
+    END = 150
 
 RATE = 8000
 tone_file = os.path.join(work, "tone.wav")

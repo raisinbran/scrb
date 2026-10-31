@@ -22,3 +22,5 @@ This measures track timelines, not a shared sound on both tracks. Output was mut
 **Sleep and wake, 2026-10-30, hands-on, lid closed about 2 minutes:** the first two runs found stream restarts during sleep and, after wake, two mic streams feeding one ring, because a restart from the writer thread raced the wake restart: chunks held twice the audio for their time and overlapped. Restarts now run only on the main queue and wait for wake. The third run: 126 s gap marked on both tracks, timeline correct at Stop, tone and mic present after wake, no overlaps. Gaps just after wake were 18 ms on the mic and 90 ms on the meeting track.
 
 `device_case.py <helper> <work> sleep` runs this case. `pause_case.py` and `stop_paused_case.py` still pass on this build.
+
+**Permission switches, 2026-10-30, hands-on:** Microphone and System Audio Recording were turned off and back on, each for 30 s, during a recording. Neither track reacted: no event, no gap, real audio throughout. On this macOS a switch does not reach a stream already running, so `permissionLost` cannot be expected mid-recording. The Privacy condition here is at the next stream open, which this case did not test.

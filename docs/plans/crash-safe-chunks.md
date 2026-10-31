@@ -264,6 +264,10 @@ Tests marked "both" run on Windows and macOS.
 
 Recovery runs on a real `kill -9`: 7.3 s recorded, chunks repaired, both tracks sealed, repaired chunk decodes, 311 ms lost, within the 1 s limit. A shorter track's tail is marked missing. Damage is truncated at the first bad page, so anything after it in that chunk is lost and marked. Still to run: failures at each step, power-cut simulation, Windows.
 
+## M1 result (2026-10-30)
+
+Word error on three AMI meetings, uncut encode against each writer: uncut 23.2%, simple cut 23.1%, overlap 23.2%, fresh start 23.3% on average. The winner changes by meeting, so the differences are noise, and speaker error shows no pattern either. Both helpers keep the fresh start. The overlap is dropped, as the plan says when it shows no gain. The click measure compares against one continuous encode, so it cannot rank the fresh start. `packages/transcription/scripts/m1-joins.ts` reruns this.
+
 ## Measurements before building
 
 - **M1, chunk joins:** run the AMI fixtures through all three writers in the table above and compare
