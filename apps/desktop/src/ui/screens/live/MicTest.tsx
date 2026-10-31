@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AudioCheckStatus, SourceSelection } from '@scrb/contracts';
+import type { AudioCheckStatus, InputDevice, SourceSelection } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import styles from '../LiveScreen.module.css';
 
@@ -11,7 +11,13 @@ const MIC_RESULT: Record<AudioCheckStatus['micResult'], string> = {
   denied: 'Mic permission is off',
 };
 
-export function MicTest({ sources }: { sources: SourceSelection | null }) {
+export function MicTest({
+  sources,
+  devices,
+}: {
+  sources: SourceSelection | null;
+  devices: InputDevice[];
+}) {
   const backend = useBackend();
   const [check, setCheck] = useState<AudioCheckStatus | null>(null);
 
@@ -24,6 +30,11 @@ export function MicTest({ sources }: { sources: SourceSelection | null }) {
   }, [backend]);
 
   const active = check?.active === true;
+  const chosen = sources?.micDeviceId
+    ? devices.find((device) => device.id === sources.micDeviceId) ??
+      devices.find((device) => device.isSystemDefault)
+    : devices.find((device) => device.isSystemDefault);
+  const handsFree = chosen?.transport === 'bluetoothHandsFree';
   const toggle = () => {
     if (active) void backend.call('stopAudioCheck');
     else if (sources) void backend.call('startAudioCheck', { sources }).catch(() => undefined);
@@ -34,11 +45,12 @@ export function MicTest({ sources }: { sources: SourceSelection | null }) {
       <button type="button" className={styles.button} disabled={!sources} onClick={toggle}>
         {active ? 'Stop test' : 'Test mic'}
       </button>
-      {active && check && (
+      {(active || handsFree) && (
         <span className={styles.hint} role="status">
-          {MIC_RESULT[check.micResult]}
-          {check.micDevice?.transport === 'bluetoothHandsFree' &&
-            '. This headset is in call mode, so sound quality is lower.'}
+          {active && check ? MIC_RESULT[check.micResult] : null}
+          {handsFree &&
+            (active ? '. This headset is in call mode, so sound quality is lower.' :
+              'Testing this headset turns on call mode and may lower sound quality.')}
         </span>
       )}
     </div>
