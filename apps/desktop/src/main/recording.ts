@@ -171,16 +171,35 @@ export class RecordingController {
       newCommandId: randomUUID,
     });
     this.session = session;
-    await session.start({
-      name: 'open',
-      sessionId: meeting.id,
-      outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
-      source,
-      mic,
-    });
+    try {
+      await session.start({
+        name: 'open',
+        sessionId: meeting.id,
+        outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
+        source,
+        mic,
+      });
+    } catch (failure) {
+      if (this.session === session) await this.closeFailedStart(meeting.id);
+      throw failure;
+    }
     this.lastTick = Date.now();
     this.ticker = setInterval(() => this.tick(), 1000);
     return { meetingId: meeting.id };
+  }
+
+  /** A meeting with no audio stays listed as recovered, so nothing a worker saved is lost. */
+  private async closeFailedStart(meetingId: string): Promise<void> {
+    const audio = this.library.meetingPaths(meetingId).audio;
+    const sealed = await sealAudio(audio, async () =>
+      lockHeld(this.helper, join(audio, 'writer.lock')),
+    );
+    // A worker still holding the lock leaves this row for recovery at the next launch.
+    if (sealed.outcome === 'writerAlive') return;
+    await this.library.updateMeeting(meetingId, {
+      status: sealed.outcome,
+      durationMs: Math.round(sealed.endNs / 1e6),
+    });
   }
 
   /** The helper cannot switch sources mid-recording, so a change waits for Stop. */
