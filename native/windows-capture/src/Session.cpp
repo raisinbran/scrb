@@ -17,7 +17,9 @@ namespace scrb {
 namespace {
 
 constexpr int64_t kStallNs = 500 * kNsPerMs;  // D3
-constexpr int64_t kRetryNs = 5 * kNsPerSec;
+constexpr int64_t kRetryNs = kNsPerSec;
+// Long enough that a mic which drops briefly comes back instead of being swapped.
+constexpr int64_t kMicFallbackNs = 5 * kNsPerSec;
 constexpr int64_t kWatchdogTickNs = 100 * kNsPerMs;
 
 const wchar_t kConsentKey[] =
@@ -473,7 +475,7 @@ void Session::DoSelectMic(const Command& cmd) {
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
     lostPickedMic_.clear();
     s.needReopen = true;
-    s.triedSame = false;
+    s.firstFailNs = 0;
     s.nextRetryNs = 0;
     TryReopen(kMic, NowNs());
     Reply(cmd, s.track->streamOpen());
@@ -590,7 +592,7 @@ void Session::MarkDead(int index, const std::string& reason, HRESULT hr) {
                            .Int("hresult", static_cast<uint32_t>(hr)));
     RebuildNotifier();
     s.needReopen = true;
-    s.triedSame = false;
+    s.firstFailNs = 0;
     s.nextRetryNs = 0;
     s.stalled = false;
     s.deathPosted = false;
@@ -607,8 +609,8 @@ void Session::TryReopen(int index, int64_t now) {
     if (consentDenied_) return;
     DeviceInfo info;
     HRESULT hr = s.track->OpenStream(s.spec, &info);
-    if (hr == E_ACCESSDENIED) Emit("permissionLost", JsonObject().Str("track", "microphone"));
-    if (FAILED(hr) && !s.spec.deviceId.empty() && s.triedSame) {
+    if (hr == E_ACCESSDENIED && !s.firstFailNs) Emit("permissionLost", JsonObject().Str("track", "microphone"));
+    if (FAILED(hr) && !s.spec.deviceId.empty() && s.firstFailNs && now - s.firstFailNs >= kMicFallbackNs) {
         // Owner decision on Q12: keep recording on the default and warn.
         lostPickedMic_ = Narrow(s.spec.deviceId);
         s.spec.deviceId.clear();
@@ -616,8 +618,10 @@ void Session::TryReopen(int index, int64_t now) {
         if (SUCCEEDED(hr))
             Emit("micFallback", JsonObject().Str("fromDeviceId", lostPickedMic_).Str("toDeviceName", info.name));
     }
-    s.triedSame = true;
-    if (FAILED(hr)) return;
+    if (FAILED(hr)) {
+        if (!s.firstFailNs) s.firstFailNs = now;
+        return;
+    }
     s.track->Post([info](TrackPipeline& p) { p.OnStreamOpened(info, "device"); });
     s.needReopen = false;
     Emit("streamReopened", JsonObject().Str("track", "microphone").Str("deviceName", info.name));

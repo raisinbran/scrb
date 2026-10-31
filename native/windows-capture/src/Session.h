@@ -42,7 +42,7 @@ private:
         std::unique_ptr<Track> track;
         StreamSpec spec;
         bool needReopen = false;
-        bool triedSame = false;
+        int64_t firstFailNs = 0;
         int64_t nextRetryNs = 0;
         bool stalled = false;
         bool deathPosted = false;

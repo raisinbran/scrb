@@ -1,0 +1,8 @@
+case=retry-fallback helperExit=0
+microphone: chunks=3 audio=10.0 s missing=5522.1 ms bad=0 part=0 files=3 toneChunks=0 zeroChunks=0 peak=-29.7 dB
+  close reasons: device=1 rollover=1 stop=1
+    missing 5522.1 ms before 8.620 s, cause device
+meeting: chunks=4 audio=15.5 s missing=0.0 ms bad=0 part=0 files=4 toneChunks=4 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=3 stop=1
+VERIFY OK
+events: micFallback=1 streamReopened=1

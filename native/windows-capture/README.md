@@ -286,8 +286,9 @@ unplug (no USB mic).
    honest.  After wake Windows delivers the slept span as a burst of stale
    silence holding 1.69 s fewer frames than its stamps cover.  So D1 (stamps)
    finds it, and D2 is only a defence.  The pipeline drops that burst, so the
-   span is recorded as asleep and not as silence.  Contract F11, D2 and T3 need
-   updating (owner-approved folder, not changed here).
+   span is recorded as asleep and not as silence.  F11, D2 and T3 in
+   `phase0/design/capture-contract-draft.md` need updating (not changed here).
+   That draft is separate from `packages/contracts/`, which these do not touch.
 2. **A reader-only stall lost meeting audio.**  The 3.98 s loss differs from F4,
    where the app track lost nothing in real whole-process stalls.  The hook
    stops one thread, so it may not match F4; process loopback also cannot take
@@ -308,9 +309,12 @@ unplug (no USB mic).
    end, which also stops small losses adding up unseen.
 8. The mic was all-zero for about 12 s after wake, until around sign-in.  It is
    recorded as audio, not a gap; only `allZero` shows it.
-9. A picked or restarted mic retries every 5 s, which costs up to about 5 s of
-   mic audio on a disconnect or service restart.  A shorter retry is worth
-   testing.
+9. A picked or restarted mic retried every 5 s, which cost up to about 5 s of
+   mic audio on a disconnect or service restart.  Both tracks now retry every
+   1 s.  A picked mic still falls back to the default after 5 s, so a brief
+   dropout does not swap mics: `retry-fallback` fell back about 5.5 s after an
+   unknown mic was picked.  Not verified: the shorter recovery itself, which
+   needs a new Windows Audio restart.
 10. **The mic followed a default change about 12 minutes late in the long run.**
     Windows showed the built-in mic by 21:39:32 at the latest; the helper moved at
     21:50:27, after 13.7 min on the headset in all.  The cause is not known: the

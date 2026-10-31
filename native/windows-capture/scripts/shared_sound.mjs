@@ -2,6 +2,7 @@
 // The sound is invented: 60 ms sweeps at irregular spacing, so a sweep cannot pair with its neighbour.
 // Usage: node shared_sound.mjs make <out.wav> [minutes, default 10]
 //        node shared_sound.mjs measure <dir holding audio/>
+import { Buffer } from 'node:buffer';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
