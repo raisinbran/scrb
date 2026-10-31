@@ -238,36 +238,35 @@ export async function openIndex(
         );
       }
       const snapshotDb = new DatabaseSync(target, { readOnly: true });
+      let originalRows: ReturnType<typeof currentTables>;
       try {
         verify(snapshotDb);
         if (readIndexVersion(snapshotDb) !== journal.oldVersion) {
           throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The snapshot version changed.');
         }
-        const originalRows = currentTables(snapshotDb);
-        // A normal SQLite open rolls back an interrupted write before examining live rows.
-        const live = new DatabaseSync(filePath);
-        try {
-          verify(live);
-          const version = readIndexVersion(live);
-          if (version !== journal.oldVersion && version !== journal.targetVersion) {
-            throw new StorageError(
-              'INDEX_RECOVERY_REQUIRED',
-              'The live index version is unexpected.',
-            );
-          }
-          verifyPreserved(live, originalRows);
-          if (version === journal.oldVersion) {
-            await unlink(target);
-            await rm(journalPath(filePath), { force: true });
-          } else {
-            await saveJournal(filePath, { ...journal, phase: 'migrationVerified' });
-            retainedSnapshot = true;
-          }
-        } finally {
-          live.close();
-        }
+        originalRows = currentTables(snapshotDb);
       } finally {
         snapshotDb.close();
+      }
+      // A normal SQLite open rolls back an interrupted write before examining live rows.
+      const live = new DatabaseSync(filePath);
+      let version: number;
+      try {
+        verify(live);
+        version = readIndexVersion(live);
+        if (version !== journal.oldVersion && version !== journal.targetVersion) {
+          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index version is unexpected.');
+        }
+        verifyPreserved(live, originalRows);
+      } finally {
+        live.close();
+      }
+      if (version === journal.oldVersion) {
+        await unlink(target);
+        await rm(journalPath(filePath), { force: true });
+      } else {
+        await saveJournal(filePath, { ...journal, phase: 'migrationVerified' });
+        retainedSnapshot = true;
       }
     }
     if (
