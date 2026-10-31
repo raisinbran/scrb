@@ -43,6 +43,29 @@ describe('MockBackend', () => {
     expect(await backend.call('listImports')).toEqual([]);
   });
 
+  it('undoes mock profile rename and merge without permitting delete undo', async () => {
+    const originals = await backend.call('listProfiles');
+    const [first, second] = originals;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    await backend.call('renameSpeaker', {
+      target: { kind: 'profile', profileId: first!.id }, name: 'Invented rename',
+    });
+    expect((await backend.call('getProfileUndoState')).nextUndo).toBe('rename');
+    await backend.call('undoProfileChange');
+    expect((await backend.call('listProfiles')).find((item) => item.id === first!.id)?.name)
+      .toBe(first!.name);
+    await backend.call('mergeSpeakers', {
+      kind: 'profiles', from: first!.id, into: second!.id,
+    });
+    expect((await backend.call('getProfileUndoState')).nextUndo).toBe('merge');
+    await backend.call('undoProfileChange');
+    expect((await backend.call('listProfiles')).some((item) => item.id === first!.id)).toBe(true);
+    await backend.call('deleteProfile', { profileId: first!.id });
+    vi.advanceTimersByTime(500);
+    expect((await backend.call('getProfileUndoState')).canUndo).toBe(false);
+  });
+
   it('runs the scripted meeting: text each second, pause, device change, lag spike', async () => {
     const seen: string[] = [];
     let status = '';

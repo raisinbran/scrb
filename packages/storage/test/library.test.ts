@@ -488,6 +488,35 @@ describe('delete', () => {
   });
 });
 
+describe('profile change undo', () => {
+  it('restores a merged pair and its embeddings, but never undoes a permanent delete', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const store = library.voiceProfiles;
+    const first = store.create({
+      name: 'Invented one', modelId: 'invented-model', embedding: new Float32Array([1, 0]),
+    });
+    const second = store.create({
+      name: 'Invented two', modelId: 'invented-model', embedding: new Float32Array([0, 1]),
+    });
+    store.rename(first.id, 'Invented changed');
+    expect(store.undoState().nextUndo).toBe('rename');
+    store.undo();
+    expect(store.get(first.id)?.name).toBe('Invented one');
+    store.redo();
+    expect(store.get(first.id)?.name).toBe('Invented changed');
+    store.merge(first.id, second.id);
+    expect(store.get(first.id)).toBeNull();
+    expect(store.undoState().nextUndo).toBe('merge');
+    store.undo();
+    expect(store.get(first.id)?.embedding).toEqual(new Float32Array([1, 0]));
+    store.redo();
+    expect(store.get(first.id)).toBeNull();
+    store.delete(second.id);
+    expect(store.undoState()).toMatchObject({ canUndo: false, canRedo: false });
+    await library.close();
+  });
+});
+
 describe('auto-delete', () => {
   const DAY = 86_400_000;
   const start = Date.parse('2026-01-01T00:00:00.000Z');
