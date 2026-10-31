@@ -15,6 +15,7 @@ typedef struct {
   uint64_t host;
   uint32_t frames;
   uint32_t generation;
+  double rate;
   int16_t samples[RT_SLOT_FRAMES];
 } RtSlot;
 
@@ -108,6 +109,7 @@ static inline void rt_capture(RtRing *ring, const AudioBufferList *list, uint64_
     uint32_t count = frames - done < RT_SLOT_FRAMES ? frames - done : RT_SLOT_FRAMES;
     slot->host = host + (uint64_t)(done / ring->rate * rtTicksPerSecond);
     slot->frames = count;
+    slot->rate = ring->rate;
     slot->generation = generation;
     for (uint32_t i = 0; i < count; i++) {
       float mixed = 0;

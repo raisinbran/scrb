@@ -57,6 +57,7 @@ for track in ("meeting", "microphone"):
     if track != "meeting":
         continue
     tones = marker = 0
+    where = None
     for l in lines:
         wav = os.path.join(work, l["file"] + ".wav")
         subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", os.path.join(folder, l["file"]), "-ac", "1", "-ar", "16000", wav], check=True)
@@ -69,9 +70,13 @@ for track in ("meeting", "microphone"):
             print("DURATION MISMATCH", l["file"], duration, expected); failed = True
         for i in range(0, n, 8000):
             part = pcm[i:i + 8000]
+            if len(part) < 4000:  # a sliver at a chunk's end reads as false energy at any frequency
+                continue
             tones = max(tones, goertzel(part, 880, 16000))
-            marker = max(marker, goertzel(part, 2000, 16000))
-    print("880 level", round(tones, 1), "2000 level", round(marker, 1))
+            level = goertzel(part, 2000, 16000)
+            if level > marker:
+                marker, where = level, (l["file"], round(i / 16000, 2))
+    print("880 level", round(tones, 1), "2000 level", round(marker, 1), "at", where)
     if tones < 500 or marker > tones * 0.03:
         print("TONE CHECK FAILED"); failed = True
 

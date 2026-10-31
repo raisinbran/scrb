@@ -133,6 +133,7 @@ final class ChunkWriter {
 
     var isOpen: Bool { file != nil }
     var frames: UInt64 { file?.inputFrames ?? 0 }
+    var rate: Int { chunkRate }
 
     func open(startNs: Int64, rate: Int, reason: String, tags: [String]) -> Bool {
         name = String(format: "%06d.opus", sequence)

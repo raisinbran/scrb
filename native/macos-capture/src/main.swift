@@ -45,13 +45,16 @@ final class Track {
         mutex.lock()
         defer { mutex.unlock() }
         while let slot = rt_peek(ring) {
-            let rate = ring.pointee.rate
+            // Each slot's own rate: slots from the old device can outlive a switch.
+            let rate = slot.pointee.rate
             let gapSeconds = nextHost == 0 ? 0 : (Double(slot.pointee.host) - Double(nextHost)) / rtTicksPerSecond
             var reason: String?
             if slot.pointee.generation != generation {
                 if writer.isOpen { writer.close(reason: "pause") }
                 generation = slot.pointee.generation
                 nextOpenReason = "resume"
+            } else if writer.isOpen && writer.rate != Int(rate) {
+                reason = "deviceChanged"
             } else if gapSeconds > 0.05 {
                 reason = "discontinuity"
             } else if Double(writer.frames) >= chunkSeconds * rate {
