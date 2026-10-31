@@ -58,6 +58,7 @@ export async function openBackend(
           },
         )
       : null;
+    const stopRetention = library.startAutoDeleteSchedule();
     return {
       handlers: {
         getSettings: async () => settings.getSettings(),
@@ -70,6 +71,7 @@ export async function openBackend(
           ? null
           : 'The app index was damaged and has been replaced. Settings are back to their defaults.',
       close: async () => {
+        stopRetention();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();

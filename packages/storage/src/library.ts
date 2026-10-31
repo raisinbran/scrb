@@ -175,6 +175,7 @@ export class Library {
   private readonly db: DatabaseSync;
   private readonly clock: () => Date;
   private readonly locks = new Map<string, Promise<unknown>>();
+  private scheduledDeletion: Promise<void> = Promise.resolve();
 
   private constructor(
     paths: LibraryPaths,
@@ -223,6 +224,7 @@ export class Library {
   }
 
   async close(): Promise<void> {
+    await this.scheduledDeletion;
     await Promise.allSettled(this.locks.values());
     this.db.close();
     await this.logger.flush();
@@ -814,7 +816,7 @@ export class Library {
     const tick = (): void => {
       if (running) return;
       running = true;
-      void this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete()
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));
         })
