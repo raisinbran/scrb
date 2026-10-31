@@ -256,8 +256,9 @@ export async function openIndex(
           throw new StorageError('INDEX_RECOVERY_REQUIRED', 'An index copy failed verification.');
         }
         try {
+          checks.beforeSnapshotRemoval?.();
           await unlink(target);
-          if (await ordinaryFile(target)) retainedSnapshot = true;
+          retainedSnapshot = await ordinaryFile(target);
         } catch {
           retainedSnapshot = true;
         }
@@ -279,6 +280,10 @@ export async function openIndex(
       throw new UnsupportedVersionError('index.sqlite', version, INDEX_VERSION);
     }
     const upgrading = version > 0 && version < INDEX_VERSION;
+    // A retained, verified older snapshot must keep its journal until cleanup succeeds.
+    if (upgrading && retainedSnapshot) {
+      return { db, replacedCorruptIndex: null, retainedSnapshot };
+    }
     const existing = upgrading ? currentTables(db) : [];
     if (upgrading && filePath !== ':memory:') {
       const [file, volume] = await Promise.all([stat(filePath), statfs(dirname(filePath))]);

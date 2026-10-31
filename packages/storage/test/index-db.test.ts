@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -348,6 +349,38 @@ describe('index migrations', () => {
     expect(new SettingsStore(restarted.db).get('theme', 'light')).toBe('dark');
     expect(restarted.retainedSnapshot).toBe(false);
     restarted.db.close();
+  });
+
+  it('does not overwrite the retained case C journal when another migration is due', async () => {
+    const file = path.join(await tempDir(), 'index.sqlite');
+    const old = new DatabaseSync(file);
+    migrate(old, MIGRATIONS, 4);
+    old.close();
+    const snapshot = `${file}.upgrade-11111111-1111-4111-8111-111111111111`;
+    const original = new DatabaseSync(file);
+    original.prepare('VACUUM INTO ?').run(snapshot);
+    original.close();
+    const digest = createHash('sha256').update(await readFile(snapshot)).digest('hex');
+    const journalPath = `${file}.upgrade-state.json`;
+    const journal = JSON.stringify({
+      attemptId: '11111111-1111-4111-8111-111111111111',
+      oldVersion: 4, targetVersion: 5, phase: 'migrationVerified', snapshotHash: digest,
+    });
+    await writeFile(journalPath, journal);
+    const upgraded = new DatabaseSync(file);
+    migrate(upgraded, MIGRATIONS, 5);
+    upgraded.close();
+
+    const result = await openIndex(file, {
+      beforeSnapshotRemoval() {
+        throw new Error('synthetic retained snapshot lock');
+      },
+    });
+    expect(result.retainedSnapshot).toBe(true);
+    expect(readIndexVersion(result.db)).toBe(5);
+    result.db.close();
+    expect(await readFile(journalPath, 'utf8')).toBe(journal);
+    expect((await readdir(path.dirname(file)))).toContain(path.basename(snapshot));
   });
 
   it('has no column that could hold transcript text', async () => {
