@@ -100,7 +100,7 @@ export class RecordingSession {
     if (this.status !== 'paused' || this.pending) throw conflict('Not paused.');
     this.pending = 'resuming';
     try {
-      const ack = await this.send({ name: 'resume' });
+      const ack = await this.untilExit({ name: 'resume' });
       if (this.ending) return;
       if (!ack.ok || ack.gate !== 'open' || ack.activeTracks.length === 0) {
         throw new ContractError({ code: 'internal', message: 'Recording could not resume.' });
@@ -118,7 +118,8 @@ export class RecordingSession {
     if (this.status === 'idle' || this.status === 'stopping') return;
     this.ending = true;
     this.setStatus('stopping');
-    await this.send({ name: 'stop' });
+    // A crash here leaves the same saved audio for sealing as a finished stop.
+    await this.untilExit({ name: 'stop' }).catch(() => undefined);
     this.finish('stopped');
   }
 
@@ -146,8 +147,10 @@ export class RecordingSession {
     this.restarts += 1;
     this.attach();
     await this.send(this.reopenCommand());
-    // A restart during a pause stays paused: the gate only opens on Resume.
-    if (this.status === 'recording') this.reportMissing(await this.send({ name: 'start' }));
+    // A restart during a pause, or a pause still waiting, stays closed: only Resume opens the gate.
+    if (this.status === 'recording' && !this.pending) {
+      this.reportMissing(await this.send({ name: 'start' }));
+    }
   }
 
   private reopenCommand(): OpenCommand {

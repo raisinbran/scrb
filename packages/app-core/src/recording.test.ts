@@ -470,6 +470,49 @@ describe('RecordingSession', () => {
     });
   });
 
+  describe('a worker crash with a command waiting', () => {
+    const crash = async () => {
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+    };
+
+    it('never starts a restarted worker while a pause is waiting', async () => {
+      await session.start(OPEN);
+      latest().reply = (command) => (command.name === 'pause' ? 'never' : {});
+      const paused = session.pause();
+      await crash();
+      await vi.advanceTimersByTimeAsync(200);
+      await paused;
+      expect(session.state.status).toBe('paused');
+      expect(latest().sent.map(({ name }) => name)).toEqual(['open', 'pause']);
+      expect(latest().gate).toBe('closed');
+    });
+
+    it('rejects a waiting resume, stays paused and can retry', async () => {
+      await session.start(OPEN);
+      await session.pause();
+      latest().reply = (command) => (command.name === 'resume' ? 'never' : {});
+      const resumed = session.resume();
+      const outcome = expect(resumed).rejects.toThrow(ContractError);
+      await crash();
+      await outcome;
+      expect(session.state.status).toBe('paused');
+      await session.resume();
+      expect(session.state.status).toBe('recording');
+    });
+
+    it('finishes a waiting stop', async () => {
+      await session.start(OPEN);
+      latest().reply = (command) => (command.name === 'stop' ? 'never' : {});
+      const stopped = session.stop();
+      await crash();
+      await stopped;
+      expect(adapters).toHaveLength(1);
+      expect(session.state.status).toBe('idle');
+      expect(ended).toEqual(['stopped']);
+    });
+  });
+
   it('keeps a crashed worker paused rather than recording', async () => {
     await session.start(OPEN);
     await session.pause();
