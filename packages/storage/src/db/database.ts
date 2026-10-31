@@ -167,7 +167,7 @@ export async function openIndex(
     const managedSnapshot = journal && `${prefix}.upgrade-${journal.attemptId}`;
     const unknown = names.filter((name) =>
       (name.startsWith(`${prefix}.copying-`) || name.startsWith(`${prefix}.upgrade-`)) &&
-      name !== managedCopy && name !== managedSnapshot,
+      name !== managedCopy && name !== managedSnapshot && name !== `${prefix}.upgrade-state.json`,
     );
     if (unknown.length > 0) {
       throw new StorageError('INDEX_RECOVERY_REQUIRED', 'Unidentified index copies require review.');

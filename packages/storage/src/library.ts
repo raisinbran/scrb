@@ -845,7 +845,7 @@ export class Library {
     const parent = path.dirname(this.paths.index);
     const prefix = `${path.basename(this.paths.index)}.upgrade-`;
     return (await fs.readdir(parent))
-      .filter((name) => name.startsWith(prefix))
+      .filter((name) => name.startsWith(prefix) && name !== `${path.basename(this.paths.index)}.upgrade-state.json`)
       .map((name) => path.join(parent, name));
   }
 

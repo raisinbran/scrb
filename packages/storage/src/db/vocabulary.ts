@@ -354,7 +354,10 @@ export class VocabularyStore {
           const row = this.db
             .prepare('SELECT enabled FROM vocabulary_terms WHERE id = ?')
             .get(termId) as { enabled: number } | undefined;
-          if (row?.enabled === 1 && !this.isUserEdited(termId)) {
+          const manual = this.db.prepare(
+            'SELECT 1 FROM vocabulary_misheard WHERE term_id = ? AND preserved = 1 LIMIT 1',
+          ).get(termId);
+          if (row?.enabled === 1 && !this.isUserEdited(termId) && manual === undefined) {
             this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(termId);
           }
         }
