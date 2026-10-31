@@ -6,6 +6,8 @@
 **Source baseline for this batch:** `0005c21b2beec13851f22bd60b7ce73a76937ee7` (Gate 2 follow-up head).  
 **Never merged to `main`**; every changed file is on the isolated branch. Phase gates permit implementation here but still block main until Claude Code QA/owner gate approval.
 
+**Commit grouping note:** Task 21/22 approved-contract commits and the Task 29 search implementation grouped a contract/backend change with its UI mock rather than separate side-specific commits. No UI code imports backend modules, but this does not meet the preferred per-side commit granularity. Claude Code should split those commits for review/cherry-picking if needed; do not merge the branch wholesale.
+
 ## Commits by approved item
 
 | Item | Commits | What is included |
@@ -48,6 +50,6 @@
 
 In this session: **no `npm install`/`npm ci`, `npm run check`, TypeScript compiler, ESLint, Prettier, `npm run test:smoke`, Vitest suite, browser/Electron UI test, installed-app test, SQLite fixture tests, native Windows/macOS builds, model/transcription accuracy runs, device captures, privacy-permission tests, hardware/symlink/AV-lock tests, or 4/8-hour Gate runs were executed**. Added tests are written **but not executed**; no test-pass claim is made.
 
-Reason: the code was read and committed through the connected GitHub integration because direct GitHub checkout from this runtime has previously failed DNS resolution; there is no locally checked-out project dependency tree. The older independent QA result (767 passed/24 skipped; 5 smoke passed/2 skipped) belongs to the earlier `042c326` branch, **not** this batch.
+Reason: the code was read and committed through the connected GitHub integration because direct GitHub checkout from this runtime failed DNS resolution again in this session (\`git ls-remote https://github.com/raisinbran/scrb.git HEAD\`: Could not resolve host); there is no locally checked-out project dependency tree. The older independent QA result (767 passed/24 skipped; 5 smoke passed/2 skipped) belongs to the earlier `042c326` branch, **not** this batch.
 
 Only invented/synthetic test data was used; no user's recordings, transcriptions, names, credentials or model outputs were read. The primary agent decides all remaining unresolved items and merges accepted slices only after QA and the relevant owner gate.
