@@ -35,6 +35,7 @@ export function MicTest({
       devices.find((device) => device.isSystemDefault)
     : devices.find((device) => device.isSystemDefault);
   const handsFree = chosen?.transport === 'bluetoothHandsFree';
+  const showFailure = !active && check?.micResult === 'denied';
   const toggle = () => {
     if (active) void backend.call('stopAudioCheck');
     else if (sources) void backend.call('startAudioCheck', { sources }).catch(() => undefined);
@@ -45,12 +46,13 @@ export function MicTest({
       <button type="button" className={styles.button} disabled={!sources} onClick={toggle}>
         {active ? 'Stop test' : 'Test mic'}
       </button>
-      {(active || handsFree) && (
+      {(active || handsFree || showFailure) && (
         <span className={styles.hint} role="status">
-          {active && check ? MIC_RESULT[check.micResult] : null}
+          {check && (active || showFailure) ? MIC_RESULT[check.micResult] : null}
           {handsFree &&
-            (active ? '. This headset is in call mode, so sound quality is lower.' :
-              'Testing this headset turns on call mode and may lower sound quality.')}
+            (active
+              ? '. This headset is in call mode, so sound quality is lower.'
+              : 'Testing this headset turns on call mode and may lower sound quality.')}
         </span>
       )}
     </div>

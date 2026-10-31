@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
 import { MicTest } from './MicTest.tsx';
@@ -11,9 +11,17 @@ const headset = {
   transport: 'bluetoothHandsFree' as const,
 };
 
-const backend = new MockBackend();
+let backend: MockBackend;
 
-afterEach(() => cleanup());
+beforeEach(() => {
+  window.localStorage.clear();
+  backend = new MockBackend();
+});
+
+afterEach(() => {
+  cleanup();
+  backend.dispose();
+});
 
 describe('mic test headset advisory', () => {
   it('warns before opening a hands-free microphone', () => {
