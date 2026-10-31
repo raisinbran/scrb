@@ -98,10 +98,11 @@ export class MicCheckController {
       clearTimeout(openTimer);
       if (this.probe !== probe) return;
       if (ack === 'timeout' || ack === 'exited' || !ack.ok) {
-        this.status = { ...this.status, micResult: ack !== 'timeout' && ack !== 'exited' ? 'denied' : 'noSignal' };
+        const denied = ack !== 'timeout' && ack !== 'exited' && ack.error === 'permissionDenied';
+        this.status = { ...this.status, micResult: denied ? 'denied' : 'noSignal' };
         this.stop('deviceLost');
         throw new ContractError({
-          code: ack !== 'timeout' && ack !== 'exited' ? 'permissionDenied' : 'internal',
+          code: denied ? 'permissionDenied' : 'internal',
           message: 'The microphone test could not open the selected device.',
         });
       }

@@ -1,4 +1,5 @@
 import CoreAudio
+import AVFoundation
 import Darwin
 import Foundation
 
@@ -14,6 +15,7 @@ private final class MicProbe {
         let id = command["id"] as? String ?? ""
         let name = command["name"] as? String ?? ""
         var ok = true
+        var failure: String?
         if name == "beginMicCheck" {
             if !active {
                 let mic = command["mic"] as? String ?? "default"
@@ -24,6 +26,8 @@ private final class MicProbe {
                     started = Date()
                     runMeter()
                 } else {
+                    failure = AVCaptureDevice.authorizationStatus(for: .audio) == .denied
+                        ? "permissionDenied" : "deviceLost"
                     stream.close()
                 }
             }
@@ -32,8 +36,10 @@ private final class MicProbe {
         } else {
             ok = false
         }
-        say(["type": "ack", "id": id, "ok": ok, "gate": "closed",
-             "activeTracks": active ? ["microphone"] : [], "atNs": NSNull()])
+        var ack: [String: Any] = ["type": "ack", "id": id, "ok": ok, "gate": "closed",
+                                  "activeTracks": active ? ["microphone"] : [], "atNs": NSNull()]
+        if let failure { ack["error"] = failure }
+        say(ack)
         if name == "endMicCheck" { exit(0) }
     }
 

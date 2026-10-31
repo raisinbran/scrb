@@ -108,9 +108,12 @@ private:
 };
 
 void Ack(const std::string& id, bool ok, bool active) {
-    std::cout << JsonObject().Str("type", "ack").Str("id", id).Bool("ok", ok)
-                     .Str("gate", "closed").Raw("atNs", "null")
-                     .Raw("activeTracks", active ? "[\"microphone\"]" : "[]").Done() << std::endl;
+    JsonObject json;
+    json.Str("type", "ack").Str("id", id).Bool("ok", ok)
+        .Str("gate", "closed").Raw("atNs", "null")
+        .Raw("activeTracks", active ? "[\"microphone\"]" : "[]");
+    if (!ok) json.Str("error", "deviceLost");
+    std::cout << json.Done() << std::endl;
 }
 }  // namespace
 

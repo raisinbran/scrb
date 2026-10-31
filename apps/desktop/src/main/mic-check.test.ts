@@ -13,10 +13,12 @@ class FakeProbe implements CaptureAdapter {
   readonly commands: CaptureCommand[] = [];
   killed = false;
   accepted = true;
+  failureReason = 'permissionDenied';
   send(id: string, command: CaptureCommand): Promise<CaptureAck> {
     this.commands.push(command);
     return Promise.resolve({
       id, ok: this.accepted, gate: 'closed', atNs: null, activeTracks: [],
+      ...(!this.accepted && { error: this.failureReason }),
     });
   }
   onEvent(listener: (event: CaptureEvent) => void): void { this.listener = listener; }
@@ -98,6 +100,15 @@ describe('mic check (T22, fake read-only helper)', () => {
     expect(probe.killed).toBe(true);
     expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
       active: false, micResult: 'denied',
+    }));
+  });
+
+  it('a disconnected mic does not falsely claim a privacy denial', async () => {
+    probe.accepted = false;
+    probe.failureReason = 'deviceLost';
+    await expect(check.start(sources)).rejects.toMatchObject({ code: 'internal' });
+    expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
+      active: false, micResult: 'noSignal',
     }));
   });
 
