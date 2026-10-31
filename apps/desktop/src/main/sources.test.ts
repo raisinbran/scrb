@@ -177,6 +177,18 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     await handlers.stopRecording?.(undefined);
   });
 
+  it('refuses a microphone switch during recording, but accepts unchanged settings', async () => {
+    const sources = store(WHOLE, MIC.id);
+    const { handlers } = controller(helper().path, sources);
+    await start(handlers);
+    await expect(handlers.selectSources?.({
+      meetingAppId: WHOLE, micDeviceId: 'another-mic',
+    })).rejects.toMatchObject({ code: 'conflict' });
+    expect(sources.read().micDeviceId).toBe(MIC.id);
+    await handlers.selectSources?.({ meetingAppId: WHOLE, micDeviceId: MIC.id });
+    await handlers.stopRecording?.(undefined);
+  });
+
   it('allows another Start after a failed one', async () => {
     const fake = helper([ZOOM], 'activeTracks: []');
     const { handlers } = controller(fake.path, store(WHOLE));
