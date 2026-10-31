@@ -39,6 +39,7 @@ export function createConfiguredSummaryRunner(configPath: string): RunSummary {
 /** Keeps a generated summary linked to precisely the transcript revision it read. */
 export class SummaryCoordinator {
   private active: { meetingId: string; abort: AbortController; done: Promise<void> } | null = null;
+  private starting = false;
 
   constructor(
     private readonly library: Library,
@@ -51,16 +52,25 @@ export class SummaryCoordinator {
   }
 
   private async generate(input: { meetingId: string; length: SummaryLength }): Promise<void> {
-    if (this.active) {
+    if (this.active || this.starting) {
       throw new ContractError({ code: 'conflict', message: 'A summary is already being generated.' });
     }
-    const meeting = await this.library.getMeeting(input.meetingId);
-    if (meeting.status === 'recording' || meeting.status === 'importing' || meeting.status === 'finalPassRunning') {
-      throw new ContractError({ code: 'conflict', message: 'Finish transcription before summarizing.' });
+    this.starting = true;
+    try {
+      const meeting = await this.library.getMeeting(input.meetingId);
+      if (
+        meeting.status === 'recording' ||
+        meeting.status === 'importing' ||
+        meeting.status === 'finalPassRunning'
+      ) {
+        throw new ContractError({ code: 'conflict', message: 'Finish transcription before summarizing.' });
+      }
+      const abort = new AbortController();
+      const done = this.work(input, abort);
+      this.active = { meetingId: input.meetingId, abort, done };
+    } finally {
+      this.starting = false;
     }
-    const abort = new AbortController();
-    const done = this.work(input, abort);
-    this.active = { meetingId: input.meetingId, abort, done };
   }
 
   private async work(input: { meetingId: string; length: SummaryLength }, abort: AbortController): Promise<void> {
