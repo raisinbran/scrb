@@ -162,7 +162,9 @@ const summaryUpdate = either(
         item: shape({
           decision: text(MAX_TEXT),
           status: oneOf('decided', 'proposed', 'tentativelyAgreed', 'unresolved'),
-          impactArea: orNull(oneOf('scope', 'schedule', 'cost', 'risk', 'deliverables', 'technicalApproach')),
+          impactArea: orNull(
+            oneOf('scope', 'schedule', 'cost', 'risk', 'deliverables', 'technicalApproach'),
+          ),
           sourceMs: ms,
         }),
       }),

@@ -150,13 +150,15 @@ describe('index migrations', () => {
     old.prepare(`INSERT INTO settings VALUES ('theme', '"dark"')`).run();
     old.close();
     const original = await readFile(file);
-    await expect(openIndex(file, {
-      afterSnapshot(copy) {
-        const altered = new DatabaseSync(copy);
-        altered.prepare(`UPDATE settings SET value = '"light"' WHERE key = 'theme'`).run();
-        altered.close();
-      },
-    })).rejects.toMatchObject({ code: 'INDEX_SNAPSHOT' });
+    await expect(
+      openIndex(file, {
+        afterSnapshot(copy) {
+          const altered = new DatabaseSync(copy);
+          altered.prepare(`UPDATE settings SET value = '"light"' WHERE key = 'theme'`).run();
+          altered.close();
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'INDEX_SNAPSHOT' });
     expect(await readFile(file)).toEqual(original);
     expect(await readdir(root)).toEqual(['index.sqlite']);
   });
@@ -319,6 +321,23 @@ describe('vocabulary', () => {
     expect(vocabulary.get(a.id)?.id).toBe(a.id);
     vocabulary.redo();
     expect(vocabulary.get(a.id)).toBeNull();
+    db.close();
+  });
+
+  it('refuses a vocabulary undo that clashes with a newer term, then reaches older edits', async () => {
+    const { db } = await openIndex(':memory:');
+    const vocabulary = new VocabularyStore(db, now);
+    const older = vocabulary.remember({ term: 'Older' });
+    const term = vocabulary.remember({ term: 'Invented' });
+    vocabulary.update(older.id, { enabled: false });
+    vocabulary.delete(term.id);
+    vocabulary.remember({ term: 'Invented', context: { meetingId: 'm', correctionId: 'c' } });
+    expect(() => vocabulary.undo()).toThrow(
+      expect.objectContaining({ code: 'VOCABULARY_CHANGED' }),
+    );
+    expect(vocabulary.list().map((item) => item.term)).toEqual(['Invented', 'Older']);
+    vocabulary.undo();
+    expect(vocabulary.get(older.id)?.enabled).toBe(true);
     db.close();
   });
 

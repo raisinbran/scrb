@@ -96,8 +96,9 @@ export function findMeetingRows(db: DatabaseSync, filter: MeetingFilter): Meetin
     params.push(filter.fromDate);
   }
   if (filter.toDate !== undefined) {
-    clauses.push('date <= ?');
-    params.push(filter.toDate);
+    // A bare day must include that whole day, not stop at its first instant.
+    clauses.push('substr(date, 1, length(?)) <= ?');
+    params.push(filter.toDate, filter.toDate);
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
   const sql = `SELECT * FROM meetings ${where} ORDER BY date DESC, id`;
@@ -121,8 +122,7 @@ export function deleteMeetingRows(db: DatabaseSync, id: string): void {
 /** Names what the index still holds about a meeting. Empty means it is clean. */
 export function indexTraces(db: DatabaseSync, id: string): string[] {
   const traces: string[] = [];
-  const count = (sql: string): number =>
-    (db.prepare(sql).get(id) as { n: number }).n;
+  const count = (sql: string): number => (db.prepare(sql).get(id) as { n: number }).n;
   if (count('SELECT COUNT(*) n FROM meetings WHERE id = ?') > 0) traces.push('index:meetings');
   if (count('SELECT COUNT(*) n FROM vocabulary_contexts WHERE meeting_id = ?') > 0) {
     traces.push('index:vocabulary_contexts');

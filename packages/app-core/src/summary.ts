@@ -215,11 +215,23 @@ export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate)
       const evidence = { alsoAtMs: [], needsReview: false, edited: true };
       switch (update.collection) {
         case 'actionItems':
-          return { ...file, actionItems: [...file.actionItems, { ...update.item, id: randomUUID(), ...evidence }] };
+          return {
+            ...file,
+            actionItems: [...file.actionItems, { ...update.item, id: randomUUID(), ...evidence }],
+          };
         case 'decisions':
-          return { ...file, decisions: [...file.decisions, { ...update.item, id: randomUUID(), ...evidence }] };
+          return {
+            ...file,
+            decisions: [...file.decisions, { ...update.item, id: randomUUID(), ...evidence }],
+          };
         case 'openQuestions':
-          return { ...file, openQuestions: [...file.openQuestions, { ...update.item, id: randomUUID(), ...evidence }] };
+          return {
+            ...file,
+            openQuestions: [
+              ...file.openQuestions,
+              { ...update.item, id: randomUUID(), ...evidence },
+            ],
+          };
       }
       throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     }

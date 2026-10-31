@@ -232,16 +232,22 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
 
     await handlers.startAudioCheck?.({ sources: sources.read() });
     expect(library.createMeeting).not.toHaveBeenCalled();
-    expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
-      active: true,
-      meetingResult: 'notChecked',
-    }));
+    expect(emit).toHaveBeenCalledWith(
+      'audioCheck',
+      expect.objectContaining({
+        active: true,
+        meetingResult: 'notChecked',
+      }),
+    );
 
     await start(handlers);
-    expect(emit).toHaveBeenCalledWith('audioCheck', expect.objectContaining({
-      active: false,
-      endReason: 'recordingStarted',
-    }));
+    expect(emit).toHaveBeenCalledWith(
+      'audioCheck',
+      expect.objectContaining({
+        active: false,
+        endReason: 'recordingStarted',
+      }),
+    );
     expect(library.createMeeting).toHaveBeenCalledTimes(1);
     expect(probeHelper.opens()).toHaveLength(1);
     await handlers.stopRecording?.(undefined);

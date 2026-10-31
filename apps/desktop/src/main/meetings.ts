@@ -5,6 +5,8 @@ import {
   applySummaryUpdate,
   readSealedGaps,
   toSummaryDoc,
+  MISSING_TOOLS_MESSAGE,
+  NOT_ENABLED_MESSAGE,
   WORKER_FAILED_MESSAGE,
   YOU_ID,
   sealedTracks,
@@ -148,9 +150,9 @@ function toContractStatus(status: MeetingFacts['status']): MeetingStatus {
 }
 
 const SAFE_TRANSCRIPTION_FAILURES = new Set([
-  'Transcription could not run because its tools or models are missing. Your audio is saved.',
+  MISSING_TOOLS_MESSAGE,
   WORKER_FAILED_MESSAGE,
-  'Transcription was interrupted and is not turned on in this build. Your audio is saved.',
+  NOT_ENABLED_MESSAGE,
 ]);
 
 function safeTranscriptionFailure(message: string | null | undefined): string {
@@ -284,6 +286,7 @@ export function createMeetingHandlers(
   openPath?: (path: string) => Promise<string>,
   finalPasses: FinalPassQueue | null = null,
 ): CallHandlers {
+  const retrying = new Set<string>();
   return {
     listMeetings: async (request) => {
       const { filter = {} } = request as { filter?: MeetingFilter };
@@ -299,22 +302,44 @@ export function createMeetingHandlers(
     retryFinalPass: async (request) => {
       const { meetingId } = request as { meetingId: string };
       const meeting = await requireMeeting(library, meetingId);
-      if (meeting.status !== 'transcriptionFailed' || !hasSavedAudio(library, meeting)) {
-        throw new ContractError({ code: 'conflict', message: 'No failed pass with saved audio can be retried.' });
+      // The status check alone lets a double click queue the pass twice.
+      if (
+        retrying.has(meetingId) ||
+        meeting.status !== 'transcriptionFailed' ||
+        !hasSavedAudio(library, meeting)
+      ) {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'No failed pass with saved audio can be retried.',
+        });
       }
       if (!finalPasses) {
-        throw new ContractError({ code: 'notImplemented', message: 'Transcription is not configured.' });
+        throw new ContractError({
+          code: 'notImplemented',
+          message: 'Transcription is not configured.',
+        });
       }
       try {
         if (sealedTracks(library.meetingPaths(meetingId).audio).length === 0) {
           throw new Error('No readable sealed tracks');
         }
       } catch {
-        throw new ContractError({ code: 'conflict', message: 'This meeting has no readable sealed audio.' });
+        throw new ContractError({
+          code: 'conflict',
+          message: 'This meeting has no readable sealed audio.',
+        });
       }
-      await library.updateMeeting(meetingId, { status: 'finalPassRunning', transcriptionFailure: null });
-      emit?.('meetingChanged', toListItem(await requireMeeting(library, meetingId)));
-      finalPasses.enqueue(meetingId);
+      retrying.add(meetingId);
+      try {
+        await library.updateMeeting(meetingId, {
+          status: 'finalPassRunning',
+          transcriptionFailure: null,
+        });
+        emit?.('meetingChanged', toListItem(await requireMeeting(library, meetingId)));
+        finalPasses.enqueue(meetingId);
+      } finally {
+        retrying.delete(meetingId);
+      }
     },
     getTranscript: async (request) => {
       const { meetingId, offset, limit } = request as {
@@ -519,19 +544,27 @@ export function createMeetingHandlers(
     },
     getVocabularyUndoState: async () => library.vocabulary.undoState(),
     undoVocabulary: async () => {
-      try { return library.vocabulary.undo(); }
-      catch (error) {
+      try {
+        return library.vocabulary.undo();
+      } catch (error) {
         if (error instanceof StorageError && error.code === 'VOCABULARY_CHANGED') {
-          throw new ContractError({ code: 'conflict', message: 'Vocabulary changed since this edit.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Vocabulary changed since this edit.',
+          });
         }
         throw error;
       }
     },
     redoVocabulary: async () => {
-      try { return library.vocabulary.redo(); }
-      catch (error) {
+      try {
+        return library.vocabulary.redo();
+      } catch (error) {
         if (error instanceof StorageError && error.code === 'VOCABULARY_CHANGED') {
-          throw new ContractError({ code: 'conflict', message: 'Vocabulary changed since this edit.' });
+          throw new ContractError({
+            code: 'conflict',
+            message: 'Vocabulary changed since this edit.',
+          });
         }
         throw error;
       }

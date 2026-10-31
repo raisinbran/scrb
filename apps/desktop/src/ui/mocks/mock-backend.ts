@@ -179,20 +179,32 @@ function withItem(
       const evidence = { id: assignedId, alsoAtMs: [], needsReview: false, edited: true };
       switch (update.collection) {
         case 'actionItems':
-          return { ...summary, actionItems: [...summary.actionItems, { ...update.item, ...evidence }] };
+          return {
+            ...summary,
+            actionItems: [...summary.actionItems, { ...update.item, ...evidence }],
+          };
         case 'decisions':
           return { ...summary, decisions: [...summary.decisions, { ...update.item, ...evidence }] };
         case 'openQuestions':
-          return { ...summary, openQuestions: [...summary.openQuestions, { ...update.item, ...evidence }] };
+          return {
+            ...summary,
+            openQuestions: [...summary.openQuestions, { ...update.item, ...evidence }],
+          };
       }
       throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     }
     case 'remove': {
       const list = summary[update.collection];
       if (!list.some((entry) => entry.id === update.itemId)) {
-        throw new ContractError({ code: 'notFound', message: 'That summary item no longer exists.' });
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That summary item no longer exists.',
+        });
       }
-      return { ...summary, [update.collection]: list.filter((entry) => entry.id !== update.itemId) };
+      return {
+        ...summary,
+        [update.collection]: list.filter((entry) => entry.id !== update.itemId),
+      };
     }
     case 'narrative': {
       const item = { ...update.item, edited: true };
@@ -1044,7 +1056,10 @@ export class MockBackend implements Backend {
       });
     },
 
-    getVocabularyUndoState: () => ({ canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 }),
+    getVocabularyUndoState: () => ({
+      canUndo: this.termUndo.length > 0,
+      canRedo: this.termRedo.length > 0,
+    }),
     undoVocabulary: () => {
       const previous = this.termUndo.pop();
       if (previous) {
@@ -1130,9 +1145,15 @@ export class MockBackend implements Backend {
     retryFinalPass: ({ meetingId }) => {
       const meeting = this.findMeeting(meetingId);
       if (meeting.status !== 'transcriptionFailed' || !meeting.hasAudio) {
-        throw new ContractError({ code: 'conflict', message: 'No failed pass with audio is available to retry.' });
+        throw new ContractError({
+          code: 'conflict',
+          message: 'No failed pass with audio is available to retry.',
+        });
       }
-      this.updateMeetingStatus(meetingId, { status: 'finalPassRunning', transcriptionFailure: null });
+      this.updateMeetingStatus(meetingId, {
+        status: 'finalPassRunning',
+        transcriptionFailure: null,
+      });
       this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
       setTimeout(() => {
         const current = this.library.find((item) => item.id === meetingId);

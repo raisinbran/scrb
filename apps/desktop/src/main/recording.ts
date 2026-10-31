@@ -292,7 +292,7 @@ export class RecordingController {
       selectSources: (request) => this.select(request as SourceSelection),
       startAudioCheck: (request) =>
         this.micCheck.start((request as { sources: SourceSelection }).sources),
-      stopAudioCheck: () => this.micCheck.stop('stopped'),
+      stopAudioCheck: async () => this.micCheck.stop('stopped'),
     };
   }
 

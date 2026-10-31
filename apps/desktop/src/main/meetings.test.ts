@@ -21,7 +21,15 @@ describe('createMeetingHandlers', () => {
   afterEach(() => library.close());
 
   const call = (
-    name: 'listMeetings' | 'getMeeting' | 'getTranscript' | 'deleteMeeting' | 'updateTerm' | 'searchMeetings' | 'getUndoState' | 'retryFinalPass',
+    name:
+      | 'listMeetings'
+      | 'getMeeting'
+      | 'getTranscript'
+      | 'deleteMeeting'
+      | 'updateTerm'
+      | 'searchMeetings'
+      | 'getUndoState'
+      | 'retryFinalPass',
     request: unknown,
   ) => dispatchCall(handlers, name, request);
 
@@ -100,16 +108,22 @@ describe('createMeetingHandlers', () => {
     const { id: meetingId } = await recorded('Failed', '2026-10-04T10:00:00.000Z');
     await library.updateMeeting(meetingId, {
       status: 'transcriptionFailed',
-      transcriptionFailure: 'Transcription could not run because its tools or models are missing. Your audio is saved.',
+      transcriptionFailure:
+        'Transcription could not run because its tools or models are missing. Your audio is saved.',
     });
     expect(await value('getMeeting', { meetingId })).toMatchObject({
       status: 'transcriptionFailed',
-      transcriptionFailure: 'Transcription could not run because its tools or models are missing. Your audio is saved.',
+      transcriptionFailure:
+        'Transcription could not run because its tools or models are missing. Your audio is saved.',
       hasAudio: false,
     });
     expect(await call('getTranscript', { meetingId, offset: 0, limit: 10 })).toEqual({
       ok: false,
-      error: { code: 'internal', message: 'Transcription could not run because its tools or models are missing. Your audio is saved.' },
+      error: {
+        code: 'internal',
+        message:
+          'Transcription could not run because its tools or models are missing. Your audio is saved.',
+      },
     });
   });
 
@@ -131,17 +145,25 @@ describe('createMeetingHandlers', () => {
   it('keeps segment ids for filtered searches, so a match can jump to its words', async () => {
     const recordedMeeting = await recorded('Synthetic recorded', '2026-10-15T10:00:00.000Z');
     await library.applyFinalPass(recordedMeeting.id, {
-      segments: [{
-        id: 'seg-search',
-        track: 'meeting',
-        speakerId: 'speaker',
-        pass: 'final',
-        words: [{ id: 'word-search', text: 'InventedSearch', startMs: 10, endMs: 40 }],
-      }],
-      speakers: [{
-        id: 'speaker', label: 'Speaker 1', name: null,
-        profileId: null, userNamed: false, mergedInto: null,
-      }],
+      segments: [
+        {
+          id: 'seg-search',
+          track: 'meeting',
+          speakerId: 'speaker',
+          pass: 'final',
+          words: [{ id: 'word-search', text: 'InventedSearch', startMs: 10, endMs: 40 }],
+        },
+      ],
+      speakers: [
+        {
+          id: 'speaker',
+          label: 'Speaker 1',
+          name: null,
+          profileId: null,
+          userNamed: false,
+          mergedInto: null,
+        },
+      ],
     });
     await library.createMeeting({
       title: 'InventedSearch imported',
@@ -149,40 +171,62 @@ describe('createMeetingHandlers', () => {
       source: 'imported',
       status: 'ready',
     });
-    expect(await value('searchMeetings', {
-      query: 'InventedSearch',
-      filter: { origin: 'recorded', from: '2026-10-15', to: '2026-10-15' },
-    })).toMatchObject([{
-      meeting: { id: recordedMeeting.id },
-      matches: [{ segmentId: 'seg-search', startMs: 10 }],
-    }]);
-    expect(await value('searchMeetings', {
-      query: 'InventedSearch',
-      filter: { from: '2026-10-16' },
-    })).toEqual([]);
+    expect(
+      await value('searchMeetings', {
+        query: 'InventedSearch',
+        filter: { origin: 'recorded', from: '2026-10-15', to: '2026-10-15' },
+      }),
+    ).toMatchObject([
+      {
+        meeting: { id: recordedMeeting.id },
+        matches: [{ segmentId: 'seg-search', startMs: 10 }],
+      },
+    ]);
+    expect(
+      await value('searchMeetings', {
+        query: 'InventedSearch',
+        filter: { from: '2026-10-16' },
+      }),
+    ).toEqual([]);
   });
 
   it('only retries a failed pass with sealed audio and an available queue', async () => {
     const meeting = await recorded('Synthetic retry', '2026-10-15T10:00:00.000Z');
     await library.updateMeeting(meeting.id, { status: 'transcriptionFailed' });
     expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
-      ok: false, error: { code: 'conflict' },
+      ok: false,
+      error: { code: 'conflict' },
     });
     const paths = library.meetingPaths(meeting.id);
     writeFileSync(join(paths.audioMicrophone, '000.opus'), 'invented');
-    writeFileSync(join(paths.audioMicrophone, 'chunks.json'), JSON.stringify({
-      chunks: [{ file: '000.opus', startNs: 0, endNs: 1_000_000 }],
-    }));
+    writeFileSync(
+      join(paths.audioMicrophone, 'chunks.json'),
+      JSON.stringify({
+        chunks: [{ file: '000.opus', startNs: 0, endNs: 1_000_000 }],
+      }),
+    );
     const enqueue = vi.fn();
     const events = vi.fn();
     handlers = createMeetingHandlers(library, events, undefined, { enqueue } as never);
     expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({ ok: true });
     expect(enqueue).toHaveBeenCalledExactlyOnceWith(meeting.id);
-    expect(events).toHaveBeenCalledWith('meetingChanged', expect.objectContaining({
-      id: meeting.id, status: 'finalPassRunning',
-    }));
+    await library.updateMeeting(meeting.id, { status: 'transcriptionFailed' });
+    enqueue.mockClear();
+    await Promise.all([
+      call('retryFinalPass', { meetingId: meeting.id }),
+      call('retryFinalPass', { meetingId: meeting.id }),
+    ]);
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(meeting.id);
+    expect(events).toHaveBeenCalledWith(
+      'meetingChanged',
+      expect.objectContaining({
+        id: meeting.id,
+        status: 'finalPassRunning',
+      }),
+    );
     expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
-      ok: false, error: { code: 'conflict' },
+      ok: false,
+      error: { code: 'conflict' },
     });
   });
 
@@ -473,11 +517,24 @@ describe('createMeetingHandlers', () => {
       meetingId: broken.id,
     });
     library.voiceProfiles.grow(profile.id, new Float32Array([1, 0]), 1, readable.id);
-    await library.appendSegments(readable.id, [], [{
-      id: 'speaker-a', label: 'Speaker 1', name: null,
-      profileId: profile.id, userNamed: false, mergedInto: null,
-    }]);
-    writeFileSync(library.meetingPaths(broken.id).transcript, '{"schemaVersion":2,"secret":"invented speech"');
+    await library.appendSegments(
+      readable.id,
+      [],
+      [
+        {
+          id: 'speaker-a',
+          label: 'Speaker 1',
+          name: null,
+          profileId: profile.id,
+          userNamed: false,
+          mergedInto: null,
+        },
+      ],
+    );
+    writeFileSync(
+      library.meetingPaths(broken.id).transcript,
+      '{"schemaVersion":2,"secret":"invented speech"',
+    );
 
     expect(await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id })).toMatchObject({
       ok: true,
@@ -486,7 +543,10 @@ describe('createMeetingHandlers', () => {
     expect((await library.readTranscript(readable.id)).speakers[0]?.profileId).toBeNull();
     await library.logger.flush();
     const log = await import('node:fs/promises').then(({ readFile }) =>
-      readFile(join(library.paths.logs, 'scrb-' + new Date().toISOString().slice(0, 10) + '.log'), 'utf8'),
+      readFile(
+        join(library.paths.logs, 'scrb-' + new Date().toISOString().slice(0, 10) + '.log'),
+        'utf8',
+      ),
     );
     expect(log).toContain('profile-unlink-transcript-unreadable');
     expect(log).not.toContain('invented speech');
@@ -502,7 +562,9 @@ describe('createMeetingHandlers', () => {
         meetingId: meeting.id,
       });
       writeFileSync(library.meetingPaths(meeting.id).transcript, '{not valid');
-      expect(await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id })).toMatchObject({
+      expect(
+        await dispatchCall(handlers, 'deleteProfile', { profileId: profile.id }),
+      ).toMatchObject({
         ok: false,
         error: { code: 'conflict' },
       });

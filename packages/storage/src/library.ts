@@ -475,11 +475,7 @@ export class Library {
         ),
       );
       if (!inSpeakers && !inHistory) continue;
-      if (
-        row.status === 'recording' ||
-        row.status === 'importing' ||
-        row.status === 'finalPassRunning'
-      ) {
+      if (busy) {
         throw new StorageError(
           'PROFILE_BUSY',
           'Wait for the meeting to finish before deleting the profile.',
@@ -902,9 +898,11 @@ export class Library {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
     const run = this.runAutoDeleteOnce();
     this.autoDeletionInFlight = run;
-    void run.finally(() => {
-      if (this.autoDeletionInFlight === run) this.autoDeletionInFlight = null;
-    }).catch(() => undefined);
+    void run
+      .finally(() => {
+        if (this.autoDeletionInFlight === run) this.autoDeletionInFlight = null;
+      })
+      .catch(() => undefined);
     return run;
   }
 

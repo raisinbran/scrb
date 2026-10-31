@@ -211,20 +211,31 @@ export class VocabularyStore {
     this.redoStack = [];
   }
 
-  private restore(id: string, wanted: VocabularyTerm | null, previous: VocabularyTerm | null, edited: boolean): void {
+  private restore(
+    id: string,
+    wanted: VocabularyTerm | null,
+    previous: VocabularyTerm | null,
+    edited: boolean,
+  ): void {
     inTransaction(this.db, () => {
       this.db.prepare('DELETE FROM vocabulary_terms WHERE id = ?').run(id);
       if (wanted) {
-        this.db.prepare(
-          'INSERT INTO vocabulary_terms (id, term, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-        ).run(id, wanted.term, wanted.enabled ? 1 : 0, wanted.createdAt, wanted.updatedAt);
+        this.db
+          .prepare(
+            'INSERT INTO vocabulary_terms (id, term, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+          )
+          .run(id, wanted.term, wanted.enabled ? 1 : 0, wanted.createdAt, wanted.updatedAt);
         for (const text of wanted.misheard) {
-          this.db.prepare('INSERT INTO vocabulary_misheard (term_id, text) VALUES (?, ?)').run(id, text);
+          this.db
+            .prepare('INSERT INTO vocabulary_misheard (term_id, text) VALUES (?, ?)')
+            .run(id, text);
         }
         for (const context of wanted.contexts) {
-          this.db.prepare(
-            'INSERT INTO vocabulary_contexts (term_id, meeting_id, correction_id) VALUES (?, ?, ?)',
-          ).run(id, context.meetingId, context.correctionId);
+          this.db
+            .prepare(
+              'INSERT INTO vocabulary_contexts (term_id, meeting_id, correction_id) VALUES (?, ?, ?)',
+            )
+            .run(id, context.meetingId, context.correctionId);
         }
         this.db.prepare('DELETE FROM settings WHERE key = ?').run(deletedKey(wanted.term));
       } else if (previous) {
@@ -235,10 +246,23 @@ export class VocabularyStore {
     });
   }
 
+  /** The term must be as expected, and its restored text must not belong to a newer entry. */
+  private canRestore(
+    id: string,
+    expected: VocabularyTerm | null,
+    wanted: VocabularyTerm | null,
+  ): boolean {
+    if (JSON.stringify(this.get(id)) !== JSON.stringify(expected)) return false;
+    const holder = wanted ? this.findByTerm(wanted.term) : undefined;
+    return holder === undefined || holder.id === id;
+  }
+
   undo(): { canUndo: boolean; canRedo: boolean } {
     const change = this.undoStack.at(-1);
     if (!change) return this.undoState();
-    if (JSON.stringify(this.get(change.id)) !== JSON.stringify(change.after)) {
+    if (!this.canRestore(change.id, change.after, change.before)) {
+      // A stale entry stays stale, so dropping it lets older edits still be undone.
+      this.undoStack.pop();
       throw new StorageError('VOCABULARY_CHANGED', 'Vocabulary changed since the edit.');
     }
     this.restore(change.id, change.before, change.after, change.wasEdited);
@@ -250,7 +274,8 @@ export class VocabularyStore {
   redo(): { canUndo: boolean; canRedo: boolean } {
     const change = this.redoStack.at(-1);
     if (!change) return this.undoState();
-    if (JSON.stringify(this.get(change.id)) !== JSON.stringify(change.before)) {
+    if (!this.canRestore(change.id, change.before, change.after)) {
+      this.redoStack.pop();
       throw new StorageError('VOCABULARY_CHANGED', 'Vocabulary changed since the undo.');
     }
     this.restore(change.id, change.after, change.before, change.nowEdited);

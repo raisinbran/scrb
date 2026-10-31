@@ -93,7 +93,9 @@ describe('isValidRequest', () => {
     const invalid = { origin: 'other', from: 'yesterday' };
     expect(isValidRequest('listMeetings', { filter: invalid })).toBe(false);
     expect(isValidRequest('searchMeetings', { query: 'invented', filter: invalid })).toBe(false);
-    expect(isValidRequest('searchMeetings', { query: 'invented', filter: { path: '/secret' } })).toBe(false);
+    expect(
+      isValidRequest('searchMeetings', { query: 'invented', filter: { path: '/secret' } }),
+    ).toBe(false);
   });
 
   it('checks date formats', () => {
@@ -113,21 +115,56 @@ describe('isValidRequest', () => {
       status: 'proposed',
       sourceMs: 0,
     };
-    expect(isValidRequest('updateSummaryItem', request({
-      kind: 'add', collection: 'actionItems', item: action,
-    }))).toBe(true);
-    expect(isValidRequest('updateSummaryItem', request({
-      kind: 'add', collection: 'actionItems', item: { ...action, id: 'spoof' },
-    }))).toBe(false);
-    expect(isValidRequest('updateSummaryItem', request({
-      kind: 'add', collection: 'actionItems', item: { ...action, edited: false },
-    }))).toBe(false);
-    expect(isValidRequest('updateSummaryItem', request({
-      kind: 'add', collection: 'openQuestions', item: { question: 'Invented?', sourceMs: 0 },
-    }))).toBe(true);
-    expect(isValidRequest('updateSummaryItem', request({
-      kind: 'remove', collection: 'decisions', itemId: 'd1',
-    }))).toBe(true);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: action,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: { ...action, id: 'spoof' },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: { ...action, edited: false },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'openQuestions',
+          item: { question: 'Invented?', sourceMs: 0 },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'remove',
+          collection: 'decisions',
+          itemId: 'd1',
+        }),
+      ),
+    ).toBe(true);
   });
 
   it('accepts each summary item kind', () => {

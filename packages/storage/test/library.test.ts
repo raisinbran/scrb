@@ -91,10 +91,14 @@ describe('corrections through the library', () => {
     const meeting = await library.createMeeting({ title: 'Synthetic two segments' });
     const a = words('ask jon', 0);
     const b = words('smith today', 1000);
-    await library.appendSegments(meeting.id,
-      [segment('one', 'a', a), segment('two', 'a', b)], [speaker('a')]);
+    await library.appendSegments(
+      meeting.id,
+      [segment('one', 'a', a), segment('two', 'a', b)],
+      [speaker('a')],
+    );
     await library.applyCorrection(meeting.id, {
-      wordIds: [a[1]!.id, b[0]!.id], replacement: 'John Smythe',
+      wordIds: [a[1]!.id, b[0]!.id],
+      replacement: 'John Smythe',
     });
     await library.applyFinalPass(meeting.id, {
       segments: [segment('final', 'a', words('ask john smit today', 0, 'f'), 'final')],

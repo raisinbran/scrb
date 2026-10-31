@@ -39,7 +39,10 @@ export class MicCheckController {
 
   async start(sources: SourceSelection): Promise<void> {
     if (this.recordingBusy()) {
-      throw new ContractError({ code: 'conflict', message: 'Stop recording to test the microphone.' });
+      throw new ContractError({
+        code: 'conflict',
+        message: 'Stop recording to test the microphone.',
+      });
     }
     if (this.probe || this.opening) return;
     const serial = ++this.serial;

@@ -31,8 +31,8 @@ export function MicTest({
 
   const active = check?.active === true;
   const chosen = sources?.micDeviceId
-    ? devices.find((device) => device.id === sources.micDeviceId) ??
-      devices.find((device) => device.isSystemDefault)
+    ? (devices.find((device) => device.id === sources.micDeviceId) ??
+      devices.find((device) => device.isSystemDefault))
     : devices.find((device) => device.isSystemDefault);
   const handsFree = chosen?.transport === 'bluetoothHandsFree';
   const showFailure = !active && check?.micResult === 'denied';
@@ -52,7 +52,7 @@ export function MicTest({
           {handsFree &&
             (active
               ? '. This headset is in call mode, so sound quality is lower.'
-              : 'Testing this headset turns on call mode and may lower sound quality.')}
+              : `${showFailure ? '. ' : ''}Testing this headset turns on call mode and may lower sound quality.`)}
         </span>
       )}
     </div>
