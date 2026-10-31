@@ -63,10 +63,17 @@ public:
         if (!n) delete this;
         return n;
     }
-    STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR) override {
+    STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR id) override {
         Session* s = session_;
-        if (flow == eCapture && role == eConsole) s->Post([s] { s->OnDefaultChanged(true); });
-        if (flow == eRender && role == eConsole) s->Post([s] { s->OnDefaultChanged(false); });
+        bool capture = flow == eCapture;
+        bool console = role == eConsole;
+        const char* roleName = console ? "console" : role == eCommunications ? "communications" : "multimedia";
+        std::string name = id ? Narrow(id) : "";
+        int64_t at = NowNs();
+        s->Post([=] {
+            s->OnDefaultNotice(capture, roleName, name, at);
+            if (console) s->OnDefaultChanged(capture);
+        });
         return S_OK;
     }
     STDMETHOD(OnDeviceAdded)(LPCWSTR) override { return S_OK; }
@@ -470,6 +477,16 @@ void Session::DoInject(const Command& cmd) {
     Reply(cmd, true);
 }
 
+void Session::OnDefaultNotice(bool capture, const char* role, const std::string& id, int64_t atNs) {
+    Emit("defaultNotice", JsonObject().Str("track", capture ? "microphone" : "meeting").Str("role", role)
+                              .Str("deviceId", id).Bool("armed", (capture ? micDebounceNs_ : outputDebounceNs_) != 0)
+                              .Num("queuedMs", (NowNs() - atNs) / static_cast<double>(kNsPerMs)));
+}
+
+void Session::EmitDefaultApplied(const char* track, const char* outcome, const std::string& resolved) {
+    Emit("defaultApplied", JsonObject().Str("track", track).Str("outcome", outcome).Str("deviceId", resolved));
+}
+
 void Session::OnDefaultChanged(bool capture) {
     int64_t deadline = NowNs() + options_.debounceNs;
     if (capture) {
@@ -485,15 +502,17 @@ void Session::OnDefaultChanged(bool capture) {
 
 void Session::ApplyMicDebounce() {
     Slot& s = slots_[kMic];
-    if (!s.track || !s.track->streamOpen()) return;
+    if (!s.track || !s.track->streamOpen()) return EmitDefaultApplied("microphone", "streamClosed", "");
     std::wstring id;
-    if (!ResolveDefaultMicId(&id)) return;
+    if (!ResolveDefaultMicId(&id)) return EmitDefaultApplied("microphone", "unresolved", "");
     std::string now = Narrow(id);
-    if (now == s.track->deviceId()) return;
+    if (now == s.track->deviceId()) return EmitDefaultApplied("microphone", "sameDevice", now);
     if (!s.spec.deviceId.empty()) {
+        EmitDefaultApplied("microphone", "suggested", now);
         Emit("micSuggestion", JsonObject().Str("deviceId", now));
         return;
     }
+    EmitDefaultApplied("microphone", "moved", now);
     Emit("deviceChanged", JsonObject().Str("track", "microphone").Str("deviceId", now));
     s.track->CloseStream();
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
@@ -504,9 +523,12 @@ void Session::ApplyMicDebounce() {
 
 void Session::ApplyOutputDebounce() {
     Slot& s = slots_[kMeeting];
-    if (!s.track || s.spec.kind != StreamSpec::Kind::System || !s.track->streamOpen()) return;
+    if (!s.track || s.spec.kind != StreamSpec::Kind::System) return;
+    if (!s.track->streamOpen()) return EmitDefaultApplied("meeting", "streamClosed", "");
     std::wstring id;
-    if (!ResolveDefaultOutputId(&id) || Narrow(id) == s.track->deviceId()) return;
+    if (!ResolveDefaultOutputId(&id)) return EmitDefaultApplied("meeting", "unresolved", "");
+    if (Narrow(id) == s.track->deviceId()) return EmitDefaultApplied("meeting", "sameDevice", Narrow(id));
+    EmitDefaultApplied("meeting", "moved", Narrow(id));
     Emit("deviceChanged", JsonObject().Str("track", "meeting").Str("deviceId", Narrow(id)));
     s.track->CloseStream();
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });

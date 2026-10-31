@@ -49,7 +49,8 @@ Process loopback captures one process tree, so `open` uses the first ID in
 `source`.  A second instance of an app with a separate tree is not captured.
 
 Events (`{"type":"event"}`): `chunkClosed`, `discontinuity`, `streamStalled`,
-`streamDead`, `streamReopened`, `deviceChanged`, `rateChanged`, `permissionLost`,
+`streamDead`, `streamReopened`, `deviceChanged`, `defaultNotice`,
+`defaultApplied`, `rateChanged`, `permissionLost`,
 `permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `micFallback`,
 `micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`, `writeError`,
 `health` (`micDb`, `meetingDb`), `trackHealth`.
@@ -213,7 +214,10 @@ unplug (no USB mic).
     Windows showed the built-in mic by 21:39:32 at the latest; the helper moved at
     21:50:27, after 13.7 min on the headset in all.  The cause is not known: the
     helper does not log default-change notices, so repeated notices re-arming the
-    5 s debounce and a missed notice both remain possible.
+    5 s debounce and a missed notice both remain possible.  `defaultNotice` (each
+    Windows notice, its role and device, `armed` if a debounce was pending,
+    `queuedMs` on the control thread) and `defaultApplied` (`moved`, `sameDevice`,
+    `streamClosed`, `unresolved` or `suggested`) now log this for the next run.
 11. Offset cannot be read from the size of the difference between chunk starts.
     Any gap ends a chunk early and moves that track's grid, so the difference
     ranges up to a chunk length.  `long_run.mjs` now follows it only across plain
