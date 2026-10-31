@@ -279,6 +279,73 @@ export function createMeetingHandlers(library: Library, emit?: Emit): CallHandle
       publishEdit(before, after, emit);
       return editState(after);
     },
+    listProfiles: async () =>
+      library.voiceProfiles.list().map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        meetingCount: profile.meetingIds.length,
+        lastHeardAt: profile.updatedAt,
+      })),
+    renameSpeaker: async (request) => {
+      const { target, name } = request as {
+        target: { kind: 'profile'; profileId: string } |
+          { kind: 'meetingSpeaker'; meetingId: string; speakerId: string };
+        name: string;
+      };
+      if (target.kind === 'profile') {
+        if (!library.voiceProfiles.get(target.profileId)) {
+          throw new ContractError({ code: 'notFound', message: 'That voice profile no longer exists.' });
+        }
+        library.voiceProfiles.rename(target.profileId, name);
+        return;
+      }
+      await requireMeeting(library, target.meetingId);
+      const before = await library.readTranscript(target.meetingId);
+      try {
+        const after = await library.renameSpeaker(target.meetingId, target.speakerId, name);
+        publishEdit(before, after, emit);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({ code: 'conflict', message: 'That speaker no longer exists.' });
+        }
+        throw error;
+      }
+    },
+    mergeSpeakers: async (request) => {
+      const merge = request as
+        | { kind: 'profiles'; from: string; into: string }
+        | { kind: 'meetingSpeakers'; meetingId: string; from: string; into: string };
+      if (merge.kind === 'profiles') {
+        const first = library.voiceProfiles.get(merge.from);
+        const second = library.voiceProfiles.get(merge.into);
+        if (!first || !second) {
+          throw new ContractError({ code: 'notFound', message: 'A voice profile no longer exists.' });
+        }
+        if (first.modelId !== second.modelId || merge.from === merge.into) {
+          throw new ContractError({ code: 'conflict', message: 'Those profiles cannot be merged.' });
+        }
+        library.voiceProfiles.merge(merge.from, merge.into);
+        return;
+      }
+      await requireMeeting(library, merge.meetingId);
+      const before = await library.readTranscript(merge.meetingId);
+      try {
+        const after = await library.mergeSpeakers(merge.meetingId, merge.from, merge.into);
+        publishEdit(before, after, emit);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({ code: 'conflict', message: 'Those speakers cannot be merged.' });
+        }
+        throw error;
+      }
+    },
+    deleteProfile: async (request) => {
+      const { profileId } = request as { profileId: string };
+      if (!library.voiceProfiles.get(profileId)) {
+        throw new ContractError({ code: 'notFound', message: 'That voice profile no longer exists.' });
+      }
+      library.voiceProfiles.delete(profileId);
+    },
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
