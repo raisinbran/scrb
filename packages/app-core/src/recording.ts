@@ -145,7 +145,11 @@ export class RecordingSession {
     }
     if (this.restarts >= MAX_WORKER_RESTARTS) return this.finish('workerFailed');
     this.restarts += 1;
-    this.attach();
+    try {
+      this.attach();
+    } catch {
+      return this.workerExited();
+    }
     await this.send(this.reopenCommand());
     // A restart during a pause, or a pause still waiting, stays closed: only Resume opens the gate.
     if (this.status === 'recording' && !this.pending) {

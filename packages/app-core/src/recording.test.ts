@@ -62,6 +62,7 @@ describe('RecordingSession', () => {
   let session: RecordingSession;
   let nextId: number;
   let firstReply: FakeAdapter['reply'];
+  let launchFailures: number;
 
   const latest = () => adapters.at(-1) as FakeAdapter;
 
@@ -73,8 +74,13 @@ describe('RecordingSession', () => {
     seen = [];
     nextId = 0;
     firstReply = () => ({});
+    launchFailures = 0;
     session = new RecordingSession({
       launch: () => {
+        if (launchFailures > 0) {
+          launchFailures -= 1;
+          throw new Error('spawn failed');
+        }
         const adapter = new FakeAdapter();
         adapter.reply = firstReply;
         adapters.push(adapter);
@@ -468,6 +474,35 @@ describe('RecordingSession', () => {
       for (let kill = 0; kill < MAX_WORKER_RESTARTS; kill += 1) await crashAt(kill);
       expect(session.state.status).toBe('recording');
       expect(ended).toEqual(['stopped']);
+    });
+  });
+
+  describe('a restart whose launch throws', () => {
+    it('counts as a failed restart and tries again', async () => {
+      await session.start(OPEN);
+      launchFailures = 1;
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(session.state.status).toBe('recording');
+      expect(adapters).toHaveLength(2);
+      expect(latest().sent.map(({ name }) => name)).toEqual(['open', 'start']);
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(adapters).toHaveLength(MAX_WORKER_RESTARTS);
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(ended).toEqual(['workerFailed']);
+    });
+
+    it('ends the meeting when every restart throws', async () => {
+      await session.start(OPEN);
+      launchFailures = MAX_WORKER_RESTARTS;
+      latest().crash();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(adapters).toHaveLength(1);
+      expect(launchFailures).toBe(0);
+      expect(session.state).toEqual({ status: 'idle', pauseReason: null });
+      expect(ended).toEqual(['workerFailed']);
     });
   });
 
