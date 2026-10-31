@@ -37,7 +37,7 @@ final class OggOpusFile {
         frameSamples = rate / 50
         scale = UInt64(48000 / rate)
         preSkip = Int(lookahead)
-        fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0o600)
+        fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0o600)
         guard fd >= 0 else { opus_encoder_destroy(encoder); return nil }
 
         var head = Array("OpusHead".utf8) + [1, 1]
@@ -129,6 +129,16 @@ final class ChunkWriter {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         guard let log = fopen(directory + "/chunks.log", "a") else { return nil }
         self.log = log
+        sequence = ChunkWriter.firstFree(in: directory)
+        // A killed worker can leave a cut-off line, which would swallow the next one.
+        if sequence > 0 { fputs("\n", log) }
+    }
+
+    /// A restarted worker continues the numbering. A dead worker's `.part` holds real audio until
+    /// recovery repairs it, so its number is taken too.
+    private static func firstFree(in directory: String) -> Int {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
+        return (names.compactMap { Int($0.prefix { $0 != "." }) }.max() ?? -1) + 1
     }
 
     var isOpen: Bool { file != nil }
@@ -137,6 +147,11 @@ final class ChunkWriter {
 
     func open(startNs: Int64, rate: Int, reason: String, tags: [String]) -> Bool {
         name = String(format: "%06d.opus", sequence)
+        while FileManager.default.fileExists(atPath: "\(directory)/\(name)")
+            || FileManager.default.fileExists(atPath: "\(directory)/\(name).part") {
+            sequence += 1
+            name = String(format: "%06d.opus", sequence)
+        }
         self.startNs = startNs
         openReason = reason
         chunkRate = rate
