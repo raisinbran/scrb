@@ -936,6 +936,10 @@ export class MockBackend implements Backend {
       this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
     },
 
+    listSpeakerSuggestions: ({ meetingId }) => {
+      if (meetingId) this.findMeeting(meetingId);
+      return [];
+    },
     listProfiles: () => this.profiles,
     renameSpeaker: ({ target, name }) => {
       if (target.kind === 'profile') {

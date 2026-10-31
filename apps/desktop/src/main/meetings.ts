@@ -409,6 +409,12 @@ export function createMeetingHandlers(
       await publishOutdated(library, before, after, emit);
       return editState(after);
     },
+    listSpeakerSuggestions: async (request) => {
+      const { meetingId } = request as { meetingId?: string };
+      if (meetingId) await requireMeeting(library, meetingId);
+      // No suggestion store exists yet: do not invent a voice match.
+      return [];
+    },
     listProfiles: async () => {
       const dates = new Map(library.listMeetings().map((row) => [row.id, row.date]));
       return library.voiceProfiles.list().map((profile) => ({

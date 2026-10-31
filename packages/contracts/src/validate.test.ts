@@ -47,6 +47,13 @@ describe('isValidRequest', () => {
     expect(isValidRequest('getMeeting', { meetingId: 'a'.repeat(129) })).toBe(false);
   });
 
+  it('validates speaker suggestion queries without allowing filesystem keys', () => {
+    expect(isValidRequest('listSpeakerSuggestions', {})).toBe(true);
+    expect(isValidRequest('listSpeakerSuggestions', { meetingId: 'm-1' })).toBe(true);
+    expect(isValidRequest('listSpeakerSuggestions', { meetingId: '../private' })).toBe(false);
+    expect(isValidRequest('listSpeakerSuggestions', { path: '/tmp' })).toBe(false);
+  });
+
   it('checks unions by kind', () => {
     const profile = { target: { kind: 'profile', profileId: 'p-1' }, name: 'Ana' };
     expect(isValidRequest('renameSpeaker', profile)).toBe(true);

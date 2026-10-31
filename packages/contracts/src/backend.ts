@@ -127,6 +127,7 @@ export interface BackendCalls {
   // Speakers
   /** @addition */
   listProfiles: { request: void; response: VoiceProfile[] };
+  listSpeakerSuggestions: { request: { meetingId?: MeetingId }; response: SpeakerSuggestion[] };
   renameSpeaker: { request: { target: SpeakerTarget; name: string }; response: void };
   mergeSpeakers: { request: SpeakerMerge; response: void };
   /** @addition */
@@ -317,6 +318,7 @@ const CALL_TABLE: Record<CallName, true> = {
   seekAudio: true,
   pauseAudio: true,
   listProfiles: true,
+  listSpeakerSuggestions: true,
   renameSpeaker: true,
   mergeSpeakers: true,
   splitSpeaker: true,

@@ -230,6 +230,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   pauseAudio: meeting,
 
   listProfiles: nothing,
+  listSpeakerSuggestions: shape({}, { meetingId: id }),
   renameSpeaker: shape({
     target: either(
       shape({ kind: oneOf('meetingSpeaker'), meetingId: id, speakerId: id }),
