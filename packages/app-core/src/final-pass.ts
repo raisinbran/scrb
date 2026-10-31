@@ -19,6 +19,7 @@ import {
   type TrackInput,
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
+import { vocabularyHint } from './vocabulary-hints.ts';
 
 export { YOU_ID };
 
@@ -45,6 +46,7 @@ export type RunFinalPass = (input: {
   tracks: TrackInput[];
   workDir: string;
   signal: AbortSignal;
+  vocabularyHint?: string;
 }) => Promise<FinalTranscript>;
 
 /** Tracks with audio, in the form the final pass reads. Throws on a damaged `chunks.json`. */
@@ -134,9 +136,16 @@ async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models
  * read for each meeting, so a missing tool fails that meeting and not the app.
  */
 export function createFinalPassRunner(configPath: string): RunFinalPass {
-  return async ({ tracks, workDir, signal }) => {
+  return async ({ tracks, workDir, signal, vocabularyHint: hint }) => {
     const { tools, models } = await loadSetup(configPath);
-    return runFinalPass({ tools, models, tracks, workDir, signal });
+    return runFinalPass({
+      tools,
+      models,
+      tracks,
+      workDir,
+      signal,
+      ...(hint ? { vocabularyHint: hint } : {}),
+    });
   };
 }
 
@@ -191,6 +200,7 @@ export class FinalPassQueue {
           tracks,
           workDir,
           signal: this.abort.signal,
+          vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
         });
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }

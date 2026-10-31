@@ -26,7 +26,7 @@ const fs = require('node:fs');
 require('node:readline').createInterface({ input: process.stdin }).on('line', (line) => {
   const command = JSON.parse(line);
   if (command.name === 'open') fs.appendFileSync(${JSON.stringify(opened)}, line + '\\n');
-  const reply = { type: 'ack', id: command.id, ok: true, gate: 'open', atNs: 0, ${acks} };
+  const reply = { type: 'ack', id: command.id, ok: true, gate: command.name === 'pause' ? 'closed' : 'open', atNs: 0, ${acks} };
   if (command.name === 'listMics') reply.mics = [${JSON.stringify(MIC)}];
   if (command.name === 'listApps') {
     const known = ${JSON.stringify(apps)};
@@ -174,6 +174,82 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     ).rejects.toMatchObject({ code: 'conflict' });
     await handlers.selectSources?.({ meetingAppId: WHOLE, micDeviceId: null });
     expect(sources.read().meetingAppId).toBe(WHOLE);
+    await handlers.stopRecording?.(undefined);
+  });
+
+  it('refuses a microphone switch during recording, but accepts unchanged settings', async () => {
+    const sources = store(WHOLE, MIC.id);
+    const { handlers } = controller(helper().path, sources);
+    await start(handlers);
+    await expect(
+      handlers.selectSources?.({
+        meetingAppId: WHOLE,
+        micDeviceId: 'another-mic',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(sources.read().micDeviceId).toBe(MIC.id);
+    await handlers.selectSources?.({ meetingAppId: WHOLE, micDeviceId: MIC.id });
+    await handlers.stopRecording?.(undefined);
+  });
+
+  it('refuses changing the meeting app while Start is still resolving sources', async () => {
+    const sources = store(WHOLE);
+    const { handlers } = controller(helper().path, sources);
+    const starting = start(handlers);
+    await expect(
+      handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(sources.read().meetingAppId).toBe(WHOLE);
+    await starting;
+    await handlers.stopRecording?.(undefined);
+  });
+
+  it('rejects a changed meeting app during Pause and allows the same selection', async () => {
+    const sources = store(WHOLE);
+    const { handlers } = controller(helper().path, sources);
+    await start(handlers);
+    await handlers.pauseRecording?.(undefined);
+    await expect(
+      handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(sources.read().meetingAppId).toBe(WHOLE);
+    await handlers.selectSources?.(sources.read());
+    await handlers.stopRecording?.(undefined);
+  });
+
+  it('allows changing the meeting app while idle, without creating a recording', async () => {
+    const sources = store(WHOLE);
+    const { handlers, library } = controller(helper().path, sources);
+    await handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null });
+    expect(sources.read().meetingAppId).toBe('us.zoom.xos');
+    expect(library.createMeeting).not.toHaveBeenCalled();
+  });
+
+  it('T22: a mic-only check creates no recording, and Start preempts it', async () => {
+    const probeHelper = helper();
+    const sources = store(WHOLE);
+    const { handlers, library, emit } = controller(probeHelper.path, sources);
+
+    await handlers.startAudioCheck?.({ sources: sources.read() });
+    expect(library.createMeeting).not.toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledWith(
+      'audioCheck',
+      expect.objectContaining({
+        active: true,
+        meetingResult: 'notChecked',
+      }),
+    );
+
+    await start(handlers);
+    expect(emit).toHaveBeenCalledWith(
+      'audioCheck',
+      expect.objectContaining({
+        active: false,
+        endReason: 'recordingStarted',
+      }),
+    );
+    expect(library.createMeeting).toHaveBeenCalledTimes(1);
+    expect(probeHelper.opens()).toHaveLength(1);
     await handlers.stopRecording?.(undefined);
   });
 

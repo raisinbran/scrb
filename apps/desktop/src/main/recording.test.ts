@@ -10,7 +10,10 @@ const fake = vi.hoisted(() => ({
   sealAudio: vi.fn(),
   spawnSync: vi.fn(),
   resolveSources: vi.fn(),
-  sessions: [] as { end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void }[],
+  sessions: [] as {
+    end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
+    state(status: 'recording' | 'paused', atNs: number | null): void;
+  }[],
   workerEvents: [] as ((event: unknown) => void)[],
 }));
 
@@ -21,7 +24,7 @@ vi.mock('@scrb/app-core', () => ({
     constructor(
       private readonly options: {
         launch: () => unknown;
-        onStateChanged: (status: 'recording', reason: null) => void;
+        onStateChanged: (status: 'recording' | 'paused', reason: null, atNs: number | null) => void;
         onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
       },
     ) {
@@ -30,7 +33,11 @@ vi.mock('@scrb/app-core', () => ({
 
     async start(): Promise<void> {
       this.options.launch();
-      this.options.onStateChanged('recording', null);
+      this.options.onStateChanged('recording', null, null);
+    }
+
+    state(status: 'recording' | 'paused', atNs: number | null): void {
+      this.options.onStateChanged(status, null, atNs);
     }
 
     async stop(): Promise<void> {
@@ -201,6 +208,56 @@ describe('Start while the previous recording is finishing', () => {
     });
     expect(library.createMeeting).toHaveBeenCalledTimes(2);
     await controller.shutdown();
+  });
+
+  it('uses acknowledged session-clock nanoseconds for pause spans, not delayed wall time', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 4_000_000_000 });
+    await controller.handlers.startRecording!({});
+    fake.sessions[0]!.state('paused', 1_501_125_000);
+    fake.sessions[0]!.state('recording', 3_003_250_000);
+
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toEqual([{ startMs: 1501.125, endMs: 3003.25, reason: 'user' }]);
+    expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
+      meetingId: 'meeting-1',
+      spans: [{ startMs: 1501.125, endMs: 3003.25, reason: 'user' }],
+    });
+    await controller.shutdown();
+  });
+
+  it('clears confirmed pause spans after the recording becomes idle', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 2_000_000_000 });
+    await controller.handlers.startRecording!({});
+    fake.sessions[0]!.state('paused', 1_000_000_000);
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toHaveLength(1);
+    await controller.shutdown();
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toEqual([]);
+    expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
+      meetingId: 'meeting-1',
+      spans: [],
+    });
   });
 
   it('warns once per track on a write error and keeps the level meter', async () => {

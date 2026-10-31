@@ -29,6 +29,53 @@ describe('MockBackend', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CALL_NAMES].sort());
   });
 
+  it('lists active imports without source tokens and removes cancelled jobs', async () => {
+    const picked = await backend.call('pickAudioFile');
+    expect(picked).not.toBeNull();
+    const { importId } = await backend.call('importAudioFile', {
+      fileToken: picked!.fileToken,
+      buildVoiceProfiles: false,
+    });
+    expect(await backend.call('listImports')).toEqual([
+      expect.objectContaining({
+        importId,
+        stage: 'decoding',
+        cancelling: false,
+      }),
+    ]);
+    expect(JSON.stringify(await backend.call('listImports'))).not.toContain(picked!.fileToken);
+    await backend.call('cancelImport', { importId });
+    expect(await backend.call('listImports')).toEqual([]);
+  });
+
+  it('undoes mock profile rename and merge without permitting delete undo', async () => {
+    const originals = await backend.call('listProfiles');
+    const [first, second] = originals;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    await backend.call('renameSpeaker', {
+      target: { kind: 'profile', profileId: first!.id },
+      name: 'Invented rename',
+    });
+    expect((await backend.call('getProfileUndoState')).nextUndo).toBe('rename');
+    await backend.call('undoProfileChange');
+    expect((await backend.call('listProfiles')).find((item) => item.id === first!.id)?.name).toBe(
+      first!.name,
+    );
+    await backend.call('mergeSpeakers', {
+      kind: 'profiles',
+      from: first!.id,
+      into: second!.id,
+    });
+    expect((await backend.call('getProfileUndoState')).nextUndo).toBe('merge');
+    await backend.call('undoProfileChange');
+    expect((await backend.call('listProfiles')).some((item) => item.id === first!.id)).toBe(true);
+    const deleting = backend.call('deleteProfile', { profileId: first!.id });
+    vi.advanceTimersByTime(500);
+    await deleting;
+    expect((await backend.call('getProfileUndoState')).canUndo).toBe(false);
+  });
+
   it('runs the scripted meeting: text each second, pause, device change, lag spike', async () => {
     const seen: string[] = [];
     let status = '';
@@ -51,6 +98,23 @@ describe('MockBackend', () => {
     expect(seen).toEqual(['recording', 'paused', 'recording', 'deviceChanged', 'lagging']);
     // Five paused seconds produce no text.
     expect(appended).toBe(65);
+  });
+
+  it('replays confirmed pause spans in events and snapshots', async () => {
+    const seen: number[] = [];
+    backend.on('pauseSpansChanged', ({ spans }) => seen.push(spans.length));
+    await backend.call('startRecording', {});
+    vi.advanceTimersByTime(1_000);
+    await backend.call('pauseRecording');
+    expect((await backend.call('getRecordingSnapshot')).pauseSpans).toMatchObject([
+      { startMs: 1_000, endMs: null, reason: 'user' },
+    ]);
+    vi.advanceTimersByTime(2_000);
+    await backend.call('resumeRecording');
+    expect((await backend.call('getRecordingSnapshot')).pauseSpans).toMatchObject([
+      { startMs: 1_000, endMs: 3_000, reason: 'user' },
+    ]);
+    expect(seen).toEqual([1, 1]);
   });
 
   it('keeps elapsed time still while paused', async () => {
@@ -77,6 +141,37 @@ describe('MockBackend', () => {
     const { durationMs } = generateTranscript('x', 80_000, 1);
     expect(durationMs / 3_600_000).toBeGreaterThan(7.5);
     expect(durationMs / 3_600_000).toBeLessThan(8.5);
+  });
+
+  it('reverts a completed model update and rejects installing or reverting while busy', async () => {
+    const role = 'finalSpeech';
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      true,
+    );
+    await backend.call('installModelUpdate', { role });
+    await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    await expect(backend.call('installModelUpdate', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    vi.advanceTimersByTime(2_100);
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      false,
+    );
+    expect(
+      (await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version,
+    ).toBe('mock-2');
+    await backend.call('revertModel', { role });
+    expect(
+      (await backend.call('getSetupStatus')).models.find((model) => model.role === role)?.version,
+    ).toBe('mock-1');
+    expect((await backend.call('checkModelUpdates')).some((entry) => entry.role === role)).toBe(
+      true,
+    );
+    await expect(backend.call('revertModel', { role })).rejects.toMatchObject({
+      code: 'conflict',
+    });
   });
 
   it('generates four speakers', () => {

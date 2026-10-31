@@ -19,7 +19,11 @@ export type SessionEnd = 'stopped' | 'pauseFailed' | 'workerFailed';
 export interface RecordingSessionOptions {
   /** Starts a worker. Called again for each restart in the same meeting. */
   launch(): CaptureAdapter;
-  onStateChanged(status: RecordingStatus, pauseReason: PauseReason | null): void;
+  onStateChanged(
+    status: RecordingStatus,
+    pauseReason: PauseReason | null,
+    atNs: number | null,
+  ): void;
   onTrackMissing(track: Track): void;
   onEnded(end: SessionEnd): void;
   newCommandId(): string;
@@ -70,7 +74,7 @@ export class RecordingSession {
     const ack = await this.require({ name: 'start' });
     this.clockOriginNs = ack.clockOriginNs ?? null;
     this.reportMissing(ack);
-    this.setStatus('recording');
+    this.setStatus('recording', ack.atNs);
   }
 
   async pause(reason: PauseReason = 'user'): Promise<void> {
@@ -87,7 +91,7 @@ export class RecordingSession {
       if (this.ending) return;
       if (ack?.gate !== 'closed') return this.failPause();
       this.pauseReason = reason;
-      this.setStatus('paused');
+      this.setStatus('paused', ack.atNs);
     } finally {
       this.pending = null;
     }
@@ -120,7 +124,7 @@ export class RecordingSession {
       }
       this.reportMissing(ack);
       this.pauseReason = null;
-      this.setStatus('recording');
+      this.setStatus('recording', ack.atNs);
     } finally {
       this.pending = null;
     }
@@ -239,9 +243,9 @@ export class RecordingSession {
     this.options.onEnded(end);
   }
 
-  private setStatus(status: RecordingStatus): void {
+  private setStatus(status: RecordingStatus, atNs: number | null = null): void {
     this.status = status;
-    this.options.onStateChanged(status, this.pauseReason);
+    this.options.onStateChanged(status, this.pauseReason, atNs);
   }
 
   private send(command: CaptureCommand): Promise<CaptureAck> {

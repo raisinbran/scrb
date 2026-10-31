@@ -72,11 +72,15 @@ export interface ExportTopic {
 }
 
 export interface ExportSourcedItem {
+  needsReview?: boolean;
+  alsoAtMs?: readonly number[];
   text: string;
   sourceMs: number | null;
 }
 
 export interface ExportActionItem {
+  needsReview?: boolean;
+  alsoAtMs?: readonly number[];
   action: string;
   /** Null prints "Not specified". */
   owner: string | null;
@@ -92,14 +96,11 @@ export interface ExportActionItem {
 export type DecisionStatus = 'decided' | 'proposed' | 'tentatively-agreed' | 'unresolved';
 
 export type ImpactArea =
-  | 'scope'
-  | 'schedule'
-  | 'cost'
-  | 'risk'
-  | 'deliverables'
-  | 'technical-approach';
+  'scope' | 'schedule' | 'cost' | 'risk' | 'deliverables' | 'technical-approach';
 
 export interface ExportDecision {
+  needsReview?: boolean;
+  alsoAtMs?: readonly number[];
   decision: string;
   status: DecisionStatus;
   impactArea: ImpactArea | null;

@@ -110,7 +110,7 @@ describe('screens working together on the mock', () => {
 
     await goTo('Recordings');
     expect(banner()).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/ }));
     await goTo('Live');
     expect(banner()).toHaveLength(0);
   });

@@ -100,8 +100,12 @@ export const VOCABULARY_TERMS: VocabularyTerm[] = [
   },
 ];
 
-const base: Pick<MeetingDetail, 'gaps' | 'speakerCount' | 'origin' | 'status' | 'summaryState'> = {
+const base: Pick<
+  MeetingDetail,
+  'gaps' | 'speakerCount' | 'origin' | 'status' | 'summaryState' | 'hasAudio'
+> = {
   gaps: [],
+  hasAudio: true,
   speakerCount: 4,
   origin: 'recorded',
   status: 'ready',

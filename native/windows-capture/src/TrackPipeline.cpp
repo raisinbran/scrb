@@ -160,7 +160,10 @@ void TrackPipeline::OnPacket(const Packet& p) {
         // A jump inside the burst that drains a stall belongs to that stall.
         bool afterStall = lastStallArrivalNs_ && p.arrivalNs - lastStallArrivalNs_ < kNsPerSec;
         bool stampJump = std::llabs(delta) > GapToleranceNs();
-        if (stampJump || p.flagDiscontinuity) {
+        const bool flagSplit = p.flagDiscontinuity &&
+            (lastFlagSplitNs_ < 0 || stamp - lastFlagSplitNs_ >= kNsPerSec);
+        if (stampJump || flagSplit) {
+            if (flagSplit && !stampJump) lastFlagSplitNs_ = stamp;
             reason = stalled ? "stall" : "discontinuity";
             cause = stalled || afterStall ? "stall" : "unknown";
             emit_("discontinuity", JsonObject().Str("track", cfg_.track)

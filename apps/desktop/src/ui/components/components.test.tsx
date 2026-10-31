@@ -6,6 +6,7 @@ import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockBackend } from '../mocks/index.ts';
 import { MOCK_SPEAKERS } from '../mocks/transcript.ts';
 import { FirstLaunchLocation } from './FirstLaunchLocation.tsx';
+import { Dialog } from './Dialog.tsx';
 import { LocationField } from './LocationField.tsx';
 import { PrivacyBanner } from './PrivacyBanner.tsx';
 import { SpeakerLabel } from './speakers/SpeakerLabel.tsx';
@@ -51,6 +52,22 @@ describe('shared components', () => {
   afterEach(() => {
     cleanup();
     backend.dispose();
+  });
+
+  it('keeps reverse Tab inside an initially focused dialog', () => {
+    render(
+      <Dialog title="Invented accessible dialog">
+        <button type="button">First action</button>
+        <button type="button">Last action</button>
+      </Dialog>,
+    );
+    const first = screen.getByRole('button', { name: 'First action' });
+    const last = screen.getByRole('button', { name: 'Last action' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
   });
 
   describe('SpeakerLabel', () => {
@@ -160,7 +177,7 @@ describe('shared components', () => {
     it('can be dismissed, and returns at the next recording', async () => {
       await renderBanner();
       recordingState('m1');
-      fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Dismiss/ }));
       expect(screen.queryByText(/Voice profiles are being built/)).toBeNull();
       recordingState('m2');
       expect(await screen.findByText(/Voice profiles are being built/)).toBeTruthy();

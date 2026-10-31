@@ -1,12 +1,14 @@
-import { app } from 'electron';
+import { app, shell } from 'electron';
 import path from 'node:path';
 import {
   createFinalPassRunner,
   createSettingsHandlers,
   FinalPassQueue,
   resumeFinalPasses,
+  needsPrivacyBanner,
+  privacyJurisdictions,
 } from '@scrb/app-core';
-import { Library, readLibraryLocation } from '@scrb/storage';
+import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
@@ -15,6 +17,7 @@ import { RecordingController, recoverInterrupted } from './recording.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
+  recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
   close(): Promise<void>;
@@ -29,6 +32,18 @@ export async function openBackend(
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
     const settings = createSettingsHandlers(library.settings, root);
+    library.setMeetingChangedListener((meeting) =>
+      emit('meetingChanged', {
+        id: meeting.id,
+        title: meeting.title,
+        startedAt: meeting.date,
+        durationMs: meeting.durationMs,
+        origin: meeting.source,
+        status: meeting.status,
+        summaryState: 'notGenerated',
+        speakerCount: 0,
+      }),
+    );
     // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
     // Same rule for the final pass: it needs models and tools that packaging does not ship yet.
@@ -49,20 +64,42 @@ export async function openBackend(
             save: (selection) => settings.updateSettings({ audio: selection }),
           },
           finalPasses,
+          async () => {
+            const rules = await privacyJurisdictions(library.paths.root);
+            const region = app.getLocaleCountryCode() || null;
+            return needsPrivacyBanner(settings.getSettings().location, rules, region);
+          },
         )
       : null;
+    const stopRetention = library.startAutoDeleteSchedule();
     return {
+      recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
+        getAppInfo: async () => ({
+          name: app.getName(),
+          version: app.getVersion(),
+          buildDate: 'Not recorded',
+          copyright: '© 2026 BJC, all rights reserved; personal use only',
+          storageStatement: 'Recordings, transcripts and voice profiles stay on this computer.',
+          models: [],
+        }),
+        // An empty list is explicit until redistribution licenses are verified.
+        getLicenses: async () => [],
+        // Real import jobs are not wired into the main process yet.
+        listImports: async () => [],
+        getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library),
+        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ...recording?.handlers,
       },
-      warning:
-        library.replacedCorruptIndex === null
+      warning: library.retainedIndexSnapshot
+        ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
+        : library.replacedCorruptIndex === null
           ? null
-          : 'The app index was damaged and has been replaced. Settings are back to their defaults.',
+          : 'The index needs review; all original files were preserved.',
       close: async () => {
+        stopRetention();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();
@@ -70,10 +107,20 @@ export async function openBackend(
         await library.close();
       },
     };
-  } catch {
+  } catch (error) {
+    const code = error instanceof StorageError ? error.code : null;
     return {
+      recovery: {
+        kind: 'blocked',
+        folder: await readLibraryLocation(app.getPath('userData'), fallback),
+      },
       handlers: {},
-      warning: 'The library could not be opened, so settings changes will not be saved.',
+      warning:
+        code === 'INDEX_SPACE'
+          ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'
+          : code === 'INDEX_RECOVERY_REQUIRED'
+            ? 'An unfinished index upgrade needs review. The index and recovery snapshot are preserved; library features are unavailable until it is resolved.'
+            : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
       close: async () => undefined,
     };
   }

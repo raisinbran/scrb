@@ -8,7 +8,9 @@
  */
 
 import type {
+  ActiveImport,
   AppInfo,
+  PauseSpansChanged,
   AppSettings,
   AudioCheckStatus,
   DeleteResult,
@@ -39,6 +41,7 @@ import type {
   PickedAudioFile,
   PlaybackPosition,
   ProfileId,
+  ProfileUndoState,
   RecordingHealth,
   RecordingSnapshot,
   RecordingState,
@@ -60,6 +63,7 @@ import type {
   UndoState,
   VocabularyTerm,
   VocabularyTermPatch,
+  VocabularyUndoState,
   VoiceProfile,
   WordRange,
 } from './types.ts';
@@ -79,7 +83,7 @@ export interface BackendCalls {
   pickAudioFile: { request: void; response: PickedAudioFile | null };
   importAudioFile: {
     request: { fileToken: string; buildVoiceProfiles: boolean };
-    response: { importId: ImportId };
+    response: { importId: ImportId; privacyBannerRequired: boolean };
   };
   /**
    * Asks a running import to stop. Every import ends in exactly one of `importFinished`,
@@ -88,6 +92,7 @@ export interface BackendCalls {
    * `notFound`.
    */
   cancelImport: { request: { importId: ImportId }; response: void };
+  listImports: { request: void; response: ActiveImport[] };
 
   // Devices
   listInputDevices: { request: void; response: InputDevice[] };
@@ -109,6 +114,7 @@ export interface BackendCalls {
     request: { meetingId: MeetingId; offset: number; limit: number };
     response: TranscriptPage;
   };
+  getUndoState: { request: { meetingId: MeetingId }; response: UndoState };
   applyCorrection: {
     request: { meetingId: MeetingId; range: WordRange; text: string; remember: boolean };
     response: UndoState;
@@ -126,6 +132,10 @@ export interface BackendCalls {
   // Speakers
   /** @addition */
   listProfiles: { request: void; response: VoiceProfile[] };
+  getProfileUndoState: { request: void; response: ProfileUndoState };
+  undoProfileChange: { request: void; response: ProfileUndoState };
+  redoProfileChange: { request: void; response: ProfileUndoState };
+  listSpeakerSuggestions: { request: { meetingId?: MeetingId }; response: SpeakerSuggestion[] };
   renameSpeaker: { request: { target: SpeakerTarget; name: string }; response: void };
   mergeSpeakers: { request: SpeakerMerge; response: void };
   /** @addition */
@@ -149,6 +159,9 @@ export interface BackendCalls {
   listTerms: { request: void; response: VocabularyTerm[] };
   updateTerm: { request: { id: TermId; patch: VocabularyTermPatch }; response: VocabularyTerm };
   deleteTerm: { request: { id: TermId }; response: void };
+  getVocabularyUndoState: { request: void; response: VocabularyUndoState };
+  undoVocabulary: { request: void; response: VocabularyUndoState };
+  redoVocabulary: { request: void; response: VocabularyUndoState };
 
   // Summary
   /** @addition */
@@ -163,17 +176,19 @@ export interface BackendCalls {
   listMeetings: { request: { filter?: MeetingFilter }; response: MeetingListItem[] };
   /** @addition */
   getMeeting: { request: { meetingId: MeetingId }; response: MeetingDetail };
+  retryFinalPass: { request: { meetingId: MeetingId }; response: void };
   /** @addition */
   updateMeeting: {
     request: { meetingId: MeetingId; title?: string; startedAt?: string };
     response: MeetingDetail;
   };
-  searchMeetings: { request: { query: string }; response: SearchResult[] };
+  searchMeetings: { request: { query: string; filter?: MeetingFilter }; response: SearchResult[] };
   deleteMeeting: { request: { meetingId: MeetingId }; response: DeleteResult };
   openMeetingFolder: { request: { meetingId: MeetingId; folder: MeetingFolder }; response: void };
   exportMeeting: { request: ExportRequest; response: { exportId: ExportId } };
 
   // Settings
+  getPrivacyJurisdictions: { request: void; response: { countries: string[]; usStates: string[] } };
   getSettings: { request: void; response: AppSettings };
   updateSettings: { request: SettingsPatch; response: AppSettings };
   /** @addition */
@@ -201,6 +216,7 @@ export interface BackendCalls {
 export interface BackendEvents {
   // Session
   recordingStateChanged: RecordingState;
+  pauseSpansChanged: PauseSpansChanged;
   recordingHealth: RecordingHealth;
 
   // Import
@@ -231,6 +247,7 @@ export interface BackendEvents {
 
   // Library
   exportFinished: ExportFinished;
+  meetingChanged: MeetingListItem;
 
   // Settings
   modelDownloadProgress: ModelDownloadProgress;
@@ -300,12 +317,14 @@ const CALL_TABLE: Record<CallName, true> = {
   pickAudioFile: true,
   importAudioFile: true,
   cancelImport: true,
+  listImports: true,
   listInputDevices: true,
   listMeetingApps: true,
   selectSources: true,
   startAudioCheck: true,
   stopAudioCheck: true,
   getTranscript: true,
+  getUndoState: true,
   applyCorrection: true,
   reassignSpeaker: true,
   undo: true,
@@ -313,6 +332,10 @@ const CALL_TABLE: Record<CallName, true> = {
   seekAudio: true,
   pauseAudio: true,
   listProfiles: true,
+  getProfileUndoState: true,
+  undoProfileChange: true,
+  redoProfileChange: true,
+  listSpeakerSuggestions: true,
   renameSpeaker: true,
   mergeSpeakers: true,
   splitSpeaker: true,
@@ -321,16 +344,21 @@ const CALL_TABLE: Record<CallName, true> = {
   listTerms: true,
   updateTerm: true,
   deleteTerm: true,
+  getVocabularyUndoState: true,
+  undoVocabulary: true,
+  redoVocabulary: true,
   getSummary: true,
   generateSummary: true,
   updateSummaryItem: true,
   listMeetings: true,
   getMeeting: true,
+  retryFinalPass: true,
   updateMeeting: true,
   searchMeetings: true,
   deleteMeeting: true,
   openMeetingFolder: true,
   exportMeeting: true,
+  getPrivacyJurisdictions: true,
   getSettings: true,
   updateSettings: true,
   pickStorageLocation: true,
@@ -347,6 +375,7 @@ const CALL_TABLE: Record<CallName, true> = {
 
 const EVENT_TABLE: Record<EventName, true> = {
   recordingStateChanged: true,
+  pauseSpansChanged: true,
   recordingHealth: true,
   importProgress: true,
   importFinished: true,
@@ -362,6 +391,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   summaryProgress: true,
   summaryOutdated: true,
   exportFinished: true,
+  meetingChanged: true,
   modelDownloadProgress: true,
 };
 

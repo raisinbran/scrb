@@ -1,3 +1,6 @@
+import { activeSpeakers, resolveDisplay } from '@scrb/storage';
+import type { MeetingMeta, TranscriptFile } from '@scrb/storage';
+import type { ExportMeeting } from '../../export/src/types.ts';
 import type {
   ActionItem,
   ActionStatus,
@@ -59,11 +62,18 @@ function detail(raw: string | null, unconfirmed: boolean) {
   return { value, unconfirmed };
 }
 
+function reviewOf(item: { needsReview: boolean; alsoAtMs: number[] }) {
+  return {
+    ...(item.needsReview ? { needsReview: true } : {}),
+    ...(item.alsoAtMs.length ? { alsoAtMs: item.alsoAtMs } : {}),
+  };
+}
 function toAction(item: ActionItem): ExportActionItem {
   const owner = detail(item.owner, item.ownerUnconfirmed);
   const deadline = detail(item.deadline, item.deadlineUnconfirmed);
   return {
     action: item.action,
+    ...reviewOf(item),
     owner: owner.value,
     ownerUnconfirmed: owner.unconfirmed,
     deadline: deadline.value,
@@ -78,6 +88,7 @@ function toDecision(item: Decision): ExportDecision {
   const impactArea = item.impactArea === null ? null : (IMPACT_AREA[item.impactArea] ?? null);
   return {
     decision: item.decision,
+    ...reviewOf(item),
     status: DECISION_STATUS[item.status],
     impactArea,
     // A decision records no basis for its area, so no area can be shown as confirmed.
@@ -107,7 +118,7 @@ function toFull(body: SummaryBody, decisions: Decision[]): ExportFullSummary {
     // The rule the summary engine's own Markdown uses.
     criticalDecisions: decisions
       .filter((item) => item.status === 'decided')
-      .map((item) => ({ text: item.decision, sourceMs: item.sourceMs })),
+      .map((item) => ({ text: item.decision, sourceMs: item.sourceMs, ...reviewOf(item) })),
     // The file keeps impacts only as text. Each line keeps its "Inferred:" label from summary.ts.
     projectDevelopments: projectDevelopments.map((text) => ({ text, sourceMs: null })),
   };
@@ -122,10 +133,48 @@ export function toExportSummary(file: SummaryFile | null): ExportSummary | null 
     openQuestions: file.openQuestions.map((item) => ({
       text: item.question,
       sourceMs: item.sourceMs,
+      ...reviewOf(item),
     })),
     actionItems: file.actionItems.map(toAction),
     decisions: file.decisions.map(toDecision),
     outdated: file.outdated,
     warnings: file.warnings,
+  };
+}
+
+/** Resolves corrected words once for the common DOCX and PDF export layout. */
+export function toExportMeeting(
+  meeting: MeetingMeta,
+  transcript: TranscriptFile,
+  summary: SummaryFile | null,
+): ExportMeeting {
+  return {
+    title: meeting.title,
+    startedAt: meeting.date,
+    durationMs: meeting.durationMs,
+    speakers: activeSpeakers(transcript).map((speaker) => ({
+      id: speaker.id,
+      name: speaker.name ?? speaker.label,
+    })),
+    segments: resolveDisplay(transcript).map((segment) => ({
+      speakerId: segment.speakerId,
+      startMs: segment.tokens[0]?.startMs ?? 0,
+      parts: segment.tokens.map((token, index) => ({
+        text: `${index > 0 ? ' ' : ''}${token.text}`,
+        ...(token.originalText === null ? {} : { original: token.originalText }),
+      })),
+    })),
+    markers: [
+      ...transcript.gaps.map((gap) => ({
+        kind: gap.kind === 'paused' ? ('pause' as const) : ('gap' as const),
+        startMs: gap.startMs,
+        endMs: gap.endMs,
+      })),
+      ...(meeting.status === 'recovered'
+        ? [{ kind: 'recording-ended' as const, startMs: meeting.durationMs }]
+        : []),
+    ],
+    transcriptProvisional: transcript.segments.some((segment) => segment.pass === 'live'),
+    summary: toExportSummary(summary),
   };
 }

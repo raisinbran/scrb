@@ -36,6 +36,16 @@ export function Modal({ title, onClose, children }: ModalProps) {
     const first = items[0];
     const last = items.at(-1);
     if (!first || !last) return;
+    if (!first) {
+      event.preventDefault();
+      panel.current.focus();
+      return;
+    }
+    if (document.activeElement === panel.current) {
+      event.preventDefault();
+      (event.shiftKey ? last : first)?.focus();
+      return;
+    }
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();

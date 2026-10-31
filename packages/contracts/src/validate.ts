@@ -87,6 +87,7 @@ const either =
     a(value) || b(value);
 
 const meeting = shape({ meetingId: id });
+const meetingFilter = shape({}, { origin: oneOf('recorded', 'imported'), from: date, to: date });
 const wordRange = shape({ firstWordId: id, lastWordId: id });
 const modelRole = oneOf('liveSpeech', 'finalSpeech', 'speaker', 'summary');
 
@@ -96,7 +97,7 @@ const evidence = {
   edited: flag,
 };
 
-const summaryUpdate = either(
+const existingSummaryUpdate = either(
   either(
     shape({
       kind: oneOf('narrative'),
@@ -135,6 +136,51 @@ const summaryUpdate = either(
       kind: oneOf('openQuestion'),
       item: shape({ id, question: text(MAX_TEXT), sourceMs: orNull(ms), ...evidence }),
     }),
+  ),
+);
+
+const summaryUpdate = either(
+  existingSummaryUpdate,
+  either(
+    either(
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('actionItems'),
+        item: shape({
+          action: text(MAX_TEXT),
+          owner: orNull(text(MAX_NAME)),
+          ownerUnconfirmed: flag,
+          deadline: orNull(text(MAX_NAME)),
+          deadlineUnconfirmed: flag,
+          status: oneOf('agreed', 'proposed', 'unconfirmed'),
+          sourceMs: ms,
+        }),
+      }),
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('decisions'),
+        item: shape({
+          decision: text(MAX_TEXT),
+          status: oneOf('decided', 'proposed', 'tentativelyAgreed', 'unresolved'),
+          impactArea: orNull(
+            oneOf('scope', 'schedule', 'cost', 'risk', 'deliverables', 'technicalApproach'),
+          ),
+          sourceMs: ms,
+        }),
+      }),
+    ),
+    either(
+      shape({
+        kind: oneOf('add'),
+        collection: oneOf('openQuestions'),
+        item: shape({ question: text(MAX_TEXT), sourceMs: ms }),
+      }),
+      shape({
+        kind: oneOf('remove'),
+        collection: oneOf('actionItems', 'decisions', 'openQuestions'),
+        itemId: id,
+      }),
+    ),
   ),
 );
 
@@ -209,6 +255,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   pickAudioFile: nothing,
   importAudioFile: shape({ fileToken: id, buildVoiceProfiles: flag }),
   cancelImport: shape({ importId: id }),
+  listImports: nothing,
 
   listInputDevices: nothing,
   listMeetingApps: nothing,
@@ -221,6 +268,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
     offset: int(0, Number.MAX_SAFE_INTEGER),
     limit: int(1, MAX_TRANSCRIPT_PAGE),
   }),
+  getUndoState: meeting,
   applyCorrection: shape({ meetingId: id, range: wordRange, text: text(MAX_TEXT), remember: flag }),
   reassignSpeaker: shape({ meetingId: id, range: wordRange, speakerId: id }),
   undo: meeting,
@@ -229,6 +277,10 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   pauseAudio: meeting,
 
   listProfiles: nothing,
+  getProfileUndoState: nothing,
+  undoProfileChange: nothing,
+  redoProfileChange: nothing,
+  listSpeakerSuggestions: shape({}, { meetingId: id }),
   renameSpeaker: shape({
     target: either(
       shape({ kind: oneOf('meetingSpeaker'), meetingId: id, speakerId: id }),
@@ -250,24 +302,24 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
     patch: shape({}, { term: filled(MAX_NAME), misheard: list(filled(MAX_NAME)), enabled: flag }),
   }),
   deleteTerm: shape({ id }),
+  getVocabularyUndoState: nothing,
+  undoVocabulary: nothing,
+  redoVocabulary: nothing,
 
   getSummary: meeting,
   generateSummary: shape({ meetingId: id, length: oneOf('brief', 'full') }),
   updateSummaryItem: shape({ meetingId: id, update: summaryUpdate }),
 
-  listMeetings: shape(
-    {},
-    {
-      filter: shape({}, { origin: oneOf('recorded', 'imported'), from: date, to: date }),
-    },
-  ),
+  listMeetings: shape({}, { filter: meetingFilter }),
   getMeeting: meeting,
+  retryFinalPass: meeting,
   updateMeeting: shape({ meetingId: id }, { title: filled(MAX_NAME), startedAt: date }),
-  searchMeetings: shape({ query: text(MAX_NAME) }),
+  searchMeetings: shape({ query: text(MAX_NAME) }, { filter: meetingFilter }),
   deleteMeeting: meeting,
   openMeetingFolder: shape({ meetingId: id, folder: oneOf('meeting', 'audio', 'exports') }),
   exportMeeting: exportRequest,
 
+  getPrivacyJurisdictions: nothing,
   getSettings: nothing,
   updateSettings: settingsPatch,
   pickStorageLocation: nothing,

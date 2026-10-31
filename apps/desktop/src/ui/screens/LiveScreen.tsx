@@ -142,7 +142,7 @@ export function LiveScreen() {
             onSelect={selectSources}
           />
         )}
-        {status === 'idle' && <MicTest sources={selection} />}
+        {status === 'idle' && <MicTest sources={selection} devices={sources.devices} />}
         <LevelMeters active={status === 'recording'} />
       </div>
       <div className={styles.indicators}>

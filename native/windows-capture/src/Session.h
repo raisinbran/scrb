@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "Track.h"
+#include "DeviceDebounce.h"
 
 struct IMMDeviceEnumerator;
 
@@ -97,8 +98,8 @@ private:
     Microsoft::WRL::ComPtr<IMMDeviceEnumerator> enumerator_;
     void* notifier_ = nullptr;
     void* powerHandle_ = nullptr;
-    int64_t micDebounceNs_ = 0;
-    int64_t outputDebounceNs_ = 0;
+    StableDebounce micDebounce_;
+    StableDebounce outputDebounce_;
     std::string lostPickedMic_;
     bool consentDenied_ = false;
     DWORD audioServicePid_ = 0;

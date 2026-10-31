@@ -27,6 +27,9 @@ export type CaptureCommand =
   | { name: 'start' | 'pause' | 'resume' | 'stop' | 'checkPermission' }
   | { name: 'selectMic'; mic: string }
   | { name: 'selectSource'; source: number[] | 'wholeComputer' }
+  /** Starts/stops a separate mic-only process; this helper mode cannot create recording files. */
+  | { name: 'beginMicCheck'; mic: string }
+  | { name: 'endMicCheck' }
   | { name: 'listMics' }
   /** `include` names saved apps that need a row even when they are not running. */
   | { name: 'listApps'; include: string[] };
@@ -80,6 +83,8 @@ export type CaptureEvent =
     }
   | { type: 'sourceChanged'; alive: boolean }
   | { type: 'health'; micDb: number; meetingDb: number }
+  | { type: 'micLevel'; micDb: number }
+  | { type: 'micCheckEnded'; reason: 'timedOut' | 'deviceLost' }
   /** No `track` means the whole session, such as a session log write. */
   | { type: 'writeError'; message: string; track?: Track };
 

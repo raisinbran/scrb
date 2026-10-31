@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "../src/TrackPipeline.h"
+#include "../src/DeviceDebounce.h"
 
 using namespace scrb;
 
@@ -240,6 +241,63 @@ void TestMarks() {
     CHECK(!r.sink.closed[0].allZero);
 }
 
+void TestFlagStorm() {
+    puts("T21 synthetic: 1281 flags in 300 seconds, bounded splits; real gaps still split");
+    Rig r("microphone");
+    r.pipe.OnStreamOpened({"id", "hands-free", "bluetooth-handsfree"}, "device");
+    constexpr int packets = 30000;
+    constexpr int flags = 1281;
+    for (int i = 0; i < packets; ++i) {
+        // An invented 300 s log: 1281 evenly spaced discontinuity flags, no missing audio.
+        const bool flag = (i * flags / packets) != ((i + 1) * flags / packets);
+        if (i == 18000) r.stamp += 40 * kNsPerMs;  // One real gap must still split.
+        r.Feed(1, 1, flag);
+    }
+    r.pipe.Stop();
+    const auto& chunks = r.sink.closed;
+    CHECK(r.sink.written == static_cast<uint64_t>(packets) * 480);
+    // 60 regular 5-second chunks + at most ~300 flag-only boundaries + real gap.
+    CHECK(chunks.size() <= 365);
+    CHECK(chunks.size() >= 60);
+    bool markedGap = false;
+    for (const auto& chunk : chunks) markedGap |= chunk.missingBeforeMs >= 39;
+    CHECK(markedGap);
+    for (size_t i = 1; i < chunks.size(); ++i) CHECK(chunks[i].seq == chunks[i - 1].seq + 1);
+}
+
+void TestDefaultFlaps() {
+    puts("T8 synthetic default-device changes every 4s: wait 5s of stability");
+    StableDebounce gate;
+    constexpr int64_t quiet = 5 * kNsPerSec;
+    for (int i = 0; i < 20; ++i) {
+        const int64_t at = static_cast<int64_t>(i) * 4 * kNsPerSec;
+        gate.Changed(at, quiet);
+        CHECK(!gate.Due(at));
+        CHECK(!gate.Due(at + 4 * kNsPerSec));
+    }
+    CHECK(!gate.Due(80 * kNsPerSec));
+    CHECK(gate.Due(81 * kNsPerSec));
+    CHECK(!gate.Due(82 * kNsPerSec));
+}
+
+void TestStaleWakeBurst() {
+    puts("T3: stale timestamp packets after wake never enter new chunk");
+    Rig r("meeting");
+    r.Feed(100);
+    r.pipe.OnSleep();
+    r.t += 44 * kNsPerSec;
+    r.stamp += 44 * kNsPerSec;
+    r.pipe.OnWake(r.t);
+    r.stamp -= 2 * kNsPerSec; // old-time packets delivered immediately after wake
+    r.Feed(10);
+    r.stamp = r.t; // real-time packets resume
+    r.Feed(100);
+    r.pipe.Stop();
+    CHECK(r.sink.written == 200 * 480);
+    CHECK(r.sink.closed.size() == 2);
+    CHECK(r.sink.closed[0].closeReason == "sleep");
+}
+
 void TestRealStandbyLog(const char* path) {
     printf("F11 replay of the logged standby run: %s\n", path);
     std::ifstream in(path);
@@ -286,6 +344,9 @@ int main(int argc, char** argv) {
     TestFastPause();
     TestStartMoved();
     TestMarks();
+    TestFlagStorm();
+    TestDefaultFlaps();
+    TestStaleWakeBurst();
     if (argc > 1) TestRealStandbyLog(argv[1]);
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "PASSED", g_failures);
     return g_failures ? 1 : 0;

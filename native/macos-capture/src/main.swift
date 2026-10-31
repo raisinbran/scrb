@@ -388,6 +388,10 @@ final class Session {
     var activeTracks: [String] { [micTrack, meetingTrack].filter(\.active).map(\.name) }
 }
 
+if CommandLine.arguments.contains("--mic-probe") {
+    runMicProbe()
+}
+
 let session = Session()
 var acks: [String: [String: Any]] = [:]
 
