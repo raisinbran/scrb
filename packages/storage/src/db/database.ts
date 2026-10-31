@@ -255,7 +255,10 @@ export async function openIndex(
         verify(live);
         version = readIndexVersion(live);
         if (version !== journal.oldVersion && version !== journal.targetVersion) {
-          throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The live index version is unexpected.');
+          throw new StorageError(
+            'INDEX_RECOVERY_REQUIRED',
+            'The live index version is unexpected.',
+          );
         }
         try {
           verifyPreserved(live, originalRows);
