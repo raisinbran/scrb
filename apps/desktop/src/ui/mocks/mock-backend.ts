@@ -185,6 +185,7 @@ function withItem(
         case 'openQuestions':
           return { ...summary, openQuestions: [...summary.openQuestions, { ...update.item, ...evidence }] };
       }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     }
     case 'remove': {
       const list = summary[update.collection];
