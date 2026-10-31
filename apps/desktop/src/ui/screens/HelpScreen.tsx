@@ -6,6 +6,7 @@ const load = (backend: Backend) => backend.call('getAppInfo');
 
 export function HelpScreen() {
   const { state } = useBackendData(load);
+  const { state: licenses } = useBackendData((backend: Backend) => backend.call('getLicenses'));
   return (
     <Screen title="Help">
       <p>The User Manual arrives with each phase and is finished in Phase 8.</p>
@@ -29,6 +30,24 @@ export function HelpScreen() {
             )}
           </>
         )}
+      </DataView>
+      <h2>Third-party notices</h2>
+      <DataView state={licenses}>
+        {(entries) =>
+          entries.length === 0 ? (
+            <p>Verified third-party notices are not yet available in this build.</p>
+          ) : (
+            <ItemList>
+              {entries.map((entry) => (
+                <Item
+                  key={`${entry.name}-${entry.version}`}
+                  primary={`${entry.name} ${entry.version} (${entry.license})`}
+                  secondary={entry.text}
+                />
+              ))}
+            </ItemList>
+          )
+        }
       </DataView>
     </Screen>
   );
