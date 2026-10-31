@@ -61,6 +61,7 @@ export async function openBackend(
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       handlers: {
+        getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
         ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),

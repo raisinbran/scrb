@@ -177,6 +177,7 @@ export interface BackendCalls {
   exportMeeting: { request: ExportRequest; response: { exportId: ExportId } };
 
   // Settings
+  getPrivacyJurisdictions: { request: void; response: { countries: string[]; usStates: string[] } };
   getSettings: { request: void; response: AppSettings };
   updateSettings: { request: SettingsPatch; response: AppSettings };
   /** @addition */
@@ -338,6 +339,7 @@ const CALL_TABLE: Record<CallName, true> = {
   deleteMeeting: true,
   openMeetingFolder: true,
   exportMeeting: true,
+  getPrivacyJurisdictions: true,
   getSettings: true,
   updateSettings: true,
   pickStorageLocation: true,

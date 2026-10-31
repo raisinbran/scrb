@@ -271,6 +271,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   openMeetingFolder: shape({ meetingId: id, folder: oneOf('meeting', 'audio', 'exports') }),
   exportMeeting: exportRequest,
 
+  getPrivacyJurisdictions: nothing,
   getSettings: nothing,
   updateSettings: settingsPatch,
   pickStorageLocation: nothing,

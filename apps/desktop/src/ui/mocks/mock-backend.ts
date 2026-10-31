@@ -1139,6 +1139,10 @@ export class MockBackend implements Backend {
       return { exportId };
     },
 
+    getPrivacyJurisdictions: () => ({
+      countries: ['GB', 'DE', 'FR', 'IE'],
+      usStates: ['IL', 'TX', 'WA', 'CA', 'CO'],
+    }),
     getSettings: () => this.settings,
     updateSettings: (patch) => {
       this.settings = mergeSettings(this.settings, patch);

@@ -68,6 +68,12 @@ describe('isValidRequest', () => {
     expect(isValidRequest('updateSettings', { audio: { inputSensitivityDb: 5 } })).toBe(false);
   });
 
+  it('allows only a no-argument privacy jurisdictions lookup', () => {
+    expect(CALL_NAMES).toContain('getPrivacyJurisdictions');
+    expect(isValidRequest('getPrivacyJurisdictions', undefined)).toBe(true);
+    expect(isValidRequest('getPrivacyJurisdictions', { path: '/private' })).toBe(false);
+  });
+
   it('checks date formats', () => {
     const ok = { filter: { from: '2026-10-01', to: '2026-10-30T12:00:00Z' } };
     expect(isValidRequest('listMeetings', ok)).toBe(true);
