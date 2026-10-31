@@ -517,6 +517,25 @@ export function createMeetingHandlers(
         throw error;
       }
     },
+    getVocabularyUndoState: async () => library.vocabulary.undoState(),
+    undoVocabulary: async () => {
+      try { return library.vocabulary.undo(); }
+      catch (error) {
+        if (error instanceof StorageError && error.code === 'VOCABULARY_CHANGED') {
+          throw new ContractError({ code: 'conflict', message: 'Vocabulary changed since this edit.' });
+        }
+        throw error;
+      }
+    },
+    redoVocabulary: async () => {
+      try { return library.vocabulary.redo(); }
+      catch (error) {
+        if (error instanceof StorageError && error.code === 'VOCABULARY_CHANGED') {
+          throw new ContractError({ code: 'conflict', message: 'Vocabulary changed since this edit.' });
+        }
+        throw error;
+      }
+    },
     listTerms: async () =>
       Promise.all(library.vocabulary.list().map((entry) => toTerm(library, entry))),
     updateTerm: async (request) => {

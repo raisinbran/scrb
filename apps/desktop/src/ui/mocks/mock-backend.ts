@@ -230,6 +230,8 @@ export class MockBackend implements Backend {
   );
   private library: MeetingDetail[] = createLibrary();
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
+  private termUndo: VocabularyTerm[][] = [];
+  private termRedo: VocabularyTerm[][] = [];
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
   private readonly meetingSpeakers = new Map<string, Speaker[]>();
   private readonly updatedModels = new Set<string>();
@@ -312,6 +314,8 @@ export class MockBackend implements Backend {
     this.history.clear();
     this.profiles = VOICE_PROFILES.map((profile) => ({ ...profile }));
     this.terms = VOCABULARY_TERMS.map((term) => ({ ...term }));
+    this.termUndo = [];
+    this.termRedo = [];
     this.meetingSpeakers.clear();
     this.stopPlayback();
   }
@@ -1017,11 +1021,30 @@ export class MockBackend implements Backend {
       });
     },
 
+    getVocabularyUndoState: () => ({ canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 }),
+    undoVocabulary: () => {
+      const previous = this.termUndo.pop();
+      if (previous) {
+        this.termRedo.push(structuredClone(this.terms));
+        this.terms = previous;
+      }
+      return { canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 };
+    },
+    redoVocabulary: () => {
+      const next = this.termRedo.pop();
+      if (next) {
+        this.termUndo.push(structuredClone(this.terms));
+        this.terms = next;
+      }
+      return { canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 };
+    },
     listTerms: () => this.terms,
     updateTerm: ({ id, patch }) => {
       const term = this.terms.find((item) => item.id === id);
       if (!term)
         throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
+      this.termUndo.push(structuredClone(this.terms));
+      this.termRedo = [];
       const at = new Date().toISOString();
       const history = [...term.history];
       if (patch.enabled === true && !term.enabled) {
@@ -1043,6 +1066,10 @@ export class MockBackend implements Backend {
       return updated;
     },
     deleteTerm: ({ id }) => {
+      if (this.terms.some((term) => term.id === id)) {
+        this.termUndo.push(structuredClone(this.terms));
+        this.termRedo = [];
+      }
       this.terms = this.terms.filter((term) => term.id !== id);
     },
 
