@@ -61,12 +61,13 @@ describe('shared components', () => {
         <button type="button">Last action</button>
       </Dialog>,
     );
-    const panel = screen.getByRole('dialog');
-    expect(document.activeElement).toBe(panel);
-    fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Last action' }));
-    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Tab' });
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'First action' }));
+    const first = screen.getByRole('button', { name: 'First action' });
+    const last = screen.getByRole('button', { name: 'Last action' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
   });
 
   describe('SpeakerLabel', () => {
