@@ -2,7 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { printPdf } from './pdf-printer-test-bundle.cjs';
+import printer from './pdf-printer-test-bundle.cjs';
+const { printPdf } = printer;
 
 const scratch = await mkdtemp(join(tmpdir(), 'scrb-pdf-real-test-'));
 const originalTmp = process.env.TMPDIR;
@@ -17,7 +18,7 @@ const assert = (condition, message) => {
 try {
   await app.whenReady();
   const html = '<!doctype html><html><body><h1>Invented large PDF</h1><p>' +
-    'A'.repeat(2_600_000) + '</p><script>document.title="SCRIPT_RAN"</script></body></html>';
+    'Visible text</p><!--' + 'A'.repeat(2_600_000) + '--><script>document.title="SCRIPT_RAN"</script></body></html>';
   const pdf = await printPdf(html, {
     pageSize: 'Letter',
     printBackground: true,
