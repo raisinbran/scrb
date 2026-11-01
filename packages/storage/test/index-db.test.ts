@@ -165,6 +165,27 @@ describe('index migrations', () => {
     expect(await readdir(root)).toEqual(['index.sqlite']);
   });
 
+  it('preserves an invalid recovery journal and the live index for manual review', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const original = new DatabaseSync(file);
+    migrate(original, MIGRATIONS, 5);
+    original.prepare('INSERT INTO settings VALUES (?, ?)').run('theme', '"dark"');
+    original.close();
+    const before = await readFile(file);
+    const journalPath = `${file}.upgrade-state.json`;
+    const corruptJournal = '{"attemptId":';
+    await writeFile(journalPath, corruptJournal);
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+    expect(await readFile(file)).toEqual(before);
+    expect(await readFile(journalPath, 'utf8')).toBe(corruptJournal);
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+  });
+
   it('preserves an unowned partial index rather than guessing it is disposable', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const old = new DatabaseSync(file);
