@@ -10,7 +10,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | 4-hour run with pauses, a device change and a crash (T15)                  | Done, 2026-10-31                                                              | Done, 2026-10-30                                                                    |
 | Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted: 12.18 s mic / 8.90 s meeting; 5.52 s gap excepted by owner (decision 4) | Combined 4 h runs accepted: built-in mic 1.221 s and meeting 0.331 s loss excluding owner-excepted hibernation; Bluetooth headset failed at 309.9 s |
-| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer −3 ms documented; followed Teams −1 ms reported, but the committed `t18-picker.txt` lacks successful measurement output |
+| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer −3 ms; original followed-Teams picker recording remeasured with existing script: 40/45 windows, −1 ms drift ([PR #14](https://github.com/raisinbran/scrb/pull/14)); failed first invocation preserved |
 | Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
 | Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01                                     | Done                                                                                |
 
@@ -21,7 +21,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 - [x] Merge the BUG-1 fix from `windows-restart-test`
 - [x] Fix BUG-2: mark the gap before a track's first chunk
 - [x] Try Teams from the real app's picker
-- [x] Measure drift on a followed Teams call: drift -1 ms, 40 of 45 windows (`t18-picker.txt`)
+- [x] Recovered T18 measurement: original Teams-picker recording, 40/45 windows, −1 ms drift; successful output in [PR #14](https://github.com/raisinbran/scrb/pull/14). Original `t18-picker.txt` command failed; it is not the successful measurement.
 - [x] Run the 4-hour load run on the built-in mic, with the silence check: 1.221 s mic loss, with the owner's exception for one 18.8 min hibernate on critical battery (`long-run-builtin.txt`). It counts with the 10-30 run (owner decision, 2026-11-01)
 
 **Mac**
@@ -33,13 +33,15 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 - [x] Run T6 on the real helper, with a forced stream stop
 - [x] Fix T20: warn and mark the gap when a reopen hits denied access, and show `permissionLost` in the app (also missing for Windows)
 - [x] Rerun T20 on both switches, with the reopen tied to the switch change
+- [x] Final macOS native verification on `e180a51`: helper build PASS, six-rate software resampler regression PASS, three-round stop-during-pause smoke PASS; existing T6/T17/T20 hardware logs reused, not repeated ([PR #13](https://github.com/raisinbran/scrb/pull/13)).
 
 **Both**
 
 - [x] GitHub CI on final `main` baseline `e180a51`: Windows and macOS jobs passed (typecheck, lint, unit tests, boundaries, build and smoke); [run 41293637940](https://github.com/raisinbran/scrb/actions/runs/41293637940). The CI runs the constituent `npm run check` commands, not `npm run check` itself.
-- [ ] Verify current-baseline native capture builds and any remaining short, hardware-dependent smoke checks on both computers; record results without repeating endurance runs
-- [ ] Reconcile T18 picker drift evidence: recover the original successful output, or record an explicit owner disposition of the missing raw measurement log
-- [ ] Independently QA and obtain owner approval of draft `gate-2.md`
+- [x] Windows native helper build and scoped desktop hardware smoke on `e180a51` PASS (pause/marker, follow/silence, restart, crash, BUG-2); source results in [PR #14](https://github.com/raisinbran/scrb/pull/14). Original F11 replay failed and is tracked separately below.
+- [x] Windows followed-Teams T18 recorded result independently remeasured on the **saved original** recording: 40/45 windows, −1 ms drift; not a new call. [Recovered output in PR #14](https://github.com/raisinbran/scrb/pull/14).
+- [ ] **F11 integration:** On `main e180a51` the native CSV replay FAILS (41,030 ms vs 1,690 ms). [Claude PR #15](https://github.com/raisinbran/scrb/pull/15) documents a test-only synthetic-fill correction, with locally rerun full PipelineTests PASS (0 failures, 1,690 ms vs 1,690 ms); pending its final CI/QA and authorized integration. Do not mark final native replay passed on `main` until then.
+- [ ] Independent QA of consolidated draft [PR #12](https://github.com/raisinbran/scrb/pull/12) and explicit owner approval of `gate-2.md`. PR #13/#14 overlap checklist edits; preserve their evidence while reconciling those edits, not duplicating them.
 
 ## Owner decisions
 
