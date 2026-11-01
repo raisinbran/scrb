@@ -43,7 +43,7 @@ final class Track {
     var deviceRate = 0.0
     var converter: RateConverter?
     var writeErrorReported = false
-    var hadWriteError = false
+    private var hadWriteError = false
     var nextAccessCheck = Date.distantPast
     private var blocked = false
     let mutex = NSLock()
@@ -115,6 +115,12 @@ final class Track {
             endChunk(reason: session.stopping ? "stop" : "pause")
             nextOpenReason = "resume"
         }
+    }
+
+    var hasWriteError: Bool {
+        mutex.lock()
+        defer { mutex.unlock() }
+        return hadWriteError
     }
 
     var isBlocked: Bool {
@@ -287,7 +293,7 @@ final class Session {
         meetingTrack.drain(session: self)
         micStream.close()
         meetingStream.close()
-        let chunksSaved = !micTrack.hadWriteError && !meetingTrack.hadWriteError
+        let chunksSaved = !micTrack.hasWriteError && !meetingTrack.hasWriteError
         let markerSaved = commandId.map { id in
             chunksSaved && !id.isEmpty && recordStop(id: id, atNs: at)
         } ?? chunksSaved
