@@ -408,6 +408,17 @@ unplug (no USB mic).
     capture records silence, with no warning.  Zoom and browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
     unless `-TargetExe` is also given, so aloud runs must pass both.
 
+17. **OBS's per-app capture uses the same route and does not avoid this.**  Its
+    source (`plugins/win-wasapi/win-wasapi.cpp`) uses the same process loopback
+    mode.  A probe with OBS's exact format, flags and buffer captured an Other
+    stream at -10.5 dB and a Communications stream as digital silence
+    (`results/process-loopback-obs-settings.txt`,
+    `phase0/probes/windows-comm-tone/ObsProbe.cpp`).  OBS itself was not run.
+    Public reports agree: microsoft/Windows-classic-samples#414 (Teams desktop
+    silent, and a Communications repro on build 26200), OpenWhispr PR 2233 (Teams
+    0.0000 against endpoint loopback 0.38-0.65) and anarlog PR 7590 (moved to
+    endpoint loopback).  Teams in a browser recorded in #414, not tested here.
+
 ## Needs a Planner plan
 
 The process requires one and the tool was unavailable: Windows capture adapter,
