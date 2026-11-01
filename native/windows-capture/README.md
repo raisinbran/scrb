@@ -387,6 +387,22 @@ unplug (no USB mic).
     here and is 30 s by default without a device signal, and the resume reply
     says the gate is open throughout.  This PC has one mic, so no real change ran.
 
+16. **T18 passes on whole-computer capture; the Teams process target hears
+    nothing.**  A real one-hour Teams call between this PC and the Mac, with a
+    phone at the Mac playing `t18-conversation.wav`, built-in mic and speakers
+    (`results/t18-whole.txt`, `t18-whole-offset.txt`).  Mic after meeting: 91 ms at
+    the start, 88 ms at the end, drift -3 ms against 50 ms.  118 of 120 windows
+    matched, every lag between 88 and 92 ms, largest step -3 ms.  Both tracks lost
+    about 250 ms together, at 447 s and 2247 s, exactly 1800 s apart, cause
+    `unknown`, 0.49 s per track in the hour; not investigated.  With
+    `-TargetExe ms-teams.exe` alone the meeting track stayed at -96 dB for 23
+    minutes while whole-computer capture heard the call at -14.6 dB.  Both
+    `ms-teams.exe` processes, the Explorer tree holding Teams, and every other
+    audio process probed were silent (`results/t18-process-target.txt`).  Cause
+    not known, so per-app Teams capture does not work on this PC.  Zoom and
+    browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
+    unless `-TargetExe` is also given, so aloud runs must pass both.
+
 ## Needs a Planner plan
 
 The process requires one and the tool was unavailable: Windows capture adapter,

@@ -4,8 +4,8 @@ Branch `windows-capture`, cut from 3fc9931.  State and results: `README.md`.
 
 Remaining for this phase: nothing on this PC.  Still needed elsewhere:
 
-1. Real Teams, Zoom and browser targets with a shared-sound offset and drift check;
-   the tools are in `scripts/shared_sound.mjs` (README, "T18 tools").
+1. T18 passed on whole-computer capture (README finding 16), but the Teams process
+   target records silence, cause unknown, and Zoom and browser targets are unrun.
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
 2. Rerun the 4 h load run on the built-in mic, after T18 (owner decision,

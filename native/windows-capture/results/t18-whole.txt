@@ -1,0 +1,11 @@
+case=t18-whole helperExit=0
+microphone: chunks=722 audio=3599.7 s missing=488.9 ms bad=0 part=0 files=722 toneChunks=204 zeroChunks=0 peak=-19.1 dB
+  close reasons: discontinuity=3 rollover=718 stop=1
+    missing 238.0 ms before 447.454 s, cause unknown
+    missing 250.8 ms before 2247.515 s, cause unknown
+meeting: chunks=722 audio=3599.7 s missing=496.8 ms bad=0 part=0 files=722 toneChunks=178 zeroChunks=0 peak=-22.8 dB
+  close reasons: discontinuity=3 rollover=718 stop=1
+    missing 248.0 ms before 447.455 s, cause unknown
+    missing 248.8 ms before 2247.516 s, cause unknown
+VERIFY OK
+events: discontinuity=6
