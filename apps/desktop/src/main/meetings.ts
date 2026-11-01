@@ -649,18 +649,18 @@ export function createMeetingHandlers(
         includeRow: (row) => matchesMeetingFilter(toListItem(row), filter),
       });
       return found.results.map((result) => ({
-          meeting: toListItem(result.meeting),
-          matches: [
-            ...(result.matchedIn.includes('title or date')
-              ? [{ segmentId: null, startMs: null, snippet: null }]
-              : []),
-            ...result.hits.map((hit) => ({
-              segmentId: hit.segmentId,
-              startMs: hit.startMs,
-              snippet: hit.snippet,
-            })),
-          ],
-        }));
+        meeting: toListItem(result.meeting),
+        matches: [
+          ...(result.matchedIn.includes('title or date')
+            ? [{ segmentId: null, startMs: null, snippet: null }]
+            : []),
+          ...result.hits.map((hit) => ({
+            segmentId: hit.segmentId,
+            startMs: hit.startMs,
+            snippet: hit.snippet,
+          })),
+        ],
+      }));
     },
     openMeetingFolder: async (request) => {
       const { meetingId, folder } = request as {
