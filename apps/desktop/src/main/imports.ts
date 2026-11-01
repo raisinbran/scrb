@@ -165,22 +165,26 @@ export class ImportCoordinator {
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
-      const result = await (this.deps.modelGate ?? this.localGate).run(() => this.deps.run({
-        sourcePath,
-        meetingDir: staging,
-        signal: abort.signal,
-        vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
-        onProgress: (progress) => {
-          state.stage = STAGES[progress.phase];
-          state.fraction = Math.max(0, Math.min(1, progress.fraction));
-          this.deps.emit('importProgress', {
-            importId: state.importId,
-            fileName: state.fileName,
-            stage: state.stage,
-            fraction: state.fraction,
-          });
-        },
-      }), abort.signal);
+      const result = await (this.deps.modelGate ?? this.localGate).run(
+        () =>
+          this.deps.run({
+            sourcePath,
+            meetingDir: staging,
+            signal: abort.signal,
+            vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
+            onProgress: (progress) => {
+              state.stage = STAGES[progress.phase];
+              state.fraction = Math.max(0, Math.min(1, progress.fraction));
+              this.deps.emit('importProgress', {
+                importId: state.importId,
+                fileName: state.fileName,
+                stage: state.stage,
+                fraction: state.fraction,
+              });
+            },
+          }),
+        abort.signal,
+      );
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({

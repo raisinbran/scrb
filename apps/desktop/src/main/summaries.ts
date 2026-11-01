@@ -131,12 +131,16 @@ export class SummaryCoordinator {
       if (transcript.lines.length === 0) throw new Error('No transcript available');
       if (abort.signal.aborted) return;
       emit('extracting', 0);
-      const summary = await this.modelGate.run(() => this.run({
-        transcript,
-        length,
-        signal: abort.signal,
-        progress: (done, total) => emit('coverageCheck', total > 0 ? (done / total) * 0.9 : 0),
-      }), abort.signal);
+      const summary = await this.modelGate.run(
+        () =>
+          this.run({
+            transcript,
+            length,
+            signal: abort.signal,
+            progress: (done, total) => emit('coverageCheck', total > 0 ? (done / total) * 0.9 : 0),
+          }),
+        abort.signal,
+      );
       if (abort.signal.aborted) return;
       emit('writing', 0.95);
       await this.library.saveGeneratedSummary(

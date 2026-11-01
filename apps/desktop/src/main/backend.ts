@@ -106,7 +106,12 @@ export async function openBackend(
       : null;
     const summaryConfig = app.isPackaged ? undefined : process.env['SCRB_SUMMARY_CONFIG'];
     summaries = summaryConfig
-      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit, modelGate)
+      ? new SummaryCoordinator(
+          library,
+          createConfiguredSummaryRunner(summaryConfig),
+          emit,
+          modelGate,
+        )
       : null;
     const exports = new ExportCoordinator(library, emit, printPdf);
     const stopRetention = library.startAutoDeleteSchedule();

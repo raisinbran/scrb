@@ -26,7 +26,9 @@ vi.mock('electron', () => ({
       this.record.file = file;
       return electron.load(file);
     }
-    destroy() { this.record.destroyed = true; }
+    destroy() {
+      this.record.destroyed = true;
+    }
   },
 }));
 
@@ -51,13 +53,19 @@ describe('desktop export jobs', () => {
     const library = await Library.open({ root });
     try {
       const exporter = new ExportCoordinator(library, vi.fn(), vi.fn());
-      await expect(exporter.handlers.exportMeeting!({
-        ...REQUEST, meetingId: 'invented-missing-id',
-      })).rejects.toMatchObject({ code: 'notFound' });
+      await expect(
+        exporter.handlers.exportMeeting!({
+          ...REQUEST,
+          meetingId: 'invented-missing-id',
+        }),
+      ).rejects.toMatchObject({ code: 'notFound' });
       const busy = await library.createMeeting({ title: 'Invented Busy', status: 'recording' });
-      await expect(exporter.handlers.exportMeeting!({
-        ...REQUEST, meetingId: busy.id,
-      })).rejects.toMatchObject({ code: 'conflict' });
+      await expect(
+        exporter.handlers.exportMeeting!({
+          ...REQUEST,
+          meetingId: busy.id,
+        }),
+      ).rejects.toMatchObject({ code: 'conflict' });
       await exporter.shutdown();
     } finally {
       await library.close();
@@ -76,7 +84,9 @@ describe('desktop export jobs', () => {
       await exporter.shutdown();
       const files = await readdir(library.meetingPaths(meeting.id).exports);
       expect(files).toHaveLength(2);
-      expect(files.every((name) => name.includes('Invented private name') && name.endsWith('.pdf'))).toBe(true);
+      expect(
+        files.every((name) => name.includes('Invented private name') && name.endsWith('.pdf')),
+      ).toBe(true);
       expect(first).not.toEqual(second);
     } finally {
       await library.close();

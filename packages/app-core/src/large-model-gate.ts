@@ -1,6 +1,10 @@
 export class LargeModelGate {
   private busy = false;
-  private readonly waiting: Array<{ resolve: () => void; reject: (reason: Error) => void; signal?: AbortSignal }> = [];
+  private readonly waiting: Array<{
+    resolve: () => void;
+    reject: (reason: Error) => void;
+    signal?: AbortSignal;
+  }> = [];
 
   /** A job owns the model slot until its worker settles, even after cancellation. */
   async run<T>(job: () => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -8,7 +12,10 @@ export class LargeModelGate {
     if (this.busy) {
       await new Promise<void>((resolve, reject) => {
         const waiter = {
-          resolve: () => { signal?.removeEventListener('abort', abort); resolve(); },
+          resolve: () => {
+            signal?.removeEventListener('abort', abort);
+            resolve();
+          },
           reject,
           ...(signal ? { signal } : {}),
         };

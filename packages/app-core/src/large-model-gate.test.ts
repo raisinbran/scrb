@@ -13,7 +13,9 @@ describe('one large model shared by final pass, import and summary', () => {
     let finish!: () => void;
     const firstWork = gate.run(async () => {
       order.push(first + ':start');
-      await new Promise<void>((resolve) => { finish = resolve; });
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
       order.push(first + ':end');
     });
     const secondWork = gate.run(async () => {
@@ -29,7 +31,12 @@ describe('one large model shared by final pass, import and summary', () => {
   it('cancels a waiting summary immediately while another worker runs', async () => {
     const gate = new LargeModelGate();
     let finish!: () => void;
-    const runningImport = gate.run(async () => new Promise<void>((resolve) => { finish = resolve; }));
+    const runningImport = gate.run(
+      async () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
     const controller = new AbortController();
     const summary = vi.fn(async () => undefined);
     const queued = gate.run(summary, controller.signal);

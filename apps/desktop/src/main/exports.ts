@@ -30,15 +30,15 @@ export const printPdf: PrintHtmlToPdf = async (html, options) => {
   try {
     await writeFile(file, html, { encoding: 'utf8', mode: 0o600 });
     window = new BrowserWindow({
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-      javascript: false,
-    },
-  });
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        webSecurity: true,
+        javascript: false,
+      },
+    });
     await window.loadFile(file);
     return await window.webContents.printToPDF(options);
   } finally {

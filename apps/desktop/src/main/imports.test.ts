@@ -22,10 +22,12 @@ async function fixture() {
     applyFinalPass: applied,
     updateMeeting: update,
     discardImport: discard,
-    vocabulary: { enabledTerms: vi.fn(() => [
-      { term: 'Rosmont', enabled: true },
-      { term: 'Quillon', enabled: false },
-    ]) },
+    vocabulary: {
+      enabledTerms: vi.fn(() => [
+        { term: 'Rosmont', enabled: true },
+        { term: 'Quillon', enabled: false },
+      ]),
+    },
     logger: { log: vi.fn() },
   } as unknown as Library;
   const run = vi.fn(
@@ -90,12 +92,12 @@ describe('Electron import coordination', () => {
     await expect(f.coordinator.recoverInterrupted()).resolves.toBeUndefined();
     expect(await readdir(dir)).toEqual([blocked]);
     expect(f.library.logger.log).toHaveBeenCalledWith(
-      'warn', 'import-recovery-cleanup-failed',
+      'warn',
+      'import-recovery-cleanup-failed',
       expect.objectContaining({ error: 'Error', code: 'EACCES' }),
     );
     expect(JSON.stringify(vi.mocked(f.library.logger.log).mock.calls)).not.toContain(f.root);
   });
-
 
   it('removes only interrupted app-owned import staging directories, retaining unrelated files', async () => {
     const f = await fixture();

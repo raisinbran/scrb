@@ -150,7 +150,10 @@ export function createConfiguredImportRunner(configPath: string) {
     return importAudioFile({
       ...input,
       tools,
-      transcribe: { models, ...(input.vocabularyHint ? { vocabularyHint: input.vocabularyHint } : {}) },
+      transcribe: {
+        models,
+        ...(input.vocabularyHint ? { vocabularyHint: input.vocabularyHint } : {}),
+      },
     });
   };
 }
@@ -221,12 +224,16 @@ export class FinalPassQueue {
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
-        const transcript = await this.modelGate.run(() => this.run({
-          tracks,
-          workDir,
-          signal: this.abort.signal,
-          vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
-        }), this.abort.signal);
+        const transcript = await this.modelGate.run(
+          () =>
+            this.run({
+              tracks,
+              workDir,
+              signal: this.abort.signal,
+              vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+            }),
+          this.abort.signal,
+        );
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
