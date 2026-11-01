@@ -290,3 +290,26 @@ it.each([500, 510])('rejects invalid VAD start %s', async (startMs) => {
   for (let i = 0; i < 4; i++) await engine.push(frame(i));
   await expect(engine.push(frame(4))).rejects.toThrow('Invalid live VAD timing');
 });
+
+it('clamps model words within audio windows', async () => {
+  const seen: TimedLiveSegment[] = [];
+  const engine = new LivePcmEngine(
+    {
+      detect: async (_track, pcm) => [{ startMs: 0, endMs: pcm.length / 16 }],
+      transcribe: async () => [
+        { text: 'steady', startMs: -5, endMs: 1000, confidence: 0.9 },
+        { text: 'media.', startMs: 3880, endMs: 4040, confidence: 0.9 },
+        { text: 'steps.', startMs: 3770, endMs: 3800, confidence: 0.9 },
+      ],
+    },
+    (segment) => seen.push(segment),
+    () => undefined,
+  );
+  for (let i = 0; i < 40; i++) await engine.push(frame(i, 1000 + i * 100));
+  expect(seen).toHaveLength(1);
+  expect(seen[0]!.words.map((word) => [word.text, word.startMs, word.endMs])).toEqual([
+    ['steady', 1000, 2000],
+    ['media.', 4880, 5000],
+    ['steps.', 5000, 5000],
+  ]);
+});

@@ -173,23 +173,24 @@ export class LivePcmEngine {
         ),
       );
       if (this.closed) return;
+      const maxMs = endMs - span.startMs;
       let previous = 0;
-      for (const word of words) {
+      const bounded = words.map((word) => {
         if (
           !word.text.trim() ||
           ![word.startMs, word.endMs, word.confidence].every(Number.isFinite) ||
-          word.startMs < previous ||
-          word.endMs < word.startMs ||
-          word.endMs > endMs - span.startMs ||
           word.confidence < 0 ||
           word.confidence > 1
         )
           throw new Error('Invalid model word timing');
-        previous = word.endMs;
-      }
-      if (words.length) {
+        const startMs = Math.max(previous, Math.min(maxMs, word.startMs));
+        const endMs = Math.max(startMs, Math.min(maxMs, word.endMs));
+        previous = endMs;
+        return { ...word, startMs, endMs };
+      });
+      if (bounded.length) {
         const offset = state.baseMs + span.startMs;
-        const absolute = words.map((w) => ({
+        const absolute = bounded.map((w) => ({
           ...w,
           startMs: w.startMs + offset,
           endMs: w.endMs + offset,
