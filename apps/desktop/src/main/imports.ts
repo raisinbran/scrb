@@ -5,6 +5,7 @@ import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
   vocabularyHint,
+  LargeModelGate,
   type ImportResult,
   type ImportPhase,
   type Progress,
@@ -35,6 +36,7 @@ export interface ImportDependencies {
   privacyBanner(): Promise<boolean>;
   emit: Emit;
   removeStaging?: (folder: string) => Promise<void>;
+  modelGate?: LargeModelGate;
 }
 
 const IMPORT_STAGE_NAME =
@@ -50,6 +52,7 @@ const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
 
 /** One model-heavy import at a time. File selection grants no general filesystem access to the UI. */
 export class ImportCoordinator {
+  private readonly localGate = new LargeModelGate();
   private readonly tokens = new Map<string, string>();
   private starting = false;
   private running: {
@@ -162,7 +165,7 @@ export class ImportCoordinator {
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
-      const result = await this.deps.run({
+      const result = await (this.deps.modelGate ?? this.localGate).run(() => this.deps.run({
         sourcePath,
         meetingDir: staging,
         signal: abort.signal,
@@ -177,7 +180,7 @@ export class ImportCoordinator {
             fraction: state.fraction,
           });
         },
-      });
+      }), abort.signal);
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({

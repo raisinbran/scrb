@@ -5,6 +5,7 @@ import {
   createFinalPassRunner,
   createSettingsHandlers,
   FinalPassQueue,
+  LargeModelGate,
   resumeFinalPasses,
   needsPrivacyBanner,
   privacyJurisdictions,
@@ -36,6 +37,7 @@ export async function openBackend(
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
     const settings = createSettingsHandlers(library.settings, root);
+    const modelGate = new LargeModelGate();
     library.setMeetingChangedListener((meeting) =>
       emit('meetingChanged', {
         id: meeting.id,
@@ -54,7 +56,7 @@ export async function openBackend(
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig), modelGate)
         : null;
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
@@ -67,6 +69,7 @@ export async function openBackend(
       );
     };
     let recording: RecordingController | null = null;
+    let summaries: SummaryCoordinator | null = null;
     const imports = finalPassConfig
       ? new ImportCoordinator({
           library,
@@ -81,6 +84,7 @@ export async function openBackend(
           recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner,
           emit,
+          modelGate,
         })
       : null;
     if (imports) await imports.recoverInterrupted();
@@ -95,12 +99,14 @@ export async function openBackend(
           },
           finalPasses,
           privacyBanner,
-          async () => imports?.stopForRecording(),
+          async () => {
+            await Promise.all([imports?.stopForRecording(), summaries?.stopForRecording()]);
+          },
         )
       : null;
     const summaryConfig = app.isPackaged ? undefined : process.env['SCRB_SUMMARY_CONFIG'];
-    const summaries = summaryConfig
-      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit)
+    summaries = summaryConfig
+      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit, modelGate)
       : null;
     const exports = new ExportCoordinator(library, emit, printPdf);
     const stopRetention = library.startAutoDeleteSchedule();

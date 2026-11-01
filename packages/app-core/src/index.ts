@@ -7,3 +7,4 @@ export * from './final-pass.ts';
 export * from './privacy.ts';
 export * from './vocabulary-hints.ts';
 export * from './model-artifacts.ts';
+export * from './large-model-gate.ts';
