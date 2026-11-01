@@ -32,7 +32,10 @@ function object(value: unknown): Record<string, unknown> | null {
 }
 
 /** A bad or missing live-only setup must never prevent opening the recording library. */
-export async function readLiveSetup(configPath: string, workerEntry: string): Promise<LiveSetup | null> {
+export async function readLiveSetup(
+  configPath: string,
+  workerEntry: string,
+): Promise<LiveSetup | null> {
   try {
     if (!existsSync(workerEntry)) return null;
     const config = object(JSON.parse(await readFile(configPath, 'utf8')) as unknown);
@@ -43,11 +46,16 @@ export async function readLiveSetup(configPath: string, workerEntry: string): Pr
     const speech = models?.speechLive;
     const vadModel = models?.vad;
     if (
-      typeof server !== 'string' || !existsSync(server) ||
-      typeof vadTool !== 'string' || !existsSync(vadTool) ||
-      typeof speech !== 'string' || !existsSync(speech) ||
-      typeof vadModel !== 'string' || !existsSync(vadModel)
-    ) return null;
+      typeof server !== 'string' ||
+      !existsSync(server) ||
+      typeof vadTool !== 'string' ||
+      !existsSync(vadTool) ||
+      typeof speech !== 'string' ||
+      !existsSync(speech) ||
+      typeof vadModel !== 'string' ||
+      !existsSync(vadModel)
+    )
+      return null;
     const modelPaths: ModelPaths = {
       speechLive: speech,
       vad: vadModel,
@@ -63,10 +71,18 @@ export async function readLiveSetup(configPath: string, workerEntry: string): Pr
     const choice = object(config?.whisper);
     if (choice) {
       const whisper: NonNullable<LiveAudioWorkerOptions['whisper']> = {};
-      if (Number.isInteger(choice.threads) && Number(choice.threads) >= 1 &&
-          Number(choice.threads) <= 64) whisper.threads = Number(choice.threads);
-      if (Number.isInteger(choice.audioContext) && Number(choice.audioContext) >= 1 &&
-          Number(choice.audioContext) <= 4096) whisper.audioContext = Number(choice.audioContext);
+      if (
+        Number.isInteger(choice.threads) &&
+        Number(choice.threads) >= 1 &&
+        Number(choice.threads) <= 64
+      )
+        whisper.threads = Number(choice.threads);
+      if (
+        Number.isInteger(choice.audioContext) &&
+        Number(choice.audioContext) >= 1 &&
+        Number(choice.audioContext) <= 4096
+      )
+        whisper.audioContext = Number(choice.audioContext);
       if (typeof choice.useGpu === 'boolean') whisper.useGpu = choice.useGpu;
       if (typeof choice.language === 'string' && /^[a-z-]{2,20}$/i.test(choice.language))
         whisper.language = choice.language;
@@ -90,8 +106,9 @@ export class LiveCaptureSession {
     meetingId: string,
     emit: Emit,
     private readonly setup: LiveSetup,
-    private readonly launchWorker: (options: LiveAudioWorkerOptions) => Promise<WorkerHandle> =
-      LiveAudioWorker.start,
+    private readonly launchWorker: (
+      options: LiveAudioWorkerOptions,
+    ) => Promise<WorkerHandle> = LiveAudioWorker.start,
   ) {
     this.sink = new LiveTranscriptSink(library, meetingId, emit);
   }
@@ -123,19 +140,21 @@ export class LiveCaptureSession {
       onEvent: (event) => {
         if (!feed.closed && this.current === feed) this.sink.handle(event);
       },
-    }).then(async (worker) => {
-      feed.worker = worker;
-      if (feed.closed) {
-        await worker.close();
-        return;
-      }
-      for (const frame of feed.pending) {
-        if (!worker.offer(frame)) this.sink.handle({ type: 'lag', lagMs: 0, queuedFrames: 1 });
-      }
-      feed.pending.length = 0;
-    }).catch(() => {
-      if (!feed.closed && this.current === feed) this.sink.workerFailed();
-    });
+    })
+      .then(async (worker) => {
+        feed.worker = worker;
+        if (feed.closed) {
+          await worker.close();
+          return;
+        }
+        for (const frame of feed.pending) {
+          if (!worker.offer(frame)) this.sink.handle({ type: 'lag', lagMs: 0, queuedFrames: 1 });
+        }
+        feed.pending.length = 0;
+      })
+      .catch(() => {
+        if (!feed.closed && this.current === feed) this.sink.workerFailed();
+      });
     return {
       onData: (bytes) => {
         if (feed.closed || this.current !== feed) return;
@@ -162,9 +181,11 @@ export class LiveCaptureSession {
     feed.closed = true;
     feed.pending.length = 0;
     if (this.current === feed) this.current = null;
-    const closing = feed.startup.then(async () => {
-      await feed.worker?.close();
-    }).catch(() => undefined);
+    const closing = feed.startup
+      .then(async () => {
+        await feed.worker?.close();
+      })
+      .catch(() => undefined);
     this.cleanup.add(closing);
     void closing.then(() => this.cleanup.delete(closing));
   }
