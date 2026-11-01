@@ -1,11 +1,11 @@
 // @vitest-environment node
-import { mkdtemp, readFile, readdir, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, access, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import type { ExportRequest } from '@scrb/contracts';
-import { ExportCoordinator, printPdf } from './exports.ts';
+import { ExportCoordinator, cleanupOrphanPdfPrints, printPdf } from './exports.ts';
 import { pdfPrintOptions } from '../../../../packages/export/src/render-pdf.ts';
 
 const electron = vi.hoisted(() => ({
@@ -104,9 +104,13 @@ describe('desktop export jobs', () => {
     async (outcome) => {
       const html = '<main>' + 'x'.repeat(2_600_000) + '</main>';
       let path = '';
+      const root = await mkdtemp(join(tmpdir(), 'scrb-export-print-'));
+      const library = await Library.open({ root });
       electron.windows.length = 0;
       electron.load.mockImplementation(async (file: string) => {
         path = file;
+        const scratch = relative(library.paths.cache, dirname(file));
+        expect(scratch).toMatch(/^scrb-pdf-[0-9a-f-]{36}$/i);
         expect(await readFile(file, 'utf8')).toBe(html);
       });
       electron.print.mockImplementation(async () => {
@@ -115,9 +119,13 @@ describe('desktop export jobs', () => {
       });
       try {
         if (outcome === 'print failure') {
-          await expect(printPdf(html, pdfPrintOptions())).rejects.toThrow('invented PDF failure');
+          await expect(printPdf(html, pdfPrintOptions(), library.paths.cache)).rejects.toThrow(
+            'invented PDF failure',
+          );
         } else {
-          expect(await printPdf(html, pdfPrintOptions())).toEqual(Buffer.from('%PDF synthetic'));
+          expect(await printPdf(html, pdfPrintOptions(), library.paths.cache)).toEqual(
+            Buffer.from('%PDF synthetic'),
+          );
         }
         expect(electron.load).toHaveBeenCalledOnce();
         expect(electron.loadUrl).not.toHaveBeenCalled();
@@ -127,13 +135,40 @@ describe('desktop export jobs', () => {
         });
         expect(electron.windows[0]?.destroyed).toBe(true);
         await expect(access(path)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(await readdir(library.paths.cache)).toEqual([]);
       } finally {
+        await library.close();
         electron.load.mockReset();
         electron.loadUrl.mockReset();
         electron.print.mockReset();
       }
     },
   );
+
+  it('clears only UUID-named abandoned PDF scratch directories on startup', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'scrb-export-recovery-'));
+    const library = await Library.open({ root });
+    try {
+      const orphan = join(
+        library.paths.cache,
+        'scrb-pdf-11111111-2222-4333-8444-555555555555',
+      );
+      const unrelated = join(library.paths.cache, 'keep-existing');
+      const nearName = join(library.paths.cache, 'scrb-pdf-not-an-owned-uuid');
+      await mkdir(orphan);
+      await writeFile(join(orphan, 'document.html'), 'synthetic private PDF body');
+      await mkdir(unrelated);
+      await mkdir(nearName);
+      await cleanupOrphanPdfPrints(library.paths.cache);
+      await expect(access(orphan)).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(await readdir(library.paths.cache)).toEqual([
+        'keep-existing',
+        'scrb-pdf-not-an-owned-uuid',
+      ]);
+    } finally {
+      await library.close();
+    }
+  });
 
   it('uses a locked meeting snapshot and an app-owned atomic output path', async () => {
     const root = await mkdtemp(join(tmpdir(), 'scrb-export-test-'));

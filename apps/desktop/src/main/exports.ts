@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { BrowserWindow } from 'electron';
 import { toExportMeeting } from '@scrb/app-core';
 import { atomicWriteFile, meetingFolderName, StorageError, type Library } from '@scrb/storage';
@@ -22,9 +21,25 @@ import type { CallHandlers } from './dispatch.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
-/** Load large generated HTML from a private file; Chromium limits data: URL length. */
-export const printPdf: PrintHtmlToPdf = async (html, options) => {
-  const temporaryDir = await mkdtemp(join(tmpdir(), 'scrb-pdf-'));
+const PDF_SCRATCH = /^scrb-pdf-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+/** Called at library startup, before exports begin; never remove unowned names or symlinks. */
+export async function cleanupOrphanPdfPrints(cacheDir: string): Promise<void> {
+  const entries = await readdir(cacheDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !PDF_SCRATCH.test(entry.name)) continue;
+    await rm(join(cacheDir, entry.name), { recursive: true, force: true });
+  }
+}
+
+/** Load large generated HTML from a private file in the library cache, not an OS temp folder. */
+export async function printPdf(
+  html: string,
+  options: Parameters<PrintHtmlToPdf>[1],
+  cacheDir: string,
+): Promise<Uint8Array> {
+  const temporaryDir = join(cacheDir, `scrb-pdf-${randomUUID()}`);
+  await mkdir(temporaryDir, { mode: 0o700 });
   const file = join(temporaryDir, 'document.html');
   let window: BrowserWindow | null = null;
   try {
@@ -45,7 +60,7 @@ export const printPdf: PrintHtmlToPdf = async (html, options) => {
     window?.destroy();
     await rm(temporaryDir, { recursive: true, force: true });
   }
-};
+}
 
 export class ExportCoordinator {
   private readonly running = new Map<string, Promise<void>>();
