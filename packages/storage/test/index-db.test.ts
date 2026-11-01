@@ -552,7 +552,6 @@ describe('vocabulary', () => {
     }
   });
 
-
   it('adds, merges, edits, disables and deletes', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);

@@ -87,10 +87,7 @@ export async function downloadPinnedModel(
     } finally {
       await reader.cancel().catch(() => undefined);
     }
-    if (
-      received !== source.sizeBytes ||
-      hash.digest('hex') !== source.sha256.toLowerCase()
-    ) {
+    if (received !== source.sizeBytes || hash.digest('hex') !== source.sha256.toLowerCase()) {
       throw new Error('Pinned model checksum or size mismatch');
     }
     options.signal?.throwIfAborted();

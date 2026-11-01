@@ -149,10 +149,7 @@ describe('desktop export jobs', () => {
     const root = await mkdtemp(join(tmpdir(), 'scrb-export-recovery-'));
     const library = await Library.open({ root });
     try {
-      const orphan = join(
-        library.paths.cache,
-        'scrb-pdf-11111111-2222-4333-8444-555555555555',
-      );
+      const orphan = join(library.paths.cache, 'scrb-pdf-11111111-2222-4333-8444-555555555555');
       const unrelated = join(library.paths.cache, 'keep-existing');
       const nearName = join(library.paths.cache, 'scrb-pdf-not-an-owned-uuid');
       await mkdir(orphan);

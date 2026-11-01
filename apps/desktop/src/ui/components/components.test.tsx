@@ -113,9 +113,13 @@ describe('shared components', () => {
     const onClose = vi.fn();
     const { unmount } = render(
       <Dialog title="Invented accessible settings" onClose={onClose}>
-        <button data-autofocus disabled type="button">Disabled first</button>
+        <button data-autofocus disabled type="button">
+          Disabled first
+        </button>
         <div inert>
-          <button data-autofocus type="button">Inert action</button>
+          <button data-autofocus type="button">
+            Inert action
+          </button>
         </div>
         <input data-autofocus aria-label="Preferred setting" />
         <button type="button">Save settings</button>

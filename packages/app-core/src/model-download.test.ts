@@ -113,8 +113,7 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
         res.write(MODEL_BYTES.subarray(0, 8));
         setImmediate(() => res.destroy());
       },
-      async (fetchSource) =>
-        expect(downloadPinnedModel(model, { fetchSource })).rejects.toThrow(),
+      async (fetchSource) => expect(downloadPinnedModel(model, { fetchSource })).rejects.toThrow(),
     );
     expect(await stages(model)).toEqual([]);
     await expect(readFile(model.path)).rejects.toMatchObject({ code: 'ENOENT' });
@@ -135,8 +134,9 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
           setTimeout(() => abort.abort(), 10);
           return response;
         };
-        await expect(downloadPinnedModel(model, { fetchSource: start, signal: abort.signal }))
-          .rejects.toThrow();
+        await expect(
+          downloadPinnedModel(model, { fetchSource: start, signal: abort.signal }),
+        ).rejects.toThrow();
       },
     );
     expect(await stages(model)).toEqual([]);

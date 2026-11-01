@@ -12,9 +12,7 @@ describe('large-library search budget', () => {
         id TEXT PRIMARY KEY, folder TEXT, title TEXT, date TEXT, created_at TEXT,
         duration_ms INTEGER, source TEXT, status TEXT, audio_deleted_at TEXT
       )`);
-      const insert = db.prepare(
-        'INSERT INTO meetings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      );
+      const insert = db.prepare('INSERT INTO meetings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
       db.exec('BEGIN');
       for (let i = 0; i < 5_000; i += 1) {
         const selected = i % 25 === 0;
