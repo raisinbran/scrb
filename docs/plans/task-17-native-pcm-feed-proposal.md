@@ -1,0 +1,57 @@
+# Task 17 Native PCM Connection Proposal
+
+Status: **proposal, not implemented or newly approved**. The owner approved separate live/durable paths. The existing Task 17 plan also requires review of the native wrappers before implementation. This note supplies the concrete next patch; it does not authorize a production capture-path change.
+
+Base: `7a081ca885ecdb611d83728fea189ea777f2d89b`. Worker-side implementation is on `rosmont/phase3-live-worker-20261101`. Gate 2 was closed by the owner; Gate 3 remains open.
+
+## Implemented Worker Boundary
+
+`LiveAudioWorker.start()` creates a private temporary directory and supervises an isolated Node PCM dispatcher plus the existing background Whisper/VAD processes. `offer()` is a synchronous, bounded copy/enqueue; its per-track capacity defaults to 20 frames (hard maximum 64), plus one frame in flight across both tracks. Observers run in deferred microtasks with at most 64 pending notifications; contiguous skips and lag updates coalesce. Notification overflow disables live work with a visible failure rather than growing memory. Model startup, inference, timeout, restart, or exceptions never enter recording code. Models are owned by the supervisor, not orphanable children of the dispatcher. At most three restart attempts are allowed. Closing aborts VAD, kills owned processes, and removes the owned scratch tree.
+
+Model processes receive transient WAV requests made from the stream, not saved Opus chunks. VAD collected stdout is capped at 64 KiB; timed inference replies are capped at 128 KiB before JSON parsing. PCM uses the child's stdin; Node IPC carries only control, VAD spans, bounded provisional segments with individual words, and live-only skip/lag status. No renderer IPC, capture directory, writer lock, OS permission change, or durable chunk format is involved. `LivePass` remains available for its existing saved-chunk callers; the new path reuses `MODEL_RATE`, `pcmToWav`, `detectSpeech`, `LiveWhisper`, worker priority/lifecycle utilities, and `LiveSegment` types rather than mislabeling saved chunks as live streaming. Multi-speaker diarization remains Phase 4 work; labels here are You/Meeting.
+
+## Wire Version 1
+
+Each frame has a 32-byte little-endian header followed by signed 16-bit mono PCM. Maximum payload: 1600 samples (100 ms at 16 kHz). Each track has its own increasing uint32 sequence. Sequence numbers count attempted production, including dropped frames, and never reset when a model worker restarts. A new live session creates a new supervisor. Generations increase after pause, source/device/rate changes, or an explicit boundary; they never decrease within a session.
+
+| Offset | Size      | Meaning                                                                    |
+| ------ | --------- | -------------------------------------------------------------------------- |
+| 0      | 4         | ASCII `SLP1`                                                               |
+| 4      | 1         | Version 1                                                                  |
+| 5      | 1         | Track: 0 microphone (`mic` in transcription), 1 meeting                    |
+| 6      | 1         | Kind: 0 PCM, 1 boundary                                                    |
+| 7      | 1         | Reserved, zero                                                             |
+| 8      | 4         | Per-track sequence                                                         |
+| 12     | 4         | Live generation                                                            |
+| 16     | 8         | Session timeline start in ns, nonnegative and within JS safe integer range |
+| 24     | 4         | Rate, exactly 16000 for this version                                       |
+| 28     | 4         | Sample count: 1–1600 for PCM, zero for a boundary                          |
+| 32     | count × 2 | Signed mono PCM, little-endian                                             |
+
+A boundary flushes prior speech and closes that generation. Further PCM in that generation is rejected. A missing sequence or timestamp interval discards pending model context and marks a live-only gap; it never concatenates speech across the gap. No synthetic silence/words are inserted. The parser supports partial reads with at most one frame retained and rejects oversized/rate-mismatched/truncated input. The supervisor sends only one unacknowledged frame to the dispatcher, bounding pipe buffering even if inference hangs. Overflow drops oldest queued live frames on that track and reports their timeline ranges. Worker death also reports buffered but uncommitted PCM ranges; final transcription remains independent.
+
+## Minimum Native Patch To Review
+
+1. Add an **optional, default-off** live output endpoint to each helper/adapter. Keep command stdout as the existing JSON control channel. POSIX uses a separately inherited FD; Windows uses a separate local pipe with explicit ownership and overlapped I/O. Never expose that endpoint to the renderer or add a shared contract field during this slice.
+2. Export only samples that have passed the existing recording gate and missing-audio/privacy filtering. On Windows, the candidate hook is after `TrackPipeline::OnPacket` has applied stale-silence rejection, divergence correction, generation transition, and computed session `stamp`; it must not run before `Track::CaptureLoop`'s corrected gate check. On macOS, review `Track.drain(session:)` after blocked/silent access checks and generation/timeline conversion, using `session.toSessionNs` on the slot's own host stamp. Audio IO callbacks must not perform new allocation, resampling, pipe I/O, or model work.
+3. The hook may only attempt a fixed-capacity copy into a **separate preallocated live ring**. Never wait on its consumer, hold a model/pipe mutex, call `WriteFile`/`write`, or change the durable ring/Opus writer. A slow exporter drops live frames; durable capture retains its existing behavior. Preserve any in-progress wire frame through partial writes; drop whole queued frames only, or disconnect and start a new framed stream.
+4. Convert to 16 kHz mono on the **live export side**, outside recording/IO callbacks and locks. Existing native capture is commonly 48 kHz; sending that data under a 16 kHz header is invalid. This branch deliberately rejects 48 kHz input. The next native proposal must specify and validate the Windows export-thread resampler and macOS export-thread converter, including filter delay, sample-count/timestamp mapping, non-48-kHz input, and reset at boundaries. Do not change the recording converter or route this through five-second saved chunks. The existing Mac `RateConverter` targets durable 48 kHz and is not yet a ready 16 kHz feed.
+5. The adapter parses this stream with `PcmFrameDecoder` and calls `LiveAudioWorker.offer()`. On EOF/pipe failure, report live transcription status and stop/restart only live processes. Recording worker lifetime and its lock remain independent. Native pause/permission/source transitions must send a boundary and advance the live generation before resumed PCM; a lost boundary must still be detectable from sequence/generation/time.
+
+## Required Safety Evidence For That Patch
+
+These are validation of the proposed capture change, not extra requirements added to the current worker-only task:
+
+- Invented-tone native tests show no PCM past pause/stop/permission cutoff and accurate session times for each track, source change, and reopen.
+- Native producer ring full, pipe closed, stalled consumer, worker timeout, and killed dispatcher leave saved frames/chunk checksums and pause latency unchanged against the same input without live output.
+- Resampler tests prove duration and word-timeline mapping, including a gap/rate change; no averaged timestamps or resampler tail crosses a closed generation.
+- Compile and execute changed native code on each OS only after owner review. This Windows session neither edits nor compiles macOS capture sources.
+- Gate 3 later measures real live median/p95 delay, whole-app memory, AMI word error versus actual live output, and kill-during-capture behavior on both machines. Invented-process tests alone do not establish those targets.
+
+## Main/Sink Integration After Native Review
+
+PR #8's `apps/desktop/src/main/live-transcript.ts` was inspected by path/blob, without merging PR #8. Its bounded pending queue and revision-based replace events are useful, but it wraps `utterance.text` in a single `words: [word]` record. **Do not integrate that mapping unchanged.** Adapt `TimedLiveSegment.words` one-to-one into storage words, each with its own stable ID, absolute start/end and provisional state; derive utterance bounds from the words. No equal-duration splitting or utterance-wide fake word. The worker parser combines the pinned Whisper server's subword pieces and punctuation using their actual timestamps, and rejects untimed prose instead of inventing timing.
+
+The later main bridge must preserve frozen corrections, per-meeting revisions, bounded/paged events and final-pass independence. Stop/quit must call `close()` even after a failed worker; durable Stop/ack and final-pass scheduling must not wait for model cleanup. The worker's stop intentionally discards provisional tails; the independent final pass covers saved audio. Package the compiled `liveWorkerEntry.js` and its dependencies as a separate resource, and provide its path via `workerArgs` if the package is bundled. The dispatcher launcher sets `ELECTRON_RUN_AS_NODE` only on its child; Electron security settings/fuses are unchanged, and the packaged runtime's support still needs validation. Forward the existing CPU/GPU/thread/context/language choices through `whisper` options. No changes to `packages/contracts/`, PR #8, or the recording controller are included here.
+
+The timed response fields and multipart options were checked against the [pinned Whisper server source](https://github.com/ggml-org/whisper.cpp/blob/284029c07012d2000941a08d38a31ffb71f4734e/examples/server/server.cpp), including `verbose_json`, `no_timestamps`, `token_timestamps`, `split_on_word`, and `max_len`. Actual installed Windows/macOS tool compatibility and model word alignment remain untested; missing word timing fails live inference instead of silently substituting an utterance-wide word.

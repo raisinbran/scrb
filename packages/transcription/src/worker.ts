@@ -16,6 +16,10 @@ export interface WorkerSpec {
   signal?: AbortSignal;
   /** Keep stdin open for a request-and-reply protocol. */
   stdin?: boolean;
+  /** Metadata-only control channel for an isolated Node live worker. */
+  ipc?: boolean;
+  /** Optional bound for request/reply tools whose stdout is collected in memory. */
+  maxStdoutBytes?: number;
   onStderrLine?: (line: string) => void;
 }
 
@@ -43,7 +47,12 @@ export class WorkerProcess {
 
   constructor(spec: WorkerSpec) {
     this.child = spawn(spec.command, spec.args, {
-      stdio: [spec.stdin ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+      stdio: [
+        spec.stdin ? 'pipe' : 'ignore',
+        'pipe',
+        'pipe',
+        ...(spec.ipc ? ['ipc' as const] : []),
+      ],
       env: spec.env ?? process.env,
       windowsHide: true,
       shell: false,
@@ -61,6 +70,14 @@ export class WorkerProcess {
 
   get stdin(): Writable {
     return this.child.stdin!;
+  }
+
+  onMessage(listener: (message: unknown) => void): void {
+    this.child.on('message', listener);
+  }
+
+  send(message: object): void {
+    if (this.child.connected) this.child.send!(message, () => undefined);
   }
 
   /** Hard stop: no cleanup is needed inside any of the tools. */
@@ -142,10 +159,26 @@ export function describeExit(exit: WorkerExit): string {
 
 /** Runs a tool to completion and collects stdout, or throws WorkerFailed. */
 export async function runToCompletion(spec: WorkerSpec): Promise<string> {
+  if (
+    spec.maxStdoutBytes !== undefined &&
+    (!Number.isSafeInteger(spec.maxStdoutBytes) || spec.maxStdoutBytes < 1)
+  ) {
+    throw new RangeError('Invalid worker output limit');
+  }
   const worker = new WorkerProcess(spec);
   const chunks: Buffer[] = [];
-  worker.stdout.on('data', (b: Buffer) => chunks.push(b));
+  let total = 0;
+  let overflow = false;
+  worker.stdout.on('data', (b: Buffer) => {
+    if (overflow) return;
+    total += b.length;
+    if (spec.maxStdoutBytes !== undefined && total > spec.maxStdoutBytes) {
+      overflow = true;
+      worker.kill();
+    } else chunks.push(b);
+  });
   const exit = await worker.done;
+  if (overflow) throw new Error('Worker output limit exceeded');
   if (exit.code !== 0) throw new WorkerFailed(spec.name, exit);
   return Buffer.concat(chunks).toString('utf8');
 }
