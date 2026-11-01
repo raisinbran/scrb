@@ -772,7 +772,7 @@ describe('logs', () => {
     const dir = await tempDir();
     const logger = new Logger(dir, () => new Date('2026-10-30T12:00:00Z'));
     logger.log('info', 'word-saved', {
-      meetingId: 'abc-123',
+      meetingId: '11111111-2222-4333-8444-555555555555',
       count: 3,
       ok: true,
       text: 'secretword',
@@ -789,7 +789,7 @@ describe('logs', () => {
       expect(body).not.toContain(banned);
     }
     const first = JSON.parse(body.split('\n')[0] as string) as Record<string, unknown>;
-    expect(first).toMatchObject({ event: 'word-saved', meetingId: 'abc-123', count: 3, ok: true });
+    expect(first).toMatchObject({ event: 'word-saved', meetingId: '11111111-2222-4333-8444-555555555555', count: 3, ok: true });
   });
 
   it('library activity leaks nothing into the logs', async () => {
