@@ -11,20 +11,28 @@ export interface PinnedModelArtifact {
 
 export type ModelVerification =
   | { ok: true; sha256: string }
-  | { ok: false; reason: 'invalidManifest' | 'missing' | 'unsafeFile' | 'sizeMismatch' | 'hashMismatch' | 'readFailed' };
+  | {
+      ok: false;
+      reason:
+        | 'invalidManifest'
+        | 'missing'
+        | 'unsafeFile'
+        | 'sizeMismatch'
+        | 'hashMismatch'
+        | 'readFailed';
+    };
 
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 /** Fail closed on tampered, incomplete or symlinked local model files without changing them. */
-export async function verifyPinnedModel(
-  artifact: PinnedModelArtifact,
-): Promise<ModelVerification> {
+export async function verifyPinnedModel(artifact: PinnedModelArtifact): Promise<ModelVerification> {
   if (
     !SHA256.test(artifact.sha256) ||
     !Number.isSafeInteger(artifact.sizeBytes) ||
     artifact.sizeBytes <= 0 ||
     artifact.path.trim() === ''
-  ) return { ok: false, reason: 'invalidManifest' };
+  )
+    return { ok: false, reason: 'invalidManifest' };
 
   let info;
   try {
