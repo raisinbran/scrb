@@ -13,24 +13,28 @@ function eightHours(): TranscriptData {
       track: 'meeting',
       startMs,
       endMs: startMs + 3000,
-      words: [{
-        id: `invented-word-${i}`,
-        text: 'invented',
-        startMs,
-        endMs: startMs + 3000,
-        state: 'final',
-        correctionId: null,
-      }],
+      words: [
+        {
+          id: `invented-word-${i}`,
+          text: 'invented',
+          startMs,
+          endMs: startMs + 3000,
+          state: 'final',
+          correctionId: null,
+        },
+      ],
     };
   });
   return {
     segments,
-    speakers: [{
-      id: 'synthetic',
-      label: 'Invented Speaker',
-      kind: 'unknown',
-      profileId: null,
-    }],
+    speakers: [
+      {
+        id: 'synthetic',
+        label: 'Invented Speaker',
+        kind: 'unknown',
+        profileId: null,
+      },
+    ],
     totalSegments: segments.length,
     loading: false,
     error: null,
