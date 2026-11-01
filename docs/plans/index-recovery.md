@@ -11,12 +11,12 @@
 
 ## Startup cases
 
-| Case | Proof | Behavior and owner-visible result | Test |
-|---|---|---|---|
-| A — incomplete `.copying-*`, migration never started | App-created attempt journal, old index intact, verified phase and identity | Keep original, retry removal of the incomplete copy only if positively owned; on lock, preserve and notify | Crash/ENOSPC during copy; simulated file-lock |
-| B — failed migration or failed verification | Journal and snapshot present, but live not proven sound/newer | Block library writes; native dialog: retry verification, open library folder, or keep files and close. Never restore | SQL fault, FK/integrity/row-preservation fault, crash |
-| C — successful upgrade but old copy retained | Journal marked verified; newer live version, integrity/FK/schema and snapshot provenance verify | Continue using valid live index, native warning that an older copy may retain deleted data, retry bounded cleanup; report failure if file still exists | Snapshot deletion lock, restart, retry still locked |
-| E — both copies bad, version newer than supported, or unowned snapshot | Read-only verification fails or version unsupported | Leave all copies unchanged; native dialog offers open library folder and close | Corrupt copies, unknown journal, future version, symlink |
+| Case                                                                   | Proof                                                                                           | Behavior and owner-visible result                                                                                                                      | Test                                                     |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| A — incomplete `.copying-*`, migration never started                   | App-created attempt journal, old index intact, verified phase and identity                      | Keep original, retry removal of the incomplete copy only if positively owned; on lock, preserve and notify                                             | Crash/ENOSPC during copy; simulated file-lock            |
+| B — failed migration or failed verification                            | Journal and snapshot present, but live not proven sound/newer                                   | Block library writes; native dialog: retry verification, open library folder, or keep files and close. Never restore                                   | SQL fault, FK/integrity/row-preservation fault, crash    |
+| C — successful upgrade but old copy retained                           | Journal marked verified; newer live version, integrity/FK/schema and snapshot provenance verify | Continue using valid live index, native warning that an older copy may retain deleted data, retry bounded cleanup; report failure if file still exists | Snapshot deletion lock, restart, retry still locked      |
+| E — both copies bad, version newer than supported, or unowned snapshot | Read-only verification fails or version unsupported                                             | Leave all copies unchanged; native dialog offers open library folder and close                                                                         | Corrupt copies, unknown journal, future version, symlink |
 
 ## Implementation boundaries
 

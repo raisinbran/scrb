@@ -80,11 +80,9 @@ const cases = [
     test: 'apps/desktop/src/main/exports.test.ts',
     name: 'maps busy and missing|sanitizes title-derived',
     mutate: () =>
-      execFileSync(
-        'git',
-        ['show', '097a897801^:apps/desktop/src/main/exports.ts'],
-        { encoding: 'utf8' },
-      ),
+      execFileSync('git', ['show', '097a897801^:apps/desktop/src/main/exports.ts'], {
+        encoding: 'utf8',
+      }),
   },
 ];
 
@@ -104,8 +102,12 @@ for (const item of cases) {
     const output = (result.stdout ?? '') + (result.stderr ?? '');
     if (result.error || result.signal || result.status === 0 || !/FAIL\s/.test(output)) {
       throw new Error(
-        'Expected a failing assertion, got status ' + result.status +
-          ', signal ' + result.signal + ':\n' + output.slice(-3000),
+        'Expected a failing assertion, got status ' +
+          result.status +
+          ', signal ' +
+          result.signal +
+          ':\n' +
+          output.slice(-3000),
       );
     }
     console.log(item.id + ': red proven (' + item.name + ')');
