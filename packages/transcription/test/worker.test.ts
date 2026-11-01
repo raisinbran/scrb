@@ -48,6 +48,22 @@ describe('WorkerProcess', () => {
     );
   });
 
+  it('does not put native worker output into a public error description', async () => {
+    const inventedText = 'FictionalClientWaterfall';
+    const worker = new WorkerProcess({
+      name: 'fixture-worker',
+      command: node,
+      args: script(`console.error("${inventedText}"); process.exit(3)`),
+      background: false,
+    });
+    worker.stdout.resume();
+    const exit = await worker.done;
+    const failure = new WorkerFailed('fixture-worker', exit);
+    expect(exit.stderrTail).toContain(inventedText);
+    expect(failure.message).not.toContain(inventedText);
+    expect(describeExit(exit)).not.toContain(inventedText);
+  });
+
   it('reports a missing binary instead of throwing out of band', async () => {
     const exit = await new WorkerProcess({ name: 'x', command: '/no/such/tool', args: [] }).done;
     expect(exit.spawnError).toBeDefined();
