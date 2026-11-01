@@ -275,7 +275,7 @@ final class Session {
         return at
     }
 
-    func stop() -> Int64 {
+    func stop(commandId: String? = nil) -> (Int64, Bool) {
         stopping = true
         let at = toSessionNs(host: rt_gate_close())
         // Two passes of the writer loop finish whatever was queued before the cutoff.
@@ -285,9 +285,33 @@ final class Session {
         meetingTrack.drain(session: self)
         micStream.close()
         meetingStream.close()
-        logQueue.sync { if let sessionLog { fclose(sessionLog) } }
+        let chunksSaved = !micTrack.writeErrorReported && !meetingTrack.writeErrorReported
+        let markerSaved = commandId.map { id in
+            chunksSaved && !id.isEmpty && recordStop(id: id, atNs: at)
+        } ?? chunksSaved
+        var closed = true
+        logQueue.sync {
+            if let sessionLog {
+                closed = fclose(sessionLog) == 0
+                self.sessionLog = nil
+            }
+        }
         if sleepAssertion != 0 { IOPMAssertionRelease(sleepAssertion) }
-        return at
+        return (at, markerSaved && closed)
+    }
+
+    private func recordStop(id: String, atNs: Int64) -> Bool {
+        return logQueue.sync {
+            guard let sessionLog else { return false }
+            logSequence += 1
+            let fields: [String: Any] = [
+                "event": "stop", "commandId": id, "atNs": atNs, "seq": logSequence,
+            ]
+            guard let data = try? JSONSerialization.data(withJSONObject: fields),
+                  let line = String(data: data, encoding: .utf8) else { return false }
+            let written = fputs(line + "\n", sessionLog) >= 0 && fflush(sessionLog) == 0
+            return written && (fcntl(fileno(sessionLog), F_FULLFSYNC) == 0 || fsync(fileno(sessionLog)) == 0)
+        }
     }
 
     private func record(_ fields: [String: Any]) {
@@ -496,7 +520,11 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     case "start": at = session.start()
     case "pause": at = session.pause(id: id, cause: command["cause"] as? String ?? "user")
     case "resume": at = session.resume(id: id)
-    case "stop": at = session.stop()
+    case "stop":
+        let result = session.stop(commandId: id)
+        at = result.0
+        ok = result.1
+        if !ok { error = "stop could not be fully saved" }
     case "checkPermission": permission = checkSystemAudioPermission()
     case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
     case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
