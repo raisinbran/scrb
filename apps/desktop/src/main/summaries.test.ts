@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { emptyTranscript, type Library, type TranscriptFile } from '@scrb/storage';
 import { StaleRevisionError } from '@scrb/storage';
