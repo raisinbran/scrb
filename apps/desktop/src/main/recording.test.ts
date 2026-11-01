@@ -54,6 +54,16 @@ vi.mock('@scrb/app-core', () => ({
     }
   },
 }));
+vi.mock('./live-feed.ts', () => ({
+  LiveCaptureSession: class {
+    startHelper(): undefined {
+      return undefined;
+    }
+    async stop(): Promise<void> {
+      return undefined;
+    }
+  },
+}));
 vi.mock('@scrb/capture', () => ({
   ProcessAdapter: class {
     onEvent(listener: (event: unknown) => void): void {
