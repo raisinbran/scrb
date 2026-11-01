@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { BrowserWindow } from 'electron';
 import { toExportMeeting } from '@scrb/app-core';
-import { atomicWriteFile, type Library } from '@scrb/storage';
+import { atomicWriteFile, meetingFolderName, StorageError, type Library } from '@scrb/storage';
 import {
   ContractError,
   type BackendEvents,
@@ -60,7 +60,18 @@ export class ExportCoordinator {
     if (this.running.has(input.meetingId)) {
       throw new ContractError({ code: 'conflict', message: 'An export is already in progress.' });
     }
-    const snapshot = await this.library.beginExport(input.meetingId);
+    let snapshot: Awaited<ReturnType<Library['beginExport']>>;
+    try {
+      snapshot = await this.library.beginExport(input.meetingId);
+    } catch (error) {
+      if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
+        throw new ContractError({ code: 'conflict', message: 'The meeting is busy.' });
+      }
+      if (error instanceof StorageError && error.code === 'MEETING_NOT_FOUND') {
+        throw new ContractError({ code: 'notFound', message: 'Meeting not found.' });
+      }
+      throw error;
+    }
     const exportId = randomUUID();
     const job = this.run(input, exportId, snapshot);
     this.running.set(input.meetingId, job);
@@ -83,7 +94,7 @@ export class ExportCoordinator {
         input.format === 'docx'
           ? await renderDocx(document)
           : await renderPdf(document, this.print);
-      const fileName = `meeting-${exportId}.${input.format}`;
+      const fileName = `${meetingFolderName(snapshot.meeting.date, snapshot.meeting.title)}-${exportId}.${input.format}`;
       await atomicWriteFile(
         join(this.library.meetingPaths(input.meetingId).exports, fileName),
         bytes,
