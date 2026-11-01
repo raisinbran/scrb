@@ -72,16 +72,16 @@ Test kinds: **U** replay of recorded or invented packet logs, **F** fault forced
 
 | Gate 2 says | Proved by | Evidence to report |
 | --- | --- | --- |
-| 8-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within drift | T15 on both machines, with the crash-safe plan | Chunks verified, gaps listed, worst sync error |
+| 4-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within drift | T15 on both machines, with the crash-safe plan | Chunks verified, gaps listed, worst sync error |
 | Real Teams or Zoom call: start offset and drift from a shared sound in both tracks | T18 on both machines | Offset at start and end, measured from the audio, not from timestamps |
 | Stopped stream, including an audio-service restart, detected and recovers or warns, with the missing span marked | T6, T17, T20 on both machines | Time to detect, time to recover, marked span against a logged action time |
-| Mic audio lost under representative load measured against a stated limit, apart from sync | T19 on both machines | Seconds lost per track, longest gap, and sync reported separately |
+| Mic audio lost under representative load measured against a stated limit, apart from sync | The 4-hour run with CPU load on both machines (owner decision, 2026-10-31) | Seconds lost per track, longest gap, and sync reported separately |
 
 **New tests:**
 
 - **T17** Audio service restart during recording. Both tracks detected dead, rebuilt, new chunks on the same timeline, gap marked, user warned.
 - **T18** Real call, using invented content and no other participants' private audio. A second device in the call plays a click train, the laptop plays it aloud, the meeting track captures it and the mic hears it from the speakers. The change in offset over the call is the drift. The call's network delay does not affect that measurement, because both tracks see the same arrival.
-- **T19** Mic and meeting loss under load. Recording, live transcription and live speaker labels in a call, 8 hours. Reports loss and sync as separate numbers.
+- **T19** Mic and meeting loss under load. Recording, live transcription and live speaker labels in a call, 8 hours. Reports loss and sync as separate numbers. Runs before Gate 8, not Gate 2, because live transcription is built after Gate 2 (owner decision, 2026-10-31).
 - **T20** Privacy switches off and on, mic on both systems and System Audio Recording on Mac. Gap marked, warning shown, recording resumes when access returns.
 - **T21** Replay of the 300 s Bluetooth log (1281 flags): file count stays bounded and no real gap goes unsplit.
 - **T22** Mic test: writes nothing, creates no meeting, releases the mic, and yields to Start (see the addition below).

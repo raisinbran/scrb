@@ -3,7 +3,7 @@
 
 Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
-Usage: device_case.py <helper> <work dir> [devices|sleep|permission|restart|call]
+Usage: device_case.py <helper> <work dir> [devices|sleep|permission|reopen|service|restart|call]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
 
@@ -27,6 +27,23 @@ if mode == "permission":
              (120, "Same list: turn Claude back ON. If asked, choose Later")]
     READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
     END = 150
+REOPEN = {}  # step time to the command that makes the helper open that stream again
+if mode == "reopen":
+    STEPS = [(30, "Microphone list: turn Claude OFF. If asked, choose Later"),
+             (60, "Nothing to do: the test reopens the mic"),
+             (80, "Microphone list: turn Claude back ON. If asked, choose Later"),
+             (110, "Nothing to do: the test reopens the mic"),
+             (130, "Go back. Open Screen & System Audio Recording. Turn Claude OFF. If asked, choose Later"),
+             (160, "Nothing to do: the test reopens the meeting track"),
+             (180, "Same list: turn Claude back ON. If asked, choose Later"),
+             (210, "Nothing to do: the test reopens the meeting track")]
+    READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
+    END = 235
+    REOPEN = {60: "selectMic", 110: "selectMic", 160: "selectSource", 210: "selectSource"}
+if mode == "service":
+    STEPS = [(30, "In the Terminal app, press Return on: sudo killall coreaudiod")]
+    READY = "Nothing else playing. In the Terminal app type: sudo killall coreaudiod  and do not press Return. Then press Start."
+    END = 90
 if mode == "restart":
     STEPS = [(30, "Apple menu > Restart. Untick Reopen windows, then click Restart")]
     READY = "Save your work and close other apps. Then press Start."
@@ -86,7 +103,8 @@ def send(id_, **fields):
     raise SystemExit("no reply to " + id_)
 
 
-source = [player.pid] if player else []
+# The tone may not survive the audio service, and a whole-computer track needs no process to follow.
+source = [player.pid] if player and mode != "service" else []
 if mode == "call":
     apps = [a for a in send("l", name="listApps").get("apps", []) if "teams" in a["name"].lower() and a["pids"]]
     print("Teams processes", apps, flush=True)
@@ -108,6 +126,10 @@ for index, (at, text) in enumerate(STEPS):
         show("Step %d of %d comes next" % (index + 1, len(STEPS)), "%d s" % math.ceil(left), "NEXT: " + text, following, index)
         time.sleep(0.2)
     print("%6.1f s NOW: %s" % (time.time() - started, text), flush=True)
+    if at in REOPEN:
+        name = REOPEN[at]
+        fields = {"mic": "default"} if name == "selectMic" else {"source": source}
+        print("%6.1f s %s %s" % (time.time() - started, name, send("r%d" % at, name=name, **fields)), flush=True)
     if mode == "restart":
         following = "After restart: open Claude and tell it you are back"
         while time.time() - started < at + 300:  # normally ended by the restart

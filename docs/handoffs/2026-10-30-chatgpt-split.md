@@ -27,7 +27,7 @@ Tasks 1 to 7 are done. Task 8 waits for a build on the PC.
 | 12 | Index upgrades, Slice A | Diff with tests |
 | 13 | Vocabulary, items 1 to 3 of the plan: learning, crash repair, term choices | Diff with tests |
 
-Do these one at a time, in order. Before returning a diff, run `npm run check` if you can, and match the repo's lint and formatting. The last batch failed type check, lint and formatting.
+Do these one at a time, in order. While Gate 2 is open, keep one batch open at a time, start the next only after the last passes QA, and leave capture code alone. Before returning a diff, run `npm run check` if you can, and match the repo's lint and formatting. The last batch failed type check, lint and formatting.
 
 Tasks 14 to 36, covering the rest of V1, are in `2026-10-31-chatgpt-remaining-work.md`.
 
