@@ -56,7 +56,3 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 ## Cloud work while Gate 2 is open
 
 Keep one cloud batch open at a time. The next starts only after the last passes QA. No batch touches capture code. Later-phase work stays off `main` until its gates pass.
-
-## Final macOS Native Verification, 2026-11-01
-
-PASS on `e180a51`: native build, three-round stop-during-pause smoke, and existing synthetic resampler regression. T6/T17/T20 fixes confirmed integrated; prior hardware evidence reused. See `gate-2-macos-native-final.md` for exact commands, results, and evidence limits. The combined final-check checkbox remains open pending Windows and CI evidence. Independent QA and owner approval are still required; owner exceptions are unchanged.
