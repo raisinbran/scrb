@@ -46,7 +46,10 @@ function lagText(lag: TranscriptionLag | null): { text: string; level: string } 
       return { text: 'Transcript: live', level: 'ok' };
     case 'lagging':
       return {
-        text: `Transcript: ${Math.round(lag.lagMs / 1000)} s behind`,
+        text:
+          lag.lagMs < 1000
+            ? 'Transcript: catching up'
+            : `Transcript: ${Math.round(lag.lagMs / 1000)} s behind`,
         level: 'warning',
       };
     case 'restarting':
