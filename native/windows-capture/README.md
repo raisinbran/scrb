@@ -465,7 +465,7 @@ unplug (no USB mic).
     (`results/t18-picker-recovered-20261101.txt`). This verifies the earlier
     recording; it is not a new live call on final code. See
     `docs/gates/gate-2-windows-final-verification-20261101.md` for provenance
-    and the final native verification failure that remains open.
+    and the original native replay failure; the later fixture-only correction and fresh Windows PASS evidence are preserved in `docs/gates/gate-2-f11-replay-correction-20261101.md` and `docs/gates/gate-2-f11-native-reverification-20261101.md` (PR #15).
 
 ## Needs a Planner plan
 
