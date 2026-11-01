@@ -10,6 +10,9 @@ private func oggCrc(_ bytes: [UInt8]) -> UInt32 {
     bytes.reduce(UInt32(0)) { crc, byte in (crc << 8) ^ crcTable[Int((crc >> 24) ^ UInt32(byte))] }
 }
 
+/// Some volumes refuse a full sync, and that alone is not a lost write.
+private func syncToDisk(_ fd: Int32) -> Bool { fcntl(fd, F_FULLFSYNC) == 0 || fsync(fd) == 0 }
+
 private func le32(_ value: UInt32) -> [UInt8] { (0..<4).map { UInt8((value >> (8 * UInt32($0))) & 255) } }
 
 /// One chunk as Ogg Opus: 20 ms frames, a page each second, true pre-skip and end trimming.
@@ -24,13 +27,16 @@ final class OggOpusFile {
     private var pageSeq: UInt32 = 0
     private var pending: [Int16] = []
     private(set) var inputFrames: UInt64 = 0
+    private(set) var failed = false
     private var encodedFrames: UInt64 = 0
     private var pageBody: [UInt8] = []
     private var pageLacing: [UInt8] = []
 
+    static func supports(_ rate: Double) -> Bool { [8000, 12000, 16000, 24000, 48000].contains(rate) }
+
     init?(path: String, rate: Int, tags: [String]) {
         var lookahead: Int32 = 0
-        guard [8000, 12000, 16000, 24000, 48000].contains(rate),
+        guard OggOpusFile.supports(Double(rate)),
               let encoder = rt_encoder(Int32(rate), &lookahead) else { return nil }
         self.rate = rate
         self.encoder = encoder
@@ -61,7 +67,8 @@ final class OggOpusFile {
         pageSeq += 1
         let crc = le32(oggCrc(page))
         page.replaceSubrange(22..<26, with: crc)
-        _ = page.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, page.count) }
+        let written = page.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, page.count) }
+        if written != page.count { failed = true }
     }
 
     private func flushPage(last: Bool, granule: UInt64) {
@@ -95,7 +102,8 @@ final class OggOpusFile {
     }
 
     /// Ends with end trimming, so a decoder yields exactly the frames written, then reaches disk.
-    func close() {
+    /// False if any of the chunk failed to reach the disk.
+    func close() -> Bool {
         let total = inputFrames
         let padding = [Int16](repeating: 0, count: preSkip + frameSamples)
         pending.append(contentsOf: padding)
@@ -107,9 +115,10 @@ final class OggOpusFile {
             }
         }
         flushPage(last: true, granule: (total + UInt64(preSkip)) * scale)
-        fcntl(fd, F_FULLFSYNC)
-        Darwin.close(fd)
+        let synced = syncToDisk(fd)
+        let closed = Darwin.close(fd) == 0
         opus_encoder_destroy(encoder)
+        return !failed && synced && closed
     }
 }
 
@@ -144,6 +153,7 @@ final class ChunkWriter {
     var isOpen: Bool { file != nil }
     var frames: UInt64 { file?.inputFrames ?? 0 }
     var rate: Int { chunkRate }
+    var failed: Bool { file?.failed ?? false }
 
     func open(startNs: Int64, rate: Int, reason: String, tags: [String]) -> Bool {
         name = String(format: "%06d.opus", sequence)
@@ -163,21 +173,24 @@ final class ChunkWriter {
 
     func write(_ samples: UnsafeBufferPointer<Int16>) { file?.write(samples) }
 
-    func close(reason: String) {
-        guard let file else { return }
+    /// False leaves the chunk unlogged, and a `.part` for recovery if it never finished.
+    func close(reason: String) -> Bool {
+        guard let file else { return true }
         let frames = file.inputFrames
-        file.close()
+        let saved = file.close()
         self.file = nil
-        rename("\(directory)/\(name).part", "\(directory)/\(name)")
+        guard saved, rename("\(directory)/\(name).part", "\(directory)/\(name)") == 0 else {
+            sequence += 1
+            return false
+        }
         let folder = Darwin.open(directory, O_RDONLY)
         fcntl(folder, F_FULLFSYNC)
         Darwin.close(folder)
         let endNs = startNs + Int64(Double(frames) * 1e9 / Double(chunkRate))
         let line = "{\"file\":\"\(name)\",\"seq\":\(sequence),\"startNs\":\(startNs),\"endNs\":\(endNs),"
             + "\"frames\":\(frames),\"rate\":\(chunkRate),\"openReason\":\"\(openReason)\",\"closeReason\":\"\(reason)\"}\n"
-        fputs(line, log)
-        fflush(log)
-        fcntl(fileno(log), F_FULLFSYNC)
+        let logged = fputs(line, log) >= 0 && fflush(log) == 0 && syncToDisk(fileno(log))
         sequence += 1
+        return logged
     }
 }

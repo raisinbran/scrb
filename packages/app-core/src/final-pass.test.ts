@@ -70,6 +70,20 @@ function hashTree(dir: string): Record<string, string> {
 }
 
 describe('final pass after Stop', () => {
+  it('passes enabled vocabulary to the pass as a hint', async () => {
+    library.vocabulary.remember({ term: 'Rosmont' });
+    library.vocabulary.update(library.vocabulary.remember({ term: 'Quillon' }).id, {
+      enabled: false,
+    });
+    const { id } = await sealedMeeting();
+    let hint: string | undefined;
+    await runQueue(id, async (input) => {
+      hint = input.vocabularyHint;
+      return TRANSCRIPT;
+    });
+    expect(hint).toBe('Rosmont');
+  });
+
   let root: string;
   let library: Library;
 

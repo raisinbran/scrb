@@ -1,5 +1,6 @@
 import {
   ContractError,
+  matchesMeetingFilter,
   isValidRequest,
   type AppSettings,
   type AudioCheckStatus,
@@ -9,10 +10,11 @@ import {
   type CallName,
   type DeleteResult,
   type EventName,
+  type ActiveImport,
   type ImportFailureReason,
   type ImportStage,
+  type ConfirmedPauseSpan,
   type MeetingDetail,
-  type MeetingFilter,
   type MeetingListItem,
   type MeetingSummaryDoc,
   type ModelDownloadProgress,
@@ -141,11 +143,6 @@ function mergeSettings(settings: AppSettings, patch: SettingsPatch): AppSettings
   };
 }
 
-function inDateRange(startedAt: string, { from, to }: MeetingFilter): boolean {
-  const day = startedAt.slice(0, 10);
-  return (!from || day >= from.slice(0, 10)) && (!to || day <= to.slice(0, 10));
-}
-
 function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
   return items.map((existing) => (existing.id === item.id ? item : existing));
 }
@@ -169,8 +166,43 @@ function hasEdits(summary: MeetingSummaryDoc): boolean {
   ].some((item) => item.edited);
 }
 
-function withItem(summary: MeetingSummaryDoc, update: SummaryItemUpdate): MeetingSummaryDoc {
+function withItem(
+  summary: MeetingSummaryDoc,
+  update: SummaryItemUpdate,
+  assignedId: string,
+): MeetingSummaryDoc {
   switch (update.kind) {
+    case 'add': {
+      const evidence = { id: assignedId, alsoAtMs: [], needsReview: false, edited: true };
+      switch (update.collection) {
+        case 'actionItems':
+          return {
+            ...summary,
+            actionItems: [...summary.actionItems, { ...update.item, ...evidence }],
+          };
+        case 'decisions':
+          return { ...summary, decisions: [...summary.decisions, { ...update.item, ...evidence }] };
+        case 'openQuestions':
+          return {
+            ...summary,
+            openQuestions: [...summary.openQuestions, { ...update.item, ...evidence }],
+          };
+      }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
+    }
+    case 'remove': {
+      const list = summary[update.collection];
+      if (!list.some((entry) => entry.id === update.itemId)) {
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That summary item no longer exists.',
+        });
+      }
+      return {
+        ...summary,
+        [update.collection]: list.filter((entry) => entry.id !== update.itemId),
+      };
+    }
     case 'narrative': {
       const item = { ...update.item, edited: true };
       const { brief, full } = summary.narrative;
@@ -230,9 +262,22 @@ export class MockBackend implements Backend {
   );
   private library: MeetingDetail[] = createLibrary();
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
+  private profileUndo: {
+    kind: 'rename' | 'merge';
+    before: VoiceProfile[];
+    after: VoiceProfile[];
+  }[] = [];
+  private profileRedo: {
+    kind: 'rename' | 'merge';
+    before: VoiceProfile[];
+    after: VoiceProfile[];
+  }[] = [];
+  private termUndo: VocabularyTerm[][] = [];
+  private termRedo: VocabularyTerm[][] = [];
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
   private readonly meetingSpeakers = new Map<string, Speaker[]>();
   private readonly updatedModels = new Set<string>();
+  private readonly modelUpdateTimers = new Map<ModelRole, Timer[]>();
   private recording: RecordingState = {
     status: 'idle',
     meetingId: null,
@@ -245,8 +290,10 @@ export class MockBackend implements Backend {
   private meterTicker: ReturnType<typeof setInterval> | undefined;
   private readonly meterPrng = createPrng(20261031);
   private second = 0;
+  private pauseSpans: ConfirmedPauseSpan[] = [];
+  private recordingStartedAt = 0;
   private readonly revisions = new Map<string, number>();
-  private readonly activeImports = new Map<string, { fileName: string; timer: Timer }>();
+  private readonly activeImports = new Map<string, ActiveImport & { timer: Timer }>();
   private readonly pickedFiles = new Map<string, PickedAudioFile>();
   private playback: { meetingId: string; positionMs: number } | null = null;
   private playbackTimer: ReturnType<typeof setInterval> | undefined;
@@ -312,8 +359,13 @@ export class MockBackend implements Backend {
     this.history.clear();
     this.profiles = VOICE_PROFILES.map((profile) => ({ ...profile }));
     this.terms = VOCABULARY_TERMS.map((term) => ({ ...term }));
+    this.termUndo = [];
+    this.termRedo = [];
     this.meetingSpeakers.clear();
     this.stopPlayback();
+    for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
+    this.modelUpdateTimers.clear();
+    this.updatedModels.clear();
   }
 
   /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
@@ -323,19 +375,57 @@ export class MockBackend implements Backend {
       const segments = this.transcripts.get(meeting.id);
       if (segments) this.transcripts.set(meeting.id, segments.map(finalized));
       this.rewriteHistory(meeting.id, finalized);
-      this.updateMeetingStatus(meeting.id, { status: 'ready' });
+      this.updateMeetingStatus(meeting.id, { status: 'ready', transcriptionFailure: null });
+      this.emit('meetingChanged', toListItem(this.findMeeting(meeting.id)));
     }
   }
 
   updateMeetingStatus(meetingId: string, patch: Partial<MeetingDetail>): void {
+    const before = this.library.find((meeting) => meeting.id === meetingId);
     this.library = this.library.map((meeting) =>
       meeting.id === meetingId ? { ...meeting, ...patch } : meeting,
     );
+    const after = this.library.find((meeting) => meeting.id === meetingId);
+    if (
+      after &&
+      before &&
+      JSON.stringify(toListItem(after)) !== JSON.stringify(toListItem(before))
+    ) {
+      this.emit('meetingChanged', toListItem(after));
+    }
   }
 
   dispose(): void {
     this.stopRecordingTimers();
+    for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
+    this.modelUpdateTimers.clear();
     this.stopPlayback();
+  }
+
+  private profileHistoryState() {
+    return {
+      canUndo: this.profileUndo.length > 0,
+      canRedo: this.profileRedo.length > 0,
+      nextUndo: this.profileUndo.at(-1)?.kind ?? null,
+      nextRedo: this.profileRedo.at(-1)?.kind ?? null,
+    };
+  }
+
+  private changeProfileHistory(undoing: boolean) {
+    const from = undoing ? this.profileUndo : this.profileRedo;
+    const to = undoing ? this.profileRedo : this.profileUndo;
+    const last = from.pop();
+    if (last) {
+      this.profiles = structuredClone(undoing ? last.before : last.after);
+      to.push(last);
+    }
+    return this.profileHistoryState();
+  }
+
+  private recordProfileHistory(kind: 'rename' | 'merge', before: VoiceProfile[]) {
+    this.profileUndo.push({ kind, before, after: structuredClone(this.profiles) });
+    if (this.profileUndo.length > 30) this.profileUndo.shift();
+    this.profileRedo = [];
   }
 
   private stopRecordingTimers(): void {
@@ -409,7 +499,14 @@ export class MockBackend implements Backend {
       () => this.runImportStages(importId, fileName, step + 1, end),
       IMPORT_STEP_MS,
     );
-    this.activeImports.set(importId, { fileName, timer });
+    this.activeImports.set(importId, {
+      importId,
+      fileName,
+      stage: next.stage,
+      fraction: next.fraction,
+      cancelling: false,
+      timer,
+    });
   }
 
   private failImportLater(
@@ -444,7 +541,14 @@ export class MockBackend implements Backend {
       this.endedImports.add(importId);
       end();
     }, delayMs);
-    this.activeImports.set(importId, { fileName, timer });
+    this.activeImports.set(importId, {
+      importId,
+      fileName,
+      stage: 'finishing',
+      fraction: 0.95,
+      cancelling: false,
+      timer,
+    });
   }
 
   private speakersOf(meetingId: string): Speaker[] {
@@ -611,7 +715,26 @@ export class MockBackend implements Backend {
   }
 
   private setRecording(patch: Partial<RecordingState>): void {
+    const previous = this.recording;
     this.recording = { ...this.recording, ...patch };
+    const meetingId = previous.meetingId ?? this.recording.meetingId;
+    if (meetingId && this.recordingStartedAt > 0) {
+      const atMs = Math.max(0, Date.now() - this.recordingStartedAt);
+      if (previous.status !== 'paused' && this.recording.status === 'paused') {
+        this.pauseSpans.push({
+          startMs: atMs,
+          endMs: null,
+          reason: this.recording.pauseReason ?? 'user',
+        });
+        this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+      } else if (previous.status === 'paused' && this.recording.status !== 'paused') {
+        const last = this.pauseSpans.at(-1);
+        if (last?.endMs === null) {
+          this.pauseSpans[this.pauseSpans.length - 1] = { ...last, endMs: atMs };
+          this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+        }
+      }
+    }
     this.emit('recordingStateChanged', this.recording);
   }
 
@@ -771,12 +894,16 @@ export class MockBackend implements Backend {
           summaryState: 'notGenerated',
           speakerCount: MOCK_SPEAKERS.length,
           gaps: [],
+          hasAudio: true,
         },
         ...this.library,
       ];
+      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
       this.transcripts.set(meetingId, []);
       this.second = 0;
       this.liveStartMs = 0;
+      this.recordingStartedAt = Date.now();
+      this.pauseSpans = [];
       this.setRecording({
         status: 'recording',
         meetingId,
@@ -818,6 +945,7 @@ export class MockBackend implements Backend {
     },
     getRecordingSnapshot: () => ({
       state: this.recording,
+      pauseSpans: [...this.pauseSpans],
       health: this.health,
       transcription: this.lag,
     }),
@@ -828,7 +956,8 @@ export class MockBackend implements Backend {
       this.pickedFiles.set(file.fileToken, file);
       return file;
     },
-    importAudioFile: ({ fileToken }) => {
+    importAudioFile: ({ fileToken, buildVoiceProfiles }) => {
+      const privacyBannerRequired = buildVoiceProfiles && this.settings.location.usState === 'IL';
       const importId = this.id('import');
       const { fileName, fileDate } = this.pickedFiles.get(fileToken) ?? PICKED_FILE;
       if (this.recording.status !== 'idle') {
@@ -836,12 +965,12 @@ export class MockBackend implements Backend {
           reason: 'recordingInProgress',
           message: 'A recording is running. Try this import again after the recording.',
         });
-        return { importId };
+        return { importId, privacyBannerRequired };
       }
       for (const fault of ['importFails', 'importUnsupported', 'importDiskFull'] as const) {
         if (this.armed.delete(fault)) {
           this.failImportLater(importId, fileName, IMPORT_FAULTS[fault]);
-          return { importId };
+          return { importId, privacyBannerRequired };
         }
       }
       this.runImportStages(importId, fileName, 0, () => {
@@ -857,13 +986,24 @@ export class MockBackend implements Backend {
             summaryState: 'notGenerated',
             speakerCount: 2,
             gaps: [],
+            hasAudio: true,
           },
           ...this.library,
         ];
         this.emit('importFinished', { importId, meetingId });
       });
-      return { importId };
+      return { importId, privacyBannerRequired };
     },
+    listImports: () =>
+      [...this.activeImports.values()].map(
+        ({ importId, fileName, stage, fraction, cancelling }) => ({
+          importId,
+          fileName,
+          stage,
+          fraction,
+          cancelling,
+        }),
+      ),
     cancelImport: ({ importId }) => {
       if (this.endedImports.has(importId)) return;
       const running = this.activeImports.get(importId);
@@ -908,6 +1048,10 @@ export class MockBackend implements Backend {
         speakers: this.speakersOf(meetingId),
       };
     },
+    getUndoState: ({ meetingId }) => {
+      this.findMeeting(meetingId);
+      return this.undoStateOf(meetingId);
+    },
     applyCorrection: ({ meetingId, range, text, remember }) =>
       this.correct(meetingId, range, text, remember),
     reassignSpeaker: ({ meetingId, range, speakerId }) => {
@@ -928,12 +1072,21 @@ export class MockBackend implements Backend {
       this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
     },
 
+    listSpeakerSuggestions: ({ meetingId }) => {
+      if (meetingId) this.findMeeting(meetingId);
+      return [];
+    },
+    getProfileUndoState: () => this.profileHistoryState(),
+    undoProfileChange: () => this.changeProfileHistory(true),
+    redoProfileChange: () => this.changeProfileHistory(false),
     listProfiles: () => this.profiles,
     renameSpeaker: ({ target, name }) => {
       if (target.kind === 'profile') {
+        const before = structuredClone(this.profiles);
         this.profiles = this.profiles.map((profile) =>
           profile.id === target.profileId ? { ...profile, name } : profile,
         );
+        this.recordProfileHistory('rename', before);
         return;
       }
       const { meetingId, speakerId } = target;
@@ -947,6 +1100,7 @@ export class MockBackend implements Backend {
     },
     mergeSpeakers: (merge) => {
       if (merge.kind === 'profiles') {
+        const before = structuredClone(this.profiles);
         const from = this.profiles.find((profile) => profile.id === merge.from);
         this.profiles = this.profiles
           .filter((profile) => profile.id !== merge.from)
@@ -955,6 +1109,7 @@ export class MockBackend implements Backend {
               ? { ...profile, meetingCount: profile.meetingCount + (from?.meetingCount ?? 0) }
               : profile,
           );
+        this.recordProfileHistory('merge', before);
         return;
       }
       const { meetingId, from, into } = merge;
@@ -992,6 +1147,8 @@ export class MockBackend implements Backend {
             return;
           }
           this.profiles = this.profiles.filter((profile) => profile.id !== profileId);
+          this.profileUndo = [];
+          this.profileRedo = [];
           resolve();
         }, 500);
       }),
@@ -1005,11 +1162,33 @@ export class MockBackend implements Backend {
       });
     },
 
+    getVocabularyUndoState: () => ({
+      canUndo: this.termUndo.length > 0,
+      canRedo: this.termRedo.length > 0,
+    }),
+    undoVocabulary: () => {
+      const previous = this.termUndo.pop();
+      if (previous) {
+        this.termRedo.push(structuredClone(this.terms));
+        this.terms = previous;
+      }
+      return { canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 };
+    },
+    redoVocabulary: () => {
+      const next = this.termRedo.pop();
+      if (next) {
+        this.termUndo.push(structuredClone(this.terms));
+        this.terms = next;
+      }
+      return { canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 };
+    },
     listTerms: () => this.terms,
     updateTerm: ({ id, patch }) => {
       const term = this.terms.find((item) => item.id === id);
       if (!term)
         throw new ContractError({ code: 'notFound', message: 'That term no longer exists.' });
+      this.termUndo.push(structuredClone(this.terms));
+      this.termRedo = [];
       const at = new Date().toISOString();
       const history = [...term.history];
       if (patch.enabled === true && !term.enabled) {
@@ -1031,6 +1210,10 @@ export class MockBackend implements Backend {
       return updated;
     },
     deleteTerm: ({ id }) => {
+      if (this.terms.some((term) => term.id === id)) {
+        this.termUndo.push(structuredClone(this.terms));
+        this.termRedo = [];
+      }
       this.terms = this.terms.filter((term) => term.id !== id);
     },
 
@@ -1052,7 +1235,7 @@ export class MockBackend implements Backend {
     updateSummaryItem: ({ meetingId, update }) => {
       const summary = this.summaryOf(meetingId);
       const state = summary.state === 'outdated' ? 'outdated' : 'edited';
-      const updated = { ...withItem(summary, update), state } as const;
+      const updated = { ...withItem(summary, update, this.id('summary-item')), state } as const;
       this.summaries.set(meetingId, updated);
       this.updateMeetingStatus(meetingId, { summaryState: state });
       return updated;
@@ -1060,18 +1243,38 @@ export class MockBackend implements Backend {
 
     listMeetings: ({ filter }) =>
       this.library
-        .filter((meeting) => !filter?.origin || meeting.origin === filter.origin)
-        .filter((meeting) => !filter || inDateRange(meeting.startedAt, filter))
+        .filter((meeting) => matchesMeetingFilter(meeting, filter))
         .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
         .map(toListItem),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
+    retryFinalPass: ({ meetingId }) => {
+      const meeting = this.findMeeting(meetingId);
+      if (meeting.status !== 'transcriptionFailed' || !meeting.hasAudio) {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'No failed pass with audio is available to retry.',
+        });
+      }
+      this.updateMeetingStatus(meetingId, {
+        status: 'finalPassRunning',
+        transcriptionFailure: null,
+      });
+      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      setTimeout(() => {
+        const current = this.library.find((item) => item.id === meetingId);
+        if (current?.status !== 'finalPassRunning') return;
+        this.updateMeetingStatus(meetingId, { status: 'ready' });
+        this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      }, 1000);
+    },
     updateMeeting: ({ meetingId, ...patch }) => {
       this.updateMeetingStatus(meetingId, patch);
       return this.findMeeting(meetingId);
     },
-    searchMeetings: ({ query }) => {
+    searchMeetings: ({ query, filter }) => {
       const needle = query.toLowerCase();
       return this.library.flatMap((meeting) => {
+        if (!matchesMeetingFilter(meeting, filter)) return [];
         const inIndex =
           meeting.title.toLowerCase().includes(needle) || meeting.startedAt.includes(needle);
         const matches = [
@@ -1113,6 +1316,10 @@ export class MockBackend implements Backend {
       return { exportId };
     },
 
+    getPrivacyJurisdictions: () => ({
+      countries: ['GB', 'DE', 'FR', 'IE'],
+      usStates: ['IL', 'TX', 'WA', 'CA', 'CO'],
+    }),
     getSettings: () => this.settings,
     updateSettings: (patch) => {
       this.settings = mergeSettings(this.settings, patch);
@@ -1126,20 +1333,39 @@ export class MockBackend implements Backend {
     },
     checkModelUpdates: () => MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
     installModelUpdate: ({ role }) => {
+      if (
+        this.modelUpdateTimers.has(role) ||
+        this.updatedModels.has(role) ||
+        !MODEL_UPDATES.some((update) => update.role === role)
+      ) {
+        throw new ContractError({ code: 'conflict', message: 'No new model update is available.' });
+      }
       if (this.armed.delete('modelDownloadFails')) {
         this.emitModelProgress(role, 'failed', 0.2, 'The download stopped. Try again.');
         return;
       }
       this.emitModelProgress(role, 'downloading', 0.3);
-      setTimeout(() => this.emitModelProgress(role, 'downloading', 0.7), 700);
-      setTimeout(() => this.emitModelProgress(role, 'verifying', 1), 1400);
-      setTimeout(() => {
-        this.updatedModels.add(role);
-        this.emitModelProgress(role, 'done', 1);
-      }, 2100);
+      const timers = [
+        setTimeout(() => this.emitModelProgress(role, 'downloading', 0.7), 700),
+        setTimeout(() => this.emitModelProgress(role, 'verifying', 1), 1400),
+        setTimeout(() => {
+          this.modelUpdateTimers.delete(role);
+          this.updatedModels.add(role);
+          this.emitModelProgress(role, 'done', 1);
+        }, 2100),
+      ];
+      this.modelUpdateTimers.set(role, timers);
     },
     revertModel: ({ role }) => {
-      this.updatedModels.delete(role);
+      if (this.modelUpdateTimers.has(role)) {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'Wait for the model update to finish.',
+        });
+      }
+      if (!this.updatedModels.delete(role)) {
+        throw new ContractError({ code: 'conflict', message: 'No previous model is available.' });
+      }
     },
 
     getSetupStatus: () => {

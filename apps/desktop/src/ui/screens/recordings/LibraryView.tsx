@@ -1,28 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  Backend,
-  MeetingFilter,
-  MeetingListItem,
-  PickedAudioFile,
-  SearchResult,
-} from '@scrb/contracts';
+import { matchesMeetingFilter } from '@scrb/contracts';
+import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
-import { STATUS_LABELS, SUMMARY_STATE_LABELS, isTransient } from './labels.ts';
+import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
 
 const SEARCH_DELAY_MS = 200;
-const POLL_MS = 3000;
 
 type Origin = NonNullable<MeetingFilter['origin']> | '';
-
-function matchesFilter(meeting: MeetingListItem, { origin, from, to }: MeetingFilter): boolean {
-  const day = meeting.startedAt.slice(0, 10);
-  return (!origin || meeting.origin === origin) && (!from || day >= from) && (!to || day <= to);
-}
 
 function Snippet({ text, query }: { text: string; query: string }) {
   const at = text.toLowerCase().indexOf(query.toLowerCase());
@@ -73,7 +62,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
       </button>
       {snippets.map((match) => (
         <button
-          key={match.segmentId}
+          key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
           type="button"
           className={styles.snippet}
           onClick={() => onOpen(meeting.id, match.startMs as number)}
@@ -129,7 +118,7 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
       };
       if (query) {
         const results = await client.call('searchMeetings', { query });
-        return results.filter((result) => matchesFilter(result.meeting, filter));
+        return results.filter((result) => matchesMeetingFilter(result.meeting, filter));
       }
       const meetings = await client.call('listMeetings', { filter });
       return meetings.map((meeting) => ({ meeting, matches: [] }));
@@ -146,6 +135,7 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
       backend.on('summaryProgress', ({ stage }) => {
         if (stage === 'done' || stage === 'failed') reload();
       }),
+      backend.on('meetingChanged', reload),
       backend.on('recordingStateChanged', (recording) => {
         if (recording.status !== status) reload();
         status = recording.status;
@@ -153,15 +143,6 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
     ];
     return () => stops.forEach((stop) => stop());
   }, [backend, reload]);
-
-  const busy =
-    state.status === 'ready' &&
-    state.data.some(({ meeting }) => isTransient(meeting.status, meeting.summaryState));
-  useEffect(() => {
-    if (!busy) return undefined;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [busy, reload]);
 
   const pickFile = async () => {
     setPickError(null);

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds build/scrb-capture. Needs libopus at the commit pinned in phase0/MANIFEST.md, built with
-# the CMake in phase0/tools/venv. Run from native/macos-capture/.
+# the CMake in phase0/tools/venv. Run from native/macos-capture/. SWIFT_FLAGS=-DFAULT_HOOKS adds the
+# test-only faultStopStream command.
 set -euo pipefail
 cd "$(dirname "$0")"
 opus=../../phase0/upstream/opus
@@ -12,6 +13,6 @@ if [[ ! -f build/opus/libopus.a ]]; then
   "$tools/cmake" --build build/opus >/dev/null
 fi
 clang -O2 -c src/rt.c -I"$opus/include" -o build/rt.o
-swiftc -O -import-objc-header src/rt.h -Xcc "-I$opus/include" src/main.swift src/Capture.swift src/Chunks.swift \
-  src/Permission.swift src/Devices.swift build/rt.o build/opus/libopus.a \
-  -framework CoreAudio -framework AudioToolbox -framework IOKit -o "${OUT:-build/scrb-capture}"
+swiftc -O ${SWIFT_FLAGS:-} -import-objc-header src/rt.h -Xcc "-I$opus/include" src/main.swift src/Capture.swift src/Chunks.swift \
+  src/Resample.swift src/Permission.swift src/Devices.swift src/MicProbe.swift build/rt.o build/opus/libopus.a \
+  -framework CoreAudio -framework AudioToolbox -framework AVFoundation -framework IOKit -o "${OUT:-build/scrb-capture}"

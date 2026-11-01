@@ -13,6 +13,13 @@ export interface VoiceProfile {
   updatedAt: string;
 }
 
+interface ProfileChange {
+  kind: 'rename' | 'merge';
+  ids: string[];
+  before: VoiceProfile[];
+  after: VoiceProfile[];
+}
+
 interface ProfileRow {
   id: string;
   name: string | null;
@@ -55,6 +62,8 @@ function mergeEmbeddings(
 export class VoiceProfileStore {
   private readonly db: DatabaseSync;
   private readonly now: () => string;
+  private undoStack: ProfileChange[] = [];
+  private redoStack: ProfileChange[] = [];
 
   constructor(db: DatabaseSync, now: () => string) {
     this.db = db;
@@ -95,7 +104,9 @@ export class VoiceProfileStore {
   private link(profileId: string, meetingId: string | undefined): void {
     if (meetingId === undefined) return;
     this.db
-      .prepare('INSERT OR IGNORE INTO voice_profile_meetings (profile_id, meeting_id) VALUES (?, ?)')
+      .prepare(
+        'INSERT OR IGNORE INTO voice_profile_meetings (profile_id, meeting_id) VALUES (?, ?)',
+      )
       .run(profileId, meetingId);
   }
 
@@ -131,12 +142,7 @@ export class VoiceProfileStore {
   grow(id: string, embedding: Float32Array, sampleCount: number, meetingId?: string): void {
     const profile = this.get(id);
     if (profile === null) throw new StorageError('PROFILE_NOT_FOUND', 'No such voice profile');
-    const merged = mergeEmbeddings(
-      profile.embedding,
-      profile.sampleCount,
-      embedding,
-      sampleCount,
-    );
+    const merged = mergeEmbeddings(profile.embedding, profile.sampleCount, embedding, sampleCount);
     this.db
       .prepare(
         'UPDATE voice_profiles SET embedding = ?, sample_count = ?, updated_at = ? WHERE id = ?',
@@ -145,10 +151,100 @@ export class VoiceProfileStore {
     this.link(id, meetingId);
   }
 
+  undoState() {
+    return {
+      canUndo: this.undoStack.length > 0,
+      canRedo: this.redoStack.length > 0,
+      nextUndo: this.undoStack.at(-1)?.kind ?? null,
+      nextRedo: this.redoStack.at(-1)?.kind ?? null,
+    };
+  }
+
+  private snapshot(ids: string[]): VoiceProfile[] {
+    return ids.flatMap((id) => this.get(id) ?? []);
+  }
+
+  private same(a: VoiceProfile[], b: VoiceProfile[]): boolean {
+    const normalize = (items: VoiceProfile[]) =>
+      items
+        .map((profile) => ({
+          ...profile,
+          embedding: Array.from(profile.embedding),
+          meetingIds: [...profile.meetingIds].sort(),
+        }))
+        .sort((left, right) => left.id.localeCompare(right.id));
+    return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
+  }
+
+  private remember(change: ProfileChange): void {
+    this.undoStack.push(change);
+    if (this.undoStack.length > 30) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private restore(change: ProfileChange, profiles: VoiceProfile[]): void {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const id of change.ids) {
+        this.db.prepare('DELETE FROM voice_profiles WHERE id = ?').run(id);
+      }
+      for (const profile of profiles) {
+        this.db
+          .prepare(
+            'INSERT INTO voice_profiles (id, name, model_id, embedding, sample_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(
+            profile.id,
+            profile.name,
+            profile.modelId,
+            toBlob(profile.embedding),
+            profile.sampleCount,
+            profile.createdAt,
+            profile.updatedAt,
+          );
+        for (const meetingId of profile.meetingIds) this.link(profile.id, meetingId);
+      }
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  private moveHistory(
+    from: ProfileChange[],
+    to: ProfileChange[],
+    undoing: boolean,
+  ): ReturnType<VoiceProfileStore['undoState']> {
+    const change = from.at(-1);
+    if (!change) return this.undoState();
+    if (!this.same(this.snapshot(change.ids), undoing ? change.after : change.before)) {
+      from.pop();
+      throw new StorageError('PROFILE_CHANGED', 'Profiles changed since the edit.');
+    }
+    this.restore(change, undoing ? change.before : change.after);
+    from.pop();
+    to.push(change);
+    return this.undoState();
+  }
+
+  undo(): ReturnType<VoiceProfileStore['undoState']> {
+    return this.moveHistory(this.undoStack, this.redoStack, true);
+  }
+
+  redo(): ReturnType<VoiceProfileStore['undoState']> {
+    return this.moveHistory(this.redoStack, this.undoStack, false);
+  }
+
   rename(id: string, name: string | null): void {
+    const before = this.snapshot([id]);
     this.db
       .prepare('UPDATE voice_profiles SET name = ?, updated_at = ? WHERE id = ?')
       .run(name, this.now(), id);
+    const after = this.snapshot([id]);
+    if (before.length && !this.same(before, after)) {
+      this.remember({ kind: 'rename', ids: [id], before, after });
+    }
   }
 
   /** Folds `fromId` into `intoId`, then removes `fromId`. */
@@ -161,6 +257,8 @@ export class VoiceProfileStore {
     if (from.modelId !== into.modelId) {
       throw new StorageError('EMBEDDING_SIZE', 'Profiles come from different speaker models');
     }
+    const ids = [fromId, intoId];
+    const before = this.snapshot(ids);
     this.db.exec('BEGIN IMMEDIATE');
     try {
       this.grow(intoId, from.embedding, from.sampleCount);
@@ -171,10 +269,13 @@ export class VoiceProfileStore {
       this.db.exec('ROLLBACK');
       throw error;
     }
+    this.remember({ kind: 'merge', ids, before, after: this.snapshot(ids) });
   }
 
   /** Removes the profile's voice data. `secure_delete` zeroes the pages it sat on. */
   delete(id: string): void {
     this.db.prepare('DELETE FROM voice_profiles WHERE id = ?').run(id);
+    this.undoStack = [];
+    this.redoStack = [];
   }
 }

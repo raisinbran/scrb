@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { RecordingSession, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
-import { ProcessAdapter } from '@scrb/capture';
+import { ProcessAdapter, type Track } from '@scrb/capture';
 import {
   ContractError,
   type BackendEvents,
+  type ConfirmedPauseSpan,
   type EventName,
   type RecordingHealth,
   type RecordingSnapshot,
@@ -16,6 +17,7 @@ import {
 import { errorFields, type Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
+import { MicCheckController } from './mic-check.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
@@ -62,12 +64,16 @@ export interface SourceStore {
 /** Runs real recordings for the UI. One recording at a time. */
 export class RecordingController {
   private state: RecordingState = IDLE;
+  private pauseSpans: ConfirmedPauseSpan[] = [];
   private health: RecordingHealth | null = null;
   private session: RecordingSession | null = null;
   private starting = false;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
   private finishing: Promise<void> | null = null;
+  private writeErrors = new Set<string>();
+  private readonly micCheck: MicCheckController;
+  private deadStreams = new Set<Track>();
 
   constructor(
     private readonly library: Library,
@@ -76,10 +82,40 @@ export class RecordingController {
     private readonly sources: SourceStore,
     /** Null leaves a stopped meeting ready with no transcript. */
     private readonly finalPasses: FinalPassQueue | null = null,
-  ) {}
+    private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
+  ) {
+    this.micCheck = new MicCheckController(
+      helper,
+      emit,
+      () => this.session !== null || this.starting || this.finishing !== null,
+    );
+  }
 
-  private update(patch: Partial<RecordingState>): void {
+  private update(patch: Partial<RecordingState>, atNs: number | null = null): void {
+    const previous = this.state;
     this.state = { ...this.state, ...patch };
+    const meetingId = previous.meetingId ?? this.state.meetingId;
+    if (meetingId && atNs !== null) {
+      const atMs = atNs / 1_000_000;
+      if (previous.status !== 'paused' && this.state.status === 'paused') {
+        this.pauseSpans.push({
+          startMs: atMs,
+          endMs: null,
+          reason: this.state.pauseReason ?? 'user',
+        });
+        this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+      } else if (previous.status === 'paused' && this.state.status !== 'paused') {
+        const last = this.pauseSpans.at(-1);
+        if (last?.endMs === null) {
+          this.pauseSpans[this.pauseSpans.length - 1] = { ...last, endMs: atMs };
+          this.emit('pauseSpansChanged', { meetingId, spans: [...this.pauseSpans] });
+        }
+      }
+    }
+    if (this.state.status === 'idle') {
+      this.pauseSpans = [];
+      if (meetingId) this.emit('pauseSpansChanged', { meetingId, spans: [] });
+    }
     this.emit('recordingStateChanged', this.state);
   }
 
@@ -87,6 +123,27 @@ export class RecordingController {
     const warnings = [...(this.health?.warnings ?? []), { ...warning, atMs: this.state.elapsedMs }];
     this.health = { level, warnings, diskFreeBytes: this.health?.diskFreeBytes ?? 0 };
     this.emit('recordingHealth', this.health);
+  }
+
+  /** A failed writer must be reported even if the other track keeps recording. */
+  private writeError(track: Track | undefined): void {
+    const key = track ?? 'session';
+    if (this.writeErrors.has(key)) return;
+    this.writeErrors.add(key);
+    const message = track
+      ? `The ${track} track is not being saved.`
+      : 'Part of this recording could not be saved.';
+    this.warn({ kind: 'audioMissing', message, ...(track ? { track } : {}) }, 'failed');
+  }
+
+  /** The helper repeats this while its reopen keeps failing. */
+  private streamDead(track: Track): void {
+    if (this.deadStreams.has(track)) return;
+    this.deadStreams.add(track);
+    this.warn(
+      { kind: 'audioMissing', track, message: `The ${track} track stopped. Reconnecting.` },
+      'warning',
+    );
   }
 
   private tick(): void {
@@ -134,6 +191,7 @@ export class RecordingController {
       throw new ContractError({ code: 'conflict', message: 'A recording is already running.' });
     }
     this.starting = true;
+    this.micCheck.stop('recordingStarted');
     try {
       return await this.begin(title);
     } catch (failure) {
@@ -153,7 +211,14 @@ export class RecordingController {
       status: 'recording',
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
-    this.state = { ...IDLE, meetingId: meeting.id };
+    this.writeErrors.clear();
+    this.deadStreams.clear();
+    this.pauseSpans = [];
+    this.state = {
+      ...IDLE,
+      meetingId: meeting.id,
+      privacyBannerRequired: await this.shouldShowPrivacyBanner().catch(() => true),
+    };
     if (micFellBack) {
       this.warn(
         {
@@ -180,12 +245,25 @@ export class RecordingController {
               },
               'warning',
             );
+          } else if (event.type === 'writeError') {
+            this.writeError(event.track);
+          } else if (event.type === 'streamDead') {
+            this.streamDead(event.track);
+          } else if (event.type === 'streamReopened') {
+            this.deadStreams.delete(event.track);
           }
         });
         return adapter;
       },
-      onStateChanged: (status, pauseReason) => {
-        if (status !== 'idle') this.update({ status, pauseReason });
+      onStateChanged: (status, pauseReason, atNs) => {
+        if (status === 'idle') return;
+        const changed = this.state.status !== status;
+        this.update({ status, pauseReason }, atNs);
+        if (changed && status === 'recording') {
+          void this.library.updateMeeting(meeting.id, { status }).catch((error: unknown) => {
+            this.library.logger.log('error', 'recording-status-save-failed', errorFields(error));
+          });
+        }
       },
       onTrackMissing: (track) =>
         this.warn(
@@ -251,6 +329,7 @@ export class RecordingController {
 
   private snapshot = async (): Promise<RecordingSnapshot> => ({
     state: this.state,
+    pauseSpans: [...this.pauseSpans],
     health: this.health,
     transcription: null,
   });
@@ -270,11 +349,15 @@ export class RecordingController {
       listInputDevices: () => listInputDevices(this.helper),
       listMeetingApps: () => listMeetingApps(this.helper, this.sources.read().meetingAppId),
       selectSources: (request) => this.select(request as SourceSelection),
+      startAudioCheck: (request) =>
+        this.micCheck.start((request as { sources: SourceSelection }).sources),
+      stopAudioCheck: async () => this.micCheck.stop('stopped'),
     };
   }
 
   /** Quitting mid-recording stops it cleanly rather than leaving it to recovery. */
   async shutdown(): Promise<void> {
+    this.micCheck.stop('stopped');
     await this.session?.stop();
     await this.finishing;
   }

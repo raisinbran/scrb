@@ -15,6 +15,7 @@ export function foldText(text: string): string {
 }
 
 export interface TranscriptHit {
+  segmentId: string;
   startMs: number;
   speakerId: string;
   snippet: string;
@@ -22,6 +23,7 @@ export interface TranscriptHit {
 
 interface IndexedToken {
   token: DisplayToken;
+  segmentId: string;
   speakerId: string;
   offset: number;
 }
@@ -42,7 +44,7 @@ export function searchTranscript(
     for (const token of segment.tokens) {
       const folded = foldText(token.text);
       if (folded === '') continue;
-      tokens.push({ token, speakerId: segment.speakerId, offset });
+      tokens.push({ token, segmentId: segment.id, speakerId: segment.speakerId, offset });
       parts.push(folded);
       offset += folded.length + 1;
     }
@@ -65,6 +67,7 @@ export function searchTranscript(
     const hit = tokens[cursor] as IndexedToken;
     const around = tokens.slice(Math.max(0, cursor - SNIPPET_TOKENS), cursor + SNIPPET_TOKENS + 1);
     hits.push({
+      segmentId: hit.segmentId,
       startMs: hit.token.startMs,
       speakerId: hit.speakerId,
       snippet: around.map((item) => item.token.text).join(' '),

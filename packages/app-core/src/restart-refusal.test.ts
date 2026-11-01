@@ -66,6 +66,7 @@ function scenario(reply: Reply) {
     onTrackMissing: (track) => missing.push(track),
     onEnded: (end) => ended.push(end),
     newCommandId: () => `id-${next++}`,
+    restartWaitsMs: [0, 0],
   });
   return { session, adapters, ended, missing };
 }

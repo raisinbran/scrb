@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ContractError,
   type ActionStatus,
@@ -200,9 +201,50 @@ function replacedInBody(body: SummaryBody | null, item: SummarySection): Summary
   return { sections: replaced(body.sections, item) };
 }
 
+function removed<T extends { id: string }>(items: T[], id: string): T[] {
+  if (!items.some((item) => item.id === id)) {
+    throw new ContractError({ code: 'notFound', message: 'That summary item no longer exists.' });
+  }
+  return items.filter((item) => item.id !== id);
+}
+
 /** One user edit, marked so regenerating cannot overwrite it. */
 export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate): SummaryFile {
   switch (update.kind) {
+    case 'add': {
+      const evidence = { alsoAtMs: [], needsReview: false, edited: true };
+      switch (update.collection) {
+        case 'actionItems':
+          return {
+            ...file,
+            actionItems: [...file.actionItems, { ...update.item, id: randomUUID(), ...evidence }],
+          };
+        case 'decisions':
+          return {
+            ...file,
+            decisions: [...file.decisions, { ...update.item, id: randomUUID(), ...evidence }],
+          };
+        case 'openQuestions':
+          return {
+            ...file,
+            openQuestions: [
+              ...file.openQuestions,
+              { ...update.item, id: randomUUID(), ...evidence },
+            ],
+          };
+      }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
+    }
+    case 'remove':
+      switch (update.collection) {
+        case 'actionItems':
+          return { ...file, actionItems: removed(file.actionItems, update.itemId) };
+        case 'decisions':
+          return { ...file, decisions: removed(file.decisions, update.itemId) };
+        case 'openQuestions':
+          return { ...file, openQuestions: removed(file.openQuestions, update.itemId) };
+      }
+      throw new ContractError({ code: 'invalidRequest', message: 'Unknown summary collection.' });
     case 'narrative': {
       const item = { ...update.item, edited: true };
       const brief = replacedInBody(file.brief, item);

@@ -67,6 +67,19 @@ export const MIGRATIONS: readonly string[] = [
 
   // 4 -> 5: auto-delete needs to know which meetings no longer have audio.
   `ALTER TABLE meetings ADD COLUMN audio_deleted_at TEXT;`,
+
+  // 5 -> 6: track which correction contributed each misheard form.
+  // Pre-existing forms are preserved because their provenance cannot be reconstructed.
+  `ALTER TABLE vocabulary_misheard ADD COLUMN preserved INTEGER NOT NULL DEFAULT 1;
+   CREATE TABLE vocabulary_misheard_sources (
+     term_id TEXT NOT NULL REFERENCES vocabulary_terms(id) ON DELETE CASCADE,
+     text TEXT NOT NULL COLLATE NOCASE,
+     meeting_id TEXT NOT NULL,
+     correction_id TEXT NOT NULL,
+     PRIMARY KEY (term_id, text, correction_id)
+   ) STRICT;
+   CREATE INDEX vocabulary_misheard_sources_correction
+     ON vocabulary_misheard_sources(correction_id);`,
 ];
 
 export const INDEX_VERSION = MIGRATIONS.length;

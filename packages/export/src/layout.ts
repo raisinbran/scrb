@@ -139,7 +139,10 @@ const DEFAULT_SUMMARY: SummaryOptions = {
   sourceTimestamps: true,
 };
 
-export function buildExportDocument(meeting: ExportMeeting, request: ExportRequest): ExportDocument {
+export function buildExportDocument(
+  meeting: ExportMeeting,
+  request: ExportRequest,
+): ExportDocument {
   const transcript = { ...DEFAULT_TRANSCRIPT, ...request.transcript };
   const summary = { ...DEFAULT_SUMMARY, ...request.summary };
   const locale = request.locale ?? 'en-US';
@@ -170,11 +173,7 @@ function requireSummary(meeting: ExportMeeting, options: SummaryOptions): Export
   return summary;
 }
 
-function buildHeader(
-  meeting: ExportMeeting,
-  options: TranscriptOptions,
-  locale: string,
-): Block[] {
+function buildHeader(meeting: ExportMeeting, options: TranscriptOptions, locale: string): Block[] {
   const blocks: Block[] = [];
   if (options.title) blocks.push({ kind: 'title', line: textLine(meeting.title) });
   if (options.date) blocks.push(meta(LABELS.date, formatDate(meeting, locale)));
@@ -205,7 +204,9 @@ function buildSummary(summary: ExportSummary, options: SummaryOptions): Block[] 
   if (summary.outdated) blocks.push(paragraph('note', textLine(LABELS.outdated)));
   for (const warning of summary.warnings ?? []) blocks.push(paragraph('note', textLine(warning)));
 
-  blocks.push(...(options.length === 'brief' ? buildBriefBody(summary) : buildFullBody(summary, options)));
+  blocks.push(
+    ...(options.length === 'brief' ? buildBriefBody(summary) : buildFullBody(summary, options)),
+  );
 
   if (options.openQuestions) {
     blocks.push(heading(2, LABELS.openQuestions));
@@ -225,7 +226,10 @@ function buildFullBody(summary: ExportSummary, options: SummaryOptions): Block[]
   const full = summary.full;
   if (full === null) return [];
 
-  const blocks: Block[] = [heading(2, LABELS.overview), ...paragraphsOr(full.overview, LABELS.noneRecorded)];
+  const blocks: Block[] = [
+    heading(2, LABELS.overview),
+    ...paragraphsOr(full.overview, LABELS.noneRecorded),
+  ];
 
   blocks.push(heading(2, LABELS.mainTopics));
   if (full.mainTopics.length === 0) blocks.push(paragraph('note', textLine(LABELS.noneRecorded)));
@@ -252,29 +256,37 @@ function sourcedList(
   empty: string,
 ): Block[] {
   const lines = items.map((item) => sourcedLine(item, options)).filter(hasText);
-  return lines.length === 0 ? [paragraph('note', textLine(empty))] : [{ kind: 'list', items: lines }];
+  return lines.length === 0
+    ? [paragraph('note', textLine(empty))]
+    : [{ kind: 'list', items: lines }];
 }
 
 function sourcedLine(item: ExportSourcedItem, options: SummaryOptions): Line {
-  const line = textLine(item.text);
+  const line = textLine(item.needsReview ? `${item.text} (needs review)` : item.text);
   if (options.sourceTimestamps && item.sourceMs !== null && hasText(line)) {
-    line.spans.push(span(` (${formatTimestamp(item.sourceMs)})`, 'muted'));
+    const times = [item.sourceMs, ...(item.alsoAtMs ?? [])];
+    line.spans.push(span(` (${times.map(formatTimestamp).join('; ')})`, 'muted'));
   }
   return line;
 }
 
 function actionTable(items: readonly ExportActionItem[], options: SummaryOptions): TableBlock {
-  const columns = [column('Action', 34), column('Owner', 18), column('Deadline', 16), column('Status', 14)];
+  const columns = [
+    column('Action', 34),
+    column('Owner', 18),
+    column('Deadline', 16),
+    column('Status', 14),
+  ];
   if (items.length === 0) return emptyTable(columns, LABELS.noActionItems, options);
 
   const rows = items.map((item) => {
     const row = [
-      textLine(item.action),
+      textLine(item.needsReview ? `${item.action} (needs review)` : item.action),
       flagged(item.owner, item.ownerUnconfirmed),
       flagged(item.deadline, item.deadlineUnconfirmed),
       textLine(item.status ?? LABELS.unconfirmed),
     ];
-    return withSource(row, item.sourceMs, options);
+    return withSource(row, item, options);
   });
   return { kind: 'table', columns: withSourceColumn(columns, options), rows };
 }
@@ -285,11 +297,11 @@ function decisionTable(items: readonly ExportDecision[], options: SummaryOptions
 
   const rows = items.map((item) => {
     const row = [
-      textLine(item.decision),
+      textLine(item.needsReview ? `${item.decision} (needs review)` : item.decision),
       textLine(DECISION_STATUS[item.status]),
       textLine(impactText(item)),
     ];
-    return withSource(row, item.sourceMs, options);
+    return withSource(row, item, options);
   });
   return { kind: 'table', columns: withSourceColumn(columns, options), rows };
 }
@@ -316,9 +328,17 @@ function withSourceColumn(columns: TableColumn[], options: SummaryOptions): Tabl
   return options.sourceTimestamps ? [...columns, column('Source', 18)] : columns;
 }
 
-function withSource(row: Line[], sourceMs: number | null, options: SummaryOptions): Line[] {
+function withSource(
+  row: Line[],
+  item: { sourceMs: number | null; alsoAtMs?: readonly number[] },
+  options: SummaryOptions,
+): Line[] {
   if (!options.sourceTimestamps) return row;
-  return [...row, textLine(sourceMs === null ? LABELS.notSpecified : formatTimestamp(sourceMs))];
+  const times = [item.sourceMs, ...(item.alsoAtMs ?? [])].filter((ms): ms is number => ms !== null);
+  return [
+    ...row,
+    textLine(times.length ? times.map(formatTimestamp).join('; ') : LABELS.notSpecified),
+  ];
 }
 
 function column(header: string, weight: number): TableColumn {
@@ -425,11 +445,7 @@ function trimSpans(spans: Span[]): Span[] {
   return spans.filter((item) => item.text !== '');
 }
 
-function utteranceLine(
-  segment: ExportSegment,
-  spans: Span[],
-  options: TranscriptOptions,
-): Line {
+function utteranceLine(segment: ExportSegment, spans: Span[], options: TranscriptOptions): Line {
   const content = spans.map((item) => (isRtl(item.text) ? { ...item, rtl: true } : item));
   const direction = directionOf(spans.map((item) => item.text).join(''));
   if (!options.timestamps) return { spans: content, ...direction };

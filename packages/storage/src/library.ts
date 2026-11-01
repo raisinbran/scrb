@@ -121,6 +121,7 @@ export interface SearchOutcome {
 }
 
 export interface SearchOptions {
+  origin?: 'recorded' | 'imported';
   fromDate?: string;
   toDate?: string;
   hitsPerMeeting?: number;
@@ -153,7 +154,7 @@ async function hasAnyFile(dir: string): Promise<boolean> {
 }
 
 function isAlive(correction: Correction | undefined): boolean {
-  return correction !== undefined && correction.state !== 'reverted';
+  return correction !== undefined && correction.state === 'active';
 }
 
 /**
@@ -166,6 +167,7 @@ export class Library {
   readonly settings: SettingsStore;
   readonly vocabulary: VocabularyStore;
   readonly voiceProfiles: VoiceProfileStore;
+  readonly retainedIndexSnapshot: boolean;
   readonly logger: Logger;
   /** Where a corrupt index was moved. Vocabulary and voice profiles must be rebuilt if set. */
   readonly replacedCorruptIndex: string | null;
@@ -175,6 +177,9 @@ export class Library {
   private readonly db: DatabaseSync;
   private readonly clock: () => Date;
   private readonly locks = new Map<string, Promise<unknown>>();
+  private scheduledDeletion: Promise<void> = Promise.resolve();
+  private autoDeletionInFlight: Promise<AutoDeleteRun> | null = null;
+  private meetingChangedListener: ((meeting: MeetingMeta) => void) | null = null;
 
   private constructor(
     paths: LibraryPaths,
@@ -182,12 +187,14 @@ export class Library {
     logger: Logger,
     clock: () => Date,
     replacedCorruptIndex: string | null,
+    retainedIndexSnapshot: boolean,
   ) {
     this.paths = paths;
     this.db = db;
     this.logger = logger;
     this.clock = clock;
     this.replacedCorruptIndex = replacedCorruptIndex;
+    this.retainedIndexSnapshot = retainedIndexSnapshot;
     const now = (): string => clock().toISOString();
     this.settings = new SettingsStore(db);
     this.vocabulary = new VocabularyStore(db, now);
@@ -213,15 +220,22 @@ export class Library {
     );
     const clock = options.now ?? (() => new Date());
     const logger = options.logger ?? new Logger(paths.logs, clock);
-    const { db, replacedCorruptIndex } = await openIndex(paths.index);
-    const library = new Library(paths, db, logger, clock, replacedCorruptIndex);
+    const { db, replacedCorruptIndex, retainedSnapshot } = await openIndex(paths.index);
+    const library = new Library(paths, db, logger, clock, replacedCorruptIndex, retainedSnapshot);
     Object.assign(library.openReport, await library.reconcile());
+    await library.repairVocabulary();
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
   }
 
+  setMeetingChangedListener(listener: ((meeting: MeetingMeta) => void) | null): void {
+    this.meetingChangedListener = listener;
+  }
+
   async close(): Promise<void> {
+    await this.scheduledDeletion;
+    await this.autoDeletionInFlight;
     await Promise.allSettled(this.locks.values());
     this.db.close();
     await this.logger.flush();
@@ -284,6 +298,7 @@ export class Library {
     await saveDocument(files.meta, meta, null);
     upsertMeeting(this.db, meta, folder);
     this.logger.log('info', 'meeting-created', { meetingId: meta.id, source: meta.source });
+    this.meetingChangedListener?.(meta);
     return meta;
   }
 
@@ -314,10 +329,7 @@ export class Library {
     return this.withLock(meetingId, () => this.writeMeta(meetingId, changes));
   }
 
-  private async writeMeta(
-    meetingId: string,
-    changes: Partial<MeetingMeta>,
-  ): Promise<MeetingMeta> {
+  private async writeMeta(meetingId: string, changes: Partial<MeetingMeta>): Promise<MeetingMeta> {
     const row = this.requireRow(meetingId);
     const file = this.meetingPaths(meetingId).meta;
     const loaded = await loadDocument(MEETING_FORMAT, file);
@@ -325,6 +337,7 @@ export class Library {
     const next = { ...loaded.doc, ...changes };
     await saveDocument(file, next, loaded.fileVersion);
     upsertMeeting(this.db, next, row.folder);
+    this.meetingChangedListener?.(next);
     return next;
   }
 
@@ -351,8 +364,21 @@ export class Library {
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
       if (options.userEdit) await this.flagSummaryOutdated(meetingId);
       const next = { ...changed, revision: current.revision + 1 };
+      const learningChanged = current.corrections !== next.corrections;
+      if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
       await saveDocument(file, next, loaded?.fileVersion ?? null, options.write);
-      this.syncVocabulary(meetingId, current, next);
+      if (learningChanged) {
+        try {
+          this.syncVocabulary(meetingId, current, next);
+          this.settings.delete(`vocabulary.pending.${meetingId}`);
+        } catch (error) {
+          // User corrections are saved before vocabulary; repair later, never roll back the edit.
+          this.logger.log('warn', 'vocabulary-learning-pending', {
+            meetingId,
+            ...errorFields(error),
+          });
+        }
+      }
       return next;
     });
   }
@@ -418,6 +444,89 @@ export class Library {
     );
   }
 
+  /** Unlink a deleted voice profile from saved speaker layers and undo history first. */
+  async deleteVoiceProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
+    const affected: { meetingId: string; before: TranscriptFile }[] = [];
+    const linkedMeetings = new Set(this.voiceProfiles.get(profileId)?.meetingIds ?? []);
+    for (const row of this.listMeetings()) {
+      const busy =
+        row.status === 'recording' ||
+        row.status === 'importing' ||
+        row.status === 'finalPassRunning';
+      if (busy && linkedMeetings.has(row.id)) {
+        throw new StorageError(
+          'PROFILE_BUSY',
+          'Wait for the meeting to finish before deleting the profile.',
+        );
+      }
+      let before: TranscriptFile;
+      try {
+        before = await this.readTranscript(row.id);
+      } catch (error) {
+        // An unreadable active meeting might hold an unindexed link; do not delete it blindly.
+        if (busy) {
+          throw new StorageError(
+            'PROFILE_BUSY',
+            'Wait for the meeting to finish before deleting the profile.',
+          );
+        }
+        this.logger.log('warn', 'profile-unlink-transcript-unreadable', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+        continue;
+      }
+      const inSpeakers = before.speakers.some((speaker) => speaker.profileId === profileId);
+      const inHistory = [...before.undoStack, ...before.redoStack].some((entry) =>
+        entry.speakers.some(
+          (patch) => patch.before?.profileId === profileId || patch.after?.profileId === profileId,
+        ),
+      );
+      if (!inSpeakers && !inHistory) continue;
+      if (busy) {
+        throw new StorageError(
+          'PROFILE_BUSY',
+          'Wait for the meeting to finish before deleting the profile.',
+        );
+      }
+      affected.push({ meetingId: row.id, before });
+    }
+
+    const unlink = (speaker: Speaker | null): Speaker | null =>
+      speaker?.profileId === profileId ? { ...speaker, profileId: null } : speaker;
+
+    const changed: { before: TranscriptFile; after: TranscriptFile }[] = [];
+    for (const { meetingId, before } of affected) {
+      const relink = (current: TranscriptFile): TranscriptFile => ({
+        ...current,
+        speakers: current.speakers.map((speaker) => unlink(speaker) as Speaker),
+        undoStack: current.undoStack.map((entry) => ({
+          ...entry,
+          speakers: entry.speakers.map((patch) => ({
+            ...patch,
+            before: unlink(patch.before),
+            after: unlink(patch.after),
+          })),
+        })),
+        redoStack: current.redoStack.map((entry) => ({
+          ...entry,
+          speakers: entry.speakers.map((patch) => ({
+            ...patch,
+            before: unlink(patch.before),
+            after: unlink(patch.after),
+          })),
+        })),
+      });
+      // The summary is built from words and names, so this edit does not outdate it.
+      const after = await this.changeTranscript(meetingId, relink, { userEdit: false });
+      changed.push({ before, after });
+    }
+    this.voiceProfiles.delete(profileId);
+    return changed;
+  }
+
   renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.renameSpeaker(t, speakerId, name));
   }
@@ -450,11 +559,7 @@ export class Library {
   }
 
   /** Keeps the Vocabulary list in step with "Remember correction", through undo and redo. */
-  private syncVocabulary(
-    meetingId: string,
-    before: TranscriptFile,
-    after: TranscriptFile,
-  ): void {
+  private syncVocabulary(meetingId: string, before: TranscriptFile, after: TranscriptFile): void {
     if (before.corrections === after.corrections) return;
     const old = new Map(before.corrections.map((c) => [c.id, c]));
     const seen = new Set<string>();
@@ -481,6 +586,57 @@ export class Library {
         this.vocabulary.forgetCorrection(previous.id, previous.original.text);
       }
     }
+  }
+
+  /** Repairs pending links; a one-time full scan covers older interrupted saves. */
+  private async repairVocabulary(): Promise<void> {
+    const initialized = this.settings.get('vocabulary.repairInitialized', false);
+    const pending = this.settings.all();
+    for (const row of this.listMeetings()) {
+      const key = `vocabulary.pending.${row.id}`;
+      if (initialized && pending[key] !== true) continue;
+      let transcript: TranscriptFile;
+      try {
+        transcript = await this.readTranscript(row.id);
+      } catch (error) {
+        this.settings.set(key, true);
+        this.logger.log('warn', 'vocabulary-repair-deferred', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+        continue;
+      }
+      try {
+        const active = new Map(
+          transcript.corrections
+            .filter((c) => c.state === 'active' && c.remember && c.replacement.trim() !== '')
+            .map((c) => [c.id, c]),
+        );
+        for (const term of this.vocabulary.list()) {
+          for (const context of term.contexts.filter((c) => c.meetingId === row.id)) {
+            if (!active.has(context.correctionId)) {
+              const gone = transcript.corrections.find((c) => c.id === context.correctionId);
+              this.vocabulary.forgetCorrection(context.correctionId, gone?.original.text ?? '');
+            }
+          }
+        }
+        for (const correction of active.values()) {
+          this.vocabulary.reconcileRemember({
+            term: correction.replacement,
+            misheard: [correction.original.text],
+            context: { meetingId: row.id, correctionId: correction.id },
+          });
+        }
+        this.settings.delete(key);
+      } catch (error) {
+        this.settings.set(key, true);
+        this.logger.log('warn', 'vocabulary-repair-deferred', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+      }
+    }
+    this.settings.set('vocabulary.repairInitialized', true);
   }
 
   /** The words around a remembered correction, read from its meeting's file. */
@@ -532,7 +688,10 @@ export class Library {
   /** Stores a generated summary. User-edited items carry over and the outdated flag clears. */
   saveGeneratedSummary(
     meetingId: string,
-    generated: Omit<SummaryFile, 'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'>,
+    generated: Omit<
+      SummaryFile,
+      'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
+    >,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
@@ -559,7 +718,9 @@ export class Library {
       ...(options.fromDate !== undefined && { fromDate: options.fromDate }),
       ...(options.toDate !== undefined && { toDate: options.toDate }),
     };
-    const rows = findMeetingRows(this.db, dates).filter((row) => row.status !== 'importing');
+    const rows = findMeetingRows(this.db, dates).filter(
+      (row) => row.status !== 'importing' && (!options.origin || row.source === options.origin),
+    );
     const trimmed = query.trim();
     const indexed = new Set(
       findMeetingRows(this.db, { ...dates, text: trimmed }).map((row) => row.id),
@@ -606,9 +767,10 @@ export class Library {
    * `.deleting-` folder that the next open finishes, never a half-deleted meeting in the list.
    * On failure nothing is reported as gone: `ok` is false and `remaining` says what is left.
    */
-  deleteMeeting(meetingId: string): Promise<DeleteReport> {
+  deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
+      await this.assertDeletionIdle(row, importCleanup);
       const remaining = await this.removeMeeting(meetingId, row.folder);
       const ok = remaining.length === 0;
       this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
@@ -620,9 +782,24 @@ export class Library {
     });
   }
 
+  /** Conservatively refuse deletion whenever a writer may still own the meeting. */
+  private async assertDeletionIdle(row: MeetingRow, importCleanup = false): Promise<void> {
+    if (
+      row.status === 'recording' ||
+      (row.status === 'importing' && !importCleanup) ||
+      row.status === 'finalPassRunning'
+    ) {
+      throw new StorageError('ACTIVE_MEETING', 'Stop the meeting operation before deleting.');
+    }
+    const lock = path.join(meetingFolderPath(this.paths, row.folder), 'audio', 'writer.lock');
+    if (await exists(lock)) {
+      throw new StorageError('ACTIVE_MEETING', 'Audio recording may still be writing.');
+    }
+  }
+
   /** Cancels an import. The user's original file is outside the library and is not touched. */
   discardImport(meetingId: string): Promise<DeleteReport> {
-    return this.deleteMeeting(meetingId);
+    return this.deleteMeeting(meetingId, true);
   }
 
   private async removeMeeting(meetingId: string, folderName: string): Promise<string[]> {
@@ -631,26 +808,51 @@ export class Library {
     const cache = meetingCachePath(this.paths, meetingId);
     const problems: string[] = [];
 
-    let folderGone = true;
+    let movedFromLibrary = false;
     try {
       if (await exists(folder)) await fs.rename(folder, trash);
-      await fs.rm(trash, RM_OPTIONS);
+      movedFromLibrary = true;
     } catch (error) {
-      folderGone = false;
       this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+    }
+    if (movedFromLibrary) {
+      try {
+        await fs.rm(trash, RM_OPTIONS);
+      } catch (error) {
+        this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+      }
     }
     await fs.rm(cache, RM_OPTIONS).catch((error: unknown) => {
       this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
-    if (folderGone) deleteMeetingRows(this.db, meetingId);
+    if (movedFromLibrary) {
+      deleteMeetingRows(this.db, meetingId);
+      this.vocabulary.discardMeetingHistory(meetingId);
+      this.settings.delete(`vocabulary.pending.${meetingId}`);
+    }
 
     for (const target of [folder, trash, cache]) {
       if (await exists(target)) problems.push(target);
     }
     problems.push(...indexTraces(this.db, meetingId));
+    problems.push(...(await this.indexUpgradeCopies()));
     problems.push(...(await this.foldersHolding(meetingId)));
     return [...new Set(problems)];
+  }
+
+  /** A prior upgrade copy may still contain this meeting's index records. */
+  private async indexUpgradeCopies(): Promise<string[]> {
+    const parent = path.dirname(this.paths.index);
+    const prefix = `${path.basename(this.paths.index)}.upgrade-`;
+    return (await fs.readdir(parent))
+      .filter(
+        (name) =>
+          name.startsWith(prefix) &&
+          name !== `${path.basename(this.paths.index)}.upgrade-state.json` &&
+          name !== `${path.basename(this.paths.index)}.upgrade-state.json.tmp`,
+      )
+      .map((name) => path.join(parent, name));
   }
 
   /** Copies the user made count as "left behind", so the check looks at every meeting.json. */
@@ -660,7 +862,9 @@ export class Library {
     for (const name of names) {
       if (name.startsWith('.')) continue;
       const folder = meetingFolderPath(this.paths, name);
-      const loaded = await loadDocument(MEETING_FORMAT, meetingPaths(folder).meta).catch(() => null);
+      const loaded = await loadDocument(MEETING_FORMAT, meetingPaths(folder).meta).catch(
+        () => null,
+      );
       if (loaded?.doc.id === meetingId) found.push(folder);
     }
     return found;
@@ -669,25 +873,23 @@ export class Library {
   /** Removes a meeting's audio and anything derived from it. Transcript and summary stay. */
   deleteAudio(meetingId: string): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
+      const row = this.requireRow(meetingId);
+      await this.assertDeletionIdle(row);
       const files = this.meetingPaths(meetingId);
       const cache = meetingCachePath(this.paths, meetingId);
       const remaining: string[] = [];
-      for (const dir of [files.audioMicrophone, files.audioMeeting]) {
+      for (const target of [files.audio, cache]) {
         try {
-          await fs.rm(dir, RM_OPTIONS);
-          await fs.mkdir(dir, { recursive: true });
+          await fs.rm(target, RM_OPTIONS);
         } catch (error) {
           this.logger.log('error', 'audio-delete-step-failed', errorFields(error));
         }
+        if (await exists(target)) remaining.push(target);
       }
-      await fs.rm(cache, RM_OPTIONS).catch((error: unknown) => {
-        this.logger.log('error', 'audio-delete-step-failed', errorFields(error));
-      });
-      if (await hasAnyFile(files.audio).catch(() => false)) remaining.push(files.audio);
-      if (await exists(cache)) remaining.push(cache);
       const ok = remaining.length === 0;
-      // Only a clean delete sets the mark, so a failed one is retried on the next run.
-      if (ok) await this.writeMeta(meetingId, { audioDeletedAt: this.nowIso() });
+      if (ok && row.audioDeletedAt === null) {
+        await this.writeMeta(meetingId, { audioDeletedAt: this.nowIso() });
+      }
       this.logger.log(ok ? 'info' : 'error', 'audio-deleted', { meetingId, ok });
       return { meetingId, ok, remaining };
     });
@@ -708,7 +910,19 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  async runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(): Promise<AutoDeleteRun> {
+    if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
+    const run = this.runAutoDeleteOnce();
+    this.autoDeletionInFlight = run;
+    void run
+      .finally(() => {
+        if (this.autoDeletionInFlight === run) this.autoDeletionInFlight = null;
+      })
+      .catch(() => undefined);
+    return run;
+  }
+
+  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };
@@ -735,7 +949,8 @@ export class Library {
     const tick = (): void => {
       if (running) return;
       running = true;
-      void this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete()
+        .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));
         })
@@ -771,6 +986,7 @@ export class Library {
         const meetingId = name.slice(DELETING_PREFIX.length);
         await fs.rm(path.join(this.paths.meetings, name), RM_OPTIONS);
         deleteMeetingRows(this.db, meetingId);
+        this.vocabulary.discardMeetingHistory(meetingId);
         await fs.rm(meetingCachePath(this.paths, meetingId), RM_OPTIONS);
         report.finishedDeletes.push(meetingId);
         continue;
@@ -802,6 +1018,7 @@ export class Library {
     for (const row of this.listMeetings()) {
       if (!seen.has(row.id)) {
         deleteMeetingRows(this.db, row.id);
+        this.vocabulary.discardMeetingHistory(row.id);
         await fs.rm(meetingCachePath(this.paths, row.id), RM_OPTIONS);
         report.removed.push(row.id);
       }
@@ -844,10 +1061,7 @@ export class Library {
 }
 
 /** Points at the library, which the user can place anywhere; lives in the app's config folder. */
-export async function readLibraryLocation(
-  configDir: string,
-  defaultRoot: string,
-): Promise<string> {
+export async function readLibraryLocation(configDir: string, defaultRoot: string): Promise<string> {
   try {
     const text = await fs.readFile(path.join(configDir, 'library-location.json'), 'utf8');
     const { root } = JSON.parse(text) as { root?: unknown };

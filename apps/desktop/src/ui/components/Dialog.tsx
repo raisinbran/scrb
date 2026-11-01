@@ -36,6 +36,16 @@ export function Dialog({ title, onClose, children }: DialogProps) {
     );
     const first = items[0];
     const last = items[items.length - 1];
+    if (!first) {
+      event.preventDefault();
+      panel.current.focus();
+      return;
+    }
+    if (document.activeElement === panel.current) {
+      event.preventDefault();
+      (event.shiftKey ? last : first)?.focus();
+      return;
+    }
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last?.focus();

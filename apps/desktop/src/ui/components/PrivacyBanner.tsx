@@ -14,6 +14,7 @@ export function PrivacyBanner() {
       <button
         type="button"
         className={styles.dismiss}
+        aria-label="Dismiss voice-profile privacy reminder for this recording"
         onClick={() => setDismissed(recording.meetingId)}
       >
         Dismiss

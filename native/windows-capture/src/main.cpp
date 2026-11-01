@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "Session.h"
+#include "MicProbe.h"
 
 using namespace scrb;
 
@@ -66,6 +67,14 @@ int wmain(int argc, wchar_t** argv) {
         if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
         else if (GetLastError() == ERROR_SHARING_VIOLATION) return 3;
         return 0;
+    }
+    if (argc >= 2 && std::wstring(argv[1]) == L"--mic-probe") {
+        _setmode(_fileno(stdin), _O_BINARY);
+        _setmode(_fileno(stdout), _O_BINARY);
+        CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        int status = RunMicProbe(ParseCommand);
+        CoUninitialize();
+        ExitProcess(status);
     }
     SessionOptions options;
     for (int i = 1; i < argc; ++i) {

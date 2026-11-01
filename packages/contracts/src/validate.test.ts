@@ -1,11 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { CALL_NAMES, MAX_TRANSCRIPT_PAGE, isValidRequest } from './index.ts';
+import { CALL_NAMES, EVENT_NAMES, MAX_TRANSCRIPT_PAGE, isValidRequest } from './index.ts';
 
 const page = (offset: unknown, limit: unknown) => ({ meetingId: 'm-1', offset, limit });
 
 describe('isValidRequest', () => {
+  it('exports the confirmed pause event on the shared allowlist', () => {
+    expect(EVENT_NAMES).toContain('pauseSpansChanged');
+  });
+
   it('has a check for every call', () => {
     for (const name of CALL_NAMES) expect(() => isValidRequest(name, {})).not.toThrow();
+  });
+
+  it('validates retry and undo state requests and allowlists both calls', () => {
+    for (const name of ['getUndoState', 'retryFinalPass'] as const) {
+      expect(isValidRequest(name, { meetingId: 'm-1' })).toBe(true);
+      expect(isValidRequest(name, { meetingId: '../secret' })).toBe(false);
+      expect(isValidRequest(name, { meetingId: 'm-1', path: '/tmp' })).toBe(false);
+      expect(CALL_NAMES).toContain(name);
+    }
+  });
+
+  it('validates in-memory import listing with no arguments', () => {
+    expect(isValidRequest('listImports', undefined)).toBe(true);
+    expect(isValidRequest('listImports', { token: 'private' })).toBe(false);
+    expect(CALL_NAMES).toContain('listImports');
   });
 
   it('accepts no request for a call that takes none', () => {
@@ -38,6 +57,21 @@ describe('isValidRequest', () => {
     expect(isValidRequest('getMeeting', { meetingId: 'a'.repeat(129) })).toBe(false);
   });
 
+  it('validates speaker suggestion queries without allowing filesystem keys', () => {
+    expect(isValidRequest('listSpeakerSuggestions', {})).toBe(true);
+    expect(isValidRequest('listSpeakerSuggestions', { meetingId: 'm-1' })).toBe(true);
+    expect(isValidRequest('listSpeakerSuggestions', { meetingId: '../private' })).toBe(false);
+    expect(isValidRequest('listSpeakerSuggestions', { path: '/tmp' })).toBe(false);
+  });
+
+  it('allows profile history calls without any payload', () => {
+    for (const name of ['getProfileUndoState', 'undoProfileChange', 'redoProfileChange'] as const) {
+      expect(isValidRequest(name, undefined)).toBe(true);
+      expect(isValidRequest(name, { profileId: 'p1' })).toBe(false);
+      expect(CALL_NAMES).toContain(name);
+    }
+  });
+
   it('checks unions by kind', () => {
     const profile = { target: { kind: 'profile', profileId: 'p-1' }, name: 'Ana' };
     expect(isValidRequest('renameSpeaker', profile)).toBe(true);
@@ -52,10 +86,103 @@ describe('isValidRequest', () => {
     expect(isValidRequest('updateSettings', { audio: { inputSensitivityDb: 5 } })).toBe(false);
   });
 
+  it('allows only a no-argument privacy jurisdictions lookup', () => {
+    expect(CALL_NAMES).toContain('getPrivacyJurisdictions');
+    expect(isValidRequest('getPrivacyJurisdictions', undefined)).toBe(true);
+    expect(isValidRequest('getPrivacyJurisdictions', { path: '/private' })).toBe(false);
+  });
+
+  it('vocabulary history calls have no writable request parameters', () => {
+    for (const call of ['getVocabularyUndoState', 'undoVocabulary', 'redoVocabulary'] as const) {
+      expect(isValidRequest(call, undefined)).toBe(true);
+      expect(isValidRequest(call, { otherTermId: 'secret' })).toBe(false);
+      expect(CALL_NAMES).toContain(call);
+    }
+  });
+
+  it('shares the exact meeting-filter check between list and search', () => {
+    for (const filter of [
+      { origin: 'recorded', from: '2026-10-01', to: '2026-11-01' },
+      { origin: 'imported' },
+    ]) {
+      expect(isValidRequest('listMeetings', { filter })).toBe(true);
+      expect(isValidRequest('searchMeetings', { query: 'invented', filter })).toBe(true);
+    }
+    const invalid = { origin: 'other', from: 'yesterday' };
+    expect(isValidRequest('listMeetings', { filter: invalid })).toBe(false);
+    expect(isValidRequest('searchMeetings', { query: 'invented', filter: invalid })).toBe(false);
+    expect(
+      isValidRequest('searchMeetings', { query: 'invented', filter: { path: '/secret' } }),
+    ).toBe(false);
+  });
+
   it('checks date formats', () => {
     const ok = { filter: { from: '2026-10-01', to: '2026-10-30T12:00:00Z' } };
     expect(isValidRequest('listMeetings', ok)).toBe(true);
     expect(isValidRequest('listMeetings', { filter: { from: 'last week' } })).toBe(false);
+  });
+
+  it('summary additions cannot submit an id or trusted evidence', () => {
+    const request = (update: object) => ({ meetingId: 'm-1', update });
+    const action = {
+      action: 'Invented task',
+      owner: null,
+      ownerUnconfirmed: false,
+      deadline: null,
+      deadlineUnconfirmed: false,
+      status: 'proposed',
+      sourceMs: 0,
+    };
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: action,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: { ...action, id: 'spoof' },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'actionItems',
+          item: { ...action, edited: false },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'add',
+          collection: 'openQuestions',
+          item: { question: 'Invented?', sourceMs: 0 },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isValidRequest(
+        'updateSummaryItem',
+        request({
+          kind: 'remove',
+          collection: 'decisions',
+          itemId: 'd1',
+        }),
+      ),
+    ).toBe(true);
   });
 
   it('accepts each summary item kind', () => {

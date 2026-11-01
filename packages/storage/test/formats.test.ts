@@ -32,7 +32,14 @@ const summaryV1 = {
   length: 'brief',
   body: 'We agreed to ship.',
   actionItems: [
-    { id: 'a1', action: 'Ship', owner: 'Not specified', deadline: 'Friday', status: 'open', sourceMs: 5 },
+    {
+      id: 'a1',
+      action: 'Ship',
+      owner: 'Not specified',
+      deadline: 'Friday',
+      status: 'open',
+      sourceMs: 5,
+    },
   ],
   decisions: [
     { id: 'd1', decision: 'Ship', status: 'decided', impactArea: 'schedule', sourceMs: 5 },
@@ -84,11 +91,34 @@ describe('file format upgrades', () => {
       brief: null,
       full: { text: 'Long text', edited: true },
       actionItems: [
-        { id: 'a', action: 'Ship', owner: 'Unconfirmed', deadline: 'Not specified', status: 'Agreed', sourceMs: 5, edited: true },
-        { id: 'b', action: 'Test', owner: 'Ana', deadline: 'Friday', status: 'Open', sourceMs: 6, edited: false },
+        {
+          id: 'a',
+          action: 'Ship',
+          owner: 'Unconfirmed',
+          deadline: 'Not specified',
+          status: 'Agreed',
+          sourceMs: 5,
+          edited: true,
+        },
+        {
+          id: 'b',
+          action: 'Test',
+          owner: 'Ana',
+          deadline: 'Friday',
+          status: 'Open',
+          sourceMs: 6,
+          edited: false,
+        },
       ],
       decisions: [
-        { id: 'd', decision: 'Ship', status: 'tentatively agreed', impactArea: 'technical approach', sourceMs: 5, edited: false },
+        {
+          id: 'd',
+          decision: 'Ship',
+          status: 'tentatively agreed',
+          impactArea: 'technical approach',
+          sourceMs: 5,
+          edited: false,
+        },
       ],
       openQuestions: ['Who owns it?'],
     });
@@ -117,7 +147,14 @@ describe('file format upgrades', () => {
       impactArea: 'technicalApproach',
     });
     expect(upgraded.openQuestions).toEqual([
-      { id: 'q-0', question: 'Who owns it?', sourceMs: null, alsoAtMs: [], needsReview: false, edited: false },
+      {
+        id: 'q-0',
+        question: 'Who owns it?',
+        sourceMs: null,
+        alsoAtMs: [],
+        needsReview: false,
+        edited: false,
+      },
     ]);
   });
 
@@ -132,7 +169,16 @@ describe('file format upgrades', () => {
         brief: null,
         full: null,
         actionItems: [
-          { id: 'a', action: 'Ship', owner: 'Ana', deadline: 'Friday', status: 'Agreed', sourceMs: 5, edited: false, ...item },
+          {
+            id: 'a',
+            action: 'Ship',
+            owner: 'Ana',
+            deadline: 'Friday',
+            status: 'Agreed',
+            sourceMs: 5,
+            edited: false,
+            ...item,
+          },
         ],
         decisions: [{ id: 'd', decision: 'Ship', sourceMs: 5, edited: false, ...decision }],
         openQuestions: [],
@@ -219,7 +265,9 @@ describe('file format upgrades', () => {
     const future = JSON.stringify({ ...emptyTranscript(id), schemaVersion: 99 });
     await writeFile(file, future);
     await expect(library.readTranscript(id)).rejects.toBeInstanceOf(UnsupportedVersionError);
-    await expect(library.renameSpeaker(id, 'a', 'x')).rejects.toBeInstanceOf(UnsupportedVersionError);
+    await expect(library.renameSpeaker(id, 'a', 'x')).rejects.toBeInstanceOf(
+      UnsupportedVersionError,
+    );
     expect(await readFile(file, 'utf8')).toBe(future);
 
     await writeFile(file, '{"schemaVersion":2,"meetingId"');
@@ -236,7 +284,10 @@ describe('file format upgrades', () => {
       '[]',
       '{}',
       JSON.stringify({ ...emptyTranscript(id), segments: 'x' }),
-      JSON.stringify({ ...emptyTranscript(id), segments: [{ id: 's', speakerId: 'a', words: [{}] }] }),
+      JSON.stringify({
+        ...emptyTranscript(id),
+        segments: [{ id: 's', speakerId: 'a', words: [{}] }],
+      }),
       JSON.stringify({ ...emptyTranscript(id), corrections: [{ replacement: 'x', wordIds: [] }] }),
     ]) {
       await writeFile(file, bad);
@@ -417,7 +468,11 @@ describe('summary regeneration', () => {
     });
 
     it('keeps the old length untouched when only the other was generated', () => {
-      const merged = mergeRegeneratedSummary(base, { ...base, brief: null, full: body('new full') });
+      const merged = mergeRegeneratedSummary(base, {
+        ...base,
+        brief: null,
+        full: body('new full'),
+      });
       expect(merged.brief).toEqual(base.brief);
     });
   });

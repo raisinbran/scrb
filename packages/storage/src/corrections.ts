@@ -213,10 +213,7 @@ export function applyCorrection(
   const absorbedById = new Map(absorbed.map(({ after }) => [after.id, after]));
   const next: TranscriptFile = {
     ...transcript,
-    corrections: [
-      ...transcript.corrections.map((c) => absorbedById.get(c.id) ?? c),
-      correction,
-    ],
+    corrections: [...transcript.corrections.map((c) => absorbedById.get(c.id) ?? c), correction],
   };
   return {
     transcript: pushHistory(next, 'Correct text', {
@@ -479,8 +476,7 @@ function locateRun(
   if (lastBefore !== undefined && firstAfter !== undefined) {
     const lo = windowStart + lastBefore[1] + 1;
     const hi = windowStart + firstAfter[1];
-    const shiftMs =
-      (incoming[lo - 1] as Word).endMs - (before[lastBefore[0]] as Word).endMs;
+    const shiftMs = (incoming[lo - 1] as Word).endMs - (before[lastBefore[0]] as Word).endMs;
     const span = lo < hi ? (incoming[hi - 1] as Word).endMs - (incoming[lo] as Word).startMs : 0;
     if (span <= runEnd - runStart + REGION_SLACK_MS) return { lo, hi, shiftMs };
     return timeRegion(incoming, run, shiftMs);
@@ -684,16 +680,29 @@ function mergeModel(
 }
 
 /**
- * Replaces the whole model layer with final-pass text. Frozen words keep their IDs and text and
- * may only move in time. Undo history stops here: older entries refer to words and speakers that
- * no longer exist, so restoring them could break a kept correction. `revertCorrection` still works.
+ * Replaces the whole model layer. Only correction-history entries referencing words retained by
+ * the frozen-span merge may survive. Speaker history needs separate verified rebasing.
  */
 export function applyFinalPass(
   transcript: TranscriptFile,
   incoming: ModelReplacement,
 ): TranscriptFile {
   const next = mergeModel(transcript, [], transcript.segments, incoming);
-  return { ...next, undoStack: [], redoStack: [] };
+  const ids = new Set(next.segments.flatMap((segment) => segment.words.map((word) => word.id)));
+  const safe = (entry: HistoryEntry): boolean =>
+    entry.speakers.length === 0 &&
+    entry.overrides.length === 0 &&
+    entry.corrections.every((patch) =>
+      [patch.before, patch.after].every(
+        (correction) =>
+          correction === null || correction.wordIds.every((wordId) => ids.has(wordId)),
+      ),
+    );
+  return {
+    ...next,
+    undoStack: transcript.undoStack.filter(safe),
+    redoStack: transcript.redoStack.filter(safe),
+  };
 }
 
 /**
@@ -756,6 +765,11 @@ function overrideFor(
 
 /** The transcript as shown, exported and searched. A user correction always wins. */
 export function resolveDisplay(transcript: TranscriptFile): DisplaySegment[] {
+  const wordEndById = new Map(
+    transcript.segments.flatMap((segment) =>
+      segment.words.map((word) => [word.id, word.endMs] as const),
+    ),
+  );
   const active = new Map<string, Correction>();
   for (const correction of transcript.corrections) {
     if (correction.state !== 'active') continue;
@@ -796,12 +810,11 @@ export function resolveDisplay(transcript: TranscriptFile): DisplaySegment[] {
         push(token, speakerId);
       } else if (correction.wordIds[0] === word.id) {
         const last = correction.wordIds.at(-1) as string;
-        const endWord = segment.words.find((w) => w.id === last);
         push(
           {
             text: correction.replacement,
             startMs: word.startMs,
-            endMs: endWord?.endMs ?? correction.original.endMs,
+            endMs: wordEndById.get(last) ?? correction.original.endMs,
             wordIds: correction.wordIds,
             correctionId: correction.id,
             originalText: correction.original.text,

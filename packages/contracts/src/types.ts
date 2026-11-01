@@ -26,6 +26,17 @@ export type RecordingStatus = 'idle' | 'starting' | 'recording' | 'paused' | 'st
 
 export type PauseReason = 'user' | 'meetingAppExited';
 
+export interface ConfirmedPauseSpan {
+  startMs: number;
+  endMs: number | null;
+  reason: PauseReason;
+}
+
+export interface PauseSpansChanged {
+  meetingId: MeetingId;
+  spans: ConfirmedPauseSpan[];
+}
+
 export interface RecordingState {
   status: RecordingStatus;
   /** Null only while `status` is `idle`. */
@@ -75,6 +86,7 @@ export interface TranscriptionLag {
 /** Everything a reloaded UI needs to catch up, so a degraded recording never looks healthy. */
 export interface RecordingSnapshot {
   state: RecordingState;
+  pauseSpans: ConfirmedPauseSpan[];
   /** Null when nothing has been reported yet, such as while idle. */
   health: RecordingHealth | null;
   transcription: TranscriptionLag | null;
@@ -141,6 +153,7 @@ export type ImportAudioExtension = (typeof IMPORT_AUDIO_EXTENSIONS)[number];
  * a compromised renderer cannot ask the backend to open arbitrary files.
  */
 export interface PickedAudioFile {
+  /** A successful import consumes this token; pick again after failure. */
   fileToken: string;
   fileName: string;
   sizeBytes: number;
@@ -149,6 +162,14 @@ export interface PickedAudioFile {
 }
 
 export type ImportStage = 'queued' | 'decoding' | 'transcribing' | 'diarizing' | 'finishing';
+
+export interface ActiveImport {
+  importId: ImportId;
+  fileName: string;
+  stage: ImportStage;
+  fraction: number;
+  cancelling: boolean;
+}
 
 export interface ImportProgress {
   importId: ImportId;
@@ -183,7 +204,14 @@ export interface ImportFailed {
 // Meetings and transcript
 
 export type MeetingStatus =
-  'recording' | 'paused' | 'finalPassRunning' | 'ready' | 'recovered' | 'importing' | 'deleting';
+  | 'recording'
+  | 'paused'
+  | 'finalPassRunning'
+  | 'transcriptionFailed'
+  | 'ready'
+  | 'recovered'
+  | 'importing'
+  | 'deleting';
 
 export type SummaryState = 'notGenerated' | 'generating' | 'ready' | 'edited' | 'outdated';
 
@@ -200,6 +228,10 @@ export interface MeetingListItem {
 }
 
 export interface MeetingDetail extends MeetingListItem {
+  /** True only while app-owned audio exists and has not been deleted. */
+  hasAudio: boolean;
+  /** Allowlisted user-safe failure reason, never model output or paths. */
+  transcriptionFailure?: string | null;
   /** Paused and missing spans, in timeline order. */
   gaps: TimelineGap[];
   /** Set on a recovered meeting: where the recording ended. */
@@ -244,7 +276,7 @@ export interface TranscriptSegment {
   words: TranscriptWord[];
 }
 
-/** Change events are small: an 8-hour transcript is never resent whole. */
+/** Change events are small. For replace, remove removedSegmentIds before upserting by ID. */
 export type TranscriptChange =
   | { kind: 'append'; segments: TranscriptSegment[] }
   | { kind: 'replace'; segments: TranscriptSegment[]; removedSegmentIds: SegmentId[] }
@@ -292,6 +324,11 @@ export interface PlaybackPosition {
 
 // Speakers
 
+export interface ProfileUndoState extends UndoState {
+  nextUndo: 'rename' | 'merge' | null;
+  nextRedo: 'rename' | 'merge' | null;
+}
+
 export interface VoiceProfile {
   id: ProfileId;
   /** Null until the user names it. */
@@ -334,6 +371,11 @@ export interface VocabularyTerm {
 }
 
 export type VocabularyTermPatch = Partial<Pick<VocabularyTerm, 'term' | 'misheard' | 'enabled'>>;
+
+export interface VocabularyUndoState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
 
 // Summary
 
@@ -409,7 +451,29 @@ export type SummaryItemUpdate =
   | { kind: 'narrative'; item: NarrativeSection }
   | { kind: 'actionItem'; item: ActionItem }
   | { kind: 'decision'; item: DecisionItem }
-  | { kind: 'openQuestion'; item: OpenQuestion };
+  | { kind: 'openQuestion'; item: OpenQuestion }
+  | {
+      kind: 'add';
+      collection: 'actionItems';
+      item: Omit<ActionItem, 'id' | keyof SummaryItemEvidence>;
+    }
+  | {
+      kind: 'add';
+      collection: 'decisions';
+      item: Omit<DecisionItem, 'id' | keyof SummaryItemEvidence>;
+    }
+  | {
+      kind: 'add';
+      collection: 'openQuestions';
+      item: Omit<OpenQuestion, 'id' | keyof SummaryItemEvidence | 'sourceMs'> & {
+        sourceMs: number;
+      };
+    }
+  | {
+      kind: 'remove';
+      collection: 'actionItems' | 'decisions' | 'openQuestions';
+      itemId: SummaryItemId;
+    };
 
 export type SummaryStage = 'extracting' | 'coverageCheck' | 'writing' | 'done' | 'failed';
 
@@ -426,7 +490,7 @@ export interface SummaryProgress {
 
 export interface MeetingFilter {
   origin?: MeetingListItem['origin'];
-  /** Inclusive ISO date bounds on `startedAt`. */
+  /** Inclusive bounds by the user's local calendar day, not UTC midnight. */
   from?: string;
   to?: string;
 }

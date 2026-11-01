@@ -175,6 +175,49 @@ function updates(doc: ReturnType<typeof toSummaryDoc>): SummaryItemUpdate[] {
   ];
 }
 
+describe('summary item additions and removals', () => {
+  it('generates a backend-owned id and evidence, then removes only the selected item', () => {
+    const original = stored();
+    const added = applySummaryUpdate(original, {
+      kind: 'add',
+      collection: 'actionItems',
+      item: {
+        action: 'Invented extra task',
+        owner: null,
+        ownerUnconfirmed: false,
+        deadline: null,
+        deadlineUnconfirmed: false,
+        status: 'proposed',
+        sourceMs: 0,
+      },
+    });
+    const item = added.actionItems.at(-1)!;
+    expect(item).toMatchObject({
+      action: 'Invented extra task',
+      sourceMs: 0,
+      edited: true,
+      alsoAtMs: [],
+      needsReview: false,
+    });
+    expect(item.id).toBeTruthy();
+    expect(original.actionItems.some((value) => value.id === item.id)).toBe(false);
+    const removed = applySummaryUpdate(added, {
+      kind: 'remove',
+      collection: 'actionItems',
+      itemId: item.id,
+    });
+    expect(removed.actionItems).toEqual(original.actionItems);
+    expect(removed.decisions).toEqual(original.decisions);
+    expect(() =>
+      applySummaryUpdate(original, {
+        kind: 'remove',
+        collection: 'decisions',
+        itemId: item.id,
+      }),
+    ).toThrow(ContractError);
+  });
+});
+
 describe('what the UI sends back', () => {
   const meetingId = '6f1c2b1e-7a44-4f6e-9a55-0f5d8c1e2d3a';
 
@@ -188,7 +231,10 @@ describe('what the UI sends back', () => {
     const all = updates(toSummaryDoc(meetingId, stored(summary)));
     expect(all).toHaveLength(8);
     for (const update of all) {
-      expect(isValidRequest('updateSummaryItem', { meetingId, update }), update.item.id).toBe(true);
+      expect(
+        isValidRequest('updateSummaryItem', { meetingId, update }),
+        (update as { item: { id: string } }).item.id,
+      ).toBe(true);
     }
   });
 
@@ -245,7 +291,10 @@ describe('what the UI sends back', () => {
     const all = updates(toSummaryDoc(meetingId, upgraded));
     expect(all).toHaveLength(6);
     for (const update of all) {
-      expect(isValidRequest('updateSummaryItem', { meetingId, update }), update.item.id).toBe(true);
+      expect(
+        isValidRequest('updateSummaryItem', { meetingId, update }),
+        (update as { item: { id: string } }).item.id,
+      ).toBe(true);
     }
   });
 });
@@ -330,7 +379,7 @@ describe('applySummaryUpdate', () => {
     ],
   ])('applies a %s edit and marks it edited', (_kind, update, read) => {
     const next = applySummaryUpdate(file, update);
-    expect(read(next)).toEqual({ ...update.item, edited: true });
+    expect(read(next)).toEqual({ ...(update as { item: object }).item, edited: true });
     expect(toSummaryDoc('m-1', next).state).toBe('edited');
   });
 

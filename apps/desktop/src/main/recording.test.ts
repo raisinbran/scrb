@@ -13,8 +13,9 @@ const fake = vi.hoisted(() => ({
   sessions: [] as {
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
     launchWorker(): void;
+    state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
-  captureEvent: (() => undefined) as (event: { type: string }) => void,
+  workerEvents: [] as ((event: unknown) => void)[],
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
@@ -23,9 +24,9 @@ vi.mock('@scrb/app-core', () => ({
   RecordingSession: class {
     constructor(
       private readonly options: {
-        onStateChanged: (status: 'recording', reason: null) => void;
-        onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
         launch: () => unknown;
+        onStateChanged: (status: 'recording' | 'paused', reason: null, atNs: number | null) => void;
+        onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
       },
     ) {
       fake.sessions.push(this);
@@ -36,7 +37,12 @@ vi.mock('@scrb/app-core', () => ({
     }
 
     async start(): Promise<void> {
-      this.options.onStateChanged('recording', null);
+      this.options.launch();
+      this.options.onStateChanged('recording', null, null);
+    }
+
+    state(status: 'recording' | 'paused', atNs: number | null): void {
+      this.options.onStateChanged(status, null, atNs);
     }
 
     async stop(): Promise<void> {
@@ -50,8 +56,8 @@ vi.mock('@scrb/app-core', () => ({
 }));
 vi.mock('@scrb/capture', () => ({
   ProcessAdapter: class {
-    onEvent(listener: (event: { type: string }) => void): void {
-      fake.captureEvent = listener;
+    onEvent(listener: (event: unknown) => void): void {
+      fake.workerEvents.push(listener);
     }
   },
 }));
@@ -86,6 +92,7 @@ function completion() {
 beforeEach(() => {
   vi.resetAllMocks();
   fake.sessions.length = 0;
+  fake.workerEvents.length = 0;
   fake.resolveSources.mockResolvedValue({
     source: 'wholeComputer',
     mic: 'default',
@@ -182,7 +189,7 @@ describe('A meeting track that hears nothing', () => {
     await controller.handlers.startRecording!({ title: 'silent' });
     fake.sessions[0]!.launchWorker();
 
-    fake.captureEvent({ type: 'meetingSilent' });
+    fake.workerEvents.at(-1)?.({ type: 'meetingSilent' });
 
     expect(emit).toHaveBeenCalledWith(
       'recordingHealth',
@@ -236,6 +243,117 @@ describe('Start while the previous recording is finishing', () => {
       expect(await start({ title: 'second' })).toEqual({ meetingId: 'meeting-2' });
     });
     expect(library.createMeeting).toHaveBeenCalledTimes(2);
+    await controller.shutdown();
+  });
+
+  it('uses acknowledged session-clock nanoseconds for pause spans, not delayed wall time', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 4_000_000_000 });
+    await controller.handlers.startRecording!({});
+    fake.sessions[0]!.state('paused', 1_501_125_000);
+    fake.sessions[0]!.state('recording', 3_003_250_000);
+
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toEqual([{ startMs: 1501.125, endMs: 3003.25, reason: 'user' }]);
+    expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
+      meetingId: 'meeting-1',
+      spans: [{ startMs: 1501.125, endMs: 3003.25, reason: 'user' }],
+    });
+    await controller.shutdown();
+  });
+
+  it('clears confirmed pause spans after the recording becomes idle', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 2_000_000_000 });
+    await controller.handlers.startRecording!({});
+    fake.sessions[0]!.state('paused', 1_000_000_000);
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toHaveLength(1);
+    await controller.shutdown();
+    expect(
+      ((await controller.handlers.getRecordingSnapshot!({})) as { pauseSpans: unknown[] })
+        .pauseSpans,
+    ).toEqual([]);
+    expect(emit).toHaveBeenCalledWith('pauseSpansChanged', {
+      meetingId: 'meeting-1',
+      spans: [],
+    });
+  });
+
+  it('warns once per track on a write error and keeps the level meter', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
+    send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
+    send({ type: 'writeError', message: 'session.log write failed' });
+    send({ type: 'health', micDb: -20, meetingDb: -30 });
+
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
+    expect(health).toHaveLength(2);
+    expect(health.at(-1)?.[1]).toMatchObject({
+      level: 'failed',
+      warnings: [
+        { kind: 'audioMissing', track: 'microphone' },
+        { kind: 'audioMissing', message: 'Part of this recording could not be saved.' },
+      ],
+    });
+    expect(emit).toHaveBeenCalledWith('levelMeter', { micDb: -20, meetingDb: -30 });
+    await controller.shutdown();
+  });
+
+  it('warns once while a stream stays dead, and again if it dies after reopening', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'streamDead', track: 'meeting' });
+    send({ type: 'streamDead', track: 'meeting' });
+    send({ type: 'streamReopened', track: 'meeting' });
+    send({ type: 'streamDead', track: 'meeting' });
+
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
+    expect(health).toHaveLength(2);
+    expect(health.at(-1)?.[1]).toMatchObject({
+      level: 'warning',
+      warnings: [
+        { kind: 'audioMissing', track: 'meeting' },
+        { kind: 'audioMissing', track: 'meeting' },
+      ],
+    });
     await controller.shutdown();
   });
 });

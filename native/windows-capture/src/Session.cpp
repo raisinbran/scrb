@@ -525,7 +525,7 @@ void Session::DoInject(const Command& cmd) {
 
 void Session::OnDefaultNotice(bool capture, const char* role, const std::string& id, int64_t atNs) {
     Emit("defaultNotice", JsonObject().Str("track", capture ? "microphone" : "meeting").Str("role", role)
-                              .Str("deviceId", id).Bool("armed", (capture ? micDebounceNs_ : outputDebounceNs_) != 0)
+                              .Str("deviceId", id).Bool("armed", (capture ? micDebounce_ : outputDebounce_).Armed())
                               .Num("queuedMs", (NowNs() - atNs) / static_cast<double>(kNsPerMs)));
 }
 
@@ -534,11 +534,11 @@ void Session::EmitDefaultApplied(const char* track, const char* outcome, const s
 }
 
 void Session::OnDefaultChanged(bool capture) {
-    int64_t deadline = NowNs() + options_.debounceNs;
+    int64_t now = NowNs();
     if (capture) {
-        micDebounceNs_ = deadline;
+        micDebounce_.Changed(now, options_.debounceNs);
     } else {
-        outputDebounceNs_ = deadline;
+        outputDebounce_.Changed(now, options_.debounceNs);
         if (slots_[kMeeting].track) {
             int64_t now = NowNs();
             slots_[kMeeting].track->Post([now](TrackPipeline& p) { p.NoteOutputChange(now); });
@@ -757,14 +757,8 @@ void Session::TickSecond(int64_t now) {
 
 void Session::Tick() {
     int64_t now = NowNs();
-    if (micDebounceNs_ && now >= micDebounceNs_) {
-        micDebounceNs_ = 0;
-        ApplyMicDebounce();
-    }
-    if (outputDebounceNs_ && now >= outputDebounceNs_) {
-        outputDebounceNs_ = 0;
-        ApplyOutputDebounce();
-    }
+    if (micDebounce_.Due(now)) ApplyMicDebounce();
+    if (outputDebounce_.Due(now)) ApplyOutputDebounce();
     for (int i = 0; i < kTrackCount; ++i) {
         Slot& s = slots_[i];
         if (!s.track) continue;

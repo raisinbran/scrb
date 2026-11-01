@@ -9,7 +9,7 @@ import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import { TranscriptTab, gapLabel, type JumpTarget } from './TranscriptTab.tsx';
-import { STATUS_LABELS, SUMMARY_STATE_LABELS, isTransient, isUnfinished } from './labels.ts';
+import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
 import { useTranscript } from './use-transcript.ts';
 import styles from './recordings.module.css';
@@ -17,7 +17,6 @@ import styles from './recordings.module.css';
 const TAB_KEY = 'scrb.recordings.tab';
 const TABS = ['Transcript', 'Summary', 'Audio'] as const;
 type Tab = (typeof TABS)[number];
-const POLL_MS = 3000;
 const SKIP_MS = 15_000;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
@@ -35,6 +34,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
       <button
         type="button"
         className={styles.button}
+        disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       >
         {isPlaying ? 'Pause' : 'Play'}
@@ -43,6 +43,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="button"
         className={styles.button}
         aria-label="Back 15 seconds"
+        disabled={!meeting.hasAudio}
         onClick={() => move(positionMs - SKIP_MS)}
       >
         −15 s
@@ -51,6 +52,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="button"
         className={styles.button}
         aria-label="Forward 15 seconds"
+        disabled={!meeting.hasAudio}
         onClick={() => move(positionMs + SKIP_MS)}
       >
         +15 s
@@ -59,6 +61,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="range"
         className={styles.slider}
         aria-label="Playback position"
+        disabled={!meeting.hasAudio}
         aria-valuetext={formatElapsed(positionMs)}
         min={0}
         max={durationMs}
@@ -106,8 +109,10 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
             />
           ))}
         </div>
-        {gaps.length === 0 ? (
-          <p className={styles.muted}>No gaps. Audio covers the whole meeting.</p>
+        {!meeting.hasAudio ? (
+          <p className={styles.muted}>No saved audio is available for playback.</p>
+        ) : gaps.length === 0 ? (
+          <p className={styles.muted}>No gaps are recorded in the audio timeline.</p>
         ) : (
           <ul className={styles.plainList}>
             {gaps.map((gap) => (
@@ -283,6 +288,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   );
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const playback = usePlayback(meetingId);
   const transcript = useTranscript(meetingId, meeting.status);
 
@@ -370,6 +376,27 @@ function LoadedDetail(props: LoadedDetailProps) {
             {meeting.recoveredEndMs !== undefined &&
               ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
           </p>
+        )}
+        {meeting.status === 'transcriptionFailed' && (
+          <div role="status" className={styles.bannerWarning}>
+            <p>{meeting.transcriptionFailure ?? 'Transcription could not finish.'}</p>
+            {meeting.hasAudio && (
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => {
+                  setRetryError(null);
+                  void backend.call('retryFinalPass', { meetingId }).then(
+                    () => onChanged(),
+                    () => setRetryError('The final pass could not be retried.'),
+                  );
+                }}
+              >
+                Retry transcription
+              </button>
+            )}
+            {retryError && <p role="alert">{retryError}</p>}
+          </div>
         )}
         {meeting.status === 'finalPassRunning' && (
           <p role="status" className={styles.bannerInfo}>
@@ -501,16 +528,15 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
   const { state: settings } = useBackendData(loadSettings);
 
   useEffect(() => {
-    const stops = [backend.on('summaryOutdated', reload), backend.on('summaryProgress', reload)];
+    const stops = [
+      backend.on('summaryOutdated', reload),
+      backend.on('summaryProgress', reload),
+      backend.on('meetingChanged', (meeting) => {
+        if (meeting.id === meetingId) reload();
+      }),
+    ];
     return () => stops.forEach((stop) => stop());
-  }, [backend, reload]);
-
-  const busy = state.status === 'ready' && isTransient(state.data.status, state.data.summaryState);
-  useEffect(() => {
-    if (!busy) return undefined;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [busy, reload]);
+  }, [backend, reload, meetingId]);
 
   if (state.status === 'failed') {
     return (

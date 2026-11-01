@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   SUMMARY_FORMAT,
+  emptyTranscript,
+  type MeetingMeta,
   type ActionItem,
   type ActionStatus,
   type Decision,
@@ -11,10 +13,10 @@ import {
 } from '@scrb/storage';
 import { buildExportDocument, type ExportDocument } from '../../export/src/layout.ts';
 import { ExportInputError, type ExportMeeting } from '../../export/src/types.ts';
-import { toExportSummary } from './export-summary.ts';
+import { toExportMeeting, toExportSummary } from './export-summary.ts';
 import { IMPACTS_HEADING, IMPACTS_SECTION_ID, OVERVIEW_SECTION_ID } from './summary.ts';
 
-const EVIDENCE = { alsoAtMs: [9_000], needsReview: true, edited: true };
+const EVIDENCE = { alsoAtMs: [], needsReview: false, edited: true };
 
 function action(overrides: Partial<ActionItem> = {}): ActionItem {
   return {
@@ -109,6 +111,75 @@ function allText(document: ExportDocument): string {
     .join('\n');
 }
 
+describe('corrected transcript export adapter', () => {
+  it('sends corrected and original words, timestamp and crash markers to the shared layout', () => {
+    const meeting: MeetingMeta = {
+      schemaVersion: 1,
+      id: 'synthetic',
+      title: 'Invented meeting',
+      date: '2026-10-31T18:00:00Z',
+      createdAt: '2026-10-31T18:00:00Z',
+      durationMs: 1000,
+      source: 'recorded',
+      status: 'recovered',
+      audioDeletedAt: null,
+      buildVoiceProfiles: false,
+    };
+    const transcript = emptyTranscript(meeting.id);
+    transcript.speakers = [
+      {
+        id: 'speaker',
+        label: 'Speaker 1',
+        name: null,
+        profileId: null,
+        userNamed: false,
+        mergedInto: null,
+      },
+    ];
+    transcript.segments = [
+      {
+        id: 'segment',
+        speakerId: 'speaker',
+        track: 'meeting',
+        pass: 'final',
+        words: [{ id: 'word', text: 'invented', startMs: 100, endMs: 300 }],
+      },
+    ];
+    transcript.corrections = [
+      {
+        id: 'correction',
+        wordIds: ['word'],
+        replacement: 'Corrected',
+        original: {
+          text: 'invented',
+          startMs: 100,
+          endMs: 300,
+          speakerId: 'speaker',
+          track: 'meeting',
+        },
+        remember: false,
+        state: 'active',
+        supersededBy: null,
+        createdAt: meeting.createdAt,
+        updatedAt: meeting.createdAt,
+      },
+    ];
+    transcript.gaps = [{ id: 'gap', kind: 'paused', startMs: 400, endMs: 600 }];
+    const adapted = toExportMeeting(meeting, transcript, null);
+    expect(adapted.segments[0]?.parts[0]).toEqual({ text: 'Corrected', original: 'invented' });
+    expect(adapted.markers).toMatchObject([
+      { kind: 'pause', startMs: 400, endMs: 600 },
+      { kind: 'recording-ended', startMs: 1000 },
+    ]);
+    const doc = buildExportDocument(adapted, {
+      scope: 'transcript',
+      transcript: { showCorrections: true },
+    });
+    expect(JSON.stringify(doc.blocks)).toContain('Corrected');
+    expect(JSON.stringify(doc.blocks)).toContain('invented');
+  });
+});
+
 describe('toExportSummary states', () => {
   it('passes "no summary" on, which export reports', () => {
     expect(toExportSummary(null)).toBeNull();
@@ -152,6 +223,21 @@ describe('toExportSummary states', () => {
     expect(text).toContain('No action items detected.');
     expect(text).toContain('No decisions detected.');
     expect(text).toContain('No open questions.');
+  });
+});
+
+describe('review provenance in shared export layout', () => {
+  it('prints weak evidence and every repeated timestamp in the same layout', () => {
+    const summary = file({
+      full: { sections: [] },
+      actionItems: [action({ needsReview: true, alsoAtMs: [9_000, 15_000] })],
+      decisions: [decision({ needsReview: true, alsoAtMs: [40_000] })],
+    });
+    const text = allText(printed(summary));
+    expect(text).toContain('Send the estimate (needs review)');
+    expect(text).toContain('Move the review (needs review)');
+    expect(text).toContain('0:00:12; 0:00:09; 0:00:15');
+    expect(text).toContain('0:00:30; 0:00:40');
   });
 });
 

@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test, type Page } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -59,18 +59,20 @@ test('a library that cannot open leaves the app usable', async () => {
   await app.close();
 });
 
-test('a damaged index is set aside and the app still opens with defaults', async () => {
+test('a damaged index is kept untouched and the app still opens', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-damaged-'));
   const library = join(userData, 'library');
   mkdirSync(library, { recursive: true });
   pointAtTestLibrary(userData, library);
-  writeFileSync(join(library, 'index.sqlite'), 'this is not a database, '.repeat(200));
+  const damaged = 'this is not a database, '.repeat(200);
+  writeFileSync(join(library, 'index.sqlite'), damaged);
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   const page = await app.firstWindow();
   await expect
     .poll(() => page.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)))
-    .toMatchObject({ ok: true, value: { theme: 'system' } });
-  expect(readdirSync(library).some((name) => name.startsWith('index.sqlite.corrupt-'))).toBe(true);
+    .toMatchObject({ ok: false });
+  expect(readFileSync(join(library, 'index.sqlite'), 'utf8')).toBe(damaged);
+  expect(readdirSync(library).some((name) => name.startsWith('index.sqlite.corrupt-'))).toBe(false);
   await app.close();
 });
 

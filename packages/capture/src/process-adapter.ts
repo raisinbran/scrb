@@ -8,8 +8,8 @@ export class ProcessAdapter implements CaptureAdapter {
   private readonly waiting = new Map<string, ((ack: CaptureAck) => void)[]>();
   private eventListener: (event: CaptureEvent) => void = () => undefined;
 
-  constructor(helperPath: string) {
-    this.child = spawn(helperPath, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+  constructor(helperPath: string, args: string[] = []) {
+    this.child = spawn(helperPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     this.child.on('error', () => undefined);
     this.child.stdin.on('error', () => undefined);
     createInterface({ input: this.child.stdout }).on('line', (line) => this.receive(line));
