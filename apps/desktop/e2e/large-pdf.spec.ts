@@ -12,12 +12,12 @@ test('real Chromium prints HTML larger than the data URL limit without leftover 
     args: [join('e2e', 'large-pdf-harness.mjs')],
   });
   try {
-    const output = await app.process().then(() => 'launched');
-    expect(output).toBe('launched');
-    const result = await app.process().then((child) =>
-      new Promise<{ code: number | null }>((resolve) => child.once('exit', (code) => resolve({ code }))),
-    );
-    expect(result.code).toBe(0);
+    const child = app.process();
+    const code = await new Promise<number | null>((resolve) => {
+      if (child.exitCode !== null) resolve(child.exitCode);
+      else child.once('exit', resolve);
+    });
+    expect(code).toBe(0);
   } finally {
     await app.close().catch(() => undefined);
   }
