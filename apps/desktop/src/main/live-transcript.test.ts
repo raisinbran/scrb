@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import type { Library } from '@scrb/storage';
+import type { Library, Segment } from '@scrb/storage';
 import { LiveTranscriptSink } from './live-transcript.ts';
 
 const utterance = (id: string, startMs: number) => ({
@@ -53,7 +53,7 @@ describe('nonblocking live-transcript sink (native PCM feed not wired)', () => {
     let release!: (value: { revision: number }) => void;
     let revision = 0;
     const appendSegments = vi.fn(
-      async () =>
+      async (_meetingId: string, _segments: Segment[]) =>
         new Promise<{ revision: number }>((resolve) => {
           release = resolve;
         }),
