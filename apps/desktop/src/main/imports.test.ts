@@ -22,6 +22,10 @@ async function fixture() {
     applyFinalPass: applied,
     updateMeeting: update,
     discardImport: discard,
+    vocabulary: { enabledTerms: vi.fn(() => [
+      { term: 'Rosmont', enabled: true },
+      { term: 'Quillon', enabled: false },
+    ]) },
     logger: { log: vi.fn() },
   } as unknown as Library;
   const run = vi.fn(
@@ -122,6 +126,7 @@ describe('Electron import coordination', () => {
       expect(f.emit).toHaveBeenCalledWith('importFinished', { importId, meetingId: 'imported-1' });
     });
     expect(f.applied).toHaveBeenCalledTimes(1);
+    expect(f.run).toHaveBeenCalledWith(expect.objectContaining({ vocabularyHint: 'Rosmont' }));
     expect(f.update).toHaveBeenCalledWith('imported-1', { status: 'ready' });
     await expect(
       f.coordinator.handlers.importAudioFile!({

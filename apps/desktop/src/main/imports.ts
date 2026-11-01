@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
+  vocabularyHint,
   type ImportResult,
   type ImportPhase,
   type Progress,
@@ -22,6 +23,7 @@ type RunImport = (input: {
   sourcePath: string;
   meetingDir: string;
   signal: AbortSignal;
+  vocabularyHint?: string;
   onProgress: (progress: Progress<ImportPhase>) => void;
 }) => Promise<ImportResult>;
 
@@ -164,6 +166,7 @@ export class ImportCoordinator {
         sourcePath,
         meetingDir: staging,
         signal: abort.signal,
+        vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
         onProgress: (progress) => {
           state.stage = STAGES[progress.phase];
           state.fraction = Math.max(0, Math.min(1, progress.fraction));

@@ -141,6 +141,7 @@ export function createConfiguredImportRunner(configPath: string) {
     sourcePath: string;
     meetingDir: string;
     signal: AbortSignal;
+    vocabularyHint?: string;
     onProgress: (progress: Progress<ImportPhase>) => void;
   }): Promise<ImportResult> => {
     const { tools, models } = await loadSetup(configPath);
@@ -148,7 +149,7 @@ export function createConfiguredImportRunner(configPath: string) {
     return importAudioFile({
       ...input,
       tools,
-      transcribe: { models },
+      transcribe: { models, ...(input.vocabularyHint ? { vocabularyHint: input.vocabularyHint } : {}) },
     });
   };
 }
