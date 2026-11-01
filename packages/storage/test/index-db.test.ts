@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
@@ -378,14 +378,20 @@ describe('index migrations', () => {
     const script = `
       import { DatabaseSync } from 'node:sqlite';
       const db = new DatabaseSync(process.argv[1]);
+      db.exec('PRAGMA cache_size = 5');
+      db.exec('CREATE TABLE pad (payload TEXT NOT NULL)');
       db.exec('BEGIN IMMEDIATE');
       db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('"light"', 'theme');
+      const insert = db.prepare('INSERT INTO pad (payload) VALUES (?)');
+      const payload = 'x'.repeat(2000);
+      for (let i = 0; i < 5000; i += 1) insert.run(payload);
       process.kill(process.pid, 'SIGKILL');
     `;
     const killed = spawnSync(process.execPath, ['--input-type=module', '-e', script, file], {
       encoding: 'utf8',
     });
     expect(killed.status).not.toBe(0);
+    expect((await stat(`${file}-journal`)).isFile()).toBe(true);
 
     const restarted = await openIndex(file);
     expect(new SettingsStore(restarted.db).get('theme', 'light')).toBe('dark');
