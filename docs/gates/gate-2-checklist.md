@@ -1,6 +1,6 @@
 # Gate 2 Checklist
 
-Status: **open**, from the repository on 2026-10-31. This replaces older Gate 2 lists until the evidence note `gate-2.md` is written. Results not yet on `main` are on `windows-restart-test`.
+Status: **open**, updated 2026-11-01. See draft `docs/gates/gate-2.md` for final evidence review; owner approval is pending. Windows capture changes were merged in PR #10.
 
 Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-test map: `docs/plans/capture-contract-and-clock.md`. A new requirement joins this list only if it covers shown recording reliability, data loss, or a Gate 2 criterion.
 
@@ -9,8 +9,8 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | Clause                                                                     | Mac                                                                           | Windows                                                                             |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | 4-hour run with pauses, a device change and a crash (T15)                  | Done, 2026-10-31                                                              | Done, 2026-10-30                                                                    |
-| Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted, 2026-10-31: 12.2 s and 8.9 s lost, every gap marked. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
-| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
+| Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted: 12.18 s mic / 8.90 s meeting; 5.52 s gap excepted by owner (decision 4) | Combined 4 h runs accepted: built-in mic 1.221 s and meeting 0.331 s loss excluding owner-excepted hibernation; Bluetooth headset failed at 309.9 s |
+| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer −3 ms documented; followed Teams −1 ms reported, but the committed `t18-picker.txt` lacks successful measurement output |
 | Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
 | Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01                                     | Done                                                                                |
 
@@ -36,8 +36,10 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 **Both**
 
-- [ ] After the last capture change, run `npm run check`, `npm run test:smoke` and the native builds
-- [ ] Write `gate-2.md` from this list for owner approval
+- [x] GitHub CI on final `main` baseline `e180a51`: Windows and macOS jobs passed (typecheck, lint, unit tests, boundaries, build and smoke); [run 41293637940](https://github.com/raisinbran/scrb/actions/runs/41293637940). The CI runs the constituent `npm run check` commands, not `npm run check` itself.
+- [ ] Verify current-baseline native capture builds and any remaining short, hardware-dependent smoke checks on both computers; record results without repeating endurance runs
+- [ ] Reconcile T18 picker drift evidence: recover the original successful output, or record an explicit owner disposition of the missing raw measurement log
+- [ ] Independently QA and obtain owner approval of draft `gate-2.md`
 
 ## Owner decisions
 
