@@ -27,9 +27,7 @@ async function fixture(): Promise<TrustedModelSource> {
 }
 
 async function stages(model: TrustedModelSource): Promise<string[]> {
-  return (await readdir(dirname(model.path))).filter(
-    (name) => name.includes('.download-'),
-  );
+  return (await readdir(dirname(model.path))).filter((name) => name.includes('.download-'));
 }
 
 async function fakeServer(
@@ -49,7 +47,9 @@ async function fakeServer(
 }
 
 afterEach(async () => {
-  await Promise.all(sources.splice(0).map((folder) => rm(folder, { recursive: true, force: true })));
+  await Promise.all(
+    sources.splice(0).map((folder) => rm(folder, { recursive: true, force: true })),
+  );
 });
 
 describe('pinned model staging, with an invented loopback HTTP fixture', () => {
@@ -147,7 +147,10 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
     const model = await fixture();
     let release!: (response: Response) => void;
     const fetchSource = vi.fn<typeof fetch>(
-      () => new Promise<Response>((resolve) => { release = resolve; }),
+      () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
     );
     const first = downloadPinnedModel(model, { fetchSource });
     await vi.waitFor(() => expect(fetchSource).toHaveBeenCalledOnce());
@@ -166,9 +169,9 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
     await writeFile(blocked, 'invented existing file');
     const destination = join(blocked, 'unwritable.gguf');
     const fetchSource = vi.fn<typeof fetch>();
-    await expect(downloadPinnedModel({ ...model, path: destination }, {
-      fetchSource,
-    })).rejects.toThrow();
+    await expect(
+      downloadPinnedModel({ ...model, path: destination }, { fetchSource }),
+    ).rejects.toThrow();
     expect(await readFile(blocked, 'utf8')).toBe('invented existing file');
     expect(fetchSource).not.toHaveBeenCalled();
   });
@@ -176,9 +179,9 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
   it('rejects invalid source schemes before contacting a provider', async () => {
     const model = await fixture();
     const fetchSource = vi.fn<typeof fetch>();
-    await expect(downloadPinnedModel({ ...model, url: 'http://models.invalid/unsafe' }, {
-      fetchSource,
-    })).rejects.toThrow('manifest');
+    await expect(
+      downloadPinnedModel({ ...model, url: 'http://models.invalid/unsafe' }, { fetchSource }),
+    ).rejects.toThrow('manifest');
     expect(fetchSource).not.toHaveBeenCalled();
     expect(await stages(model)).toEqual([]);
   });
