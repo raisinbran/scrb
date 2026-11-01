@@ -46,7 +46,8 @@ export class LiveTranscriptSink {
       utterance.startMs < 0 ||
       utterance.endMs < utterance.startMs ||
       !utterance.text.trim()
-    ) return;
+    )
+      return;
     this.pending.push({ ...utterance });
     const dropped = Math.max(0, this.pending.length - this.limit);
     if (dropped) {
@@ -106,16 +107,20 @@ export class LiveTranscriptSink {
           meetingId: this.meetingId,
           revision: saved.revision,
           change: { kind: 'replace', segments: [published], removedSegmentIds: [] },
-          speakers: [{
-            id: speaker.id,
-            label: speaker.label,
-            kind: speaker.id === 'you' ? 'you' : 'unknown',
-            profileId: null,
-          }],
+          speakers: [
+            {
+              id: speaker.id,
+              label: speaker.label,
+              kind: speaker.id === 'you' ? 'you' : 'unknown',
+              profileId: null,
+            },
+          ],
         });
         this.emit('transcriptionLag', {
           status: this.pending.length ? 'lagging' : 'ok',
-          lagMs: this.pending.length ? Math.max(0, this.pending.at(-1)!.endMs - this.pending[0]!.startMs) : 0,
+          lagMs: this.pending.length
+            ? Math.max(0, this.pending.at(-1)!.endMs - this.pending[0]!.startMs)
+            : 0,
         });
       } catch {
         this.failed = true;
