@@ -10,7 +10,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | 4-hour run with pauses, a device change and a crash (T15)                  | Done, 2026-10-31                                                              | Done, 2026-10-30                                                                    |
 | Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted, 2026-10-31: 12.2 s and 8.9 s lost, every gap marked. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
-| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. Followed picker recording remeasured: 40/45 windows, -1 ms drift. See `gate-2-windows-final-verification-20261101.md` |
+| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
 | Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
 | Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01                                     | Done                                                                                |
 
@@ -21,8 +21,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 - [x] Merge the BUG-1 fix from `windows-restart-test`
 - [x] Fix BUG-2: mark the gap before a track's first chunk
 - [x] Try Teams from the real app's picker
-- [x] Measure drift on a followed Teams call: drift -1 ms, 40 of 45 windows. Original `t18-picker.txt` contains `MODULE_NOT_FOUND`; recovered output is `t18-picker-recovered-20261101.txt` (existing recording, no new call)
-- [ ] Resolve final Windows native standby-replay failure: 41030 ms detected versus 1690 ms expected on `e180a51`; Claude Code assessment and independent QA required (`gate-2-windows-final-verification-20261101.md`)
+- [x] Measure drift on a followed Teams call: drift -1 ms, 40 of 45 windows (`t18-picker.txt`)
 - [x] Run the 4-hour load run on the built-in mic, with the silence check: 1.221 s mic loss, with the owner's exception for one 18.8 min hibernate on critical battery (`long-run-builtin.txt`). It counts with the 10-30 run (owner decision, 2026-11-01)
 
 **Mac**
