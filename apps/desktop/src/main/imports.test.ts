@@ -66,6 +66,7 @@ async function fixture() {
     recordingBusy: vi.fn(() => false),
     privacyBanner: vi.fn(async () => false),
     emit,
+    removeStaging: undefined as ((folder: string) => Promise<void>) | undefined,
   };
   const coordinator = new ImportCoordinator(deps);
   return { root, selected, emit, run, library, coordinator, deps, applied, discard, update };

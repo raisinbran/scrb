@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import type { ExportRequest } from '@scrb/contracts';
 import { ExportCoordinator, printPdf } from './exports.ts';
+import { pdfPrintOptions } from '../../../../packages/export/src/render-pdf.ts';
 
 const electron = vi.hoisted(() => ({
   windows: [] as Array<{ options: unknown; file: string | null; destroyed: boolean }>,
@@ -100,9 +101,9 @@ describe('desktop export jobs', () => {
       });
       try {
         if (outcome === 'print failure') {
-          await expect(printPdf(html, {})).rejects.toThrow('invented PDF failure');
+          await expect(printPdf(html, pdfPrintOptions())).rejects.toThrow('invented PDF failure');
         } else {
-          expect(await printPdf(html, {})).toEqual(Buffer.from('%PDF synthetic'));
+          expect(await printPdf(html, pdfPrintOptions())).toEqual(Buffer.from('%PDF synthetic'));
         }
         expect(electron.load).toHaveBeenCalledOnce();
         expect(electron.print).toHaveBeenCalledOnce();
@@ -203,9 +204,9 @@ describe('desktop export jobs', () => {
       });
       try {
         if (outcome === 'print failure') {
-          await expect(printPdf(html, {})).rejects.toThrow('invented PDF failure');
+          await expect(printPdf(html, pdfPrintOptions())).rejects.toThrow('invented PDF failure');
         } else {
-          expect(await printPdf(html, {})).toEqual(Buffer.from('%PDF synthetic'));
+          expect(await printPdf(html, pdfPrintOptions())).toEqual(Buffer.from('%PDF synthetic'));
         }
         expect(electron.load).toHaveBeenCalledOnce();
         expect(electron.print).toHaveBeenCalledOnce();
