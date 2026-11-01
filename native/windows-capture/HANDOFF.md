@@ -5,7 +5,9 @@ Branch `windows-capture`, cut from 3fc9931.  State and results: `README.md`.
 Remaining for this phase: nothing on this PC.  Still needed elsewhere:
 
 1. T18 passed on whole-computer capture (README finding 16), but the Teams process
-   target records silence, cause unknown, and Zoom and browser targets are unrun.
+   target records silence (BUG-1, `docs/bug-tracker.md`; plan awaiting owner
+   approval in `docs/plans/teams-desktop-capture.md`), and Zoom and browser
+   targets are unrun.
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
 2. Rerun the 4 h load run on the built-in mic, after T18 (owner decision,
