@@ -14,20 +14,31 @@ for (const path of lockfiles) {
     if (!location.includes('node_modules/') || !entry || typeof entry !== 'object') continue;
     const name = location.slice(location.lastIndexOf('node_modules/') + 'node_modules/'.length);
     const key = `${name}@${entry.version ?? 'unknown'}`;
-    const record = inventory.get(key) ?? { name, version: entry.version ?? 'unknown', license: entry.license ?? 'UNKNOWN', lockfiles: [] };
+    const record = inventory.get(key) ?? {
+      name,
+      version: entry.version ?? 'unknown',
+      license: entry.license ?? 'UNKNOWN',
+      lockfiles: [],
+    };
     record.lockfiles.push(path);
     inventory.set(key, record);
   }
 }
-const items = [...inventory.values()].sort((a, b) =>
-  a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
+const items = [...inventory.values()].sort(
+  (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
 );
 const missingMetadata = items.filter((item) => item.license === 'UNKNOWN');
-process.stdout.write(JSON.stringify({
-  totalUniqueNameVersions: items.length,
-  packagesWithoutLicenseMetadata: missingMetadata.length,
-  packages: items,
-}, null, 2) + '\n');
+process.stdout.write(
+  JSON.stringify(
+    {
+      totalUniqueNameVersions: items.length,
+      packagesWithoutLicenseMetadata: missingMetadata.length,
+      packages: items,
+    },
+    null,
+    2,
+  ) + '\n',
+);
 process.stderr.write(
   'Inventory only: verify actual shipped binaries/models, source licenses, exact notice text and permissions before claiming coverage.\n',
 );

@@ -5,11 +5,12 @@ import {
   createFinalPassRunner,
   createSettingsHandlers,
   FinalPassQueue,
+  LargeModelGate,
   resumeFinalPasses,
   needsPrivacyBanner,
   privacyJurisdictions,
 } from '@scrb/app-core';
-import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
+import { Library, readLibraryLocation, StorageError, errorFields } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
@@ -17,7 +18,7 @@ import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { ImportCoordinator } from './imports.ts';
 import { SummaryCoordinator, createConfiguredSummaryRunner } from './summaries.ts';
-import { ExportCoordinator, printPdf } from './exports.ts';
+import { ExportCoordinator, cleanupOrphanPdfPrints, printPdf } from './exports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -35,7 +36,11 @@ export async function openBackend(
   try {
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
+    await cleanupOrphanPdfPrints(library.paths.cache).catch((error: unknown) => {
+      library.logger.log('warn', 'pdf-print-recovery-failed', errorFields(error));
+    });
     const settings = createSettingsHandlers(library.settings, root);
+    const modelGate = new LargeModelGate();
     library.setMeetingChangedListener((meeting) =>
       emit('meetingChanged', {
         id: meeting.id,
@@ -54,7 +59,7 @@ export async function openBackend(
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig), modelGate)
         : null;
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
@@ -67,6 +72,7 @@ export async function openBackend(
       );
     };
     let recording: RecordingController | null = null;
+    let summaries: SummaryCoordinator | null = null;
     const imports = finalPassConfig
       ? new ImportCoordinator({
           library,
@@ -81,6 +87,7 @@ export async function openBackend(
           recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner,
           emit,
+          modelGate,
         })
       : null;
     if (imports) await imports.recoverInterrupted();
@@ -95,14 +102,24 @@ export async function openBackend(
           },
           finalPasses,
           privacyBanner,
-          async () => imports?.stopForRecording(),
+          async () => {
+            await Promise.all([imports?.stopForRecording(), summaries?.stopForRecording()]);
+          },
         )
       : null;
     const summaryConfig = app.isPackaged ? undefined : process.env['SCRB_SUMMARY_CONFIG'];
-    const summaries = summaryConfig
-      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit)
+    summaries = summaryConfig
+      ? new SummaryCoordinator(
+          library,
+          createConfiguredSummaryRunner(summaryConfig),
+          emit,
+          () => recording?.isBusy() ?? false,
+          modelGate,
+        )
       : null;
-    const exports = new ExportCoordinator(library, emit, printPdf);
+    const exports = new ExportCoordinator(library, emit, (html, options) =>
+      printPdf(html, options, library.paths.cache),
+    );
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,

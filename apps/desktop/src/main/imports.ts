@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import type { Library } from '@scrb/storage';
+import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
+  vocabularyHint,
+  LargeModelGate,
   type ImportResult,
   type ImportPhase,
   type Progress,
@@ -22,6 +24,7 @@ type RunImport = (input: {
   sourcePath: string;
   meetingDir: string;
   signal: AbortSignal;
+  vocabularyHint?: string;
   onProgress: (progress: Progress<ImportPhase>) => void;
 }) => Promise<ImportResult>;
 
@@ -32,6 +35,8 @@ export interface ImportDependencies {
   recordingBusy(): boolean;
   privacyBanner(): Promise<boolean>;
   emit: Emit;
+  removeStaging?: ((folder: string) => Promise<void>) | undefined;
+  modelGate?: LargeModelGate;
 }
 
 const IMPORT_STAGE_NAME =
@@ -47,6 +52,7 @@ const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
 
 /** One model-heavy import at a time. File selection grants no general filesystem access to the UI. */
 export class ImportCoordinator {
+  private readonly localGate = new LargeModelGate();
   private readonly tokens = new Map<string, string>();
   private starting = false;
   private running: {
@@ -67,11 +73,17 @@ export class ImportCoordinator {
     const stageRoot = join(this.deps.library.paths.cache, 'imports');
     const entries = await readdir(stageRoot, { withFileTypes: true }).catch((error: unknown) => {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw error;
+      this.deps.library.logger.log('warn', 'import-recovery-scan-failed', errorFields(error));
+      return [];
     });
     for (const entry of entries) {
       if (!entry.isDirectory() || !IMPORT_STAGE_NAME.test(entry.name)) continue;
-      await rm(join(stageRoot, entry.name), { recursive: true, force: true });
+      try {
+        if (this.deps.removeStaging) await this.deps.removeStaging(join(stageRoot, entry.name));
+        else await rm(join(stageRoot, entry.name), { recursive: true, force: true });
+      } catch (error) {
+        this.deps.library.logger.log('warn', 'import-recovery-cleanup-failed', errorFields(error));
+      }
     }
   }
 
@@ -153,21 +165,26 @@ export class ImportCoordinator {
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
-      const result = await this.deps.run({
-        sourcePath,
-        meetingDir: staging,
-        signal: abort.signal,
-        onProgress: (progress) => {
-          state.stage = STAGES[progress.phase];
-          state.fraction = Math.max(0, Math.min(1, progress.fraction));
-          this.deps.emit('importProgress', {
-            importId: state.importId,
-            fileName: state.fileName,
-            stage: state.stage,
-            fraction: state.fraction,
-          });
-        },
-      });
+      const result = await (this.deps.modelGate ?? this.localGate).run(
+        () =>
+          this.deps.run({
+            sourcePath,
+            meetingDir: staging,
+            signal: abort.signal,
+            vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
+            onProgress: (progress) => {
+              state.stage = STAGES[progress.phase];
+              state.fraction = Math.max(0, Math.min(1, progress.fraction));
+              this.deps.emit('importProgress', {
+                importId: state.importId,
+                fileName: state.fileName,
+                stage: state.stage,
+                fraction: state.fraction,
+              });
+            },
+          }),
+        abort.signal,
+      );
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({

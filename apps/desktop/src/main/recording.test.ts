@@ -290,4 +290,34 @@ describe('Start while the previous recording is finishing', () => {
     expect(emit).toHaveBeenCalledWith('levelMeter', { micDb: -20, meetingDb: -30 });
     await controller.shutdown();
   });
+
+  it('warns once while a stream stays dead, and again if it dies after reopening', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'streamDead', track: 'meeting' });
+    send({ type: 'streamDead', track: 'meeting' });
+    send({ type: 'streamReopened', track: 'meeting' });
+    send({ type: 'streamDead', track: 'meeting' });
+
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
+    expect(health).toHaveLength(2);
+    expect(health.at(-1)?.[1]).toMatchObject({
+      level: 'warning',
+      warnings: [
+        { kind: 'audioMissing', track: 'meeting' },
+        { kind: 'audioMissing', track: 'meeting' },
+      ],
+    });
+    await controller.shutdown();
+  });
 });

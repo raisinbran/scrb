@@ -24,6 +24,7 @@ import {
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
 import { vocabularyHint } from './vocabulary-hints.ts';
+import { LargeModelGate } from './large-model-gate.ts';
 
 export { YOU_ID };
 
@@ -141,6 +142,7 @@ export function createConfiguredImportRunner(configPath: string) {
     sourcePath: string;
     meetingDir: string;
     signal: AbortSignal;
+    vocabularyHint?: string;
     onProgress: (progress: Progress<ImportPhase>) => void;
   }): Promise<ImportResult> => {
     const { tools, models } = await loadSetup(configPath);
@@ -148,7 +150,10 @@ export function createConfiguredImportRunner(configPath: string) {
     return importAudioFile({
       ...input,
       tools,
-      transcribe: { models },
+      transcribe: {
+        models,
+        ...(input.vocabularyHint ? { vocabularyHint: input.vocabularyHint } : {}),
+      },
     });
   };
 }
@@ -185,6 +190,7 @@ export class FinalPassQueue {
   constructor(
     private readonly library: Library,
     private readonly run: RunFinalPass,
+    private readonly modelGate: LargeModelGate = new LargeModelGate(),
   ) {}
 
   enqueue(meetingId: string): void {
@@ -218,12 +224,16 @@ export class FinalPassQueue {
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
-        const transcript = await this.run({
-          tracks,
-          workDir,
-          signal: this.abort.signal,
-          vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
-        });
+        const transcript = await this.modelGate.run(
+          () =>
+            this.run({
+              tracks,
+              workDir,
+              signal: this.abort.signal,
+              vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+            }),
+          this.abort.signal,
+        );
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });

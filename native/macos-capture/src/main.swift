@@ -17,7 +17,8 @@ if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "check-lock" {
     exit(fd >= 0 && flock(fd, LOCK_EX | LOCK_NB) != 0 ? 3 : 0)
 }
 
-let stallLimitSeconds = 5.0
+// Detection adds up to 1 s of health tick and the rebuild takes about 0.1 s, inside the 5 s gap limit.
+let stallLimitSeconds = 3.0
 let chunkSeconds = 5.0
 
 func say(_ object: [String: Any]) {
@@ -296,7 +297,8 @@ final class Session {
     private func streamSilent(_ track: Track) -> Bool {
         let last = rt_last_packet(track.ring)
         let silent = (Double(mach_absolute_time()) - Double(last)) / rtTicksPerSecond
-        return track.active && !asleep && !stopping && last != 0 && silent > stallLimitSeconds
+        // A track whose reopen failed stays in here, so it keeps retrying until the device returns.
+        return !asleep && !stopping && last != 0 && silent > stallLimitSeconds
     }
 
     /// The one rebuild path: output changes, audio service restarts and dead streams all come here.
@@ -412,6 +414,10 @@ func handle(_ command: [String: Any]) -> [String: Any] {
     case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
     case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
     case "listMics": return listingAck(id, "mics", listMics())
+#if FAULT_HOOKS
+    case "faultStopStream":
+        if command["track"] as? String == "microphone" { session.micStream.faultStop() } else { session.meetingStream.faultStop() }
+#endif
     case "listApps": return listingAck(id, "apps", listApps(include: command["include"] as? [String] ?? []))
     default: ok = false; error = "unknown command"
     }

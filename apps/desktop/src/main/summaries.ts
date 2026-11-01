@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { activeSpeakers, resolveDisplay, StaleRevisionError, type Library } from '@scrb/storage';
-import { toGeneratedSummary } from '@scrb/app-core';
+import { toGeneratedSummary, LargeModelGate } from '@scrb/app-core';
 import {
   ContractError,
   type BackendEvents,
@@ -52,11 +52,14 @@ export function createConfiguredSummaryRunner(configPath: string): RunSummary {
 export class SummaryCoordinator {
   private active: { meetingId: string; abort: AbortController; done: Promise<void> } | null = null;
   private starting = false;
+  private startingAbort: AbortController | null = null;
 
   constructor(
     private readonly library: Library,
     private readonly run: RunSummary,
     private readonly emit: Emit,
+    private readonly recordingBusy: () => boolean,
+    private readonly modelGate: LargeModelGate = new LargeModelGate(),
   ) {}
 
   isGenerating(meetingId: string): boolean {
@@ -64,6 +67,9 @@ export class SummaryCoordinator {
   }
 
   private async generate(input: { meetingId: string; length: SummaryLength }): Promise<void> {
+    if (this.recordingBusy()) {
+      throw new ContractError({ code: 'conflict', message: 'Finish recording first.' });
+    }
     if (this.active || this.starting) {
       throw new ContractError({
         code: 'conflict',
@@ -71,8 +77,13 @@ export class SummaryCoordinator {
       });
     }
     this.starting = true;
+    const abort = new AbortController();
+    this.startingAbort = abort;
     try {
       const meeting = await this.library.getMeeting(input.meetingId);
+      if (this.recordingBusy()) {
+        throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
+      }
       if (
         meeting.status === 'recording' ||
         meeting.status === 'importing' ||
@@ -83,11 +94,12 @@ export class SummaryCoordinator {
           message: 'Finish transcription before summarizing.',
         });
       }
-      const abort = new AbortController();
+      if (abort.signal.aborted) return;
       const done = this.work(input, abort);
       this.active = { meetingId: input.meetingId, abort, done };
     } finally {
       this.starting = false;
+      if (this.startingAbort === abort) this.startingAbort = null;
     }
   }
 
@@ -124,13 +136,18 @@ export class SummaryCoordinator {
         }),
       };
       if (transcript.lines.length === 0) throw new Error('No transcript available');
+      if (abort.signal.aborted) return;
       emit('extracting', 0);
-      const summary = await this.run({
-        transcript,
-        length,
-        signal: abort.signal,
-        progress: (done, total) => emit('coverageCheck', total > 0 ? (done / total) * 0.9 : 0),
-      });
+      const summary = await this.modelGate.run(
+        () =>
+          this.run({
+            transcript,
+            length,
+            signal: abort.signal,
+            progress: (done, total) => emit('coverageCheck', total > 0 ? (done / total) * 0.9 : 0),
+          }),
+        abort.signal,
+      );
       if (abort.signal.aborted) return;
       emit('writing', 0.95);
       await this.library.saveGeneratedSummary(
@@ -159,6 +176,14 @@ export class SummaryCoordinator {
       generateSummary: (input) =>
         this.generate(input as { meetingId: string; length: SummaryLength }),
     };
+  }
+
+  async stopForRecording(): Promise<void> {
+    this.startingAbort?.abort();
+    const active = this.active;
+    if (!active) return;
+    active.abort.abort();
+    await active.done;
   }
 
   async shutdown(): Promise<void> {

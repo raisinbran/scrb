@@ -38,7 +38,14 @@ export type LogFields = Record<string, unknown>;
 function cleanValue(key: string, value: unknown): string | number | boolean | null {
   if (BANNED_KEYS.test(key)) return REDACTED;
   if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
-  if (typeof value === 'string' && SAFE_STRING.test(value)) return value;
+  if (typeof value === 'string') {
+    if (key === 'error' && SAFE_ERROR_NAMES.has(value)) return value;
+    if (key === 'code' && (value === 'unknown' || SAFE_ERROR_CODE.test(value))) return value;
+    if (key === 'track' && (value === 'microphone' || value === 'meeting')) return value;
+    if (key === 'meetingId' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) {
+      return value;
+    }
+  }
   return REDACTED;
 }
 

@@ -7,6 +7,7 @@ import { MockBackend } from '../mocks/index.ts';
 import { MOCK_SPEAKERS } from '../mocks/transcript.ts';
 import { FirstLaunchLocation } from './FirstLaunchLocation.tsx';
 import { Dialog } from './Dialog.tsx';
+import { MenuButton } from './Menu.tsx';
 import { LocationField } from './LocationField.tsx';
 import { PrivacyBanner } from './PrivacyBanner.tsx';
 import { SpeakerLabel } from './speakers/SpeakerLabel.tsx';
@@ -103,6 +104,70 @@ describe('shared components', () => {
     expect(document.activeElement).toBe(panel);
     fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(panel);
+  });
+
+  it('labels a modal for assistive technology and tabs past disabled and inert controls', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <Dialog title="Invented accessible settings" onClose={onClose}>
+        <button data-autofocus disabled type="button">
+          Disabled first
+        </button>
+        <div inert>
+          <button data-autofocus type="button">
+            Inert action
+          </button>
+        </div>
+        <input data-autofocus aria-label="Preferred setting" />
+        <button type="button">Save settings</button>
+      </Dialog>,
+    );
+    const modal = screen.getByRole('dialog', { name: 'Invented accessible settings' });
+    const field = screen.getByRole('textbox', { name: 'Preferred setting' });
+    const save = screen.getByRole('button', { name: 'Save settings' });
+    expect(modal.getAttribute('aria-modal')).toBe('true');
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(save, { key: 'Tab' });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(field, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(save);
+    fireEvent.keyDown(save, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('provides a named menu with Home/End keyboard navigation and restores trigger focus', () => {
+    const selected = vi.fn();
+    render(
+      <MenuButton
+        label="Invented actions"
+        items={[
+          { label: 'First option', onSelect: selected },
+          { label: 'Last option', onSelect: selected },
+        ]}
+      >
+        Actions
+      </MenuButton>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Invented actions' });
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('menu', { name: 'Invented actions' });
+    expect(menu).toBeTruthy();
+    const entries = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(entries[0]);
+    fireEvent.keyDown(entries[0] as HTMLElement, { key: 'End' });
+    expect(document.activeElement).toBe(entries[1]);
+    fireEvent.keyDown(entries[1] as HTMLElement, { key: 'Home' });
+    expect(document.activeElement).toBe(entries[0]);
+    fireEvent.keyDown(entries[0] as HTMLElement, { key: 'Tab' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(selected).not.toHaveBeenCalled();
   });
 
   describe('SpeakerLabel', () => {
