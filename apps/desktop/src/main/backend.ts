@@ -14,6 +14,7 @@ import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
+import { readLiveSetup } from './live-feed.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -52,6 +53,14 @@ export async function openBackend(
       helper && finalPassConfig
         ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
         : null;
+    // The optional live model and native descriptor are enabled only on a development Mac.
+    const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
+    const liveSetup =
+      process.platform === 'darwin' && helper && liveConfig
+        ? await readLiveSetup(liveConfig, path.join(__dirname, 'liveWorkerEntry.mjs'))
+        : null;
+    if (liveConfig && !liveSetup && process.platform === 'darwin')
+      library.logger.log('error', 'live-config-unavailable', {});
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
     const recording = helper
@@ -69,6 +78,7 @@ export async function openBackend(
             const region = app.getLocaleCountryCode() || null;
             return needsPrivacyBanner(settings.getSettings().location, rules, region);
           },
+          liveSetup,
         )
       : null;
     const stopRetention = library.startAutoDeleteSchedule();
