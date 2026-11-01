@@ -143,6 +143,36 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
     await expect(readFile(model.path)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
+  it('refuses a second concurrent download to one destination without corrupting the first', async () => {
+    const model = await fixture();
+    let release!: (response: Response) => void;
+    const fetchSource = vi.fn<typeof fetch>(
+      () => new Promise<Response>((resolve) => { release = resolve; }),
+    );
+    const first = downloadPinnedModel(model, { fetchSource });
+    await vi.waitFor(() => expect(fetchSource).toHaveBeenCalledOnce());
+    await expect(downloadPinnedModel(model, { fetchSource })).rejects.toThrow('in progress');
+    expect(fetchSource).toHaveBeenCalledOnce();
+    release(new Response(MODEL_BYTES, { status: 200 }));
+    await first;
+    expect(await readFile(model.path)).toEqual(MODEL_BYTES);
+    expect(await stages(model)).toEqual([]);
+  });
+
+  it('does not replace installed model bytes when its staging folder is unavailable', async () => {
+    const model = await fixture();
+    const parent = dirname(model.path);
+    const blocked = join(parent, 'blocked');
+    await writeFile(blocked, 'invented existing file');
+    const destination = join(blocked, 'unwritable.gguf');
+    const fetchSource = vi.fn<typeof fetch>();
+    await expect(downloadPinnedModel({ ...model, path: destination }, {
+      fetchSource,
+    })).rejects.toThrow();
+    expect(await readFile(blocked, 'utf8')).toBe('invented existing file');
+    expect(fetchSource).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid source schemes before contacting a provider', async () => {
     const model = await fixture();
     const fetchSource = vi.fn<typeof fetch>();

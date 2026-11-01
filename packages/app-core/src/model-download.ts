@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readdir, rename, rm } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import type { PinnedModelArtifact } from './model-artifacts.ts';
 
 export interface TrustedModelSource extends PinnedModelArtifact {
@@ -15,6 +15,7 @@ export interface ModelDownloadOptions {
 }
 
 const SHA256 = /^[a-f0-9]{64}$/i;
+const activeDownloads = new Set<string>();
 const UUID_SUFFIX = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
 function validateSource(source: TrustedModelSource): void {
@@ -45,8 +46,11 @@ export async function downloadPinnedModel(
 ): Promise<void> {
   validateSource(source);
   options.signal?.throwIfAborted();
+  const destination = resolve(source.path);
+  if (activeDownloads.has(destination)) throw new Error('A model download is already in progress');
   const directory = dirname(source.path);
   const staged = join(directory, `.${basename(source.path)}.download-${randomUUID()}`);
+  activeDownloads.add(destination);
   let handle: Awaited<ReturnType<typeof open>> | null = null;
   try {
     await mkdir(directory, { recursive: true });
@@ -99,6 +103,7 @@ export async function downloadPinnedModel(
   } finally {
     await handle?.close().catch(() => undefined);
     await rm(staged, { force: true }).catch(() => undefined);
+    activeDownloads.delete(destination);
   }
 }
 
