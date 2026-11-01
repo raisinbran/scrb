@@ -39,8 +39,8 @@ const cases = [
     mutate: (src) =>
       replaceExactlyOnce(
         src,
-        '    active.abort.abort();\n    await active.done;',
-        '    await active.done;',
+        '  async stopForRecording(): Promise<void> {\n    this.startingAbort?.abort();\n    const active = this.active;\n    if (!active) return;\n    active.abort.abort();\n    await active.done;\n  }',
+        '  async stopForRecording(): Promise<void> {\n    this.startingAbort?.abort();\n  }',
       ),
   },
   {
