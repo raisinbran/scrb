@@ -17,11 +17,18 @@
 
 ## Reproducible scoring
 
-Run `python -m unittest discover -s phase0/scripts -p 'test_evaluate_gate3.py'`, then on each machine:
+From the repository root, run `python -m unittest discover -s phase0/scripts -p 'test_evaluate_gate3.py'`. Keep evidence under the user's home folder, **outside the repository**. Score independently on each operating system:
+
+Windows (PowerShell):
+
+```powershell
+python phase0/scripts/evaluate_gate3.py "$env:USERPROFILE\gate3\windows.json" > "$env:USERPROFILE\gate3\windows-score.json"
+```
+
+macOS (Terminal):
 
 ```sh
-python phase0/scripts/evaluate_gate3.py /private/gate3/windows.json > /private/gate3/windows-score.json
-# On macOS use its own independently recorded macos.json and output.
+python3 phase0/scripts/evaluate_gate3.py "$HOME/gate3/macos.json" > "$HOME/gate3/macos-score.json"
 ```
 
 The manifest paths are relative to its folder. An example **shape, not recorded evidence**:
