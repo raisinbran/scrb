@@ -22,6 +22,7 @@ async function fixture() {
     applyFinalPass: applied,
     updateMeeting: update,
     discardImport: discard,
+    logger: { log: vi.fn() },
   } as unknown as Library;
   const run = vi.fn(
     async ({
@@ -67,6 +68,30 @@ async function fixture() {
 }
 
 describe('Electron import coordination', () => {
+  it('continues startup cleanup after a removal failure and logs no private path', async () => {
+    const f = await fixture();
+    const dir = join(f.root, 'cache', 'imports');
+    const blocked = '81790608-4aee-4b84-98fc-a2fcd33a7590';
+    const cleaned = 'd3ac27bc-7b2f-4003-814d-4534b28a6312';
+    await mkdir(join(dir, blocked), { recursive: true });
+    await mkdir(join(dir, cleaned), { recursive: true });
+    const removeStaging = vi.fn(async (folder: string) => {
+      if (folder.endsWith(blocked)) {
+        throw Object.assign(new Error('private path: ' + folder), { code: 'EACCES' });
+      }
+      await (await import('node:fs/promises')).rm(folder, { recursive: true, force: true });
+    });
+    f.deps.removeStaging = removeStaging;
+    await expect(f.coordinator.recoverInterrupted()).resolves.toBeUndefined();
+    expect(await readdir(dir)).toEqual([blocked]);
+    expect(f.library.logger.log).toHaveBeenCalledWith(
+      'warn', 'import-recovery-cleanup-failed',
+      expect.objectContaining({ error: 'Error', code: 'EACCES' }),
+    );
+    expect(JSON.stringify(vi.mocked(f.library.logger.log).mock.calls)).not.toContain(f.root);
+  });
+
+
   it('removes only interrupted app-owned import staging directories, retaining unrelated files', async () => {
     const f = await fixture();
     const stageRoot = join(f.root, 'cache', 'imports');

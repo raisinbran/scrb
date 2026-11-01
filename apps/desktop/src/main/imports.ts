@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import type { Library } from '@scrb/storage';
+import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
   type ImportResult,
@@ -32,6 +32,7 @@ export interface ImportDependencies {
   recordingBusy(): boolean;
   privacyBanner(): Promise<boolean>;
   emit: Emit;
+  removeStaging?: (folder: string) => Promise<void>;
 }
 
 const IMPORT_STAGE_NAME =
@@ -67,11 +68,17 @@ export class ImportCoordinator {
     const stageRoot = join(this.deps.library.paths.cache, 'imports');
     const entries = await readdir(stageRoot, { withFileTypes: true }).catch((error: unknown) => {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw error;
+      this.deps.library.logger.log('warn', 'import-recovery-scan-failed', errorFields(error));
+      return [];
     });
     for (const entry of entries) {
       if (!entry.isDirectory() || !IMPORT_STAGE_NAME.test(entry.name)) continue;
-      await rm(join(stageRoot, entry.name), { recursive: true, force: true });
+      try {
+        if (this.deps.removeStaging) await this.deps.removeStaging(join(stageRoot, entry.name));
+        else await rm(join(stageRoot, entry.name), { recursive: true, force: true });
+      } catch (error) {
+        this.deps.library.logger.log('warn', 'import-recovery-cleanup-failed', errorFields(error));
+      }
     }
   }
 
