@@ -40,7 +40,13 @@ it('restarts live worker without reusing the helper clock', async () => {
   const start = vi.fn(async (_options: LiveAudioWorkerOptions) => {
     const list: LivePcmFrame[] = [];
     offered.push(list);
-    return { offer: (pcm: LivePcmFrame) => { list.push(pcm); return true; }, close };
+    return {
+      offer: (pcm: LivePcmFrame) => {
+        list.push(pcm);
+        return true;
+      },
+      close,
+    };
   });
   const session = new LiveCaptureSession({} as Library, 'meeting', vi.fn(), setup, start);
   const first = session.startHelper()!;
@@ -67,14 +73,19 @@ it('bounds PCM while the live worker starts', async () => {
   const launched = new Promise<{
     offer: (frame: LivePcmFrame) => boolean;
     close: () => Promise<void>;
-  }>((done) => { resolve = done; });
+  }>((done) => {
+    resolve = done;
+  });
   const offered: number[] = [];
   const emit = vi.fn();
   const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, () => launched);
   const pipe = session.startHelper()!;
   for (let i = 0; i < 25; i++) pipe.onData(encodePcmFrame(frame(i)));
   resolve({
-    offer: (pcm) => { offered.push(pcm.sequence); return true; },
+    offer: (pcm) => {
+      offered.push(pcm.sequence);
+      return true;
+    },
     close: async () => undefined,
   });
   await vi.waitFor(() => expect(offered).toHaveLength(20));
@@ -87,15 +98,15 @@ it('bounds PCM while the live worker starts', async () => {
 it('rejects malformed live PCM without stopping durable recording', async () => {
   const emit = vi.fn();
   const close = vi.fn(async () => undefined);
-  const session = new LiveCaptureSession(
-    {} as Library, 'meeting', emit, setup,
-    async () => ({ offer: () => true, close }),
-  );
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, async () => ({
+    offer: () => true,
+    close,
+  }));
   const pipe = session.startHelper()!;
   pipe.onData(Buffer.from('not a valid live frame'.repeat(4)));
-  await vi.waitFor(() => expect(emit).toHaveBeenCalledWith(
-    'transcriptionLag', { status: 'failed', lagMs: 0 },
-  ));
+  await vi.waitFor(() =>
+    expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 }),
+  );
   await session.stop();
   expect(close).toHaveBeenCalledOnce();
 });
@@ -110,11 +121,14 @@ it('loads only existing live tools and forwards CPU settings', async () => {
   const vad = join(root, 'vad-model.bin');
   const config = join(root, 'live.json');
   for (const file of [entry, server, vadTool, speech, vad]) await writeFile(file, '');
-  await writeFile(config, JSON.stringify({
-    tools: { whisperServer: server, whisperVad: vadTool },
-    models: { speechLive: speech, vad },
-    whisper: { threads: 4, useGpu: false, audioContext: 768, language: 'en' },
-  }));
+  await writeFile(
+    config,
+    JSON.stringify({
+      tools: { whisperServer: server, whisperVad: vadTool },
+      models: { speechLive: speech, vad },
+      whisper: { threads: 4, useGpu: false, audioContext: 768, language: 'en' },
+    }),
+  );
   const loaded = await readLiveSetup(config, entry);
   expect(loaded).toMatchObject({
     tools: { whisperServer: server, whisperVad: vadTool },
