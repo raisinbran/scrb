@@ -110,14 +110,18 @@ describe('summary job coordination', () => {
       throw new Error('unreachable');
     });
     await f.coordinator.handlers.generateSummary!({
-      meetingId: 'invented-meeting', length: 'brief',
+      meetingId: 'invented-meeting',
+      length: 'brief',
     });
     await vi.waitFor(() => expect(f.run).toHaveBeenCalledOnce());
     await f.coordinator.stopForRecording();
     expect(f.save).not.toHaveBeenCalled();
-    expect(f.emit).not.toHaveBeenCalledWith('summaryProgress', expect.objectContaining({
-      stage: 'done',
-    }));
+    expect(f.emit).not.toHaveBeenCalledWith(
+      'summaryProgress',
+      expect.objectContaining({
+        stage: 'done',
+      }),
+    );
   });
 
   it('refuses overlapping generation instead of running two large models', async () => {
