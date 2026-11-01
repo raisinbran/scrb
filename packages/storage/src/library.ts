@@ -401,11 +401,12 @@ export class Library {
     meetingId: string,
     segments: Segment[],
     speakers: Speaker[] = [],
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.appendSegments(current, segments, speakers),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
     );
   }
 
@@ -413,11 +414,12 @@ export class Library {
     meetingId: string,
     segmentIds: string[],
     incoming: ModelReplacement,
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.replaceLiveSegments(current, segmentIds, incoming),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
     );
   }
 
