@@ -18,7 +18,8 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-app.whenReady()
+app
+  .whenReady()
   .then(async () => {
     const scratch = await mkdtemp(join(tmpdir(), 'scrb-pdf-real-test-'));
     const cache = join(scratch, 'library-cache');

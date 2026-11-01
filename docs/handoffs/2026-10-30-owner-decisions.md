@@ -57,7 +57,7 @@ These replace the open status of the identically named proposals in `2026-10-31-
 4. **Vocabulary provenance:** section D's new source table/migration and tests approved. Distinguish manual forms from correction-linked forms and preserve legacy unknown provenance.
 5. **Date filters:** both meeting list and search use the **user's local calendar day**, including UTC-offset edge cases, from one rule.
 6. **`meetingChanged`:** emit on every status transition (including final-pass success/failure); screens subscribe instead of status polling.
-7. **Index recovery:** `docs/plans/index-recovery.md` approved *only* for native startup handling cases A, B, C, E; no restore (D) and no new IPC. Trim the plan to scope before implementation.
+7. **Index recovery:** `docs/plans/index-recovery.md` approved _only_ for native startup handling cases A, B, C, E; no restore (D) and no new IPC. Trim the plan to scope before implementation.
 8. **Task review:** 23, 26 and 27 must be checked against their approved plans and any remaining work identified.
 9. **Additional work:** contract-free parts of 20, 28, 32, 33 and 35 only; one task and commit at a time.
 
