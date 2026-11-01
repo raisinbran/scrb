@@ -39,6 +39,9 @@ jobs:
       - run: npm run lint
       - run: npm run build -w @scrb/summary
       - run: npm test
+      - name: Prove C1–C6 regressions fail when fixes are removed
+        if: matrix.os == 'macos-latest' && github.event_name == 'pull_request' && github.head_ref == 'rosmont/cloud-tasks-18-21-25-28-29-33-35-36-20261031'
+        run: node scripts/prove-cloud-regressions.mjs
       - run: npm run check:boundaries
       - run: npm run build
       - run: npm run test:smoke

@@ -11,6 +11,9 @@ import { pdfPrintOptions } from '../../../../packages/export/src/render-pdf.ts';
 const electron = vi.hoisted(() => ({
   windows: [] as Array<{ options: unknown; file: string | null; destroyed: boolean }>,
   load: vi.fn(),
+  loadUrl: vi.fn(async (url: string) => {
+    if (url.length > 2_000_000) throw new Error('ERR_INVALID_URL');
+  }),
   print: vi.fn(),
 }));
 
@@ -25,6 +28,9 @@ vi.mock('electron', () => ({
     async loadFile(file: string) {
       this.record.file = file;
       return electron.load(file);
+    }
+    async loadURL(url: string) {
+      return electron.loadUrl(url);
     }
     destroy() {
       this.record.destroyed = true;
@@ -114,6 +120,7 @@ describe('desktop export jobs', () => {
           expect(await printPdf(html, pdfPrintOptions())).toEqual(Buffer.from('%PDF synthetic'));
         }
         expect(electron.load).toHaveBeenCalledOnce();
+        expect(electron.loadUrl).not.toHaveBeenCalled();
         expect(electron.print).toHaveBeenCalledOnce();
         expect(electron.windows[0]?.options).toMatchObject({
           webPreferences: { javascript: false, nodeIntegration: false, sandbox: true },
@@ -122,6 +129,7 @@ describe('desktop export jobs', () => {
         await expect(access(path)).rejects.toMatchObject({ code: 'ENOENT' });
       } finally {
         electron.load.mockReset();
+        electron.loadUrl.mockReset();
         electron.print.mockReset();
       }
     },

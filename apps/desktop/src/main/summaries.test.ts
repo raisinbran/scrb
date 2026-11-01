@@ -115,6 +115,7 @@ describe('summary job coordination', () => {
     });
     await vi.waitFor(() => expect(f.run).toHaveBeenCalledOnce());
     await f.coordinator.stopForRecording();
+    expect(f.run.mock.calls[0]?.[0].signal.aborted).toBe(true);
     expect(f.save).not.toHaveBeenCalled();
     expect(f.emit).not.toHaveBeenCalledWith(
       'summaryProgress',
