@@ -1,13 +1,33 @@
 // @vitest-environment node
-import { mkdtemp, readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import type { ExportRequest } from '@scrb/contracts';
-import { ExportCoordinator } from './exports.ts';
+import { ExportCoordinator, printPdf } from './exports.ts';
 
-vi.mock('electron', () => ({ BrowserWindow: class {} }));
+const electron = vi.hoisted(() => ({
+  windows: [] as Array<{ options: unknown; file: string | null; destroyed: boolean }>,
+  load: vi.fn(),
+  print: vi.fn(),
+}));
+
+vi.mock('electron', () => ({
+  BrowserWindow: class {
+    readonly webContents = { printToPDF: electron.print };
+    private readonly record: (typeof electron.windows)[number];
+    constructor(options: unknown) {
+      this.record = { options, file: null, destroyed: false };
+      electron.windows.push(this.record);
+    }
+    async loadFile(file: string) {
+      this.record.file = file;
+      return electron.load(file);
+    }
+    destroy() { this.record.destroyed = true; }
+  },
+}));
 
 const REQUEST = {
   meetingId: 'set-in-test',
@@ -25,6 +45,40 @@ const REQUEST = {
 } satisfies ExportRequest;
 
 describe('desktop export jobs', () => {
+  it.each(['success', 'print failure'] as const)(
+    'prints HTML over the data-URL limit via private loadFile and cleans up on %s',
+    async (outcome) => {
+      const html = '<main>' + 'x'.repeat(2_600_000) + '</main>';
+      let path = '';
+      electron.windows.length = 0;
+      electron.load.mockImplementation(async (file: string) => {
+        path = file;
+        expect(await readFile(file, 'utf8')).toBe(html);
+      });
+      electron.print.mockImplementation(async () => {
+        if (outcome === 'print failure') throw new Error('invented PDF failure');
+        return Buffer.from('%PDF synthetic');
+      });
+      try {
+        if (outcome === 'print failure') {
+          await expect(printPdf(html, {})).rejects.toThrow('invented PDF failure');
+        } else {
+          expect(await printPdf(html, {})).toEqual(Buffer.from('%PDF synthetic'));
+        }
+        expect(electron.load).toHaveBeenCalledOnce();
+        expect(electron.print).toHaveBeenCalledOnce();
+        expect(electron.windows[0]?.options).toMatchObject({
+          webPreferences: { javascript: false, nodeIntegration: false, sandbox: true },
+        });
+        expect(electron.windows[0]?.destroyed).toBe(true);
+        await expect(access(path)).rejects.toMatchObject({ code: 'ENOENT' });
+      } finally {
+        electron.load.mockReset();
+        electron.print.mockReset();
+      }
+    },
+  );
+
   it('uses a locked meeting snapshot and an app-owned atomic output path', async () => {
     const root = await mkdtemp(join(tmpdir(), 'scrb-export-test-'));
     const library = await Library.open({ root });
