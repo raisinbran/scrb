@@ -1,13 +1,31 @@
 // Gate 2 long run through the app's RecordingSession: pauses, device changes and a forced worker
-// crash, with a tone on the meeting track. Unattended, so run it under run-muted.sh and caffeinate.
+// crash, with a tone on the meeting track and half the logical cores spinning at below-normal
+// priority, as on Windows. Unattended, so run it under run-muted.sh and caffeinate.
 // Usage: node --experimental-transform-types long_run_app.mjs <helper> <set_input> <work dir>
 //        <tone file> <seconds> <other input> <usual input>
+// The tone file must outlast the run: the meeting track follows that one player.
 import { execFile, spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { constants, cpus, setPriority } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker, isMainThread } from 'node:worker_threads';
 import { ProcessAdapter } from '../../../packages/capture/src/process-adapter.ts';
 import { RecordingSession } from '../../../packages/app-core/src/recording.ts';
 import { sealAudio } from '../../../packages/app-core/src/recovery.ts';
+
+const script = fileURLToPath(import.meta.url);
+if (process.argv[2] === '--burn') {
+  if (isMainThread) {
+    const count = Number(process.argv[3]);
+    for (let i = 0; i < count; i += 1) new Worker(script, { argv: ['--burn', '0'] });
+    process.stdin.on('end', () => process.exit(0));
+    process.stdin.resume();
+  } else {
+    for (let x = 0; ; x += 1) Math.sqrt(x);
+  }
+  await new Promise(() => undefined);
+}
 
 const [helper, setInput, work, tone, secondsText, other, usual] = process.argv.slice(2);
 const total = Number(secondsText) * 1000;
@@ -24,8 +42,19 @@ const note = (fields) => {
   console.log(line);
 };
 
+const burners = Math.floor(cpus().length / 2);
+const burn = spawn(process.execPath, [...process.execArgv, script, '--burn', String(burners)], {
+  stdio: ['pipe', 'ignore', 'ignore'],
+});
+burn.on('exit', (code, signal) => note({ loadExit: code ?? signal }));
+setPriority(burn.pid, constants.priority.PRIORITY_BELOW_NORMAL);
+note({ load: `${burners} spinning threads of ${cpus().length} logical cores, below normal` });
+
 const player = spawn('afplay', [tone], { stdio: 'ignore' });
+player.on('exit', (code, signal) => note({ playerExit: code ?? signal }));
 await sleep(2000);
+// Loudest level since the last report, so a track that went silent shows within a minute.
+const levels = { mic: -100, meeting: -100 };
 let id = 0;
 let adapter = null;
 let ended = null;
@@ -33,7 +62,10 @@ const recording = new RecordingSession({
   launch: () => {
     adapter = new ProcessAdapter(helper);
     adapter.onEvent((event) => {
-      if (event.type !== 'health') note({ event });
+      if (event.type === 'health') {
+        levels.mic = Math.max(levels.mic, event.micDb);
+        levels.meeting = Math.max(levels.meeting, event.meetingDb);
+      } else note({ event });
     });
     note({ launched: true });
     return adapter;
@@ -98,12 +130,16 @@ while (Date.now() - started < total && ended === null) {
       Math.round(elapsed / 1000),
       's',
       JSON.stringify(counts()),
+      `peak dB mic ${levels.mic.toFixed(0)} meeting ${levels.meeting.toFixed(0)}`,
     );
+    levels.mic = -100;
+    levels.meeting = -100;
   }
   await sleep(250);
 }
 await recording.stop();
 player.kill();
+burn.stdin.end();
 await select(usual);
 await sleep(500);
 
