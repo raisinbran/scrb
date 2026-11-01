@@ -43,6 +43,7 @@ final class Track {
     var deviceRate = 0.0
     var converter: RateConverter?
     var writeErrorReported = false
+    var hadWriteError = false
     var nextAccessCheck = Date.distantPast
     private var blocked = false
     let mutex = NSLock()
@@ -161,6 +162,7 @@ final class Track {
     }
 
     private func reportWriteError(_ message: String) {
+        hadWriteError = true
         guard !writeErrorReported else { return }
         writeErrorReported = true
         say(["type": "event", "event": "writeError", "track": name, "message": message])
@@ -285,7 +287,7 @@ final class Session {
         meetingTrack.drain(session: self)
         micStream.close()
         meetingStream.close()
-        let chunksSaved = !micTrack.writeErrorReported && !meetingTrack.writeErrorReported
+        let chunksSaved = !micTrack.hadWriteError && !meetingTrack.hadWriteError
         let markerSaved = commandId.map { id in
             chunksSaved && !id.isEmpty && recordStop(id: id, atNs: at)
         } ?? chunksSaved

@@ -415,11 +415,14 @@ export async function sealAudio(
   const restarts = restartTimes(audioDir);
   const stopNs = terminalStopNs(audioDir);
   const endNs = Math.max(0, ...present.map(([, value]) => value.endNs), ...restarts, stopNs ?? 0);
-  // A prior seal stays stable after its working chunk logs have been removed.
+  // Existing sealed outcomes cannot be upgraded by a later log entry.
+  const alreadySealed =
+    !logsPresent &&
+    present.length > 0 &&
+    present.every(([track]) => existsSync(join(audioDir, track, 'chunks.json')));
   const stopped =
     present.length > 0 &&
-    (stopNs !== null ||
-      (!logsPresent && present.every(([, value]) => value.endedBy === 'stop')));
+    (alreadySealed ? present.every(([, value]) => value.endedBy === 'stop') : stopNs !== null);
   const paused = pausedSpans(audioDir, endNs);
 
   const wholeComputer = readLogLines<SessionEvent>(join(audioDir, 'session.log')).some(
