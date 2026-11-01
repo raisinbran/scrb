@@ -18,7 +18,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 **Windows**
 
-- [ ] Merge the BUG-1 fix from `windows-restart-test`
+- [x] Merge the BUG-1 fix from `windows-restart-test`
 - [x] Fix BUG-2: mark the gap before a track's first chunk
 - [x] Try Teams from the real app's picker
 - [x] Measure drift on a followed Teams call: drift -1 ms, 40 of 45 windows (`t18-picker.txt`)
