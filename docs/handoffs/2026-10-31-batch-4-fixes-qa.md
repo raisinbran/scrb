@@ -4,6 +4,8 @@
 
 **Recommendation: conditional pass.** D1 to D8 are fixed. Fix N1, then the batch is ready for the owner's gate decision. No product code was changed in this QA.
 
+**Update, 2026-10-31:** N1 and N2 are done at `8424e07`, and CI passed there. The owner approved Batch 4 for `main`. N3 to N6 stay accepted or deferred as listed.
+
 ## Results
 
 | # | Result | Evidence |
