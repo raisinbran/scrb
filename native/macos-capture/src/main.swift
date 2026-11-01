@@ -20,6 +20,9 @@ if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "check-lock" {
 // Detection adds up to 1 s of health tick and the rebuild takes about 0.1 s, inside the 5 s gap limit.
 let stallLimitSeconds = 3.0
 let chunkSeconds = 5.0
+// A stream reopened with access off keeps time but delivers exact zeros. macOS gives no error (T20).
+let blockedRetrySeconds = 5.0
+let meetingAccessCheckSeconds = 30.0
 
 func say(_ object: [String: Any]) {
     let data = try! JSONSerialization.data(withJSONObject: object)
@@ -40,6 +43,8 @@ final class Track {
     var deviceRate = 0.0
     var converter: RateConverter?
     var writeErrorReported = false
+    var nextAccessCheck = Date.distantPast
+    private var blocked = false
     let mutex = NSLock()
 
     init(name: String) { self.name = name }
@@ -49,6 +54,15 @@ final class Track {
         mutex.lock()
         defer { mutex.unlock() }
         while let slot = rt_peek(ring) {
+            if blocked {
+                // Dropped, not written, so the time reads as a marked gap and not as a quiet meeting.
+                if rt_slot_silent(slot) != 0 {
+                    rt_advance(ring)
+                    continue
+                }
+                blocked = false
+                say(["type": "event", "event": "permissionRestored", "track": name])
+            }
             // Each slot's own rate: slots from the old device can outlive a switch.
             let rate = slot.pointee.rate
             let gapSeconds = nextHost == 0 ? 0 : (Double(slot.pointee.host) - Double(nextHost)) / rtTicksPerSecond
@@ -100,6 +114,30 @@ final class Track {
             endChunk(reason: session.stopping ? "stop" : "pause")
             nextOpenReason = "resume"
         }
+    }
+
+    var isBlocked: Bool {
+        mutex.lock()
+        defer { mutex.unlock() }
+        return blocked
+    }
+
+    func block() {
+        mutex.lock()
+        endChunk(reason: "permission")
+        nextOpenReason = "permission"
+        nextHost = 0
+        blocked = true
+        mutex.unlock()
+        say(["type": "event", "event": "permissionLost", "track": name])
+    }
+
+    func unblock() {
+        mutex.lock()
+        let was = blocked
+        blocked = false
+        mutex.unlock()
+        if was { say(["type": "event", "event": "permissionRestored", "track": name]) }
     }
 
     /// A rollover keeps the converter, because the audio carries straight on.
@@ -217,6 +255,8 @@ final class Session {
         micTrack.generation = rt_gate_generation() + 1
         meetingTrack.generation = micTrack.generation
         let opened = rt_gate_open()
+        rt_heard_now(micTrack.ring)
+        rt_heard_now(meetingTrack.ring)
         return continuing ? toSessionNs(host: opened) : 0
     }
 
@@ -229,6 +269,8 @@ final class Session {
 
     func resume(id: String) -> Int64 {
         let at = toSessionNs(host: rt_gate_open())
+        rt_heard_now(micTrack.ring)
+        rt_heard_now(meetingTrack.ring)
         record(["event": "resume", "commandId": id, "atNs": at])
         return at
     }
@@ -290,6 +332,8 @@ final class Session {
                 if streamSilent(track) { rebuild(reason: "streamDead", track: track) }
             }
         }
+        checkAccess(micTrack)
+        checkAccess(meetingTrack)
         say(["type": "event", "event": "health", "micDb": toDb(rt_peak(micTrack.ring)),
              "meetingDb": toDb(rt_peak(meetingTrack.ring))])
     }
@@ -301,24 +345,67 @@ final class Session {
         return !asleep && !stopping && last != 0 && silent > stallLimitSeconds
     }
 
+    /// Packets on time, but nothing but exact zeros. A real mic always has some noise, so on the mic
+    /// this means access is off or the device is muted. A quiet app does the same on the meeting
+    /// track, so that track has to run the permission check.
+    private func audioIsZeros(_ track: Track) -> Bool {
+        let now = Double(mach_absolute_time())
+        let sound = rt_last_sound(track.ring)
+        return sound != 0 && (now - Double(sound)) / rtTicksPerSecond > stallLimitSeconds
+            && (now - Double(rt_last_packet(track.ring))) / rtTicksPerSecond < 1
+    }
+
+    private func checkAccess(_ track: Track) {
+        let blocked = track.isBlocked
+        let isMic = track === micTrack
+        guard !asleep, !stopping, rt_gate_is_open() != 0, blocked || audioIsZeros(track),
+              Date() >= track.nextAccessCheck else { return }
+        let wait = blocked || isMic ? blockedRetrySeconds : meetingAccessCheckSeconds
+        track.nextAccessCheck = Date().addingTimeInterval(wait)
+        if isMic {
+            DispatchQueue.main.async { [self] in
+                guard !stopping else { return }
+                // A stream stays zeros after access returns, so only a reopen can hear it. Drain clears the block.
+                if blocked { reopen(track, reason: "permission") } else { track.block() }
+            }
+            return
+        }
+        DispatchQueue.global(qos: .utility).async { [self] in
+            let access = checkSystemAudioPermission()
+            DispatchQueue.main.async { [self] in
+                guard !stopping else { return }
+                if access == "denied" && !blocked { track.block() }
+                if access == "granted" && blocked {
+                    track.unblock()
+                    reopen(track, reason: "permission")
+                }
+            }
+        }
+    }
+
     /// The one rebuild path: output changes, audio service restarts and dead streams all come here.
     func rebuild(reason: String, track only: Track? = nil) {
         for track in only.map({ [$0] }) ?? [micTrack, meetingTrack] {
             say(["type": "event", "event": reason, "track": track.name])
-            track.close(reason: reason)
-            let error: String?
-            if track === micTrack {
-                micStream.close()
-                error = micStream.open(mic: mic)
-            } else {
-                meetingStream.close()
-                error = meetingStream.open(source: source)
-            }
-            rt_touch(track.ring)
-            track.active = error == nil
-            if let error { say(["type": "event", "event": "streamDead", "track": track.name, "message": error]) }
-            else { say(["type": "event", "event": "streamReopened", "track": track.name]) }
+            reopen(track, reason: reason)
         }
+    }
+
+    private func reopen(_ track: Track, reason: String) {
+        track.close(reason: reason)
+        let error: String?
+        if track === micTrack {
+            micStream.close()
+            error = micStream.open(mic: mic)
+        } else {
+            meetingStream.close()
+            error = meetingStream.open(source: source)
+        }
+        rt_touch(track.ring)
+        rt_heard_now(track.ring)
+        track.active = error == nil
+        if let error { say(["type": "event", "event": "streamDead", "track": track.name, "message": error]) }
+        else { say(["type": "event", "event": "streamReopened", "track": track.name]) }
     }
 
     private func watch() {

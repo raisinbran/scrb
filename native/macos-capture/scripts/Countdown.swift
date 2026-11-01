@@ -1,6 +1,6 @@
 // Always-on-top countdown for hand-run cases. Stays above System Settings without taking focus.
-// Prints "start" when the Start button is pressed. Reads tab-separated lines from stdin:
-// status, big text, what to do, what comes next, steps. Build: swiftc -O Countdown.swift -o ../build/countdown
+// Prints "start" when the button is pressed. Reads tab-separated lines from stdin: status, big
+// text, what to do, what comes next, steps, and optionally a title that shows the button again. Build: swiftc -O Countdown.swift -o ../build/countdown
 import AppKit
 
 let app = NSApplication.shared
@@ -53,7 +53,7 @@ setlinebuf(stdout)
 DispatchQueue.global().async {
     while let line = readLine() {
         let parts = line.components(separatedBy: "\t")
-        guard parts.count == 5 else { continue }
+        guard parts.count >= 5 else { continue }
         DispatchQueue.main.async {
             status.stringValue = parts[0]
             big.stringValue = parts[1]
@@ -61,6 +61,10 @@ DispatchQueue.global().async {
             action.stringValue = parts[2]
             next.stringValue = parts[3]
             steps.stringValue = parts[4].replacingOccurrences(of: "|", with: "\n")
+            if parts.count > 5 {
+                button.title = parts[5]
+                button.isHidden = false
+            }
         }
     }
     DispatchQueue.main.async { app.terminate(nil) }

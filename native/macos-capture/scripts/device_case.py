@@ -27,19 +27,20 @@ if mode == "permission":
              (120, "Same list: turn Claude back ON. If asked, choose Later")]
     READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
     END = 150
-REOPEN = {}  # step time to the command that makes the helper open that stream again
+SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_%s"
+# Owner-paced: each step opens its own Settings page and waits for Done. The reopen command, if any,
+# follows the switch, so timing can't miss it. Each entry: page, instruction, reopen, seconds to record after.
+PACED = []
 if mode == "reopen":
-    STEPS = [(30, "Microphone list: turn Claude OFF. If asked, choose Later"),
-             (60, "Nothing to do: the test reopens the mic"),
-             (80, "Microphone list: turn Claude back ON. If asked, choose Later"),
-             (110, "Nothing to do: the test reopens the mic"),
-             (130, "Go back. Open Screen & System Audio Recording. Turn Claude OFF. If asked, choose Later"),
-             (160, "Nothing to do: the test reopens the meeting track"),
-             (180, "Same list: turn Claude back ON. If asked, choose Later"),
-             (210, "Nothing to do: the test reopens the meeting track")]
-    READY = "Open System Settings > Privacy & Security > Microphone. Then press Start."
-    END = 235
-    REOPEN = {60: "selectMic", 110: "selectMic", 160: "selectSource", 210: "selectSource"}
+    MIC = "Turn Claude %s here. If there are two Claude rows, do both. If asked, choose Later. Then press Done"
+    AUDIO = "Under System Audio Recording, turn Claude %s. If asked, choose Later. Then press Done"
+    PACED = [("Microphone", MIC % "OFF", "selectMic", 15),
+             ("Microphone", MIC % "back ON", None, 15),
+             ("ScreenCapture", AUDIO % "OFF", "selectSource", 20),
+             ("ScreenCapture", AUDIO % "back ON", None, 20)]
+    STEPS = []
+    READY = "No rush: this test waits for you. It opens each Settings page itself. Press Start."
+    END = 0
 if mode == "service":
     STEPS = [(30, "In the Terminal app, press Return on: sudo killall coreaudiod")]
     READY = "Nothing else playing. In the Terminal app type: sudo killall coreaudiod  and do not press Return. Then press Start."
@@ -64,9 +65,10 @@ with wave.open(tone_file, "wb") as w:
 window = subprocess.Popen([os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "countdown")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 
 
-def show(status, big, action, following, step=-1):
+def show(status, big, action, following, step=-1, button=None):
     listed = "|".join(("> " if i == step else "   ") + "At %d s: %s" % (at, text) for i, (at, text) in enumerate(STEPS))
-    window.stdin.write("\t".join([status, big, action, following, listed]) + "\n")
+    parts = [status, big, action, following, listed] + ([button] if button else [])
+    window.stdin.write("\t".join(parts) + "\n")
     window.stdin.flush()
 
 
@@ -116,6 +118,26 @@ if mode == "call":
 send("o", name="open", sessionId="s", outputDir=work, source=source, mic="default")
 send("s", name="start")
 started = time.time()
+
+def record_for(seconds, status):
+    until = time.time() + seconds
+    while (left := until - time.time()) > 0:
+        show(status, "%d s" % math.ceil(left), "Nothing to do. The test is recording.", "")
+        time.sleep(0.2)
+
+
+if PACED:
+    record_for(12, "Getting started")
+for index, (page, text, reopen, after) in enumerate(PACED):
+    subprocess.run(["open", SETTINGS % page])
+    show("Step %d of %d" % (index + 1, len(PACED)), "NOW", text, "Take as long as you need", button="Done")
+    window.stdout.readline()
+    print("%6.1f s switch done: %s" % (time.time() - started, text), flush=True)
+    if reopen:
+        record_for(5, "Step %d of %d done" % (index + 1, len(PACED)))
+        fields = {"mic": "default"} if reopen == "selectMic" else {"source": source}
+        print("%6.1f s %s %s" % (time.time() - started, reopen, send("r%d" % index, name=reopen, **fields)), flush=True)
+    record_for(after, "Step %d of %d done" % (index + 1, len(PACED)))
 for index, (at, text) in enumerate(STEPS):
     following = "Then: " + STEPS[index + 1][1] if index + 1 < len(STEPS) else "Then: nothing more, the test stops itself"
     if mode == "sleep":
@@ -126,10 +148,6 @@ for index, (at, text) in enumerate(STEPS):
         show("Step %d of %d comes next" % (index + 1, len(STEPS)), "%d s" % math.ceil(left), "NEXT: " + text, following, index)
         time.sleep(0.2)
     print("%6.1f s NOW: %s" % (time.time() - started, text), flush=True)
-    if at in REOPEN:
-        name = REOPEN[at]
-        fields = {"mic": "default"} if name == "selectMic" else {"source": source}
-        print("%6.1f s %s %s" % (time.time() - started, name, send("r%d" % at, name=name, **fields)), flush=True)
     if mode == "restart":
         following = "After restart: open Claude and tell it you are back"
         while time.time() - started < at + 300:  # normally ended by the restart

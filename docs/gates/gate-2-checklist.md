@@ -12,7 +12,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted, 2026-10-31: 12.2 s and 8.9 s lost, every gap marked. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
 | Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
 | Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
-| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. **T20 failed on the mic: 50 s of silence with no warning.** Meeting track not tested          | Done                                                                                |
+| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01          | Done                                                                                |
 
 ## To do
 
@@ -31,8 +31,8 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 - [x] Run the 4-hour load run overnight. Accepted, see decision 4
 - [x] Run T17, owner present
 - [x] Run T6 on the real helper, with a forced stream stop
-- [ ] Fix T20: warn and mark the gap when a reopen hits denied access, and show `permissionLost` in the app (also missing for Windows)
-- [ ] Rerun T20 on both switches, with the reopen tied to the switch change
+- [x] Fix T20: warn and mark the gap when a reopen hits denied access, and show `permissionLost` in the app (also missing for Windows)
+- [x] Rerun T20 on both switches, with the reopen tied to the switch change
 - [ ] Run the USB mic case at 44.1 kHz with real speech, from Monday evening, 2026-11-02
 
 **Both**

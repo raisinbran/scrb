@@ -94,3 +94,12 @@ The loss limit passes and every gap is marked, but one gap on the meeting track 
 The System Audio Recording switch changed at about 190 s and 206 s, later than the 130 s and 180 s the script allowed for. No reopen fell inside that span: the 160 s reopen came before it and the 210 s reopen after it. The tone stayed at -40 dB throughout, which proves nothing about a reopen while denied. The meeting case needs a rerun, with the reopen tied to the switch change, not to fixed times.
 
 Two more faults found while reading this: the Mac helper never sends `permissionLost`, and `RecordingController` drops that event on both systems, so the Windows event also never reaches the owner. The T20 audio was deleted after measuring; `t20.log` stays in `~/.local/share/scrb-tests`.
+
+**T20 fix and rerun, 2026-11-01, hands-on, real helper, muted: passed on both tracks.** A reopened stream with access off stays on time but delivers exact zeros. After 3 s of zeros with packets arriving, the helper sends `permissionLost`, ends the chunk and drops further zeros, so the span seals as a marked gap instead of a quiet meeting. The mic reopens every 5 s, because a stream stays at zeros after access returns. The meeting track can't tell zeros from a quiet app, so it runs the existing permission check: every 30 s during zeros, every 5 s once blocked. The app now shows `permissionLost` on both systems; on Windows that is unit tested only. The test now opens each Settings page itself and waits for the owner's Done, with the reopen following the switch.
+
+| Track      | Reopen with access off | Warning | Sound back | Marked gap | Zeros written |
+| ---------- | ---------------------- | ------- | ---------- | ---------- | ------------- |
+| Microphone | 31.6 s                 | 35.4 s  | 50.8 s     | 15.4 s     | 3.7 s         |
+| Meeting    | 98.3 s                 | 103.3 s | 133.6 s    | 30.3 s     | 4.9 s         |
+
+Sound levels before and after matched (about -52 dB mic, -40 dB tone), with no overlaps. The stopped-stream cases (T6) were rerun on the fixed helper: gaps of 3.30 to 3.34 s, retries after a failed reopen, and no `permissionLost` when the only sound ends. Known limits: the few seconds of zeros before detection stay in the file, outside the marked gap. A muted mic or a noise-gated virtual device that sends exact zeros raises the same warning, with wording that covers both, and its audio is kept the moment sound returns. Audio deleted; logs are `t20b.log` and `t6b.log` in `~/.local/share/scrb-tests`.

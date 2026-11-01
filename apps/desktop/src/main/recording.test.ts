@@ -210,6 +210,36 @@ describe('Start while the previous recording is finishing', () => {
     await controller.shutdown();
   });
 
+  it('warns once per loss of access until it returns', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'permissionLost', track: 'microphone' });
+    send({ type: 'permissionLost', track: 'microphone' });
+    send({ type: 'permissionRestored', track: 'microphone' });
+    send({ type: 'permissionLost', track: 'microphone' });
+
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
+    expect(health).toHaveLength(2);
+    expect(health.at(-1)?.[1]).toMatchObject({
+      level: 'warning',
+      warnings: [
+        { kind: 'permissionLost', track: 'microphone' },
+        { kind: 'permissionLost', track: 'microphone' },
+      ],
+    });
+    await controller.shutdown();
+  });
+
   it('uses acknowledged session-clock nanoseconds for pause spans, not delayed wall time', async () => {
     const emit = vi.fn();
     const controller = new RecordingController(

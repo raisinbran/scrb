@@ -74,6 +74,7 @@ export class RecordingController {
   private writeErrors = new Set<string>();
   private readonly micCheck: MicCheckController;
   private deadStreams = new Set<Track>();
+  private blockedTracks = new Set<Track>();
 
   constructor(
     private readonly library: Library,
@@ -137,6 +138,22 @@ export class RecordingController {
   }
 
   /** The helper repeats this while its reopen keeps failing. */
+  private permissionLost(track: Track): void {
+    if (this.blockedTracks.has(track)) return;
+    this.blockedTracks.add(track);
+    this.warn(
+      {
+        kind: 'permissionLost',
+        track,
+        message:
+          track === 'microphone'
+            ? 'The microphone is sending no sound. Check that it is not muted and that microphone access is on in System Settings.'
+            : 'Meeting audio access is off. Turn it back on in System Settings.',
+      },
+      'warning',
+    );
+  }
+
   private streamDead(track: Track): void {
     if (this.deadStreams.has(track)) return;
     this.deadStreams.add(track);
@@ -213,6 +230,7 @@ export class RecordingController {
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
     this.writeErrors.clear();
     this.deadStreams.clear();
+    this.blockedTracks.clear();
     this.pauseSpans = [];
     this.state = {
       ...IDLE,
@@ -241,6 +259,10 @@ export class RecordingController {
             this.streamDead(event.track);
           } else if (event.type === 'streamReopened') {
             this.deadStreams.delete(event.track);
+          } else if (event.type === 'permissionLost') {
+            this.permissionLost(event.track);
+          } else if (event.type === 'permissionRestored') {
+            this.blockedTracks.delete(event.track);
           }
         });
         return adapter;

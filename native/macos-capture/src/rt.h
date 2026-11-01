@@ -24,6 +24,7 @@ typedef struct {
   _Atomic uint64_t tail;
   _Atomic uint64_t dropped;
   _Atomic uint64_t lastPacketHost;
+  _Atomic uint64_t lastSoundHost;
   _Atomic uint32_t peak;
   RtSlot *slots;
   double rate;
@@ -96,6 +97,7 @@ static inline void rt_capture(RtRing *ring, const AudioBufferList *list, uint64_
   // The gate sits ahead of everything else: nothing past this line exists for a closed gate.
   if (host < atomic_load(&rtGate.resumeAfter) || host + durationTicks > atomic_load(&rtGate.cutoff))
     return;
+  if (peak > 0) atomic_store(&ring->lastSoundHost, host);
 
   uint32_t done = 0;
   uint32_t generation = atomic_load(&rtGate.generation);
@@ -132,6 +134,14 @@ static inline RtSlot *rt_peek(RtRing *ring) {
 static inline void rt_advance(RtRing *ring) { atomic_fetch_add(&ring->tail, 1); }
 static inline uint64_t rt_last_packet(RtRing *ring) { return atomic_load(&ring->lastPacketHost); }
 static inline void rt_touch(RtRing *ring) { atomic_store(&ring->lastPacketHost, mach_absolute_time()); }
+static inline uint64_t rt_last_sound(RtRing *ring) { return atomic_load(&ring->lastSoundHost); }
+static inline void rt_heard_now(RtRing *ring) { atomic_store(&ring->lastSoundHost, mach_absolute_time()); }
+static inline int rt_slot_silent(const RtSlot *slot) {
+  for (uint32_t i = 0; i < slot->frames; i++) {
+    if (slot->samples[i] != 0) return 0;
+  }
+  return 1;
+}
 static inline uint32_t rt_peak(RtRing *ring) { return atomic_load(&ring->peak); }
 static inline int rt_empty(RtRing *ring) { return atomic_load(&ring->tail) == atomic_load(&ring->head); }
 static inline uint64_t rt_take_dropped(RtRing *ring) { return atomic_exchange(&ring->dropped, 0); }
