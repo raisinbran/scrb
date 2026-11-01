@@ -33,7 +33,6 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 - [x] Run T6 on the real helper, with a forced stream stop
 - [x] Fix T20: warn and mark the gap when a reopen hits denied access, and show `permissionLost` in the app (also missing for Windows)
 - [x] Rerun T20 on both switches, with the reopen tied to the switch change
-- [ ] Run the USB mic case at 44.1 kHz with real speech, from Monday evening, 2026-11-02
 
 **Both**
 
@@ -44,11 +43,12 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 1. **The Mac 2 h 29 min call counts as T18 (accepted, 2026-10-31).** It used real call audio as the shared sound, not a click train, and shows no gaps or restarts. Its 49 usable windows cover about minutes 30 to 140, with a 17 ms spread. The target allows about 23 ms in that span, so drift passes for that span. The first 30 minutes are unmeasured and the recording is deleted, so this cannot be rechecked.
 2. **The `coreaudiod` restart may run for T17 (approved, 2026-10-31).** This settles decision M3 in `macos-capture-adapter.md`. It stops all Mac audio for a moment, so the owner runs it, types the password, and picks a time when nothing else is playing.
-3. **Still open: waive any of the list above?** Recommended: none. The Mac load run stays at 4 hours: it costs no owner time, gives the same evidence as Windows, and tests the code changed after the first Mac run.
+3. **Still open: waive any of the remaining Gate 2 tasks?** Recommended: none. The Mac load run stays at 4 hours: it costs no owner time, gives the same evidence as Windows, and tests the code changed after the first Mac run.
 4. **The Mac load run's 5.5 s gap is accepted (2026-11-01), with no rerun.** The owner was using the Mac during that minute and caused the lag by opening several apps. They closed them on noticing it. The run lost 12.2 s and 8.9 s against the 15 s limit, with every gap marked, and the stall does not count against the result.
 
 ## Not needed for Gate 2
 
+- Mac USB microphone speech capture at 44.1 kHz is deferred to Phase 8 (before Gate 8), not waived. USB mic use is primarily on Windows; the Mac test is a release compatibility check (owner decision, 2026-11-01).
 - Full T19, moved to the 8-hour run before Gate 8 (owner decision, 2026-10-31). The Gate 2 CPU load does not stand in for it.
 - 8-hour runs, before Gate 8.
 - Zoom and browser targets, and a real output-device unplug. They stay open under BUG-1 for later.

@@ -174,6 +174,8 @@ The Recordings list and search, the Import audio file action, meeting detail tab
 
 Installers, the first-launch model download with checksums, offline operation, upgrade from an older build, repeated long-session tests, accessibility checks, the About screen, the finished User Manual with screenshots, and a final security and privacy review. Manual sections are drafted at the end of each earlier phase, so Phase 8 only finishes and checks them.
 
+Before Gate 8, test real speech recording with a USB microphone at 44.1 kHz on macOS. This is a Phase 8 compatibility test, not a Gate 2 requirement; the USB microphone is used primarily on Windows.
+
 **Gate 8:** every V1 completion criterion passes on installed builds on both machines, with no open recording, data-loss or privacy bugs.
 
 ## Quality targets
