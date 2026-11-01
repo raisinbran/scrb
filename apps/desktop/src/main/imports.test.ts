@@ -22,28 +22,36 @@ async function fixture() {
     updateMeeting: update,
     discardImport: discard,
   } as unknown as Library;
-  const run = vi.fn(async ({ meetingDir, signal: _signal }: { meetingDir: string; signal: AbortSignal }): Promise<ImportResult> => {
-    await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
-    await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
-    return {
+  const run = vi.fn(
+    async ({
       meetingDir,
-      sourceName: 'invented.wav',
-      fileDate: new Date('2026-10-31T00:00:00Z'),
-      durationMs: 1000,
-      truncated: false,
-      chunks: [],
-      transcript: {
-        version: 1,
+      signal: _signal,
+    }: {
+      meetingDir: string;
+      signal: AbortSignal;
+    }): Promise<ImportResult> => {
+      await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
+      await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
+      return {
+        meetingDir,
+        sourceName: 'invented.wav',
+        fileDate: new Date('2026-10-31T00:00:00Z'),
         durationMs: 1000,
-        words: [],
-        turns: [],
-        speakers: [],
-        spans: [],
-        models: { speech: 'synthetic', segmentation: 'synthetic', embedding: 'synthetic' },
-        timing: { transcribeMs: 1, diarizeMs: 1 },
-      },
-    };
-  });
+        truncated: false,
+        chunks: [],
+        transcript: {
+          version: 1,
+          durationMs: 1000,
+          words: [],
+          turns: [],
+          speakers: [],
+          spans: [],
+          models: { speech: 'synthetic', segmentation: 'synthetic', embedding: 'synthetic' },
+          timing: { transcribeMs: 1, diarizeMs: 1 },
+        },
+      };
+    },
+  );
   const deps = {
     library,
     chooseFile: vi.fn(async () => selected),
@@ -88,12 +96,14 @@ describe('Electron import coordination', () => {
 
   it('cancels running imports, emits one terminal cancellation and never creates a meeting', async () => {
     const f = await fixture();
-    f.deps.run.mockImplementation(async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
-      await new Promise<void>((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
-      });
-      throw new Error('unreachable');
-    });
+    f.deps.run.mockImplementation(
+      async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        });
+        throw new Error('unreachable');
+      },
+    );
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
     const { importId } = (await f.coordinator.handlers.importAudioFile!({
       fileToken: file.fileToken,
@@ -111,12 +121,14 @@ describe('Electron import coordination', () => {
 
   it('a recording preempts an import and reports the recording rather than user cancellation', async () => {
     const f = await fixture();
-    f.deps.run.mockImplementation(async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
-      await new Promise<void>((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
-      });
-      throw new Error('unreachable');
-    });
+    f.deps.run.mockImplementation(
+      async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        });
+        throw new Error('unreachable');
+      },
+    );
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
     const { importId } = (await f.coordinator.handlers.importAudioFile!({
       fileToken: file.fileToken,
