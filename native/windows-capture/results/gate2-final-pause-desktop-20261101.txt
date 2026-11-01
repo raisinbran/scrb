@@ -1,0 +1,17 @@
+o {"type":"ack","id":"o","cmd":"open","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":null}
+s {"type":"ack","id":"s","cmd":"start","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":0,"origin":{"qpcNs":1315404340800,"wallUtc":"2026-11-01T10:06:42.458Z"},"clockOriginNs":1315404340800}
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4805469000}
+pause ms 2.1
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":4805469000}
+p2 {"type":"ack","id":"p2","cmd":"pause","ok":false,"gate":"closed","activeTracks":["microphone","meeting"],"atNs":null,"error":"conflict"}
+r {"type":"ack","id":"r","cmd":"resume","ok":true,"gate":"open","activeTracks":["microphone","meeting"],"atNs":12315497900}
+x {"type":"ack","id":"x","cmd":"stop","ok":true,"gate":"closed","activeTracks":[],"atNs":17319678900}
+meeting 000000.opus 0.01-4.80 start/pause; 000001.opus 12.33-17.32 resume/stop
+880 level 4490.4 2000 level 2.2 after resume 4490.4
+loudest meeting level while paused -6.75 dB
+microphone 000000.opus 0.00-4.80 start/pause; 000001.opus 12.32-17.31 resume/stop
+{"event":"open","wholeComputer":false,"followApp":"","seq":1}
+{"event":"pause","commandId":"p","cause":"user","atNs":4805469000,"seq":2}
+{"event":"resume","commandId":"r","cause":"user","atNs":12315497900,"seq":3}
+
+PASS

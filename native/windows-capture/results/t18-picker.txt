@@ -24,3 +24,11 @@ Node.js v26.13.0
 Mic: 274 chunks, first at 4.5 ms, no gaps.  Meeting: 276 chunks, first at 3.6 ms, 4 gaps of 3.1 to 5.3 ms,
 17.6 ms in all, `possiblyMissing`, between 139 and 236 s.  Numbering 0 breaks on both.  Ended by stop.
 Windows at 150 to 210 s read 16 to 17 ms high, then returned.  Near the gaps; not explained.  Within the 50 ms limit.
+
+Evidence recovery, 2026-11-01: the invocation above failed before measuring.
+The saved test recording was subsequently found and measured with the existing
+script from e180a51 and a newly built ChunkVerify. See
+t18-picker-recovered-20261101.txt for the complete successful output and
+t18-picker-recovered-provenance-20261101.txt for metadata/index hashes.
+Result: 40 of 45 windows, start 82 ms, end 81 ms, drift -1 ms, largest step -18 ms; PASS.
+This is remeasurement of the original recording, not a new call.

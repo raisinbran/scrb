@@ -24,7 +24,7 @@ To do:
 - [ ] Test a real second output device and a real unplug (F1 to F3)
 - [x] Rerun the 4 h load run with the silence check (F11): no false warning in 4 h, on a tone target with one hibernate
 - [x] Rerun T18 on a real Teams call, helper following Teams: meeting track -8 dB, no false warning
-- [x] Measure drift on a followed call: 40 of 45 windows, 82 then 81 ms, drift -1 ms (`t18-picker.txt`)
+- [x] Measure drift on a followed call: 40 of 45 windows, 82 then 81 ms, drift -1 ms. Original `t18-picker.txt` invocation failed; remeasurement of the saved recording reproduced the result (`t18-picker-recovered-20261101.txt`, provenance in `docs/gates/gate-2-windows-final-verification-20261101.md`)
 - [x] Try Teams from the real app's picker: 22-minute recording, Teams heard, followed
 - [ ] Test Zoom and browser targets
 - [ ] Update the User Manual with the final behavior

@@ -1,0 +1,8 @@
+case=gate2-final-bug2-20261101 helperExit=0
+microphone: chunks=2 audio=7.5 s missing=4899.2 ms bad=0 part=0 files=2 toneChunks=0 zeroChunks=0 peak=-42.9 dB
+  close reasons: rollover=1 stop=1
+    missing 4899.2 ms before 4.899 s, cause device
+meeting: chunks=3 audio=12.4 s missing=0.0 ms bad=0 part=0 files=3 toneChunks=3 zeroChunks=0 peak=-14.5 dB
+  close reasons: rollover=2 stop=1
+VERIFY OK
+events: micFallback=1 streamDead=1 streamReopened=1

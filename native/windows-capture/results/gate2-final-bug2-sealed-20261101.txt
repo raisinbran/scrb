@@ -1,0 +1,3 @@
+first mic chunk {"file":"000000.opus","seq":0,"startNs":4899152800,"endNs":9899152800,"frames":240000,"rate":48000,"openReason":"device","closeReason":"rollover","allZero":false,"missingBeforeMs":4899.153,"missingCause":"device","overlapMs":0,"transport":"internal","paddedSpans":[]}
+outcome ready gaps [{"kind":"audioMissing","track":"microphone","startNs":0,"endNs":4899152800}]
+PASS

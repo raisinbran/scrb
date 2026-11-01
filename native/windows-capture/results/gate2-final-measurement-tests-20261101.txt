@@ -1,0 +1,18 @@
+✔ finds a fixed delay through gain and noise (1265.5785ms)
+✔ reports a step as the largest step (664.1599ms)
+✔ fails on drift over the limit (0.3819ms)
+✔ fails when too few windows match (0.2208ms)
+✔ finds each sweep to the sample in noise louder than it (225.2324ms)
+✔ finds nothing in noise alone (198.8579ms)
+✔ the train never spaces sweeps closer than twice the pairing window (0.34ms)
+✔ pairs by nearest sweep and leaves out a sweep one track missed (2.563ms)
+✔ reports a constant offset as no drift, and a growing one as drift (0.2884ms)
+✔ needs enough pairs to pass (0.1116ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2072.4036

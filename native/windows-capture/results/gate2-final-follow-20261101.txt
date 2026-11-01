@@ -1,0 +1,6 @@
+{"name":"per-app-call-type","silentAtS":31.524,"moved":0,"reopened":0,"seconds":39,"secondsWithSound":0,"logged":true}
+{"name":"per-app-normal","silentAtS":null,"moved":0,"reopened":0,"seconds":39,"secondsWithSound":38,"logged":false}
+{"name":"follow-call-type","silentAtS":null,"moved":0,"reopened":0,"seconds":40,"secondsWithSound":40,"logged":false}
+{"name":"follow-brief-touch","silentAtS":null,"moved":0,"reopened":0,"seconds":20,"secondsWithSound":20,"logged":false}
+{"name":"follow-device-left","silentAtS":null,"moved":1,"reopened":1,"seconds":24,"secondsWithSound":24,"logged":false}
+PASS
