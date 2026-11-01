@@ -142,8 +142,9 @@ in `interruptedRecordings`:
    comes from `endNs`.
 7. **Remove the log and the lock, then queue the final pass** (decision 6).
 
-Every step can be repeated, so a crash during recovery just restarts it. If both tracks show a clean
-`stop`, the crash happened during Stop and no audio is missing, so the meeting ends as `ready`.
+Every step can be repeated, so a crash during recovery just restarts it. A complete final `stop`
+entry in `session.log`, written only after an explicit Stop command finishes saving audio, marks the
+meeting `ready`. Chunk close reasons alone cannot distinguish Stop during Pause from a crash.
 
 ### The 6.5 ms chunk issue
 
@@ -220,7 +221,7 @@ Tests marked "both" run on Windows and macOS.
 | 3 | Power cut or system crash | Checksums reject torn or garbage data. Only forced-to-disk audio is promised | I: damage the last page at every byte position, with cuts, zeros and garbage. Recovery keeps all good pages and never errors. H, both: one hard power-off during a recording |
 | 4 | Crash between writing a chunk and renaming it, or between renaming and logging | Files on disk are the truth. If `.opus` and `.part` both exist, the checked `.opus` is used | I: stop the writer at each step of closing a chunk |
 | 5 | Crash during recovery | Every step repeats safely | I: stop recovery after every step, restart, and get the same result byte for byte |
-| 6 | Crash during Stop | Log shows `stop` on both tracks, so the status ends as `ready` | I: stop at each Stop step |
+| 6 | Crash during Stop | Only a complete, terminal `stop` entry in `session.log` proves clean Stop; otherwise preserve audio as recovered | I: stop before and after writing the Stop entry |
 | 7 | Crash before any audio is saved | The meeting stays listed as recovered with no audio; nothing is deleted | I |
 | 8 | Crash while paused | Audio ends at the pause. No false gap afterwards | F: crash during a pause |
 | 9 | A worker is still writing when the app restarts | The lock stops recovery touching its files | F: leave a worker running, start recovery, and confirm no file is touched |
