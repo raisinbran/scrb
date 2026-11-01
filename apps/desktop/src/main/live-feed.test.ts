@@ -4,12 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
-import {
-  encodePcmFrame,
-  toolsIn,
-  type LivePcmFrame,
-  type ModelPaths,
-} from '@scrb/transcription';
+import { encodePcmFrame, toolsIn, type LivePcmFrame, type ModelPaths } from '@scrb/transcription';
 import { LiveCaptureSession, readLiveSetup, type LiveSetup } from './live-feed.ts';
 
 const models: ModelPaths = {
