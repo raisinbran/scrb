@@ -170,7 +170,7 @@ describe('pinned model staging, with an invented loopback HTTP fixture', () => {
     await writeFile(join(folder, '.invented.gguf.download-unrelated'), 'keep');
     await mkdir(join(folder, '.invented.gguf.download-81790608-4aee-4b84-98fc-a2fcd33a7591'));
     expect(await removeAbandonedModelDownloads(model.path)).toBe(1);
-    expect(await readdir(folder)).toEqual([
+    expect((await readdir(folder)).sort()).toEqual([
       '.invented.gguf.download-81790608-4aee-4b84-98fc-a2fcd33a7591',
       '.invented.gguf.download-unrelated',
     ]);
