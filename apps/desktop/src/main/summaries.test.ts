@@ -100,6 +100,26 @@ describe('summary job coordination', () => {
     await f.coordinator.shutdown();
   });
 
+  it('cancels active summary generation before recording begins', async () => {
+    const f = example();
+    f.run.mockImplementationOnce(async ({ signal }) => {
+      await new Promise<never>((_resolve, reject) => {
+        if (signal.aborted) reject(new Error('cancelled'));
+        else signal.addEventListener('abort', () => reject(new Error('cancelled')), { once: true });
+      });
+      throw new Error('unreachable');
+    });
+    await f.coordinator.handlers.generateSummary!({
+      meetingId: 'invented-meeting', length: 'brief',
+    });
+    await vi.waitFor(() => expect(f.run).toHaveBeenCalledOnce());
+    await f.coordinator.stopForRecording();
+    expect(f.save).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalledWith('summaryProgress', expect.objectContaining({
+      stage: 'done',
+    }));
+  });
+
   it('refuses overlapping generation instead of running two large models', async () => {
     const f = example();
     let finish!: () => void;
