@@ -52,7 +52,7 @@ async function round(n, player) {
   const log = readFileSync(join(out, 'audio', 'session.log'), 'utf8');
   const lastEvent = JSON.parse(log.slice(log.lastIndexOf('\n', log.length - 2) + 1, -1));
   const marked = log.endsWith('\n') && lastEvent.event === 'stop' && lastEvent.commandId === 'x';
-  if (marked !== explicitStop || (marked && lastEvent.atNs !== ack.atNs)) {
+  if (marked !== explicitStop || (marked && lastEvent.atNs !== ack?.atNs)) {
     console.log(n, 'explicit Stop marker mismatch', lastEvent);
     leaks += 1;
   }
