@@ -1,0 +1,28 @@
+amplitude=1
+F11 replay of the logged standby run: ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  generated frames 16335840, written 14447520, correction 0.000 ms
+  raw offset 1690 ms, detected missing 41030 ms
+  FAIL line 419: std::abs(lost - raw) < 100
+FAILED (1 failures)
+exit=1
+amplitude=16
+F11 replay of the logged standby run: ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  generated frames 16335840, written 14447520, correction 0.000 ms
+  raw offset 1690 ms, detected missing 41030 ms
+  FAIL line 419: std::abs(lost - raw) < 100
+FAILED (1 failures)
+exit=1
+amplitude=17
+T3: stale timestamp packets after wake never enter new chunk
+F11 replay of the logged standby run: ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  generated frames 16335840, written 16335840, correction 0.000 ms
+  raw offset 1690 ms, detected missing 1690 ms
+PASSED (0 failures)
+exit=0
+amplitude=100
+T3: stale timestamp packets after wake never enter new chunk
+F11 replay of the logged standby run: ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  generated frames 16335840, written 16335840, correction 0.000 ms
+  raw offset 1690 ms, detected missing 1690 ms
+PASSED (0 failures)
+exit=0
