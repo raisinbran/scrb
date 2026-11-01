@@ -78,7 +78,12 @@ export interface CaptureAck {
 
 export type CaptureEvent =
   | {
-      type: 'streamDead' | 'streamReopened' | 'permissionLost' | 'permissionRestored';
+      type:
+        | 'streamDead'
+        | 'serviceRestarted'
+        | 'streamReopened'
+        | 'permissionLost'
+        | 'permissionRestored';
       track: Track;
     }
   | { type: 'sourceChanged'; alive: boolean }

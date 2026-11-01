@@ -307,7 +307,7 @@ describe('Start while the previous recording is finishing', () => {
     send({ type: 'streamDead', track: 'meeting' });
     send({ type: 'streamDead', track: 'meeting' });
     send({ type: 'streamReopened', track: 'meeting' });
-    send({ type: 'streamDead', track: 'meeting' });
+    send({ type: 'serviceRestarted', track: 'meeting' });
 
     const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
     expect(health).toHaveLength(2);

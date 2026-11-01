@@ -75,3 +75,16 @@ Worst-case detection is about 4.1 s. With a bad mic ID, reopen was retried every
 **Still open, low risk:** a track still dead at Stop leaves its last chunk without a `stop` reason, so sealing reports `recovered`, not `ready`, and the final pass does not run. The gap is marked correctly and no audio is lost.
 
 **Harness faults found before the load run:** `tone.m4a` lasts 600 s and `long_run_app.mjs` plays it once, so the 4-hour run on 2026-10-31 may have had real sound on the meeting track only for its first 10 minutes. Its chunk and gap figures stand, and the load run uses a 4.3-hour tone. That script now reports peak levels each minute and logs if the tone or the load ends.
+
+**Load run, 2026-10-31 20:45 to 00:46, unattended and muted, final helper, 4.3-hour tone, default MacBook mic, 5 of 10 logical cores spinning below normal:** status `ready`, no `framesDropped`, no `streamDead`, no chunk over 5.2 s. The tone and load ran to the end, and the meeting track peaked at -11 dB in every minute's report.
+
+| Measure               | Limit | Microphone | Meeting          |
+| --------------------- | ----- | ---------- | ---------------- |
+| Chunks                |       | 2858       | 2855             |
+| Audio missing, marked | 15 s  | 12.18 s    | 8.90 s           |
+| Longest gap           | 5 s   | 3.96 s     | **5.52 s, over** |
+| Unaccounted           |       | 9 ms       | 23 ms            |
+
+The loss limit passes and every gap is marked, but **the 5 s limit fails on the meeting track**. On the mic, gaps of 3.96 s and 1.56 s sit 11 ms apart, so that track lost about 5.5 s at the same moment. Both tracks had a burst of gaps from about minute 56.7 to 57.4 (21:42:53 to 21:43:44). `coreaudiod` logged IO overloads system-wide across that span, and the system log was unusually busy with many background services. Swap read 4.7 GB the next morning. The trigger was not identified. Packets kept arriving often enough that the 3 s watchdog did not fire, so a stream rebuild would not have helped. All other gaps were under 1.1 s, except the device switch at 3.30 s. The recording was deleted; `sealed.json` and `events.jsonl` stay in `~/.local/share/scrb-tests/load-4h`.
+
+**Audio-service restart (T17), 2026-11-01, hands-on, real helper, muted, whole-computer track:** the owner ran `sudo killall coreaudiod` about 5 s after the prompt. The helper got `serviceRestarted` at once, at 35.7 s, and both tracks were back by 38.1 s. Gaps were 2.29 s on the mic and 2.49 s on the meeting track, on the same timeline with no overlaps. Both tracks closed with `stop`. A device notice followed at 43.3 s and rebuilt the mic again, with an 86 ms gap. The app ignored `serviceRestarted`, so it now raises the same warning as `streamDead`. That change is unit tested, not run through Electron with a real restart.

@@ -237,7 +237,7 @@ export class RecordingController {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
           } else if (event.type === 'writeError') {
             this.writeError(event.track);
-          } else if (event.type === 'streamDead') {
+          } else if (event.type === 'streamDead' || event.type === 'serviceRestarted') {
             this.streamDead(event.track);
           } else if (event.type === 'streamReopened') {
             this.deadStreams.delete(event.track);
