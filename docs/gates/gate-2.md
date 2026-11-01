@@ -1,11 +1,12 @@
 # Gate 2 — Evidence and approval review
 
-**Status:** CONDITIONAL PASS — Gate 2 remains OPEN; PRs #15/#13/#14 merged, final integrated CI and independent Claude QA/owner closure decision pending  
+**Status:** **Approved by the owner on 2026-11-01**, on the condition that Claude QA found no material evidence or reliability defect. It found none. The exceptions and limits below were accepted.  
 **Date:** 2026-11-01  
+**Closure commit:** `main` at [`cc73933`](https://github.com/raisinbran/scrb/commit/cc73933), CI **PASS** on Windows and macOS ([run 41299535119](https://github.com/raisinbran/scrb/actions/runs/41299535119)). Since the tested baseline, only documents, results and the F11 test changed.  
 **Originally tested baseline:** `main` at [`e180a51`](https://github.com/raisinbran/scrb/commit/e180a51f5b12cea698766c5c7a764c4c62f09154)  
 **Source of requirements:** [Development Plan v2.0](../../dev-plan/Meeting%20Scribe%20-%20Development%20Plan%20(v2.0).md), Gate 2; [checklist](gate-2-checklist.md)
 
-This is a **preliminary ChatGPT evidence review** submitted for independent QA, **not** a declaration that Gate 2 passed. Physical-machine tests below were documented by other agents; no endurance tests were repeated here.
+Physical-machine tests below were documented by other agents; no endurance tests were repeated here.
 
 ## Gate 2 evidence
 
@@ -37,10 +38,12 @@ This is a **preliminary ChatGPT evidence review** submitted for independent QA, 
 
 **Independent QA of PRs #13–#15:** Reviewed changed files, preserved logs/results, CI and branch comparison. No demonstrated production recording/privacy regression; the F11 failure is reproduced by the timing-only fixture's near-silent invented PCM, and the minimal test-only correction retains the original F11 tolerance and T23 safety regressions. PR #14's historical FAIL and inconclusive sealed-directory verifier remain documented. This is independent **repository/evidence QA**, not independent physical-machine execution.
 
-## Remaining approval actions
+## Decision
 
-1. **Integrated PRs #15/#13/#14:** Merged in order, ending at `b6b5ffe`. Keep their original native PASS/FAIL evidence and owner-accepted exceptions unchanged; verify final integrated CI.
-2. **Independent Claude QA of draft PR #12:** Review the consolidated evidence and checklist before merging this documentation PR. The owner will decide Gate 2 closure separately; Gate 2 remains **OPEN**. No further endurance, real-call, or Mac 44.1 kHz USB microphone tests are requested.
+**Claude QA, 2026-11-01:** CONDITIONAL PASS on PRs #12 to #15, conditions met. PRs #13, #14, #15 and #12 are merged, and final cross-platform CI passes. The F11 replay was also rebuilt on macOS from the original and corrected tests: the original fails and the correction passes, with the same 16/17 amplitude boundary. No recording-loss or privacy blocker remains.
 
+**Owner, 2026-11-01:** Gate 2 closes if Claude finds no material evidence or reliability defect. None was found, so Gate 2 is closed. No native rerun was made after merge; `main` holds the same Windows source and tests as tested revision `99ce280`.
+
+**Follow-up:** the User Manual still needs Gate 2's final behavior (`docs/bug-tracker.md`). The manual is a draft, and this is not a recording or evidence defect.
 
 **Deferred, not Gate 2 blockers:** Mac USB microphone real-speech test at 44.1 kHz (Phase 8), full T19, 8-hour endurance, Zoom/browser target coverage and physical output-device unplug checks.
