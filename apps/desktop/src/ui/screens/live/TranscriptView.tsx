@@ -93,6 +93,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | null>(null);
   const reachedBottomByCode = useRef(false);
+  const anchorRef = useRef<{ id: string | null; index: number; top: number } | null>(null);
 
   useEffect(() => () => clearTimeout(clickTimer.current), []);
 
@@ -146,18 +147,30 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     const element = scrollRef.current;
     const canvas = canvasRef.current;
     if (!element || !canvas) return;
-    let aboveViewport = 0;
     let changed = false;
     for (const row of canvas.querySelectorAll<HTMLElement>('[data-row-index]')) {
       const height = row.getBoundingClientRect().height;
       const index = Number(row.dataset['rowIndex']);
       const id = row.firstElementChild?.getAttribute('data-segment-id');
       if (!height || !id) continue;
-      const delta = store.heights.measure(index, id, height);
-      if (delta !== 0) changed = true;
-      if (index < firstVisible) aboveViewport += delta;
+      if (store.heights.measure(index, id, height) !== 0) changed = true;
     }
-    if (aboveViewport !== 0 && !following) element.scrollTop += aboveViewport;
+    const count = store.rowCount;
+    const anchor = anchorRef.current;
+    if (anchor && !following) {
+      const row = (anchor.id !== null ? store.rowOf(anchor.id) : null) ?? anchor.index;
+      const moved = store.heights.topOf(row, count) - anchor.top;
+      if (moved !== 0) {
+        element.scrollTop += moved;
+        setScrollTop(element.scrollTop);
+      }
+    }
+    const index = store.heights.indexAt(element.scrollTop, count);
+    anchorRef.current = {
+      id: store.segmentAt(index)?.id ?? null,
+      index,
+      top: store.heights.topOf(index, count),
+    };
     if (changed) setMeasureTick((tick) => tick + 1);
   }, [store, version, firstRow, lastRow, firstVisible, following, fontPx, viewport, measureTick]);
 
@@ -179,7 +192,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       reachedBottomByCode.current = false;
     } else {
       const gap = element.scrollHeight - element.scrollTop - element.clientHeight;
-      setFollowing(gap < STICK_TO_BOTTOM_PX);
+      setFollowing(gap < STICK_TO_BOTTOM_PX && selection === null);
     }
     if (frameRef.current !== null) return;
     frameRef.current = requestAnimationFrame(() => {

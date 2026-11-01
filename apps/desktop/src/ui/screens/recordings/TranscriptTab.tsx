@@ -158,50 +158,55 @@ export function TranscriptTab(props: TranscriptTabProps) {
     layout.current = { rows, offsets, heights };
   }, [rows, offsets, heights]);
 
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const rowObserver = new ResizeObserver((entries) => {
-      const current = layout.current;
-      const next = new Map(current.heights);
-      const element = scroller.current;
-      let shiftAbove = 0;
-      let changed = false;
-      for (const entry of entries) {
-        const key = (entry.target as HTMLElement).dataset['row'] as string;
-        const height = (entry.target as HTMLElement).offsetHeight;
-        const previous = next.get(key) ?? ESTIMATED_ROW_PX;
-        if (height === previous) continue;
-        next.set(key, height);
-        changed = true;
-        // Rows above the viewport must not push the text being read.
-        const index = current.rows.findIndex((row) => row.key === key);
-        if (element && index >= 0 && (current.offsets[index] as number) < element.scrollTop) {
-          shiftAbove += height - previous;
-        }
+  const onRowResize = useCallback((entries: ResizeObserverEntry[]) => {
+    const current = layout.current;
+    const next = new Map(current.heights);
+    const element = scroller.current;
+    let shiftAbove = 0;
+    let changed = false;
+    for (const entry of entries) {
+      const key = (entry.target as HTMLElement).dataset['row'] as string;
+      const height = (entry.target as HTMLElement).offsetHeight;
+      const previous = next.get(key) ?? ESTIMATED_ROW_PX;
+      if (height === previous) continue;
+      next.set(key, height);
+      changed = true;
+      // Rows above the viewport must not push the text being read.
+      const index = current.rows.findIndex((row) => row.key === key);
+      if (element && index >= 0 && (current.offsets[index] as number) < element.scrollTop) {
+        shiftAbove += height - previous;
       }
-      if (!changed) return;
-      layout.current = { ...current, heights: next };
-      setHeights(next);
-      if (element && shiftAbove !== 0) element.scrollTop += shiftAbove;
-    });
+    }
+    if (!changed) return;
+    layout.current = { ...current, heights: next };
+    setHeights(next);
+    if (element && shiftAbove !== 0) element.scrollTop += shiftAbove;
+  }, []);
+
+  const showList = !error && (loading || rows.length > 0);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || typeof ResizeObserver === 'undefined') return undefined;
     const viewportObserver = new ResizeObserver(([entry]) => {
       if (entry) setViewportPx(entry.contentRect.height);
     });
-    observer.current = rowObserver;
-    if (scroller.current) viewportObserver.observe(scroller.current);
-    return () => {
-      rowObserver.disconnect();
-      viewportObserver.disconnect();
-      observer.current = null;
-    };
-  }, []);
+    viewportObserver.observe(element);
+    return () => viewportObserver.disconnect();
+  }, [showList]);
 
-  const measure = useCallback((element: HTMLDivElement | null) => {
-    if (!element) return undefined;
-    const rowObserver = observer.current;
-    rowObserver?.observe(element);
-    return () => rowObserver?.unobserve(element);
-  }, []);
+  const measure = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element) return undefined;
+      // Created here: rows already loaded attach during commit, before any effect runs.
+      if (!observer.current && typeof ResizeObserver !== 'undefined') {
+        observer.current = new ResizeObserver(onRowResize);
+      }
+      const rowObserver = observer.current;
+      rowObserver?.observe(element);
+      return () => rowObserver?.unobserve(element);
+    },
+    [onRowResize],
+  );
 
   const handled = useRef<number | null>(null);
   const lastStart = segments.at(-1)?.startMs ?? -1;
@@ -213,7 +218,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
   }, [jump, lastStart, loading, offsets, rows]);
 
   if (error) return <p role="alert">{error}</p>;
-  if (!loading && rows.length === 0) {
+  if (!showList) {
     return <p className={styles.muted}>There is no transcript text yet.</p>;
   }
 

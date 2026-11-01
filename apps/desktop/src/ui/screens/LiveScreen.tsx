@@ -9,6 +9,7 @@ import type {
 import { useBackend } from '../lib/backend-context.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
+import { FinishedNotice } from './live/FinishedNotice.tsx';
 import { HealthIndicator, LagIndicator, LiveAlerts } from './live/LiveAlerts.tsx';
 import { MicTest } from './live/MicTest.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
@@ -162,9 +163,7 @@ export function LiveScreen() {
         onDismissDevice={() => setDevice(null)}
       />
       {status === 'idle' && lastMeetingId && (
-        <p className={styles.finished}>
-          Recording stopped. The final pass is running; find this meeting in Recordings.
-        </p>
+        <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
       )}
       {meetingId ? (
         <TranscriptView

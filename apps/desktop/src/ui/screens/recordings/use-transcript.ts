@@ -34,10 +34,13 @@ export function useTranscript(meetingId: MeetingId, reloadKey: string): Transcri
   useEffect(() => {
     let current = true;
     revision.current = null;
+    let latestSeen = -1;
+    const restart = () => setGeneration((value) => value + 1);
 
     const loadAll = async () => {
       const segments: TranscriptSegment[] = [];
       let total = Number.POSITIVE_INFINITY;
+      let loadRevision = -1;
       while (current && segments.length < total) {
         const page = await backend.call('getTranscript', {
           meetingId,
@@ -45,10 +48,15 @@ export function useTranscript(meetingId: MeetingId, reloadKey: string): Transcri
           limit: PAGE_SIZE,
         });
         if (!current) return;
+        // Pages of two revisions may repeat or skip rows, so the text must come from one.
+        if (loadRevision >= 0 && page.revision !== loadRevision) {
+          restart();
+          return;
+        }
+        loadRevision = page.revision;
         if (page.segments.length === 0) break;
         segments.push(...page.segments);
         total = page.totalSegments;
-        revision.current = page.revision;
         const loaded = [...segments];
         const finished = loaded.length >= total;
         setData((previous) =>
@@ -64,9 +72,10 @@ export function useTranscript(meetingId: MeetingId, reloadKey: string): Transcri
               },
         );
       }
-      if (current && total === Number.POSITIVE_INFINITY) {
-        setData({ ...EMPTY, loading: false });
-      }
+      if (!current) return;
+      if (total === Number.POSITIVE_INFINITY) setData({ ...EMPTY, loading: false });
+      if (latestSeen > loadRevision) restart();
+      else revision.current = loadRevision;
     };
 
     loadAll().catch((error: unknown) => {
@@ -80,10 +89,11 @@ export function useTranscript(meetingId: MeetingId, reloadKey: string): Transcri
     });
 
     const off = backend.on('transcriptChanged', (event) => {
-      if (event.meetingId !== meetingId || revision.current === null) return;
-      if (event.revision <= revision.current) return;
+      if (event.meetingId !== meetingId) return;
+      latestSeen = Math.max(latestSeen, event.revision);
+      if (revision.current === null || event.revision <= revision.current) return;
       if (event.revision !== revision.current + 1) {
-        setGeneration((value) => value + 1);
+        restart();
         return;
       }
       revision.current = event.revision;
