@@ -32,6 +32,29 @@ describe('logger privacy at worker failure boundaries', () => {
     });
   });
 
+  it('redacts invented transcript-like text even under generic diagnostic keys', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'scrb-private-field-'));
+    const logger = new Logger(dir, () => new Date('2026-10-31T12:00:00Z'));
+    const invented = 'FictionalClientWaterfall';
+    logger.log('warn', 'worker-state', {
+      state: invented,
+      status: invented,
+      code: invented,
+      track: 'microphone',
+      ...errorFields({ name: 'WorkerFailed', code: 'EACCES' }),
+    });
+    await logger.flush();
+    const text = await readFile(join(dir, 'scrb-2026-10-31.log'), 'utf8');
+    expect(text).not.toContain(invented);
+    expect(JSON.parse(text)).toMatchObject({
+      state: '[redacted]',
+      status: '[redacted]',
+      error: 'WorkerFailed',
+      code: 'EACCES',
+      track: 'microphone',
+    });
+  });
+
   it('retains safe diagnostic type and known OS error codes without error messages', () => {
     expect(
       errorFields(
