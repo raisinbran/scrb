@@ -14,6 +14,28 @@ const utterance = (id: string, startMs: number) => ({
 });
 
 describe('nonblocking live-transcript sink (native PCM feed not wired)', () => {
+  it('keeps reporting failed when the worker dies during a save', async () => {
+    let resolveWrite!: (value: { revision: number }) => void;
+    const appendSegments = vi.fn(
+      () =>
+        new Promise<{ revision: number }>((resolve) => {
+          resolveWrite = resolve;
+        }),
+    );
+    const emit = vi.fn();
+    const sink = new LiveTranscriptSink(
+      { appendSegments } as unknown as Library,
+      'meeting-one',
+      emit,
+    );
+    sink.offer(utterance('segment-one', 100));
+    sink.workerFailed();
+    resolveWrite({ revision: 4 });
+    await sink.stop();
+    const lag = emit.mock.calls.filter(([name]) => name === 'transcriptionLag');
+    expect(lag.at(-1)?.[1]).toEqual({ status: 'failed', lagMs: 0 });
+  });
+
   it('persists before publishing, and emits bounded, page-compatible changes', async () => {
     let resolveWrite!: (value: { revision: number }) => void;
     const appendSegments = vi.fn(

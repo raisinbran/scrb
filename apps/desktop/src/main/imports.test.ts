@@ -105,6 +105,7 @@ describe('Electron import coordination', () => {
     const orphan = '81790608-4aee-4b84-98fc-a2fcd33a7590';
     await mkdir(join(stageRoot, orphan), { recursive: true });
     await writeFile(join(stageRoot, orphan, 'private-staged.txt'), 'synthetic data');
+    await mkdir(join(stageRoot, `${orphan}.importing-0a1b2c3d`), { recursive: true });
     await mkdir(join(stageRoot, 'owner-folder'), { recursive: true });
     await f.coordinator.recoverInterrupted();
     expect(await readdir(stageRoot)).toEqual(['owner-folder']);
@@ -164,6 +165,23 @@ describe('Electron import coordination', () => {
     });
     expect(f.deps.library.createMeeting).not.toHaveBeenCalled();
     await f.coordinator.handlers.cancelImport!({ importId });
+    await f.coordinator.shutdown();
+  });
+
+  it('reports a file without audio as unreadable', async () => {
+    const f = await fixture();
+    f.deps.run.mockRejectedValue(Object.assign(new Error('invented'), { code: 'no_audio' }));
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    });
+    await vi.waitFor(() =>
+      expect(f.emit).toHaveBeenCalledWith(
+        'importFailed',
+        expect.objectContaining({ reason: 'unreadable' }),
+      ),
+    );
     await f.coordinator.shutdown();
   });
 

@@ -49,6 +49,8 @@ export function createConfiguredSummaryRunner(configPath: string): RunSummary {
 }
 
 /** Keeps a generated summary linked to precisely the transcript revision it read. */
+const RECORDING_PRIORITY = 'recording';
+
 export class SummaryCoordinator {
   private active: { meetingId: string; abort: AbortController; done: Promise<void> } | null = null;
   private starting = false;
@@ -108,12 +110,15 @@ export class SummaryCoordinator {
     abort: AbortController,
   ): Promise<void> {
     const { meetingId, length } = input;
+    let ended = false;
     const emit = (
       stage: 'extracting' | 'coverageCheck' | 'writing' | 'done' | 'failed',
       fraction: number,
       message?: string,
-    ) =>
+    ) => {
+      ended = stage === 'done' || stage === 'failed';
       this.emit('summaryProgress', { meetingId, stage, fraction, ...(message ? { message } : {}) });
+    };
     try {
       const snapshot = await this.library.readTranscript(meetingId);
       const speakerNames = new Map(
@@ -167,6 +172,9 @@ export class SummaryCoordinator {
         );
       }
     } finally {
+      if (!ended && abort.signal.reason === RECORDING_PRIORITY) {
+        emit('failed', 0, 'Recording took priority. Retry the summary.');
+      }
       if (this.active?.meetingId === meetingId) this.active = null;
     }
   }
@@ -182,7 +190,7 @@ export class SummaryCoordinator {
     this.startingAbort?.abort();
     const active = this.active;
     if (!active) return;
-    active.abort.abort();
+    active.abort.abort(RECORDING_PRIORITY);
     await active.done;
   }
 

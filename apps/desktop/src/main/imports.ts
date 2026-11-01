@@ -40,7 +40,7 @@ export interface ImportDependencies {
 }
 
 const IMPORT_STAGE_NAME =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.import-[0-9a-f]{8})?$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.importing-[0-9a-f]{8})?$/i;
 
 const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
   decoding: 'decoding',
@@ -230,7 +230,10 @@ export class ImportCoordinator {
               ? 'recordingInProgress'
               : code === 'unsupported_format' || code === 'video_not_accepted'
                 ? 'unsupportedFormat'
-                : code === 'no_permission' || code === 'not_found' || code === 'unreadable'
+                : code === 'no_permission' ||
+                    code === 'not_found' ||
+                    code === 'unreadable' ||
+                    code === 'no_audio'
                   ? 'unreadable'
                   : 'internal';
         this.deps.emit('importFailed', {

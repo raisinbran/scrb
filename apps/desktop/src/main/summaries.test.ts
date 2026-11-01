@@ -155,6 +155,13 @@ describe('summary job coordination', () => {
         stage: 'done',
       }),
     );
+    expect(f.emit).toHaveBeenLastCalledWith(
+      'summaryProgress',
+      expect.objectContaining({
+        stage: 'failed',
+        message: 'Recording took priority. Retry the summary.',
+      }),
+    );
   });
 
   it('refuses overlapping generation instead of running two large models', async () => {

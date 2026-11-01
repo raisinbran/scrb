@@ -116,6 +116,7 @@ export class LiveTranscriptSink {
             },
           ],
         });
+        if (this.failed) continue;
         this.emit('transcriptionLag', {
           status: this.pending.length ? 'lagging' : 'ok',
           lagMs: this.pending.length
