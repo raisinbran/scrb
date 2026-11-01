@@ -36,11 +36,13 @@ To do:
 - **Affects:** Windows, when the mic cannot open at Start and a later retry succeeds.
 - **Effect:** in the `t18-follow` run the mic's first chunk began at 4.6 s with `missingBeforeMs` 0 and no gap in the verifier. The chunk's start time is right, but nothing marks the gap. Whether the app shows it was not checked.
 - **Found by:** a bad mic ID from a script mistake, not a real device fault.
+- **Fix:** `docs/plans/first-chunk-gap.md`, approved 2026-11-01. Built on `windows-restart-test`, not merged.
+- **Close when:** merged.
 
 To do:
 
-- [ ] Mark the gap before a mic track's first chunk
-- [ ] Check the same path on the meeting track
+- [x] Mark the gap before a mic track's first chunk: real bad-mic run shows a 6.2 s `audioMissing` span
+- [x] Check the same path on the meeting track: same code; pipeline and sealing tests
 
 ## Closed
 

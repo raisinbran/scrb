@@ -1,6 +1,8 @@
 # Mark the gap before a track's first chunk
 
-**Status:** awaiting owner approval. Fixes BUG-2 in `docs/bug-tracker.md`.
+**Status:** approved by the owner on 2026-11-01. Built on `windows-restart-test`, not merged. Results: `native/windows-capture/results/first-chunk-gap.txt`. Fixes BUG-2 in `docs/bug-tracker.md`.
+
+**Change while building:** a recording that follows an app now counts as whole-device for sealing, so a late meeting chunk reads `possiblyMissing`, not `audioMissing`. A followed device sends nothing while it is silent, so a call nobody has spoken in yet would otherwise read as lost audio.
 
 ## The problem
 
@@ -23,13 +25,13 @@ No contract change: the span uses the existing `audioMissing` kind.
 
 ## How it could lose data, and the test for each
 
-| Failure | Test |
-| --- | --- |
-| A normal start is marked as missing audio, so users learn to ignore warnings | Pipeline test: first chunk at 30 ms has no mark. `trackGaps` test at 99 ms |
-| A late start stays unmarked | Pipeline test at 4.6 s. `trackGaps` test with no restart. A real run with a bad mic ID, as in `t18-follow` |
-| The gap is counted twice after a restart | `trackGaps` test: restart and late start give one span |
-| A pause before the first chunk is called missing audio | Pipeline and `trackGaps` tests: pause at once, first chunk after resume |
-| Chunk numbering, sealing or recovery changes | Existing crash, pause and restart regressions rerun with `SCRB_TONE`. The change writes no new files |
+| Failure                                                                      | Test                                                                                                       |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A normal start is marked as missing audio, so users learn to ignore warnings | Pipeline test: first chunk at 30 ms has no mark. `trackGaps` test at 99 ms                                 |
+| A late start stays unmarked                                                  | Pipeline test at 4.6 s. `trackGaps` test with no restart. A real run with a bad mic ID, as in `t18-follow` |
+| The gap is counted twice after a restart                                     | `trackGaps` test: restart and late start give one span                                                     |
+| A pause before the first chunk is called missing audio                       | Pipeline and `trackGaps` tests: pause at once, first chunk after resume                                    |
+| Chunk numbering, sealing or recovery changes                                 | Existing crash, pause and restart regressions rerun with `SCRB_TONE`. The change writes no new files       |
 
 ## Not changed
 

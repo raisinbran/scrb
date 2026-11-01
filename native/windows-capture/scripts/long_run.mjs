@@ -406,8 +406,9 @@ function analyse(work) {
     let subMarkNs = 0;
     const byCause = {};
     const byTransport = {};
-    for (let i = 1; i < chunks.length; i += 1) {
-      const startNs = chunks[i - 1].endNs;
+    for (let i = 0; i < chunks.length; i += 1) {
+      const startNs = i === 0 ? 0 : chunks[i - 1].endNs;
+      if (i === 0 && chunks[0].startNs < 100e6) continue; // a normal start, not a gap
       const gapNs = chunks[i].startNs - startNs;
       if (gapNs < 0) overlaps += 1;
       worstOverlapNs = Math.max(worstOverlapNs, -gapNs);

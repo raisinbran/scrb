@@ -5,6 +5,9 @@
 
 namespace scrb {
 
+// Normal first chunks start within 30 ms.  A later one means the track failed to open at Start.
+static constexpr int64_t kLateStartNs = 100 * kNsPerMs;
+
 std::string ChunkMetaToJson(const ChunkMeta& m) {
     std::string spans = "[";
     for (size_t i = 0; i < m.paddedSpans.size(); ++i) {
@@ -285,15 +288,15 @@ void TrackPipeline::OpenChunk(int64_t startNs, int64_t rawStamp, int64_t arrival
         lastWallMinusTimeline_ = offset;
         anchorKnown_ = true;
     }
-    if (endKnown_) {
-        int64_t gap = startNs - lastEndNs_;
-        if (gap > GapToleranceNs()) {
-            chunk_.missingBeforeMs = NsToMs(gap);
-            chunk_.missingCause = pendingCause_.empty() ? "unknown" : pendingCause_;
-            stats_.missingMs += static_cast<uint64_t>(chunk_.missingBeforeMs);
-        } else if (gap < -GapToleranceNs()) {
-            chunk_.overlapMs = NsToMs(-gap);
-        }
+    // A first chunk has no chunk before it, so its gap runs from the timeline's start.
+    int64_t gap = endKnown_ ? startNs - lastEndNs_ : startNs;
+    int64_t tolerance = endKnown_ ? GapToleranceNs() : kLateStartNs;
+    if (gap > tolerance) {
+        chunk_.missingBeforeMs = NsToMs(gap);
+        chunk_.missingCause = pendingCause_.empty() ? "unknown" : pendingCause_;
+        stats_.missingMs += static_cast<uint64_t>(chunk_.missingBeforeMs);
+    } else if (gap < -tolerance) {
+        chunk_.overlapMs = NsToMs(-gap);
     }
     pendingCause_.clear();
     pendingOpenReason_ = "rollover";

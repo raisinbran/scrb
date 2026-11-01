@@ -283,6 +283,30 @@ void TestStartMoved() {
     CHECK(r.sink.closed.size() == 2 && r.sink.closed[1].missingBeforeMs > 900);
 }
 
+void TestLateStart() {
+    puts("BUG-2: a late first chunk is marked; a normal start is not");
+    Rig normal("microphone");
+    normal.stamp += 30 * kNsPerMs;
+    normal.Feed(10);
+    normal.pipe.Stop();
+    CHECK(normal.sink.closed.size() == 1 && normal.sink.closed[0].missingBeforeMs == 0);
+
+    Rig late("microphone");
+    late.stamp += 4600 * kNsPerMs;
+    late.Feed(10);
+    late.pipe.Stop();
+    CHECK(late.sink.closed.size() == 1 && late.sink.closed[0].missingCause == "device");
+    CHECK(std::abs(late.sink.closed[0].missingBeforeMs - 4600) < 1);
+
+    Rig paused("microphone");
+    paused.pipe.OnGateClosed();
+    paused.stamp += 2 * kNsPerSec;
+    ++paused.generation;
+    paused.Feed(10);
+    paused.pipe.Stop();
+    CHECK(paused.sink.closed.size() == 1 && paused.sink.closed[0].missingCause == "pause");
+}
+
 void TestMarks() {
     puts("T3b zeros near an output change; device-silent span; no split");
     Rig r("meeting");
@@ -368,6 +392,7 @@ int main(int argc, char** argv) {
     TestGate();
     TestFastPause();
     TestStartMoved();
+    TestLateStart();
     TestMarks();
     if (argc > 1) TestRealStandbyLog(argv[1]);
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "PASSED", g_failures);
