@@ -3,6 +3,7 @@
 // priority, as on Windows. Unattended, so run it under run-muted.sh and caffeinate.
 // Usage: node --experimental-transform-types long_run_app.mjs <helper> <set_input> <work dir>
 //        <tone file> <seconds> <other input> <usual input>
+// The tone file must outlast the run: the meeting track follows that one player.
 import { execFile, spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { constants, cpus, setPriority } from 'node:os';
@@ -42,14 +43,18 @@ const note = (fields) => {
 };
 
 const burners = Math.floor(cpus().length / 2);
-const burn = spawn(process.execPath, [script, '--burn', String(burners)], {
+const burn = spawn(process.execPath, [...process.execArgv, script, '--burn', String(burners)], {
   stdio: ['pipe', 'ignore', 'ignore'],
 });
+burn.on('exit', (code, signal) => note({ loadExit: code ?? signal }));
 setPriority(burn.pid, constants.priority.PRIORITY_BELOW_NORMAL);
 note({ load: `${burners} spinning threads of ${cpus().length} logical cores, below normal` });
 
 const player = spawn('afplay', [tone], { stdio: 'ignore' });
+player.on('exit', (code, signal) => note({ playerExit: code ?? signal }));
 await sleep(2000);
+// Loudest level since the last report, so a track that went silent shows within a minute.
+const levels = { mic: -100, meeting: -100 };
 let id = 0;
 let adapter = null;
 let ended = null;
@@ -57,7 +62,10 @@ const recording = new RecordingSession({
   launch: () => {
     adapter = new ProcessAdapter(helper);
     adapter.onEvent((event) => {
-      if (event.type !== 'health') note({ event });
+      if (event.type === 'health') {
+        levels.mic = Math.max(levels.mic, event.micDb);
+        levels.meeting = Math.max(levels.meeting, event.meetingDb);
+      } else note({ event });
     });
     note({ launched: true });
     return adapter;
@@ -122,7 +130,10 @@ while (Date.now() - started < total && ended === null) {
       Math.round(elapsed / 1000),
       's',
       JSON.stringify(counts()),
+      `peak dB mic ${levels.mic.toFixed(0)} meeting ${levels.meeting.toFixed(0)}`,
     );
+    levels.mic = -100;
+    levels.meeting = -100;
   }
   await sleep(250);
 }

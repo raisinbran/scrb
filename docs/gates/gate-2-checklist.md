@@ -12,7 +12,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | **Not run.** The Mac 4-hour run had no CPU load                           | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
 | Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                          | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
 | Audio-service restart (T17)                                                | **Not run** on the helper; only the early spike. Approved, see decision 2 | Done                                                                                |
-| Stopped stream and privacy (T6, T20)                                       | **No T6 record found. Privacy at the next stream open is untested**       | Done                                                                                |
+| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. **Privacy at the next stream open is untested**      | Done                                                                                |
 
 ## To do
 
@@ -26,12 +26,12 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 **Mac**
 
-- [ ] Merge `mac-gate2-runs`
-- [ ] Add the same CPU load to `long_run_app.mjs`: half the logical cores, below-normal priority
+- [x] Merge `mac-gate2-runs`, into `gate-2-checklist`
+- [x] Add the same CPU load to `long_run_app.mjs`: half the logical cores, below-normal priority
 - [ ] Run the 4-hour load run overnight
-- [ ] Run T17, owner present
-- [ ] Run T6 on the real helper, with a forced stream stop
-- [ ] Run T20 at the next stream open
+- [ ] Run T17, owner present: `device_case.py <helper> <work> service`
+- [x] Run T6 on the real helper, with a forced stream stop
+- [ ] Run T20 at the next stream open: `device_case.py <helper> <work> reopen`
 - [ ] Run the USB mic case at 44.1 kHz with real speech, from Monday evening, 2026-11-02
 
 **Both**

@@ -57,3 +57,21 @@ This meets the 4-hour limit of 15 s per track with no single gap over 5 s. Audio
 - **Unsupported rates:** `resample_check.swift` passed at 22.05, 32, 44.1, 88.2, 96 and 192 kHz over 60 s: exact length, 1 kHz pitch, no clicks. `long_run_app.mjs` ran 360 s with the mic switching 48 to 44.1 kHz and back, the output at 44.1 kHz, pauses and a worker kill: status `ready`, 50 mic and 45 meeting chunks, 57 and 42 ms unaccounted, longest gap 0.45 s. `pause_case.py` at 44.1 kHz passed 3 of 3 with a 9.5 s pause, and the helper's `converting` event proved the meeting path ran. An earlier run failed the marker check right after the output rate changed, when the tap's first audio arrived 0.99 s late so the marker outlasted the 7.5 s pause; the 48 kHz baseline passed, and no marker reached a chunk before the cutoff. Electron with mic and output at 44.1 kHz gave 139 words from the final pass in about 8 s. Output was muted, so those words came from the meeting track, and speech through the mic at 44.1 kHz is still unproven.
 - **Write failures:** `disk_case.mjs` filled a real 2 MB volume. Each track sent one `writeError`, recording kept running, and only finished chunks were logged, with the rest left as `.part`. The app warning is unit tested. A converter that fails to start was checked only in `resample_check.swift`, not forced inside the helper.
 - **Still open:** a live change of a device's rate with no device switch, such as in Audio MIDI Setup, is not detected, because the helper reads the rate only when a stream opens. The USB mic run on 2026-11-02 is the real-device check for 44.1 kHz speech. Windows is not checked.
+
+**Stopped stream (T6), 2026-10-31, real helper, muted, `stream_stop_case.mjs`:** a test-only build (`SWIFT_FLAGS=-DFAULT_HOOKS`) stops one stream with no error. The first run gave three findings, all fixed:
+
+- Gaps were 5.3 s, over the 5 s limit, so the stall limit dropped from 5 s to 3 s.
+- The app ignored `streamDead`, so the user was never warned. It now warns once until the stream reopens.
+- A failed reopen was never retried. It now retries about every 3 s until the device returns.
+
+| Case                    | Stopped  | Detected | Reopened | Marked gap               |
+| ----------------------- | -------- | -------- | -------- | ------------------------ |
+| Mic                     | 12.001 s | 15.233 s | 15.313 s | 3.32 s `audioMissing`    |
+| Meeting, followed app   | 12.001 s | 15.182 s | 15.272 s | 3.36 s `audioMissing`    |
+| Meeting, whole computer | 12.002 s | 15.166 s | 15.237 s | 3.26 s `possiblyMissing` |
+
+Worst-case detection is about 4.1 s. With a bad mic ID, reopen was retried every 3 s and the rest of the meeting was marked missing. When the only sound ended, on either path, no false `streamDead` came in 25 s. A real unplug and AirPods removal are not part of this case; the device runs above cover the AirPods.
+
+**Still open, low risk:** a track still dead at Stop leaves its last chunk without a `stop` reason, so sealing reports `recovered`, not `ready`, and the final pass does not run. The gap is marked correctly and no audio is lost.
+
+**Harness faults found before the load run:** `tone.m4a` lasts 600 s and `long_run_app.mjs` plays it once, so the 4-hour run on 2026-10-31 may have had real sound on the meeting track only for its first 10 minutes. Its chunk and gap figures stand, and the load run uses a 4.3-hour tone. That script now reports peak levels each minute and logs if the tone or the load ends.
