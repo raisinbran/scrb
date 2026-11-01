@@ -1,6 +1,6 @@
 # Gate 2 Checklist
 
-Status: **open**, from the repository on 2026-10-31. This replaces older Gate 2 lists until the evidence note `gate-2.md` is written. Results not yet on `main` are on `mac-gate2-runs` and `windows-restart-test`.
+Status: **open**, from the repository on 2026-10-31. This replaces older Gate 2 lists until the evidence note `gate-2.md` is written. Results not yet on `main` are on `windows-restart-test`.
 
 Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-test map: `docs/plans/capture-contract-and-clock.md`. A new requirement joins this list only if it covers shown recording reliability, data loss, or a Gate 2 criterion.
 
@@ -26,7 +26,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 **Mac**
 
-- [x] Merge `mac-gate2-runs`, into `gate-2-checklist`
+- [x] Merge `mac-gate2-runs`
 - [x] Add the same CPU load to `long_run_app.mjs`: half the logical cores, below-normal priority
 - [ ] Run the 4-hour load run overnight
 - [ ] Run T17, owner present: `device_case.py <helper> <work> service`
