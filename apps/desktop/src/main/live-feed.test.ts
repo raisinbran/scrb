@@ -7,7 +7,6 @@ import type { Library } from '@scrb/storage';
 import {
   encodePcmFrame,
   toolsIn,
-  type LiveAudioWorkerOptions,
   type LivePcmFrame,
   type ModelPaths,
 } from '@scrb/transcription';
@@ -37,7 +36,7 @@ afterEach(async () => {
 it('restarts live worker without reusing the helper clock', async () => {
   const offered: LivePcmFrame[][] = [];
   const close = vi.fn(async () => undefined);
-  const start = vi.fn(async (_options: LiveAudioWorkerOptions) => {
+  const start = vi.fn(async () => {
     const list: LivePcmFrame[] = [];
     offered.push(list);
     return {
