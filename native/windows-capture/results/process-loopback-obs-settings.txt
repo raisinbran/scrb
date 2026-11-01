@@ -1,0 +1,7 @@
+Process loopback set up exactly as OBS win-wasapi.cpp InitClient does: INCLUDE tree, 48 kHz stereo float,
+EVENTCALLBACK | LOOPBACK, 5 s buffer.  phase0/probes/windows-comm-tone/ObsProbe.cpp, output muted, no call.
+Peak per second over 4 s, 880 Hz CommTone at amplitude 0.3.
+other/none/console     -10.5 dB, every second
+comms/none/console     digital silence, every second, about 48000 frames each
+comms/none/comms       digital silence, every second, about 48000 frames each
+Build 26300.9711.  OBS itself was not installed or run.

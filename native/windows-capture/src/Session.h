@@ -31,6 +31,7 @@ public:
     void Handle(const Command& cmd);
     void RequestQuit();
 
+    void OnDefaultNotice(bool capture, const char* role, const std::string& id, int64_t atNs);
     void OnDefaultChanged(bool capture);
     void OnDeviceGone(const std::string& id);
     void OnDeviceActive(const std::string& id);
@@ -42,14 +43,15 @@ private:
         std::unique_ptr<Track> track;
         StreamSpec spec;
         bool needReopen = false;
-        bool triedSame = false;
+        int64_t firstFailNs = 0;
         int64_t nextRetryNs = 0;
         bool stalled = false;
         bool deathPosted = false;
     };
 
     void Reply(const Command& cmd, bool ok, const std::string& extraKey = "", const std::string& extraJson = "",
-               std::optional<int64_t> atNs = std::nullopt);
+               std::optional<int64_t> atNs = std::nullopt,
+               std::optional<int64_t> clockOriginNs = std::nullopt);
     void ReleaseWriter();
     std::string ActiveTracks() const;
     void Emit(const std::string& name, const JsonObject& fields);
@@ -69,8 +71,11 @@ private:
     void MarkDead(int index, const std::string& reason, HRESULT hr);
     void TryReopen(int index, int64_t now);
     void WarnIfHandsFree(const DeviceInfo& info);
+    void EmitDefaultApplied(const char* track, const char* outcome, const std::string& resolved);
     void ApplyMicDebounce();
     void ApplyOutputDebounce();
+    void MoveMeetingTo(const std::string& id);
+    void WatchAppOutput();
     void CheckConsent();
     void CheckAudioService();
     void RebuildNotifier();
@@ -89,6 +94,7 @@ private:
     std::unique_ptr<SessionLog> log_;
     HANDLE writerLock_ = nullptr;
     int64_t originNs_ = 0;
+    bool continuing_ = false;
     int64_t lastSecondNs_ = 0;
 
     std::thread watchdog_;
@@ -105,6 +111,11 @@ private:
     DWORD audioServicePid_ = 0;
     HANDLE target_ = nullptr;
     DWORD targetPid_ = 0;
+    std::string followApp_;  // set when the meeting track records this app's output device
+    std::string movingTo_;
+    int64_t movingSinceNs_ = 0;
+    std::wstring fakeAppDevice_;  // test hook; this PC has one output device
+    SilenceWatch silence_;
 };
 
 // Serialized through one thread, so a parent that stops reading blocks nobody.

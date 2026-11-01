@@ -1,0 +1,26 @@
+load: none
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:15.022Z","track":"meeting","kind":"stamp","missingMs":3960.000,"arrivalGapMs":4012.644,"atNs":11973818500}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:15.049Z","track":"microphone","kind":"stamp","missingMs":2010.195,"arrivalGapMs":7.672,"atNs":12016737100}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:37.055Z","track":"meeting","kind":"stamp","missingMs":13970.000,"arrivalGapMs":14025.581,"atNs":34003818500}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:37.077Z","track":"microphone","kind":"stamp","missingMs":12019.948,"arrivalGapMs":8.055,"atNs":34046560000}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:22:45.560Z","track":"microphone","gapMs":510.900,"watchdogLate":false}
+{"type":"event","event":"streamStalled","wall":"2026-10-31T22:22:45.560Z","track":"meeting","gapMs":510.040,"watchdogLate":false}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:49.059Z","track":"meeting","kind":"stamp","missingMs":3980.000,"arrivalGapMs":4009.960,"atNs":46033818500}
+{"type":"event","event":"discontinuity","wall":"2026-10-31T22:22:49.085Z","track":"microphone","kind":"stamp","missingMs":2009.924,"arrivalGapMs":9.683,"atNs":46056659800}
+pulses found 54, expected 90, worst distance from the 600 ms grid 40.04 ms
+process stall 4000 ms at 8.01-12.03 s: kept 0 of 6 pulses
+process stall 14000 ms at 20.04-34.05 s: kept 0 of 23 pulses
+reader stall 4000 ms at 42.06-46.06 s: kept 0 of 7 pulses
+missing inside saved audio (unmarked): 0; missing away from any stall: 0
+microphone: chunks=11 audio=38.0 s missing=16040.1 ms bad=0 part=0 files=11 toneChunks=2 zeroChunks=0 peak=-29.2 dB
+  close reasons: discontinuity=3 rollover=4 stall=3 stop=1
+    missing 2010.2 ms before 12.017 s, cause stall
+    missing 12019.9 ms before 34.047 s, cause stall
+    missing 2009.9 ms before 46.057 s, cause stall
+meeting: chunks=8 audio=32.1 s missing=21910.0 ms bad=0 part=0 files=8 toneChunks=0 zeroChunks=0 peak=-18.5 dB
+  close reasons: rollover=4 stall=3 stop=1
+    missing 3960.0 ms before 11.974 s, cause stall
+    missing 13970.0 ms before 34.004 s, cause stall
+    missing 3980.0 ms before 46.034 s, cause stall
+VERIFY OK
+PASS

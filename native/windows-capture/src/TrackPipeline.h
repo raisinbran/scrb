@@ -8,6 +8,27 @@
 
 namespace scrb {
 
+// Seconds count while the app makes sound, not in a row, so pauses in speech do not reset them.
+// Anything the track hears clears the count and rearms the warning.
+class SilenceWatch {
+public:
+    static constexpr int kLimitSeconds = 30;
+    bool Update(double appPeak, double trackDb) {
+        if (trackDb > -80) {
+            seconds_ = 0;
+            warned_ = false;
+            return false;
+        }
+        if (warned_ || appPeak < 0.001 || ++seconds_ < kLimitSeconds) return false;
+        warned_ = true;
+        return true;
+    }
+
+private:
+    int seconds_ = 0;
+    bool warned_ = false;
+};
+
 struct PipelineConfig {
     std::string sessionId;
     std::string track;  // microphone or meeting
@@ -23,6 +44,7 @@ struct PipelineConfig {
     int64_t outputSwitchWindowNs = 3 * kNsPerSec;  // D2b
     int64_t minZeroRunNs = 100 * kNsPerMs;         // D2b
     double rateTolerance = 0.05;                   // D5
+    int stalePeak = 16;                            // T23: of 32767, above the 3 measured
     std::function<void(int64_t* timelineNow, std::string* wallUtc, int64_t* wallNs)> readClocks;
 };
 
@@ -42,6 +64,7 @@ public:
     void OnPacket(const Packet& p);
     // Everything before the cutoff is written, so a closed gate can end the chunk.
     void OnGateClosed();
+    void OnGateOpened();
     void Stop();
     void OnSleep();
     void OnWake(int64_t nowNs);
@@ -62,6 +85,7 @@ private:
     bool HandsFree() const;
     int64_t GapToleranceNs() const;
     bool CheckDivergence(const Packet& p);
+    bool IsStaleSilence(const Packet& p);
     void CheckRate(const Packet& p, int64_t stamp);
     void ResetStreamState();
 
@@ -74,6 +98,9 @@ private:
     bool paused_ = false;
     bool stopped_ = false;
     bool sleeping_ = false;
+    bool resumedNoPacket_ = false;  // the gate opened and no packet has proved the stream
+    bool lostAfterResume_ = false;
+    bool dropping_ = false;
     int64_t wakeNs_ = 0;
     int64_t originNs_ = 0;
     uint32_t generation_ = 0;

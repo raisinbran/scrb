@@ -1,0 +1,3 @@
+T18 Teams process target, stopped by hand at 16:28 PT
+samples 1359, meeting peak -95.94 dB, mic peak -8.98 dB
+Probes while the call played: whole computer -14.6 dB; ms-teams 11332 and 24132, explorer tree 19568, Zoom, Chrome, Edge, Outlook and others all -96 dB.

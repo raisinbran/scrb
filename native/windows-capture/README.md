@@ -1,7 +1,7 @@
 # scrb-capture (Windows capture adapter)
 
-Status: **device cases rerun on this PC; real meeting apps, load and the 8 h
-run are not done.**  Design source:
+Status: **device cases and the 4 h long run done on this PC; real meeting apps
+are not done.**  Design source:
 `phase0/design/capture-contract-draft.md` (still a draft).
 
 ## Build
@@ -33,8 +33,8 @@ stops and finalizes the recording.  A worker exits after `stop`.
 
 | Command | Fields | Notes |
 | --- | --- | --- |
-| `open` | `sessionId`, `outputDir`, `source` (process IDs; `[]` = whole computer), `mic` (`default` or device ID) | Streams open, meters run, nothing written.  Succeeds if either track opens |
-| `start` | | Ack also carries the session origin |
+| `open` | `sessionId`, `outputDir`, `source` (process IDs; `[]` = whole computer), `mic` (`default` or device ID), `clockOriginNs` (optional) | Streams open, meters run, nothing written.  Succeeds if either track opens.  With `clockOriginNs` the worker rejoins that timeline, gate closed, and takes `start`, `resume` or `stop` |
+| `start` | | Ack also carries the session origin and `clockOriginNs`.  A restarted worker's `atNs` is the current session time, not 0 |
 | `pause`, `resume` | `cause` (optional) | One shared gate.  Resume is refused if neither stream is ready |
 | `stop` | | Files closed and lock released before the ack |
 | `checkPermission` | | Always `granted`: Windows has no system-audio permission |
@@ -49,7 +49,8 @@ Process loopback captures one process tree, so `open` uses the first ID in
 `source`.  A second instance of an app with a separate tree is not captured.
 
 Events (`{"type":"event"}`): `chunkClosed`, `discontinuity`, `streamStalled`,
-`streamDead`, `streamReopened`, `deviceChanged`, `rateChanged`, `permissionLost`,
+`streamDead`, `streamReopened`, `deviceChanged`, `defaultNotice`,
+`defaultApplied`, `rateChanged`, `permissionLost`,
 `permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `micFallback`,
 `micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`, `writeError`,
 `health` (`micDb`, `meetingDb`), `trackHealth`.
@@ -79,6 +80,14 @@ is not yet confirmed, so it is not counted.
   core, not built here.**  It never widens to whole-computer on its own, and
   that now holds for a failed per-app open too (W2): it retries and warns.
 - A chunk splits on every OS discontinuity flag.
+
+## Owner decisions (2026-10-31)
+
+- The 4 h run with CPU load counts as Gate 2's representative load.  Full T19
+  moves to the 8 h run before Gate 8, because it needs live transcription, which
+  is built after Gate 2.
+- The track-timeline offset is accepted for the 4 h run.  The shared-sound check
+  is Gate 2's real-call test.
 
 ## Matching the Mac helper (2026-10-30)
 
@@ -120,6 +129,108 @@ also had 54 packets read after the gate closed, each stamped as ending by the
 cutoff; how late they arrived was not recorded.  The old bug, about 1 s, still
 fails this case by far.
 
+### Worker restart (2026-10-31)
+
+The draft from ChatGPT compiled, and its `restart_case.mjs` printed PASS, but that
+pass proved little: the script never checked for tone, and the tone was silent
+(below).  `restart_case.mjs` now kills one worker while recording and one during a
+pause, and checks numbering, chunk times, one gap per track of about the down
+time, and 880 Hz from all 3 workers.  Run with a new work directory; output muted.
+
+| Run | Result |
+| --- | --- |
+| Draft, stronger case | Fail as it should: `start` during a pause succeeded, opening the gate with no `resume` in `session.log` |
+| First fix only, stronger case | Fail as it should: a worker waiting with the gate closed read that as a pause, so its first chunk said `resume`, not `workerRestarted`, and `paused_` stayed set |
+| Both fixes (`results/restart-case.txt`) | Pass: microphone 000000 to 000003 and meeting 000000 to 000003 gap-free, 0 to 21.7 s on the first clock; `workerRestarted` on both rejoins; one `audioMissing` per track, 3.19 s against 2 s down plus the 1 s of the killed worker's unflushed page; 880 Hz level 4490, 4490 and 4520 |
+| `pause_case.mjs` | Pass: marker 2.7 against 4517, -17.9 dB at the stream while paused |
+| `crash_case.mjs` | Pass: lock freed by the kill, `.part` repaired, 339 ms lost of 7354 ms, 880 Hz level 4489 |
+| PipelineTests with the logged standby replay | Pass, 0 failures |
+
+The pipelines now start at the first `start` or `resume`, as in a fresh session.
+A chunk's numbers and earlier chunks are unchanged by the restart.
+
+Not tested: a write failure on the blank separator line in `chunks.log` or
+`session.log`.  That throws out of `DoOpen`, so the worker exits with no ack and
+the app treats it as a worker failure.  A mic that fails to open during a rejoin
+reopens with reason `device`, so that track has no `workerRestarted` chunk;
+recovery does not depend on the reason.
+
+**`TonePlayer.exe` is muted in the Volume Mixer on this PC.**  Windows keeps
+per-app settings by path, and `phase0\probes\windows-tone-player\TonePlayer.exe`
+is saved at 30% and muted on the speakers, so it reads about -96 dB, even in
+whole-computer capture.  A copy at another path reads -17.9 dB.  Set `SCRB_TONE`
+to such a copy; `restart_case.mjs`, `pause_case.mjs`, `crash_case.mjs` and
+`run-case.ps1` read it.  `stop_paused_case.mjs` and `long_run.mjs` do not.
+When the mute was saved is not known, and the setting was left as it is.
+
+### T18 tools (2026-10-31)
+
+`scripts/shared_sound.mjs` makes the invented sound and measures it.  It replaces
+the plan's clicks with 60 ms sweeps, 800 to 3200 Hz, at irregular spacing of 2 to
+3 s, because a sweep gives a sharp peak after a call's codec and is less likely
+to be taken for noise.  `measure` decodes each chunk with `ChunkVerify --pcm`,
+places sweeps by `startNs`, pairs them across tracks, and reports mic minus
+meeting at the start and end, using the median of 10 pairs at each end.  It passes
+with at least 20 pairs and drift under 50 ms.  The start offset includes speaker
+and room delay, so only its change is drift.  Decoded audio is deleted after.
+
+```
+node scripts\shared_sound.mjs make out\sweeps.wav 10
+pwsh -File scripts\run-case.ps1 -Case t18-call -Seconds 600 -TargetExe ms-teams.exe -NoMute -Actions '...'
+node scripts\shared_sound.mjs measure out\t18-call
+```
+
+`-TargetExe` needs the app to have an audio session, so run it once the call is
+up.  It finds no app started from the same process tree as the helper.
+`-PlayFile <wav>` plays a file as the target, for a run with no call.
+
+| Check | Result |
+| --- | --- |
+| `shared_sound.test.mjs` (`node --test`) | Pass, 6 of 6, synthetic audio only |
+| 22 s of the WAV through the helper, output muted | Pass: 8 sweeps on meeting, 0 on the muted mic |
+| False sweeps | Pass: 0 on the mic above and 0 in the 60 s `audio-restart-whole` run.  A first threshold based on the median gave 10 false sweeps on the mic, so a match score replaced it |
+| `-TargetExe TonePlayer.exe`, player started outside this tree | Pass: -17.9 dB; an unknown exe stops with a clear error |
+
+| `t18-aloud`: 40 s through the speakers, no call, built-in mic, final volume 20% | **Fail on count, as a 40 s run must:** 6 pairs of the 20 needed, at most 16 possible.  Mic minus meeting 70.4 to 74.7 ms, median 73.8 ms, on the first clock.  `results/t18-aloud.txt` |
+
+In `t18-aloud` the meeting track kept all 16 sweeps, but the mic caught 5 in the
+first 10 s and 1 after.  From 10 s to the end the mic's level at 1500 to 2500 Hz
+fell to about a tenth (61--84 to 3--14), so a lower match score would not help: at
+0.2 it adds false sweeps and pairs only 1 more.  The sweeps are gone from the
+saved mic audio.  The cause is not known.  Mic noise suppression learning a
+repeating sound and a volume change during the run are both possible.
+
+| `t18-aloud-2`: 90 s through the speakers, no call, built-in mic, volume 50% before and after | **Fail on count:** 17 pairs of the 20 needed, from 39 sweeps on the meeting track.  Mic minus meeting 64 ms, then 81 ms from 45 s.  Drift 16.69 ms against 50 ms, but on too few pairs to count.  `results/t18-aloud-2.txt` |
+
+`t18-aloud-2` rules out a volume change: the mic lost sweeps again with the volume
+at 50% before and after.  Its level at 1500 to 2500 Hz started at about 130--160,
+stayed mostly under 50 from 10 to 35 s, came back to 84--137 at 35 to 40 s, then
+faded to about 10 by 75 s.  No sweep paired after 68 s, while the meeting track
+kept all of them.  That pattern fits mic noise suppression, but this is not proven.
+A conversation about 15 ft away was also in the room.
+
+The offset did not drift: it stepped by about 16 ms between the sweeps at 40.7 and
+45.1 s, and stayed there.  Nothing logged it: no gap, no event, and chunk joins
+within 0.3 ms on both tracks, so the sample streams themselves did not jump.  The
+cause is not known.  A later change in the audio path before capture and the
+detector locking onto a room echo are both possible.  The drift limit would pass
+such a step, so read the listed offsets as well as the drift figure.
+
+The mic chunks of this run were deleted after measuring, since they held that
+conversation.
+
+Sweeps were dropped for the real call (owner decision, 2026-10-31).  In place of
+the plan's click train, the second device plays an invented conversation, from
+`scripts/make_conversation.ps1 -Out out/t18-conversation.wav`: 65 minutes, two
+Windows voices, seeded.  `scripts/call_offset.mjs <dir>` measures it the way the
+Mac's script does, by matching the tracks' loudness in 20 s windows, and prints
+every window so a step shows.  On that speech with a made-up 64 then 81 ms delay,
+0.1 gain and noise, it returned both delays.  Tests: `node --test
+scripts/call_offset.test.mjs`.
+
+Not verified: a passing offset and drift measurement, Teams as a target, and
+`call_offset.mjs` on speech that has really crossed a room.
+
 ## Results on this PC
 
 Output muted; tone target; each case in `results/<case>.txt`.  Every run
@@ -151,11 +262,57 @@ timer:
 | `sleep-wake` | 1.7 s offset | Pass: 71.1 s `sleep` on meeting, 71.4 s on mic, against 72 s in the Windows log.  See finding 8 |
 | `mic-privacy-off` | Mic stopped, never resumed | Pass: 45.7 s `permission` missing; reopened 0.45 s after access returned |
 | `audio-restart-tree` | Mac capture died silently | Pass after finding 5: meeting back in about 1.8 s, mic in 5.6 s |
+| `audio-restart-whole` (2026-10-31) | Not run before | Pass: whole-computer capture, tree target, `SCRB_TONE` copy.  Both tracks `streamDead`, `deviceSignal` 0x88890004, not a silent death; both back in 5.6 s, the 5 s retry of finding 9.  Meeting missing 5.80 s, mic 5.71 s; tone in all 12 meeting chunks, level 4052--4056 before and 3780--3781 after, cause of the drop not checked.  Sealed, the meeting gap reads `audioMissing` after the fix in finding 13 |
 | `default-debounce` | None | Pass, weakly: no `deviceChanged` with an 8 s debounce.  The log cannot show that the two quick changes happened |
 
-Not run: Windows Audio restart with whole-computer capture.  Unverified: real
-Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
-(no USB mic).
+4 h long run with load (2026-10-30, `results/long-run.txt`).  **This is not the
+full T19 load test: it had no real call and no live transcription.**  Load was
+the CPU fallback, 6 spinning threads of 12 logical cores at below-normal
+priority, because the Phase 0 speech tools and AMI audio are not on this PC.
+System CPU averaged 70.2%.  The owner re-tested the switch, so there were 4
+device changes, not 2.  Output mute was left to the owner after 21 min.
+
+| Limit | Result |
+| --- | --- |
+| Chunks numbered, no `.part` after recovery | Pass: 6982 mic, 2857 meeting, 0 breaks, 0 left, 0 damaged |
+| Every gap marked | Pass: 1350 mic, 8 meeting, 0 unmarked |
+| Audio against timeline minus pauses (14249.981 s) | Mic 13940.960 s, meeting 14249.084 s |
+| Worst offset under 50 ms | Pass as corrected: 1.95 ms drift on track timelines.  The run printed FAIL, 2390.04 ms, from an unsound measure (finding 11).  Not measured on the headset or against a shared sound |
+| Mic loss at most 15 s | **Fail: 309.924 s.**  308.117 s on the No Air 3 headset, 1.806 s on the built-in mic.  Owner decision (2026-10-31): accepted as the known headset problem (finding 6), not counted as a pass |
+| Pause ack 99th percentile under 200 ms | Pass: 28.61 ms, the slowest of 5 |
+| No chunk crosses a pause | Pass: 0 of 5 pauses, timing check |
+| Audio lost at the kill, about 1 s or less | Pass: mic 135 ms, meeting 702 ms |
+
+Helper: 3.87% of one core on average, highest minute 7.09%; peak working set
+19.6 MB, private 8.2 MB at hour 1 and 8.3 MB at the end; 327 handles at both.
+
+4 h rerun on the built-in mic (2026-10-31, `results/long-run-builtin.txt`,
+`long-run-builtin-notes.txt`).  Same load, tone target and 5 pauses, with no device change
+because only one input was connected.  **The PC lost power and hibernated on critical
+battery for 18.8 min.**  Owner decision (2026-10-31): that one gap is left out of the
+limits.  The report's LIMITS FAILED stands as printed; the figures below leave it out.
+
+| Limit | Result |
+| --- | --- |
+| Chunks numbered | 2641 mic, 2632 meeting, 0 breaks.  Printed FAIL: the chunk open at the kill was headers only and went to `damaged`; its 0.2 s is the kill loss below |
+| Every gap marked | Pass: 15 mic, 9 meeting, 0 unmarked |
+| Mic loss at most 15 s | Pass with the exception: 1.221 s, longest gap 280.8 ms.  1130.730 s with the sleep |
+| Worst offset under 50 ms | Pass: 2.80 ms on track timelines, plain rollovers only, so not across the sleep and not against a shared sound |
+| Pause ack 99th percentile under 200 ms | Pass: 14.00 ms, the slowest of 5 |
+| No chunk crosses a pause | Pass: 0 of 5 pauses |
+| Audio lost at the kill, about 1 s or less | Pass: mic 209 ms, meeting 212 ms |
+
+The helper survived the hibernate, marked both gaps `sleep` and recovered in about 35 s
+without a restart.  Both tracks reported `clockFault` of -19.05 s at wake.  The wall
+clock was right, checked against an internet server; the timeline over-counted the
+hibernate by 19 s, why is not known.  Each chunk stores its own wall anchor, so wall times
+stay right.  No `meetingSilent` in 4 h.
+
+Owner decision (2026-11-01): the 10-30 and 10-31 runs count together for Gate 2.  The first
+has the device changes, the second the mic loss on the built-in mic.
+
+Unverified: real Teams/Zoom/browser targets, the full T19 load test, the 8 h run, and USB
+unplug (no USB mic).
 
 ## Findings
 
@@ -163,8 +320,9 @@ Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
    honest.  After wake Windows delivers the slept span as a burst of stale
    silence holding 1.69 s fewer frames than its stamps cover.  So D1 (stamps)
    finds it, and D2 is only a defence.  The pipeline drops that burst, so the
-   span is recorded as asleep and not as silence.  Contract F11, D2 and T3 need
-   updating (owner-approved folder, not changed here).
+   span is recorded as asleep and not as silence.  F11, D2 and T3 in
+   `phase0/design/capture-contract-draft.md` need updating (not changed here).
+   That draft is separate from `packages/contracts/`, which these do not touch.
 2. **A reader-only stall lost meeting audio.**  The 3.98 s loss differs from F4,
    where the app track lost nothing in real whole-process stalls.  The hook
    stops one thread, so it may not match F4; process loopback also cannot take
@@ -185,9 +343,121 @@ Teams/Zoom/browser targets, CPU under load, the 8 h Gate 2 run, and USB unplug
    end, which also stops small losses adding up unseen.
 8. The mic was all-zero for about 12 s after wake, until around sign-in.  It is
    recorded as audio, not a gap; only `allZero` shows it.
-9. A picked or restarted mic retries every 5 s, which costs up to about 5 s of
-   mic audio on a disconnect or service restart.  A shorter retry is worth
-   testing.
+9. A picked or restarted mic retried every 5 s, which cost up to about 5 s of
+   mic audio on a disconnect or service restart.  Both tracks now retry every
+   1 s.  A picked mic still falls back to the default after 5 s, so a brief
+   dropout does not swap mics: `retry-fallback` fell back about 5.5 s after an
+   unknown mic was picked.  `audio-restart-retry` repeated the Windows Audio
+   restart: both tracks were back within 2.3 s, against 5.6 s before.  Meeting
+   missing 1.58 s, mic 2.22 s, against 5.80 s and 5.71 s; tone in all 13 meeting
+   chunks; VERIFY OK.  One run, so the size of the gain is not established.  Not
+   tested: a real picked-mic disconnect at 1 s.
+10. **The mic followed a default change about 12 minutes late in the long run.**
+    Windows showed the built-in mic by 21:39:32 at the latest; the helper moved at
+    21:50:27, after 13.7 min on the headset in all.  The cause is not known: the
+    helper does not log default-change notices, so repeated notices re-arming the
+    5 s debounce and a missed notice both remain possible.  `defaultNotice` (each
+    Windows notice, its role and device, `armed` if a debounce was pending,
+    `queuedMs` on the control thread) and `defaultApplied` (`moved`, `sameDevice`,
+    `streamClosed`, `unresolved` or `suggested`) now log this for the next run.
+    Both fired in a real switch each way (`results/default-notice-log.txt`): the
+    mic moved 5.03 s and 5.02 s after the first notice, so the delay did not come
+    back and its cause is still not known.
+11. Offset cannot be read from the size of the difference between chunk starts.
+    Any gap ends a chunk early and moves that track's grid, so the difference
+    ranges up to a chunk length.  `long_run.mjs` now follows it only across plain
+    rollovers.
+12. The long run's timeline overlaps are stamp jitter within tolerance, not a
+    fault.  `chunks.log` records an overlap only past the gap tolerance, as with
+    gaps: 2 ms, or 20 ms on hands-free (finding 7).  All 1547 on the headset were
+    within 20 ms (worst 19.2 ms).  On the built-in mic 1275 were within 2 ms (worst
+    1.15 ms), and the 4 past it (worst 6.4 ms) were logged.  They net -954.7 ms of
+    timeline; no frames are repeated by this.
+13. A known loss on whole-computer meeting audio sealed as `possiblyMissing`,
+    because `sealAudio` softened every such gap unless a worker died.  It now stays
+    `audioMissing` when the next chunk opened with `device` or the Mac's
+    `serviceRestarted`.  The Mac's `streamDead` stays softened, because a silent
+    computer can cause it.  The Mac reason is checked by unit test only.
+14. **T23: a whole-process stall loses meeting audio; that loss is now marked.**
+    The numbers below are the first run, which failed.  The pipeline now drops
+    meeting packets over 500 ms late with peak 16 or under, until lateness falls
+    to 50 ms, so the next kept packet marks a `stall` gap.  Reruns pass with no
+    unmarked loss, including `t23-stall-whole.txt`: whole-computer capture kept 3
+    or 4 pulses per stall and no 20 to 40 ms shift.  The audio is still lost: this
+    is the known limit under C6, not a recovery.  A genuinely quiet meeting
+    during a stall is also marked missing, which is correct, as it cannot be
+    told apart.  `stall_case.mjs` froze the helper with
+    `NtSuspendProcess` while a muted player sent a pulse every 600 ms
+    (`results/t23-stall-idle.txt`, `t23-stall-load.txt`).  Pulses kept: 0 of 6 in
+    a 4 s freeze and 0 of 23 in a 14 s freeze, with and without load (6 spinning
+    threads of 12).  After each freeze Windows delivers the span with stamps
+    and no silent flag, peak about 3 of 32767, with scattered 10 ms holes.  So
+    about 17 of 18 frozen seconds count as audio: `allZero` false, no
+    `paddedSpans`, VERIFY OK.  Only the holes are marked (about 1 s, cause `stall`).
+    This answers finding 2 and F4: "lost nothing" was a frame count, not audio.
+    The 4 s reader-only stall also kept no pulses, but its 3.98 s is marked.  The
+    mic keeps its 2 s buffer and marks the rest.  Pulses after the freezes sit
+    20 to 40 ms late against the 600 ms grid; cause not looked at.  The freeze is
+    forced, so a natural stall is unproven, and it was not tried with output
+    unmuted.
+15. **T24 passes with a fault hook; a real device change is untested.**
+    `pause_fault_case.mjs` forces silent stream death with the blackhole hook
+    (`results/t24-pause-fault.txt`).  Death found during a pause: both tracks
+    reopen while paused and the tone returns after resume.  Resuming onto an
+    unnoticed dead stream also recovers.  The first run failed because that gap
+    (6.5 s, of which 2.5 s was the pause) said `pause` in `chunks.log`; it now says
+    `device`.  `sealAudio` was already right: it takes pauses from `session.log`,
+    so the 4 s after the resume sealed as `audioMissing`.  An earlier version of
+    this finding said otherwise.  The audio loss itself stands: the limit was 5 s
+    here and is 30 s by default without a device signal, and the resume reply
+    says the gate is open throughout.  This PC has one mic, so no real change ran.
+
+16. **T18 passes on whole-computer capture; the Teams process target hears
+    nothing.**  A real one-hour Teams call between this PC and the Mac, with a
+    phone at the Mac playing `t18-conversation.wav`, built-in mic and speakers
+    (`results/t18-whole.txt`, `t18-whole-offset.txt`).  Mic after meeting: 91 ms at
+    the start, 88 ms at the end, drift -3 ms against 50 ms.  118 of 120 windows
+    matched, every lag between 88 and 92 ms, largest step -3 ms.  Both tracks lost
+    about 250 ms together, at 447 s and 2247 s, exactly 1800 s apart, cause
+    `unknown`, 0.49 s per track in the hour; not investigated.  With
+    `-TargetExe ms-teams.exe` alone the meeting track stayed at -96 dB for 23
+    minutes while whole-computer capture heard the call at -14.6 dB.  Both
+    `ms-teams.exe` processes, the Explorer tree holding Teams, and every other
+    audio process probed were silent (`results/t18-process-target.txt`).  Windows
+    process loopback gives silence for any stream of category Communications, in
+    include and exclude modes; other categories record at -13 dB, with no call and
+    output muted (`results/process-loopback-comms.txt`,
+    `phase0/probes/windows-comm-tone`).  The category Teams uses was not read
+    directly, but this reproduces its result, and a capture client cannot ask for
+    these streams.  One PC; no documentation found either way.  So per-app Teams
+    capture records silence, with no warning.  Zoom and browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
+    unless `-TargetExe` is also given, so aloud runs must pass both.
+
+17. **OBS's per-app capture uses the same route and does not avoid this.**  Its
+    source (`plugins/win-wasapi/win-wasapi.cpp`) uses the same process loopback
+    mode.  A probe with OBS's exact format, flags and buffer captured an Other
+    stream at -10.5 dB and a Communications stream as digital silence
+    (`results/process-loopback-obs-settings.txt`,
+    `phase0/probes/windows-comm-tone/ObsProbe.cpp`).  OBS itself was not run.
+    Public reports agree: microsoft/Windows-classic-samples#414 (Teams desktop
+    silent, and a Communications repro on build 26200), OpenWhispr PR 2233 (Teams
+    0.0000 against endpoint loopback 0.38-0.65) and anarlog PR 7590 (moved to
+    endpoint loopback).  Teams in a browser recorded in #414, not tested here.
+
+18. **BUG-1 fix built; a real Teams call is still to run.**  `open` takes
+    `followApp`: the meeting track then records the output device that app plays
+    through, and moves with it after 4 s.  Per-app targets and followed apps also
+    get a silence check: seconds with the app's session meter above -60 dB while
+    the track stays under -80 dB, 30 in all, raise `meetingSilent` once.  They need
+    not be in a row, because speech has pauses.  Output muted does not silence this
+    capture here (-14.4 dB).  This PC has one output device, so moves were tested
+    through a hook (`results/bug1-follow.txt`, `scripts/follow_case.mjs`,
+    `scripts/follow_restart_case.mjs`).  On a real 10-minute Teams call followed as
+    `ms-teams.exe`, the meeting track peaked at -8 dB where per-app gave -96 dB, with
+    no false warning (`results/t18-follow.txt`, `t18-follow-notes.txt`).  Drift was
+    not proven: only 2 of 20 offset windows were usable.  A 22-minute call recorded in
+    the real app, Teams picked in its list, then gave 40 of 45 windows: mic after
+    meeting 82 ms then 81 ms, drift -1 ms (`results/t18-picker.txt`).
 
 ## Needs a Planner plan
 

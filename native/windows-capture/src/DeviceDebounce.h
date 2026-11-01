@@ -7,6 +7,7 @@ namespace scrb {
 class StableDebounce {
 public:
     void Changed(int64_t nowNs, int64_t quietNs) { dueNs_ = nowNs + quietNs; }
+    bool Armed() const { return dueNs_ != 0; }
     bool Due(int64_t nowNs) {
         if (!dueNs_ || nowNs < dueNs_) return false;
         dueNs_ = 0;

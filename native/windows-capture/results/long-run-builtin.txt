@@ -1,0 +1,52 @@
+inputs {"first":"Microphone Array (2- Realtek(R) Audio)","second":null}; devices seen Microphone Array (2- Realtek(R) Audio); Process tree 18900
+load CPU fallback: 6 spinning threads of 12 logical cores at below-normal priority
+events {"health":12805,"trackHealth":25610,"chunkClosed":5273,"discontinuity":27,"sleeping":1,"woke":1,"clockFault":2}
+recovery outcome recovered, repeat gives the same spans: true
+lock held before kill true, after kill false
+last chunks {"microphone":{"file":"002640.opus","state":"complete","levels":"240000 2.4"},"meeting":{"file":"002631.opus","state":"complete","levels":"240000 4477.4"}}
+verify microphone: chunks=2641 audio=13119.3 s missing=1280769.6 ms bad=0 part=1 files=2641 toneChunks=556 zeroChunks=2 peak=-21.0 dB
+verify   close reasons: discontinuity=20 pause=5 rollover=2615 sleep=1
+verify     missing 123.6 ms before 1929.600 s, cause unknown
+verify     missing 30030.1 ms before 2430.029 s, cause pause
+verify     missing 280.8 ms before 3429.630 s, cause unknown
+verify     missing 2.8 ms before 4629.610 s, cause unknown
+verify     missing 30020.0 ms before 4830.020 s, cause pause
+verify     missing 1129508.8 ms before 6406.539 s, cause sleep
+verify     missing 2.1 ms before 6408.852 s, cause unknown
+verify     missing 7.9 ms before 6439.030 s, cause unknown
+verify     missing 12.8 ms before 6439.053 s, cause unknown
+verify     missing 5.7 ms before 6439.276 s, cause unknown
+verify     missing 9.3 ms before 6439.425 s, cause unknown
+verify     missing 14.7 ms before 6439.479 s, cause unknown
+verify     ... 8 more
+verify meeting: chunks=2632 audio=13120.4 s missing=1279600.6 ms bad=0 part=1 files=2632 toneChunks=2627 zeroChunks=0 peak=-10.2 dB
+verify   close reasons: discontinuity=7 pause=5 rollover=2619 sleep=1
+verify     missing 220.6 ms before 21.854 s, cause unknown
+verify     missing 30.0 ms before 1929.514 s, cause unknown
+verify     missing 30.0 ms before 1929.594 s, cause unknown
+verify     missing 30030.0 ms before 2430.024 s, cause pause
+verify     missing 10.0 ms before 3429.374 s, cause unknown
+verify     missing 30010.0 ms before 4830.014 s, cause pause
+verify     missing 1129160.0 ms before 6406.214 s, cause sleep
+verify     missing 30030.0 ms before 7230.024 s, cause pause
+verify     missing 20.0 ms before 9046.214 s, cause unknown
+verify     missing 10.0 ms before 9346.394 s, cause unknown
+verify     missing 30020.0 ms before 9630.044 s, cause pause
+verify     missing 10.0 ms before 10546.404 s, cause unknown
+verify     ... 1 more
+verify VERIFY OK
+FAIL  microphone chunks: 2641 chunks, 0 numbering breaks, 0 .part or .tmp left, 1 damaged, 1 .part repaired
+FAIL  meeting chunks: 2632 chunks, 0 numbering breaks, 0 .part or .tmp left, 1 damaged, 1 .part repaired
+PASS  microphone every gap marked: 15 marked, 0 unmarked, 1304 overlaps, largest 7.641 ms
+      microphone audio 13119.290 s of timeline minus pauses 14249.975 s (difference 1130.685 s); gaps 1130.730 s, longest 1129.509 s, under the 2 ms mark 0.100 s; by cause: none given 0.100 s, unknown 1.121 s, sleep 1129.509 s; by device type: internal 1130.730 s
+FAIL  mic loss at most 15 s, paused time not counted: 1130.730 s
+PASS  meeting every gap marked: 9 marked, 0 unmarked, 0 overlaps, largest 0.000 ms
+      meeting audio 13120.430 s of timeline minus pauses 14249.975 s (difference 1129.545 s); gaps 1129.491 s, longest 1129.160 s, under the 2 ms mark 0.000 s; by cause: unknown 0.331 s, sleep 1129.160 s; by device type: loopback 1129.491 s
+      meeting loss 1129.491 s (no limit of its own)
+PASS  worst offset between tracks under 50 ms: 2.80 ms drift over 2612 plain rollover steps (track timelines, not a shared sound: output was muted; not measured on the headset)
+PASS  pause ack 99th percentile under 200 ms: 14.00 ms from 5 pauses (with 5 samples this is the slowest); all 0.70, 0.41, 14.00, 0.40, 0.26; resume 0.42, 0.57, 0.38, 0.40, 0.27
+PASS  privacy: no chunk crosses a pause: 0 crossing, furthest 0.000 ms past a cutoff (one 10 ms packet allowed), 5 pauses, 150.072 s paused
+PASS  audio lost at the kill, about 1 s or less: microphone 209 ms, meeting 212 ms
+helper CPU average 5.42% of one core (0.45% of the machine), highest minute 10.98%; system average 74.2%
+helper memory peak working set 20.6 MB, private 8.2 MB at hour 1, 8.5 MB at the end; handles 326 then 324
+LIMITS FAILED

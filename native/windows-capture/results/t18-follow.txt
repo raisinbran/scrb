@@ -1,0 +1,10 @@
+case=t18-follow helperExit=0
+microphone: chunks=120 audio=595.5 s missing=0.0 ms bad=0 part=0 files=120 toneChunks=44 zeroChunks=0 peak=-19.1 dB
+  close reasons: rollover=119 stop=1
+meeting: chunks=122 audio=599.6 s missing=466.2 ms bad=0 part=0 files=122 toneChunks=46 zeroChunks=0 peak=-17.8 dB
+  close reasons: discontinuity=3 rollover=118 stop=1
+    missing 161.5 ms before 36.194 s, cause unknown
+    missing 117.2 ms before 50.580 s, cause unknown
+    missing 187.5 ms before 140.028 s, cause unknown
+VERIFY OK
+events: discontinuity=3 micFallback=1 streamDead=1 streamReopened=1

@@ -2,15 +2,19 @@
 # muted during capture, so the cue is visual only.  Uses wall time, so it is
 # still right after the PC wakes from sleep.
 # -Actions holds "<seconds>=<what to do>"; seconds count from $StartAt.
+# With -StartFile instead of -StartAt the window waits for its Start button, which
+# sets the start time and writes it to that file for the script running the case.
 param(
     [Parameter(Mandatory)][string]$Case,
-    [Parameter(Mandatory)][datetime]$StartAt,
+    [datetime]$StartAt,
+    [string]$StartFile,
     [Parameter(Mandatory)][int]$Seconds,
     [string[]]$Actions = @()
 )
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 $steps = @($Actions | ForEach-Object { $k, $v = $_ -split '=', 2; [pscustomobject]@{ At = [double]$k; Text = $v } } | Sort-Object At)
-$end = $StartAt.AddSeconds($Seconds)
+$started = -not $StartFile
+if ($started) { $end = $StartAt.AddSeconds($Seconds) }
 
 $form = [System.Windows.Forms.Form]::new()
 $form.Text = "scrb test: $Case"
@@ -18,7 +22,7 @@ $form.TopMost = $true
 $form.ShowInTaskbar = $true
 $form.FormBorderStyle = 'FixedToolWindow'
 $form.StartPosition = 'Manual'
-$form.ClientSize = [System.Drawing.Size]::new(620, 330)
+$form.ClientSize = [System.Drawing.Size]::new(620, 500 + 24 * $steps.Count)
 $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
 $form.Location = [System.Drawing.Point]::new($area.Left + [int]($area.Width / 2), $area.Top + 20)
 
@@ -30,15 +34,47 @@ function Label([int]$y, [int]$h, [float]$size, [string]$style) {
     $l
 }
 $head = Label 10 30 12 'Regular'
-$clock = Label 42 100 44 'Bold'
-$now = Label 146 110 18 'Bold'
-$next = Label 262 60 12 'Regular'
+$clock = Label 42 130 72 'Bold'
+$now = Label 176 110 18 'Bold'
+$next = Label 292 60 12 'Regular'
+$list = Label 356 (40 + 24 * $steps.Count) 12 'Regular'
+
+function StepList {
+    @('All steps:') + @($steps | ForEach-Object {
+        $when = if ($started) { $StartAt.AddSeconds($_.At).ToString('HH:mm:ss') } else { "+$([int]$_.At) s" }
+        $mark = if ($started -and ((Get-Date) - $StartAt).TotalSeconds -ge $_.At + 3) { 'done' } else { '    ' }
+        "$mark  $when  $($_.Text)"
+    }) -join "`n"
+}
+
+if (-not $started) {
+    $form.BackColor = [System.Drawing.Color]::LightSkyBlue
+    $head.Text = "$Case   now waiting for Start"
+    $clock.Text = 'READY'
+    $now.Text = 'Press Start when you are ready.  Recording begins at once.'
+    $next.Text = "The case runs $Seconds s in this window."
+    $list.Text = StepList
+    $button = [System.Windows.Forms.Button]::new()
+    $button.Text = 'Start'
+    $button.Font = [System.Drawing.Font]::new('Segoe UI', 18, [System.Drawing.FontStyle]::Bold)
+    $button.SetBounds(16, 440 + 24 * $steps.Count, 588, 50)
+    $form.Controls.Add($button)
+    $button.add_Click({
+        $script:StartAt = Get-Date
+        $script:end = $script:StartAt.AddSeconds($Seconds)
+        [IO.File]::WriteAllText($StartFile, $script:StartAt.ToString('o'))
+        $script:started = $true
+        $button.Visible = $false
+    })
+}
 
 $timer = [System.Windows.Forms.Timer]::new()
 $timer.Interval = 100
 $timer.add_Tick({
+    if (-not $started) { return }
     $t = Get-Date
     $elapsed = ($t - $StartAt).TotalSeconds
+    $list.Text = StepList
     $future = @($steps | Where-Object { $_.At -gt $elapsed })
     $due = @($steps | Where-Object { $_.At -le $elapsed -and $elapsed -lt $_.At + 3 })
     $head.Text = "$Case   now $($t.ToString('HH:mm:ss'))   ends $($end.ToString('HH:mm:ss'))"
@@ -56,13 +92,13 @@ $timer.add_Tick({
     } elseif ($future.Count -gt 0) {
         $left = [math]::Ceiling($future[0].At - $elapsed)
         $form.BackColor = if ($left -le 5) { [System.Drawing.Color]::Orange } else { [System.Drawing.SystemColors]::Control }
-        $clock.Text = "{0}:{1:00}" -f [math]::Floor($left / 60), ($left % 60)
-        $now.Text = "At $($StartAt.AddSeconds($future[0].At).ToString('HH:mm:ss')): $($future[0].Text)"
+        $clock.Text = "$left s"
+        $now.Text = "Next, at $($StartAt.AddSeconds($future[0].At).ToString('HH:mm:ss')): $($future[0].Text)"
         $next.Text = if ($future.Count -gt 1) { "Then, at $($StartAt.AddSeconds($future[1].At).ToString('HH:mm:ss')): $($future[1].Text)" } else { 'No more actions after that.' }
     } else {
         $left = [math]::Ceiling($Seconds - $elapsed)
         $form.BackColor = [System.Drawing.SystemColors]::Control
-        $clock.Text = "{0}:{1:00}" -f [math]::Floor($left / 60), ($left % 60)
+        $clock.Text = "$left s"
         $now.Text = 'No more actions.  Leave everything as it is until the end.'
         $next.Text = ''
     }
