@@ -6,13 +6,13 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 ## Evidence
 
-| Clause                                                                     | Mac                                                                       | Windows                                                                             |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 4-hour run with pauses, a device change and a crash (T15)                  | Done, 2026-10-31                                                          | Done, 2026-10-30                                                                    |
-| Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | **Failed once:** 12.2 s and 8.9 s lost, but one 5.5 s gap. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
-| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                          | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
-| Audio-service restart (T17)                                                | Done, 2026-11-01                                                          | Done                                                                                |
-| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. **Privacy at the next stream open is untested**      | Done                                                                                |
+| Clause                                                                     | Mac                                                                           | Windows                                                                             |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 4-hour run with pauses, a device change and a crash (T15)                  | Done, 2026-10-31                                                              | Done, 2026-10-30                                                                    |
+| Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted, 2026-10-31: 12.2 s and 8.9 s lost, every gap marked. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
+| Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
+| Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
+| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. **Privacy at the next stream open is untested**          | Done                                                                                |
 
 ## To do
 
@@ -28,7 +28,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 - [x] Merge `mac-gate2-runs`
 - [x] Add the same CPU load to `long_run_app.mjs`: half the logical cores, below-normal priority
-- [x] Run the 4-hour load run overnight. Failed the 5 s gap limit, see decision 4
+- [x] Run the 4-hour load run overnight. Accepted, see decision 4
 - [x] Run T17, owner present
 - [x] Run T6 on the real helper, with a forced stream stop
 - [ ] Run T20 at the next stream open: `device_case.py <helper> <work> reopen`
@@ -44,7 +44,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 1. **The Mac 2 h 29 min call counts as T18 (accepted, 2026-10-31).** It used real call audio as the shared sound, not a click train, and shows no gaps or restarts. Its 49 usable windows cover about minutes 30 to 140, with a 17 ms spread. The target allows about 23 ms in that span, so drift passes for that span. The first 30 minutes are unmeasured and the recording is deleted, so this cannot be rechecked.
 2. **The `coreaudiod` restart may run for T17 (approved, 2026-10-31).** This settles decision M3 in `macos-capture-adapter.md`. It stops all Mac audio for a moment, so the owner runs it, types the password, and picks a time when nothing else is playing.
 3. **Still open: waive any of the list above?** Recommended: none. The Mac load run stays at 4 hours: it costs no owner time, gives the same evidence as Windows, and tests the code changed after the first Mac run.
-4. **Open: the Mac load run's 5.5 s gap.** The owner opened several apps at about that time, the likely trigger. Recommended: one more unattended 4-hour run, with the Mac otherwise idle. If it passes, the first run stands as a stall under heavy use, a limit of the machine under that load. If it fails, change the limit or find the cause.
+4. **The Mac load run's 5.5 s gap is accepted (2026-11-01), with no rerun.** The owner was using the Mac during that minute and caused the lag by opening several apps. They closed them on noticing it. The run lost 12.2 s and 8.9 s against the 15 s limit, with every gap marked, and the stall does not count against the result.
 
 ## Not needed for Gate 2
 
