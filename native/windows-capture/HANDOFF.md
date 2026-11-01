@@ -11,8 +11,9 @@ Remaining for this phase: nothing on this PC.  Still needed elsewhere:
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
 2. The 4 h rerun on the built-in mic is done (2026-10-31): 1.221 s mic loss, with
-   the owner's exception for an 18.8 min hibernate on critical battery.  See
-   `README.md`.  Still open: the -19.05 s `clockFault` at wake.
+   the owner's exception for an 18.8 min hibernate on critical battery.  It counts
+   with the 10-30 run for Gate 2 (owner decision, 2026-11-01).  See `README.md`.
+   BUG-2 waits on `docs/plans/first-chunk-gap.md`.
 3. T23 and T24 pass after fixes (README findings 14 and 15).  Meeting audio in a
    stall is still lost, now marked; T24 still needs a real device change once a
    second device is here.

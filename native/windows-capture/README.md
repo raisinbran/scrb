@@ -303,8 +303,13 @@ limits.  The report's LIMITS FAILED stands as printed; the figures below leave i
 | Audio lost at the kill, about 1 s or less | Pass: mic 209 ms, meeting 212 ms |
 
 The helper survived the hibernate, marked both gaps `sleep` and recovered in about 35 s
-without a restart.  Both tracks reported `clockFault` of -19.05 s at wake, wall clock
-against timeline, cause not known.  No `meetingSilent` in 4 h.
+without a restart.  Both tracks reported `clockFault` of -19.05 s at wake.  The wall
+clock was right, checked against an internet server; the timeline over-counted the
+hibernate by 19 s, why is not known.  Each chunk stores its own wall anchor, so wall times
+stay right.  No `meetingSilent` in 4 h.
+
+Owner decision (2026-11-01): the 10-30 and 10-31 runs count together for Gate 2.  The first
+has the device changes, the second the mic loss on the built-in mic.
 
 Unverified: real Teams/Zoom/browser targets, the full T19 load test, the 8 h run, and USB
 unplug (no USB mic).

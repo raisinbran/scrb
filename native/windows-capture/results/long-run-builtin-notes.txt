@@ -21,7 +21,11 @@ counted under "audio lost at the kill", which passed.  The earlier run's last ch
 repair.  Numbering had 0 breaks and verify read 0 bad.
 
 clockFault -19053.746 ms on both tracks at wake: wall clock against timeline, not one track against the
-other.  Cause not known.  It moves wall-clock anchors after the wake by 19 s.
+other.  The wall clock is the right one: Windows reset it from 04:32:56.9 to 04:51:14.5 at wake, it logged
+no later step, and at 07:19:03 UTC it matched an internet server's time to the second.  So the timeline
+over-counted the hibernate by 19 s, and the sleep gap is really about 1110 s, not 1129 s.  The wall-minus-
+timeline offset stayed at -19 s to the end of the event log read.  Each chunk stores a new anchor, so wall
+times stay right.  No code change.  Why the timeline ran over is not known.
 
 Drift 2.80 ms is on track timelines over plain rollovers only, so the step across the sleep is not in it.
 Output was muted, so it was not measured against a shared sound.  Not a drift result across the sleep.
