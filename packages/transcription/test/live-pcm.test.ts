@@ -252,11 +252,41 @@ describe('incremental PCM engine', () => {
     expect(seen).toEqual([]);
     expect(engine.pendingStartNs('mic')).toBe(0);
     const invalid = new LivePcmEngine(
-      { detect: async () => [{ startMs: 0, endMs: 1000 }], transcribe: async () => [] },
+      { detect: async () => [{ startMs: 500, endMs: 1000 }], transcribe: async () => [] },
       () => undefined,
       () => undefined,
     );
     for (let i = 0; i < 4; i++) await invalid.push(frame(i));
     await expect(invalid.push(frame(4))).rejects.toThrow('Invalid live VAD');
   });
+});
+
+it('clamps padded VAD endpoints', async () => {
+  const lengths: number[] = [];
+  const seen: TimedLiveSegment[] = [];
+  const engine = new LivePcmEngine(
+    {
+      detect: async (_track, pcm) => [{ startMs: 0, endMs: pcm.length / 16 + 20 }],
+      transcribe: async (pcm) => {
+        lengths.push(pcm.length);
+        return [{ text: 'hello', startMs: 0, endMs: 100, confidence: 1 }];
+      },
+    },
+    (s) => seen.push(s),
+    () => undefined,
+  );
+  for (let i = 0; i < 5; i++) await engine.push(frame(i));
+  await engine.push({ ...frame(5, 500), boundary: true, samples: new Int16Array() });
+  expect(lengths).toEqual([8000]);
+  expect(seen[0]?.words[0]?.text).toBe('hello');
+});
+
+it.each([500, 510])('rejects invalid VAD start %s', async (startMs) => {
+  const engine = new LivePcmEngine(
+    { detect: async () => [{ startMs, endMs: 520 }], transcribe: async () => [] },
+    () => undefined,
+    () => undefined,
+  );
+  for (let i = 0; i < 4; i++) await engine.push(frame(i));
+  await expect(engine.push(frame(4))).rejects.toThrow('Invalid live VAD timing');
 });
