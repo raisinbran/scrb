@@ -73,6 +73,8 @@ private:
     void EmitDefaultApplied(const char* track, const char* outcome, const std::string& resolved);
     void ApplyMicDebounce();
     void ApplyOutputDebounce();
+    void MoveMeetingTo(const std::string& id);
+    void WatchAppOutput();
     void CheckConsent();
     void CheckAudioService();
     void RebuildNotifier();
@@ -108,6 +110,11 @@ private:
     DWORD audioServicePid_ = 0;
     HANDLE target_ = nullptr;
     DWORD targetPid_ = 0;
+    std::string followApp_;  // set when the meeting track records this app's output device
+    std::string movingTo_;
+    int64_t movingSinceNs_ = 0;
+    std::wstring fakeAppDevice_;  // test hook; this PC has one output device
+    SilenceWatch silence_;
 };
 
 // Serialized through one thread, so a parent that stops reading blocks nobody.

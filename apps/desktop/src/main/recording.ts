@@ -146,7 +146,7 @@ export class RecordingController {
   };
 
   private async begin(title: string | undefined): Promise<{ meetingId: string }> {
-    const { source, mic, micFellBack } = await resolveSources(this.helper, this.sources.read());
+    const { micFellBack, ...sources } = await resolveSources(this.helper, this.sources.read());
     const meeting = await this.library.createMeeting({
       title: title ?? 'Meeting',
       source: 'recorded',
@@ -170,6 +170,16 @@ export class RecordingController {
         adapter.onEvent((event) => {
           if (event.type === 'health') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
+          } else if (event.type === 'meetingSilent') {
+            this.warn(
+              {
+                kind: 'audioMissing',
+                track: 'meeting',
+                message:
+                  'The meeting app is playing sound but the meeting track is silent. Stop, then pick Whole computer audio.',
+              },
+              'warning',
+            );
           }
         });
         return adapter;
@@ -199,8 +209,7 @@ export class RecordingController {
         name: 'open',
         sessionId: meeting.id,
         outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
-        source,
-        mic,
+        ...sources,
       });
     } catch (failure) {
       if (this.session === session) await this.closeFailedStart(meeting.id);

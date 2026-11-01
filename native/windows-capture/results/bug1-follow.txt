@@ -1,0 +1,21 @@
+BUG-1 fix, output muted, invented tones, no call.  Build 26300.9711.  One output device on this PC.
+
+F4  output-device capture, output muted (CommTone, 880 Hz at 0.3)
+    call-type stream   -14.4 dB
+    normal stream      -13.7 dB
+
+scripts/follow_case.mjs: PASS
+    per-app-call-type    meetingSilent at 31.6 s, logged; 0 of 39 s with sound
+    per-app-normal       no warning; 38 of 39 s with sound
+    follow-call-type     no warning; 40 of 40 s with sound; no move
+    follow-brief-touch   2.5 s on another device: no move, no reopen
+    follow-device-left   hook reports a device that cannot open: moved once, reopened once on the default, sound on 24 of 24 s
+
+scripts/follow_restart_case.mjs: PASS
+    pause and resume, then worker killed and reopened: tone heard by both workers, same clock, follow kept
+
+Regressions, same build: pause_case PASS, restart_case PASS, crash_case PASS.
+PipelineTests PASSED (0 failures).
+
+Not measured: a real Teams call picked as Teams, a real second output device, a real unplug, load from
+the silence check over a long run.

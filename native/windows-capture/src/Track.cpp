@@ -6,6 +6,7 @@
 
 #include <audioclientactivationparams.h>
 #include <avrt.h>
+#include <endpointvolume.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmdeviceapi.h>
 #include <tlhelp32.h>
@@ -193,16 +194,34 @@ DWORD AppRoot(DWORD pid, const std::map<DWORD, DWORD>& parents) {
     return pid;
 }
 
-std::map<DWORD, DWORD> ProcessParents() {
+std::map<DWORD, DWORD> ProcessParents(std::set<DWORD>* named = nullptr, const std::wstring& exe = L"") {
     std::map<DWORD, DWORD> parents;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return parents;
     PROCESSENTRY32W e{};
     e.dwSize = sizeof e;
-    for (BOOL more = Process32FirstW(snapshot, &e); more; more = Process32NextW(snapshot, &e))
+    for (BOOL more = Process32FirstW(snapshot, &e); more; more = Process32NextW(snapshot, &e)) {
         parents[e.th32ProcessID] = e.th32ParentProcessID;
+        if (named && _wcsicmp(e.szExeFile, exe.c_str()) == 0) named->insert(e.th32ProcessID);
+    }
     CloseHandle(snapshot);
     return parents;
+}
+
+std::set<DWORD> AppProcesses(const std::string& exe, DWORD root) {
+    std::set<DWORD> pids;
+    auto parents = ProcessParents(&pids, Widen(exe));
+    if (!exe.empty()) return pids;
+    for (const auto& [pid, parent] : parents) {
+        DWORD at = pid;
+        for (int depth = 0; depth < 32 && at != root; ++depth) {
+            auto it = parents.find(at);
+            if (it == parents.end() || !it->second) break;
+            at = it->second;
+        }
+        if (at == root) pids.insert(pid);
+    }
+    return pids;
 }
 
 std::set<DWORD> AudioSessionPids() {
@@ -293,6 +312,47 @@ void ReadWall(std::string* utc, int64_t* wallNs) {
 bool ResolveDefaultMicId(std::wstring* id) { return ResolveId(eCapture, eConsole, id); }
 bool ResolveDefaultOutputId(std::wstring* id) { return ResolveId(eRender, eConsole, id); }
 
+AppOutput ReadAppOutput(const std::string& exe, DWORD root, const std::string& current) {
+    AppOutput out;
+    std::set<DWORD> pids = AppProcesses(exe, root);
+    ComPtr<IMMDeviceEnumerator> enumerator;
+    ComPtr<IMMDeviceCollection> all;
+    UINT count = 0;
+    if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator))) ||
+        FAILED(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &all)))
+        return out;
+    all->GetCount(&count);
+    for (UINT i = 0; i < count; ++i) {
+        ComPtr<IMMDevice> device;
+        ComPtr<IAudioSessionManager2> manager;
+        ComPtr<IAudioSessionEnumerator> sessions;
+        int total = 0;
+        LPWSTR raw = nullptr;
+        if (FAILED(all->Item(i, &device)) || FAILED(device->GetId(&raw))) continue;
+        std::wstring id = raw;
+        CoTaskMemFree(raw);
+        if (FAILED(device->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, &manager)) ||
+            FAILED(manager->GetSessionEnumerator(&sessions)) || FAILED(sessions->GetCount(&total)))
+            continue;
+        for (int s = 0; s < total; ++s) {
+            ComPtr<IAudioSessionControl> control;
+            ComPtr<IAudioSessionControl2> control2;
+            ComPtr<IAudioMeterInformation> meter;
+            AudioSessionState state;
+            DWORD pid = 0;
+            float peak = 0;
+            if (FAILED(sessions->GetSession(s, &control)) || FAILED(control.As(&control2)) ||
+                FAILED(control2->GetState(&state)) || state != AudioSessionStateActive ||
+                FAILED(control2->GetProcessId(&pid)) || !pids.count(pid))
+                continue;
+            if (out.deviceId.empty() || Narrow(id) == current) out.deviceId = id;
+            if (SUCCEEDED(control.As(&meter)) && SUCCEEDED(meter->GetPeakValue(&peak)) && peak > out.peak)
+                out.peak = peak;
+        }
+    }
+    return out;
+}
+
 std::string ListMicsJson() {
     std::string out = "[";
     ComPtr<IMMDeviceEnumerator> enumerator;
@@ -380,7 +440,7 @@ HRESULT Track::OpenStream(const StreamSpec& spec, DeviceInfo* info) {
         // Owner decision on Q10: eConsole is the Input choice in Settings;
         // eCommunications ignores it and moves when a headset connects.
         hr = spec.kind == StreamSpec::Kind::Mic ? GetDevice(eCapture, eConsole, spec.deviceId, device)
-                                                : GetDevice(eRender, eConsole, L"", device);
+                                                : GetDevice(eRender, eConsole, spec.deviceId, device);
         if (SUCCEEDED(hr)) hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &client);
         if (SUCCEEDED(hr)) described = DescribeDevice(device.Get());
         if (spec.kind == StreamSpec::Kind::System) described.transport = "loopback";

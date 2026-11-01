@@ -10,7 +10,11 @@ const fake = vi.hoisted(() => ({
   sealAudio: vi.fn(),
   spawnSync: vi.fn(),
   resolveSources: vi.fn(),
-  sessions: [] as { end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void }[],
+  sessions: [] as {
+    end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
+    launchWorker(): void;
+  }[],
+  captureEvent: (() => undefined) as (event: { type: string }) => void,
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
@@ -21,9 +25,14 @@ vi.mock('@scrb/app-core', () => ({
       private readonly options: {
         onStateChanged: (status: 'recording', reason: null) => void;
         onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
+        launch: () => unknown;
       },
     ) {
       fake.sessions.push(this);
+    }
+
+    launchWorker(): void {
+      this.options.launch();
     }
 
     async start(): Promise<void> {
@@ -39,7 +48,13 @@ vi.mock('@scrb/app-core', () => ({
     }
   },
 }));
-vi.mock('@scrb/capture', () => ({ ProcessAdapter: class {} }));
+vi.mock('@scrb/capture', () => ({
+  ProcessAdapter: class {
+    onEvent(listener: (event: { type: string }) => void): void {
+      fake.captureEvent = listener;
+    }
+  },
+}));
 vi.mock('./sources.ts', () => ({
   resolveSources: fake.resolveSources,
   listInputDevices: vi.fn(),
@@ -152,6 +167,37 @@ describe('recoverInterrupted in the Electron controller', () => {
       recoverInterrupted(library as unknown as Library, 'capture-helper'),
     ).rejects.toThrow('cannot read chunks');
     expect(library.updateMeeting).not.toHaveBeenCalled();
+  });
+});
+
+describe('A meeting track that hears nothing', () => {
+  it('warns that the app is playing but the track is silent', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'capture-helper',
+      emit,
+      { read: () => ({ meetingAppId: 'msedge.exe', micDeviceId: null }), save: vi.fn() },
+    );
+    await controller.handlers.startRecording!({ title: 'silent' });
+    fake.sessions[0]!.launchWorker();
+
+    fake.captureEvent({ type: 'meetingSilent' });
+
+    expect(emit).toHaveBeenCalledWith(
+      'recordingHealth',
+      expect.objectContaining({
+        level: 'warning',
+        warnings: [
+          expect.objectContaining({
+            kind: 'audioMissing',
+            track: 'meeting',
+            message: expect.stringContaining('Whole computer audio'),
+          }),
+        ],
+      }),
+    );
+    await controller.shutdown();
   });
 });
 

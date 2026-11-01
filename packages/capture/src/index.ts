@@ -13,6 +13,11 @@ export interface OpenCommand {
   outputDir: string;
   /** Process IDs of the meeting app, or `wholeComputer`. */
   source: number[] | 'wholeComputer';
+  /**
+   * The app's exe file name, when per-app capture cannot hear it. The meeting track then records
+   * the output device this app plays through, and `source` only tells when the app exits.
+   */
+  followApp?: string;
   /** A device ID, or `default`. */
   mic: string;
   /**
@@ -79,6 +84,8 @@ export type CaptureEvent =
       track: Track;
     }
   | { type: 'sourceChanged'; alive: boolean }
+  /** The target app is making sound but the meeting track hears none. */
+  | { type: 'meetingSilent' }
   | { type: 'health'; micDb: number; meetingDb: number }
   | { type: 'writeError'; message: string };
 

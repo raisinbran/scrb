@@ -1,6 +1,8 @@
 # Teams desktop capture on Windows
 
-**Status:** direction chosen by the owner on 2026-10-31 (per-app plus fallback). This plan needs owner approval before code is written. Tracked as BUG-1 in `docs/bug-tracker.md`.
+**Status:** approved by the owner on 2026-10-31. Built on `windows-restart-test`; the real Teams call is still to run. Results: `native/windows-capture/results/bug1-follow.txt`. Tracked as BUG-1 in `docs/bug-tracker.md`.
+
+**Changes while building:** F4 needed no warning, because muted output still records on the test PC. The silence check counts 30 seconds of app sound in all, not in a row, so pauses in speech do not reset it. F1 to F3 used a test hook, because the test PC has one output device. Teams must be running at Start, as with any other picked app, so the recording auto-pauses when it exits.
 
 ## The problem
 

@@ -21,6 +21,7 @@ constexpr int64_t kRetryNs = kNsPerSec;
 // Long enough that a mic which drops briefly comes back instead of being swapped.
 constexpr int64_t kMicFallbackNs = 5 * kNsPerSec;
 constexpr int64_t kWatchdogTickNs = 100 * kNsPerMs;
+constexpr int64_t kFollowNs = 4 * kNsPerSec;  // ignores a device the app only touches, such as a ringer
 
 const wchar_t kConsentKey[] =
     L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone";
@@ -340,9 +341,11 @@ void Session::DoOpen(const Command& cmd) {
     bool wholeComputer = source.empty();
     bool noProcess = !wholeComputer && source[0] <= 0;  // the app's marker for an app with no process
     DWORD pid = wholeComputer || noProcess ? 0 : static_cast<DWORD>(source[0]);
+    followApp_ = Arg(cmd, "followApp");
     EventFn emit = [this](const std::string& n, const JsonObject& f) { Emit(n, f); };
     log_ = std::make_unique<SessionLog>(audio + L"\\session.log", emit, continuing_);
-    log_->Record(JsonObject().Str("event", "open").Bool("wholeComputer", wholeComputer).Done());
+    log_->Record(JsonObject().Str("event", "open").Bool("wholeComputer", wholeComputer)
+                     .Str("followApp", followApp_).Done());
     if (continuing_)
         log_->Record(JsonObject().Str("event", "restart").Int("atNs", NowNs() - originNs_).Done());
     for (int i = 0; i < kTrackCount; ++i) {
@@ -351,7 +354,11 @@ void Session::DoOpen(const Command& cmd) {
         c.sessionId = sessionId_;
         c.track = names[i];
         c.arrivalCheck = i == kMeeting;
-        c.source = i != kMeeting ? "" : pid ? "process:" + std::to_string(pid) : noProcess ? "none" : "whole-computer";
+        c.source = i != kMeeting ? ""
+                   : noProcess ? "none"
+                   : !followApp_.empty() ? "output-of:" + followApp_
+                   : pid ? "process:" + std::to_string(pid)
+                         : "whole-computer";
         c.readClocks = [this](int64_t* timeline, std::string* utc, int64_t* wall) {
             *timeline = NowNs() - originNs_;
             ReadWall(utc, wall);
@@ -362,8 +369,10 @@ void Session::DoOpen(const Command& cmd) {
     std::string mic = Arg(cmd, "mic", "default");
     slots_[kMic].spec.kind = StreamSpec::Kind::Mic;
     slots_[kMic].spec.deviceId = mic == "default" ? L"" : Widen(mic);
-    slots_[kMeeting].spec.kind = wholeComputer ? StreamSpec::Kind::System : StreamSpec::Kind::Process;
+    bool wholeDevice = wholeComputer || !followApp_.empty();
+    slots_[kMeeting].spec.kind = wholeDevice ? StreamSpec::Kind::System : StreamSpec::Kind::Process;
     slots_[kMeeting].spec.pid = pid;
+    if (!followApp_.empty()) slots_[kMeeting].spec.deviceId = ReadAppOutput(followApp_, pid, "").deviceId;
     WatchTarget(pid);
 
     const std::string openReason = continuing_ ? "workerRestarted" : "start";
@@ -494,6 +503,8 @@ void Session::DoSelectSource(const Command& cmd) {
     s.track->Post([source](TrackPipeline& p) { p.OnSourceChanged(source); });
     s.spec.kind = pid ? StreamSpec::Kind::Process : StreamSpec::Kind::System;
     s.spec.pid = pid;
+    s.spec.deviceId.clear();
+    followApp_.clear();
     WatchTarget(pid);
     s.needReopen = false;
     Reply(cmd, OpenMeeting("source", false));
@@ -507,6 +518,7 @@ void Session::DoInject(const Command& cmd) {
     if (fault == "stall") s.track->hooks.stallUntilNs = NowNs() + ms * kNsPerMs;
     else if (fault == "blackhole") s.track->hooks.blackhole = ms != 0;
     else if (fault == "skew") s.track->hooks.stampSkewNs += ms * kNsPerMs;
+    else if (fault == "followDevice") fakeAppDevice_ = Widen(Arg(cmd, "deviceId"));
     else return Reply(cmd, false);
     Reply(cmd, true);
 }
@@ -558,17 +570,51 @@ void Session::ApplyMicDebounce() {
 void Session::ApplyOutputDebounce() {
     Slot& s = slots_[kMeeting];
     if (!s.track || s.spec.kind != StreamSpec::Kind::System) return;
+    if (!s.spec.deviceId.empty()) return;  // WatchAppOutput moves a followed device
     if (!s.track->streamOpen()) return EmitDefaultApplied("meeting", "streamClosed", "");
     std::wstring id;
     if (!ResolveDefaultOutputId(&id)) return EmitDefaultApplied("meeting", "unresolved", "");
     if (Narrow(id) == s.track->deviceId()) return EmitDefaultApplied("meeting", "sameDevice", Narrow(id));
     EmitDefaultApplied("meeting", "moved", Narrow(id));
-    Emit("deviceChanged", JsonObject().Str("track", "meeting").Str("deviceId", Narrow(id)));
+    MoveMeetingTo(Narrow(id));
+}
+
+void Session::MoveMeetingTo(const std::string& id) {
+    Slot& s = slots_[kMeeting];
+    Emit("deviceChanged", JsonObject().Str("track", "meeting").Str("deviceId", id));
     s.track->CloseStream();
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
     s.needReopen = true;
     s.nextRetryNs = 0;
     TryReopen(kMeeting, NowNs());
+}
+
+// Runs here, off the audio threads, because enumerating sessions takes milliseconds.
+void Session::WatchAppOutput() {
+    Slot& s = slots_[kMeeting];
+    if (!s.track || !s.track->streamOpen() || !targetPid_ || sleeping_) return;
+    if (followApp_.empty() && s.spec.kind != StreamSpec::Kind::Process) return;
+    AppOutput app = ReadAppOutput(followApp_, targetPid_, s.track->deviceId());
+    if (state_ == "recording" && silence_.Update(app.peak, s.track->levelCentiDb / 100.0)) {
+        log_->Record(JsonObject().Str("event", "meetingSilent").Int("atNs", NowNs() - originNs_).Done());
+        Emit("meetingSilent", JsonObject().Str("track", "meeting"));
+    }
+    if (followApp_.empty()) return;
+    if (!fakeAppDevice_.empty()) app.deviceId = fakeAppDevice_;
+    std::string device = Narrow(app.deviceId);
+    if (device.empty() || device == s.track->deviceId()) {
+        movingTo_.clear();
+        return;
+    }
+    int64_t now = NowNs();
+    if (device != movingTo_) {
+        movingTo_ = device;
+        movingSinceNs_ = now;
+    }
+    if (now - movingSinceNs_ < kFollowNs) return;
+    movingTo_.clear();
+    s.spec.deviceId = app.deviceId;
+    MoveMeetingTo(device);
 }
 
 void Session::OnDeviceGone(const std::string& id) {
@@ -605,6 +651,8 @@ void Session::TryReopen(int index, int64_t now) {
     s.nextRetryNs = now + kRetryNs;
     if (index == kMeeting) {
         if (OpenMeeting("device", true)) s.needReopen = false;
+        // A followed device that left: use the default until the app shows where it went.
+        else if (!followApp_.empty()) s.spec.deviceId.clear();
         return;
     }
     if (consentDenied_) return;
@@ -689,6 +737,7 @@ void Session::TickSecond(int64_t now) {
         s.track->Post([](TrackPipeline& p) { p.OnSourceChanged("none"); });
         WatchTarget(0);
     }
+    WatchAppOutput();
     if (slots_[kMic].track)
         Emit("health", JsonObject().Num("micDb", slots_[kMic].track->levelCentiDb / 100.0)
                            .Num("meetingDb", slots_[kMeeting].track->levelCentiDb / 100.0));

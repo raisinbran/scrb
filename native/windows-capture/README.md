@@ -419,6 +419,16 @@ unplug (no USB mic).
     0.0000 against endpoint loopback 0.38-0.65) and anarlog PR 7590 (moved to
     endpoint loopback).  Teams in a browser recorded in #414, not tested here.
 
+18. **BUG-1 fix built; a real Teams call is still to run.**  `open` takes
+    `followApp`: the meeting track then records the output device that app plays
+    through, and moves with it after 4 s.  Per-app targets and followed apps also
+    get a silence check: seconds with the app's session meter above -60 dB while
+    the track stays under -80 dB, 30 in all, raise `meetingSilent` once.  They need
+    not be in a row, because speech has pauses.  Output muted does not silence this
+    capture here (-14.4 dB).  This PC has one output device, so moves were tested
+    through a hook (`results/bug1-follow.txt`, `scripts/follow_case.mjs`,
+    `scripts/follow_restart_case.mjs`).
+
 ## Needs a Planner plan
 
 The process requires one and the tool was unavailable: Windows capture adapter,

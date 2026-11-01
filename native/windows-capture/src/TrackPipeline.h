@@ -8,6 +8,27 @@
 
 namespace scrb {
 
+// Seconds count while the app makes sound, not in a row, so pauses in speech do not reset them.
+// Anything the track hears clears the count and rearms the warning.
+class SilenceWatch {
+public:
+    static constexpr int kLimitSeconds = 30;
+    bool Update(double appPeak, double trackDb) {
+        if (trackDb > -80) {
+            seconds_ = 0;
+            warned_ = false;
+            return false;
+        }
+        if (warned_ || appPeak < 0.001 || ++seconds_ < kLimitSeconds) return false;
+        warned_ = true;
+        return true;
+    }
+
+private:
+    int seconds_ = 0;
+    bool warned_ = false;
+};
+
 struct PipelineConfig {
     std::string sessionId;
     std::string track;  // microphone or meeting

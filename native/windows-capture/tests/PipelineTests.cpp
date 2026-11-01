@@ -337,6 +337,24 @@ void TestRealStandbyLog(const char* path) {
 
 }  // namespace
 
+void TestSilenceWatch() {
+    SilenceWatch watch;
+    int warnings = 0;
+    for (int i = 0; i < 300; ++i) warnings += watch.Update(0, -96);  // nobody is speaking
+    CHECK(warnings == 0);
+    for (int i = 0; i < SilenceWatch::kLimitSeconds - 1; ++i) warnings += watch.Update(i % 2 ? 0.2 : 0, -96);
+    CHECK(warnings == 0);  // pauses in speech do not count
+    for (int i = 0; i < SilenceWatch::kLimitSeconds + 2; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 1);
+    for (int i = 0; i < 100; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 1);  // once, not every second
+    watch.Update(0.2, -20);  // sound returned, so the next silence warns again
+    for (int i = 0; i < SilenceWatch::kLimitSeconds; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 2);
+    for (int i = 0; i < 100; ++i) watch.Update(0.2, -20);
+    CHECK(warnings == 2);  // a track that hears the app never warns
+}
+
 int main(int argc, char** argv) {
     TestRolloverAndGaps();
     TestHandsFreeJitter();
@@ -345,6 +363,7 @@ int main(int argc, char** argv) {
     TestDrainBurst();
     TestStaleSilence();
     TestResumeOnDeadStream();
+    TestSilenceWatch();
     TestPauseAndLoss();
     TestGate();
     TestFastPause();
