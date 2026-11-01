@@ -32,6 +32,7 @@ export interface LiveAudioWorkerOptions {
   maxQueuedFrames?: number;
   requestTimeoutMs?: number;
   startTimeoutMs?: number;
+  cleanupTimeoutMs?: number;
   /** Defaults to the compiled package entry; tests may launch an invented worker. */
   workerArgs?: string[];
   tempRoot?: string;
@@ -52,6 +53,7 @@ interface Run {
   startup?: Promise<void>;
   vad?: Promise<void>;
   cleanup?: Promise<void>;
+  modelCleanup?: Promise<void>;
 }
 
 /** Owns only live processes and its own scratch directory, never a recording path or lock. */
@@ -86,7 +88,11 @@ export class LiveAudioWorker {
     const capacity = options.maxQueuedFrames ?? 20;
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > 64)
       throw new RangeError('Invalid live queue capacity');
-    for (const timeout of [options.requestTimeoutMs ?? 30_000, options.startTimeoutMs ?? 60_000]) {
+    for (const timeout of [
+      options.requestTimeoutMs ?? 30_000,
+      options.startTimeoutMs ?? 60_000,
+      options.cleanupTimeoutMs ?? 1000,
+    ]) {
       if (!Number.isFinite(timeout) || timeout < 1 || timeout > 60_000)
         throw new RangeError('Invalid live timeout');
     }
@@ -131,7 +137,7 @@ export class LiveAudioWorker {
   /** Stop discards provisional tails. The independent final pass owns complete transcription. */
   close(): Promise<void> {
     this.closing ??= this.stop().catch(() => {
-      this.notifications = [{ type: 'failed', reason: 'cleanup-failed' }];
+      this.notifications.push({ type: 'failed', reason: 'cleanup-failed' });
       this.scheduleNotifications();
     });
     return this.closing;
@@ -143,9 +149,12 @@ export class LiveAudioWorker {
       for (const frame of queue) this.skip(frame, 'closed');
       queue.length = 0;
     }
-    if (this.run) await this.cleanup(this.run);
-    this.accepted.clear();
-    await rm(this.scratch, { recursive: true, force: true });
+    try {
+      if (this.run) await this.cleanup(this.run);
+    } finally {
+      this.accepted.clear();
+      await rm(this.scratch, { recursive: true, force: true });
+    }
   }
 
   private emit(event: LiveAudioEvent): void {
@@ -250,11 +259,11 @@ export class LiveAudioWorker {
         run.workDir,
         run.abort.signal,
       );
+      run.models = models;
       if (run.abort.signal.aborted || this.closed) {
-        await models.close();
+        await this.closeModels(run);
         return;
       }
-      run.models = models;
       const worker = new WorkerProcess({
         name: 'live-pcm',
         command: process.execPath,
@@ -449,10 +458,37 @@ export class LiveAudioWorker {
       run.abort.abort();
       clearTimeout(run.timer);
       run.worker?.kill();
-      await run.startup;
-      await Promise.allSettled([run.worker?.done, run.models?.close(), run.vad]);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          (async () => {
+            await run.startup;
+            const results = await Promise.allSettled([
+              run.worker?.done,
+              this.closeModels(run),
+              run.vad,
+            ]);
+            if (results.some((result) => result.status === 'rejected'))
+              throw new Error('Live cleanup failed');
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('Live cleanup timed out')),
+              this.options.cleanupTimeoutMs ?? 1000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
     })();
     return run.cleanup;
+  }
+
+  private closeModels(run: Run): Promise<void> {
+    if (!run.models) return Promise.resolve();
+    run.modelCleanup ??= Promise.resolve().then(() => run.models!.close());
+    return run.modelCleanup;
   }
 
   private fail(run: Run): void {
@@ -472,15 +508,20 @@ export class LiveAudioWorker {
       }
     run.pending.clear();
     delete run.frame;
-    void this.cleanup(run).then(() => {
-      if (this.closed) return;
-      if (++this.restarts > 3) {
-        this.emit({ type: 'failed', reason: 'worker-unavailable' });
+    void this.cleanup(run).then(
+      () => {
+        if (this.closed) return;
+        if (++this.restarts > 3) {
+          this.emit({ type: 'failed', reason: 'worker-unavailable' });
+          void this.close();
+        } else {
+          this.emit({ type: 'restarting', attempt: this.restarts });
+          this.launch();
+        }
+      },
+      () => {
         void this.close();
-      } else {
-        this.emit({ type: 'restarting', attempt: this.restarts });
-        this.launch();
-      }
-    });
+      },
+    );
   }
 }

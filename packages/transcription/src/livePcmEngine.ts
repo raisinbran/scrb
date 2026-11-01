@@ -121,9 +121,15 @@ export class LivePcmEngine {
   private async ready(track: TrackKind, state: State, flush: boolean): Promise<void> {
     if (!state.samples.length) return;
     const durationMs = (state.samples.length * 1000) / LIVE_PCM_RATE;
-    const spans = await this.models.detect(track, state.samples);
+    const detected = await this.models.detect(track, state.samples);
     if (this.closed) return;
-    if (spans.length > 128) throw new Error('Invalid live VAD timing');
+    if (detected.length > 128) throw new Error('Invalid live VAD timing');
+    const spans = detected.map((span) => {
+      if (![span.startMs, span.endMs].every(Number.isFinite) || span.startMs >= durationMs) {
+        throw new Error('Invalid live VAD timing');
+      }
+      return { startMs: span.startMs, endMs: Math.min(span.endMs, durationMs) };
+    });
     let last = 0;
     for (const span of spans) {
       if (
