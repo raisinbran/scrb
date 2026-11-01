@@ -19,3 +19,18 @@ The owner requested continuation of priorities 4–6 rather than waiting for Gat
 - The model downloader's injected `fetchSource` is only a test seam; production uses global fetch and rejects non-HTTPS source URLs. Fake HTTP-server tests do **not** prove real certificate validation or post-setup network isolation.
 - No `packages/contracts/`, capture helper, native device, real recording, transcription, installed model or production downloader UI was changed.
 - Keep this preliminary branch draft. If CI finds an exact failure, apply only the smallest fix with a reproducer; do not add new features or overextend gate requirements.
+
+
+## Follow-up: priorities 1–6 requested on 2026-10-31
+
+The owner explicitly requested the additional cloud-OK correctness and security work. New preliminary commits:
+
+- **P2 Task 26:** `b042da2` catches invalid JSON in a migration journal as `INDEX_RECOVERY_REQUIRED`, leaving both the original journal and SQLite index unmodified. Added a repeated-launch regression.
+- **P3 Tasks 23/24:** `5968f9d` covers the already-implemented correction provenance for a misheard form shared by two corrections, and explicit manual preservation. No new migration or correction contract.
+- **P4 Tasks 20/35:** `1b24f17`, `3077565`, `91510f3` add an invented eight-hour virtual-list keyboard-focus/jump test, with a bounded visible-row assertion.
+- **P5 Tasks 31/32:** `af0d189` adds one-per-destination downloader protection and failure regressions; `ddcd0eb` adds a read-only, SHA-verified offline rollback candidate helper/test. **No production update/revert registry or pinned provider manifest is implemented.** The helper only selects a valid candidate and does not switch installed models.
+- **P6 Task 36:** short privacy plan `4596de0`, worker/privacy tests and `378cf75` narrow the logger's allowed string values to known diagnostic enums, codes and UUID IDs. Subsequent follow-ups isolate the new worker test in `packages/transcription/test/worker-privacy.test.ts` without changing the existing worker test files. This does **not** establish process-wide egress isolation.
+
+**P1 QA/CI status:** GitHub Actions last reported a successful run for `d6febd3` (run `41270424090`). As of this handoff, the newer commit chain **has no corresponding CI check-run results**. The GitHub connector did not expose a workflow dispatch action, and direct `git clone`/npm in the execution container could not access GitHub. These new tests, Prettier, typecheck, lint and Electron smoke therefore **have not been reported as passing**. Claude Code must run/confirm `npm run check`, `npm run test:smoke`, `node scripts/prove-cloud-regressions.mjs`, targeted model/network tests, and changed-file Prettier; fix any actual failures before review.
+
+All changes are preliminary on draft PR #8. Keep `main` and `packages/contracts/` unchanged. Native, owner-approved model sources, release packaging, OS screen readers and device tests remain outside this batch. Tasks 7 (license notices) and 8 (manual accuracy) remain valid lower-priority cloud work, **not cancelled**.
