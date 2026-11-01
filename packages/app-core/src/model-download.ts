@@ -56,7 +56,6 @@ export async function downloadPinnedModel(
     await mkdir(directory, { recursive: true });
     const response = await (options.fetchSource ?? fetch)(source.url, {
       redirect: 'manual',
-      cache: 'no-store',
       ...(options.signal ? { signal: options.signal } : {}),
     });
     if (response.status !== 200 || response.redirected || !response.body) {
