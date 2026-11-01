@@ -79,7 +79,6 @@ describe('Electron import coordination', () => {
     await f.coordinator.shutdown();
   });
 
-
   it('keeps chosen paths private, consumes file tokens once, and publishes a completed meeting', async () => {
     const f = await fixture();
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {

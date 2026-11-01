@@ -52,15 +52,13 @@ describe('nonblocking live-transcript sink (native PCM feed not wired)', () => {
   it('drops pending provisional segments under overload without blocking capture', async () => {
     let release!: (value: { revision: number }) => void;
     let revision = 0;
-    const appendSegments = vi.fn(
-      async (meetingId: string, segments: Segment[]) => {
-        expect(meetingId).toBe('meeting-one');
-        expect(segments).toHaveLength(1);
-        return new Promise<{ revision: number }>((resolve) => {
-          release = resolve;
-        });
-      },
-    );
+    const appendSegments = vi.fn(async (meetingId: string, segments: Segment[]) => {
+      expect(meetingId).toBe('meeting-one');
+      expect(segments).toHaveLength(1);
+      return new Promise<{ revision: number }>((resolve) => {
+        release = resolve;
+      });
+    });
     const emit = vi.fn();
     const sink = new LiveTranscriptSink(
       { appendSegments } as unknown as Library,

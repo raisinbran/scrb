@@ -34,7 +34,8 @@ export interface ImportDependencies {
   emit: Emit;
 }
 
-const IMPORT_STAGE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.import-[0-9a-f]{8})?$/i;
+const IMPORT_STAGE_NAME =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.import-[0-9a-f]{8})?$/i;
 
 const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
   decoding: 'decoding',
