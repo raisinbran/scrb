@@ -83,4 +83,52 @@ describe('desktop export jobs', () => {
       await library.close();
     }
   });
+
+  it('keeps exporting after a job fails before its first await', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'scrb-export-test-'));
+    const library = await Library.open({ root });
+    try {
+      const meeting = await library.createMeeting({ title: 'Invented Export' });
+      const events = vi.fn();
+      const exporter = new ExportCoordinator(library, events, async () => Buffer.from('%PDF'));
+      await exporter.handlers.exportMeeting!({
+        ...REQUEST,
+        meetingId: meeting.id,
+        content: 'summary',
+      });
+      await vi.waitFor(() =>
+        expect(events).toHaveBeenCalledWith(
+          'exportFinished',
+          expect.objectContaining({ ok: false, message: 'This meeting has no summary to export.' }),
+        ),
+      );
+      await exporter.shutdown();
+      await expect(
+        exporter.handlers.exportMeeting!({ ...REQUEST, meetingId: meeting.id }),
+      ).resolves.toHaveProperty('exportId');
+      await exporter.shutdown();
+    } finally {
+      await library.close();
+    }
+  });
+
+  it("reports a busy or missing meeting in the contract's terms", async () => {
+    const root = await mkdtemp(join(tmpdir(), 'scrb-export-test-'));
+    const library = await Library.open({ root });
+    try {
+      const meeting = await library.createMeeting({
+        title: 'Invented Export',
+        status: 'recording',
+      });
+      const exporter = new ExportCoordinator(library, vi.fn(), async () => Buffer.from('%PDF'));
+      await expect(
+        exporter.handlers.exportMeeting!({ ...REQUEST, meetingId: meeting.id }),
+      ).rejects.toMatchObject({ code: 'conflict' });
+      await expect(
+        exporter.handlers.exportMeeting!({ ...REQUEST, meetingId: 'missing' }),
+      ).rejects.toMatchObject({ code: 'notFound' });
+    } finally {
+      await library.close();
+    }
+  });
 });

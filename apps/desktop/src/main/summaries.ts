@@ -129,7 +129,7 @@ export class SummaryCoordinator {
         transcript,
         length,
         signal: abort.signal,
-        progress: (done, total) => emit('coverageCheck', total > 0 ? (done / total) * 0.9 : 0),
+        progress: (done, total) => emit('extracting', total > 0 ? (done / total) * 0.9 : 0),
       });
       if (abort.signal.aborted) return;
       emit('writing', 0.95);

@@ -1,10 +1,12 @@
 import { app, dialog, shell } from 'electron';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import {
   createConfiguredImportRunner,
   createFinalPassRunner,
   createSettingsHandlers,
   FinalPassQueue,
+  ModelTurns,
   resumeFinalPasses,
   needsPrivacyBanner,
   privacyJurisdictions,
@@ -17,7 +19,7 @@ import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { ImportCoordinator } from './imports.ts';
 import { SummaryCoordinator, createConfiguredSummaryRunner } from './summaries.ts';
-import { ExportCoordinator, printPdf } from './exports.ts';
+import { createPrintPdf, ExportCoordinator } from './exports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -35,6 +37,12 @@ export async function openBackend(
   try {
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
+    // A crash leaves private audio or transcript text in these two, and nothing reuses them.
+    const importCache = path.join(root, 'cache', 'imports');
+    const pdfCache = path.join(root, 'cache', 'pdf');
+    await Promise.all(
+      [importCache, pdfCache].map((dir) => rm(dir, { recursive: true, force: true })),
+    );
     const settings = createSettingsHandlers(library.settings, root);
     library.setMeetingChangedListener((meeting) =>
       emit('meetingChanged', {
@@ -52,9 +60,10 @@ export async function openBackend(
     const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
     // Same rule for the final pass: it needs models and tools that packaging does not ship yet.
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
+    const modelTurns = new ModelTurns();
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        ? new FinalPassQueue(library, modelTurns.wrap(createFinalPassRunner(finalPassConfig)))
         : null;
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
@@ -77,7 +86,7 @@ export async function openBackend(
             });
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
-          run: createConfiguredImportRunner(finalPassConfig),
+          run: modelTurns.wrap(createConfiguredImportRunner(finalPassConfig)),
           recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner,
           emit,
@@ -99,9 +108,13 @@ export async function openBackend(
       : null;
     const summaryConfig = app.isPackaged ? undefined : process.env['SCRB_SUMMARY_CONFIG'];
     const summaries = summaryConfig
-      ? new SummaryCoordinator(library, createConfiguredSummaryRunner(summaryConfig), emit)
+      ? new SummaryCoordinator(
+          library,
+          modelTurns.wrap(createConfiguredSummaryRunner(summaryConfig)),
+          emit,
+        )
       : null;
-    const exports = new ExportCoordinator(library, emit, printPdf);
+    const exports = new ExportCoordinator(library, emit, createPrintPdf(pdfCache));
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,

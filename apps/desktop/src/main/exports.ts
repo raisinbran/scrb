@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
 import { toExportMeeting } from '@scrb/app-core';
-import { atomicWriteFile, type Library } from '@scrb/storage';
+import { atomicWriteFile, MeetingNotFoundError, StorageError, type Library } from '@scrb/storage';
 import {
   ContractError,
   type BackendEvents,
@@ -20,24 +21,34 @@ import type { CallHandlers } from './dispatch.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
-/** An isolated, script-disabled page receives only escaped document HTML, never a filesystem path. */
-export const printPdf: PrintHtmlToPdf = async (html, options) => {
-  const window = new BrowserWindow({
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-    },
-  });
-  try {
-    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-    return await window.webContents.printToPDF(options);
-  } finally {
-    window.destroy();
-  }
-};
+/**
+ * Prints from a file in the app's cache, not a data URL: Chromium refuses URLs over 2 MB, which a
+ * long transcript exceeds. The page has scripts off and is deleted after printing.
+ */
+export function createPrintPdf(cacheDir: string): PrintHtmlToPdf {
+  return async (html, options) => {
+    const page = join(cacheDir, `${randomUUID()}.html`);
+    const window = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        webSecurity: true,
+        javascript: false,
+      },
+    });
+    try {
+      await mkdir(cacheDir, { recursive: true });
+      await writeFile(page, html, 'utf8');
+      await window.loadFile(page);
+      return await window.webContents.printToPDF(options);
+    } finally {
+      window.destroy();
+      await rm(page, { force: true }).catch(() => undefined);
+    }
+  };
+}
 
 export class ExportCoordinator {
   private readonly running = new Map<string, Promise<void>>();
@@ -52,11 +63,26 @@ export class ExportCoordinator {
     if (this.running.has(input.meetingId)) {
       throw new ContractError({ code: 'conflict', message: 'An export is already in progress.' });
     }
-    const snapshot = await this.library.beginExport(input.meetingId);
+    const snapshot = await this.snapshot(input.meetingId);
     const exportId = randomUUID();
-    const job = this.run(input, exportId, snapshot);
+    // Deferred, because a run that fails before its first await would finish before it is tracked.
+    const job = Promise.resolve().then(() => this.run(input, exportId, snapshot));
     this.running.set(input.meetingId, job);
     return { exportId };
+  }
+
+  private async snapshot(meetingId: string): ReturnType<Library['beginExport']> {
+    try {
+      return await this.library.beginExport(meetingId);
+    } catch (error) {
+      if (error instanceof MeetingNotFoundError) {
+        throw new ContractError({ code: 'notFound', message: 'That meeting no longer exists.' });
+      }
+      if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
+        throw new ContractError({ code: 'conflict', message: error.message });
+      }
+      throw error;
+    }
   }
 
   private async run(
