@@ -37,6 +37,8 @@ final class Track {
     let ring = rt_ring_create()!
     var writer: ChunkWriter?
     var active = false
+    var liveRing: OpaquePointer?
+    private var liveGeneration: UInt32 = 0
     var generation: UInt32 = 0
     var nextHost: UInt64 = 0
     var nextOpenReason = "start"
@@ -98,6 +100,13 @@ final class Track {
             withUnsafePointer(to: &slot.pointee.samples) { pointer in
                 pointer.withMemoryRebound(to: Int16.self, capacity: frames) {
                     let samples = UnsafeBufferPointer(start: $0, count: frames)
+                    let liveStart = liveRing == nil ? 0 : session.toSessionNs(host: slot.pointee.host)
+                    defer {
+                        if let liveRing {
+                            _ = live_offer(liveRing, samples.baseAddress, UInt32(frames),
+                                           liveStart, rate, liveGeneration, false)
+                        }
+                    }
                     guard let converter else { return writer.write(samples) }
                     guard let converted = converter.convert(samples) else {
                         return reportWriteError("could not convert \(rate) Hz audio")
@@ -142,6 +151,10 @@ final class Track {
 
     /// A rollover keeps the converter, because the audio carries straight on.
     private func endChunk(reason: String) {
+        if reason != "rollover" {
+            if let liveRing { _ = live_offer(liveRing, nil, 0, 0, deviceRate, liveGeneration, true) }
+            liveGeneration &+= 1
+        }
         guard let writer else { return }
         if reason != "rollover", let converter {
             if writer.isOpen, let tail = converter.convert(nil) {
@@ -192,6 +205,7 @@ final class Session {
     private var lockFd: Int32 = -1
     private var logSequence = 0
     private let logQueue = DispatchQueue(label: "session.log")
+    private var liveFeed: LiveFeed?
     private var writerThread: Thread?
     private var sleepAssertion: IOPMAssertionID = 0
     private var micChange: DispatchWorkItem?
@@ -228,6 +242,14 @@ final class Session {
             record(["event": "restart", "atNs": now()])
             micTrack.nextOpenReason = "workerRestarted"
             meetingTrack.nextOpenReason = "workerRestarted"
+        }
+        // Only a separately inherited descriptor opts in; stdout remains JSON control.
+        if let value = ProcessInfo.processInfo.environment["SCRB_LIVE_FD"], let fd = Int32(value),
+           let feed = LiveFeed(fd: fd) {
+            liveFeed = feed
+            micTrack.liveRing = feed.rings[0]
+            meetingTrack.liveRing = feed.rings[1]
+            feed.start()
         }
         micTrack.writer = ChunkWriter(directory: audio + "/microphone")
         meetingTrack.writer = ChunkWriter(directory: audio + "/meeting")
@@ -285,6 +307,7 @@ final class Session {
         meetingTrack.drain(session: self)
         micStream.close()
         meetingStream.close()
+        liveFeed?.stop()
         logQueue.sync { if let sessionLog { fclose(sessionLog) } }
         if sleepAssertion != 0 { IOPMAssertionRelease(sleepAssertion) }
         return at
