@@ -35,7 +35,7 @@ export interface ImportDependencies {
   recordingBusy(): boolean;
   privacyBanner(): Promise<boolean>;
   emit: Emit;
-  removeStaging?: (folder: string) => Promise<void>;
+  removeStaging?: ((folder: string) => Promise<void>) | undefined;
   modelGate?: LargeModelGate;
 }
 
