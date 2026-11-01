@@ -9,7 +9,7 @@ test('real Chromium prints HTML larger than the data URL limit without leftover 
   });
   expect(build.status, build.stderr).toBe(0);
   const app = await electron.launch({
-    args: [join('e2e', 'large-pdf-harness.mjs')],
+    args: [join('e2e', 'large-pdf-harness.cjs')],
   });
   try {
     const child = app.process();
