@@ -20,6 +20,7 @@ describe.skipIf(process.platform === "win32")("LlamaServerWorker", () => {
     const response = await worker.complete(request);
     const { echo, args } = JSON.parse(response.content);
     expect(args).toEqual(expect.arrayContaining(["-ngl", "99", "-m", "/models/Qwen3.5-9B-Q4_K_M.gguf"]));
+    expect(args).toEqual(expect.arrayContaining(["--host", "127.0.0.1"]));
     expect(echo.temperature).toBe(0);
     expect(echo.response_format.json_schema.schema).toEqual({ type: "object" });
     expect(echo.chat_template_kwargs).toEqual({ enable_thinking: false });
