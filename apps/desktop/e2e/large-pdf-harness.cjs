@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, no-undef -- This Electron main test harness must be CommonJS. */
 const { app, BrowserWindow } = require('electron');
 const { mkdtemp, mkdir, readdir, rm } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
