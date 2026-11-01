@@ -41,6 +41,7 @@ export class TranscriptStore {
   private readonly loadingPages = new Set<number>();
   private wanted: [first: number, last: number] = [0, 0];
   private revision = -1;
+  private latestSeen = -1;
   private version = 0;
   private generation = 0;
   private stopped = false;
@@ -55,7 +56,9 @@ export class TranscriptStore {
   start(): Unsubscribe {
     this.stopped = false;
     const unsubscribe = this.backend.on('transcriptChanged', (event) => {
-      if (event.meetingId === this.meetingId) this.applyEvent(event);
+      if (event.meetingId !== this.meetingId) return;
+      this.latestSeen = Math.max(this.latestSeen, event.revision);
+      this.applyEvent(event);
     });
     void this.reload();
     return () => {
@@ -105,6 +108,10 @@ export class TranscriptStore {
     if (this.segments.slice(start, start + PAGE_SEGMENTS).includes(undefined)) {
       void this.loadPage(page);
     }
+  }
+
+  rowOf(segmentId: string): number | null {
+    return this.indexById.get(segmentId) ?? null;
   }
 
   positionOf(ref: WordRef): WordPosition | null {
@@ -176,6 +183,7 @@ export class TranscriptStore {
 
   private async reload(): Promise<void> {
     const generation = (this.generation += 1);
+    const seenAtStart = this.latestSeen;
     this.status = 'loading';
     this.loadingPages.clear();
     try {
@@ -185,6 +193,11 @@ export class TranscriptStore {
         limit: PAGE_SEGMENTS,
       });
       if (generation !== this.generation || this.stopped) return;
+      // An event landed during the load, and this reply predates it.
+      if (this.latestSeen > seenAtStart && this.latestSeen > page.revision) {
+        void this.reload();
+        return;
+      }
       this.segments = new Array<TranscriptSegment | undefined>(page.totalSegments).fill(undefined);
       this.indexById.clear();
       this.heights.invalidateFrom(0);
@@ -203,6 +216,7 @@ export class TranscriptStore {
 
   private async loadPage(page: number): Promise<void> {
     const generation = this.generation;
+    const seenAtStart = this.latestSeen;
     this.loadingPages.add(page);
     try {
       const result = await this.backend.call('getTranscript', {
@@ -212,9 +226,12 @@ export class TranscriptStore {
       });
       if (generation !== this.generation || this.stopped) return;
       this.loadingPages.delete(page);
-      // A page from another revision may disagree with events already applied. Dropping it is safe
-      // because each applied event asks for the wanted rows again.
-      if (result.revision !== this.revision) return;
+      // A page from another revision may disagree with events already applied, so it is dropped.
+      // It is asked for again if an event landed meanwhile, since that event skipped it as in flight.
+      if (result.revision !== this.revision) {
+        if (this.latestSeen > seenAtStart) this.ensureRange(...this.wanted);
+        return;
+      }
       this.addSpeakers(result.speakers);
       this.placeSegments(page * PAGE_SEGMENTS, result.segments);
       this.heights.invalidateFrom(page * PAGE_SEGMENTS);
