@@ -94,6 +94,11 @@ final class MeetingStream {
         return nil
     }
 
+#if FAULT_HOOKS
+    /// T6: the stream goes quiet with no error, and the rebuild path still has to close it.
+    func faultStop() { if let proc { AudioDeviceStop(aggregate, proc) } }
+#endif
+
     func close() {
         if let proc {
             AudioDeviceStop(aggregate, proc)
@@ -130,6 +135,11 @@ final class MicStream {
         guard status == noErr else { close(); return "start: \(status)" }
         return nil
     }
+
+#if FAULT_HOOKS
+    /// T6: the stream goes quiet with no error, and the rebuild path still has to close it.
+    func faultStop() { if let proc { AudioDeviceStop(device, proc) } }
+#endif
 
     func close() {
         if let proc {

@@ -1,13 +1,30 @@
 // Gate 2 long run through the app's RecordingSession: pauses, device changes and a forced worker
-// crash, with a tone on the meeting track. Unattended, so run it under run-muted.sh and caffeinate.
+// crash, with a tone on the meeting track and half the logical cores spinning at below-normal
+// priority, as on Windows. Unattended, so run it under run-muted.sh and caffeinate.
 // Usage: node --experimental-transform-types long_run_app.mjs <helper> <set_input> <work dir>
 //        <tone file> <seconds> <other input> <usual input>
 import { execFile, spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { constants, cpus, setPriority } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker, isMainThread } from 'node:worker_threads';
 import { ProcessAdapter } from '../../../packages/capture/src/process-adapter.ts';
 import { RecordingSession } from '../../../packages/app-core/src/recording.ts';
 import { sealAudio } from '../../../packages/app-core/src/recovery.ts';
+
+const script = fileURLToPath(import.meta.url);
+if (process.argv[2] === '--burn') {
+  if (isMainThread) {
+    const count = Number(process.argv[3]);
+    for (let i = 0; i < count; i += 1) new Worker(script, { argv: ['--burn', '0'] });
+    process.stdin.on('end', () => process.exit(0));
+    process.stdin.resume();
+  } else {
+    for (let x = 0; ; x += 1) Math.sqrt(x);
+  }
+  await new Promise(() => undefined);
+}
 
 const [helper, setInput, work, tone, secondsText, other, usual] = process.argv.slice(2);
 const total = Number(secondsText) * 1000;
@@ -23,6 +40,13 @@ const note = (fields) => {
   appendFileSync(eventLog, `${line}\n`);
   console.log(line);
 };
+
+const burners = Math.floor(cpus().length / 2);
+const burn = spawn(process.execPath, [script, '--burn', String(burners)], {
+  stdio: ['pipe', 'ignore', 'ignore'],
+});
+setPriority(burn.pid, constants.priority.PRIORITY_BELOW_NORMAL);
+note({ load: `${burners} spinning threads of ${cpus().length} logical cores, below normal` });
 
 const player = spawn('afplay', [tone], { stdio: 'ignore' });
 await sleep(2000);
@@ -104,6 +128,7 @@ while (Date.now() - started < total && ended === null) {
 }
 await recording.stop();
 player.kill();
+burn.stdin.end();
 await select(usual);
 await sleep(500);
 

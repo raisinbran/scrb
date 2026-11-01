@@ -69,6 +69,7 @@ export class RecordingController {
   private lastTick = 0;
   private finishing: Promise<void> | null = null;
   private writeErrors = new Set<string>();
+  private deadStreams = new Set<Track>();
 
   constructor(
     private readonly library: Library,
@@ -99,6 +100,16 @@ export class RecordingController {
       ? `The ${track} track is not being saved.`
       : 'Part of this recording could not be saved.';
     this.warn({ kind: 'audioMissing', message, ...(track ? { track } : {}) }, 'failed');
+  }
+
+  /** The helper repeats this while its reopen keeps failing. */
+  private streamDead(track: Track): void {
+    if (this.deadStreams.has(track)) return;
+    this.deadStreams.add(track);
+    this.warn(
+      { kind: 'audioMissing', track, message: `The ${track} track stopped. Reconnecting.` },
+      'warning',
+    );
   }
 
   private tick(): void {
@@ -166,6 +177,7 @@ export class RecordingController {
     });
     this.health = { level: 'ok', warnings: [], diskFreeBytes: 0 };
     this.writeErrors.clear();
+    this.deadStreams.clear();
     this.state = { ...IDLE, meetingId: meeting.id };
     if (micFellBack) {
       this.warn(
@@ -185,6 +197,10 @@ export class RecordingController {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
           } else if (event.type === 'writeError') {
             this.writeError(event.track);
+          } else if (event.type === 'streamDead') {
+            this.streamDead(event.track);
+          } else if (event.type === 'streamReopened') {
+            this.deadStreams.delete(event.track);
           }
         });
         return adapter;
