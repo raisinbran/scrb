@@ -183,7 +183,9 @@ describe('sealAudio', () => {
       logLine(track, [{ file: '000000.opus', closeReason: 'pause' }]);
     }
     events([{ event: 'pause', atNs: 2 * SECOND, seq: 3 }, stopEvent(5 * SECOND)]);
-    const before = readFileSync(join(audio, 'microphone', '000000.opus'));
+    const before = ['meeting', 'microphone'].map((track) =>
+      readFileSync(join(audio, track, '000000.opus')),
+    );
 
     const first = await sealAudio(audio, dead);
     const again = await sealAudio(audio, dead);
@@ -196,7 +198,9 @@ describe('sealAudio', () => {
       { kind: 'paused', track: 'both', startNs: 2 * SECOND, endNs: 5 * SECOND },
     ]);
     expect(again).toEqual(first);
-    expect(readFileSync(join(audio, 'microphone', '000000.opus'))).toEqual(before);
+    for (const [index, track] of ['meeting', 'microphone'].entries()) {
+      expect(readFileSync(join(audio, track, '000000.opus'))).toEqual(before[index]);
+    }
   });
 
   it('stops immediately after Resume', async () => {
@@ -239,6 +243,7 @@ describe('sealAudio', () => {
       valid + '{invalid}\n',
       valid + JSON.stringify({ event: 'resume', atNs: 2 * SECOND, seq: 5 }) + '\n',
       JSON.stringify({ ...stopEvent(2 * SECOND), commandId: '' }) + '\n',
+      JSON.stringify({ ...stopEvent(2 * SECOND), seq: 0 }) + '\n',
       JSON.stringify(stopEvent(Number.MAX_SAFE_INTEGER + 1)) + '\n',
     ];
     for (const text of invalid) {
@@ -254,6 +259,18 @@ describe('sealAudio', () => {
         rmSync(folder, { recursive: true, force: true });
       }
     }
+  });
+
+  it('keeps an earlier crash seal unchanged', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    const first = await sealAudio(audio, dead);
+    events([stopEvent(3 * SECOND)]);
+
+    const again = await sealAudio(audio, dead);
+
+    expect(first.outcome).toBe('recovered');
+    expect(again.outcome).toBe('recovered');
+    expect(again.tracks.microphone?.endedBy).toBe('crash');
   });
 
   it('marks the shorter track missing up to the end of the longer one', async () => {

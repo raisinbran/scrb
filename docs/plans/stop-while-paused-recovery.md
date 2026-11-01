@@ -1,6 +1,6 @@
 # Clean Stop vs. crash after Pause — repair plan
 
-**Status: PROPOSED. Owner approval required before implementation.** Documentation only; no Gate 3 decision.
+**Status: Owner approved implementation on 2026-11-01. Preliminary code committed for independent QA; no Gate 3 decision.**
 
 ## Overview
 
@@ -39,7 +39,7 @@ In all five cases, compare every pre-existing saved chunk byte-for-byte and chec
 
 ## Notes for agents
 
-1. **User-decided:** This branch is documentation only; do not implement, merge or alter PR #24 until the owner approves this plan.
+1. **User-decided:** The owner approved implementation on 2026-11-01. Keep PR #24, merges and Gate 3 untouched until independent QA.
 2. **Inferred from code:** The existing chunk-only inference can mistake EOF cleanup for explicit Stop. Requiring the terminal log marker for newly sealed recordings is intentionally conservative for old, unsealed recordings; their audio is retained.
 3. **Inferred from code:** Even if a sync operation reports failure, a complete marker may remain readable on disk. Recovery cannot reconstruct that unrecorded I/O error: reject the successful acknowledgement, and classify the **surviving bytes** conservatively without adding a second transaction format.
 4. **Outside scope:** Recordings already mislabeled `recovered` do not get automatic retroactive final passes. The unrelated PR #24 live-status label defect is also excluded; no UI, shared-interface, transcript algorithm, importer or Gate 3 changes.
