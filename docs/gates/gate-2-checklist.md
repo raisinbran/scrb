@@ -12,7 +12,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 | Loss under load: 15 s per track at most, no gap over 5 s, every gap marked | Accepted, 2026-10-31: 12.2 s and 8.9 s lost, every gap marked. See decision 4 | **Failed on the headset:** 309.9 s. Rerun on the built-in mic                       |
 | Real call, drift from a shared sound (T18)                                 | Accepted, 2 h 29 min, 0 ms drift. See decision 1                              | Whole-computer capture passes. **Drift on the followed Teams path is not measured** |
 | Audio-service restart (T17)                                                | Done, 2026-11-01                                                              | Done                                                                                |
-| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01          | Done                                                                                |
+| Stopped stream and privacy (T6, T20)                                       | T6 done, 2026-10-31. T20 done, 2026-11-01                                     | Done                                                                                |
 
 ## To do
 
