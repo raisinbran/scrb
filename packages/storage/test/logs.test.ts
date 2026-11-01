@@ -70,9 +70,14 @@ describe('logger privacy at worker failure boundaries', () => {
   it('does not persist private native-worker stderr, stdout, or spawn errors', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'scrb-worker-log-'));
     const privateWords = 'ImaginaryClientNectarSecretPhrase';
-    const worker = spawn(process.execPath, ['-e',
-      `process.stdout.write("${privateWords}"); process.stderr.write("${privateWords}"); process.exit(4)`,
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const worker = spawn(
+      process.execPath,
+      [
+        '-e',
+        `process.stdout.write("${privateWords}"); process.stderr.write("${privateWords}"); process.exit(4)`,
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] },
+    );
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     worker.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
@@ -92,5 +97,4 @@ describe('logger privacy at worker failure boundaries', () => {
     expect(saved).not.toContain(privateWords);
     expect(saved).toContain('[redacted]');
   });
-
 });
