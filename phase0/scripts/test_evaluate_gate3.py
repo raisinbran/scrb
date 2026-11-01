@@ -1,6 +1,8 @@
 """Deterministic, invented data only: no local recording or model is needed."""
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -106,6 +108,25 @@ class Gate3EvaluationTests(unittest.TestCase):
         self.write("worker.json", json.dumps({"cases": [{**base, "restart_attempts": 4}]}))
         over_budget = evaluate({"origin": "synthetic", "worker_file": "worker.json"}, self.root)
         self.assertFalse(over_budget["worker_failure"]["all_pass"])
+
+    def test_invalid_manifest_exits_without_score(self):
+        """Invalid evidence cannot look like a successful report.
+        
+        A malformed object and oversized integer must produce CLI errors.
+        """
+        script = Path(__file__).with_name("evaluate_gate3.py")
+        for invalid in ([], {"origin": "synthetic", "peak_app_memory_mib": 10 ** 400}):
+            self.write("invalid.json", json.dumps(invalid))
+            result = subprocess.run(
+                [sys.executable, str(script), str(self.root / "invalid.json")],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
 
     def test_missing_evidence_is_not_passed(self):
         """Unavailable measurements must stay absent, not become zero-valued passes."""

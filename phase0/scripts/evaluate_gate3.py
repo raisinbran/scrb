@@ -149,7 +149,7 @@ def main():
     args = parser.parse_args()
     try:
         report = evaluate(load_json(args.manifest), args.manifest.resolve().parent)
-    except (KeyError, TypeError, ValueError, OSError) as exc:
+    except (AttributeError, KeyError, OverflowError, TypeError, ValueError, OSError) as exc:
         parser.error(str(exc))
     print(json.dumps(report, indent=2))
 
