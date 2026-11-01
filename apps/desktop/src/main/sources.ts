@@ -8,6 +8,9 @@ import {
 } from '@scrb/contracts';
 
 const BROWSERS: ReadonlySet<string> = new Set([
+  'Arc.exe',
+  'brave.exe',
+  'chrome.exe',
   'com.apple.Safari',
   'com.brave.Browser',
   'com.google.Chrome',
@@ -15,7 +18,19 @@ const BROWSERS: ReadonlySet<string> = new Set([
   'com.operasoftware.Opera',
   'com.vivaldi.Vivaldi',
   'company.thebrowser.Browser',
+  'firefox.exe',
+  'msedge.exe',
+  'opera.exe',
   'org.mozilla.firefox',
+  'vivaldi.exe',
+]);
+
+/**
+ * Windows leaves call-type streams out of per-app capture, so these apps are recorded from their
+ * output device instead. See BUG-1 in `docs/bug-tracker.md`.
+ */
+const OUTPUT_DEVICE_APPS: ReadonlyMap<string, string> = new Map([
+  ['ms-teams.exe', 'Microsoft Teams (records all sound on its output device)'],
 ]);
 
 const WHOLE_COMPUTER: MeetingApp = {
@@ -50,7 +65,8 @@ export async function listMeetingApps(helper: string, savedAppId: string): Promi
   const rows = apps.map(toMeetingApp);
   for (const id of saved) {
     if (!rows.some((row) => row.id === id)) {
-      rows.push({ id, name: id, kind: BROWSERS.has(id) ? 'browser' : 'app', isRunning: false });
+      const name = OUTPUT_DEVICE_APPS.get(id) ?? id;
+      rows.push({ id, name, kind: BROWSERS.has(id) ? 'browser' : 'app', isRunning: false });
     }
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -60,13 +76,13 @@ export async function listMeetingApps(helper: string, savedAppId: string): Promi
 function toMeetingApp(app: HelperApp): MeetingApp {
   return {
     id: app.bundleId,
-    name: app.name,
+    name: OUTPUT_DEVICE_APPS.get(app.bundleId) ?? app.name,
     kind: BROWSERS.has(app.bundleId) ? 'browser' : 'app',
     isRunning: app.running,
   };
 }
 
-export interface ResolvedSources extends Pick<OpenCommand, 'source' | 'mic'> {
+export interface ResolvedSources extends Pick<OpenCommand, 'source' | 'mic' | 'followApp'> {
   /** The picked mic is gone, so `mic` is the system default. */
   micFellBack: boolean;
 }
@@ -90,5 +106,6 @@ export async function resolveSources(
     source: pids === null ? 'wholeComputer' : pids.length > 0 ? pids : NO_PROCESS,
     mic: micDeviceId === null || micFellBack ? 'default' : micDeviceId,
     micFellBack,
+    ...(OUTPUT_DEVICE_APPS.has(meetingAppId) ? { followApp: meetingAppId } : {}),
   };
 }

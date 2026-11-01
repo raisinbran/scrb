@@ -272,6 +272,87 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it.each(['device', 'serviceRestarted'])(
+    'calls whole-computer audio lost when the stream failed: %s',
+    async (reason) => {
+      put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, reason));
+      events([{ event: 'open', wholeComputer: true, seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'audioMissing', track: 'meeting', startNs: 2 * SECOND, endNs: 5 * SECOND },
+      ]);
+    },
+  );
+
+  it.each(['discontinuity', 'streamDead'])(
+    'keeps whole-computer audio possibly lost after a %s, which silence can cause',
+    async (reason) => {
+      put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+      put('meeting', '000001.opus', chunk(1, 5 * SECOND, 2, reason));
+      events([{ event: 'open', wholeComputer: true, seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'possiblyMissing', track: 'meeting', startNs: 2 * SECOND, endNs: 5 * SECOND },
+      ]);
+    },
+  );
+
+  describe('a late first chunk', () => {
+    const late = (start: number) => ({
+      kind: 'audioMissing',
+      track: 'microphone',
+      startNs: 0,
+      endNs: start,
+    });
+
+    it('is marked with no restart', async () => {
+      put('microphone', '000000.opus', chunk(0, 4.6 * SECOND, 2, 'device'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([late(4.6 * SECOND)]);
+    });
+
+    it('leaves a normal start unmarked, up to 99 ms', async () => {
+      put('microphone', '000000.opus', chunk(0, 0.099 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([]);
+    });
+
+    it('is one span when a restart also came before it', async () => {
+      put('microphone', '000000.opus', chunk(0, 3 * SECOND, 2, 'workerRestarted'));
+      events([
+        { event: 'open', seq: 1 },
+        { event: 'restart', atNs: 3 * SECOND, seq: 2 },
+      ]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([late(3 * SECOND)]);
+    });
+
+    it('does not call a pause at Start missing audio', async () => {
+      put('microphone', '000000.opus', chunk(0, 30.01 * SECOND, 2, 'resume'));
+      events([
+        { event: 'open', seq: 1 },
+        { event: 'pause', atNs: 0.01 * SECOND, seq: 2 },
+        { event: 'resume', atNs: 30 * SECOND, seq: 3 },
+      ]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'paused', track: 'both', startNs: 0.01 * SECOND, endNs: 30 * SECOND },
+      ]);
+    });
+
+    it('is only possibly missing when a followed device played nothing yet', async () => {
+      put('meeting', '000000.opus', chunk(0, 8 * SECOND, 2, 'start'));
+      events([{ event: 'open', wholeComputer: false, followApp: 'ms-teams.exe', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([
+        { kind: 'possiblyMissing', track: 'meeting', startNs: 0, endNs: 8 * SECOND },
+      ]);
+    });
+  });
+
   describe('after a worker restart', () => {
     const OPENED = { event: 'open', seq: 1 };
     const restart = (at: number) => ({ event: 'restart', atNs: at * SECOND, seq: 2 });

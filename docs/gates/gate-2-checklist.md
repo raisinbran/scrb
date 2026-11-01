@@ -18,11 +18,11 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 
 **Windows**
 
-- [ ] Merge the BUG-1 fix from `windows-restart-test`
-- [ ] Fix BUG-2: mark the gap before a track's first chunk
-- [ ] Try Teams from the real app's picker
-- [ ] Measure drift on a followed Teams call
-- [ ] Run the 4-hour load run on the built-in mic, with the silence check, overnight
+- [x] Merge the BUG-1 fix from `windows-restart-test`
+- [x] Fix BUG-2: mark the gap before a track's first chunk
+- [x] Try Teams from the real app's picker
+- [x] Measure drift on a followed Teams call: drift -1 ms, 40 of 45 windows (`t18-picker.txt`)
+- [x] Run the 4-hour load run on the built-in mic, with the silence check: 1.221 s mic loss, with the owner's exception for one 18.8 min hibernate on critical battery (`long-run-builtin.txt`). It counts with the 10-30 run (owner decision, 2026-11-01)
 
 **Mac**
 

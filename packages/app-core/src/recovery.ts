@@ -198,6 +198,7 @@ function readLogLines<T>(path: string): T[] {
 interface SessionEvent {
   event: 'open' | 'restart' | 'pause' | 'resume' | 'pauseFailed';
   wholeComputer?: boolean;
+  followApp?: string;
   atNs: number;
   seq: number;
 }
@@ -228,8 +229,15 @@ function restartTimes(audioDir: string): number[] {
 
 const MIN_GAP_NS = 2_000_000;
 
+// Why a chunk reopened when the stream itself failed. Not the Mac's `streamDead`, which a silent
+// computer also causes.
+const KNOWN_LOSS_REASONS = new Set(['device', 'serviceRestarted']);
+
 // Timing rounds at each pause and packet edge, so a span this close to a pause is that pause.
 const EDGE_TOLERANCE_NS = 100_000_000;
+
+// Normal first chunks start within 30 ms. A later one means the track failed to open at Start.
+const LATE_START_NS = 100_000_000;
 
 function trackGaps(
   track: TrackName,
@@ -242,6 +250,11 @@ function trackGaps(
   // Nothing before the restart survived, so no earlier chunk can show where the gap begins.
   if (firstStart !== undefined && restarts.some((at) => at <= firstStart)) {
     gaps.push({ kind: 'audioMissing', track, startNs: 0, endNs: firstStart });
+  } else if (firstStart !== undefined) {
+    const late: AudioSpan = { kind: 'audioMissing', track, startNs: 0, endNs: firstStart };
+    const unpaused = withoutPaused(late, paused);
+    const lateNs = unpaused.reduce((sum, piece) => sum + piece.endNs - piece.startNs, 0);
+    if (lateNs >= LATE_START_NS) gaps.push(late);
   }
   for (let i = 1; i < chunks.length; i += 1) {
     const startNs = chunks[i - 1]?.endNs ?? 0;
@@ -382,7 +395,8 @@ export async function sealAudio(
   const paused = pausedSpans(audioDir, endNs);
 
   const wholeComputer = readLogLines<SessionEvent>(join(audioDir, 'session.log')).some(
-    ({ event, wholeComputer: value }) => event === 'open' && value === true,
+    ({ event, wholeComputer: value, followApp }) =>
+      event === 'open' && (value === true || Boolean(followApp)),
   );
   const tracks: RecoveredAudio['tracks'] = {};
   const gaps: AudioSpan[] = paused.map((span) => ({ kind: 'paused', track: 'both', ...span }));
@@ -393,9 +407,14 @@ export async function sealAudio(
     }
     if (track === 'meeting' && wholeComputer) {
       for (const gap of found) {
-        // A silent computer sends nothing, but a dead worker's time is known to be lost.
+        // A silent computer sends nothing, but a dead worker or stream's time is known to be lost.
         const workerDown = restarts.some((at) => gap.startNs <= at && at <= gap.endNs);
-        if (gap.kind === 'audioMissing' && !workerDown) gap.kind = 'possiblyMissing';
+        const streamFailed = value.chunks.some(
+          (chunk) => chunk.startNs === gap.endNs && KNOWN_LOSS_REASONS.has(chunk.openReason),
+        );
+        if (gap.kind === 'audioMissing' && !workerDown && !streamFailed) {
+          gap.kind = 'possiblyMissing';
+        }
       }
     }
     const trackLevelGaps = found.flatMap((gap) => withoutPaused(gap, paused));

@@ -4,6 +4,7 @@
 #include <mmdeviceapi.h>
 #include <powrprof.h>
 #include <shlobj.h>
+#include <stdexcept>
 
 #pragma comment(lib, "powrprof.lib")
 #pragma comment(lib, "advapi32.lib")
@@ -16,8 +17,11 @@ namespace scrb {
 namespace {
 
 constexpr int64_t kStallNs = 500 * kNsPerMs;  // D3
-constexpr int64_t kRetryNs = 5 * kNsPerSec;
+constexpr int64_t kRetryNs = kNsPerSec;
+// Long enough that a mic which drops briefly comes back instead of being swapped.
+constexpr int64_t kMicFallbackNs = 5 * kNsPerSec;
 constexpr int64_t kWatchdogTickNs = 100 * kNsPerMs;
+constexpr int64_t kFollowNs = 4 * kNsPerSec;  // ignores a device the app only touches, such as a ringer
 
 const wchar_t kConsentKey[] =
     L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone";
@@ -63,10 +67,17 @@ public:
         if (!n) delete this;
         return n;
     }
-    STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR) override {
+    STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR id) override {
         Session* s = session_;
-        if (flow == eCapture && role == eConsole) s->Post([s] { s->OnDefaultChanged(true); });
-        if (flow == eRender && role == eConsole) s->Post([s] { s->OnDefaultChanged(false); });
+        bool capture = flow == eCapture;
+        bool console = role == eConsole;
+        const char* roleName = console ? "console" : role == eCommunications ? "communications" : "multimedia";
+        std::string name = id ? Narrow(id) : "";
+        int64_t at = NowNs();
+        s->Post([=] {
+            s->OnDefaultNotice(capture, roleName, name, at);
+            if (console) s->OnDefaultChanged(capture);
+        });
         return S_OK;
     }
     STDMETHOD(OnDeviceAdded)(LPCWSTR) override { return S_OK; }
@@ -239,12 +250,13 @@ std::string Session::ActiveTracks() const {
 }
 
 void Session::Reply(const Command& cmd, bool ok, const std::string& extraKey, const std::string& extraJson,
-                    std::optional<int64_t> atNs) {
+                    std::optional<int64_t> atNs, std::optional<int64_t> clockOriginNs) {
     std::string id = Arg(cmd, "id"), name = Arg(cmd, "name");
     JsonObject o;
     o.Str("type", "ack").Str("id", id).Str("cmd", name).Bool("ok", ok).Str("gate", gate_.IsOpen() ? "open" : "closed")
         .Raw("activeTracks", ActiveTracks()).Raw("atNs", atNs ? std::to_string(*atNs) : "null");
     if (!extraKey.empty()) o.Raw(extraKey.c_str(), extraJson);
+    if (clockOriginNs) o.Int("clockOriginNs", *clockOriginNs);
     std::string line = o.Done();
     // Lists change nothing, so their replies are not kept for retries.
     if (!id.empty() && name != "listMics" && name != "listApps") acks_[id] = line;
@@ -298,6 +310,19 @@ bool Session::OpenMeeting(const std::string& openReason, bool announce) {
 
 void Session::DoOpen(const Command& cmd) {
     if (state_ != "idle") return Reply(cmd, false, "error", "\"conflict\"");
+    const std::string savedOrigin = Arg(cmd, "clockOriginNs");
+    continuing_ = !savedOrigin.empty();
+    if (continuing_) {
+        try {
+            size_t used = 0;
+            int64_t value = std::stoll(savedOrigin, &used);
+            if (used != savedOrigin.size() || value <= 0 || value > NowNs())
+                return Reply(cmd, false, "error", "\"bad clockOriginNs\"");
+            originNs_ = value;
+        } catch (const std::exception&) {
+            return Reply(cmd, false, "error", "\"bad clockOriginNs\"");
+        }
+    }
     sessionId_ = Arg(cmd, "sessionId", "session");
     wchar_t root[MAX_PATH * 2];
     if (!GetFullPathNameW(Widen(Arg(cmd, "outputDir", ".")).c_str(), ARRAYSIZE(root), root, nullptr))
@@ -316,38 +341,49 @@ void Session::DoOpen(const Command& cmd) {
     bool wholeComputer = source.empty();
     bool noProcess = !wholeComputer && source[0] <= 0;  // the app's marker for an app with no process
     DWORD pid = wholeComputer || noProcess ? 0 : static_cast<DWORD>(source[0]);
+    followApp_ = Arg(cmd, "followApp");
     EventFn emit = [this](const std::string& n, const JsonObject& f) { Emit(n, f); };
-    log_ = std::make_unique<SessionLog>(audio + L"\\session.log", emit);
-    log_->Record(JsonObject().Str("event", "open").Bool("wholeComputer", wholeComputer).Done());
+    log_ = std::make_unique<SessionLog>(audio + L"\\session.log", emit, continuing_);
+    log_->Record(JsonObject().Str("event", "open").Bool("wholeComputer", wholeComputer)
+                     .Str("followApp", followApp_).Done());
+    if (continuing_)
+        log_->Record(JsonObject().Str("event", "restart").Int("atNs", NowNs() - originNs_).Done());
     for (int i = 0; i < kTrackCount; ++i) {
         SHCreateDirectoryExW(nullptr, dirs[i].c_str(), nullptr);
         PipelineConfig c;
         c.sessionId = sessionId_;
         c.track = names[i];
         c.arrivalCheck = i == kMeeting;
-        c.source = i != kMeeting ? "" : pid ? "process:" + std::to_string(pid) : noProcess ? "none" : "whole-computer";
+        c.source = i != kMeeting ? ""
+                   : noProcess ? "none"
+                   : !followApp_.empty() ? "output-of:" + followApp_
+                   : pid ? "process:" + std::to_string(pid)
+                         : "whole-computer";
         c.readClocks = [this](int64_t* timeline, std::string* utc, int64_t* wall) {
             *timeline = NowNs() - originNs_;
             ReadWall(utc, wall);
         };
         slots_[i] = Slot{};
-        slots_[i].track = std::make_unique<Track>(std::move(c), dirs[i], gate_, emit);
+        slots_[i].track = std::make_unique<Track>(std::move(c), dirs[i], gate_, emit, continuing_);
     }
     std::string mic = Arg(cmd, "mic", "default");
     slots_[kMic].spec.kind = StreamSpec::Kind::Mic;
     slots_[kMic].spec.deviceId = mic == "default" ? L"" : Widen(mic);
-    slots_[kMeeting].spec.kind = wholeComputer ? StreamSpec::Kind::System : StreamSpec::Kind::Process;
+    bool wholeDevice = wholeComputer || !followApp_.empty();
+    slots_[kMeeting].spec.kind = wholeDevice ? StreamSpec::Kind::System : StreamSpec::Kind::Process;
     slots_[kMeeting].spec.pid = pid;
+    if (!followApp_.empty()) slots_[kMeeting].spec.deviceId = ReadAppOutput(followApp_, pid, "").deviceId;
     WatchTarget(pid);
 
+    const std::string openReason = continuing_ ? "workerRestarted" : "start";
     DeviceInfo info;
     HRESULT hr = slots_[kMic].track->OpenStream(slots_[kMic].spec, &info);
     if (hr == E_ACCESSDENIED) Emit("permissionLost", JsonObject().Str("track", "microphone"));
     if (SUCCEEDED(hr)) {
-        slots_[kMic].track->Post([info](TrackPipeline& p) { p.OnStreamOpened(info, "start"); });
+        slots_[kMic].track->Post([info, openReason](TrackPipeline& p) { p.OnStreamOpened(info, openReason); });
         WarnIfHandsFree(info);
     }
-    bool meetingOk = !noProcess && OpenMeeting("start", false);
+    bool meetingOk = !noProcess && OpenMeeting(openReason, false);
     if (FAILED(hr) && !meetingOk) {
         for (auto& s : slots_) s.track.reset();
         ReleaseWriter();
@@ -363,7 +399,10 @@ void Session::DoOpen(const Command& cmd) {
         Emit("streamDead", JsonObject().Str("track", "meeting").Str("message", "meeting source did not open"));
         slots_[kMeeting].needReopen = !noProcess;
     }
-    state_ = "open";
+    // The pipelines start at the first Start or Resume: one started here would read the closed
+    // gate as a pause and lose the workerRestarted reason.
+    if (continuing_) SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
+    state_ = continuing_ ? "paused" : "open";
     Reply(cmd, true);
 }
 
@@ -375,18 +414,22 @@ void Session::ReleaseWriter() {
 }
 
 void Session::DoStart(const Command& cmd) {
-    if (state_ != "open") return Reply(cmd, false, "error", "\"conflict\"");
-    originNs_ = NowNs();
+    if (state_ != "open" && !(continuing_ && state_ == "paused"))
+        return Reply(cmd, false, "error", "\"conflict\"");
+    if (ActiveTracks() == "[]") return Reply(cmd, false, "error", "\"no track ready\"");
+    if (!continuing_) originNs_ = NowNs();
     int64_t origin = originNs_;
     uint32_t generation = gate_.Generation() + 1;
     std::string utc;
     int64_t wall = 0;
     ReadWall(&utc, &wall);
     for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
-    gate_.Open(origin);
+    const int64_t opened = gate_.Open(continuing_ ? NowNs() : origin);
+    continuing_ = false;
     SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
     state_ = "recording";
-    Reply(cmd, true, "origin", JsonObject().Int("qpcNs", origin).Str("wallUtc", utc).Done(), 0);
+    Reply(cmd, true, "origin", JsonObject().Int("qpcNs", origin).Str("wallUtc", utc).Done(),
+          opened - origin, origin);
 }
 
 void Session::DoPause(const Command& cmd) {
@@ -403,6 +446,13 @@ void Session::DoResume(const Command& cmd) {
     if (state_ != "paused") return Reply(cmd, false, "error", "\"conflict\"");
     // With neither stream ready the gate stays closed and the app offers Retry or Stop.
     if (ActiveTracks() == "[]") return Reply(cmd, false, "error", "\"no track ready\"");
+    if (continuing_) {  // restarted during a pause, so no Start comes
+        int64_t origin = originNs_;
+        uint32_t generation = gate_.Generation() + 1;
+        for (auto& s : slots_) s.track->Post([origin, generation](TrackPipeline& p) { p.Start(origin, generation); });
+        continuing_ = false;
+    }
+    for (auto& s : slots_) s.track->Post([](TrackPipeline& p) { p.OnGateOpened(); });
     int64_t at = gate_.Open(NowNs()) - originNs_;
     log_->Record(JsonObject().Str("event", "resume").Str("commandId", Arg(cmd, "id"))
                      .Str("cause", Arg(cmd, "cause", "user")).Int("atNs", at).Done());
@@ -435,7 +485,7 @@ void Session::DoSelectMic(const Command& cmd) {
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
     lostPickedMic_.clear();
     s.needReopen = true;
-    s.triedSame = false;
+    s.firstFailNs = 0;
     s.nextRetryNs = 0;
     TryReopen(kMic, NowNs());
     Reply(cmd, s.track->streamOpen());
@@ -453,6 +503,8 @@ void Session::DoSelectSource(const Command& cmd) {
     s.track->Post([source](TrackPipeline& p) { p.OnSourceChanged(source); });
     s.spec.kind = pid ? StreamSpec::Kind::Process : StreamSpec::Kind::System;
     s.spec.pid = pid;
+    s.spec.deviceId.clear();
+    followApp_.clear();
     WatchTarget(pid);
     s.needReopen = false;
     Reply(cmd, OpenMeeting("source", false));
@@ -466,8 +518,19 @@ void Session::DoInject(const Command& cmd) {
     if (fault == "stall") s.track->hooks.stallUntilNs = NowNs() + ms * kNsPerMs;
     else if (fault == "blackhole") s.track->hooks.blackhole = ms != 0;
     else if (fault == "skew") s.track->hooks.stampSkewNs += ms * kNsPerMs;
+    else if (fault == "followDevice") fakeAppDevice_ = Widen(Arg(cmd, "deviceId"));
     else return Reply(cmd, false);
     Reply(cmd, true);
+}
+
+void Session::OnDefaultNotice(bool capture, const char* role, const std::string& id, int64_t atNs) {
+    Emit("defaultNotice", JsonObject().Str("track", capture ? "microphone" : "meeting").Str("role", role)
+                              .Str("deviceId", id).Bool("armed", (capture ? micDebounce_ : outputDebounce_).Armed())
+                              .Num("queuedMs", (NowNs() - atNs) / static_cast<double>(kNsPerMs)));
+}
+
+void Session::EmitDefaultApplied(const char* track, const char* outcome, const std::string& resolved) {
+    Emit("defaultApplied", JsonObject().Str("track", track).Str("outcome", outcome).Str("deviceId", resolved));
 }
 
 void Session::OnDefaultChanged(bool capture) {
@@ -485,15 +548,17 @@ void Session::OnDefaultChanged(bool capture) {
 
 void Session::ApplyMicDebounce() {
     Slot& s = slots_[kMic];
-    if (!s.track || !s.track->streamOpen()) return;
+    if (!s.track || !s.track->streamOpen()) return EmitDefaultApplied("microphone", "streamClosed", "");
     std::wstring id;
-    if (!ResolveDefaultMicId(&id)) return;
+    if (!ResolveDefaultMicId(&id)) return EmitDefaultApplied("microphone", "unresolved", "");
     std::string now = Narrow(id);
-    if (now == s.track->deviceId()) return;
+    if (now == s.track->deviceId()) return EmitDefaultApplied("microphone", "sameDevice", now);
     if (!s.spec.deviceId.empty()) {
+        EmitDefaultApplied("microphone", "suggested", now);
         Emit("micSuggestion", JsonObject().Str("deviceId", now));
         return;
     }
+    EmitDefaultApplied("microphone", "moved", now);
     Emit("deviceChanged", JsonObject().Str("track", "microphone").Str("deviceId", now));
     s.track->CloseStream();
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
@@ -504,15 +569,52 @@ void Session::ApplyMicDebounce() {
 
 void Session::ApplyOutputDebounce() {
     Slot& s = slots_[kMeeting];
-    if (!s.track || s.spec.kind != StreamSpec::Kind::System || !s.track->streamOpen()) return;
+    if (!s.track || s.spec.kind != StreamSpec::Kind::System) return;
+    if (!s.spec.deviceId.empty()) return;  // WatchAppOutput moves a followed device
+    if (!s.track->streamOpen()) return EmitDefaultApplied("meeting", "streamClosed", "");
     std::wstring id;
-    if (!ResolveDefaultOutputId(&id) || Narrow(id) == s.track->deviceId()) return;
-    Emit("deviceChanged", JsonObject().Str("track", "meeting").Str("deviceId", Narrow(id)));
+    if (!ResolveDefaultOutputId(&id)) return EmitDefaultApplied("meeting", "unresolved", "");
+    if (Narrow(id) == s.track->deviceId()) return EmitDefaultApplied("meeting", "sameDevice", Narrow(id));
+    EmitDefaultApplied("meeting", "moved", Narrow(id));
+    MoveMeetingTo(Narrow(id));
+}
+
+void Session::MoveMeetingTo(const std::string& id) {
+    Slot& s = slots_[kMeeting];
+    Emit("deviceChanged", JsonObject().Str("track", "meeting").Str("deviceId", id));
     s.track->CloseStream();
     s.track->Post([](TrackPipeline& p) { p.OnStreamLost("device", "device"); });
     s.needReopen = true;
     s.nextRetryNs = 0;
     TryReopen(kMeeting, NowNs());
+}
+
+// Runs here, off the audio threads, because enumerating sessions takes milliseconds.
+void Session::WatchAppOutput() {
+    Slot& s = slots_[kMeeting];
+    if (!s.track || !s.track->streamOpen() || !targetPid_ || sleeping_) return;
+    if (followApp_.empty() && s.spec.kind != StreamSpec::Kind::Process) return;
+    AppOutput app = ReadAppOutput(followApp_, targetPid_, s.track->deviceId());
+    if (state_ == "recording" && silence_.Update(app.peak, s.track->levelCentiDb / 100.0)) {
+        log_->Record(JsonObject().Str("event", "meetingSilent").Int("atNs", NowNs() - originNs_).Done());
+        Emit("meetingSilent", JsonObject().Str("track", "meeting"));
+    }
+    if (followApp_.empty()) return;
+    if (!fakeAppDevice_.empty()) app.deviceId = fakeAppDevice_;
+    std::string device = Narrow(app.deviceId);
+    if (device.empty() || device == s.track->deviceId()) {
+        movingTo_.clear();
+        return;
+    }
+    int64_t now = NowNs();
+    if (device != movingTo_) {
+        movingTo_ = device;
+        movingSinceNs_ = now;
+    }
+    if (now - movingSinceNs_ < kFollowNs) return;
+    movingTo_.clear();
+    s.spec.deviceId = app.deviceId;
+    MoveMeetingTo(device);
 }
 
 void Session::OnDeviceGone(const std::string& id) {
@@ -537,7 +639,7 @@ void Session::MarkDead(int index, const std::string& reason, HRESULT hr) {
                            .Int("hresult", static_cast<uint32_t>(hr)));
     RebuildNotifier();
     s.needReopen = true;
-    s.triedSame = false;
+    s.firstFailNs = 0;
     s.nextRetryNs = 0;
     s.stalled = false;
     s.deathPosted = false;
@@ -549,13 +651,15 @@ void Session::TryReopen(int index, int64_t now) {
     s.nextRetryNs = now + kRetryNs;
     if (index == kMeeting) {
         if (OpenMeeting("device", true)) s.needReopen = false;
+        // A followed device that left: use the default until the app shows where it went.
+        else if (!followApp_.empty()) s.spec.deviceId.clear();
         return;
     }
     if (consentDenied_) return;
     DeviceInfo info;
     HRESULT hr = s.track->OpenStream(s.spec, &info);
-    if (hr == E_ACCESSDENIED) Emit("permissionLost", JsonObject().Str("track", "microphone"));
-    if (FAILED(hr) && !s.spec.deviceId.empty() && s.triedSame) {
+    if (hr == E_ACCESSDENIED && !s.firstFailNs) Emit("permissionLost", JsonObject().Str("track", "microphone"));
+    if (FAILED(hr) && !s.spec.deviceId.empty() && s.firstFailNs && now - s.firstFailNs >= kMicFallbackNs) {
         // Owner decision on Q12: keep recording on the default and warn.
         lostPickedMic_ = Narrow(s.spec.deviceId);
         s.spec.deviceId.clear();
@@ -563,8 +667,10 @@ void Session::TryReopen(int index, int64_t now) {
         if (SUCCEEDED(hr))
             Emit("micFallback", JsonObject().Str("fromDeviceId", lostPickedMic_).Str("toDeviceName", info.name));
     }
-    s.triedSame = true;
-    if (FAILED(hr)) return;
+    if (FAILED(hr)) {
+        if (!s.firstFailNs) s.firstFailNs = now;
+        return;
+    }
     s.track->Post([info](TrackPipeline& p) { p.OnStreamOpened(info, "device"); });
     s.needReopen = false;
     Emit("streamReopened", JsonObject().Str("track", "microphone").Str("deviceName", info.name));
@@ -631,6 +737,7 @@ void Session::TickSecond(int64_t now) {
         s.track->Post([](TrackPipeline& p) { p.OnSourceChanged("none"); });
         WatchTarget(0);
     }
+    WatchAppOutput();
     if (slots_[kMic].track)
         Emit("health", JsonObject().Num("micDb", slots_[kMic].track->levelCentiDb / 100.0)
                            .Num("meetingDb", slots_[kMeeting].track->levelCentiDb / 100.0));

@@ -1,0 +1,7 @@
+BUG-2, 2026-11-01.  Windows PC, output muted, process target, built-in mic, 12 s.
+Real run with a bad mic ID: mic fell back to the default at 6.2 s.
+  sealed gaps: audioMissing, microphone, 0 to 6205151000 ns
+  meeting first chunk at 5.7 ms, unmarked
+  The helper's missingBeforeMs was not read in this run; the pipeline test covers it.
+Regressions with SCRB_TONE: pause_case PASS, crash_case PASS (382 ms lost), restart_case PASS.
+PipelineTests PASSED (0 failures).  recovery.test.ts 37 passed.

@@ -143,7 +143,7 @@ void TestDrainBurst() {
     Rig r("meeting", true);
     r.Feed(300);
     r.t += 13 * kNsPerSec;
-    r.Feed(1300, 5, false, false, 20 * 1000);
+    r.Feed(1300, 500, false, false, 20 * 1000);
     r.t = r.stamp;
     r.Feed(100);
     r.pipe.Stop();
@@ -153,6 +153,68 @@ void TestDrainBurst() {
     CHECK(lost == 0);
     CHECK(r.sink.written == 1700 * 480);
     CHECK(r.sink.closed[0].closeReason == "stall");
+}
+
+void TestStaleSilence() {
+    puts("T23 process stall: a near-silent drain is dropped and marked as a gap");
+    Rig r("meeting", true);
+    r.Feed(300);
+    r.t += 13 * kNsPerSec;
+    r.Feed(1300, 3, false, false, 20 * 1000);
+    r.t = r.stamp;
+    r.Feed(100);
+    r.pipe.Stop();
+    auto& c = r.sink.closed;
+    CHECK(c.size() == 2);
+    CHECK(c[0].closeReason == "stall");
+    CHECK(c[1].missingCause == "stall");
+    CHECK(std::abs(c[1].missingBeforeMs - 13000) < 60);
+    CHECK(r.sink.written < 410 * 480);
+
+    puts("Quiet audio on time is kept; the mic track never drops");
+    Rig quiet("meeting", true);
+    quiet.Feed(300);
+    quiet.Feed(300, 3);
+    quiet.pipe.Stop();
+    CHECK(quiet.sink.written == 600 * 480);
+    Rig mic("microphone");
+    mic.Feed(300);
+    mic.t += 2 * kNsPerSec;
+    mic.Feed(200, 3, false, false, 20 * 1000);
+    mic.pipe.Stop();
+    CHECK(mic.sink.written == 500 * 480);
+}
+
+void TestResumeOnDeadStream() {
+    puts("T24 stream lost during a pause stays a pause; lost after resume is a device gap");
+    Rig during("microphone");
+    during.Feed(100);
+    during.pipe.OnGateClosed();
+    during.pipe.OnStreamLost("device", "device");
+    during.pipe.OnStreamOpened({"id", "name", "internal"}, "device");
+    during.t += 2 * kNsPerSec;
+    during.stamp += 2 * kNsPerSec;
+    during.pipe.OnGateOpened();
+    ++during.generation;
+    during.Feed(100);
+    during.pipe.Stop();
+    CHECK(during.sink.closed[1].missingCause == "pause");
+
+    Rig after("microphone");
+    after.Feed(100);
+    after.pipe.OnGateClosed();
+    after.t += 2 * kNsPerSec;
+    after.stamp += 2 * kNsPerSec;
+    after.pipe.OnGateOpened();
+    after.t += 4 * kNsPerSec;
+    after.stamp += 4 * kNsPerSec;
+    after.pipe.OnStreamLost("device", "device");
+    after.pipe.OnStreamOpened({"id", "name", "internal"}, "device");
+    ++after.generation;
+    after.Feed(100);
+    after.pipe.Stop();
+    CHECK(after.sink.closed[1].missingCause == "device");
+    CHECK(std::abs(after.sink.closed[1].missingBeforeMs - 6000) < 1);
 }
 
 void TestPauseAndLoss() {
@@ -220,6 +282,30 @@ void TestStartMoved() {
     CHECK(r.discontinuities == 1);
     CHECK(r.sink.moved == 1);
     CHECK(r.sink.closed.size() == 2 && r.sink.closed[1].missingBeforeMs > 900);
+}
+
+void TestLateStart() {
+    puts("BUG-2: a late first chunk is marked; a normal start is not");
+    Rig normal("microphone");
+    normal.stamp += 30 * kNsPerMs;
+    normal.Feed(10);
+    normal.pipe.Stop();
+    CHECK(normal.sink.closed.size() == 1 && normal.sink.closed[0].missingBeforeMs == 0);
+
+    Rig late("microphone");
+    late.stamp += 4600 * kNsPerMs;
+    late.Feed(10);
+    late.pipe.Stop();
+    CHECK(late.sink.closed.size() == 1 && late.sink.closed[0].missingCause == "device");
+    CHECK(std::abs(late.sink.closed[0].missingBeforeMs - 4600) < 1);
+
+    Rig paused("microphone");
+    paused.pipe.OnGateClosed();
+    paused.stamp += 2 * kNsPerSec;
+    ++paused.generation;
+    paused.Feed(10);
+    paused.pipe.Stop();
+    CHECK(paused.sink.closed.size() == 1 && paused.sink.closed[0].missingCause == "pause");
 }
 
 void TestMarks() {
@@ -333,16 +419,38 @@ void TestRealStandbyLog(const char* path) {
 
 }  // namespace
 
+void TestSilenceWatch() {
+    SilenceWatch watch;
+    int warnings = 0;
+    for (int i = 0; i < 300; ++i) warnings += watch.Update(0, -96);  // nobody is speaking
+    CHECK(warnings == 0);
+    for (int i = 0; i < SilenceWatch::kLimitSeconds - 1; ++i) warnings += watch.Update(i % 2 ? 0.2 : 0, -96);
+    CHECK(warnings == 0);  // pauses in speech do not count
+    for (int i = 0; i < SilenceWatch::kLimitSeconds + 2; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 1);
+    for (int i = 0; i < 100; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 1);  // once, not every second
+    watch.Update(0.2, -20);  // sound returned, so the next silence warns again
+    for (int i = 0; i < SilenceWatch::kLimitSeconds; ++i) warnings += watch.Update(0.2, -96);
+    CHECK(warnings == 2);
+    for (int i = 0; i < 100; ++i) watch.Update(0.2, -20);
+    CHECK(warnings == 2);  // a track that hears the app never warns
+}
+
 int main(int argc, char** argv) {
     TestRolloverAndGaps();
     TestHandsFreeJitter();
     TestStandbyLoss();
     TestWake();
     TestDrainBurst();
+    TestStaleSilence();
+    TestResumeOnDeadStream();
+    TestSilenceWatch();
     TestPauseAndLoss();
     TestGate();
     TestFastPause();
     TestStartMoved();
+    TestLateStart();
     TestMarks();
     TestFlagStorm();
     TestDefaultFlaps();

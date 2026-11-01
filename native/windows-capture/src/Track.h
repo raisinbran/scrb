@@ -25,7 +25,7 @@ void ReadWall(std::string* utc, int64_t* wallNs);
 struct StreamSpec {
     enum class Kind { Mic, Process, System } kind = Kind::Mic;
     DWORD pid = 0;
-    std::wstring deviceId;  // Mic only; empty follows the system default
+    std::wstring deviceId;  // Mic and System; empty follows the system default
 };
 
 bool ResolveDefaultMicId(std::wstring* id);
@@ -35,6 +35,15 @@ std::string ListMicsJson();
 // trees, since process loopback captures a whole tree.
 std::string ListAppsJson(const std::vector<std::string>& include);
 
+// One app's sound on the output devices.  deviceId is empty with no active session.
+struct AppOutput {
+    std::wstring deviceId;
+    float peak = 0;
+};
+// Reads every process named exe, or the tree under root when exe is empty.  An app can be
+// active on several devices, as Teams is while ringing, so `current` wins while it is one.
+AppOutput ReadAppOutput(const std::string& exe, DWORD root, const std::string& current);
+
 struct FaultHooks {
     std::atomic<int64_t> stallUntilNs{0};   // reader stops, Windows keeps buffering
     std::atomic<bool> blackhole{false};     // packets vanish, as a silently dead stream
@@ -43,7 +52,8 @@ struct FaultHooks {
 
 class Track {
 public:
-    Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit);
+    Track(PipelineConfig config, const std::wstring& dir, const Gate& gate, EventFn emit,
+          bool continuing = false);
     ~Track();
 
     HRESULT OpenStream(const StreamSpec& spec, DeviceInfo* info);

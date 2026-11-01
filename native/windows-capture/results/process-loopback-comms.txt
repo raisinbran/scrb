@@ -1,0 +1,16 @@
+Process loopback against one 880 Hz stream, output muted, no call.  Peak meeting level over 5 s.
+CommTone arguments: category, stream option, device role.  Capture targets the player unless noted.
+other/none/console     -13.4 dB
+speech/none/console    -13.4 dB
+media/none/console     -13.4 dB
+other/raw/console      -13.4 dB
+other/none/comms       -13.4 dB
+comms/none/console     -96.3 dB
+comms/none/comms       -96.3 dB
+comms/raw/comms        -96.3 dB
+Against comms/none/comms, on a scratch build:
+capture client marked Communications   SetClientProperties refused, E_NOINTERFACE 80004002; -96.3 dB
+EXCLUDE mode, unrelated target         -96.3 dB
+EXCLUDE mode and Communications        refused the same way; -96.4 dB
+Whole-computer capture heard the same category from Teams in T18 (-14.6 dB).
+Teams session owner during the call: ms-teams.exe 24132, inside the captured tree.
