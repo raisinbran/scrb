@@ -644,10 +644,11 @@ export function createMeetingHandlers(
     searchMeetings: async (request) => {
       const { query, filter } = request as { query: string; filter?: MeetingFilter };
       // Storage UTC-date prefiltering would discard meetings on a local midnight boundary.
-      const found = await library.search(query, { hitsPerMeeting: 5 });
-      return found.results
-        .filter((result) => matchesMeetingFilter(toListItem(result.meeting), filter))
-        .map((result) => ({
+      const found = await library.search(query, {
+        hitsPerMeeting: 5,
+        includeRow: (row) => matchesMeetingFilter(toListItem(row), filter),
+      });
+      return found.results.map((result) => ({
           meeting: toListItem(result.meeting),
           matches: [
             ...(result.matchedIn.includes('title or date')

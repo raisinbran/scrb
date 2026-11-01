@@ -125,6 +125,8 @@ export interface SearchOptions {
   fromDate?: string;
   toDate?: string;
   hitsPerMeeting?: number;
+  /** Caller-side, local-calendar filtering before opening transcript files. */
+  includeRow?: (row: MeetingRow) => boolean;
   signal?: AbortSignal;
 }
 
@@ -775,7 +777,10 @@ export class Library {
       ...(options.toDate !== undefined && { toDate: options.toDate }),
     };
     const rows = findMeetingRows(this.db, dates).filter(
-      (row) => row.status !== 'importing' && (!options.origin || row.source === options.origin),
+      (row) =>
+        row.status !== 'importing' &&
+        (!options.origin || row.source === options.origin) &&
+        (!options.includeRow || options.includeRow(row)),
     );
     const trimmed = query.trim();
     const indexed = new Set(

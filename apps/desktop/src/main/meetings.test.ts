@@ -148,12 +148,15 @@ describe('createMeetingHandlers', () => {
           ]),
         }),
       ]);
+      const readTranscript = vi.spyOn(library, 'readTranscript');
+      readTranscript.mockClear();
       expect(
         await value('searchMeetings', {
           query: 'orchard',
           filter: { from: '2026-11-01' },
         }),
       ).toEqual([]);
+      expect(readTranscript).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllEnvs();
     }
