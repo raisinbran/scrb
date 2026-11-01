@@ -405,7 +405,9 @@ void TestRealStandbyLog(const char* path) {
         p.stampNs = static_cast<int64_t>(rows[i].qpc * kNsPerSec);
         p.arrivalNs = static_cast<int64_t>(rows[i].arrival * kNsPerSec);
         p.frames = static_cast<uint32_t>(rows[i + 1].frames - rows[i].frames);
-        p.pcm.assign(p.frames, 1);
+        // This timing-only CSV has no PCM. Audible fill keeps T23's near-silent
+        // stall filter from treating the invented samples as lost meeting audio.
+        p.pcm.assign(p.frames, 100);
         pipe.OnPacket(p);
     }
     pipe.Stop();
@@ -415,6 +417,7 @@ void TestRealStandbyLog(const char* path) {
     printf("  raw offset %.0f ms, detected missing %.0f ms\n", raw, lost);
     CHECK(raw > 1500);
     CHECK(std::abs(lost - raw) < 100);
+    CHECK(sink.written == static_cast<uint64_t>(rows.back().frames - rows[0].frames));
 }
 
 }  // namespace
