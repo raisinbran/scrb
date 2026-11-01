@@ -502,6 +502,57 @@ describe('settings', () => {
 });
 
 describe('vocabulary', () => {
+  it('keeps shared misheard text until its last owning correction is forgotten', async () => {
+    const { db } = await openIndex(':memory:');
+    try {
+      const vocabulary = new VocabularyStore(db, now);
+      const first = vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm1', correctionId: 'c1' },
+      });
+      vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm2', correctionId: 'c2' },
+      });
+      vocabulary.forgetCorrection('c1', 'invented ack me');
+      expect(vocabulary.get(first.id)).toMatchObject({
+        misheard: ['invented ack me'],
+        contexts: [{ meetingId: 'm2', correctionId: 'c2' }],
+      });
+      vocabulary.forgetCorrection('c2', 'invented ack me');
+      expect(vocabulary.get(first.id)).toBeNull();
+    } finally {
+      db.close();
+    }
+  });
+
+  it('preserves manually contributed misheard text after both corrections are undone', async () => {
+    const { db } = await openIndex(':memory:');
+    try {
+      const vocabulary = new VocabularyStore(db, now);
+      const term = vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm1', correctionId: 'c1' },
+      });
+      vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm2', correctionId: 'c2' },
+      });
+      vocabulary.remember({ term: 'Invented Acme', misheard: ['invented ack me'] });
+      vocabulary.forgetCorrection('c1', '');
+      vocabulary.forgetCorrection('c2', '');
+      expect(vocabulary.get(term.id)?.misheard).toEqual(['invented ack me']);
+      expect(vocabulary.get(term.id)?.contexts).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+
   it('adds, merges, edits, disables and deletes', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);
