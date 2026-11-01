@@ -133,6 +133,7 @@ export class ImportCoordinator {
     let meetingId: string | null = null;
     try {
       await mkdir(stageRoot, { recursive: true });
+      if (abort.signal.aborted) throw new Error('cancelled');
       const result = await this.deps.run({
         sourcePath,
         meetingDir: staging,

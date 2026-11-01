@@ -25,11 +25,12 @@ async function fixture() {
   const run = vi.fn(
     async ({
       meetingDir,
-      signal: _signal,
+      signal,
     }: {
       meetingDir: string;
       signal: AbortSignal;
     }): Promise<ImportResult> => {
+      if (signal.aborted) throw new Error('cancelled');
       await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
       await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
       return {
@@ -98,6 +99,7 @@ describe('Electron import coordination', () => {
     const f = await fixture();
     f.deps.run.mockImplementation(
       async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
+        if (signal.aborted) throw new Error('aborted');
         await new Promise<void>((_resolve, reject) => {
           signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
         });
@@ -123,6 +125,7 @@ describe('Electron import coordination', () => {
     const f = await fixture();
     f.deps.run.mockImplementation(
       async ({ signal }: { meetingDir: string; signal: AbortSignal }) => {
+        if (signal.aborted) throw new Error('aborted');
         await new Promise<void>((_resolve, reject) => {
           signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
         });
