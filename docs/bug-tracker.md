@@ -22,7 +22,7 @@ To do:
 - [x] Build the silence check for all per-app targets
 - [x] Measure capture with output muted (F4): still records, -14.4 dB
 - [ ] Test a real second output device and a real unplug (F1 to F3)
-- [ ] Rerun the 4 h load run with the silence check (F11)
+- [x] Rerun the 4 h load run with the silence check (F11): no false warning in 4 h, on a tone target with one hibernate
 - [x] Rerun T18 on a real Teams call, helper following Teams: meeting track -8 dB, no false warning
 - [ ] Measure drift on a followed call: the 10-minute run had too few usable windows
 - [ ] Try Teams from the real app's picker

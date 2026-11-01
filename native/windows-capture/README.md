@@ -286,6 +286,26 @@ device changes, not 2.  Output mute was left to the owner after 21 min.
 Helper: 3.87% of one core on average, highest minute 7.09%; peak working set
 19.6 MB, private 8.2 MB at hour 1 and 8.3 MB at the end; 327 handles at both.
 
+4 h rerun on the built-in mic (2026-10-31, `results/long-run-builtin.txt`,
+`long-run-builtin-notes.txt`).  Same load, tone target and 5 pauses, with no device change
+because only one input was connected.  **The PC lost power and hibernated on critical
+battery for 18.8 min.**  Owner decision (2026-10-31): that one gap is left out of the
+limits.  The report's LIMITS FAILED stands as printed; the figures below leave it out.
+
+| Limit | Result |
+| --- | --- |
+| Chunks numbered | 2641 mic, 2632 meeting, 0 breaks.  Printed FAIL: the chunk open at the kill was headers only and went to `damaged`; its 0.2 s is the kill loss below |
+| Every gap marked | Pass: 15 mic, 9 meeting, 0 unmarked |
+| Mic loss at most 15 s | Pass with the exception: 1.221 s, longest gap 280.8 ms.  1130.730 s with the sleep |
+| Worst offset under 50 ms | Pass: 2.80 ms on track timelines, plain rollovers only, so not across the sleep and not against a shared sound |
+| Pause ack 99th percentile under 200 ms | Pass: 14.00 ms, the slowest of 5 |
+| No chunk crosses a pause | Pass: 0 of 5 pauses |
+| Audio lost at the kill, about 1 s or less | Pass: mic 209 ms, meeting 212 ms |
+
+The helper survived the hibernate, marked both gaps `sleep` and recovered in about 35 s
+without a restart.  Both tracks reported `clockFault` of -19.05 s at wake, wall clock
+against timeline, cause not known.  No `meetingSilent` in 4 h.
+
 Unverified: real Teams/Zoom/browser targets, the full T19 load test, the 8 h run, and USB
 unplug (no USB mic).
 

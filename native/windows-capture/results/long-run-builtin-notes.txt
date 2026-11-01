@@ -1,0 +1,29 @@
+long run, built-in mic, 2026-10-31, 20:04:49 to about 00:04 PT.  Report: long-run-builtin.txt.
+No device change: only one input was connected (`long_run.mjs --no-device-change`).
+Process target, tone player.  Not Teams and not the followed route.
+
+Owner exception, 2026-10-31: the gap from the power loss is left out of the Gate 2 limits.
+This covers that one event only.  The printed report says LIMITS FAILED, which stands as printed:
+mic loss 1130.730 s with that gap.
+
+The event.  The PC ran on battery from about 20:03.  Windows hibernated on critical battery at 21:32:46
+and woke at 21:51:16, on AC.  Sleep gap, marked `sleep`: mic 1129.509 s, meeting 1129.160 s.
+The helper survived, reported sleeping and woke, stalled about 35 s, and recovered without a restart.
+
+Left after the exception, by subtraction from the report:
+  mic loss 1.221 s against 15 s, longest gap 280.8 ms
+  meeting loss 0.331 s, longest gap 220.6 ms
+  Causes of these are unknown; all marked.
+
+The two `chunks` FAIL lines are the chunk open at the kill, not the sleep.  It was 0.2 s old at the kill
+and held headers only (360 and 354 bytes), so repair moved it to `damaged`.  That is the 209 and 212 ms
+counted under "audio lost at the kill", which passed.  The earlier run's last chunks were long enough to
+repair.  Numbering had 0 breaks and verify read 0 bad.
+
+clockFault -19053.746 ms on both tracks at wake: wall clock against timeline, not one track against the
+other.  Cause not known.  It moves wall-clock anchors after the wake by 19 s.
+
+Drift 2.80 ms is on track timelines over plain rollovers only, so the step across the sleep is not in it.
+Output was muted, so it was not measured against a shared sound.  Not a drift result across the sleep.
+
+meetingSilent 0 times in 4 h, sleep included.  Full T19 still not run: no real call, no transcription.

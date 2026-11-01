@@ -7,6 +7,7 @@
 // Output goes outside the repo, because the mic may capture the room.
 //
 // Usage: node long_run.mjs [--rehearse] [--input <part of the second mic's name>]
+//        node long_run.mjs --no-device-change   starts at once, with no countdown window
 //        node long_run.mjs --analyse <work dir>
 import { Buffer } from 'node:buffer';
 import { clearTimeout } from 'node:timers';
@@ -62,6 +63,7 @@ if (process.argv[2] === '--burn') {
 
 async function main() {
   const rehearse = process.argv.includes('--rehearse');
+  const noDeviceChange = process.argv.includes('--no-device-change');
   const inputAt = process.argv.indexOf('--input');
   const inputName = inputAt > 0 ? process.argv[inputAt + 1] : '';
   const plan = rehearse
@@ -154,7 +156,7 @@ async function main() {
     (mic) => mic !== first && mic.name.toLowerCase().includes(inputName.toLowerCase()),
   );
   say(`inputs: ${mics.map((mic) => mic.name + (mic === first ? ' (default)' : '')).join('; ')}`);
-  if (!rehearse && !second) {
+  if (!rehearse && !noDeviceChange && !second) {
     say('STOPPED: there is no second input for the device change');
     worker.stdin.end();
     await stopHelpers();
@@ -172,35 +174,39 @@ async function main() {
   if (!opened?.message.ok) throw new Error(`open failed: ${JSON.stringify(opened?.message)}`);
 
   const startFile = join(work, 'started.txt');
-  const steps = rehearse
-    ? ['60=Rehearsal only: change nothing']
-    : [
-        `300=Settings, System, Sound, Input: choose ${second.name}`,
-        `420=Settings, System, Sound, Input: choose ${first.name}`,
-      ];
-  const quoted = steps.map((step) => `'${step.replace(/'/g, "''")}'`).join(',');
-  const call =
-    `& '${join(root, 'scripts', 'countdown.ps1')}' -Case 'long run' -StartFile '${startFile}' ` +
-    `-Seconds ${plan.window} -Actions @(${quoted})`;
-  const countdown = spawn(
-    'powershell.exe',
-    ['-NoProfile', '-Sta', '-EncodedCommand', Buffer.from(call, 'utf16le').toString('base64')],
-    { stdio: 'ignore' },
-  );
-  let windowClosed = false;
-  countdown.on('exit', () => {
-    windowClosed = true;
-  });
-  if (!rehearse) spawn('cmd.exe', ['/c', 'start', '', 'ms-settings:sound'], { stdio: 'ignore' });
-  say('waiting for the Start button');
-  while (!existsSync(startFile)) {
-    if (windowClosed) {
-      say('STOPPED: the countdown window closed before Start');
-      worker.stdin.end();
-      await stopHelpers();
-      process.exit(2);
+  if (noDeviceChange) {
+    writeFileSync(startFile, '');
+  } else {
+    const steps = rehearse
+      ? ['60=Rehearsal only: change nothing']
+      : [
+          `300=Settings, System, Sound, Input: choose ${second.name}`,
+          `420=Settings, System, Sound, Input: choose ${first.name}`,
+        ];
+    const quoted = steps.map((step) => `'${step.replace(/'/g, "''")}'`).join(',');
+    const call =
+      `& '${join(root, 'scripts', 'countdown.ps1')}' -Case 'long run' -StartFile '${startFile}' ` +
+      `-Seconds ${plan.window} -Actions @(${quoted})`;
+    const countdown = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-Sta', '-EncodedCommand', Buffer.from(call, 'utf16le').toString('base64')],
+      { stdio: 'ignore' },
+    );
+    let windowClosed = false;
+    countdown.on('exit', () => {
+      windowClosed = true;
+    });
+    if (!rehearse) spawn('cmd.exe', ['/c', 'start', '', 'ms-settings:sound'], { stdio: 'ignore' });
+    say('waiting for the Start button');
+    while (!existsSync(startFile)) {
+      if (windowClosed) {
+        say('STOPPED: the countdown window closed before Start');
+        worker.stdin.end();
+        await stopHelpers();
+        process.exit(2);
+      }
+      await sleep(50);
     }
-    await sleep(50);
   }
 
   const started = await send('s', { name: 'start' });
