@@ -398,9 +398,14 @@ unplug (no USB mic).
     `-TargetExe ms-teams.exe` alone the meeting track stayed at -96 dB for 23
     minutes while whole-computer capture heard the call at -14.6 dB.  Both
     `ms-teams.exe` processes, the Explorer tree holding Teams, and every other
-    audio process probed were silent (`results/t18-process-target.txt`).  Cause
-    not known, so per-app Teams capture does not work on this PC.  Zoom and
-    browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
+    audio process probed were silent (`results/t18-process-target.txt`).  Windows
+    process loopback gives silence for any stream of category Communications, in
+    include and exclude modes; other categories record at -13 dB, with no call and
+    output muted (`results/process-loopback-comms.txt`,
+    `phase0/probes/windows-comm-tone`).  The category Teams uses was not read
+    directly, but this reproduces its result, and a capture client cannot ask for
+    these streams.  One PC; no documentation found either way.  So per-app Teams
+    capture records silence, with no warning.  Zoom and browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
     unless `-TargetExe` is also given, so aloud runs must pass both.
 
 ## Needs a Planner plan
