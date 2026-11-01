@@ -427,7 +427,10 @@ unplug (no USB mic).
     not be in a row, because speech has pauses.  Output muted does not silence this
     capture here (-14.4 dB).  This PC has one output device, so moves were tested
     through a hook (`results/bug1-follow.txt`, `scripts/follow_case.mjs`,
-    `scripts/follow_restart_case.mjs`).
+    `scripts/follow_restart_case.mjs`).  On a real 10-minute Teams call followed as
+    `ms-teams.exe`, the meeting track peaked at -8 dB where per-app gave -96 dB, with
+    no false warning (`results/t18-follow.txt`, `t18-follow-notes.txt`).  Drift was
+    not proven: only 2 of 20 offset windows were usable.
 
 ## Needs a Planner plan
 

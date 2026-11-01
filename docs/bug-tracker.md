@@ -12,7 +12,8 @@ Open bugs, highest priority first.
 - **Effect:** the other people in the meeting are missing from the recording, and the app gives no warning.
 - **Cause:** per-app capture cannot hear call-type (Communications) streams. OBS uses the same route. That Teams uses this stream type is inferred from an identical result, not read directly. One PC tested. See `native/windows-capture/README.md`, findings 16 and 17.
 - **Workaround:** pick Whole computer audio. See `docs/user-manual/known-issues.md`.
-- **Fix:** `docs/plans/teams-desktop-capture.md`, approved 2026-10-31. Built on `windows-restart-test`, not merged, not yet run on a real call.
+- **Fix:** `docs/plans/teams-desktop-capture.md`, approved 2026-10-31. Built on `windows-restart-test`, not merged. Heard a real Teams call on 2026-10-31.
+- **Close when:** merged, and the items below are done.
 
 To do:
 
@@ -22,9 +23,24 @@ To do:
 - [x] Measure capture with output muted (F4): still records, -14.4 dB
 - [ ] Test a real second output device and a real unplug (F1 to F3)
 - [ ] Rerun the 4 h load run with the silence check (F11)
-- [ ] Rerun T18 on a real Teams call, picked as Teams
+- [x] Rerun T18 on a real Teams call, helper following Teams: meeting track -8 dB, no false warning
+- [ ] Measure drift on a followed call: the 10-minute run had too few usable windows
+- [ ] Try Teams from the real app's picker
 - [ ] Test Zoom and browser targets
 - [ ] Update the User Manual with the final behavior
+
+### BUG-2: A mic that fails at Start leaves its first seconds unmarked
+
+- **Priority:** Medium. Requirement: no audio lost silently.
+- **Opened:** 2026-10-31
+- **Affects:** Windows, when the mic cannot open at Start and a later retry succeeds.
+- **Effect:** in the `t18-follow` run the mic's first chunk began at 4.6 s with `missingBeforeMs` 0 and no gap in the verifier. The chunk's start time is right, but nothing marks the gap. Whether the app shows it was not checked.
+- **Found by:** a bad mic ID from a script mistake, not a real device fault.
+
+To do:
+
+- [ ] Mark the gap before a mic track's first chunk
+- [ ] Check the same path on the meeting track
 
 ## Closed
 

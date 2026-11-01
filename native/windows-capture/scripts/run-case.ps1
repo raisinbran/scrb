@@ -22,6 +22,8 @@ param(
     [string]$PlayFile,
     # T18.  Captures this running app, by exe file name, instead of a player.
     [string]$TargetExe,
+    # BUG-1.  With -TargetExe, records this app's output device instead of the app.
+    [string]$FollowApp,
     # T18.  Leaves output alone, so the mic can hear the speakers.
     [switch]$NoMute
 )
@@ -81,7 +83,8 @@ function Send([string]$json) {
 }
 $sourceField = if ($WholeComputer) { '[]' } else { "[$($tone.Id)]" }
 $dir = $out -replace '\\', '\\'
-Send "{`"name`":`"open`",`"sessionId`":`"session`",`"outputDir`":`"$dir`",`"source`":$sourceField,`"mic`":`"$Mic`"}"
+$followField = if ($FollowApp) { ",`"followApp`":`"$FollowApp`"" } else { '' }
+Send "{`"name`":`"open`",`"sessionId`":`"session`",`"outputDir`":`"$dir`",`"source`":$sourceField,`"mic`":`"$Mic`"$followField}"
 Start-Sleep -Milliseconds 800
 Send '{"name":"start"}'
 $start = Get-Date

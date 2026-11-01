@@ -1,0 +1,21 @@
+t18-follow, 2026-10-31 19:27:56 PT.  Real Teams call, Windows PC to Mac, phone at the Mac, speakers on,
+helper following ms-teams.exe.  Driven by run-case.ps1, not the app's picker.
+
+Meeting track, peak dB / seconds with sound, per minute:
+-70/1 -96/0 -15/8 -8/54 -10/60 -9/60 -10/60 -9/60 -21/60 -70/54
+Per-app capture of Teams gave -96 dB for 23 minutes (t18-process-target.txt).
+The session meter read Teams: the run started on its peak above 0.01.
+meetingSilent 0 times.  deviceChanged 0 times.
+Meeting gaps, all marked, all before speech was steady: 161.5 ms at 36.2 s, 117.2 ms at 50.6 s, 187.5 ms at
+140.0 s.  Cause unknown.  Total 466.2 ms.
+
+Offset by call_offset.mjs: FAIL on count, 2 of 20 windows usable, 10 needed.  Those two gave mic after
+meeting 101 ms, drift 0 ms.  Later windows read 285-298 ms at match 0.24-0.45, below its threshold, and are
+not explained.  Drift is not proven by this run.
+
+Script mistake: `pwsh -File` split the -Actions list, so the countdown showed only its first step.  The rest
+became stray arguments: a bad mic ID, which dropped the mic to the default after 4.6 s, plus helper
+arguments and one refused command.  The mic result here is not a device fault.  See BUG-2.
+The mistake was in a one-off wait script; run-case.ps1 itself was not at fault.
+
+Not run: real second output device, real unplug, real warning on a silent Teams track, the app's picker.
