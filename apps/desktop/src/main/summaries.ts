@@ -58,6 +58,7 @@ export class SummaryCoordinator {
     private readonly library: Library,
     private readonly run: RunSummary,
     private readonly emit: Emit,
+    private readonly recordingBusy: () => boolean,
     private readonly modelGate: LargeModelGate = new LargeModelGate(),
   ) {}
 
@@ -66,6 +67,9 @@ export class SummaryCoordinator {
   }
 
   private async generate(input: { meetingId: string; length: SummaryLength }): Promise<void> {
+    if (this.recordingBusy()) {
+      throw new ContractError({ code: 'conflict', message: 'Finish recording first.' });
+    }
     if (this.active || this.starting) {
       throw new ContractError({
         code: 'conflict',
@@ -77,6 +81,9 @@ export class SummaryCoordinator {
     this.startingAbort = abort;
     try {
       const meeting = await this.library.getMeeting(input.meetingId);
+      if (this.recordingBusy()) {
+        throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
+      }
       if (
         meeting.status === 'recording' ||
         meeting.status === 'importing' ||

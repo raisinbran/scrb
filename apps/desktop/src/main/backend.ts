@@ -110,6 +110,7 @@ export async function openBackend(
           library,
           createConfiguredSummaryRunner(summaryConfig),
           emit,
+          () => recording?.isBusy() ?? false,
           modelGate,
         )
       : null;

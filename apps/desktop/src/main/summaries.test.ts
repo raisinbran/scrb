@@ -47,11 +47,43 @@ function example() {
       warnings: [],
     };
   });
-  const coordinator = new SummaryCoordinator(library, run, emit);
-  return { library, emit, save, run, coordinator };
+  const recordingBusy = vi.fn(() => false);
+  const coordinator = new SummaryCoordinator(library, run, emit, recordingBusy);
+  return { library, emit, save, run, coordinator, recordingBusy };
 }
 
 describe('summary job coordination', () => {
+  it('refuses a different ready meeting while another meeting is recording', async () => {
+    const f = example();
+    f.recordingBusy.mockReturnValue(true);
+    await expect(
+      f.coordinator.handlers.generateSummary!({
+        meetingId: 'other-ready-meeting',
+        length: 'brief',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(f.library.getMeeting).not.toHaveBeenCalled();
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.save).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalled();
+  });
+
+  it('refuses if recording starts while checking the target meeting', async () => {
+    const f = example();
+    vi.mocked(f.library.getMeeting).mockImplementationOnce(async () => {
+      f.recordingBusy.mockReturnValue(true);
+      return { status: 'ready' } as Awaited<ReturnType<Library['getMeeting']>>;
+    });
+    await expect(
+      f.coordinator.handlers.generateSummary!({
+        meetingId: 'other-ready-meeting',
+        length: 'brief',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalled();
+  });
+
   it('saves only a generated summary tied to the read transcript revision', async () => {
     const f = example();
     await f.coordinator.handlers.generateSummary!({
