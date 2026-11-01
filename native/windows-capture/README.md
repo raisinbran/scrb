@@ -455,7 +455,9 @@ unplug (no USB mic).
     `scripts/follow_restart_case.mjs`).  On a real 10-minute Teams call followed as
     `ms-teams.exe`, the meeting track peaked at -8 dB where per-app gave -96 dB, with
     no false warning (`results/t18-follow.txt`, `t18-follow-notes.txt`).  Drift was
-    not proven: only 2 of 20 offset windows were usable.
+    not proven: only 2 of 20 offset windows were usable.  A 22-minute call recorded in
+    the real app, Teams picked in its list, then gave 40 of 45 windows: mic after
+    meeting 82 ms then 81 ms, drift -1 ms (`results/t18-picker.txt`).
 
 ## Needs a Planner plan
 

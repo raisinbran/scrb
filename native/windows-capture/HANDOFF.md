@@ -6,8 +6,8 @@ Remaining for this phase: nothing on this PC.  Still needed elsewhere:
 
 1. T18 passed on whole-computer capture (README finding 16), but the Teams process
    target records silence (BUG-1, `docs/bug-tracker.md`).  The fix is built here
-   (README finding 18) and needs a real Teams call; Zoom and browser targets are
-   unrun.
+   (README finding 18), and passed a real Teams call from the app's picker with
+   drift -1 ms (`results/t18-picker.txt`).  Zoom and browser targets are unrun.
    The 4 h run with load is done; see `README.md`.  Full T19 and the 8 h run come
    before Gate 8.
 2. The 4 h rerun on the built-in mic is done (2026-10-31): 1.221 s mic loss, with
