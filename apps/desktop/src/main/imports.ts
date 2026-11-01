@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { cp, mkdir, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { Library } from '@scrb/storage';
 import {
@@ -34,6 +34,8 @@ export interface ImportDependencies {
   emit: Emit;
 }
 
+const IMPORT_STAGE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.import-[0-9a-f]{8})?$/i;
+
 const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
   decoding: 'decoding',
   assembling: 'transcribing',
@@ -55,6 +57,22 @@ export class ImportCoordinator {
   private interruptedByRecording = false;
 
   constructor(private readonly deps: ImportDependencies) {}
+
+  /** On single-instance startup, clean only our own aborted, UUID-named import scratch folders. */
+  async recoverInterrupted(): Promise<void> {
+    if (this.running || this.starting) {
+      throw new ContractError({ code: 'conflict', message: 'An import is running.' });
+    }
+    const stageRoot = join(this.deps.library.paths.cache, 'imports');
+    const entries = await readdir(stageRoot, { withFileTypes: true }).catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !IMPORT_STAGE_NAME.test(entry.name)) continue;
+      await rm(join(stageRoot, entry.name), { recursive: true, force: true });
+    }
+  }
 
   private async pick(): Promise<{
     fileToken: string;
@@ -128,7 +146,7 @@ export class ImportCoordinator {
     buildVoiceProfiles: boolean,
   ): Promise<void> {
     const library = this.deps.library;
-    const stageRoot = join(library.paths.root, 'cache', 'imports');
+    const stageRoot = join(library.paths.cache, 'imports');
     const staging = join(stageRoot, state.importId);
     let meetingId: string | null = null;
     try {

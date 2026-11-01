@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,7 +16,7 @@ async function fixture() {
   const discard = vi.fn(async () => ({ meetingId: 'imported-1', ok: true, remaining: [] }));
   const update = vi.fn(async () => undefined);
   const library = {
-    paths: { root },
+    paths: { root, cache: join(root, 'cache') },
     createMeeting: vi.fn(async () => ({ id: 'imported-1' })),
     meetingPaths: () => ({ audioMeeting: join(root, 'completed-audio') }),
     applyFinalPass: applied,
@@ -67,6 +67,19 @@ async function fixture() {
 }
 
 describe('Electron import coordination', () => {
+  it('removes only interrupted app-owned import staging directories, retaining unrelated files', async () => {
+    const f = await fixture();
+    const stageRoot = join(f.root, 'cache', 'imports');
+    const orphan = '81790608-4aee-4b84-98fc-a2fcd33a7590';
+    await mkdir(join(stageRoot, orphan), { recursive: true });
+    await writeFile(join(stageRoot, orphan, 'private-staged.txt'), 'synthetic data');
+    await mkdir(join(stageRoot, 'owner-folder'), { recursive: true });
+    await f.coordinator.recoverInterrupted();
+    expect(await readdir(stageRoot)).toEqual(['owner-folder']);
+    await f.coordinator.shutdown();
+  });
+
+
   it('keeps chosen paths private, consumes file tokens once, and publishes a completed meeting', async () => {
     const f = await fixture();
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {

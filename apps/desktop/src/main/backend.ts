@@ -83,6 +83,7 @@ export async function openBackend(
           emit,
         })
       : null;
+    if (imports) await imports.recoverInterrupted();
     recording = helper
       ? new RecordingController(
           library,
