@@ -68,7 +68,9 @@ describe.skipIf(process.platform === 'win32')('ProcessAdapter', () => {
   it('keeps capture acknowledgements when live callbacks throw', async () => {
     const onError = vi.fn();
     const adapter = new ProcessAdapter(helper(LIVE_HELPER), [], {
-      onData: () => { throw new Error('invented live failure'); },
+      onData: () => {
+        throw new Error('invented live failure');
+      },
       onEnd: () => undefined,
       onError,
     });
@@ -79,5 +81,4 @@ describe.skipIf(process.platform === 'win32')('ProcessAdapter', () => {
     adapter.kill();
     await exited;
   });
-
 });
