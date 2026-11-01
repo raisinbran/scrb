@@ -141,12 +141,9 @@ export class LiveCaptureSession {
         if (!feed.closed && this.current === feed) this.sink.handle(event);
       },
     })
-      .then(async (worker) => {
+      .then((worker) => {
         feed.worker = worker;
-        if (feed.closed) {
-          await worker.close();
-          return;
-        }
+        if (feed.closed) return;
         for (const frame of feed.pending) {
           if (!worker.offer(frame)) this.sink.handle({ type: 'lag', lagMs: 0, queuedFrames: 1 });
         }
