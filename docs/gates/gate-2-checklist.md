@@ -44,7 +44,7 @@ Gate 2 text: `dev-plan/Meeting Scribe - Development Plan (v2.0).md`. Clause-to-t
 1. **The Mac 2 h 29 min call counts as T18 (accepted, 2026-10-31).** It used real call audio as the shared sound, not a click train, and shows no gaps or restarts. Its 49 usable windows cover about minutes 30 to 140, with a 17 ms spread. The target allows about 23 ms in that span, so drift passes for that span. The first 30 minutes are unmeasured and the recording is deleted, so this cannot be rechecked.
 2. **The `coreaudiod` restart may run for T17 (approved, 2026-10-31).** This settles decision M3 in `macos-capture-adapter.md`. It stops all Mac audio for a moment, so the owner runs it, types the password, and picks a time when nothing else is playing.
 3. **Still open: waive any of the list above?** Recommended: none. The Mac load run stays at 4 hours: it costs no owner time, gives the same evidence as Windows, and tests the code changed after the first Mac run.
-4. **Open: the Mac load run's 5.5 s gap.** Recommended: one more unattended 4-hour run, with the Mac otherwise idle. If it passes, the first run stands as a macOS stall seen once. If it fails, change the limit or find the cause.
+4. **Open: the Mac load run's 5.5 s gap.** The owner opened several apps at about that time, the likely trigger. Recommended: one more unattended 4-hour run, with the Mac otherwise idle. If it passes, the first run stands as a stall under heavy use, a limit of the machine under that load. If it fails, change the limit or find the cause.
 
 ## Not needed for Gate 2
 
