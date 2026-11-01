@@ -1,6 +1,7 @@
 // Everything that runs on the real-time audio threads: the shared gate and one lock-free ring per
 // track. No allocation, locks or Swift here. See docs/plans/pause-resume.md, "The gate".
 #pragma once
+#include "LiveRing.h"
 #include <CoreAudio/CoreAudio.h>
 #include <mach/mach_time.h>
 #include <opus.h>
