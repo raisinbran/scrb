@@ -28,10 +28,8 @@ function eightHours(): TranscriptData {
     speakers: [{
       id: 'synthetic',
       label: 'Invented Speaker',
-      name: null,
+      kind: 'unknown',
       profileId: null,
-      userNamed: false,
-      mergedInto: null,
     }],
     totalSegments: segments.length,
     loading: false,
