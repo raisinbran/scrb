@@ -457,7 +457,15 @@ unplug (no USB mic).
     no false warning (`results/t18-follow.txt`, `t18-follow-notes.txt`).  Drift was
     not proven: only 2 of 20 offset windows were usable.  A 22-minute call recorded in
     the real app, Teams picked in its list, then gave 40 of 45 windows: mic after
-    meeting 82 ms then 81 ms, drift -1 ms (`results/t18-picker.txt`).
+    meeting 82 ms then 81 ms, drift -1 ms. The original
+    `results/t18-picker.txt` contains a failed script invocation, not measurement
+    output. On 2026-11-01 the saved 1361.243 s recording was recovered and
+    remeasured with the existing script and a decoder built from `e180a51`:
+    40 of 45 usable windows, 82 ms then 81 ms, drift -1 ms, largest step -18 ms
+    (`results/t18-picker-recovered-20261101.txt`). This verifies the earlier
+    recording; it is not a new live call on final code. See
+    `docs/gates/gate-2-windows-final-verification-20261101.md` for provenance
+    and the original native replay failure; the later fixture-only correction and fresh Windows PASS evidence are preserved in `docs/gates/gate-2-f11-replay-correction-20261101.md` and `docs/gates/gate-2-f11-native-reverification-20261101.md` (PR #15).
 
 ## Needs a Planner plan
 

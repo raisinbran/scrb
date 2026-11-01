@@ -1,0 +1,2 @@
+{"firstWorkerSeconds":13,"secondWorkerSeconds":8,"reopened":true,"restarted":true,"sameClock":true,"keptFollowedSource":true}
+PASS

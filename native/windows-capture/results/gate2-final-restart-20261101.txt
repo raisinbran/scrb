@@ -1,0 +1,9 @@
+session.log open open restart pause open restart resume
+microphone 000000.opus 0.010-5.010 start/rollover; 000001.opus 5.010-6.003 rollover/unknown; 000002.opus 9.145-14.145 workerRestarted/rollover; 000003.opus 14.145-14.155 rollover/pause; 000004.opus 16.666-21.666 workerRestarted/stop
+microphone gaps audioMissing 6.003-9.145
+meeting 000000.opus 0.007-5.007 start/rollover; 000001.opus 5.007-6.000 rollover/unknown; 000002.opus 9.153-14.153 workerRestarted/pause; 000003.opus 16.662-21.662 workerRestarted/stop
+meeting gaps audioMissing 6.000-9.153
+worker 1 880 Hz level 4462.7
+worker 2 880 Hz level 4487
+worker 3 880 Hz level 4495.5
+PASS: original clock, numbering, restart markers, tone from all 3 workers, one gap per track

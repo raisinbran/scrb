@@ -1,0 +1,22 @@
+o {"type":"ack","id":"o","cmd":"open","ok":true,"gate":"closed","activeTracks":["meeting"],"atNs":null}
+s {"type":"ack","id":"s","cmd":"start","ok":true,"gate":"open","activeTracks":["meeting"],"atNs":0,"origin":{"qpcNs":1231496888500,"wallUtc":"2026-11-01T10:05:18.372Z"},"clockOriginNs":1231496888500}
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["meeting"],"atNs":4800670000}
+pause ms 0.5
+p {"type":"ack","id":"p","cmd":"pause","ok":true,"gate":"closed","activeTracks":["meeting"],"atNs":4800670000}
+p2 {"type":"ack","id":"p2","cmd":"pause","ok":false,"gate":"closed","activeTracks":["meeting"],"atNs":null,"error":"conflict"}
+r {"type":"ack","id":"r","cmd":"resume","ok":true,"gate":"open","activeTracks":["meeting"],"atNs":12311317000}
+x {"type":"ack","id":"x","cmd":"stop","ok":true,"gate":"closed","activeTracks":[],"atNs":17314147800}
+meeting 000000.opus 0.01-4.80 start/pause; 000001.opus 12.31-12.47 resume/discontinuity; 000002.opus 12.63-17.31 discontinuity/stop
+880 level 4483.1 2000 level 5.3 after resume 4483.1
+loudest meeting level while paused -17.83 dB
+<anonymous_script>:1
+
+
+SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at file:///C:/Users/bchen/Documents/ChatGPT/srcb/repo/native/windows-capture/scripts/pause_case.mjs:101:25
+    at Array.map (<anonymous>)
+    at file:///C:/Users/bchen/Documents/ChatGPT/srcb/repo/native/windows-capture/scripts/pause_case.mjs:101:6
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v26.13.0

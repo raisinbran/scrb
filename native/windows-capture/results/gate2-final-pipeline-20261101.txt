@@ -1,0 +1,23 @@
+T14 rollover and seq; T2 stamp gap; flag split; 2 ms tolerance
+Hands-free stamp jitter does not split; a larger jump does
+Small hands-free losses add up to a marked gap
+T3 loopback time loss with clean stamps is re-anchored
+T11 sleep and wake: offset shifts the fresh chunk, no extra split
+T4 process stall: buffered loopback drains, nothing corrected, audio kept
+T23 process stall: a near-silent drain is dropped and marked as a gap
+Quiet audio on time is kept; the mic track never drops
+T24 stream lost during a pause stays a pause; lost after resume is a device gap
+T13 pause spans; T6 stream loss span and new device
+Gate: closed at first, one cutoff, whole packets, stale packets after resume
+Gate: Stop during a pause keeps the cutoff and its own time
+A pause too short for the queue to empty still splits; idle closes do not repeat
+A chunk moved by confirmed loss tells the sink, so its stored start follows
+BUG-2: a late first chunk is marked; a normal start is not
+T3b zeros near an output change; device-silent span; no split
+T21 synthetic: 1281 flags in 300 seconds, bounded splits; real gaps still split
+T8 synthetic default-device changes every 4s: wait 5s of stability
+T3: stale timestamp packets after wake never enter new chunk
+F11 replay of the logged standby run: ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  raw offset 1690 ms, detected missing 41030 ms
+  FAIL line 417: std::abs(lost - raw) < 100
+FAILED (1 failures)

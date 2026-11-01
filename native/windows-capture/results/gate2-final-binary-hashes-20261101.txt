@@ -1,0 +1,4 @@
+71DE09850DF2970AEF3FD7F7EE37BD58DECF790CA4C7D0F5EFE3E89A3BB6DC65  C:\Users\bchen\Documents\ChatGPT\srcb\repo\native\windows-capture\build\bin\scrb-capture.exe
+45065EA31369C3BE64C32B7675D6C91C541C29E37D3477041A88A59949264C92  C:\Users\bchen\Documents\ChatGPT\srcb\repo\native\windows-capture\build\bin\PipelineTests.exe
+914833D1514B28A428C904D053B990BF20D38A5CA0290A12D6F2E1E4B45217EA  C:\Users\bchen\Documents\ChatGPT\srcb\repo\native\windows-capture\build\bin\ChunkVerify.exe
+A90523EC18AFC66A76AFB7A9D5F50D8406106BA2E0782BF299A25DAE13E16E7E  C:\Users\bchen\Documents\ChatGPT\srcb\repo\phase0\artifacts\capture\devices\sleep-wake-timing.csv
