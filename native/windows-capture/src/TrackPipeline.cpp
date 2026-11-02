@@ -40,6 +40,7 @@ void TrackPipeline::Start(int64_t originNs, uint32_t generation) {
     originNs_ = originNs;
     generation_ = generation;
     started_ = true;
+    liveStarted_ = cfg_.live != nullptr;
 }
 
 void TrackPipeline::ResetStreamState() {
@@ -126,6 +127,7 @@ void TrackPipeline::CheckRate(const Packet& p, int64_t stamp) {
         if (std::abs(measured / kRate - 1.0) > cfg_.rateTolerance) {
             emit_("rateChanged", JsonObject().Str("track", cfg_.track).Num("measuredHz", measured)
                                      .Int("atNs", stamp));
+            EndLive(stamp);
             CloseChunk("rate");
             pendingOpenReason_ = "rate";
         }
@@ -152,9 +154,11 @@ void TrackPipeline::OnPacket(const Packet& p) {
     if (p.generation == generation_ && IsStaleSilence(p)) return;
     // A pause too short for the queue to empty still splits here.
     if (p.generation != generation_) {
+        if (!liveEndedForGate_) EndLive(lastEndNs_);
         CloseChunk("pause");
         generation_ = p.generation;
         paused_ = false;
+        liveEndedForGate_ = false;
         pendingOpenReason_ = "resume";
         pendingCause_ = lostAfterResume_ ? "device" : "pause";
         havePrev_ = false;
@@ -193,6 +197,7 @@ void TrackPipeline::OnPacket(const Packet& p) {
         }
     }
     if (!reason.empty()) {
+        if (reason != "rollover") EndLive(stamp);
         CloseChunk(reason);
         pendingOpenReason_ = reason;
         if (!cause.empty()) pendingCause_ = cause;
@@ -213,6 +218,9 @@ void TrackPipeline::OnPacket(const Packet& p) {
             spans.push_back({off, len, "device-silent"});
     }
     if (!sink_.Write(p.pcm.data(), p.frames)) ReportWriteError();
+    if (cfg_.live) {
+        cfg_.live->Offer(cfg_.liveTrack, stamp, kRate, liveGeneration_, p.pcm.data(), p.frames);
+    }
     chunk_.frames += p.frames;
     lastEndNs_ = (HandsFree() ? chunk_.startNs + FramesToNs(chunk_.frames) : stamp + FramesToNs(p.frames));
     endKnown_ = true;
@@ -309,17 +317,24 @@ void TrackPipeline::OpenChunk(int64_t startNs, int64_t rawStamp, int64_t arrival
 
 void TrackPipeline::OnGateClosed() {
     if (!started_ || stopped_) return;
-    CloseChunk("pause");
     if (paused_) return;
+    EndLive(lastEndNs_);
+    liveEndedForGate_ = true;
+    CloseChunk("pause");
     paused_ = true;
     pendingOpenReason_ = "resume";
     pendingCause_ = "pause";
     havePrev_ = false;
 }
 
-void TrackPipeline::OnGateOpened() { resumedNoPacket_ = true; }
+void TrackPipeline::OnGateOpened() {
+    resumedNoPacket_ = true;
+    paused_ = false;
+}
 
 void TrackPipeline::Stop() {
+    if (stopped_) return;
+    EndLive(lastEndNs_);
     CloseChunk("stop");
     stopped_ = true;
 }
@@ -327,6 +342,7 @@ void TrackPipeline::Stop() {
 void TrackPipeline::OnSleep() {
     sleeping_ = true;
     if (paused_) return;
+    EndLive(lastEndNs_);
     CloseChunk("sleep");
     pendingOpenReason_ = "wake";
     pendingCause_ = "sleep";
@@ -337,6 +353,7 @@ void TrackPipeline::OnWake(int64_t nowNs) {
     sleeping_ = false;
     wakeNs_ = nowNs;
     if (paused_) return;
+    EndLive(lastEndNs_);
     CloseChunk("wake");  // only a missed sleep notification leaves one open
     pendingOpenReason_ = "wake";
     pendingCause_ = "sleep";
@@ -345,6 +362,7 @@ void TrackPipeline::OnWake(int64_t nowNs) {
 
 void TrackPipeline::OnStreamLost(const std::string& closeReason, const std::string& cause) {
     if (resumedNoPacket_) lostAfterResume_ = true;
+    EndLive(lastEndNs_);
     CloseChunk(closeReason);
     pendingOpenReason_ = closeReason;
     pendingCause_ = cause;
@@ -352,6 +370,7 @@ void TrackPipeline::OnStreamLost(const std::string& closeReason, const std::stri
 }
 
 void TrackPipeline::OnStreamOpened(const DeviceInfo& device, const std::string& openReason) {
+    EndLive(lastEndNs_);
     CloseChunk(openReason);
     device_ = device;
     pendingOpenReason_ = openReason;
@@ -360,12 +379,14 @@ void TrackPipeline::OnStreamOpened(const DeviceInfo& device, const std::string& 
 }
 
 void TrackPipeline::OnPermissionChanged() {
+    EndLive(lastEndNs_);
     CloseChunk("permission");
     pendingOpenReason_ = "permission";
     pendingCause_ = "permission";
 }
 
 void TrackPipeline::OnSourceChanged(const std::string& source) {
+    EndLive(lastEndNs_);
     CloseChunk("source");
     pendingOpenReason_ = "source";
     pendingCause_ = "source";
@@ -373,5 +394,10 @@ void TrackPipeline::OnSourceChanged(const std::string& source) {
 }
 
 void TrackPipeline::NoteOutputChange(int64_t nowNs) { lastOutputChangeNs_ = nowNs - originNs_; }
+
+void TrackPipeline::EndLive(int64_t atNs) {
+    if (!liveStarted_ || !cfg_.live) return;
+    cfg_.live->Boundary(cfg_.liveTrack, (std::max<int64_t>)(0, atNs), liveGeneration_++);
+}
 
 }  // namespace scrb

@@ -82,6 +82,7 @@ int wmain(int argc, wchar_t** argv) {
         if (a == L"--test-hooks") options.testHooks = true;
         else if (a == L"--death-limit-ms" && i + 1 < argc) options.deathLimitNs = _wtoi64(argv[++i]) * kNsPerMs;
         else if (a == L"--debounce-ms" && i + 1 < argc) options.debounceNs = _wtoi64(argv[++i]) * kNsPerMs;
+        else if (a == L"--live-pipe" && i + 1 < argc) options.livePipe = argv[++i];
     }
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
