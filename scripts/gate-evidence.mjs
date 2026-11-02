@@ -141,6 +141,19 @@ async function inventory(dir) {
   };
 }
 
+function safeTimeline(samples) {
+  if (!Array.isArray(samples)) return [];
+  ensure(samples.length <= 2000, 'Too many live samples');
+  return samples.map((sample) => ({
+    elapsedSec: finiteNumber(sample.elapsedSec),
+    meetingWords: finiteNumber(sample.meetingWords),
+    speechPresent: sample.speechPresent === true,
+    ...numeric(sample, [
+      'pcmAgeMs', 'ackAgeMs', 'segmentAgeMs', 'queueDepth', 'vadSpans', 'modelCalls', 'emptyResults',
+    ]),
+  }));
+}
+
 export function summarize(meta, metrics, items, exitCode) {
   const recording = numeric(metrics?.recording, [
     'durationSec', 'decodedChunks', 'decodeFailures', 'microphoneGapMs', 'meetingGapMs',
@@ -166,6 +179,7 @@ export function summarize(meta, metrics, items, exitCode) {
     live: {
       status: live.status, sampleCount: live.samples, maxStallSec: live.maxStallSec,
       wordCount: finiteNumber(metrics?.live?.wordCount),
+      timeline: safeTimeline(metrics?.live?.samples),
     },
     evidence: items,
   };
