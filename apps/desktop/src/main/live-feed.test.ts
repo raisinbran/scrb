@@ -131,6 +131,60 @@ it('rejects malformed live PCM without stopping durable recording', async () => 
   expect(close).toHaveBeenCalledOnce();
 });
 
+it('logs live progress without transcript content', async () => {
+  vi.useFakeTimers();
+  try {
+    const log = vi.fn();
+    const startMs = Date.now();
+    const session = new LiveCaptureSession(
+      { logger: { log } } as unknown as Library,
+      'invented-meeting',
+      vi.fn(),
+      setup,
+      async () => ({
+        offer: () => true,
+        close: async () => undefined,
+        getProgress: () => ({
+          workerPid: 111,
+          modelPid: 222,
+          ready: true,
+          queuedFrames: 0,
+          lastAckAtMs: startMs,
+          lastSegmentAtMs: null,
+        }),
+      }),
+    );
+    const feed = session.startHelper()!;
+    await Promise.resolve();
+    feed.onData(encodePcmFrame(frame(0)));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(log).toHaveBeenCalledWith(
+      'info',
+      'live-progress',
+      expect.objectContaining({
+        active: true,
+        pcmAgeMs: 60_000,
+        ackAgeMs: 60_000,
+        segmentAgeMs: null,
+        workerPid: 111,
+        modelPid: 222,
+        sinkQueued: 0,
+        sinkDraining: false,
+      }),
+    );
+    const values = log.mock.calls[0]![2] as Record<string, unknown>;
+    expect(Object.keys(values).every((key) => !/text|word|audio|path|name/i.test(key))).toBe(
+      true,
+    );
+    await session.stop();
+    log.mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(log).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('loads only existing live tools and forwards CPU settings', async () => {
   const root = await mkdtemp(join(tmpdir(), 'scrb-live-config-'));
   roots.push(root);

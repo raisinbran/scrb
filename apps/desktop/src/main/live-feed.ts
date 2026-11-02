@@ -17,7 +17,8 @@ import { WindowsLivePipePool } from './windows-live-pipe.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 export type LiveSetup = Omit<LiveAudioWorkerOptions, 'onEvent'>;
-type WorkerHandle = Pick<LiveAudioWorker, 'offer' | 'close'>;
+type WorkerHandle = Pick<LiveAudioWorker, 'offer' | 'close'> &
+  Partial<Pick<LiveAudioWorker, 'getProgress'>>;
 
 interface HelperFeed {
   decoder: PcmFrameDecoder;
@@ -25,6 +26,7 @@ interface HelperFeed {
   pending: LivePcmFrame[];
   startup: Promise<void>;
   closed: boolean;
+  lastPcmAtMs: number | null;
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -103,9 +105,10 @@ export class LiveCaptureSession {
   private readonly cleanup = new Set<Promise<void>>();
   private windowsPipes: WindowsLivePipePool | null = null;
   private closed = false;
+  private readonly progressTimer: ReturnType<typeof setInterval>;
 
   constructor(
-    library: Library,
+    private readonly library: Library,
     meetingId: string,
     emit: Emit,
     private readonly setup: LiveSetup,
@@ -114,6 +117,30 @@ export class LiveCaptureSession {
     ) => Promise<WorkerHandle> = LiveAudioWorker.start,
   ) {
     this.sink = new LiveTranscriptSink(library, meetingId, emit);
+    this.progressTimer = setInterval(() => this.logProgress(), 60_000);
+    this.progressTimer.unref();
+  }
+
+  private logProgress(): void {
+    const now = Date.now();
+    const age = (at: number | null | undefined) => (at == null ? null : Math.max(0, now - at));
+    const worker = this.current?.worker?.getProgress?.();
+    const sink = this.sink.getProgress();
+    this.library.logger?.log('info', 'live-progress', {
+      active: this.current !== null,
+      pcmAgeMs: age(this.current?.lastPcmAtMs),
+      ackAgeMs: age(worker?.lastAckAtMs),
+      segmentAgeMs: age(worker?.lastSegmentAtMs),
+      savedAgeMs: age(sink.lastSavedAtMs),
+      publishedAgeMs: age(sink.lastPublishedAtMs),
+      workerPid: worker?.workerPid ?? null,
+      modelPid: worker?.modelPid ?? null,
+      workerReady: worker?.ready ?? false,
+      queuedFrames: worker?.queuedFrames ?? null,
+      sinkQueued: sink.queued,
+      sinkDraining: sink.draining,
+      revision: sink.lastRevision,
+    });
   }
 
   async prepareWindowsPipes(
@@ -147,6 +174,7 @@ export class LiveCaptureSession {
     const feed: HelperFeed = {
       decoder: new PcmFrameDecoder((frame) => {
         if (feed.closed) return;
+        feed.lastPcmAtMs = Date.now();
         if (!feed.worker) {
           if (feed.pending.length === 20) {
             feed.pending.shift();
@@ -161,6 +189,7 @@ export class LiveCaptureSession {
       pending: [],
       startup: Promise.resolve(),
       closed: false,
+      lastPcmAtMs: null,
     };
     this.current = feed;
     feed.startup = this.launchWorker({
@@ -217,6 +246,7 @@ export class LiveCaptureSession {
 
   async stop(): Promise<void> {
     this.closed = true;
+    clearInterval(this.progressTimer);
     this.windowsPipes?.close();
     if (this.current) this.closeHelper(this.current);
     await this.sink.stop();

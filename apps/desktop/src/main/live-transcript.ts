@@ -13,6 +13,19 @@ export class LiveTranscriptSink {
   private draining: Promise<void> | null = null;
   private closed = false;
   private failed = false;
+  private lastSavedAtMs: number | null = null;
+  private lastPublishedAtMs: number | null = null;
+  private lastRevision: number | null = null;
+
+  getProgress() {
+    return {
+      lastSavedAtMs: this.lastSavedAtMs,
+      lastPublishedAtMs: this.lastPublishedAtMs,
+      lastRevision: this.lastRevision,
+      queued: this.pending.length,
+      draining: this.draining !== null,
+    };
+  }
 
   constructor(
     private readonly library: Store,
@@ -157,6 +170,8 @@ export class LiveTranscriptSink {
             this.lag('lagging', 0);
             break;
           }
+          this.lastSavedAtMs = Date.now();
+          this.lastRevision = saved.revision;
           publishEdit(before, saved, (name, payload) => this.publish(name, payload));
           if (!this.failed) this.lag(this.pending.length ? 'lagging' : 'ok', 0);
           break;
@@ -171,6 +186,7 @@ export class LiveTranscriptSink {
   private publish<K extends EventName>(name: K, payload: BackendEvents[K]): void {
     try {
       this.emit(name, payload);
+      if (name === 'transcriptChanged') this.lastPublishedAtMs = Date.now();
     } catch {
       /* Observers cannot interrupt recording or persistence. */
     }
