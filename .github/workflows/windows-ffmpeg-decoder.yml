@@ -21,6 +21,15 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # The official FFmpeg release tag n9.0 resolves to this immutable commit.
+      # Checkout avoids the blocked ffmpeg.org release-tarball host.
+      - uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: d32b387f2b0a484599d4587d651891f0c63c4238
+          path: vendor/ffmpeg
+          persist-credentials: false
+
       # Tools are installed on the disposable GitHub runner, not the user's PC.
       # UCRT64 builds native Windows binaries; MSYS2 tools run only at build time.
       - uses: msys2/setup-msys2@v2
@@ -43,17 +52,11 @@ jobs:
         run: |
           set -euo pipefail
           repo="$(cygpath -u "$GITHUB_WORKSPACE")"
-          work="$(cygpath -u "$RUNNER_TEMP")/srcb-ffmpeg"
           out="$repo/out/windows-ffmpeg"
-          mkdir -p "$work" "$out"
-          cd "$work"
-
+          mkdir -p "$out"
           test "$(pkg-config --modversion opus)" = "1.6.1"
-          curl --fail --location --silent --show-error --retry 3 \
-            -o ffmpeg-9.0.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz
-          echo "7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52  ffmpeg-9.0.tar.xz" | sha256sum -c -
-          tar -xJf ffmpeg-9.0.tar.xz
-          cd ffmpeg-9.0
+          cd "$repo/vendor/ffmpeg"
+          test "$(git rev-parse HEAD)" = "d32b387f2b0a484599d4587d651891f0c63c4238"
 
           ./configure \
             --disable-everything --disable-autodetect --disable-doc --disable-network \
@@ -80,7 +83,7 @@ jobs:
           cp COPYING.LGPLv2.1 "$out/FFMPEG-LGPL-2.1.txt"
           cp /ucrt64/share/licenses/opus/COPYING "$out/LIBOPUS-BSD-3-Clause.txt"
           cp "$repo/packages/transcription/THIRD_PARTY_NOTICES.md" "$out/THIRD_PARTY_NOTICES.md"
-          printf "FFmpeg source: 9.0; sha256: 7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52\nOpus: $(pkg-config --modversion opus)\nCompiler: $(gcc -dumpfullversion)\n" > "$out/BUILD-INFO.txt"
+          printf "FFmpeg upstream: FFmpeg/FFmpeg n9.0 commit d32b387f2b0a484599d4587d651891f0c63c4238\nSource method: official Git checkout, not the separately hashed release tarball\nOpus: $(pkg-config --modversion opus)\nCompiler: $(gcc -dumpfullversion)\n" > "$out/BUILD-INFO.txt"
           cd "$out"
           sha256sum ffmpeg.exe ffprobe.exe > SHA256SUMS.txt
 
