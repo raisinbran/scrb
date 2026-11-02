@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
+import { createHybridBackend } from '../lib/hybrid-backend.ts';
 import { MockBackend } from '../mocks/index.ts';
 import { DEV_TRIGGERS } from '../mocks/dev-triggers.ts';
 import { LiveScreen } from './LiveScreen.tsx';
@@ -187,6 +188,30 @@ describe('LiveScreen', () => {
   });
 
   describe('warnings', () => {
+    it('shows real live and failed transcript states', async () => {
+      const real = new MockBackend();
+      try {
+        render(
+          <BackendProvider backend={createHybridBackend(real, backend)}>
+            <LiveScreen />
+          </BackendProvider>,
+        );
+        await advance(0);
+        fireEvent.click(button('Start'));
+        await advance(0);
+        expect(button('Pause')).toBeTruthy();
+
+        act(() => real.emit('transcriptionLag', { status: 'ok', lagMs: 0 }));
+        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
+
+        act(() => real.emit('transcriptionLag', { status: 'failed', lagMs: 0 }));
+        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: stopped');
+        expect(screen.getByTestId('recording-health').textContent).toBe('Recording: healthy');
+      } finally {
+        real.dispose();
+      }
+    });
+
     it.each([
       ['mic-silent', 'Mic silent'],
       ['low-disk', 'Low disk'],
@@ -235,6 +260,59 @@ describe('LiveScreen', () => {
   });
 
   describe('transcript', () => {
+    it('renders real transcript events in Live', async () => {
+      const real = new MockBackend();
+      try {
+        render(
+          <BackendProvider backend={createHybridBackend(real, backend)}>
+            <LiveScreen />
+          </BackendProvider>,
+        );
+        await advance(0);
+        fireEvent.click(button('Start'));
+        await advance(1000);
+
+        const meetingId = (await real.call('getRecordingSnapshot')).state.meetingId as string;
+        const page = await real.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const original = page.segments[0] as TranscriptSegment;
+        const startMs = original.endMs + 1;
+        const endMs = startMs + 100;
+        expect(words().some((word) => word.textContent === 'routedword')).toBe(false);
+
+        act(() =>
+          real.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: {
+              kind: 'append',
+              segments: [
+                {
+                  ...original,
+                  id: 'real-routed-segment',
+                  startMs,
+                  endMs,
+                  words: [
+                    {
+                      ...original.words[0]!,
+                      id: 'real-routed-word',
+                      text: 'routedword',
+                      startMs,
+                      endMs,
+                    },
+                  ],
+                },
+              ],
+            },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+
+        expect(words().some((word) => word.textContent === 'routedword')).toBe(true);
+      } finally {
+        real.dispose();
+      }
+    });
     it('offsets each row slot, so no slot lies over the rows above it', async () => {
       await startMeeting(3);
       const slots = [...document.querySelectorAll<HTMLElement>('[data-row-index]')];
