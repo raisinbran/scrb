@@ -1,0 +1,269 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "windows",
+  "runId": "windows-20261102-four-hour-72c4107",
+  "sourceCommit": "72c41076eb1e8162da4fdf9b5c6b850d623cd1f8",
+  "evidenceOrigin": "retrospective-user-supplied-zip",
+  "rawArchiveSha256": "34b7c2b24da238e567554e8b1feb8ac4f9c6c4ef27d53aabf2946e2552f21c76",
+  "rawArchiveBytes": 114930210,
+  "archiveIntegrity": "zip-crc-pass",
+  "status": "FAIL",
+  "gateApproved": false,
+  "recording": {
+    "status": "PASS_WITH_GAPS_FOR_ACCEPTANCE_REVIEW",
+    "elapsedSeconds": 14405.643,
+    "microphoneChunks": 2895,
+    "meetingChunks": 2884,
+    "totalChunks": 5779,
+    "chunkHashesIndependentlyVerified": 5779,
+    "hashMismatchCount": 0,
+    "decodeFailuresReported": 0,
+    "microphoneAudioSeconds": 14399.94,
+    "meetingAudioSeconds": 14399.78,
+    "microphoneMarkedGaps": 17,
+    "microphoneMarkedGapTotalMs": 807.724,
+    "microphoneMaxGapMs": 216.8,
+    "meetingMarkedGaps": 5,
+    "meetingMarkedGapTotalMs": 951.106,
+    "meetingMaxGapMs": 225.044,
+    "rawAudioPresentInArchive": true,
+    "finalTranscriptPresentInArchive": false,
+    "finalizedTrackEndDeltaMsApprox": 1.1
+  },
+  "live": {
+    "status": "FAIL",
+    "meetingLiveWordsAtStop": 10839,
+    "microphoneLiveWordsAtStop": 13,
+    "knownSpeechFeed": "Repeated public speech clip throughout the test",
+    "workerAcknowledgedAudio": true,
+    "noReportedQueueBacklog": true,
+    "wordDistributionByHour": [
+      1850,
+      4597,
+      4,
+      4388
+    ],
+    "progressSampleCadence": "Approximately one minute; timeline below selects nearest five-minute samples",
+    "progressSamplesFiveMinute": [
+      [
+        0,
+        4
+      ],
+      [
+        5,
+        468
+      ],
+      [
+        10,
+        679
+      ],
+      [
+        15,
+        679
+      ],
+      [
+        20,
+        680
+      ],
+      [
+        25,
+        680
+      ],
+      [
+        30,
+        680
+      ],
+      [
+        35,
+        680
+      ],
+      [
+        40,
+        681
+      ],
+      [
+        45,
+        681
+      ],
+      [
+        50,
+        890
+      ],
+      [
+        55,
+        1359
+      ],
+      [
+        60,
+        1835
+      ],
+      [
+        65,
+        2316
+      ],
+      [
+        70,
+        2786
+      ],
+      [
+        75,
+        3261
+      ],
+      [
+        80,
+        3725
+      ],
+      [
+        85,
+        4146
+      ],
+      [
+        90,
+        4146
+      ],
+      [
+        95,
+        4434
+      ],
+      [
+        100,
+        4789
+      ],
+      [
+        105,
+        5273
+      ],
+      [
+        110,
+        5747
+      ],
+      [
+        115,
+        6234
+      ],
+      [
+        120,
+        6447
+      ],
+      [
+        125,
+        6448
+      ],
+      [
+        130,
+        6449
+      ],
+      [
+        135,
+        6449
+      ],
+      [
+        140,
+        6449
+      ],
+      [
+        145,
+        6449
+      ],
+      [
+        150,
+        6450
+      ],
+      [
+        155,
+        6450
+      ],
+      [
+        160,
+        6450
+      ],
+      [
+        165,
+        6450
+      ],
+      [
+        170,
+        6451
+      ],
+      [
+        175,
+        6451
+      ],
+      [
+        180,
+        6451
+      ],
+      [
+        185,
+        6452
+      ],
+      [
+        190,
+        6453
+      ],
+      [
+        195,
+        6674
+      ],
+      [
+        200,
+        7100
+      ],
+      [
+        205,
+        7581
+      ],
+      [
+        210,
+        8050
+      ],
+      [
+        215,
+        8526
+      ],
+      [
+        220,
+        9006
+      ],
+      [
+        225,
+        9478
+      ],
+      [
+        230,
+        9941
+      ],
+      [
+        235,
+        10323
+      ],
+      [
+        240,
+        10801
+      ]
+    ]
+  },
+  "performance": {
+    "peakAppMemoryGiBReported": 1.19,
+    "visibleStopAcknowledgmentMsReported": 11.6,
+    "stopToIdleMs": 5531,
+    "maxSampleSnapshotResponseMs": 21
+  },
+  "review": {
+    "status": "GATE_3_NOT_APPROVED",
+    "findings": [
+      "All 5,779 saved Opus chunks are present and hash-match reported verification; reported decoders exited successfully.",
+      "Microphone and meeting contain marked gaps, requiring independent acceptance review.",
+      "Sustained live transcription failed during continued audible source input; hour 3 produced four meeting-track words.",
+      "Observed lag banner did not reflect the missing live words.",
+      "Four-hour test does not establish final-pass word-error improvement."
+    ],
+    "causalFinding": "Unknown; platform may share high-level stall pattern with macOS, but common root cause unproven.",
+    "doNotRepeatFourHourTestWithoutOwnerApproval": true
+  },
+  "privacy": {
+    "rawAudioOrTranscriptInGit": false,
+    "privateArchiveRetainedInConversation": true
+  }
+}
