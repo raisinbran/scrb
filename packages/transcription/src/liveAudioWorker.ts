@@ -321,7 +321,7 @@ export class LiveAudioWorker {
     });
     return {
       port: model.portNumber,
-      pid: model.pid,
+      ...(model.pid === undefined ? {} : { pid: model.pid }),
       exited: model.exited,
       detect: (track, stop) =>
         detectSpeech(
