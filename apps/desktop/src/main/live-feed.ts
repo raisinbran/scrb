@@ -160,11 +160,11 @@ export class LiveCaptureSession {
     }
   }
 
-  startWindowsHelper(): string[] {
+  startWindowsHelper(expectedClose: () => boolean = () => false): string[] {
     if (!this.windowsPipes?.hasNext()) return [];
     const live = this.startHelper();
     if (!live) return [];
-    const name = this.windowsPipes.take(live);
+    const name = this.windowsPipes.take(live, expectedClose);
     return name ? ['--live-pipe', name] : [];
   }
 
