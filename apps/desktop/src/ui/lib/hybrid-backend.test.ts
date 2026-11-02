@@ -194,6 +194,18 @@ describe('createHybridBackend', () => {
     });
   });
 
+  it('sends imports and their events to the real backend', async () => {
+    const real = await realReturning();
+    const backend = createHybridBackend(real, mock);
+    await backend.call('pickAudioFile');
+    expect(real.call).toHaveBeenCalledWith('pickAudioFile', undefined);
+    const request = { fileToken: 'token', buildVoiceProfiles: false };
+    await backend.call('importAudioFile', request);
+    expect(real.call).toHaveBeenCalledWith('importAudioFile', request);
+    backend.on('importFinished', () => undefined);
+    expect(real.on).toHaveBeenCalledWith('importFinished', expect.any(Function));
+  });
+
   it('passes a real failure on to the caller', async () => {
     const real = {
       call: vi.fn(async () => {
