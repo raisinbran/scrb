@@ -56,6 +56,7 @@ async function allowedChunk(
       typeof chunk['endNs'] === 'number' &&
       Number.isSafeInteger(chunk['startNs']) &&
       Number.isSafeInteger(chunk['endNs']) &&
+      chunk['startNs'] >= 0 &&
       chunk['endNs'] > chunk['startNs']
     );
   });
@@ -82,7 +83,8 @@ export async function readPlaybackChunk(
 
   const meeting = await library.getMeeting(meetingId).catch(unavailable);
   if (meeting.audioDeletedAt !== null || meeting.status === 'importing') return unavailable();
-  const audioRoot = library.meetingPaths(meetingId).audio;
+  const paths = library.meetingPaths(meetingId);
+  const audioRoot = paths.audio;
   const folder = join(audioRoot, track);
   let valid = false;
   try {
@@ -93,13 +95,22 @@ export async function readPlaybackChunk(
   if (!valid) return unavailable();
 
   const path = join(folder, file);
-  const [rootReal, targetReal, info] = await Promise.all([
+  const [meetingReal, audioReal, rootReal, targetReal, info, meetingInfo] = await Promise.all([
+    realpath(paths.folder),
+    realpath(audioRoot),
     realpath(folder),
     realpath(path),
     lstat(path),
+    lstat(paths.folder),
   ]).catch(unavailable);
-  if (!info.isFile() || info.isSymbolicLink() || !targetReal.startsWith(rootReal + sep))
-    return unavailable();
+  if (
+    meetingInfo.isSymbolicLink() ||
+    !info.isFile() ||
+    info.isSymbolicLink() ||
+    !audioReal.startsWith(meetingReal + sep) ||
+    !rootReal.startsWith(audioReal + sep) ||
+    !targetReal.startsWith(rootReal + sep)
+  ) return unavailable();
 
   const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)).catch(unavailable);
   try {
