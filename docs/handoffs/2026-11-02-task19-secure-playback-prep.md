@@ -47,3 +47,11 @@ This is an **unapproved contract proposal**, not permission to edit `packages/co
 - Actual Electron sandbox + resource-scheme tests, Windows and macOS click-to-play using public audio, verify capture remains uninterrupted.
 
 **No native capture, shared contract, or security configuration is modified in this preparation branch.** No import decoder or coordinator files overlap PR #33. Do not claim click-to-play works, native QA passes, or Gate 3 is approved.
+
+
+## Unwired source foundation added to this draft PR
+
+- `apps/desktop/src/main/playback-media-source.ts` has a bounded, read-only chunk reader that checks meeting authorization, deleted/importing state, recorded/imported v2 manifest membership, complete live `chunks.log` entries, safe chunk names, realpaths and symlink containment in the meeting/audio/track hierarchy, and at most 1 MiB per read.
+- `playback-media-source.test.ts` uses only invented bytes and covers authorized bounded reads, unlisted/deleted resources, cross-meeting lookup, symlink escape (macOS/Linux) and incomplete live log lines.
+- **Not connected:** protocol, nonce/session management, `seekAudio`, `pauseAudio`, renderer playback, gap alignment or range HTTP semantics. Do not treat this reader as a complete security review or functioning playback.
+- The single grant proposal above **still requires express owner approval** before `packages/contracts/` or any new IPC/security settings are edited. The source reader is internal to the main process and does not expose a renderer API.
