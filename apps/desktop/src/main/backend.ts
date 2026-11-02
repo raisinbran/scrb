@@ -1,7 +1,9 @@
-import { app, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
 import path from 'node:path';
 import {
+  createConfiguredImportRunner,
   createFinalPassRunner,
+  LargeModelGate,
   createSettingsHandlers,
   FinalPassQueue,
   resumeFinalPasses,
@@ -15,6 +17,7 @@ import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { readLiveSetup } from './live-feed.ts';
+import { ImportCoordinator } from './imports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -33,6 +36,7 @@ export async function openBackend(
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
     const settings = createSettingsHandlers(library.settings, root);
+    const modelGate = new LargeModelGate();
     library.setMeetingChangedListener((meeting) =>
       emit('meetingChanged', {
         id: meeting.id,
@@ -51,7 +55,7 @@ export async function openBackend(
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig), modelGate)
         : null;
     // Live inference stays opt-in and disabled in packaged builds.
     const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
@@ -82,6 +86,31 @@ export async function openBackend(
           liveSetup,
         )
       : null;
+    const imports = finalPassConfig
+      ? new ImportCoordinator({
+          library,
+          chooseFile: async () => {
+            const picked = await dialog.showOpenDialog({
+              properties: ['openFile'],
+              filters: [{ name: 'Audio files', extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'opus', 'ogg'] }],
+            });
+            return picked.canceled ? null : (picked.filePaths[0] ?? null);
+          },
+          run: createConfiguredImportRunner(finalPassConfig),
+          recordingBusy: () => recording?.isBusy() ?? false,
+          privacyBanner: async () => {
+            const rules = await privacyJurisdictions(library.paths.root);
+            return needsPrivacyBanner(
+              settings.getSettings().location,
+              rules,
+              app.getLocaleCountryCode() || null,
+            );
+          },
+          emit,
+          modelGate,
+        })
+      : null;
+    if (imports) await imports.recoverInterrupted();
     const stopRetention = library.startAutoDeleteSchedule();
     return {
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
@@ -96,8 +125,8 @@ export async function openBackend(
         }),
         // An empty list is explicit until redistribution licenses are verified.
         getLicenses: async () => [],
-        // Real import jobs are not wired into the main process yet.
-        listImports: async () => [],
+        listImports: async () => imports?.list() ?? [],
+        ...imports?.handlers,
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
@@ -111,6 +140,7 @@ export async function openBackend(
           : 'The index needs review; all original files were preserved.',
       close: async () => {
         stopRetention();
+        await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();
