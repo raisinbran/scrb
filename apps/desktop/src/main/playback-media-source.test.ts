@@ -33,7 +33,7 @@ async function setup(status: 'ready' | 'recording' = 'ready') {
     },
     meetingPaths: (id: string) => {
       if (id !== 'known') throw new Error('not found');
-      return { audio: join(root, 'audio') };
+      return { folder: root, audio: join(root, 'audio') };
     },
   } as unknown as Pick<Library, 'getMeeting' | 'meetingPaths'>;
   return { root, folder, library, setDeleted: () => { audioDeletedAt = '2026-11-02'; } };
