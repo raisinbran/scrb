@@ -8,6 +8,7 @@
 
 #include "Track.h"
 #include "DeviceDebounce.h"
+#include "LivePcmFeed.h"
 
 struct IMMDeviceEnumerator;
 
@@ -19,6 +20,7 @@ struct SessionOptions {
     bool testHooks = false;
     int64_t deathLimitNs = 30 * kNsPerSec;  // D4 without a device signal
     int64_t debounceNs = 5 * kNsPerSec;     // D6
+    std::wstring livePipe;
 };
 
 class Session {
@@ -92,6 +94,7 @@ private:
     std::map<std::string, std::string> acks_;  // a repeated ID gets its first reply
     Gate gate_;
     std::unique_ptr<SessionLog> log_;
+    std::unique_ptr<LivePcmFeed> live_;
     HANDLE writerLock_ = nullptr;
     int64_t originNs_ = 0;
     bool continuing_ = false;

@@ -6,6 +6,8 @@
 #include <condition_variable>
 #include <cstdio>
 #include <deque>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -66,21 +68,26 @@ private:
     FILE* log_ = nullptr;
 };
 
-// audio/session.log.  Lines are forced to disk on their own thread, so the disk
-// can never delay a command.
+// Live session events write off the control thread; explicit Stop waits for its disk sync.
 class SessionLog {
 public:
     SessionLog(const std::wstring& path, EventFn emit, bool continuing = false);
     ~SessionLog();  // writes whatever is queued first
     void Record(const std::string& jsonObject);  // gains its seq here
+    bool RecordAndSync(const std::string& jsonObject);
 
 private:
+    struct Entry {
+        std::string line;
+        std::shared_ptr<std::promise<bool>> completion;
+    };
+    void Enqueue(const std::string& jsonObject, std::shared_ptr<std::promise<bool>> completion);
     void Loop();
     FILE* file_ = nullptr;
     EventFn emit_;
     std::mutex mutex_;
     std::condition_variable cv_;
-    std::deque<std::string> queue_;
+    std::deque<Entry> queue_;
     uint64_t seq_ = 0;
     bool stop_ = false;
     std::thread thread_;
