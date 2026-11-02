@@ -1,11 +1,27 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { BackendData } from '../lib/use-backend-data.ts';
 import styles from './Screen.module.css';
 
+/**
+ * For a heading with `tabIndex={-1}`. Removing the focused control, as deleting a row or opening a
+ * list item does, would otherwise drop keyboard and screen reader users at the top of the app.
+ */
+export function useFocusFallback() {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) heading.current?.focus();
+  });
+  return heading;
+}
+
 export function Screen({ title, children }: { title: string; children: ReactNode }) {
+  const heading = useFocusFallback();
+
   return (
     <div className={styles.screen}>
-      <h1 className={styles.title}>{title}</h1>
+      <h1 ref={heading} className={styles.title} tabIndex={-1}>
+        {title}
+      </h1>
       {children}
     </div>
   );

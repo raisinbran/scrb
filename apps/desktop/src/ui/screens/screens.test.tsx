@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { SpeakerSuggestion } from '@scrb/contracts';
@@ -163,6 +163,16 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    it('keeps keyboard focus on the screen after deleting a term', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      const remove = await screen.findByRole('button', { name: 'Delete Kestrel API' });
+      remove.focus();
+      fireEvent.click(remove);
+      fireEvent.click(screen.getByRole('button', { name: 'Delete term' }));
+      await waitFor(() => expect(screen.queryByText('Kestrel API')).toBeNull());
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' }));
+    });
+
     it('brings back a deleted term, even the last one', async () => {
       const [only] = await backend.call('listTerms');
       backend.setTerms(only ? [only] : []);

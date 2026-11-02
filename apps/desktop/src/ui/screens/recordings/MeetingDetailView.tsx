@@ -4,7 +4,7 @@ import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { DataView } from '../Screen.tsx';
+import { DataView, useFocusFallback } from '../Screen.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
@@ -279,6 +279,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const { meeting, settings, initialJumpMs, onBack, onChanged } = props;
   const backend = useBackend();
   const meetingId = meeting.id;
+  const heading = useFocusFallback();
   const [tab, setTab] = useState<Tab>(() =>
     initialJumpMs === undefined ? (readStored<Tab>(TAB_KEY) ?? 'Transcript') : 'Transcript',
   );
@@ -335,7 +336,9 @@ function LoadedDetail(props: LoadedDetailProps) {
         <button type="button" className={styles.back} onClick={() => onBack()}>
           ← Recordings
         </button>
-        <h1 className={styles.detailTitle}>{meeting.title}</h1>
+        <h1 ref={heading} className={styles.detailTitle} tabIndex={-1}>
+          {meeting.title}
+        </h1>
         <p className={styles.muted}>
           {formatMeetingDate(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
           {meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
