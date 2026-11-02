@@ -165,23 +165,79 @@ describe('incremental PCM engine', () => {
     expect(r.engine.pendingStartNs('mic')).toBe(1500e6);
   });
 
-  it('drops context across skipped sequences, timestamp gaps and generation changes', async () => {
+  it('drops context across long gaps and generation changes', async () => {
     const r = rig();
     for (let i = 0; i < 4; i++) await r.engine.push(frame(i));
-    for (let i = 5; i < 10; i++) await r.engine.push(frame(i));
-    await r.boundary(10, 1000);
-    for (let i = 11; i < 16; i++)
-      await r.engine.push({ ...frame(i, 3000 + (i - 11) * 100), generation: 1 });
+    for (let i = 20; i < 25; i++) await r.engine.push(frame(i));
+    await r.boundary(25, 2500);
+    for (let i = 26; i < 31; i++)
+      await r.engine.push({ ...frame(i, 3000 + (i - 26) * 100), generation: 1 });
     await r.engine.push({
-      ...frame(16, 3500),
+      ...frame(31, 3500),
       generation: 1,
       boundary: true,
       samples: new Int16Array(),
     });
-    expect(r.skipped[0]).toEqual({ track: 'mic', startMs: 0, endMs: 500, reason: 'gap' });
-    expect(r.segments.map((s) => s.startMs)).toEqual([510, 3010]);
+    expect(r.skipped[0]).toEqual({ track: 'mic', startMs: 0, endMs: 2000, reason: 'gap' });
+    expect(r.segments.map((s) => s.startMs)).toEqual([2010, 3010]);
     expect(r.segments.every((s) => s.endMs - s.startMs < 500)).toBe(true);
-    await expect(r.engine.push(frame(16, 3500))).rejects.toThrow('Out-of-order');
+    await expect(r.engine.push(frame(31, 3500))).rejects.toThrow('Out-of-order');
+  });
+
+  it('keeps context across a short timed loss and reports only the missing audio', async () => {
+    const r = rig();
+    for (let i = 0; i < 4; i++) await r.engine.push(frame(i));
+    for (let i = 5; i < 10; i++) await r.engine.push(frame(i));
+    await r.boundary(10, 1000);
+    expect(r.skipped).toEqual([{ track: 'mic', startMs: 400, endMs: 500, reason: 'gap' }]);
+    expect(r.segments[0]!.startMs).toBe(10);
+    expect(r.engine.takeStats().mic).toMatchObject({
+      bridgedGaps: 1,
+      resetGaps: 0,
+      gapMs: 100,
+      lostFrames: 1,
+    });
+  });
+
+  it('does not bridge a boundary or a loss over one second', async () => {
+    const r = rig();
+    for (let i = 0; i < 2; i++) await r.engine.push(frame(i));
+    await r.engine.push(frame(3, 1201));
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 0, resetGaps: 1 });
+    await r.boundary(5, 2000);
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 0, resetGaps: 1 });
+  });
+
+  it('stays within its audio budget under repeated one-second losses', async () => {
+    const r = rig();
+    for (let i = 0; i < 200; i++) await r.engine.push(frame(i, i * 1100));
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 199, resetGaps: 0 });
+    expect(r.segments.length).toBeGreaterThan(10);
+  });
+
+  it.each([0, 20, 6, 5, 4])('still produces text losing one frame in every %i', async (every) => {
+    const r = rig();
+    let sequence = 0;
+    let fed = 0;
+    for (let i = 0; i < 600; i++) {
+      if (every && i % every === every - 1) {
+        sequence += 1;
+        continue;
+      }
+      await r.engine.push(frame(sequence++, i * 100));
+      fed = i;
+    }
+    expect(r.segments.length).toBeGreaterThanOrEqual(10);
+    expect(r.skipped.every((s) => s.reason === 'gap' && s.endMs - s.startMs === 100)).toBe(true);
+    let end = 0;
+    for (const segment of r.segments) {
+      expect(segment.startMs).toBeGreaterThanOrEqual(end);
+      expect(segment.endMs).toBeLessThanOrEqual((fed + 1) * 100);
+      end = segment.endMs;
+    }
+    const stats = r.engine.takeStats().mic!;
+    expect(stats.resetGaps).toBe(0);
+    expect(stats.vadCalls).toBeGreaterThanOrEqual(100);
   });
 
   it('bounds continuous-speech windows and emits before waiting for a durable five-second chunk', async () => {
@@ -328,7 +384,7 @@ describe('live stats', () => {
     for (let i = 0; i < 5; i += 1) await engine.push(frame(i));
     spans = [];
     for (let i = 5; i < 10; i += 1) await engine.push(frame(i));
-    expect(engine.takeStats()).toEqual({
+    expect(engine.takeStats()).toMatchObject({
       mic: {
         vadCalls: 2,
         vadEmpty: 1,

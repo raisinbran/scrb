@@ -6,6 +6,9 @@ import type { VadSpan, WhisperWord } from './whisper.js';
 const HOP_MS = 500;
 const SETTLE_MS = 300;
 const MAX_SPEECH_MS = 4000;
+/** Longer losses cut the speech apart anyway, so they restart context as before. */
+const MAX_BRIDGE_MS = 1000;
+const NS_PER_SAMPLE = 62_500;
 
 export interface TimedLiveSegment extends LiveSegment {
   sequence: number;
@@ -34,6 +37,13 @@ export interface LiveTrackStats {
   samples: number;
   rms: number;
   peak: number;
+  /** Discontinuities kept in context, and those that restarted it. */
+  bridgedGaps: number;
+  resetGaps: number;
+  gapMs: number;
+  /** Frames the sequence numbers show as missing. */
+  lostFrames: number;
+  slowestHopMs: number;
 }
 
 interface Counts extends Omit<LiveTrackStats, 'rms'> {
@@ -82,14 +92,34 @@ export class LivePcmEngine {
         frame.generation !== state.generation ||
         (!frame.boundary && frame.startNs !== state.endNs))
     ) {
-      if (state.samples.length || frame.startNs > state.endNs)
-        this.skip({
-          track: frame.track,
-          startMs: state.samples.length ? state.baseMs : state.endNs / 1e6,
-          endMs: startMs,
-          reason: 'gap',
-        });
-      state = undefined;
+      const missingNs = frame.startNs - state.endNs;
+      const lost = frame.generation === state.generation;
+      const counts = this.count(frame.track);
+      if (lost) {
+        counts.lostFrames += Math.max(0, frame.sequence - state.sequence - 1);
+        counts.gapMs += missingNs / 1e6;
+      }
+      if (lost && !frame.boundary && missingNs <= MAX_BRIDGE_MS * 1e6) {
+        counts.bridgedGaps += 1;
+        if (missingNs > 0)
+          this.skip({
+            track: frame.track,
+            startMs: state.endNs / 1e6,
+            endMs: startMs,
+            reason: 'gap',
+          });
+        this.bridge(state, missingNs);
+      } else {
+        if (lost) counts.resetGaps += 1;
+        if (state.samples.length || frame.startNs > state.endNs)
+          this.skip({
+            track: frame.track,
+            startMs: state.samples.length ? state.baseMs : state.endNs / 1e6,
+            endMs: startMs,
+            reason: 'gap',
+          });
+        state = undefined;
+      }
     }
     if (!state) {
       state = {
@@ -122,7 +152,10 @@ export class LivePcmEngine {
     state.sinceDetect += frame.samples.length;
     if (state.sinceDetect >= (HOP_MS * LIVE_PCM_RATE) / 1000) {
       state.sinceDetect = 0;
+      const startedAt = Date.now();
       await this.ready(frame.track, state, false);
+      const counts = this.count(frame.track);
+      counts.slowestHopMs = Math.max(counts.slowestHopMs, Date.now() - startedAt);
     }
   }
 
@@ -134,6 +167,16 @@ export class LivePcmEngine {
   pendingStartNs(track: TrackKind): number {
     const state = this.tracks.get(track);
     return state ? Math.round(state.samples.length ? state.baseMs * 1e6 : state.endNs) : 0;
+  }
+
+  /** Silence stands for audio the timestamps prove is missing. Rounds down, so text never runs late. */
+  private bridge(state: State, missingNs: number): void {
+    if (!state.samples.length) return;
+    const silence = Math.floor(missingNs / NS_PER_SAMPLE);
+    const samples = new Int16Array(state.samples.length + silence);
+    samples.set(state.samples);
+    state.samples = samples;
+    state.sinceDetect += silence;
   }
 
   takeStats(): Partial<Record<TrackKind, LiveTrackStats>> {
@@ -160,6 +203,11 @@ export class LivePcmEngine {
         samples: 0,
         squares: 0,
         peak: 0,
+        bridgedGaps: 0,
+        resetGaps: 0,
+        gapMs: 0,
+        lostFrames: 0,
+        slowestHopMs: 0,
       };
       this.counts.set(track, counts);
     }

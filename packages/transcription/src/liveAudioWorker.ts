@@ -49,6 +49,11 @@ const STAT_FIELDS = [
   'samples',
   'rms',
   'peak',
+  'bridgedGaps',
+  'resetGaps',
+  'gapMs',
+  'lostFrames',
+  'slowestHopMs',
 ] as const;
 
 /** Copies known numbers only, so nothing else from the worker can reach a log. */
@@ -88,6 +93,8 @@ interface Run {
 
 /** Owns only live processes and its own scratch directory, never a recording path or lock. */
 export class LiveAudioWorker {
+  /** Totals since start. Sequence losses beyond these were lost before the queue. */
+  private readonly overflowFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
   private readonly queues = new Map<TrackKind, LivePcmFrame[]>([
     ['mic', []],
     ['meeting', []],
@@ -153,7 +160,10 @@ export class LiveAudioWorker {
         generation: frame.generation,
         boundary: frame.boundary,
       });
-      if (queue.length === this.capacity) this.skip(queue.shift()!, 'overflow');
+      if (queue.length === this.capacity) {
+        this.skip(queue.shift()!, 'overflow');
+        this.overflowFrames[frame.track] += 1;
+      }
       if (this.closed) return false;
       queue.push(copy);
       this.lag();
@@ -182,7 +192,11 @@ export class LiveAudioWorker {
       queuedFrames: [...this.queues.values()].reduce((count, queue) => count + queue.length, 0),
       lastAckAtMs: run?.lastAckAtMs ?? null,
       lastSegmentAtMs: run?.lastSegmentAtMs ?? null,
-      stats: run?.stats ?? {},
+      stats: {
+        ...run?.stats,
+        'mic.overflowFrames': this.overflowFrames.mic,
+        'meeting.overflowFrames': this.overflowFrames.meeting,
+      },
       statsAtMs: run?.statsAtMs ?? null,
     };
   }
