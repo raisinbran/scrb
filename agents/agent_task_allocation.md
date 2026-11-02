@@ -53,6 +53,15 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 - **Diagnose only when warranted.** For substantial unexplained quota drain, examine available local session telemetry for spawned agents, repeated waits or terminal polls, parent-model calls, and cached-input volume. Never commit private session content, secrets, or personal transcripts to Git.
 - **Treat wait-timeout tuning as an optional experiment.** Longer `multi_agent_v2` waits (including a reported 25-minute configuration) are not a verified universal Codex Desktop fix. Verify installed-version and mode support, back up the original configuration, and test reversibly before adopting; do not mandate or silently change settings.
 
+#### Codex failure diagnosis and correction
+
+- **Confirm the requirement.** First check failures and anomalies against documented acceptance criteria and recording/data safety. Record harmless outliers without treating them as defects.
+- **Diagnose independently.** Use relevant logs, source inspection, and the smallest useful reproduction to identify a confirmed in-scope failure. Separate permission is not needed just to investigate.
+- **Fix low-risk issues in scope.** Correct straightforward setup errors or small defects within assigned files, add focused regression coverage, and preserve valid passing evidence.
+- **Escalate high-risk changes.** Before changing native capture, durable recording/recovery, deletion, security/IPC, protected interfaces, or assignment scope, give the owner the likely cause, smallest proposed fix, safety impact, and test plan for approval.
+- **Stop inconclusive loops.** If one focused diagnostic cycle finds no credible cause, report findings and uncertainties instead of broadening the investigation or repeating the same checks. A follow-up cycle needs a specific new assignment.
+- **Limit repeat testing.** Do not automatically rerun passing broad suites, physical checks, or long acceptance tests. Document why repeats are needed; long reruns require owner approval.
+
 ## Decision order
 
 1. **Can ChatGPT Chat complete the task safely in the cloud?** Assign it there first, with independent QA for any code changes.
