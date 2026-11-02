@@ -5,7 +5,7 @@ import {
   readFileSync, readdirSync, statSync, writeFileSync, rmSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -83,12 +83,18 @@ export function checkLiveProgress(samples) {
   let previous = null;
   let noProgressSec = 0;
   let maxStallSec = 0;
+  let audibleIntervals = 0;
+  let progressedIntervals = 0;
   for (const sample of samples) {
     const elapsedSec = finiteNumber(sample?.elapsedSec);
     const meetingWords = finiteNumber(sample?.meetingWords);
     ensure(elapsedSec !== null && meetingWords !== null && typeof sample.speechPresent === 'boolean', 'Invalid live sample');
     if (previous) {
       ensure(elapsedSec > previous.elapsedSec && meetingWords >= previous.meetingWords, 'Nonmonotonic live samples');
+      if (sample.speechPresent && previous.speechPresent) {
+        audibleIntervals++;
+        if (meetingWords > previous.meetingWords) progressedIntervals++;
+      }
       noProgressSec = sample.speechPresent && previous.speechPresent && meetingWords === previous.meetingWords
         ? noProgressSec + elapsedSec - previous.elapsedSec
         : 0;
@@ -97,7 +103,7 @@ export function checkLiveProgress(samples) {
     previous = { elapsedSec, meetingWords, speechPresent: sample.speechPresent };
   }
   return {
-    status: maxStallSec >= STALL_LIMIT_SEC ? 'fail' : 'no-stall-detected',
+    status: maxStallSec >= STALL_LIMIT_SEC ? 'fail' : audibleIntervals && progressedIntervals ? 'no-stall-detected' : 'unverified',
     maxStallSec, samples: samples.length,
   };
 }
@@ -166,6 +172,8 @@ export function summarize(meta, metrics, items, exitCode) {
 }
 
 function publish(report) {
+  const remote = git(['remote', 'get-url', 'origin']);
+  ensure(/github\.com[:/]raisinbran\/scrb(?:\.git)?$/i.test(remote), 'Origin must be raisinbran/scrb');
   const id = report.runId;
   const branch = 'rosmont/gate-evidence-' + report.platform + '-' + id;
   const output = mkdtempSync(join(tmpdir(), 'scrb-gate-publish-'));
@@ -186,6 +194,7 @@ function publish(report) {
   } finally {
     if (registered) {
       try { git(['worktree', 'remove', '--force', output]); } catch { /* Keep the original error. */ }
+      try { git(['branch', '-D', branch]); } catch { /* No local branch to remove. */ }
     }
     if (existsSync(output)) rmSync(output, { recursive: true, force: true });
   }
