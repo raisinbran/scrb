@@ -125,6 +125,20 @@ describe('createHybridBackend', () => {
       expect(await backend.call('getSummary', { meetingId: REAL_ID })).toEqual(summary);
     });
 
+    it('sends playback of a real meeting to the real clock and its events back', async () => {
+      const real = realWithMeeting();
+      const backend = createHybridBackend(real, mock);
+      backend.on('playbackPosition', vi.fn());
+      expect(real.on).toHaveBeenCalledWith('playbackPosition', expect.any(Function));
+      const request = { meetingId: REAL_ID, positionMs: 0 };
+      await backend.call('seekAudio', request).catch(() => undefined);
+      await backend.call('getPlaybackMedia', request).catch(() => undefined);
+      await backend.call('pauseAudio', { meetingId: REAL_ID }).catch(() => undefined);
+      expect(real.call).toHaveBeenCalledWith('seekAudio', request);
+      expect(real.call).toHaveBeenCalledWith('getPlaybackMedia', request);
+      expect(real.call).toHaveBeenCalledWith('pauseAudio', { meetingId: REAL_ID });
+    });
+
     it('answers for a sample from the mock', async () => {
       const backend = createHybridBackend(realWithMeeting(), mock);
       const [sample] = await mock.call('listMeetings', {});

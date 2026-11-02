@@ -29,6 +29,9 @@ const MEETING_CALLS: ReadonlySet<CallName> = new Set([
   'getTranscript',
   'getSummary',
   'deleteMeeting',
+  'seekAudio',
+  'pauseAudio',
+  'getPlaybackMedia',
 ]);
 const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'recordingStateChanged',
@@ -36,6 +39,7 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'levelMeter',
   'transcriptionLag',
   'transcriptChanged',
+  'playbackPosition',
 ]);
 
 /**
