@@ -13,7 +13,11 @@ async function fixture() {
   await writeFile(selected, 'invented audio bytes');
   const emit = vi.fn();
   const applied = vi.fn(async (): Promise<void> => undefined);
-  const discard = vi.fn(async () => ({ meetingId: 'imported-1', ok: true, remaining: [] as string[] }));
+  const discard = vi.fn(async () => ({
+    meetingId: 'imported-1',
+    ok: true,
+    remaining: [] as string[],
+  }));
   const update = vi.fn(async () => undefined);
   const library = {
     paths: { root, cache: join(root, 'cache') },
