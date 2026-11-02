@@ -1,6 +1,6 @@
 # Task 19 — separate secure playback integration handoff
 
-**Status:** Implementation preparation only; Task 19's plan was approved in Issue #31, not a contract change or Gate 3 acceptance.
+**Status:** Integrated: the owner approved `getPlaybackMedia` in PR #39 and playback is connected (see the end of this note). Sections below are the preparation record. This is not Gate 3 acceptance.
 **Base:** PR #30 `8e02da6f1166f01a29665d9eba7fc92e6319b664`.
 **Boundary:** Work stays on this Task 19 branch; do not edit PR #33's import files or merge either PR.
 
@@ -55,3 +55,18 @@ This is an **unapproved contract proposal**, not permission to edit `packages/co
 - `playback-media-source.test.ts` uses only invented bytes and covers authorized bounded reads, unlisted/deleted resources, cross-meeting lookup, symlink escape (macOS/Linux) and incomplete live log lines.
 - **Not connected:** protocol, nonce/session management, `seekAudio`, `pauseAudio`, renderer playback, gap alignment or range HTTP semantics. Do not treat this reader as a complete security review or functioning playback.
 - The single grant proposal above **still requires express owner approval** before `packages/contracts/` or any new IPC/security settings are edited. The source reader is internal to the main process and does not expose a renderer API.
+
+## Integrated on the Task 19 playback branch
+
+- **Contract:** `getPlaybackMedia` in the approved shape, nothing else.
+- **Main process:** `apps/desktop/src/main/playback-media.ts` owns the clock, the session nonce and the per-chunk grants, and serves `scribe-media://`. `security.ts` registers the scheme; the page CSP adds only `media-src scribe-media:`.
+- **Renderer:** `apps/desktop/src/ui/lib/playback-engine.ts` plays one `Audio` per chunk and track, driven by `seekAudio`, `pauseAudio` and `playbackPosition`.
+- **Gaps:** a span with no track jumps to the next audio and keeps original timeline time. A span with one track plays that track only.
+- **Evidence:** `apps/desktop/e2e/playback.spec.ts` runs in real sandboxed Electron with invented tones.
+
+### Known limits
+
+- Revocation stops the main process serving a URL. Bytes Chromium already buffered stay in that renderer: a new `<audio>` on a revoked URL it has read can still load them. The smoke proves revocation on a granted URL that was never read.
+- PR #33 is needed before imported meetings play: this base writes schema 1 manifests, which playback refuses.
+- `apps/desktop/src/main/backend.ts` is shared with PR #33: this change wraps the meeting handlers and stops playback in `close`.
+- Not yet checked: Windows, listening by ear for clicks at chunk joins on real capture, capture staying uninterrupted during live playback.

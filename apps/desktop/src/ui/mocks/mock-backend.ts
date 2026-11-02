@@ -1071,6 +1071,8 @@ export class MockBackend implements Backend {
       this.stopPlayback();
       this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
     },
+    // The mock moves the clock only; it has no audio files to serve.
+    getPlaybackMedia: () => ({ chunks: [], nextPositionMs: null }),
 
     listSpeakerSuggestions: ({ meetingId }) => {
       if (meetingId) this.findMeeting(meetingId);
