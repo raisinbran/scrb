@@ -1,11 +1,11 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ImportCoordinator } from './imports.ts';
 import type { ImportResult } from '@scrb/app-core';
-import type { Library } from '@scrb/storage';
+import { Library } from '@scrb/storage';
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'scrb-import-integration-'));
@@ -301,4 +301,94 @@ describe('Electron import coordination', () => {
     expect(f.deps.library.createMeeting).not.toHaveBeenCalled();
     await f.coordinator.shutdown();
   });
+  it('reports failed stage removal without cancelling', async () => {
+    const f = await fixture();
+    f.deps.run.mockRejectedValue(new Error('invented decoder failure'));
+    f.deps.removeStaging = vi.fn(async () => {
+      throw Object.assign(new Error('private stage path'), { code: 'EACCES' });
+    });
+    const before = await stat(f.selected);
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
+    await vi.waitFor(() =>
+      expect(f.emit).toHaveBeenCalledWith(
+        'importFailed',
+        expect.objectContaining({
+          importId,
+          message: 'Import cleanup was incomplete. Restart to retry recovery.',
+        }),
+      ),
+    );
+    expect(f.emit).not.toHaveBeenCalledWith('importCancelled', expect.anything());
+    expect(JSON.stringify(vi.mocked(f.library.logger.log).mock.calls)).not.toContain(f.root);
+    expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+    expect((await stat(f.selected)).mtimeMs).toBe(before.mtimeMs);
+    await f.coordinator.shutdown();
+  });
+
+  it('waits for import cleanup before recording', async () => {
+    const f = await fixture();
+    f.deps.run.mockImplementation(async ({ signal }: { signal: AbortSignal }) => {
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+      });
+      throw new Error('unreachable');
+    });
+    let releaseCleanup!: () => void;
+    let enteredCleanup!: () => void;
+    const entered = new Promise<void>((resolve) => { enteredCleanup = resolve; });
+    f.deps.removeStaging = vi.fn(async (folder: string) => {
+      enteredCleanup();
+      await new Promise<void>((resolve) => { releaseCleanup = resolve; });
+      await rm(folder, { recursive: true, force: true });
+    });
+    const selected = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: selected.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
+    let preemptFinished = false;
+    const preempt = f.coordinator.stopForRecording().then(() => { preemptFinished = true; });
+    await entered;
+    expect(preemptFinished).toBe(false);
+    releaseCleanup();
+    await preempt;
+    expect(preemptFinished).toBe(true);
+    expect(f.emit).toHaveBeenCalledWith('importFailed', expect.objectContaining({
+      importId,
+      reason: 'recordingInProgress',
+    }));
+    expect(f.emit).not.toHaveBeenCalledWith('importCancelled', expect.anything());
+    expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+    await f.coordinator.shutdown();
+  });
+
+  it('reconciles interrupted provisional meetings on reopen', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'scrb-import-reopen-'));
+    const selected = join(root, 'original.wav');
+    await writeFile(selected, 'invented original audio');
+    const before = await stat(selected);
+    const libraryRoot = join(root, 'library');
+    const opened = await Library.open({ root: libraryRoot });
+    const provisional = await opened.createMeeting({
+      title: 'Interrupted import',
+      source: 'imported',
+      status: 'importing',
+    });
+    await opened.close();
+    const reopened = await Library.open({ root: libraryRoot });
+    try {
+      expect(reopened.openReport.discardedImports).toContain(provisional.id);
+      expect(reopened.listMeetings().some((row) => row.id === provisional.id)).toBe(false);
+      expect(await readFile(selected, 'utf8')).toBe('invented original audio');
+      expect((await stat(selected)).mtimeMs).toBe(before.mtimeMs);
+    } finally {
+      await reopened.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
 });
