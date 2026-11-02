@@ -245,7 +245,7 @@ export class ImportCoordinator {
                     code === 'no_audio'
                   ? 'unreadable'
                   : 'internal';
-        this.deps.emit('importFailed', {
+        terminal = { event: 'importFailed', payload: {
           importId: state.importId,
           fileName: state.fileName,
           reason,
