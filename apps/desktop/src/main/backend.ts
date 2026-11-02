@@ -92,7 +92,12 @@ export async function openBackend(
           chooseFile: async () => {
             const picked = await dialog.showOpenDialog({
               properties: ['openFile'],
-              filters: [{ name: 'Audio files', extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'opus', 'ogg'] }],
+              filters: [
+                {
+                  name: 'Audio files',
+                  extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'opus', 'ogg'],
+                },
+              ],
             });
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
