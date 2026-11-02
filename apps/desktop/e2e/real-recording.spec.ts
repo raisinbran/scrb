@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createGateUserData } from './gate-evidence.ts';
 import { join } from 'node:path';
 
 const helper = process.env['SCRB_CAPTURE_HELPER'];
@@ -9,7 +9,7 @@ const helper = process.env['SCRB_CAPTURE_HELPER'];
 test.skip(!helper, 'set SCRB_CAPTURE_HELPER to run');
 
 test('records, pauses, stops and saves real audio from the Live screen', async () => {
-  const userData = mkdtempSync(join(tmpdir(), 'scrb-real-'));
+  const userData = createGateUserData('scrb-real');
   const library = join(userData, 'library');
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
