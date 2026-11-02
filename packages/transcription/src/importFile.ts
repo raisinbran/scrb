@@ -59,8 +59,9 @@ export class ImportError extends Error {
   constructor(
     readonly code: ImportFailure,
     detail?: string,
+    cause?: unknown,
   ) {
-    super(detail ? `${code}: ${detail}` : code);
+    super(detail ? `${code}: ${detail}` : code, cause === undefined ? undefined : { cause });
     this.name = 'ImportError';
     this.userMessage = MESSAGES[code];
   }
@@ -358,7 +359,7 @@ function classify(
   if (err instanceof ImportError) return err;
   const code = (err as NodeJS.ErrnoException).code;
   if (code === 'ENOSPC') return new ImportError('disk_full');
-  return new ImportError('unreadable', (err as Error).message);
+  return new ImportError('unreadable', (err as Error).message, err);
 }
 
 async function checkSource(o: ImportOptions, signal: AbortSignal): Promise<ProbeResult> {
