@@ -162,14 +162,16 @@ export class ImportCoordinator {
     const stageRoot = join(library.paths.cache, 'imports');
     const staging = join(stageRoot, state.importId);
     let meetingId: string | null = null;
-    let terminal: { event: 'importFinished' | 'importCancelled' | 'importFailed'; payload: unknown } | null =
-      null;
+    let terminal: {
+      event: 'importFinished' | 'importCancelled' | 'importFailed';
+      payload: unknown;
+    } | null = null;
     let cleanupIncomplete = false;
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
       const job = () =>
-        this.deps.run({  
+        this.deps.run({
           sourcePath,
           meetingDir: staging,
           signal: abort.signal,
