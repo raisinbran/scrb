@@ -90,11 +90,25 @@ it('waits for persistence before publishing', async () => {
   sink.offer(segment());
   await vi.waitFor(() => expect(append).toHaveBeenCalledOnce());
   expect(emit.mock.calls.filter(([n]) => n === 'transcriptChanged')).toEqual([]);
+  expect(sink.getProgress()).toMatchObject({
+    lastSavedAtMs: null,
+    lastPublishedAtMs: null,
+    lastRevision: null,
+    queued: 0,
+    draining: true,
+  });
   release();
   await sink.stop();
   expect(emit.mock.calls.find(([n]) => n === 'transcriptChanged')?.[1].revision).toBe(
     (await library.readTranscript(id)).revision,
   );
+  expect(sink.getProgress()).toMatchObject({
+    lastSavedAtMs: expect.any(Number),
+    lastPublishedAtMs: expect.any(Number),
+    lastRevision: (await library.readTranscript(id)).revision,
+    queued: 0,
+    draining: false,
+  });
 });
 
 it('preserves corrections during live revisions', async () => {

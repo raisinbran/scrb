@@ -82,6 +82,7 @@ vi.mock('@scrb/capture', () => ({
     onEvent(listener: (event: unknown) => void): void {
       fake.workerEvents.push(listener);
     }
+    onExit = vi.fn();
   },
 }));
 vi.mock('./sources.ts', () => ({
