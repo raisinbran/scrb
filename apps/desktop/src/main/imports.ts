@@ -5,6 +5,7 @@ import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
   vocabularyHint,
+  type LargeModelGate,
   type ImportResult,
   type ImportPhase,
   type Progress,
@@ -35,6 +36,7 @@ export interface ImportDependencies {
   privacyBanner(): Promise<boolean>;
   emit: Emit;
   removeStaging?: ((folder: string) => Promise<void>) | undefined;
+  modelGate?: LargeModelGate;
 }
 
 const IMPORT_STAGE_NAME =
@@ -50,7 +52,7 @@ const STAGES: Record<ImportPhase, ActiveImport['stage']> = {
 
 /** One model-heavy import at a time. File selection grants no general filesystem access to the UI. */
 export class ImportCoordinator {
-  private readonly tokens = new Map<string, string>();
+  private readonly tokens = new Map<string, { path: string; pickedAt: number }>();
   private starting = false;
   private running: {
     state: ActiveImport;
@@ -98,7 +100,7 @@ export class ImportCoordinator {
     }
     const fileToken = randomUUID();
     if (this.tokens.size >= 8) this.tokens.delete(this.tokens.keys().next().value as string);
-    this.tokens.set(fileToken, file);
+    this.tokens.set(fileToken, { path: file, pickedAt: Date.now() });
     return {
       fileToken,
       fileName: basename(file),
@@ -122,10 +124,11 @@ export class ImportCoordinator {
     let privacyBannerRequired: boolean;
     try {
       const selected = this.tokens.get(input.fileToken);
-      if (!selected) {
+      if (!selected || Date.now() - selected.pickedAt > 600_000) {
+        this.tokens.delete(input.fileToken);
         throw new ContractError({ code: 'notFound', message: 'Choose the audio file again.' });
       }
-      sourcePath = selected;
+      sourcePath = selected.path;
       privacyBannerRequired = await this.deps.privacyBanner().catch(() => true);
       if (this.deps.recordingBusy()) {
         throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
@@ -162,7 +165,7 @@ export class ImportCoordinator {
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
-      const result = await this.deps.run({
+      const job = () => this.deps.run({
         sourcePath,
         meetingDir: staging,
         signal: abort.signal,
@@ -178,6 +181,9 @@ export class ImportCoordinator {
           });
         },
       });
+      const result = this.deps.modelGate
+        ? await this.deps.modelGate.run(job, abort.signal)
+        : await job();
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({
