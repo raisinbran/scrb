@@ -30,6 +30,14 @@ jobs:
           path: vendor/ffmpeg
           persist-credentials: false
 
+      - name: Verify pinned upstream checkout
+        shell: pwsh
+        run: |
+          $actual = (git -C vendor/ffmpeg rev-parse HEAD).Trim()
+          if ($actual -ne 'd32b387f2b0a484599d4587d651891f0c63c4238') {
+            throw "Unexpected FFmpeg source commit: $actual"
+          }
+
       # Tools are installed on the disposable GitHub runner, not the user's PC.
       # UCRT64 builds native Windows binaries; MSYS2 tools run only at build time.
       - uses: msys2/setup-msys2@v2
@@ -56,7 +64,6 @@ jobs:
           mkdir -p "$out"
           test "$(pkg-config --modversion opus)" = "1.6.1"
           cd "$repo/vendor/ffmpeg"
-          test "$(git rev-parse HEAD)" = "d32b387f2b0a484599d4587d651891f0c63c4238"
 
           ./configure \
             --disable-everything --disable-autodetect --disable-doc --disable-network \
