@@ -260,6 +260,59 @@ describe('LiveScreen', () => {
   });
 
   describe('transcript', () => {
+    it('renders real transcript events in Live', async () => {
+      const real = new MockBackend();
+      try {
+        render(
+          <BackendProvider backend={createHybridBackend(real, backend)}>
+            <LiveScreen />
+          </BackendProvider>,
+        );
+        await advance(0);
+        fireEvent.click(button('Start'));
+        await advance(1000);
+
+        const meetingId = (await real.call('getRecordingSnapshot')).state.meetingId as string;
+        const page = await real.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const original = page.segments[0] as TranscriptSegment;
+        const startMs = original.endMs + 1;
+        const endMs = startMs + 100;
+        expect(words().some((word) => word.textContent === 'routedword')).toBe(false);
+
+        act(() =>
+          real.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: {
+              kind: 'append',
+              segments: [
+                {
+                  ...original,
+                  id: 'real-routed-segment',
+                  startMs,
+                  endMs,
+                  words: [
+                    {
+                      ...original.words[0]!,
+                      id: 'real-routed-word',
+                      text: 'routedword',
+                      startMs,
+                      endMs,
+                    },
+                  ],
+                },
+              ],
+            },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+
+        expect(words().some((word) => word.textContent === 'routedword')).toBe(true);
+      } finally {
+        real.dispose();
+      }
+    });
     it('offsets each row slot, so no slot lies over the rows above it', async () => {
       await startMeeting(3);
       const slots = [...document.querySelectorAll<HTMLElement>('[data-row-index]')];
