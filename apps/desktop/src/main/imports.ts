@@ -162,6 +162,8 @@ export class ImportCoordinator {
     const stageRoot = join(library.paths.cache, 'imports');
     const staging = join(stageRoot, state.importId);
     let meetingId: string | null = null;
+    let terminal: { event: 'importFinished' | 'importCancelled' | 'importFailed'; payload: unknown } | null = null;
+    let cleanupIncomplete = false;
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
@@ -202,30 +204,32 @@ export class ImportCoordinator {
       await library.applyFinalPass(meetingId, toModelReplacement(result.transcript));
       if (abort.signal.aborted) throw new Error('cancelled');
       await library.updateMeeting(meetingId, { status: 'ready' });
-      this.deps.emit('importFinished', { importId: state.importId, meetingId });
+      terminal = { event: 'importFinished', payload: { importId: state.importId, meetingId } };
     } catch (error) {
       if (meetingId !== null) {
         try {
           const report = await library.discardImport(meetingId);
           if (!report.ok) {
+            cleanupIncomplete = true;
             library.logger.log('error', 'import-discard-incomplete', {
               meetingId,
               leftCount: report.remaining.length,
             });
           }
-        } catch {
-          // Reconciliation on next open handles unfinished import folders.
+        } catch (cleanupError) {
+          cleanupIncomplete = true;
+          library.logger.log('error', 'import-discard-failed', { meetingId, ...errorFields(cleanupError) });
         }
       }
       if (abort.signal.aborted && this.interruptedByRecording) {
-        this.deps.emit('importFailed', {
+        terminal = { event: 'importFailed', payload: {
           importId: state.importId,
           fileName: state.fileName,
           reason: 'recordingInProgress',
           message: 'Recording took priority. Retry the import.',
-        });
+        } };
       } else if (abort.signal.aborted) {
-        this.deps.emit('importCancelled', { importId: state.importId, fileName: state.fileName });
+        terminal = { event: 'importCancelled', payload: { importId: state.importId, fileName: state.fileName } };
       } else {
         const code = (error as { code?: string }).code;
         const reason: ImportFailureReason =
@@ -253,10 +257,29 @@ export class ImportCoordinator {
                 : reason === 'unsupportedFormat'
                   ? 'This audio format is not supported.'
                   : 'Import did not finish. No meeting was saved.',
-        });
+        } };
       }
     } finally {
-      await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+      try {
+        await rm(staging, { recursive: true, force: true });
+      } catch (cleanupError) {
+        cleanupIncomplete = true;
+        library.logger.log('error', 'import-stage-cleanup-failed', errorFields(cleanupError));
+      }
+      if (cleanupIncomplete && terminal?.event !== 'importFinished') {
+        terminal = {
+          event: 'importFailed',
+          payload: {
+            importId: state.importId,
+            fileName: state.fileName,
+            reason: 'internal',
+            message: 'Import cleanup was incomplete. Restart to retry recovery.',
+          },
+        };
+      }
+      if (terminal?.event === 'importFinished') this.deps.emit('importFinished', terminal.payload as BackendEvents['importFinished']);
+      else if (terminal?.event === 'importCancelled') this.deps.emit('importCancelled', terminal.payload as BackendEvents['importCancelled']);
+      else if (terminal?.event === 'importFailed') this.deps.emit('importFailed', terminal.payload as BackendEvents['importFailed']);
       this.completed.add(state.importId);
       if (this.completed.size > 50)
         this.completed.delete(this.completed.values().next().value as string);
