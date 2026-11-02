@@ -183,7 +183,6 @@ describe('Electron import coordination', () => {
     await f.coordinator.shutdown();
   });
 
-
   it('reports incomplete provisional deletion as failure rather than successful cancellation', async () => {
     const f = await fixture();
     let unblock!: () => void;
@@ -193,7 +192,11 @@ describe('Electron import coordination', () => {
           unblock = resolve;
         }),
     );
-    f.discard.mockResolvedValue({ meetingId: 'imported-1', ok: false, remaining: ['index:meetings'] });
+    f.discard.mockResolvedValue({
+      meetingId: 'imported-1',
+      ok: false,
+      remaining: ['index:meetings'],
+    });
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
     const { importId } = (await f.coordinator.handlers.importAudioFile!({
       fileToken: file.fileToken,
