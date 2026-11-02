@@ -58,6 +58,7 @@ private:
         int64_t nextNs = 0;
         int64_t lastEndNs = 0;
         int64_t expectedInputNs = 0;
+        int64_t inputAnchorNs = 0;
     };
 
     void Reset(State& state, uint32_t generation, uint32_t rate, int64_t startNs);
@@ -110,6 +111,13 @@ private:
     bool OpenPipe();
     bool WriteBytes(const uint8_t* data, DWORD size);
 
+    struct DeferredBoundary {
+        std::atomic<bool> pending{false};
+        std::atomic<int64_t> atNs{0};
+        std::atomic<uint32_t> generation{0};
+        std::atomic<uint32_t> skippedFrames{0};
+    };
+
     const size_t capacity_;
     std::wstring pipeName_;
     LivePcmConverter::FrameFn testWriter_;
@@ -123,6 +131,7 @@ private:
     std::atomic<bool> disabled_{false};
     std::atomic<HANDLE> pipe_{INVALID_HANDLE_VALUE};
     std::atomic<uint32_t> dropped_[2]{};
+    DeferredBoundary deferred_[2];
     LiveFeedStats stats_;
     std::thread thread_;
 };

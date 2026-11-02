@@ -1,9 +1,11 @@
 #include <Windows.h>
 
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -123,6 +125,32 @@ void TestResamplerRejectsAliasing() {
     const double stop = ConvertedRms(12000);
     CHECK(stop < pass * 0.1);
     printf("  RMS 1 kHz %.1f, 12 kHz %.1f, ratio %.4f\n", pass, stop, stop / pass);
+}
+
+void TestTimestampJitterDoesNotDropSpeech() {
+    puts("Live feed: accepted timestamp jitter keeps samples contiguous");
+    for (const auto& stamps : {
+             std::array<int64_t, 3>{0, 11500000, 20000000},
+             std::array<int64_t, 3>{0, 26000000, 4000000},
+         }) {
+        std::vector<LiveWireFrame> frames;
+        LivePcmConverter converter([&](const LiveWireFrame& frame) {
+            frames.push_back(frame);
+            return true;
+        });
+        std::vector<int16_t> pcm(480, 100);
+        for (int64_t stamp : stamps)
+            CHECK(converter.Pcm(0, stamp, 48000, 0, pcm.data(), static_cast<uint32_t>(pcm.size())));
+        CHECK(converter.Boundary(0, 30 * kNsPerMs, 0));
+        CHECK(frames.size() == 2);
+        if (frames.size() == 2) {
+            CHECK(frames[0].samples.size() == 485);
+            CHECK(frames[0].sequence == 0);
+            CHECK(frames[0].startNs == 312500);
+            CHECK(frames[1].boundary && frames[1].sequence == 1);
+            CHECK(frames[1].startNs == frames[0].startNs + 485 * 62500);
+        }
+    }
 }
 
 void TestDropBeforeBoundaryStaysVisible() {
@@ -282,6 +310,70 @@ void TestStallKeepsDurableCapture() {
     CloseHandle(entered);
 }
 
+void TestBoundarySurvivesFullRing() {
+    puts("Live feed: full ring retains a pause boundary");
+    HANDLE entered = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    HANDLE release = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    std::vector<LiveWireFrame> frames;
+    {
+        LivePcmFeed feed([&](const LiveWireFrame& frame) {
+            if (frames.empty()) {
+                SetEvent(entered);
+                WaitForSingleObject(release, INFINITE);
+            }
+            frames.push_back(frame);
+            return true;
+        }, 2);
+        std::vector<int16_t> pcm(1600, 100);
+        CHECK(feed.Offer(0, 0, 16000, 0, pcm.data(), static_cast<uint32_t>(pcm.size())));
+        CHECK(WaitForSingleObject(entered, 1000) == WAIT_OBJECT_0);
+        CHECK(feed.Offer(0, 100 * kNsPerMs, 16000, 0, pcm.data(), static_cast<uint32_t>(pcm.size())));
+        CHECK(feed.Offer(0, 200 * kNsPerMs, 16000, 0, pcm.data(), static_cast<uint32_t>(pcm.size())));
+        CHECK(feed.Boundary(0, 300 * kNsPerMs, 0));
+        CHECK(!feed.Offer(0, 400 * kNsPerMs, 16000, 1, pcm.data(), static_cast<uint32_t>(pcm.size())));
+        const auto start = std::chrono::steady_clock::now();
+        feed.Stop();
+        CHECK(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start).count() < 100);
+        SetEvent(release);
+    }
+    CHECK(frames.size() == 5);
+    if (frames.size() == 5) {
+        CHECK(frames.back().boundary);
+        CHECK(frames.back().sequence == 4);
+        CHECK(frames.back().generation == 0);
+        CHECK(frames.back().startNs >= 300 * kNsPerMs);
+    }
+    CloseHandle(release);
+    CloseHandle(entered);
+}
+
+void TestThrowingWriterPreservesCapture() {
+    puts("Live feed: exporter exceptions do not terminate durable capture");
+    LivePcmFeed feed([](const LiveWireFrame&) -> bool {
+        throw std::runtime_error("injected exporter failure");
+    }, 2);
+    std::vector<int16_t> pcm(1600, 100);
+    CHECK(feed.Offer(0, 0, 16000, 0, pcm.data(), static_cast<uint32_t>(pcm.size())));
+    CHECK(WaitUntil([&] { return feed.stats().disconnects.load() == 1; }));
+    MemorySink store;
+    PipelineConfig config;
+    config.sessionId = "test";
+    config.track = "microphone";
+    config.live = &feed;
+    TrackPipeline pipeline(config, store, [](const std::string&, const JsonObject&) {});
+    pipeline.OnStreamOpened({"mic", "mic", "internal"}, "start");
+    pipeline.Start(0, 1);
+    Packet packet;
+    packet.frames = 480;
+    packet.generation = 1;
+    packet.pcm.assign(packet.frames, 100);
+    pipeline.OnPacket(packet);
+    pipeline.Stop();
+    CHECK(store.written == packet.frames);
+    CHECK(feed.stats().disconnects.load() == 1);
+}
+
 void TestBrokenPipeDisablesFeed() {
     puts("Live feed: broken pipe disables only live output");
     const std::wstring name = L"\\\\.\\pipe\\scrb-live-test-" + std::to_wstring(GetCurrentProcessId());
@@ -427,10 +519,13 @@ int main(int argc, char** argv) {
         return WriteSixtySeconds(static_cast<uint32_t>(std::stoul(argv[2])), argv[3]);
     TestContinuousRates();
     TestSplitsAndGenerations();
+    TestTimestampJitterDoesNotDropSpeech();
     TestPipelineGenerationsStayIndependent();
     TestResamplerRejectsAliasing();
     TestDropBeforeBoundaryStaysVisible();
     TestStallKeepsDurableCapture();
+    TestBoundarySurvivesFullRing();
+    TestThrowingWriterPreservesCapture();
     TestBrokenPipeDisablesFeed();
     TestStopFlushesHealthyPipe();
     TestStopCancelsStalledPipe();

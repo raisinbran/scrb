@@ -48,6 +48,7 @@ void LivePcmConverter::Reset(State& state, uint32_t generation, uint32_t rate, i
                                                   static_cast<uint64_t>(kNsPerSec) / rate);
     state.nextNs = (std::max)(startNs + delayNs, state.lastEndNs);
     state.expectedInputNs = startNs;
+    state.inputAnchorNs = startNs;
 }
 
 bool LivePcmConverter::Pcm(uint8_t track, int64_t startNs, uint32_t inputRate,
@@ -55,10 +56,15 @@ bool LivePcmConverter::Pcm(uint8_t track, int64_t startNs, uint32_t inputRate,
                            uint32_t skippedFrames) {
     if (track > 1 || startNs < 0 || inputRate < kLiveRate || !samples || !count) return false;
     State& state = states_[track];
-    const int64_t tolerance = kNsPerSec / inputRate + kNsPerMs;
+    const uint64_t seen = state.inputSamples;
+    const int64_t anchoredNs = state.inputAnchorNs +
+        static_cast<int64_t>((seen / inputRate) * kNsPerSec +
+                             (seen % inputRate) * kNsPerSec / inputRate);
+    // The pipeline accepts up to 20 ms of hands-free timestamp jitter.
+    const bool stampGap = std::llabs(startNs - state.expectedInputNs) > 20 * kNsPerMs &&
+                          std::llabs(startNs - anchoredNs) > 20 * kNsPerMs;
     const bool gap = state.active &&
-        (state.generation != generation || state.inputRate != inputRate || skippedFrames ||
-         std::llabs(startNs - state.expectedInputNs) > tolerance);
+        (state.generation != generation || state.inputRate != inputRate || skippedFrames || stampGap);
     if (!state.active || gap) {
         state.sequence += skippedFrames + (gap && !skippedFrames ? 1 : 0);
         Reset(state, generation, inputRate, startNs);
@@ -188,6 +194,10 @@ bool LivePcmFeed::Offer(uint8_t track, int64_t startNs, uint32_t inputRate,
         NoteDrop(track, inputRate, count);
         return false;
     }
+    if (deferred_[track].pending.load(std::memory_order_acquire)) {
+        NoteDrop(track, inputRate, count);
+        return false;
+    }
     Entry entry;
     entry.track = track;
     entry.startNs = startNs;
@@ -201,15 +211,28 @@ bool LivePcmFeed::Offer(uint8_t track, int64_t startNs, uint32_t inputRate,
 }
 
 bool LivePcmFeed::Boundary(uint8_t track, int64_t atNs, uint32_t generation) noexcept {
-    if (track > 1 || atNs < 0) return false;
+    if (track > 1 || atNs < 0 || closing_ || disabled_) return false;
+    DeferredBoundary& deferred = deferred_[track];
+    if (deferred.pending.load(std::memory_order_acquire)) {
+        // The first pending boundary already closes any retained speech.
+        NoteDrop(track, kLiveRate, 0);
+        return true;
+    }
     Entry entry;
     entry.boundary = true;
     entry.track = track;
     entry.startNs = atNs;
     entry.generation = generation;
     if (Enqueue(std::move(entry))) return true;
-    NoteDrop(track, kLiveRate, 0);
-    return false;
+    if (closing_ || disabled_) return false;
+    // Keep a transition marker even when a full ring or contended try-lock
+    // refuses its entry. Resumed PCM waits for the exporter to emit it.
+    deferred.atNs.store(atNs, std::memory_order_relaxed);
+    deferred.generation.store(generation, std::memory_order_relaxed);
+    deferred.skippedFrames.store(dropped_[track].exchange(0), std::memory_order_relaxed);
+    deferred.pending.store(true, std::memory_order_release);
+    cv_.notify_one();
+    return true;
 }
 
 void LivePcmFeed::Stop() noexcept {
@@ -218,28 +241,56 @@ void LivePcmFeed::Stop() noexcept {
 }
 
 void LivePcmFeed::Loop() {
-    LivePcmConverter converter([this](const LiveWireFrame& frame) { return WriteFrame(frame); });
-    for (;;) {
-        Entry entry;
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-            cv_.wait_for(lock, std::chrono::milliseconds(10), [this] { return closing_ || size_; });
-            if (closing_ && !size_) break;
-            if (!size_) continue;
-            entry = std::move(ring_[head_]);
-            head_ = (head_ + 1) % capacity_;
-            --size_;
+    try {
+        LivePcmConverter converter([this](const LiveWireFrame& frame) { return WriteFrame(frame); });
+        for (;;) {
+            Entry entry;
+            DeferredBoundary* pending = nullptr;
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                cv_.wait_for(lock, std::chrono::milliseconds(10), [this] {
+                    return closing_ || size_ || deferred_[0].pending.load(std::memory_order_acquire) ||
+                           deferred_[1].pending.load(std::memory_order_acquire);
+                });
+                auto takeBoundary = [&](uint8_t track) {
+                    DeferredBoundary& marker = deferred_[track];
+                    if (!marker.pending.load(std::memory_order_acquire)) return false;
+                    for (size_t i = 0; i < size_; ++i)
+                        if (ring_[(head_ + i) % capacity_].track == track) return false;
+                    entry.boundary = true;
+                    entry.track = track;
+                    entry.startNs = marker.atNs.load(std::memory_order_relaxed);
+                    entry.generation = marker.generation.load(std::memory_order_relaxed);
+                    entry.skippedFrames = marker.skippedFrames.load(std::memory_order_relaxed);
+                    pending = &marker;
+                    return true;
+                };
+                if (!takeBoundary(0) && !takeBoundary(1)) {
+                    if (!size_) {
+                        if (closing_) break;
+                        continue;
+                    }
+                    entry = std::move(ring_[head_]);
+                    head_ = (head_ + 1) % capacity_;
+                    --size_;
+                }
+            }
+            const bool ok = entry.boundary
+                ? converter.Boundary(entry.track, entry.startNs, entry.generation, entry.skippedFrames)
+                : converter.Pcm(entry.track, entry.startNs, entry.rate, entry.generation,
+                                entry.samples.data(), entry.count, entry.skippedFrames);
+            if (pending) pending->pending.store(false, std::memory_order_release);
+            stats_.processed++;
+            if (!ok) {
+                disabled_ = true;
+                if (!closing_) stats_.disconnects++;
+                break;
+            }
         }
-        const bool ok = entry.boundary
-            ? converter.Boundary(entry.track, entry.startNs, entry.generation, entry.skippedFrames)
-            : converter.Pcm(entry.track, entry.startNs, entry.rate, entry.generation,
-                            entry.samples.data(), entry.count, entry.skippedFrames);
-        stats_.processed++;
-        if (!ok) {
-            disabled_ = true;
-            if (!closing_) stats_.disconnects++;
-            break;
-        }
+    } catch (...) {
+        // Live-only failures must never escape this thread into the helper.
+        disabled_ = true;
+        if (!closing_) stats_.disconnects++;
     }
     HANDLE pipe = pipe_.exchange(INVALID_HANDLE_VALUE);
     if (pipe != INVALID_HANDLE_VALUE) CloseHandle(pipe);
