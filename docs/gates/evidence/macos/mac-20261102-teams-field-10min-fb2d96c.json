@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "macos",
+  "runId": "mac-20261102-teams-field-10min-fb2d96c",
+  "sourceCommit": "fb2d96c04ea663d5179e5e7ea47890e980f748d9",
+  "evidenceOrigin": "agent-measured-local-evidence",
+  "independentlyVerifiedRawEvidence": false,
+  "status": "SHORT_FIELD_CHECKS_PASSED",
+  "gateApproved": false,
+  "timeline": {
+    "timezone": "America/Los_Angeles",
+    "runStart": "2026-11-02T11:00:00",
+    "runEnd": "2026-11-02T11:11:19"
+  },
+  "test": {
+    "playwright": "1 passed, 0 skipped",
+    "spec": "copy of real-live-run.spec.ts at fb2d96c plus one call selecting com.microsoft.teams2 before Start",
+    "wholeComputerCapture": false,
+    "cpuLoad": "normal, none added",
+    "owner_cleared_recording": true
+  },
+  "live": {
+    "wordCount": 2134,
+    "finalWordCount": 2232,
+    "stallLimitSec": 120,
+    "stalledAtMin": null,
+    "longestGapWithFinalWordsMs": 4580,
+    "longestSilentOrUnmatchedGapMs": 6340,
+    "samples": [
+      {
+        "elapsedSec": 0,
+        "totalWords": 0
+      },
+      {
+        "elapsedSec": 60,
+        "totalWords": 130
+      },
+      {
+        "elapsedSec": 120,
+        "totalWords": 377
+      },
+      {
+        "elapsedSec": 180,
+        "totalWords": 616
+      },
+      {
+        "elapsedSec": 240,
+        "totalWords": 804
+      },
+      {
+        "elapsedSec": 300,
+        "totalWords": 1035
+      },
+      {
+        "elapsedSec": 360,
+        "totalWords": 1228
+      },
+      {
+        "elapsedSec": 420,
+        "totalWords": 1459
+      },
+      {
+        "elapsedSec": 480,
+        "totalWords": 1681
+      },
+      {
+        "elapsedSec": 540,
+        "totalWords": 1916
+      },
+      {
+        "elapsedSec": 600,
+        "totalWords": 2134
+      }
+    ],
+    "maxLiveProgressSegmentAgeMs": 3934,
+    "maxQueuedFrames": 5
+  },
+  "loss": {
+    "lostFrames": 0,
+    "bridgedGaps": 0,
+    "resetGaps": 0,
+    "gapMs": 0,
+    "overflowFrames": 0,
+    "slowestHopMsMic": 324,
+    "slowestHopMsMeeting": 459,
+    "workerRestarts": 0
+  },
+  "recording": {
+    "status": "ready",
+    "durationMs": 598788,
+    "microphoneChunks": 120,
+    "meetingChunks": 120,
+    "recordedGapCount": 0,
+    "trackEndDifferenceMs": 2.5,
+    "trackStartDifferenceMs": 29.5
+  },
+  "performance": {
+    "peakAppProcessTreeRssMiB": 937,
+    "peakAppProcessTreeCpuPercent": 26,
+    "cpuMemSamples": 23
+  },
+  "evidence": {
+    "localFileCount": 329,
+    "localSizeKiB": 17040,
+    "inventorySha256": "88527c32fe08e2e91acfb01f6d2a48abd2630e3c59fddeb2d6da31db43454d40",
+    "liveSnapshotsCopiedByTestProcess": true
+  },
+  "limitations": [
+    "Whole-app CPU and memory are 30-second ps samples.",
+    "No reference transcript, so accuracy was not measured.",
+    "maxLiveProgressSegmentAgeMs is a once-a-minute log sample, not the Gate 3 latency measure.",
+    "Speech presence was not independently verified; live-versus-final gaps are the only speech check.",
+    "Ten minutes under normal load says nothing about sustained or four-hour live continuity.",
+    "Decode of saved chunks and final-pass duration were not separately measured.",
+    "Not published through the unreviewed wrapper; report written by hand from local evidence."
+  ],
+  "privacy": {
+    "rawAudioOrTranscriptInGit": false
+  }
+}
