@@ -1,6 +1,6 @@
 # SRCB Agent Task Allocation
 
-**Updated:** November 1, 2026  
+**Updated:** November 2, 2026  
 **Scope:** SRCB development. These owner preferences supplement repository instructions and approved plans; they do not override safety rules or authorize merges.
 
 ## Guiding rule
@@ -9,14 +9,17 @@ Maximize **useful, independently verified progress per scarce credit**, not the 
 
 ## Credit and availability snapshot
 
-Owner-reported figures as of November 1, 2026; **recheck before scheduling**.
+Owner-reported snapshot as of November 2, 2026 (America/Los_Angeles), **not live usage telemetry**; recheck before scheduling.
 
 | Resource | ChatGPT Chat | Claude Code | ChatGPT Codex |
 | --- | --- | --- | --- |
-| Five-hour allowance used | Effectively unrestricted for chat | 12% | 3% |
-| Weekly allowance used | Effectively unrestricted for chat | 78% | 18% |
-| Weekly allowance remaining | Not a practical constraint | 22% | 82% |
+| Five-hour allowance remaining | Effectively unrestricted for chat | **100%** (just refreshed) | **34%** |
+| Five-hour allowance used | Effectively unrestricted for chat | 0% | 66% |
+| Weekly allowance remaining | Not a practical constraint | **15%** | **80%** |
+| Weekly allowance used | Not a practical constraint | 85% | 20% |
 | Additional limit | Cloud-only work | Free trial ends **Nov. 3, 2026**, unless renewed | **Two** free discretionary limit resets |
+
+**Cost lesson (owner report, Nov. 2):** Windows FFmpeg and related work-PC troubleshooting consumed almost half of Codex's five-hour allowance. The Windows FFmpeg build subsequently passed on a GitHub-hosted Windows runner with MSYS2. Prefer ChatGPT Chat plus hosted CI for reproducible Windows build/test tasks; do not spend scarce local-agent credits repeating that environment setup. Escalate a repeated CI/configuration loop to targeted independent diagnosis rather than continuing speculative fixes.
 
 The owner observes that **Codex uses roughly 2–4 times as many credits per task as Claude**, despite slightly lower quality at the model/effort settings currently selected. This is a practical observation, not a controlled benchmark. Codex has nevertheless been reliable at complex SRCB backend/native implementation. Claude's possible **$20/month** subscription is a separate owner decision; do not assume it will be purchased.
 
@@ -26,13 +29,14 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 
 - Use for planning, documentation, GitHub reads/writes when authorized, focused source changes, regression tests, preliminary code review, integration preparation, and draft PR preparation.
 - Use it for bounded backend fixes when the code and validation can be handled in the cloud; do **not** automatically delegate every coding task to Codex or Claude.
+- Treat GitHub-hosted Windows runners, including MSYS2/UCRT64, as ChatGPT Chat cloud execution capacity for reproducible builds, dependency checks and regression tests. CI does **not** replace physical microphones, device-specific capture, permission testing or actual installed-app acceptance.
 - Its work is **preliminary**: use a separate `rosmont/*` branch, report what was and was not tested, and require independent QA before merge.
 - Chat cannot substitute for real Windows/macOS hardware, local recording permissions, confidential audio, or tools not actually available. **Stay in Chat**; never autonomously switch to ChatGPT Work.
 
 ### Claude Code — quality-sensitive work and independent Mac QA
 
 - Prefer for independent code/plan review, targeted troubleshooting, UI implementation, physical Mac tests, and complex work when higher quality or lower per-task credit cost justifies it.
-- Its 22% remaining weekly allowance and **Nov. 3** free-trial deadline make **critical Phase 3 QA and physical verification** more valuable than routine tasks.
+- Its **100% refreshed five-hour** but **15% remaining weekly** allowance and **Nov. 3** free-trial deadline make **critical Phase 3 diagnosis, QA and physical verification** more valuable than routine tasks.
 - Avoid duplicate reviews and long, low-yield investigations. Do not interrupt an active assignment to start optional work.
 - Do not schedule Claude-only tasks after Nov. 3 without confirmed access. Future independent QA may be assigned to another available agent.
 - When reviewing Claude's implementation, assign another agent to provide the independent approval.
@@ -41,7 +45,7 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 
 - Prefer for complex recording/capture paths, Windows/macOS native changes, backend state and storage, transcription integration, and tasks requiring actual local build/test tooling.
 - Use **Windows Codex on Windows** for Windows-native work and **Mac Codex on Mac** for macOS-native work. State the device explicitly.
-- Its high reported **2–4× relative credit use** matters: reserve it for work where local execution, reliability, or implementation complexity makes that cost worthwhile.
+- Its high reported **2–4× relative credit use** and **34% remaining five-hour allowance** matter: reserve it for work where real local execution, reliability, or implementation complexity makes that cost worthwhile. Avoid Windows FFmpeg/toolchain setup already resolved in hosted CI.
 - Use its normal five-hour and weekly allowances efficiently before considering either discretionary reset. Do not invoke a reset without the owner's decision.
 - Do not assign overlapping native/backend edits to Codex and Claude/ChatGPT.
 
@@ -64,7 +68,7 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 
 ## Decision order
 
-1. **Can ChatGPT Chat complete the task safely in the cloud?** Assign it there first, with independent QA for any code changes.
+1. **Can ChatGPT Chat complete the task safely in the cloud, including GitHub-hosted Windows/MSYS2?** Assign it there first, with independent QA for any code changes.
 2. **Is physical access required?** Choose the agent on the required operating system; reserve Claude's limited Mac time for independent testing and high-value review.
 3. **Is substantial complex implementation required?** Prefer Codex where its demonstrated native/backend reliability matters. Choose Claude instead when expected quality and credits genuinely make it more efficient.
 4. **Who independently verifies the result?** Use a different agent; give the reviewer the exact branch/commit and acceptance evidence. Avoid repeating QA already passed without code changes or new findings.
