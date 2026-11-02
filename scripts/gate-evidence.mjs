@@ -44,6 +44,15 @@ function git(args, cwd = repo) {
   return result.stdout.trim();
 }
 
+function commandCwd(args) {
+  const directory = option(args, 'cwd', false);
+  if (!directory) return repo;
+  const target = resolve(repo, directory);
+  ensure(target === repo || target.startsWith(repo + sep), 'Command directory outside repository');
+  ensure(existsSync(target) && statSync(target).isDirectory(), 'Missing command directory');
+  return target;
+}
+
 function runDir(id) {
   const target = resolve(base, id);
   ensure(target.startsWith(base + sep), 'Evidence path outside root');
@@ -239,14 +248,16 @@ async function main() {
   if (action === 'run') {
     const divider = args.indexOf('--');
     ensure(divider >= 0 && args.length > divider + 1, 'Usage: run --gate N --platform macos|windows --id ID -- COMMAND [ARGS]');
-    const meta = identify(args.slice(0, divider));
+    const flags = args.slice(0, divider);
+    const meta = identify(flags);
+    const cwd = commandCwd(flags);
     const dir = prepare(meta);
     const command = args.slice(divider + 1);
     const log = openSync(join(dir, 'test-console.log'), 'wx', 0o600);
     let exitCode;
     try {
       const child = spawnSync(command[0], command.slice(1), {
-        cwd: repo, env: { ...process.env, SCRB_GATE_EVIDENCE_ROOT: dir, SCRB_GATE_EVIDENCE_DIR: dir },
+        cwd, env: { ...process.env, SCRB_GATE_EVIDENCE_ROOT: dir, SCRB_GATE_EVIDENCE_DIR: dir },
         stdio: ['inherit', log, log], timeout: 8 * 60 * 60 * 1000,
       });
       exitCode = child.status ?? 1;
