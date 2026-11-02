@@ -1,11 +1,15 @@
 // @vitest-environment node
+import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import { encodePcmFrame, toolsIn, type LivePcmFrame, type ModelPaths } from '@scrb/transcription';
 import { LiveCaptureSession, readLiveSetup, type LiveSetup } from './live-feed.ts';
+import { WindowsLivePipePool } from './windows-live-pipe.ts';
 
 const models: ModelPaths = {
   speechLive: 'invented',
@@ -24,9 +28,31 @@ const frame = (sequence: number): LivePcmFrame => ({
   boundary: false,
 });
 const roots: string[] = [];
+const liveSessions: LiveCaptureSession[] = [];
 afterEach(async () => {
+  for (const session of liveSessions.splice(0)) await session.stop();
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
+
+async function testPipes(count = 4): Promise<WindowsLivePipePool> {
+  const root = await mkdtemp(join(tmpdir(), 'scrb-win-live-'));
+  roots.push(root);
+  let index = 0;
+  return new WindowsLivePipePool(count, () =>
+    process.platform === 'win32'
+      ? String.raw`\\.\pipe\scrb-test-${randomUUID()}`
+      : join(root, `pipe-${index++}.sock`),
+  );
+}
+
+async function connectPipe(args: string[]) {
+  expect(args[0]).toBe('--live-pipe');
+  const name = args[1];
+  if (!name) throw new Error('Missing native live pipe name');
+  const socket = createConnection(name);
+  await once(socket, 'connect');
+  return socket;
+}
 
 it('restarts live worker without reusing the helper clock', async () => {
   const offered: LivePcmFrame[][] = [];
@@ -132,4 +158,110 @@ it('loads only existing live tools and forwards CPU settings', async () => {
   });
   await rm(vad);
   expect(await readLiveSetup(config, entry)).toBeNull();
+});
+
+it('delivers PCM across helper restarts', async () => {
+  const received: LivePcmFrame[][] = [];
+  const closed = vi.fn(async () => undefined);
+  const session = new LiveCaptureSession({} as Library, 'meeting', vi.fn(), setup, async () => {
+    const frames: LivePcmFrame[] = [];
+    received.push(frames);
+    return {
+      offer: (pcm: LivePcmFrame) => {
+        frames.push(pcm);
+        return true;
+      },
+      close: closed,
+    };
+  });
+  liveSessions.push(session);
+  const pipes = await testPipes();
+  await session.prepareWindowsPipes(pipes);
+
+  const firstArgs = session.startWindowsHelper();
+  const first = await connectPipe(firstArgs);
+  const mic = { ...frame(0), generation: 3 };
+  const meeting = { ...frame(0), track: 'meeting' as const, generation: 9 };
+  const boundary = { ...frame(1), generation: 3, boundary: true, samples: new Int16Array() };
+  const resumed = { ...frame(2), generation: 4 };
+  first.write(
+    Buffer.concat([mic, meeting, boundary, resumed].map((pcm) => encodePcmFrame(pcm))),
+  );
+  await vi.waitFor(() =>
+    expect(received[0]?.map((pcm) => [pcm.track, pcm.sequence, pcm.generation, pcm.boundary])).toEqual([
+      ['mic', 0, 3, false],
+      ['meeting', 0, 9, false],
+      ['mic', 1, 3, true],
+      ['mic', 2, 4, false],
+    ]),
+  );
+  first.end();
+  await once(first, 'close');
+  await vi.waitFor(() => expect(closed).toHaveBeenCalledTimes(1));
+
+  const secondArgs = session.startWindowsHelper();
+  expect(secondArgs[1]).not.toBe(firstArgs[1]);
+  const second = await connectPipe(secondArgs);
+  second.write(encodePcmFrame(frame(0)));
+  await vi.waitFor(() => expect(received[1]?.map((pcm) => pcm.sequence)).toEqual([0]));
+  second.destroy();
+  await vi.waitFor(() => expect(closed).toHaveBeenCalledTimes(2));
+  await session.stop();
+  expect(pipes.hasNext()).toBe(false);
+});
+
+it('isolates malformed Windows PCM frames', async () => {
+  const emit = vi.fn();
+  const close = vi.fn(async () => undefined);
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, async () => ({
+    offer: () => true,
+    close,
+  }));
+  liveSessions.push(session);
+  await session.prepareWindowsPipes(await testPipes(1));
+  const socket = await connectPipe(session.startWindowsHelper());
+
+  socket.write(Buffer.alloc(64, 255));
+  await vi.waitFor(() =>
+    expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 }),
+  );
+  await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+  await session.stop();
+});
+
+it('isolates Windows model startup failure', async () => {
+  const emit = vi.fn();
+  const session = new LiveCaptureSession(
+    {} as Library,
+    'meeting',
+    emit,
+    setup,
+    async () => {
+      throw new Error('Invented model startup failure');
+    },
+  );
+  liveSessions.push(session);
+  await session.prepareWindowsPipes(await testPipes(1));
+  const args = session.startWindowsHelper();
+  await vi.waitFor(() =>
+    expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 }),
+  );
+  const socket = await connectPipe(args);
+  socket.write(encodePcmFrame(frame(0)));
+  socket.end();
+  await session.stop();
+});
+
+it('keeps capture available after pipe bind failure', async () => {
+  const emit = vi.fn();
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup);
+  liveSessions.push(session);
+  const pipes = await testPipes(1);
+  vi.spyOn(pipes, 'prepare').mockRejectedValue(new Error('Invented pipe bind failure'));
+
+  await session.prepareWindowsPipes(pipes);
+
+  expect(session.startWindowsHelper()).toEqual([]);
+  expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 });
+  await session.stop();
 });
