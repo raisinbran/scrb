@@ -87,6 +87,7 @@ export class RecordingController {
     private readonly finalPasses: FinalPassQueue | null = null,
     private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
     private readonly liveSetup: LiveSetup | null = null,
+    private readonly beforeCaptureStart: () => Promise<void> = async () => undefined,
   ) {
     this.micCheck = new MicCheckController(
       helper,
@@ -217,6 +218,7 @@ export class RecordingController {
     this.starting = true;
     this.micCheck.stop('recordingStarted');
     try {
+      await this.beforeCaptureStart();
       return await this.begin(title);
     } catch (failure) {
       this.session = null;
@@ -387,6 +389,11 @@ export class RecordingController {
   private require(): RecordingSession {
     if (!this.session) throw new ContractError({ code: 'conflict', message: 'Not recording.' });
     return this.session;
+  }
+
+  /** Includes pending Start and Stop cleanup, before meeting metadata catches up. */
+  isBusy(): boolean {
+    return this.session !== null || this.starting || this.finishing !== null;
   }
 
   get handlers(): CallHandlers {

@@ -68,6 +68,7 @@ export async function openBackend(
       library.logger.log('error', 'live-config-unavailable', {});
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
+    let imports: ImportCoordinator | null = null;
     const recording = helper
       ? new RecordingController(
           library,
@@ -84,9 +85,12 @@ export async function openBackend(
             return needsPrivacyBanner(settings.getSettings().location, rules, region);
           },
           liveSetup,
+          async () => {
+            await imports?.stopForRecording();
+          },
         )
       : null;
-    const imports = finalPassConfig
+    imports = finalPassConfig
       ? new ImportCoordinator({
           library,
           chooseFile: async () => {
@@ -102,8 +106,7 @@ export async function openBackend(
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
           run: createConfiguredImportRunner(finalPassConfig),
-          recordingBusy: () =>
-            library.listMeetings().some((meeting) => meeting.status === 'recording'),
+          recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner: async () => {
             const rules = await privacyJurisdictions(library.paths.root);
             return needsPrivacyBanner(
