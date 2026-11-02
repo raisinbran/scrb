@@ -173,9 +173,7 @@ it('logs live progress without transcript content', async () => {
       }),
     );
     const values = log.mock.calls[0]![2] as Record<string, unknown>;
-    expect(Object.keys(values).every((key) => !/text|word|audio|path|name/i.test(key))).toBe(
-      true,
-    );
+    expect(Object.keys(values).every((key) => !/text|word|audio|path|name/i.test(key))).toBe(true);
     await session.stop();
     log.mockClear();
     await vi.advanceTimersByTimeAsync(60_000);
