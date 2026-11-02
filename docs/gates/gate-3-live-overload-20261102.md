@@ -39,8 +39,8 @@ model, GPU, or not transcribing a mic that only hears the call), which is an own
 ## Windows check
 
 Run one five-minute real-app test and read, per track: `inputLostFrames`, `overflowFrames`, `sentFrames`,
-`vadCalls`, `modelCalls` and `slowestHopMs`. Pass: overflow near zero with no change in live words per
-minute against the final pass getting worse. If `inputLostFrames` is high, the loss is before the queue
+`vadCalls`, `modelCalls` and `slowestHopMs`. Pass: overflow near zero, and live meeting words much closer to
+the final count than the earlier 541 of 1,021. If `inputLostFrames` is high, the loss is before the queue
 and this fix does not reach it. Real model call time from that run says which table row applies.
 
 This branch is based on `fb2d96c` and does not include the `bb542a8` harness safeguards.
