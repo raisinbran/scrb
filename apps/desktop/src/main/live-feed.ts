@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { MAX_WORKER_RESTARTS } from '@scrb/app-core';
 import type { LivePipe } from '@scrb/capture';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { Library } from '@scrb/storage';
@@ -12,6 +13,7 @@ import {
   type ModelPaths,
 } from '@scrb/transcription';
 import { LiveTranscriptSink } from './live-transcript.ts';
+import { WindowsLivePipePool } from './windows-live-pipe.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 export type LiveSetup = Omit<LiveAudioWorkerOptions, 'onEvent'>;
@@ -99,6 +101,7 @@ export class LiveCaptureSession {
   private readonly sink: LiveTranscriptSink;
   private current: HelperFeed | null = null;
   private readonly cleanup = new Set<Promise<void>>();
+  private windowsPipes: WindowsLivePipePool | null = null;
   private closed = false;
 
   constructor(
@@ -111,6 +114,31 @@ export class LiveCaptureSession {
     ) => Promise<WorkerHandle> = LiveAudioWorker.start,
   ) {
     this.sink = new LiveTranscriptSink(library, meetingId, emit);
+  }
+
+  async prepareWindowsPipes(
+    pipes = new WindowsLivePipePool(MAX_WORKER_RESTARTS + 1),
+  ): Promise<void> {
+    if (this.closed || this.windowsPipes) {
+      pipes.close();
+      return;
+    }
+    try {
+      await pipes.prepare();
+      if (this.closed) pipes.close();
+      else this.windowsPipes = pipes;
+    } catch {
+      pipes.close();
+      if (!this.closed) this.sink.workerFailed();
+    }
+  }
+
+  startWindowsHelper(): string[] {
+    if (!this.windowsPipes?.hasNext()) return [];
+    const live = this.startHelper();
+    if (!live) return [];
+    const name = this.windowsPipes.take(live);
+    return name ? ['--live-pipe', name] : [];
   }
 
   startHelper(): LivePipe | undefined {
@@ -189,6 +217,7 @@ export class LiveCaptureSession {
 
   async stop(): Promise<void> {
     this.closed = true;
+    this.windowsPipes?.close();
     if (this.current) this.closeHelper(this.current);
     await this.sink.stop();
     await Promise.all([...this.cleanup]);

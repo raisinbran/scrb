@@ -259,9 +259,14 @@ export class RecordingController {
     this.live = this.liveSetup
       ? new LiveCaptureSession(this.library, meeting.id, this.emit, this.liveSetup)
       : null;
+    // Prebind every Windows restart endpoint before the first helper launches.
+    if (process.platform === 'win32') await this.live?.prepareWindowsPipes();
     const session = new RecordingSession({
       launch: () => {
-        const adapter = new ProcessAdapter(this.helper, [], this.live?.startHelper());
+        const adapter =
+          process.platform === 'win32'
+            ? new ProcessAdapter(this.helper, this.live?.startWindowsHelper() ?? [])
+            : new ProcessAdapter(this.helper, [], this.live?.startHelper());
         adapter.onEvent((event) => {
           if (event.type === 'health') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
