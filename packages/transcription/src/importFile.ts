@@ -1,6 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  statfs,
+  writeFile,
+} from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { probe, type ProbeResult } from './audio.js';
@@ -65,7 +75,8 @@ export function checkProbe(info: ProbeResult): ImportFailure | null {
   const format = info.formatName.split(',');
   const codec = info.audioCodec;
   const fine =
-    (format.includes('wav') || format.includes('w64')) ||
+    format.includes('wav') ||
+    format.includes('w64') ||
     format.includes('mp3') ||
     format.includes('flac') ||
     (format.includes('m4a') && (codec === 'aac' || codec === 'alac' || codec === 'mp3')) ||
@@ -74,14 +85,60 @@ export function checkProbe(info: ProbeResult): ImportFailure | null {
 }
 
 /** Two outputs from one decode: Opus chunks to keep and a 16 kHz WAV for the models. */
-export function decodeArgs(source: string, chunkDir: string, listPath: string, wavPath: string): string[] {
-  return ['-nostdin', '-hide_banner', '-v', 'error', '-progress', 'pipe:1', '-i', source,
-    '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(OPUS_RATE),
-    '-c:a', 'libopus', '-b:a', OPUS_BITRATE, '-application', 'voip', '-frame_duration', '20',
-    '-f', 'segment', '-segment_time', String(CHUNK_SECONDS), '-segment_format', 'ogg',
-    '-segment_list', listPath, '-segment_list_type', 'csv', '-reset_timestamps', '1',
+export function decodeArgs(
+  source: string,
+  chunkDir: string,
+  listPath: string,
+  wavPath: string,
+): string[] {
+  return [
+    '-nostdin',
+    '-hide_banner',
+    '-v',
+    'error',
+    '-progress',
+    'pipe:1',
+    '-i',
+    source,
+    '-map',
+    '0:a:0',
+    '-vn',
+    '-ac',
+    '1',
+    '-ar',
+    String(OPUS_RATE),
+    '-c:a',
+    'libopus',
+    '-b:a',
+    OPUS_BITRATE,
+    '-application',
+    'voip',
+    '-frame_duration',
+    '20',
+    '-f',
+    'segment',
+    '-segment_time',
+    String(CHUNK_SECONDS),
+    '-segment_format',
+    'ogg',
+    '-segment_list',
+    listPath,
+    '-segment_list_type',
+    'csv',
+    '-reset_timestamps',
+    '1',
     join(chunkDir, '%06d.opus'),
-    '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(MODEL_RATE), '-c:a', 'pcm_s16le', wavPath];
+    '-map',
+    '0:a:0',
+    '-vn',
+    '-ac',
+    '1',
+    '-ar',
+    String(MODEL_RATE),
+    '-c:a',
+    'pcm_s16le',
+    wavPath,
+  ];
 }
 
 export function parseChunkList(csv: string, dir: string): AudioChunk[] {
@@ -90,7 +147,11 @@ export function parseChunkList(csv: string, dir: string): AudioChunk[] {
     const [file, start, end] = line.split(',');
     if (!file || start === undefined || end === undefined) continue;
     const startMs = Math.round(Number(start) * 1000);
-    chunks.push({ path: join(dir, file), startMs, durationMs: Math.round(Number(end) * 1000) - startMs });
+    chunks.push({
+      path: join(dir, file),
+      startMs,
+      durationMs: Math.round(Number(end) * 1000) - startMs,
+    });
   }
   return chunks;
 }
@@ -222,7 +283,8 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     for (const chunk of staged.slice(1)) await clearPreSkip(chunk.path);
     const wavBytes = (await stat(wavPath)).size - 44;
     const durationMs = Math.round((wavBytes / 2 / MODEL_RATE) * 1000);
-    if (staged.length === 0 || durationMs <= 0) throw new ImportError('unreadable', 'no audio decoded');
+    if (staged.length === 0 || durationMs <= 0)
+      throw new ImportError('unreadable', 'no audio decoded');
     const truncated = info.durationMs !== null && info.durationMs - durationMs > 2000;
 
     let transcript: FinalTranscript | undefined;
@@ -274,7 +336,10 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
   }
 }
 
-function watchRecording(recording: RecordingGuard | undefined, stop: AbortController): NodeJS.Timeout {
+function watchRecording(
+  recording: RecordingGuard | undefined,
+  stop: AbortController,
+): NodeJS.Timeout {
   const timer = setInterval(() => {
     if (recording?.isRecording()) stop.abort();
   }, GUARD_POLL_MS);
@@ -282,7 +347,11 @@ function watchRecording(recording: RecordingGuard | undefined, stop: AbortContro
   return timer;
 }
 
-function classify(err: unknown, recording: RecordingGuard | undefined, signal: AbortSignal): ImportError {
+function classify(
+  err: unknown,
+  recording: RecordingGuard | undefined,
+  signal: AbortSignal,
+): ImportError {
   if (signal.aborted && !(err instanceof ImportError && err.code === 'recording_active')) {
     return new ImportError(recording?.isRecording() ? 'recording_active' : 'cancelled');
   }
@@ -322,7 +391,8 @@ async function ensureSpace(dir: string, durationMs: number | null): Promise<void
   for (;;) {
     try {
       const fs = await statfs(parent);
-      if (fs.bavail * fs.bsize < (durationMs / 1000) * 36_000 * 2) throw new ImportError('disk_full');
+      if (fs.bavail * fs.bsize < (durationMs / 1000) * 36_000 * 2)
+        throw new ImportError('disk_full');
       return;
     } catch (err) {
       if (err instanceof ImportError) throw err;
@@ -360,7 +430,10 @@ async function decode(
   const exit = await worker.done;
   if (exit.code !== 0) {
     if (exit.spawnError) throw new WorkerFailed('ffmpeg', exit);
-    throw new ImportError(/No space left/i.test(exit.stderrTail) ? 'disk_full' : 'unreadable', exit.stderrTail);
+    throw new ImportError(
+      /No space left/i.test(exit.stderrTail) ? 'disk_full' : 'unreadable',
+      exit.stderrTail,
+    );
   }
   o.onProgress?.({ phase: 'decoding', fraction: 1 });
 }
