@@ -24,6 +24,7 @@ import {
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
 import { vocabularyHint } from './vocabulary-hints.ts';
+import type { LargeModelGate } from './large-model-gate.ts';
 
 export { YOU_ID };
 export type { ImportResult, ImportPhase, Progress } from '@scrb/transcription';
@@ -190,6 +191,7 @@ export class FinalPassQueue {
   constructor(
     private readonly library: Library,
     private readonly run: RunFinalPass,
+    private readonly modelGate?: LargeModelGate,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -223,12 +225,15 @@ export class FinalPassQueue {
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
-        const transcript = await this.run({
+        const job = () => this.run({
           tracks,
           workDir,
           signal: this.abort.signal,
           vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
         });
+        const transcript = this.modelGate
+          ? await this.modelGate.run(job, this.abort.signal)
+          : await job();
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
