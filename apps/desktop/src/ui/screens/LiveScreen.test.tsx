@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
+import { createHybridBackend } from '../lib/hybrid-backend.ts';
 import { MockBackend } from '../mocks/index.ts';
 import { DEV_TRIGGERS } from '../mocks/dev-triggers.ts';
 import { LiveScreen } from './LiveScreen.tsx';
@@ -187,6 +188,30 @@ describe('LiveScreen', () => {
   });
 
   describe('warnings', () => {
+    it('shows real live and failed transcript states', async () => {
+      const real = new MockBackend();
+      try {
+        render(
+          <BackendProvider backend={createHybridBackend(real, backend)}>
+            <LiveScreen />
+          </BackendProvider>,
+        );
+        await advance(0);
+        fireEvent.click(button('Start'));
+        await advance(0);
+        expect(button('Pause')).toBeTruthy();
+
+        act(() => real.emit('transcriptionLag', { status: 'ok', lagMs: 0 }));
+        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
+
+        act(() => real.emit('transcriptionLag', { status: 'failed', lagMs: 0 }));
+        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: stopped');
+        expect(screen.getByTestId('recording-health').textContent).toBe('Recording: healthy');
+      } finally {
+        real.dispose();
+      }
+    });
+
     it.each([
       ['mic-silent', 'Mic silent'],
       ['low-disk', 'Low disk'],

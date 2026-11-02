@@ -34,6 +34,7 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'recordingStateChanged',
   'recordingHealth',
   'levelMeter',
+  'transcriptionLag',
 ]);
 
 /**
