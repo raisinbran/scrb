@@ -5,6 +5,7 @@ import type { Library } from '@scrb/storage';
 import type { FinalPassQueue } from '@scrb/app-core';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import type { LiveSetup } from './live-feed.ts';
+import { ImportCoordinator } from './imports.ts';
 
 // These tests exercise the Electron controller without launching a recording helper or using audio.
 const fake = vi.hoisted(() => ({
@@ -23,7 +24,8 @@ const fake = vi.hoisted(() => ({
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
-vi.mock('@scrb/app-core', () => ({
+vi.mock('@scrb/app-core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@scrb/app-core')>()),
   sealAudio: fake.sealAudio,
   RecordingSession: class {
     constructor(
@@ -235,6 +237,90 @@ describe('A meeting track that hears nothing', () => {
 });
 
 describe('Start while the previous recording is finishing', () => {
+  it('blocks imports until preemption completes', async () => {
+    const library = libraryStub();
+    let release!: () => void;
+    const cleanup = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const controller = new RecordingController(
+      library as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+      null,
+      undefined,
+      null,
+      () => cleanup,
+    );
+    const run = vi.fn();
+    const imports = new ImportCoordinator({
+      library: library as unknown as Library,
+      chooseFile: async () => null,
+      run,
+      recordingBusy: () => controller.isBusy(),
+      privacyBanner: async () => false,
+      emit: vi.fn(),
+    });
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: NS_PER_MS });
+    const start = controller.handlers.startRecording!({});
+    try {
+      expect(controller.isBusy()).toBe(true);
+      await expect(
+        imports.handlers.importAudioFile!({ fileToken: 'unused', buildVoiceProfiles: false }),
+      ).rejects.toMatchObject({ code: 'conflict' });
+      await expect(controller.handlers.startRecording!({})).rejects.toMatchObject({
+        code: 'conflict',
+      });
+      expect(fake.resolveSources).not.toHaveBeenCalled();
+      expect(library.createMeeting).not.toHaveBeenCalled();
+      expect(fake.adapterArgs).toEqual([]);
+      expect(run).not.toHaveBeenCalled();
+      release();
+      await expect(start).resolves.toEqual({ meetingId: 'meeting-1' });
+      expect(fake.adapterArgs).toHaveLength(1);
+    } finally {
+      release();
+      await start;
+      await controller.shutdown();
+      await imports.shutdown();
+    }
+    expect(controller.isBusy()).toBe(false);
+  });
+
+  it('releases Start after preemption fails', async () => {
+    const library = libraryStub();
+    const preempt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('cleanup failed'))
+      .mockResolvedValue(undefined);
+    const controller = new RecordingController(
+      library as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+      null,
+      undefined,
+      null,
+      preempt,
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: NS_PER_MS });
+    await expect(controller.handlers.startRecording!({})).rejects.toThrow('cleanup failed');
+    expect(controller.isBusy()).toBe(false);
+    expect(library.createMeeting).not.toHaveBeenCalled();
+    expect(fake.adapterArgs).toEqual([]);
+    expect(await controller.handlers.getRecordingSnapshot!(undefined)).toMatchObject({
+      state: { status: 'idle' },
+    });
+    try {
+      await expect(controller.handlers.startRecording!({})).resolves.toEqual({
+        meetingId: 'meeting-1',
+      });
+    } finally {
+      await controller.shutdown();
+    }
+  });
+
   it('refuses Start after onEnded clears the session but before Stop finishes sealing', async () => {
     const library = libraryStub();
     const sealing = completion();
