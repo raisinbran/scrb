@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "macos",
+  "runId": "mac-20261102-live-gap-5min-5f2d55f",
+  "sourceCommit": "5f2d55fcc2bc31de3b1b8bf01edce4b6271a3940",
+  "documentationCommit": "17acf2623309d964724fe4b39ef7270be12f8f6b",
+  "evidenceOrigin": "agent-reported-result-committed-to-github",
+  "sourceReportUrl": "https://github.com/raisinbran/scrb/blob/rosmont/live-gap-resilience-20261102/docs/gates/gate-3-live-gap-20261102.md",
+  "independentlyVerifiedRawEvidence": false,
+  "status": "SHORT_VERIFICATION_PASS",
+  "gateApproved": false,
+  "regression": {
+    "before": {
+      "noLossSegments": 15,
+      "lossEvery20FramesSegments": 0,
+      "lossEvery6FramesSegments": 0,
+      "lossEvery5FramesSegments": 0,
+      "lossEvery4FramesSegments": null
+    },
+    "after": {
+      "testedLossFrequencies": [
+        0,
+        20,
+        6,
+        5,
+        4
+      ],
+      "minimumOutputSegmentsPerCase": 10,
+      "orderedTimestamps": true,
+      "boundedAudioContext": true
+    },
+    "modelBehavior": "Invented continuous speech with stubbed speech detection and transcription; exact nonzero counts not supplied."
+  },
+  "physicalTest": {
+    "approxDurationMinutes": 5,
+    "sourceAudio": "public AMI ES2004",
+    "cpuLoad": {
+      "allCores": 10,
+      "durationMinutes": 3.5
+    },
+    "noStallAtLeastTwoMinutes": true,
+    "liveWordCount": 241,
+    "finalWordCount": 373,
+    "recording": {
+      "status": "ready",
+      "microphoneChunks": 65,
+      "meetingChunks": 65,
+      "recordedGapCount": 0
+    },
+    "loss": {
+      "meetingLostFramesDuringLoad": 244,
+      "microphoneLostFramesDuringLoad": 263,
+      "queueOverflowCount": 0,
+      "bridgedGapCount": 84,
+      "resetGapCount": 15,
+      "slowestHopMs": 4900
+    },
+    "rawAudioStoredLocally": "Owner's Mac private evidence folder outside Git; not uploaded here",
+    "liveTranscriptRetainedReported": true
+  },
+  "quality": {
+    "fullCheckClaimedPassed": true,
+    "testsPassed": 988,
+    "testsSkipped": 25,
+    "ciStatusAtInitialReport": "started_not_complete"
+  },
+  "scope": {
+    "nativeCaptureChanged": false,
+    "sharedEngineFix": true,
+    "workerDiagnostics": true,
+    "productionRecordingUnchanged": true
+  },
+  "limitations": [
+    "No original five-minute evidence archive was uploaded for independent verification; numbers derive from the committed agent report.",
+    "No original-code Mac CPU-loaded control; before/after regression proof is synthetic.",
+    "Frame loss occurs ahead of worker queue but its precise upstream source is unknown.",
+    "No four-hour sustained transcription verification after the fix; original endurance tests should not be repeated without a separate owner decision.",
+    "Some audio is still omitted under heavy load; discontinuities exceeding one second still reset context.",
+    "Evidence-preservation test harness changes and compatibility with the automatic publisher were not established by this code commit."
+  ],
+  "privacy": {
+    "rawAudioOrTranscriptInGit": false
+  },
+  "nextSteps": [
+    "Obtain CI result and independent focused re-review.",
+    "Run shared-code synthetic tests and one approximately five-minute Windows physical CPU-load check; preserve all evidence.",
+    "Agree an owner-approved method of verifying sustained live continuity using existing recordings and shorter reproducible tests."
+  ]
+}
