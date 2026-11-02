@@ -7,10 +7,10 @@ Use the owner-approved [retention policy](evidence-retention-policy.md). This wo
 Install the repository dependencies and ensure `git push` to your own `rosmont/*` branches is authenticated. Run on a checked-out SRCB branch:
 
 ```sh
-node scripts/gate-evidence.mjs run --gate 3 --platform macos --id mac-20261102-diagnostic-01 -- node ./node_modules/playwright/cli.js test --config apps/desktop/playwright.config.ts apps/desktop/e2e/real-recording.spec.ts
+node scripts/gate-evidence.mjs run --gate 3 --platform macos --id mac-20261102-diagnostic-01 --cwd apps/desktop -- node ../../node_modules/playwright/cli.js test e2e/real-recording.spec.ts
 ```
 
-On Windows, change `--platform macos` to `--platform windows` and use a unique run ID and the correct local test command. Commands run from the repository root; build and environment variables required by the test must already be set. **Do not start another physical run solely to try this helper.**
+On Windows, change `--platform macos` to `--platform windows` and use a unique run ID and the correct local test command. Commands run from the repository root unless `--cwd` selects a repository subdirectory, as the Electron test example does. Build and environment variables required by the test must already be set. **Do not start another physical run solely to try this helper.**
 
 The wrapper writes a `run.json` and private `test-console.log` to:
 
@@ -50,7 +50,7 @@ A test agent can write `metrics.json` into the run folder **before** the command
 }
 ```
 
-The numbers above are **illustrative**, not certified results. A test should populate its own complete minute-level (or finer) samples. `speechPresent` must come from known audible public input or independently verified live PCM, **not** from the transcription model. Long meetings may contain genuine silence; mark those intervals false. The check rejects at least 120 seconds of continuous known speech without new meeting-track words. This is a **stall guard**, not a substitute for Gate 3's stronger latency, accuracy, gap, and worker-recovery acceptance criteria.
+The numbers above are **illustrative**, not certified results. A test should populate its own complete minute-level (or finer) samples spanning the run; sparse or missing samples are incomplete. Only numeric progress fields are copied to GitHub. `speechPresent` must come from known audible public input or independently verified live PCM, **not** from the transcription model. Long meetings may contain genuine silence; mark those intervals false. The check rejects at least 120 seconds of continuous known speech without new meeting-track words. This is a **stall guard**, not a substitute for Gate 3's stronger latency, accuracy, gap, and worker-recovery acceptance criteria.
 
 The script never copies `metrics.json` verbatim: it publishes only explicitly selected numbers. If metrics or speech-continuity evidence are missing, it reports `INCOMPLETE`; if the command fails, decoding reports failures, or a known-speech stall is detected, it reports `FAIL`. `CHECKS_PASSED` means only these automated checks passed. It **never means the gate is approved**.
 
