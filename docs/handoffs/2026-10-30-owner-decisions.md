@@ -23,9 +23,9 @@ Every recommendation in `docs/plans/` is accepted, including the proposed contra
 
 Most meetings run 0.5 to 2 hours and rarely over 4. Routine long runs are 4 hours, at Gates 2 and 3 and before maintenance releases. One 8-hour run per machine stays, before Gate 8. The drift target is under 50 ms over 4 hours. The app still supports 8 hours. Where the plans in `docs/plans/` say 8 hours for T15 or Gate 2, read 4 hours. The Gate 2 mic-loss limit scales the same way: at most 15 s per track over 4 hours, no single gap over 5 s, every gap marked.
 
-## Long-run tests, revised (2026-11-01)
+## Long-run tests, proposed revision (2026-11-01)
 
-Accepted by the owner on 2026-11-01. Adds to "Long-run tests" above.
+Proposed, pending owner approval. If approved, item 3 below replaces the blanket maintenance-release testing requirement in "Long-run tests" above. Until then, the existing requirement remains in force.
 
 1. **Gate 3 keeps its 4-hour run on both machines.** Gate 2 tested recording only; Gate 3 is the first long run with live transcription. Each run logs app memory over time, runs the final pass after Stop, and includes the worker kill during audible capture. This answers the open item in `packages/transcription/README.md`: long meetings are unmeasured beyond 37 min.
 2. **T19 and the Gate 8 run are one run.** Each machine does a single 8-hour run that covers T19 (recording, live transcription and speaker labels in a call) and the Gate 8 checks.
