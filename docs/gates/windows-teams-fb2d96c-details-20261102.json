@@ -1,0 +1,125 @@
+{
+  "reviewHead": "fb2d96c04ea663d5179e5e7ea47890e980f748d9",
+  "harnessHead": "bb542a805f538e296769b4fa7a23ca6216a50dcf",
+  "gateApproved": false,
+  "test": {
+    "passed": 1,
+    "skipped": 0,
+    "failed": 0
+  },
+  "startEpochMs": 1793645925872,
+  "stopEpochMs": 1793646526511,
+  "utcOffsetMinutes": -480,
+  "recordingDurationMs": 599050,
+  "wordCounts": {
+    "liveMeeting": 541,
+    "liveMicrophone": 494,
+    "finalMeeting": 1021,
+    "finalMicrophone": 960
+  },
+  "wordPositionGapsMs": {
+    "meeting": 34030.0,
+    "microphone": 33859.99999999999
+  },
+  "wordPositionGapsAreNotDisplayStalls": true,
+  "lossCoverageWindows": 8,
+  "lossCountersIncompleteAtTail": true,
+  "loss": {
+    "mic": {
+      "lostFrames": 1804,
+      "bridgedGaps": 46,
+      "resetGaps": 85,
+      "gapMs": 180309.8698,
+      "maxOverflowFrames": 2005,
+      "slowestHopMs": 4866
+    },
+    "meeting": {
+      "lostFrames": 1798,
+      "bridgedGaps": 43,
+      "resetGaps": 84,
+      "gapMs": 179419.29,
+      "maxOverflowFrames": 2004,
+      "slowestHopMs": 3356
+    }
+  },
+  "maxQueuedFrames": 40,
+  "observedWorkerRestarts": 0,
+  "loadMarkers": [
+    {
+      "epochMs": 1793646051082,
+      "kind": "load-started"
+    },
+    {
+      "epochMs": 1793646169053,
+      "kind": "load-stopped"
+    }
+  ],
+  "performance": {
+    "baseline": {
+      "samples": 20,
+      "peakMemoryMiB": 1118.1796875,
+      "meanAppCpuPercent": 15.120801933181905,
+      "maxAppCpuPercent": 30.098514998917047,
+      "meanTeamsCpuPercent": 2.664690385898517,
+      "teamsUnresponsiveSamples": 0
+    },
+    "cpu-load": {
+      "samples": 19,
+      "peakMemoryMiB": 1018.4609375,
+      "meanAppCpuPercent": 26.608897420535484,
+      "maxAppCpuPercent": 31.7478055916775,
+      "meanTeamsCpuPercent": 2.805614621907753,
+      "teamsUnresponsiveSamples": 0
+    },
+    "recovery": {
+      "samples": 59,
+      "peakMemoryMiB": 1041.33984375,
+      "meanAppCpuPercent": 25.44739986037466,
+      "maxAppCpuPercent": 32.07101806239737,
+      "meanTeamsCpuPercent": 2.6763310550093355,
+      "teamsUnresponsiveSamples": 0
+    },
+    "final-pass": {
+      "samples": 122,
+      "peakMemoryMiB": 1405.40234375,
+      "meanAppCpuPercent": 31.778982540636335,
+      "maxAppCpuPercent": 33.938421646307916,
+      "meanTeamsCpuPercent": 2.092455420888291,
+      "teamsUnresponsiveSamples": 0
+    }
+  },
+  "cpuPercentDenominatorLogicalProcessors": 12,
+  "control": {
+    "StartVisibleMs": 42.800048828125,
+    "StartCompletedMs": 988.89990234375,
+    "StopVisibleMs": 11.60009765625,
+    "StopCompletedMs": 413.0
+  },
+  "observedFinalWaitSeconds": 742.3706037597656,
+  "tracks": [
+    {
+      "track": "microphone",
+      "chunks": 120,
+      "decodeFailures": 0,
+      "markedGaps": 0,
+      "markedGapMs": 0.0,
+      "initialCaptureOffsetMs": 9.0381,
+      "internalUnmarkedHolesOver1ms": 0
+    },
+    {
+      "track": "meeting",
+      "chunks": 121,
+      "decodeFailures": 0,
+      "markedGaps": 1,
+      "markedGapMs": 225.1001,
+      "initialCaptureOffsetMs": 0.9063,
+      "internalUnmarkedHolesOver1ms": 0
+    }
+  ],
+  "sourceSpeechPresenceIndependentlyChecked": true,
+  "comparisonMacReportCommit": "ad711f2aee05e50df168e15536883e49d2828d5f",
+  "comparisonMacRawIndependentlyInspected": false,
+  "publisherUnitPassed": 4,
+  "publisherUnitFailed": 1,
+  "builtWorkerSha256": "F80AC82348CF8EECD324F894F671B20ED9C069F193F05303E0AC04ECE1C55EFD"
+}
