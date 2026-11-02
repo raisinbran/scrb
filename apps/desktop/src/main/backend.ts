@@ -95,7 +95,7 @@ export async function openBackend(
               filters: [
                 {
                   name: 'Audio files',
-                  extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'opus', 'ogg'],
+                  extensions: ['wav', 'mp3', 'm4a', 'flac', 'opus', 'ogg'],
                 },
               ],
             });
