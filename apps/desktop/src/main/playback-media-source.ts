@@ -52,10 +52,10 @@ async function allowedChunk(
     return (
       chunk['file'] === file &&
       chunk['state'] === 'complete' &&
-      Number.isSafeInteger(chunk['startNs']) &&
-      Number.isSafeInteger(chunk['endNs']) &&
       typeof chunk['startNs'] === 'number' &&
       typeof chunk['endNs'] === 'number' &&
+      Number.isSafeInteger(chunk['startNs']) &&
+      Number.isSafeInteger(chunk['endNs']) &&
       chunk['endNs'] > chunk['startNs']
     );
   });
