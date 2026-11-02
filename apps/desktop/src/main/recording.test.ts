@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import type { FinalPassQueue } from '@scrb/app-core';
 import { RecordingController, recoverInterrupted } from './recording.ts';
+import type { LiveSetup } from './live-feed.ts';
 
 // These tests exercise the Electron controller without launching a recording helper or using audio.
 const fake = vi.hoisted(() => ({
@@ -16,6 +17,9 @@ const fake = vi.hoisted(() => ({
     state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
   workerEvents: [] as ((event: unknown) => void)[],
+  adapterArgs: [] as { args: string[]; hasLiveDescriptor: boolean }[],
+  prepareWindowsPipes: vi.fn(),
+  windowsLaunches: 0,
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
@@ -56,6 +60,12 @@ vi.mock('@scrb/app-core', () => ({
 }));
 vi.mock('./live-feed.ts', () => ({
   LiveCaptureSession: class {
+    async prepareWindowsPipes(): Promise<void> {
+      fake.prepareWindowsPipes();
+    }
+    startWindowsHelper(): string[] {
+      return ['--live-pipe', `invented-pipe-${++fake.windowsLaunches}`];
+    }
     startHelper(): undefined {
       return undefined;
     }
@@ -66,6 +76,9 @@ vi.mock('./live-feed.ts', () => ({
 }));
 vi.mock('@scrb/capture', () => ({
   ProcessAdapter: class {
+    constructor(_helper: string, args: string[] = [], live?: unknown) {
+      fake.adapterArgs.push({ args, hasLiveDescriptor: live !== undefined });
+    }
     onEvent(listener: (event: unknown) => void): void {
       fake.workerEvents.push(listener);
     }
@@ -103,6 +116,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   fake.sessions.length = 0;
   fake.workerEvents.length = 0;
+  fake.adapterArgs.length = 0;
+  fake.windowsLaunches = 0;
   fake.resolveSources.mockResolvedValue({
     source: 'wholeComputer',
     mic: 'default',
@@ -393,6 +408,34 @@ describe('Start while the previous recording is finishing', () => {
         { kind: 'audioMissing', track: 'meeting' },
         { kind: 'audioMissing', track: 'meeting' },
       ],
+    });
+    await controller.shutdown();
+  });
+});
+
+describe('Windows desktop live helper launch', () => {
+  it.skipIf(process.platform !== 'win32')('uses a fresh pipe for helper restart', async () => {
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 0 });
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'wholeComputer', micDeviceId: null }), save: vi.fn() },
+      null,
+      async () => false,
+      {} as LiveSetup,
+    );
+
+    await controller.handlers.startRecording!({});
+    expect(fake.prepareWindowsPipes).toHaveBeenCalledOnce();
+    expect(fake.adapterArgs[0]).toEqual({
+      args: ['--live-pipe', 'invented-pipe-1'],
+      hasLiveDescriptor: false,
+    });
+    fake.sessions[0]!.launchWorker();
+    expect(fake.adapterArgs[1]).toEqual({
+      args: ['--live-pipe', 'invented-pipe-2'],
+      hasLiveDescriptor: false,
     });
     await controller.shutdown();
   });
