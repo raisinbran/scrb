@@ -181,6 +181,7 @@ void FlushEmitter() {
 }
 
 Session::Session(SessionOptions options) : options_(options) {
+    if (!options_.livePipe.empty()) live_ = std::make_unique<LivePcmFeed>(options_.livePipe);
     RebuildNotifier();
     DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS params{PowerCallback, this};
     HPOWERNOTIFY handle = nullptr;
@@ -354,6 +355,8 @@ void Session::DoOpen(const Command& cmd) {
         c.sessionId = sessionId_;
         c.track = names[i];
         c.arrivalCheck = i == kMeeting;
+        c.live = live_.get();
+        c.liveTrack = static_cast<uint8_t>(i);
         c.source = i != kMeeting ? ""
                    : noProcess ? "none"
                    : !followApp_.empty() ? "output-of:" + followApp_
@@ -467,13 +470,25 @@ void Session::DoStop(const Command& cmd) {
     int64_t now = NowNs();
     int64_t at = originNs_ ? gate_.Close(now) - originNs_ : 0;
     for (auto& s : slots_) s.track->CloseStream();
-    for (auto& s : slots_) s.track->PostAndWait([](TrackPipeline& p) { p.Stop(); }, 10000);
+    bool saved = true;
+    for (auto& s : slots_) {
+        if (!s.track->PostAndWait([](TrackPipeline& p) { p.Stop(); }, 10000)) saved = false;
+    }
+    if (live_) live_->Stop();
     SetThreadExecutionState(ES_CONTINUOUS);
-    // The tracks hold chunks.log open, and the app removes it when sealing.
+    for (auto& s : slots_) {
+        if (s.track->stats().writeErrors.load() > 0) saved = false;
+    }
+    // The tracks hold chunks.log open; finish each writer before marking Stop.
     for (auto& s : slots_) s.track.reset();
+    if (Arg(cmd, "name") == "stop") {
+        const std::string id = Arg(cmd, "id");
+        saved = saved && !id.empty() && log_ &&
+                log_->RecordAndSync(JsonObject().Str("event", "stop").Str("commandId", id).Int("atNs", at).Done());
+    }
     ReleaseWriter();
     state_ = "idle";
-    Reply(cmd, true, "", "", at);
+    Reply(cmd, saved, saved ? "" : "error", saved ? "" : "\"stop could not be fully saved\"", at);
 }
 
 void Session::DoSelectMic(const Command& cmd) {

@@ -45,6 +45,8 @@ struct PipelineConfig {
     int64_t minZeroRunNs = 100 * kNsPerMs;         // D2b
     double rateTolerance = 0.05;                   // D5
     int stalePeak = 16;                            // T23: of 32767, above the 3 measured
+    LivePcmSink* live = nullptr;
+    uint8_t liveTrack = 0;
     std::function<void(int64_t* timelineNow, std::string* wallUtc, int64_t* wallNs)> readClocks;
 };
 
@@ -88,6 +90,7 @@ private:
     bool IsStaleSilence(const Packet& p);
     void CheckRate(const Packet& p, int64_t stamp);
     void ResetStreamState();
+    void EndLive(int64_t atNs);
 
     PipelineConfig cfg_;
     ChunkSink& sink_;
@@ -104,6 +107,9 @@ private:
     int64_t wakeNs_ = 0;
     int64_t originNs_ = 0;
     uint32_t generation_ = 0;
+    uint32_t liveGeneration_ = 0;
+    bool liveStarted_ = false;
+    bool liveEndedForGate_ = false;
 
     bool chunkOpen_ = false;
     ChunkMeta chunk_;

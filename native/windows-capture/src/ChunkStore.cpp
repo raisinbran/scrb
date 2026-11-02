@@ -314,28 +314,37 @@ SessionLog::~SessionLog() {
     if (file_) fclose(file_);
 }
 
-void SessionLog::Record(const std::string& jsonObject) {
+void SessionLog::Record(const std::string& jsonObject) { Enqueue(jsonObject, nullptr); }
+
+bool SessionLog::RecordAndSync(const std::string& jsonObject) {
+    auto completion = std::make_shared<std::promise<bool>>();
+    auto result = completion->get_future();
+    Enqueue(jsonObject, completion);
+    return result.get();
+}
+
+void SessionLog::Enqueue(const std::string& jsonObject, std::shared_ptr<std::promise<bool>> completion) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         std::string line = jsonObject.substr(0, jsonObject.size() - 1);
-        queue_.push_back(line + ",\"seq\":" + std::to_string(++seq_) + "}\n");
+        queue_.push_back({line + ",\"seq\":" + std::to_string(++seq_) + "}\n", completion});
     }
     cv_.notify_all();
 }
 
 void SessionLog::Loop() {
     for (;;) {
-        std::string line;
+        Entry entry;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
             if (queue_.empty()) return;
-            line = std::move(queue_.front());
+            entry = std::move(queue_.front());
             queue_.pop_front();
         }
-        // A failed write leaves the pause standing; the app warns.
-        bool ok = file_ && fwrite(line.data(), 1, line.size(), file_) == line.size() && fflush(file_) == 0 &&
-                  _commit(_fileno(file_)) == 0;
+        bool ok = file_ && fwrite(entry.line.data(), 1, entry.line.size(), file_) == entry.line.size() &&
+                  fflush(file_) == 0 && _commit(_fileno(file_)) == 0;
+        if (entry.completion) entry.completion->set_value(ok);
         if (!ok) emit_("writeError", JsonObject().Str("message", "session.log write failed"));
     }
 }
