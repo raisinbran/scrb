@@ -23,3 +23,32 @@ PR #33 remains **draft** and stacked on PR #30 at `8e02da6`. No changes to recor
 `packages/transcription/scripts/build-ffmpeg.sh` pins FFmpeg 9.0 and libopus 1.6.1, with LGPL-oriented flags and no enabled GPL/nonfree build options. The actual Windows FFmpeg binary/build is still unresolved; do **not** equate documentation with validated redistribution rights. Verify installed `ffmpeg -version`, `ffmpeg -L`, `ffprobe`, configure flags, replaceability and packaging license notices on both platforms. Preserve the separate AAC patent assessment.
 
 No Gate 3 approval, PR merge, or native acceptance claim is authorized.
+
+## 2026-11-02 cloud follow-up: manifest and cleanup (preliminary)
+
+**Source base:** PR #33 at `4294a95e868ca9771ffe0b04d9ca3db69b159c2f`; PR #30 final-head code approval is recorded in its discussion. This update does not modify native capture, `recording.ts`, IPC/contracts or protected library deletion.
+
+- Imported `audio/meeting/chunks.json` now uses `schemaVersion: 2`, `origin: imported`, `endedBy: stop`, `endNs`, `gaps: []`, and per-chunk `file`, sequence, nanosecond start/end, 48 kHz encoded rate, **actual on-disk Opus preSkip**, imported close/open reasons and complete state. It does not invent device/capture metadata. `readChunkManifest` accepts validated v2 imported manifests and refuses future schemas, path escapes and malformed times.
+- Invented-fixture tests exercise the exact v2 fields, Opus header pre-skip, unsafe files, overlapping timestamps, failure to remove staging, waiting for preemptive cleanup and process-death-style provisional-meeting reconciliation using a real test Library.
+- The established FFmpeg-backed format suite still provides source-hash/mtime, duration/chunks and cancel checks. No actual model or installed-codec run is claimed for these changes.
+- Task 19 preparation is isolated in **draft PR #39**; `packages/contracts/` is unchanged. The approved read-only media plan cannot give an HTML audio element a trusted URL through today's void `seekAudio` response, so the proposed **one narrow media grant** still needs explicit owner approval.
+
+### Remaining recording-start preemption patch — protected file, owner approval required
+
+**Do not apply in this PR without owner approval and coordination with Windows Codex's active recording ownership.** Reuse the existing `imports.stopForRecording()`, preserving PR #30's `liveSetup` argument and capture code. The minimal intended change:
+
+1. Add an optional `beforeCaptureStart: () => Promise<void>` callback to the *end* of `RecordingController`'s existing constructor arguments; default to a resolved promise so existing tests/callers are unchanged.
+2. In `RecordingController.start()`, after `this.starting = true` and the mic-check stop, `await this.beforeCaptureStart()` **before** `this.begin(title)`; preserve the current catch/finally state cleanup and do not touch native adapter launch.
+3. In `backend.ts`, declare `let imports: ImportCoordinator | null = null` before constructing recording; supply `async () => { await imports?.stopForRecording(); }` after `liveSetup`; assign the existing `ImportCoordinator` to that variable afterward. Change `recordingBusy` to `() => recording?.isBusy() ?? false` so the Start guard also blocks imports during pending cancellation.
+4. The regression in `imports.test.ts` proves preemption does not return until staging cleanup settles. A separate recording-controller behavioral regression must prove that native `begin()` is **not entered** until the callback resolves, and the pending Start rejects fresh import requests. No new scheduling abstraction is needed.
+
+This callback edits protected recording scheduling and its backend integration. **Owner decision needed before a different agent edits those files.** If the Windows agent has already integrated this boundary at a later head, review/reuse that work rather than duplicating it.
+
+### Remaining physical checks (repeat on both macOS and Windows)
+
+1. Actual unpackaged/installed Electron picker with token privacy, expired token retry, IPC allowlisting, and cancellation UI; then verify WAV, MP3, M4A/AAC, M4A/ALAC, FLAC, Opus and Ogg with the installed FFmpeg/ffprobe and final-pass model. Raw `.aac` is not on the supported extension list.
+2. Confirm each import creates a visible usable transcript with word timings and click-to-play **after Task 19 is implemented**; inspect the new v2 manifest, number/duration of playable Opus chunks and original file SHA-256/mtime, and report actual WER/time on public fixtures. Synthetic manifest tests cannot verify decoder accuracy.
+3. Inject a long-running decode/final pass, Cancel, failure, app kill and reopen; verify library rows, staged cache, provisional meeting folders, single terminal event, unchanged original, and cleanup warnings when deletion fails. Start a real recording during import; record preemption/capture latency and ensure no audio loss.
+4. Confirm final native cross-platform CI and smoke, process memory/model concurrency and actual binary `ffmpeg -version`, `ffmpeg -L`, configure flags, packaging license notices and AAC patent review.
+
+**Not complete:** recording callback integration, actual imported audio playback, real installed codec/model validation and Gate 3 acceptance. Keep the draft PR unmerged.
