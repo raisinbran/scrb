@@ -183,6 +183,37 @@ describe('Electron import coordination', () => {
     await f.coordinator.shutdown();
   });
 
+
+  it('reports incomplete provisional deletion as failure rather than successful cancellation', async () => {
+    const f = await fixture();
+    let unblock!: () => void;
+    f.applied.mockImplementation(
+      async () =>
+        new Promise<void>((resolve) => {
+          unblock = resolve;
+        }),
+    );
+    f.discard.mockResolvedValue({ meetingId: 'imported-1', ok: false, remaining: ['index:meetings'] });
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
+    await vi.waitFor(() => expect(f.applied).toHaveBeenCalledTimes(1));
+    const cancelled = f.coordinator.handlers.cancelImport!({ importId });
+    unblock();
+    await cancelled;
+    expect(f.emit).toHaveBeenCalledWith(
+      'importFailed',
+      expect.objectContaining({ importId, reason: 'internal' }),
+    );
+    expect(f.emit).not.toHaveBeenCalledWith('importCancelled', expect.anything());
+    expect(f.discard).toHaveBeenCalledTimes(1);
+    expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+    expect(JSON.stringify(vi.mocked(f.library.logger.log).mock.calls)).not.toContain(f.root);
+    await f.coordinator.shutdown();
+  });
+
   it('cancels running imports, emits one terminal cancellation and never creates a meeting', async () => {
     const f = await fixture();
     f.deps.run.mockImplementation(
