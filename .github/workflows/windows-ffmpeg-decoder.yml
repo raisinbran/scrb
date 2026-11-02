@@ -47,6 +47,7 @@ jobs:
           update: true
           install: >-
             make
+            diffutils
             gawk
             curl
             tar
@@ -62,6 +63,9 @@ jobs:
           repo="$(cygpath -u "$GITHUB_WORKSPACE")"
           out="$repo/out/windows-ffmpeg"
           mkdir -p "$out"
+          for tool in cmp diff make gcc nasm pkg-config sha256sum; do
+            command -v "$tool" >/dev/null || { echo "Missing build tool: $tool" >&2; exit 1; }
+          done
           test "$(pkg-config --modversion opus)" = "1.6.1"
           cd "$repo/vendor/ffmpeg"
 
