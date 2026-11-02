@@ -37,6 +37,7 @@ export class TranscriptStore {
   private segments: (TranscriptSegment | undefined)[] = [];
   private readonly indexById = new Map<string, number>();
   private readonly speakers = new Map<string, Speaker>();
+  private speakerArray: Speaker[] = [];
   private readonly listeners = new Set<() => void>();
   private readonly loadingPages = new Set<number>();
   private wanted: [first: number, last: number] = [0, 0];
@@ -84,6 +85,15 @@ export class TranscriptStore {
 
   segmentAt(index: number): TranscriptSegment | undefined {
     return this.segments[index];
+  }
+
+  speakerOf(speakerId: string): Speaker | undefined {
+    return this.speakers.get(speakerId);
+  }
+
+  /** Stable between changes, so memoized rows can take it as a prop. */
+  speakerList(): Speaker[] {
+    return this.speakerArray;
   }
 
   speakerLabel(speakerId: string): string {
@@ -332,6 +342,7 @@ export class TranscriptStore {
 
   private addSpeakers(speakers: Speaker[]): void {
     for (const speaker of speakers) this.speakers.set(speaker.id, speaker);
+    if (speakers.length > 0) this.speakerArray = [...this.speakers.values()];
   }
 
   private notify(): void {

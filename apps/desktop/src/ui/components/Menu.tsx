@@ -11,12 +11,13 @@ interface MenuButtonProps {
   /** Accessible name of the button. */
   label: string;
   className?: string;
+  tabIndex?: number | undefined;
   items: MenuItem[];
   children: ReactNode;
 }
 
 /** A button that opens a menu. Arrow keys move, Escape closes, focus returns to the button. */
-export function MenuButton({ label, className, items, children }: MenuButtonProps) {
+export function MenuButton({ label, className, tabIndex, items, children }: MenuButtonProps) {
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -67,6 +68,7 @@ export function MenuButton({ label, className, items, children }: MenuButtonProp
         ref={button}
         type="button"
         className={className}
+        tabIndex={tabIndex}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}

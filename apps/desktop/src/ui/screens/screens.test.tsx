@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import type { SpeakerSuggestion } from '@scrb/contracts';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockBackend } from '../mocks/index.ts';
@@ -45,6 +46,35 @@ describe('screens', () => {
       backend.setProfiles([]);
       renderScreen(backend, <SpeakersScreen />);
       expect(await screen.findByText('No voice profiles yet')).toBeTruthy();
+    });
+
+    it('undoes and redoes a profile rename', async () => {
+      renderScreen(backend, <SpeakersScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename Unnamed voice' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+        target: { value: 'Mina Sato' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Undo rename' }));
+      expect(await screen.findByRole('button', { name: 'Rename Unnamed voice' })).toBeTruthy();
+      fireEvent.click(await screen.findByRole('button', { name: 'Redo rename' }));
+      expect(await screen.findByText('Mina Sato')).toBeTruthy();
+    });
+
+    it('lists suggestions that were pending before the app opened', async () => {
+      const pending = {
+        meetingId: 'mtg-1',
+        speakerId: 'speaker-1',
+        profileId: 'profile-1',
+        profileName: 'Tomas Lindgren',
+      } as SpeakerSuggestion;
+      const call = backend.call.bind(backend) as (name: string, request: unknown) => unknown;
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, request: unknown) =>
+        name === 'listSpeakerSuggestions'
+          ? Promise.resolve([pending])
+          : call(name, request)) as never);
+      renderScreen(backend, <SpeakersScreen />);
+      expect(await screen.findByText('Could this be Tomas Lindgren?')).toBeTruthy();
     });
 
     it('renames a profile', async () => {
@@ -133,6 +163,17 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    it('brings back a deleted term, even the last one', async () => {
+      const [only] = await backend.call('listTerms');
+      backend.setTerms(only ? [only] : []);
+      renderScreen(backend, <VocabularyScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: `Delete ${only?.term}` }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete term' }));
+      expect(await screen.findByText('No terms yet')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(await screen.findByRole('button', { name: `Edit ${only?.term}` })).toBeTruthy();
+    });
+
     it('shows the empty state', async () => {
       backend.setTerms([]);
       renderScreen(backend, <VocabularyScreen />);

@@ -457,5 +457,125 @@ describe('LiveScreen', () => {
 
       expect(selected()).toEqual([word.textContent]);
     });
+
+    describe('with text rewritten under the editor', () => {
+      async function loseSelectionWhileEditing() {
+        await startMeeting();
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: {
+              kind: 'replace',
+              segments: [],
+              removedSegmentIds: [segment.id],
+            },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+      }
+
+      it('says the selection is gone and leaves keyboard focus in the transcript', async () => {
+        await loseSelectionWhileEditing();
+        expect(screen.getByRole('alert').textContent).toContain('selection was cleared');
+        expect(document.activeElement).toBe(transcript());
+      });
+
+      it('does not reopen the editor on the next selection', async () => {
+        await loseSelectionWhileEditing();
+        fireEvent.keyDown(transcript(), { key: 'ArrowRight' });
+        fireEvent.keyDown(transcript(), { key: 'ArrowRight', shiftKey: true });
+        await advance(0);
+        expect(selected().length).toBeGreaterThan(0);
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+      });
+    });
+
+    describe('speaker menus in the transcript', () => {
+      const firstLabel = () =>
+        document.querySelector<HTMLElement>(
+          '[data-segment-id] button[aria-haspopup]',
+        ) as HTMLElement;
+
+      it('moves selected words to another speaker and makes that undoable', async () => {
+        await startMeeting();
+        const word = words()[0] as HTMLElement;
+        const { state } = await backend.call('getRecordingSnapshot');
+        const page = await backend.call('getTranscript', {
+          meetingId: state.meetingId as string,
+          offset: 0,
+          limit: 1,
+        });
+        const from = page.segments[0]?.speakerId;
+        const to = page.speakers.find((speaker) => speaker.id !== from);
+        fireEvent.doubleClick(word);
+        fireEvent.click(button('Cancel'));
+        await advance(0);
+
+        fireEvent.click(firstLabel());
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Reassign selection…' }));
+        fireEvent.change(screen.getByRole('combobox', { name: 'Speaker' }), {
+          target: { value: to?.id },
+        });
+        fireEvent.click(button('Reassign'));
+        await advance(0);
+
+        const rows = await backend.call('getTranscript', {
+          meetingId: state.meetingId as string,
+          offset: 0,
+          limit: 2,
+        });
+        expect(rows.segments[0]?.speakerId).toBe(to?.id);
+        expect((button('Undo') as HTMLButtonElement).disabled).toBe(false);
+      });
+
+      it('offers no selection actions without a selection', async () => {
+        await startMeeting();
+        fireEvent.click(firstLabel());
+        expect(screen.queryByRole('menuitem', { name: 'Reassign selection…' })).toBeNull();
+        expect(screen.getByRole('menuitem', { name: 'Rename…' })).toBeTruthy();
+      });
+
+      it('lets Enter open the menu without starting a correction', async () => {
+        await startMeeting();
+        fireEvent.keyDown(transcript(), { key: 'ArrowRight' });
+        await advance(0);
+        fireEvent.keyDown(firstLabel(), { key: 'Enter' });
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+      });
+
+      it('is a Tab stop only on the line being worked on', async () => {
+        await startMeeting();
+        const labels = () => [
+          ...document.querySelectorAll<HTMLElement>('[data-segment-id] button[aria-haspopup]'),
+        ];
+        expect(labels().every((label) => label.tabIndex === -1)).toBe(true);
+        fireEvent.keyDown(transcript(), { key: 'ArrowRight' });
+        await advance(0);
+        expect(labels().filter((label) => label.tabIndex === 0)).toHaveLength(1);
+      });
+    });
+
+    it('shows Undo for a change made outside this screen', async () => {
+      await startMeeting();
+      const { state } = await backend.call('getRecordingSnapshot');
+      const meetingId = state.meetingId as string;
+      const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+      const ids = page.segments[0]?.words ?? [];
+      await backend.call('reassignSpeaker', {
+        meetingId,
+        range: { firstWordId: ids[0]?.id as string, lastWordId: ids[0]?.id as string },
+        speakerId: page.speakers.find((s) => s.id !== page.segments[0]?.speakerId)?.id as string,
+      });
+      cleanup();
+      await renderLive();
+      expect((button('Undo') as HTMLButtonElement).disabled).toBe(false);
+    });
   });
 });

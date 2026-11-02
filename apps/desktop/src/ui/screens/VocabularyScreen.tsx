@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Backend, VocabularyHistoryEntry, VocabularyTerm } from '@scrb/contracts';
 import { Button } from '../components/Button.tsx';
 import { ActionDialog } from '../components/Dialog.tsx';
+import { UndoRedo } from '../components/UndoRedo.tsx';
 import fieldStyles from '../components/Dialog.module.css';
 import { useBackend } from '../lib/backend-context.tsx';
 import { formatMeetingDate } from '../lib/format.ts';
@@ -10,7 +11,8 @@ import { useBackendData } from '../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from './Screen.tsx';
 import styles from './VocabularyScreen.module.css';
 
-const load = (backend: Backend) => backend.call('listTerms');
+const load = (backend: Backend) =>
+  Promise.all([backend.call('listTerms'), backend.call('getVocabularyUndoState')]);
 
 const HISTORY_LABELS: Record<VocabularyHistoryEntry['action'], string> = {
   created: 'Created',
@@ -191,19 +193,28 @@ function Terms({ terms, onChanged }: { terms: VocabularyTerm[]; onChanged(): voi
 }
 
 export function VocabularyScreen() {
+  const backend = useBackend();
   const { state, reload } = useBackendData(load);
   return (
     <Screen title="Vocabulary">
       <DataView state={state}>
-        {(terms) =>
-          terms.length === 0 ? (
-            <EmptyState title="No terms yet">
-              Corrections you choose to remember will appear here.
-            </EmptyState>
-          ) : (
-            <Terms terms={terms} onChanged={reload} />
-          )
-        }
+        {([terms, history]) => (
+          <>
+            <UndoRedo
+              state={history}
+              onUndo={() => backend.call('undoVocabulary')}
+              onRedo={() => backend.call('redoVocabulary')}
+              onChanged={reload}
+            />
+            {terms.length === 0 ? (
+              <EmptyState title="No terms yet">
+                Corrections you choose to remember will appear here.
+              </EmptyState>
+            ) : (
+              <Terms terms={terms} onChanged={reload} />
+            )}
+          </>
+        )}
       </DataView>
     </Screen>
   );

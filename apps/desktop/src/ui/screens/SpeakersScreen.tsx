@@ -3,6 +3,7 @@ import type { Backend, MeetingListItem, SpeakerSuggestion, VoiceProfile } from '
 import { Button } from '../components/Button.tsx';
 import { ActionDialog, ChoiceDialog, TextDialog } from '../components/Dialog.tsx';
 import { useSpeakerSuggestions } from '../components/speakers/SpeakerSuggestions.tsx';
+import { UndoRedo } from '../components/UndoRedo.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { formatMeetingDate } from '../lib/format.ts';
 import { useAction } from '../lib/use-action.ts';
@@ -12,7 +13,11 @@ import { MeetingSpeakers } from './speakers/MeetingSpeakers.tsx';
 import styles from './SpeakersScreen.module.css';
 
 const load = (backend: Backend) =>
-  Promise.all([backend.call('listProfiles'), backend.call('listMeetings', {})]);
+  Promise.all([
+    backend.call('listProfiles'),
+    backend.call('listMeetings', {}),
+    backend.call('getProfileUndoState'),
+  ]);
 
 const nameOf = (profile: VoiceProfile) => profile.name ?? 'Unnamed voice';
 const meetingsText = (count: number) => `${count} ${count === 1 ? 'meeting' : 'meetings'}`;
@@ -188,12 +193,13 @@ function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged
 }
 
 export function SpeakersScreen() {
+  const backend = useBackend();
   const { state, reload } = useBackendData(load);
   const { suggestions } = useSpeakerSuggestions();
   return (
     <Screen title="Speakers">
       <DataView state={state}>
-        {([profiles, meetings]) => (
+        {([profiles, meetings, history]) => (
           <>
             {suggestions.length > 0 && (
               <section aria-labelledby="speaker-suggestions" className={styles.section}>
@@ -216,6 +222,14 @@ export function SpeakersScreen() {
               <h2 id="voice-profiles" className={styles.heading}>
                 Voice profiles
               </h2>
+              <UndoRedo
+                state={history}
+                undoLabel={history.nextUndo ? `Undo ${history.nextUndo}` : 'Undo'}
+                redoLabel={history.nextRedo ? `Redo ${history.nextRedo}` : 'Redo'}
+                onUndo={() => backend.call('undoProfileChange')}
+                onRedo={() => backend.call('redoProfileChange')}
+                onChanged={reload}
+              />
               {profiles.length === 0 ? (
                 <EmptyState title="No voice profiles yet">
                   Profiles appear after your first recording.
