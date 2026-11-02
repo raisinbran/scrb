@@ -339,28 +339,39 @@ describe('Electron import coordination', () => {
     });
     let releaseCleanup!: () => void;
     let enteredCleanup!: () => void;
-    const entered = new Promise<void>((resolve) => { enteredCleanup = resolve; });
+    const entered = new Promise<void>((resolve) => {
+      enteredCleanup = resolve;
+    });
     f.deps.removeStaging = vi.fn(async (folder: string) => {
       enteredCleanup();
-      await new Promise<void>((resolve) => { releaseCleanup = resolve; });
+      await new Promise<void>((resolve) => {
+        releaseCleanup = resolve;
+      });
       await rm(folder, { recursive: true, force: true });
     });
-    const selected = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const selected = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+    };
     const { importId } = (await f.coordinator.handlers.importAudioFile!({
       fileToken: selected.fileToken,
       buildVoiceProfiles: false,
     })) as { importId: string };
     let preemptFinished = false;
-    const preempt = f.coordinator.stopForRecording().then(() => { preemptFinished = true; });
+    const preempt = f.coordinator.stopForRecording().then(() => {
+      preemptFinished = true;
+    });
     await entered;
     expect(preemptFinished).toBe(false);
     releaseCleanup();
     await preempt;
     expect(preemptFinished).toBe(true);
-    expect(f.emit).toHaveBeenCalledWith('importFailed', expect.objectContaining({
-      importId,
-      reason: 'recordingInProgress',
-    }));
+    expect(f.emit).toHaveBeenCalledWith(
+      'importFailed',
+      expect.objectContaining({
+        importId,
+        reason: 'recordingInProgress',
+      }),
+    );
     expect(f.emit).not.toHaveBeenCalledWith('importCancelled', expect.anything());
     expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
     await f.coordinator.shutdown();
@@ -390,5 +401,4 @@ describe('Electron import coordination', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
-
 });
