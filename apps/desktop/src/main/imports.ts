@@ -277,7 +277,8 @@ export class ImportCoordinator {
       }
     } finally {
       try {
-        await rm(staging, { recursive: true, force: true });
+        if (this.deps.removeStaging) await this.deps.removeStaging(staging);
+        else await rm(staging, { recursive: true, force: true });
       } catch (cleanupError) {
         cleanupIncomplete = true;
         library.logger.log('error', 'import-stage-cleanup-failed', errorFields(cleanupError));
