@@ -70,15 +70,21 @@ describe('imported audio manifests', () => {
       [{ path: join(folder, '000000.opus'), startMs: 0, durationMs: 1000 }],
       [0],
     );
-    await writeFile(join(folder, 'chunks.json'), JSON.stringify({
-      ...manifest,
-      chunks: [{ ...manifest.chunks[0], file: '../private.opus' }],
-    }));
+    await writeFile(
+      join(folder, 'chunks.json'),
+      JSON.stringify({
+        ...manifest,
+        chunks: [{ ...manifest.chunks[0], file: '../private.opus' }],
+      }),
+    );
     await expect(readChunkManifest(root)).rejects.toThrow('Invalid imported chunk');
-    await writeFile(join(folder, 'chunks.json'), JSON.stringify({
-      ...manifest,
-      schemaVersion: 3,
-    }));
+    await writeFile(
+      join(folder, 'chunks.json'),
+      JSON.stringify({
+        ...manifest,
+        schemaVersion: 3,
+      }),
+    );
     await expect(readChunkManifest(root)).rejects.toThrow('Unsupported imported audio manifest');
   });
 
