@@ -60,6 +60,7 @@ vi.mock('@scrb/app-core', () => ({
 }));
 vi.mock('./live-feed.ts', () => ({
   LiveCaptureSession: class {
+    setRecording = vi.fn();
     async prepareWindowsPipes(): Promise<void> {
       fake.prepareWindowsPipes();
     }

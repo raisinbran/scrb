@@ -106,6 +106,9 @@ export class LiveCaptureSession {
   private windowsPipes: WindowsLivePipePool | null = null;
   private closed = false;
   private readonly progressTimer: ReturnType<typeof setInterval>;
+  private readonly pcmTimer: ReturnType<typeof setInterval> | undefined;
+  private recording = false;
+  private pcmGraceAtMs = Date.now();
 
   constructor(
     private readonly library: Library,
@@ -115,10 +118,28 @@ export class LiveCaptureSession {
     private readonly launchWorker: (
       options: LiveAudioWorkerOptions,
     ) => Promise<WorkerHandle> = LiveAudioWorker.start,
+    reportPcmStalls = false,
   ) {
     this.sink = new LiveTranscriptSink(library, meetingId, emit);
     this.progressTimer = setInterval(() => this.logProgress(), 60_000);
     this.progressTimer.unref();
+    if (reportPcmStalls) {
+      this.pcmTimer = setInterval(() => this.reportPcmLag(), 1000);
+      this.pcmTimer.unref();
+    }
+  }
+
+  setRecording(recording: boolean): void {
+    if (recording === this.recording) return;
+    this.recording = recording;
+    this.pcmGraceAtMs = Date.now();
+  }
+
+  private reportPcmLag(): void {
+    if (!this.recording || !this.current || this.closed) return;
+    const since = Math.max(this.pcmGraceAtMs, this.current.lastPcmAtMs ?? this.pcmGraceAtMs);
+    const lagMs = Date.now() - since;
+    if (lagMs >= 6000) this.sink.handle({ type: 'lag', lagMs, queuedFrames: 0 });
   }
 
   private logProgress(): void {
@@ -170,6 +191,7 @@ export class LiveCaptureSession {
 
   startHelper(): LivePipe | undefined {
     if (this.closed) return undefined;
+    this.pcmGraceAtMs = Date.now();
     if (this.current) this.closeHelper(this.current);
     const feed: HelperFeed = {
       decoder: new PcmFrameDecoder((frame) => {
@@ -247,6 +269,7 @@ export class LiveCaptureSession {
   async stop(): Promise<void> {
     this.closed = true;
     clearInterval(this.progressTimer);
+    clearInterval(this.pcmTimer);
     this.windowsPipes?.close();
     if (this.current) this.closeHelper(this.current);
     await this.sink.stop();

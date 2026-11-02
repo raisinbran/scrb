@@ -257,7 +257,14 @@ export class RecordingController {
       );
     }
     this.live = this.liveSetup
-      ? new LiveCaptureSession(this.library, meeting.id, this.emit, this.liveSetup)
+      ? new LiveCaptureSession(
+          this.library,
+          meeting.id,
+          this.emit,
+          this.liveSetup,
+          undefined,
+          process.platform === 'win32',
+        )
       : null;
     // Prebind every Windows restart endpoint before the first helper launches.
     if (process.platform === 'win32') await this.live?.prepareWindowsPipes();
@@ -307,6 +314,7 @@ export class RecordingController {
       },
       onStateChanged: (status, pauseReason, atNs) => {
         if (status === 'idle') return;
+        this.live?.setRecording(status === 'recording');
         const changed = this.state.status !== status;
         this.update({ status, pauseReason }, atNs);
         if (changed && status === 'recording') {

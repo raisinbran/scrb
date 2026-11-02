@@ -183,6 +183,67 @@ it('logs live progress without transcript content', async () => {
   }
 });
 
+it('reports growing PCM inactivity during recording', async () => {
+  vi.useFakeTimers();
+  const emit = vi.fn();
+  const session = new LiveCaptureSession(
+    {} as Library,
+    'meeting',
+    emit,
+    setup,
+    async () => ({ offer: () => true, close: async () => undefined }),
+    true,
+  );
+  try {
+    session.setRecording(true);
+    const pipe = session.startHelper()!;
+    pipe.onData(encodePcmFrame(frame(0)));
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(emit).toHaveBeenLastCalledWith('transcriptionLag', { status: 'lagging', lagMs: 6000 });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(emit).toHaveBeenLastCalledWith('transcriptionLag', { status: 'lagging', lagMs: 7000 });
+    emit.mockClear();
+    pipe.onData(encodePcmFrame(frame(1)));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(emit).not.toHaveBeenCalled();
+  } finally {
+    await session.stop();
+    vi.useRealTimers();
+  }
+});
+
+it('excludes paused time and cleans lag timers', async () => {
+  vi.useFakeTimers();
+  const emit = vi.fn();
+  const session = new LiveCaptureSession(
+    {} as Library,
+    'meeting',
+    emit,
+    setup,
+    async () => ({ offer: () => true, close: async () => undefined }),
+    true,
+  );
+  try {
+    session.setRecording(true);
+    session.startHelper()!.onData(encodePcmFrame(frame(0)));
+    session.setRecording(false);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(emit).not.toHaveBeenCalled();
+    session.setRecording(true);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(emit).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(emit).toHaveBeenLastCalledWith('transcriptionLag', { status: 'lagging', lagMs: 6000 });
+    await session.stop();
+    emit.mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(emit).not.toHaveBeenCalled();
+  } finally {
+    await session.stop();
+    vi.useRealTimers();
+  }
+});
+
 it('loads only existing live tools and forwards CPU settings', async () => {
   const root = await mkdtemp(join(tmpdir(), 'scrb-live-config-'));
   roots.push(root);
