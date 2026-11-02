@@ -1,11 +1,21 @@
 import { randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  statfs,
+  writeFile,
+} from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { probe, type ProbeResult } from './audio.js';
 import type { ModelPaths, ToolPaths } from './config.js';
-import { clearPreSkip } from './ogg.js';
+import { clearPreSkip, readOpusPreSkip } from './ogg.js';
 import { runFinalPass, type FinalPassOptions } from './finalPass.js';
 import type { AudioChunk, FinalPhase, FinalTranscript, Progress, RecordingGuard } from './types.js';
 import { WorkerFailed, WorkerProcess } from './worker.js';
@@ -65,7 +75,8 @@ export function checkProbe(info: ProbeResult): ImportFailure | null {
   const format = info.formatName.split(',');
   const codec = info.audioCodec;
   const fine =
-    (format.includes('wav') || format.includes('w64')) ||
+    format.includes('wav') ||
+    format.includes('w64') ||
     format.includes('mp3') ||
     format.includes('flac') ||
     (format.includes('m4a') && (codec === 'aac' || codec === 'alac' || codec === 'mp3')) ||
@@ -74,14 +85,60 @@ export function checkProbe(info: ProbeResult): ImportFailure | null {
 }
 
 /** Two outputs from one decode: Opus chunks to keep and a 16 kHz WAV for the models. */
-export function decodeArgs(source: string, chunkDir: string, listPath: string, wavPath: string): string[] {
-  return ['-nostdin', '-hide_banner', '-v', 'error', '-progress', 'pipe:1', '-i', source,
-    '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(OPUS_RATE),
-    '-c:a', 'libopus', '-b:a', OPUS_BITRATE, '-application', 'voip', '-frame_duration', '20',
-    '-f', 'segment', '-segment_time', String(CHUNK_SECONDS), '-segment_format', 'ogg',
-    '-segment_list', listPath, '-segment_list_type', 'csv', '-reset_timestamps', '1',
+export function decodeArgs(
+  source: string,
+  chunkDir: string,
+  listPath: string,
+  wavPath: string,
+): string[] {
+  return [
+    '-nostdin',
+    '-hide_banner',
+    '-v',
+    'error',
+    '-progress',
+    'pipe:1',
+    '-i',
+    source,
+    '-map',
+    '0:a:0',
+    '-vn',
+    '-ac',
+    '1',
+    '-ar',
+    String(OPUS_RATE),
+    '-c:a',
+    'libopus',
+    '-b:a',
+    OPUS_BITRATE,
+    '-application',
+    'voip',
+    '-frame_duration',
+    '20',
+    '-f',
+    'segment',
+    '-segment_time',
+    String(CHUNK_SECONDS),
+    '-segment_format',
+    'ogg',
+    '-segment_list',
+    listPath,
+    '-segment_list_type',
+    'csv',
+    '-reset_timestamps',
+    '1',
     join(chunkDir, '%06d.opus'),
-    '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(MODEL_RATE), '-c:a', 'pcm_s16le', wavPath];
+    '-map',
+    '0:a:0',
+    '-vn',
+    '-ac',
+    '1',
+    '-ar',
+    String(MODEL_RATE),
+    '-c:a',
+    'pcm_s16le',
+    wavPath,
+  ];
 }
 
 export function parseChunkList(csv: string, dir: string): AudioChunk[] {
@@ -90,7 +147,11 @@ export function parseChunkList(csv: string, dir: string): AudioChunk[] {
     const [file, start, end] = line.split(',');
     if (!file || start === undefined || end === undefined) continue;
     const startMs = Math.round(Number(start) * 1000);
-    chunks.push({ path: join(dir, file), startMs, durationMs: Math.round(Number(end) * 1000) - startMs });
+    chunks.push({
+      path: join(dir, file),
+      startMs,
+      durationMs: Math.round(Number(end) * 1000) - startMs,
+    });
   }
   return chunks;
 }
@@ -127,6 +188,72 @@ export interface ImportResult {
 /** What an import writes in `audio/meeting/`, read back by later passes. */
 export const CHUNK_MANIFEST = 'chunks.json';
 
+/** Import-created chunks use the same timeline and field names as sealed capture chunks. */
+export function importedChunkManifest(
+  chunks: readonly AudioChunk[],
+  preSkips: readonly number[],
+): {
+  schemaVersion: 2;
+  origin: 'imported';
+  endedBy: 'stop';
+  endNs: number;
+  gaps: [];
+  chunks: Array<{
+    file: string;
+    seq: number;
+    startNs: number;
+    endNs: number;
+    rate: number;
+    preSkip: number;
+    openReason: 'imported';
+    closeReason: 'imported';
+    state: 'complete';
+  }>;
+} {
+  if (chunks.length === 0 || chunks.length !== preSkips.length) {
+    throw new ImportError('unreadable', 'incomplete imported chunks');
+  }
+  let previousEnd = 0;
+  const sealed = chunks.map((chunk, seq) => {
+    const file = basename(chunk.path);
+    const startNs = Math.round(chunk.startMs * 1e6);
+    const endNs = Math.round((chunk.startMs + chunk.durationMs) * 1e6);
+    const preSkip = preSkips[seq]!;
+    if (
+      !/^\d{6,}\.opus$/.test(file) ||
+      !Number.isSafeInteger(startNs) ||
+      !Number.isSafeInteger(endNs) ||
+      startNs < previousEnd ||
+      endNs <= startNs ||
+      !Number.isInteger(preSkip) ||
+      preSkip < 0 ||
+      preSkip > 65_535
+    ) {
+      throw new ImportError('unreadable', 'invalid imported chunk timing or header');
+    }
+    previousEnd = endNs;
+    return {
+      file,
+      seq,
+      startNs,
+      endNs,
+      rate: OPUS_RATE,
+      preSkip,
+      openReason: 'imported' as const,
+      closeReason: 'imported' as const,
+      state: 'complete' as const,
+    };
+  });
+  return {
+    schemaVersion: 2,
+    origin: 'imported',
+    endedBy: 'stop',
+    endNs: previousEnd,
+    gaps: [],
+    chunks: sealed,
+  };
+}
+
 /**
  * Imports one audio file as a meeting.  Everything is built in a hidden sibling
  * folder and renamed into place as the last step, so a failure or cancel at any
@@ -156,7 +283,8 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     for (const chunk of staged.slice(1)) await clearPreSkip(chunk.path);
     const wavBytes = (await stat(wavPath)).size - 44;
     const durationMs = Math.round((wavBytes / 2 / MODEL_RATE) * 1000);
-    if (staged.length === 0 || durationMs <= 0) throw new ImportError('unreadable', 'no audio decoded');
+    if (staged.length === 0 || durationMs <= 0)
+      throw new ImportError('unreadable', 'no audio decoded');
     const truncated = info.durationMs !== null && info.durationMs - durationMs > 2000;
 
     let transcript: FinalTranscript | undefined;
@@ -180,7 +308,9 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     }
 
     const relative = staged.map((c) => ({ ...c, path: basename(c.path) }));
-    await writeFile(join(stagedChunks, CHUNK_MANIFEST), JSON.stringify({ version: 1, chunks: relative }));
+    const preSkips = await Promise.all(staged.map((chunk) => readOpusPreSkip(chunk.path)));
+    const sealed = importedChunkManifest(staged, preSkips);
+    await writeFile(join(stagedChunks, CHUNK_MANIFEST), JSON.stringify(sealed));
     await rm(listPath);
     await rm(wavPath);
 
@@ -206,7 +336,10 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
   }
 }
 
-function watchRecording(recording: RecordingGuard | undefined, stop: AbortController): NodeJS.Timeout {
+function watchRecording(
+  recording: RecordingGuard | undefined,
+  stop: AbortController,
+): NodeJS.Timeout {
   const timer = setInterval(() => {
     if (recording?.isRecording()) stop.abort();
   }, GUARD_POLL_MS);
@@ -214,7 +347,11 @@ function watchRecording(recording: RecordingGuard | undefined, stop: AbortContro
   return timer;
 }
 
-function classify(err: unknown, recording: RecordingGuard | undefined, signal: AbortSignal): ImportError {
+function classify(
+  err: unknown,
+  recording: RecordingGuard | undefined,
+  signal: AbortSignal,
+): ImportError {
   if (signal.aborted && !(err instanceof ImportError && err.code === 'recording_active')) {
     return new ImportError(recording?.isRecording() ? 'recording_active' : 'cancelled');
   }
@@ -254,7 +391,8 @@ async function ensureSpace(dir: string, durationMs: number | null): Promise<void
   for (;;) {
     try {
       const fs = await statfs(parent);
-      if (fs.bavail * fs.bsize < (durationMs / 1000) * 36_000 * 2) throw new ImportError('disk_full');
+      if (fs.bavail * fs.bsize < (durationMs / 1000) * 36_000 * 2)
+        throw new ImportError('disk_full');
       return;
     } catch (err) {
       if (err instanceof ImportError) throw err;
@@ -292,7 +430,10 @@ async function decode(
   const exit = await worker.done;
   if (exit.code !== 0) {
     if (exit.spawnError) throw new WorkerFailed('ffmpeg', exit);
-    throw new ImportError(/No space left/i.test(exit.stderrTail) ? 'disk_full' : 'unreadable', exit.stderrTail);
+    throw new ImportError(
+      /No space left/i.test(exit.stderrTail) ? 'disk_full' : 'unreadable',
+      exit.stderrTail,
+    );
   }
   o.onProgress?.({ phase: 'decoding', fraction: 1 });
 }
@@ -310,8 +451,47 @@ export async function sweepAbandonedImports(meetingsDir: string): Promise<string
   return swept;
 }
 
+/** Rejects malformed, future or path-escaping imported manifests before exposing chunk paths. */
 export async function readChunkManifest(meetingDir: string): Promise<AudioChunk[]> {
   const dir = join(meetingDir, 'audio', 'meeting');
-  const parsed = JSON.parse(await readFile(join(dir, CHUNK_MANIFEST), 'utf8')) as { chunks: AudioChunk[] };
-  return parsed.chunks.map((c) => ({ ...c, path: join(dir, c.path) }));
+  const parsed: unknown = JSON.parse(await readFile(join(dir, CHUNK_MANIFEST), 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Invalid imported audio manifest');
+  }
+  const manifest = parsed as Record<string, unknown>;
+  if (
+    manifest['schemaVersion'] !== 2 ||
+    manifest['origin'] !== 'imported' ||
+    !Array.isArray(manifest['chunks']) ||
+    manifest['chunks'].length === 0
+  ) {
+    throw new Error('Unsupported imported audio manifest');
+  }
+  let previousEnd = 0;
+  return manifest['chunks'].map((raw: unknown, index: number): AudioChunk => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('Invalid imported chunk');
+    }
+    const chunk = raw as Record<string, unknown>;
+    const { file, seq, startNs, endNs } = chunk;
+    if (
+      typeof file !== 'string' ||
+      !/^\d{6,}\.opus$/.test(file) ||
+      seq !== index ||
+      typeof startNs !== 'number' ||
+      typeof endNs !== 'number' ||
+      !Number.isSafeInteger(startNs) ||
+      !Number.isSafeInteger(endNs) ||
+      startNs < previousEnd ||
+      endNs <= startNs
+    ) {
+      throw new Error('Invalid imported chunk');
+    }
+    previousEnd = endNs;
+    return {
+      path: join(dir, file),
+      startMs: Math.round(startNs / 1e6),
+      durationMs: Math.round(endNs / 1e6) - Math.round(startNs / 1e6),
+    };
+  });
 }
