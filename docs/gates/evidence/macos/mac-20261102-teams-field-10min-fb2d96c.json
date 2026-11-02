@@ -25,56 +25,72 @@
     "finalWordCount": 2232,
     "stallLimitSec": 120,
     "stalledAtMin": null,
-    "longestGapWithFinalWordsMs": 4580,
-    "longestSilentOrUnmatchedGapMs": 6340,
     "samples": [
       {
         "elapsedSec": 0,
-        "totalWords": 0
+        "totalWords": 0,
+        "meetingWords": 0
       },
       {
         "elapsedSec": 60,
-        "totalWords": 130
+        "totalWords": 130,
+        "meetingWords": 70
       },
       {
         "elapsedSec": 120,
-        "totalWords": 377
+        "totalWords": 377,
+        "meetingWords": 201
       },
       {
         "elapsedSec": 180,
-        "totalWords": 616
+        "totalWords": 616,
+        "meetingWords": 317
       },
       {
         "elapsedSec": 240,
-        "totalWords": 804
+        "totalWords": 804,
+        "meetingWords": 412
       },
       {
         "elapsedSec": 300,
-        "totalWords": 1035
+        "totalWords": 1035,
+        "meetingWords": 527
       },
       {
         "elapsedSec": 360,
-        "totalWords": 1228
+        "totalWords": 1228,
+        "meetingWords": 625
       },
       {
         "elapsedSec": 420,
-        "totalWords": 1459
+        "totalWords": 1459,
+        "meetingWords": 742
       },
       {
         "elapsedSec": 480,
-        "totalWords": 1681
+        "totalWords": 1681,
+        "meetingWords": 855
       },
       {
         "elapsedSec": 540,
-        "totalWords": 1916
+        "totalWords": 1916,
+        "meetingWords": 971
       },
       {
         "elapsedSec": 600,
-        "totalWords": 2134
+        "totalWords": 2134,
+        "meetingWords": 1081
       }
     ],
     "maxLiveProgressSegmentAgeMs": 3934,
-    "maxQueuedFrames": 5
+    "maxQueuedFrames": 5,
+    "meetingWords": 1081,
+    "microphoneWords": 1053,
+    "finalMeetingWords": 1093,
+    "finalMicrophoneWords": 1139,
+    "longestMeetingGapWithFinalWordsMs": 6820,
+    "longestMeetingGapMs": 6820,
+    "longestMicrophoneGapWithFinalWordsMs": 7350
   },
   "loss": {
     "lostFrames": 0,
@@ -113,7 +129,8 @@
     "Speech presence was not independently verified; live-versus-final gaps are the only speech check.",
     "Ten minutes under normal load says nothing about sustained or four-hour live continuity.",
     "Decode of saved chunks and final-pass duration were not separately measured.",
-    "Not published through the unreviewed wrapper; report written by hand from local evidence."
+    "Not published through the unreviewed wrapper; report written by hand from local evidence.",
+    "The microphone track picked up the same speech as the meeting track (same first and last word times, matching gaps), so it was not room silence. Totals double-count that speech; use the meeting-track figures."
   ],
   "privacy": {
     "rawAudioOrTranscriptInGit": false
