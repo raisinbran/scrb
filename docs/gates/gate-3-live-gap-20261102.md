@@ -42,6 +42,15 @@ loaded from minute 1 to 4.5.
 | Bridged, reset gaps | 84, 15 |
 | Slowest hop | 4.9 s |
 
+## Test harness
+
+`apps/desktop/e2e/real-live-run.spec.ts` is the reusable long-run spec. It needs `QA_EVIDENCE`,
+`SCRB_CAPTURE_HELPER` and `SCRB_LIVE_CONFIG`, and skips without them. It copies the live transcript each
+minute and before stop, keeps the recording and logs, deletes nothing, and fails on a live stall
+(`QA_STALL_SECONDS`, default 120) or a final status other than `ready`. A two-minute public-audio run
+passed: 78 live words copied intact, 123 final words, both tracks kept. The stall failure path has not
+been triggered in a real run.
+
 ## Remaining gaps
 
 - Load caused real frame loss with no queue overflow, so the loss comes before the worker queue. The
