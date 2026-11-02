@@ -67,6 +67,4 @@ This is an **unapproved contract proposal**, not permission to edit `packages/co
 ### Known limits
 
 - Revocation stops the main process serving a URL. Bytes Chromium already buffered stay in that renderer: a new `<audio>` on a revoked URL it has read can still load them. The smoke proves revocation on a granted URL that was never read.
-- PR #33 is needed before imported meetings play: this base writes schema 1 manifests, which playback refuses.
-- `apps/desktop/src/main/backend.ts` is shared with PR #33: this change wraps the meeting handlers and stops playback in `close`.
 - Not yet checked: Windows, listening by ear for clicks at chunk joins on real capture, capture staying uninterrupted during live playback.

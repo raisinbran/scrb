@@ -22,6 +22,10 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   'listInputDevices',
   'listMeetingApps',
   'selectSources',
+  'pickAudioFile',
+  'importAudioFile',
+  'cancelImport',
+  'listImports',
 ]);
 /** Each goes to the side that holds the meeting it names. */
 const MEETING_CALLS: ReadonlySet<CallName> = new Set([
@@ -40,6 +44,10 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'transcriptionLag',
   'transcriptChanged',
   'playbackPosition',
+  'importProgress',
+  'importFinished',
+  'importFailed',
+  'importCancelled',
 ]);
 
 /**
