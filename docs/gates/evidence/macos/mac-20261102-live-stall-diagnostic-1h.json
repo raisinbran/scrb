@@ -1,0 +1,497 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "macos",
+  "runId": "mac-20261102-live-stall-diagnostic-1h",
+  "sourceCommit": "694b9b2",
+  "baseCommit": "72c41076eb1e8162da4fdf9b5c6b850d623cd1f8",
+  "evidenceOrigin": "retrospective-user-supplied-zip",
+  "rawArchive": {
+    "fileName": "live-stall-diag-1h.zip",
+    "sha256": "c3d28c3ca4f00b7b84eae990a01f063273c4cf7da69c3bae7b9bd69d5a62a916",
+    "bytes": 56208478,
+    "zipIntegrity": "PASS",
+    "zipEntriesIncludingMacMetadata": 3450
+  },
+  "run": {
+    "localStart": "2026-11-02 08:00:27 PST",
+    "localEnd": "2026-11-02 09:17:18 PST",
+    "runnerExitCode": 0,
+    "runWithFinalPassSeconds": 4611,
+    "liveRecordingDurationSeconds": 3958.995,
+    "workload": "Public AMI ES2004a-d Mix-Headset loop",
+    "power": "AC",
+    "instrumentedSourceCommitBundlePresentInArchive": true
+  },
+  "status": "INCONCLUSIVE",
+  "diagnosticTest": "PASS_NO_TEN_MINUTE_STALL_REPRODUCED",
+  "gateApproved": false,
+  "recording": {
+    "status": "PASS_REPORTED_AND_FILES_PRESENT",
+    "microphoneChunks": 792,
+    "meetingChunks": 792,
+    "totalChunks": 1584,
+    "chunkFilesPresent": 1584,
+    "chunkFilesMissing": 0,
+    "chunkStatesComplete": 1584,
+    "microphoneMarkedGaps": 0,
+    "meetingMarkedGaps": 0,
+    "trackEndDeltaMs": 1.19,
+    "originalAudioPresentInArchive": true,
+    "finalTranscriptPresentInArchive": true,
+    "stopAcknowledgmentMs": 722,
+    "finalPassDurationMsReported": 646901,
+    "finalTranscriptStatus": "ready",
+    "finalWords": 8974
+  },
+  "live": {
+    "status": "NO_TEN_MINUTE_STALL_OBSERVED_BUT_ANOMALY_REMAINS",
+    "lastSnapshotMinute": 66,
+    "lastSnapshotLiveWords": 7480,
+    "snapshotCount": 66,
+    "liveTranscriptSavedOnlyThroughMinute": 31,
+    "liveTranscriptSavedWords": 3192,
+    "fullLiveTranscriptPreserved": false,
+    "reasonForMissingLiveText": "Transcript watcher ended with Claude session at 08:31:28 PST; final pass overwrote live transcript about 09:17 PST.",
+    "lastWordPositionAtMinute45Seconds": 2654.877,
+    "lastWordPositionAtMinute46Seconds": 2654.877,
+    "lastWordPositionAtMinute47Seconds": 2820.851,
+    "minutesWithoutTenMinuteStall": 66,
+    "minuteSnapshots": [
+      "minute",
+      "cumulativeLiveWords",
+      "latestLiveWordPositionSeconds"
+    ],
+    "numericTimeline": [
+      [
+        1,
+        22,
+        48.427
+      ],
+      [
+        2,
+        62,
+        117.157
+      ],
+      [
+        3,
+        160,
+        175.317
+      ],
+      [
+        4,
+        172,
+        187.547
+      ],
+      [
+        5,
+        215,
+        292.537
+      ],
+      [
+        6,
+        314,
+        356.207
+      ],
+      [
+        7,
+        411,
+        402.457
+      ],
+      [
+        8,
+        487,
+        473.647
+      ],
+      [
+        9,
+        592,
+        538.657
+      ],
+      [
+        10,
+        699,
+        598.127
+      ],
+      [
+        11,
+        813,
+        656.497
+      ],
+      [
+        12,
+        955,
+        718.197
+      ],
+      [
+        13,
+        1099,
+        774.797
+      ],
+      [
+        14,
+        1289,
+        838.187
+      ],
+      [
+        15,
+        1434,
+        897.637
+      ],
+      [
+        16,
+        1587,
+        959.907
+      ],
+      [
+        17,
+        1723,
+        1019.317
+      ],
+      [
+        18,
+        1763,
+        1074.657
+      ],
+      [
+        19,
+        1780,
+        1133.867
+      ],
+      [
+        20,
+        1835,
+        1194.097
+      ],
+      [
+        21,
+        1899,
+        1250.477
+      ],
+      [
+        22,
+        2037,
+        1317.417
+      ],
+      [
+        23,
+        2216,
+        1379.317
+      ],
+      [
+        24,
+        2380,
+        1439.007
+      ],
+      [
+        25,
+        2539,
+        1497.547
+      ],
+      [
+        26,
+        2660,
+        1555.677
+      ],
+      [
+        27,
+        2732,
+        1599.867
+      ],
+      [
+        28,
+        2801,
+        1678.787
+      ],
+      [
+        29,
+        2972,
+        1740.507
+      ],
+      [
+        30,
+        3132,
+        1798.507
+      ],
+      [
+        31,
+        3192,
+        1850.877
+      ],
+      [
+        32,
+        3299,
+        1920.247
+      ],
+      [
+        33,
+        3461,
+        1979.197
+      ],
+      [
+        34,
+        3614,
+        2039.907
+      ],
+      [
+        35,
+        3743,
+        2090.067
+      ],
+      [
+        36,
+        3852,
+        2158.067
+      ],
+      [
+        37,
+        4086,
+        2221.047
+      ],
+      [
+        38,
+        4418,
+        2279.627
+      ],
+      [
+        39,
+        4553,
+        2339.887
+      ],
+      [
+        40,
+        4684,
+        2400.387
+      ],
+      [
+        41,
+        4798,
+        2459.837
+      ],
+      [
+        42,
+        4950,
+        2519.837
+      ],
+      [
+        43,
+        5093,
+        2580.007
+      ],
+      [
+        44,
+        5210,
+        2639.637
+      ],
+      [
+        45,
+        5250,
+        2654.877
+      ],
+      [
+        46,
+        5250,
+        2654.877
+      ],
+      [
+        47,
+        5364,
+        2820.851
+      ],
+      [
+        48,
+        5502,
+        2877.941
+      ],
+      [
+        49,
+        5673,
+        2939.641
+      ],
+      [
+        50,
+        5828,
+        3001.711
+      ],
+      [
+        51,
+        5992,
+        3057.891
+      ],
+      [
+        52,
+        6103,
+        3119.251
+      ],
+      [
+        53,
+        6243,
+        3180.651
+      ],
+      [
+        54,
+        6371,
+        3237.571
+      ],
+      [
+        55,
+        6483,
+        3299.861
+      ],
+      [
+        56,
+        6588,
+        3359.031
+      ],
+      [
+        57,
+        6621,
+        3384.041
+      ],
+      [
+        58,
+        6627,
+        3481.411
+      ],
+      [
+        59,
+        6691,
+        3539.991
+      ],
+      [
+        60,
+        6752,
+        3585.701
+      ],
+      [
+        61,
+        6868,
+        3660.421
+      ],
+      [
+        62,
+        7005,
+        3718.741
+      ],
+      [
+        63,
+        7114,
+        3760.711
+      ],
+      [
+        64,
+        7214,
+        3838.981
+      ],
+      [
+        65,
+        7334,
+        3898.061
+      ],
+      [
+        66,
+        7480,
+        3956.111
+      ]
+    ],
+    "workerRestartObserved": false,
+    "workerProcessStayedReady": true,
+    "livePcmAcknowledgmentsCurrent": true,
+    "anomaly": {
+      "periodApproxMinutes": [
+        45,
+        48
+      ],
+      "observed": "Both tracks' live PCM sample counts fell substantially despite zero saved-audio gaps; model calls fell with live PCM.",
+      "baselineSamplesPerMinute": 960000,
+      "meetingSamplesDeficitAcrossMinutes46To48": 1184000,
+      "microphoneSamplesDeficitAcrossMinutes46To48": 1209600,
+      "estimatedDeficitSecondsAt16kHz": {
+        "meeting": 74,
+        "microphone": 75.6
+      },
+      "numericalEvidence": [
+        {
+          "minute": 45,
+          "meetingSamples": 958400,
+          "microphoneSamples": 960000,
+          "meetingVadCalls": 119,
+          "meetingSpeechSpans": 104,
+          "meetingModelCalls": 13,
+          "meetingModelEmpty": 0
+        },
+        {
+          "minute": 46,
+          "meetingSamples": 497600,
+          "microphoneSamples": 500800,
+          "meetingVadCalls": 39,
+          "meetingSpeechSpans": 30,
+          "meetingModelCalls": 5,
+          "meetingModelEmpty": 0
+        },
+        {
+          "minute": 47,
+          "meetingSamples": 412800,
+          "microphoneSamples": 388800,
+          "meetingVadCalls": 10,
+          "meetingSpeechSpans": 6,
+          "meetingModelCalls": 0,
+          "meetingModelEmpty": 0
+        },
+        {
+          "minute": 48,
+          "meetingSamples": 785600,
+          "microphoneSamples": 780800,
+          "meetingVadCalls": 80,
+          "meetingSpeechSpans": 71,
+          "meetingModelCalls": 11,
+          "meetingModelEmpty": 0
+        },
+        {
+          "minute": 49,
+          "meetingSamples": 968000,
+          "microphoneSamples": 968000,
+          "meetingVadCalls": 121,
+          "meetingSpeechSpans": 119,
+          "meetingModelCalls": 16,
+          "meetingModelEmpty": 2
+        }
+      ],
+      "notEstablished": "Whether anomaly is triggered by source position, elapsed time, native PCM feed or workload; previous four-hour stall cause unknown."
+    }
+  },
+  "performance": {
+    "sampledPeakMiBByProcess": {
+      "electron": 536,
+      "captureHelper": 49,
+      "whisperServer": 410,
+      "whisperVad": 87
+    },
+    "maxSampledUiResponseMs": 24
+  },
+  "evidenceAvailability": {
+    "rawAudioTracks": true,
+    "chunkManifests": true,
+    "finalTranscript": true,
+    "liveTranscriptThroughMinute31": true,
+    "completeLiveTranscript": false,
+    "minuteSnapshots": true,
+    "instrumentedWorkerLogs": true,
+    "runConfiguration": true,
+    "sourceCommitBundle": true
+  },
+  "review": {
+    "status": "GATE_3_NOT_APPROVED",
+    "findings": [
+      "Instrumented 66-minute physical recording did not reproduce the previous 10-minute-plus stall; cannot distinguish candidate root causes.",
+      "Saved audio files and final transcript remain inspectable in uploaded ZIP.",
+      "Full live transcript was not preserved because a watcher ended before recording stopped; minute-level numeric word counts survived.",
+      "At minute 46-48 both live PCM tracks delivered markedly fewer samples while saved audio had no reported gaps; live model calls also dropped."
+    ],
+    "nextAction": "Add live transcript preservation to the test process itself before final pass. Analyze existing public-audio and instrumented log evidence with short tests; do not repeat four-hour captures without explicit owner authorization."
+  },
+  "privacy": {
+    "rawAudioOrTranscriptInGit": false,
+    "privateArchiveStoredOutsideGit": true
+  }
+}
