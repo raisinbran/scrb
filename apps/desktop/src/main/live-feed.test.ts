@@ -151,6 +151,8 @@ it('logs live progress without transcript content', async () => {
           queuedFrames: 0,
           lastAckAtMs: startMs,
           lastSegmentAtMs: null,
+          stats: { 'mic.vadCalls': 120, 'mic.overflowFrames': 0 },
+          statsAtMs: startMs,
         }),
       }),
     );
@@ -170,6 +172,9 @@ it('logs live progress without transcript content', async () => {
         modelPid: 222,
         sinkQueued: 0,
         sinkDraining: false,
+        statsAgeMs: 60_000,
+        'mic.vadCalls': 120,
+        'mic.overflowFrames': 0,
       }),
     );
     const values = log.mock.calls[0]![2] as Record<string, unknown>;
