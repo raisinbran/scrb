@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "windows",
+  "runId": "win-teams-20261102-fb2d96c",
+  "sourceCommit": "bb542a805f538e296769b4fa7a23ca6216a50dcf",
+  "completedAt": "2026-11-02T19:33:09.444Z",
+  "testExitCode": 0,
+  "status": "CHECKS_PASSED",
+  "gateApproved": false,
+  "recording": {
+    "durationSec": 599.05,
+    "decodedChunks": 241,
+    "decodeFailures": 0,
+    "microphoneGapMs": 0,
+    "meetingGapMs": 225.1001
+  },
+  "performance": {
+    "peakMemoryMiB": 1405.40234375,
+    "stopAcknowledgmentMs": 11.60009765625
+  },
+  "live": {
+    "status": "no-stall-detected",
+    "sampleCount": 11,
+    "maxStallSec": 0,
+    "wordCount": 1035,
+    "timeline": [
+      {
+        "elapsedSec": 0,
+        "meetingWords": 0,
+        "speechPresent": false,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 60,
+        "meetingWords": 31,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 120,
+        "meetingWords": 64,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 180,
+        "meetingWords": 122,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 240,
+        "meetingWords": 192,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 300,
+        "meetingWords": 246,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 360,
+        "meetingWords": 306,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 420,
+        "meetingWords": 361,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 480,
+        "meetingWords": 425,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 540,
+        "meetingWords": 491,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      },
+      {
+        "elapsedSec": 600,
+        "meetingWords": 541,
+        "speechPresent": true,
+        "pcmAgeMs": null,
+        "ackAgeMs": null,
+        "segmentAgeMs": null,
+        "queueDepth": null,
+        "vadSpans": null,
+        "modelCalls": null,
+        "emptyResults": null
+      }
+    ]
+  },
+  "evidence": {
+    "fileCount": 350,
+    "totalBytes": 148093863,
+    "inventorySha256": "afd76ae4001452cc9dafc560bbe30f482c386b19b2069c9d9f624588576fc9cc",
+    "audioManifestPresent": true,
+    "transcriptPresent": true
+  }
+}
