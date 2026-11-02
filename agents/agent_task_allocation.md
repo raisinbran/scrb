@@ -45,6 +45,14 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 - Use its normal five-hour and weekly allowances efficiently before considering either discretionary reset. Do not invoke a reset without the owner's decision.
 - Do not assign overlapping native/backend edits to Codex and Claude/ChatGPT.
 
+#### Codex orchestration and credit efficiency
+
+- **One implementing agent by default.** Give each Codex session a bounded task. Avoid spawning internal subagents unless their independent parallel work has a clear benefit; directly managed Windows and Mac sessions remain separate.
+- **Avoid wasteful polling.** Do not repeatedly invoke the parent model just to check long-running agent or terminal status (for example, frequent `wait_agent`, `list_agents`, or `write_stdin` calls). Prefer completion notifications or longer supported waits, checking again only when useful.
+- **Checkpoint proportionately.** Define a concrete deliverable, targeted tests, and a safe commit/handoff point. If credits are consumed unusually quickly without corresponding progress, preserve work and investigate before continuing an open-ended orchestration loop.
+- **Diagnose only when warranted.** For substantial unexplained quota drain, examine available local session telemetry for spawned agents, repeated waits or terminal polls, parent-model calls, and cached-input volume. Never commit private session content, secrets, or personal transcripts to Git.
+- **Treat wait-timeout tuning as an optional experiment.** Longer `multi_agent_v2` waits (including a reported 25-minute configuration) are not a verified universal Codex Desktop fix. Verify installed-version and mode support, back up the original configuration, and test reversibly before adopting; do not mandate or silently change settings.
+
 ## Decision order
 
 1. **Can ChatGPT Chat complete the task safely in the cloud?** Assign it there first, with independent QA for any code changes.
