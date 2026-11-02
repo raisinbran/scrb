@@ -1,13 +1,13 @@
 # Gate 3: proposal to avoid repeating four-hour physical capture
 
 **Date:** 2026-11-02
-**Status:** Proposed owner decision only. Not approved, not a Gate 3 pass, and not a change to the Development Plan until the owner decides.
+**Status:** Owner accepted this verification approach **in principle** on 2026-11-02. This does not approve Gate 3, resolve remaining evidence limitations, or modify the Development Plan's four-hour requirement without a separately recorded exception at the gate decision.
 
 ## Decision requested
 
 For Gate 3 only, allow **reuse of November 2's completed four-hour physical capture tests on Windows and macOS** for the long-capture requirement, even though the shared live-transcription worker subsequently changed. Verify the revised worker through deterministic fault-injection, actual-model short physical tests on **both** platforms, and independent review. **Do not run another four-hour physical capture for this fix by default.**
 
-This is a narrowly scoped *alternative evidence method*, not a claim that four-hour live transcription passed after the fix and not a waiver of the Gate 8 eight-hour tests. The owner must explicitly accept the remaining risk before Gate 3 can be approved.
+This is a narrowly scoped *alternative evidence method*, not a claim that four-hour live transcription passed after the fix and not a waiver of the Gate 8 eight-hour tests. The owner accepted the method in principle. Residual risk still requires explicit evaluation and documentation before Gate 3 can be approved.
 
 ## Facts and boundaries
 
@@ -29,16 +29,16 @@ This is a narrowly scoped *alternative evidence method*, not a claim that four-h
 
 ## Acceptance and exception record
 
-The owner may approve the **verification method** above without approving Gate 3. Gate 3 remains **FAIL / OPEN** until every non-excepted target is evidenced and the owner signs off.
+The owner approved the **verification method in principle**, not Gate 3. Gate 3 remains **FAIL / OPEN** until every non-excepted target is evidenced, the exception is recorded against the Development Plan, and the owner signs off.
 
 The eventual gate record must say:
 
 > The November 2 four-hour physical tests establish pre-fix recording/capture endurance to the extent the preserved evidence supports. Post-fix live continuity was established through synthetic extended-timeline fault injection, short real-device actual-model runs on Windows/macOS, independent review and accepted residual risk. A post-fix four-hour physical live-transcription run was **not performed**, so long-duration real-model reliability remains unproven. Gate 8 retains its separate eight-hour requirement. Any later need for a full new physical run requires an explicit, specific owner decision.
 
-**No automatic four-hour rerun is authorized by this proposal.** If any short check fails, investigate the specific failure using existing evidence or a bounded targeted reproduction. Do not expand to an overnight run.
+**No automatic four-hour rerun is authorized by this in-principle decision.** If any short check fails, investigate the specific failure using existing evidence or a bounded targeted reproduction. Do not expand to an overnight run.
 
 ## Immediate work
 
-- **Windows Codex:** review PR #44 at `fb2d96c`, assess the new harness and loss-bridging edge cases, run existing synthetic tests and one five-minute physical Windows load test with retained evidence; report independent approve/request changes.
+- **Windows Codex:** review PR #44 at `fb2d96c`, assess the new harness and loss-bridging edge cases, run existing synthetic tests and one five-minute physical Windows load test with retained evidence; report independent approve/request changes. Set `QA_EVIDENCE`, `SCRB_CAPTURE_HELPER` and `SCRB_LIVE_CONFIG` to valid Windows paths, verify the physical Playwright invocation actually reports **1 passed, 0 skipped**, and reject a green-but-skipped run. Measure both tracks' lost frames and queue overflow; confirm the test source was audibly active.
 - **ChatGPT Chat:** prepare the extended-timeline synthetic simulation and scoring/evidence checklist as cloud-safe changes, independently of Windows hardware, on a separate `rosmont/*` branch if needed.
-- **Owner:** decide whether this narrowly scoped alternative is acceptable **in principle**, subject to complete measured Gate 3 evidence. Do not merge this proposal as an approved exception until explicit authorization.
+- **Owner decision (2026-11-02):** alternative accepted in principle, subject to complete Gate 3 measurements and final explicit exception/gate decision. No Gate 3 approval is granted by this entry.
