@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "gate": 3,
+  "platform": "macos",
+  "runId": "mac-20261102-four-hour-72c4107",
+  "sourceCommit": "72c41076eb1e8162da4fdf9b5c6b850d623cd1f8",
+  "evidenceOrigin": "retrospective-user-supplied-zip",
+  "rawArchiveSha256": "a1dd3782c39c3c76da96a80372ad2c75c8541122f7d00732d50d29952bef589c",
+  "rawArchiveBytes": 634658,
+  "archiveIntegrity": "zip-crc-pass",
+  "status": "FAIL",
+  "gateApproved": false,
+  "recording": {
+    "status": "PASS_REPORTED_NOT_INDEPENDENTLY_DECODED",
+    "recordedSeconds": 14338.6,
+    "microphoneChunks": 2867,
+    "meetingChunks": 2867,
+    "markedGapCount": 0,
+    "trackEndDeltaMs": 2.725,
+    "rawAudioPresentInArchive": false,
+    "finalTranscriptPresentInArchive": false,
+    "runnerExitCode": 0
+  },
+  "live": {
+    "status": "FAIL",
+    "liveWordsAtEnd": 7307,
+    "finalPassWordsReported": 33653,
+    "lastWordPositionStuckNearMinute": 46.7,
+    "firstExtendedStallApproximatelyMinutes": [
+      47,
+      121
+    ],
+    "moreExtendedStalls": true,
+    "workerRestartsObserved": 0,
+    "workerReadyDuringStalls": true,
+    "pcmAndAcksCurrent": true,
+    "queueBacklogObserved": false,
+    "progressSamplesEveryFiveMinutes": [
+      [
+        5,
+        221
+      ],
+      [
+        10,
+        720
+      ],
+      [
+        15,
+        1406
+      ],
+      [
+        20,
+        1859
+      ],
+      [
+        25,
+        2501
+      ],
+      [
+        30,
+        3166
+      ],
+      [
+        35,
+        4080
+      ],
+      [
+        40,
+        4910
+      ],
+      [
+        45,
+        5693
+      ],
+      [
+        50,
+        5978
+      ],
+      [
+        55,
+        5978
+      ],
+      [
+        60,
+        5978
+      ],
+      [
+        65,
+        5978
+      ],
+      [
+        70,
+        5978
+      ],
+      [
+        75,
+        5978
+      ],
+      [
+        80,
+        5978
+      ],
+      [
+        85,
+        5978
+      ],
+      [
+        90,
+        5978
+      ],
+      [
+        95,
+        5978
+      ],
+      [
+        100,
+        5978
+      ],
+      [
+        105,
+        5978
+      ],
+      [
+        110,
+        5978
+      ],
+      [
+        115,
+        5978
+      ],
+      [
+        120,
+        5978
+      ],
+      [
+        126,
+        5991
+      ],
+      [
+        131,
+        5991
+      ],
+      [
+        136,
+        5991
+      ],
+      [
+        141,
+        5991
+      ],
+      [
+        146,
+        5991
+      ],
+      [
+        151,
+        5991
+      ],
+      [
+        156,
+        5991
+      ],
+      [
+        161,
+        5991
+      ],
+      [
+        166,
+        6045
+      ],
+      [
+        171,
+        6755
+      ],
+      [
+        176,
+        7300
+      ],
+      [
+        181,
+        7300
+      ],
+      [
+        186,
+        7300
+      ],
+      [
+        191,
+        7300
+      ],
+      [
+        196,
+        7300
+      ],
+      [
+        201,
+        7300
+      ],
+      [
+        206,
+        7301
+      ],
+      [
+        211,
+        7301
+      ],
+      [
+        216,
+        7301
+      ],
+      [
+        221,
+        7301
+      ],
+      [
+        226,
+        7301
+      ],
+      [
+        231,
+        7301
+      ],
+      [
+        236,
+        7301
+      ],
+      [
+        240,
+        7307
+      ]
+    ]
+  },
+  "performance": {
+    "stopSecondsReported": 1.6,
+    "finalPassSecondsReported": 1711.952,
+    "maxUiResponseMsReported": 25,
+    "sampledMemoryMbByProcess": {
+      "electron": 420,
+      "captureHelper": 52,
+      "whisperServer": 358
+    }
+  },
+  "review": {
+    "status": "GATE_3_NOT_APPROVED",
+    "findings": [
+      "Continuous recording and reported final pass survived; original saved audio and final transcript were not included for independent review.",
+      "Long silent live-transcription stalls occurred while worker remained ready and PCM acknowledgments advanced.",
+      "Endurance Playwright runner exited zero without a stall assertion.",
+      "Acoustic bleed-through observed in a surviving snapshot; final-pass effect unverified."
+    ],
+    "causalFinding": "Unknown; live VAD input vs empty model output not distinguishable from uninstrumented run.",
+    "doNotRepeatFourHourTestWithoutOwnerApproval": true
+  },
+  "privacy": {
+    "rawAudioOrTranscriptInGit": false,
+    "privateArchiveRetainedInConversation": true
+  }
+}
