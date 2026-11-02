@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createGateUserData } from './gate-evidence.ts';
 import { join } from 'node:path';
 
 const helper = process.env['SCRB_CAPTURE_HELPER'];
@@ -11,7 +11,7 @@ test.skip(!helper || !config, 'set SCRB_CAPTURE_HELPER and SCRB_FINAL_PASS_CONFI
 
 test('a real recording reaches a final transcript on the Recordings screen', async () => {
   test.setTimeout(600_000);
-  const userData = mkdtempSync(join(tmpdir(), 'scrb-final-'));
+  const userData = createGateUserData('scrb-final');
   const library = join(userData, 'library');
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
