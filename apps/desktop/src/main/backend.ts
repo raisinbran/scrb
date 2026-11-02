@@ -102,7 +102,7 @@ export async function openBackend(
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
           run: createConfiguredImportRunner(finalPassConfig),
-          recordingBusy: () => recording?.isBusy() ?? false,
+          recordingBusy: () => library.listMeetings().some((meeting) => meeting.status === 'recording'),
           privacyBanner: async () => {
             const rules = await privacyJurisdictions(library.paths.root);
             return needsPrivacyBanner(
