@@ -31,6 +31,7 @@
 - Comments state a needed fact the code does not. See the Development Process document.
 - Pin exact dependency versions. Keep models, recordings and generated data out of git.
 - **Do not automatically delete gate test recordings or evidence, even after a passing test.** Keep raw audio, transcripts and diagnostics until the owner passes the relevant gate and explicitly authorizes cleanup; preserve any evidence needed through final app completion. Follow [the gate evidence retention rule](docs/gates/evidence-retention-policy.md).
+- For substantive physical gate tests, use the persistent [gate evidence runner](docs/gates/evidence-publishing.md), publishing only its allowlisted numeric report to a separate `rosmont/*` branch. Verify publication succeeded; retain full local evidence on failure.
 - The owner's real meeting recordings are confidential: never read, use or commit them. Test data is AMI fixtures or invented data.
 
 ## Commands
