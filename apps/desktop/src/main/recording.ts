@@ -266,9 +266,7 @@ export class RecordingController {
         let exited = false;
         const windows = process.platform === 'win32';
         const args = windows
-          ? (this.live?.startWindowsHelper(
-              () => exited || this.state.status === 'stopping',
-            ) ?? [])
+          ? (this.live?.startWindowsHelper(() => exited || this.state.status === 'stopping') ?? [])
           : [];
         const adapter = new ProcessAdapter(
           this.helper,
