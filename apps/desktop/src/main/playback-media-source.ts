@@ -45,7 +45,8 @@ async function allowedChunk(
     manifest['origin'] !== expectedOrigin ||
     !Array.isArray(manifest['chunks']) ||
     !Array.isArray(manifest['gaps'])
-  ) return false;
+  )
+    return false;
   return manifest['chunks'].some((entry: unknown) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
     const chunk = entry as Record<string, unknown>;
@@ -79,7 +80,8 @@ export async function readPlaybackChunk(
     !Number.isSafeInteger(length) ||
     length < 1 ||
     length > MAX_RANGE
-  ) return unavailable();
+  )
+    return unavailable();
 
   const meeting = await library.getMeeting(meetingId).catch(unavailable);
   if (meeting.audioDeletedAt !== null || meeting.status === 'importing') return unavailable();
@@ -110,9 +112,12 @@ export async function readPlaybackChunk(
     !audioReal.startsWith(meetingReal + sep) ||
     !rootReal.startsWith(audioReal + sep) ||
     !targetReal.startsWith(rootReal + sep)
-  ) return unavailable();
+  )
+    return unavailable();
 
-  const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)).catch(unavailable);
+  const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)).catch(
+    unavailable,
+  );
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || start >= stat.size) return unavailable();
