@@ -88,7 +88,8 @@ jobs:
             echo "Rejected: GPL, nonfree or version3 components enabled." >&2
             exit 1
           fi
-          grep -E '^CONFIG_(GPL|NONFREE|VERSION3)=' ffbuild/config.mak
+          # FFmpeg's config.mak omits disabled license flags; no match is expected.
+          grep -E '^CONFIG_(GPL|NONFREE|VERSION3)=' ffbuild/config.mak || true
           make -j4 ffmpeg.exe ffprobe.exe
           cp ffmpeg.exe ffprobe.exe ffbuild/config.mak "$out/"
           cp COPYING.LGPLv2.1 "$out/FFMPEG-LGPL-2.1.txt"
