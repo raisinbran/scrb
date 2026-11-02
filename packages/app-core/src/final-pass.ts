@@ -225,12 +225,13 @@ export class FinalPassQueue {
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
-        const job = () => this.run({
-          tracks,
-          workDir,
-          signal: this.abort.signal,
-          vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
-        });
+        const job = () =>
+          this.run({
+            tracks,
+            workDir,
+            signal: this.abort.signal,
+            vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+          });
         const transcript = this.modelGate
           ? await this.modelGate.run(job, this.abort.signal)
           : await job();
