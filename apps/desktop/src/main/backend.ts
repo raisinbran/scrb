@@ -15,12 +15,15 @@ import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
+import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { readLiveSetup } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
+  /** Null when no library opened, so there is no audio to serve. */
+  playback: PlaybackMedia | null;
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
@@ -121,7 +124,9 @@ export async function openBackend(
       : null;
     if (imports) await imports.recoverInterrupted();
     const stopRetention = library.startAutoDeleteSchedule();
+    const playback = new PlaybackMedia(library, emit);
     return {
+      playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
         getAppInfo: async () => ({
@@ -139,7 +144,9 @@ export async function openBackend(
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ...playback.wrap(
+          createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ),
         ...recording?.handlers,
       },
       warning: library.retainedIndexSnapshot
@@ -148,6 +155,7 @@ export async function openBackend(
           ? null
           : 'The index needs review; all original files were preserved.',
       close: async () => {
+        playback.stop();
         stopRetention();
         await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
@@ -165,6 +173,7 @@ export async function openBackend(
         folder: await readLibraryLocation(app.getPath('userData'), fallback),
       },
       handlers: {},
+      playback: null,
       warning:
         code === 'INDEX_SPACE'
           ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'
