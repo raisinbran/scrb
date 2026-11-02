@@ -7,7 +7,9 @@ interface Endpoint {
   server: Server;
   socket: Socket | null;
   sink: LivePipe | null;
+  expectedClose: () => boolean;
   closed: boolean;
+  closeTimer?: ReturnType<typeof setTimeout>;
 }
 
 /** Prebind one independent pipe per possible native helper launch. */
@@ -34,6 +36,7 @@ export class WindowsLivePipePool {
           server: createServer(),
           socket: null,
           sink: null,
+          expectedClose: () => false,
           closed: false,
         };
         endpoint.server.on('connection', (socket) => this.accept(endpoint, socket));
@@ -60,10 +63,11 @@ export class WindowsLivePipePool {
     return !this.closed && !!this.entries[this.next] && !this.entries[this.next]!.closed;
   }
 
-  take(sink: LivePipe): string | undefined {
+  take(sink: LivePipe, expectedClose: () => boolean = () => false): string | undefined {
     if (!this.hasNext()) return undefined;
     const endpoint = this.entries[this.next++]!;
     endpoint.sink = sink;
+    endpoint.expectedClose = expectedClose;
     return endpoint.name;
   }
 
@@ -75,6 +79,23 @@ export class WindowsLivePipePool {
     endpoint.socket = socket;
     endpoint.server.close();
     let ended = false;
+    const notifyClose = (kind: 'onEnd' | 'onError') => {
+      if (endpoint.closed) return;
+      this.notify(endpoint, kind);
+      this.release(endpoint);
+    };
+    const classifyClose = () => {
+      if (endpoint.closed || ended) return;
+      ended = true;
+      if (endpoint.expectedClose()) notifyClose('onEnd');
+      else {
+        // Let the helper's exit event arrive before treating a closed live-only pipe as failed.
+        endpoint.closeTimer = setTimeout(() => {
+          notifyClose(endpoint.expectedClose() ? 'onEnd' : 'onError');
+        }, 1000);
+        endpoint.closeTimer.unref();
+      }
+    };
     socket.on('data', (bytes) => {
       if (endpoint.closed) return;
       try {
@@ -84,18 +105,9 @@ export class WindowsLivePipePool {
         this.release(endpoint);
       }
     });
-    socket.once('end', () => {
-      ended = true;
-      this.notify(endpoint, 'onEnd');
-    });
-    socket.once('error', () => {
-      ended = true;
-      this.notify(endpoint, 'onError');
-    });
-    socket.once('close', () => {
-      if (!ended && !endpoint.closed) this.notify(endpoint, 'onError');
-      this.release(endpoint);
-    });
+    socket.once('end', classifyClose);
+    socket.once('error', classifyClose);
+    socket.once('close', classifyClose);
   }
 
   private notify(endpoint: Endpoint, kind: 'onEnd' | 'onError'): void {
@@ -110,6 +122,7 @@ export class WindowsLivePipePool {
   private release(endpoint: Endpoint): void {
     if (endpoint.closed) return;
     endpoint.closed = true;
+    clearTimeout(endpoint.closeTimer);
     endpoint.socket?.destroy();
     if (endpoint.server.listening) endpoint.server.close();
   }

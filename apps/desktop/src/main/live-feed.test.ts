@@ -230,7 +230,8 @@ it('delivers PCM across helper restarts', async () => {
   const pipes = await testPipes();
   await session.prepareWindowsPipes(pipes);
 
-  const firstArgs = session.startWindowsHelper();
+  let firstExited = false;
+  const firstArgs = session.startWindowsHelper(() => firstExited);
   const first = await connectPipe(firstArgs);
   const mic = { ...frame(0), generation: 3 };
   const meeting = { ...frame(0), track: 'meeting' as const, generation: 9 };
@@ -245,19 +246,73 @@ it('delivers PCM across helper restarts', async () => {
       { track: 'mic', sequence: 2, generation: 4, boundary: false },
     ]),
   );
+  firstExited = true;
   first.end();
   await once(first, 'close');
   await vi.waitFor(() => expect(closed).toHaveBeenCalledTimes(1));
 
-  const secondArgs = session.startWindowsHelper();
+  let secondExited = false;
+  const secondArgs = session.startWindowsHelper(() => secondExited);
   expect(secondArgs[1]).not.toBe(firstArgs[1]);
   const second = await connectPipe(secondArgs);
   second.write(encodePcmFrame(frame(0)));
   await vi.waitFor(() => expect(received[1]?.map((pcm) => pcm.sequence)).toEqual([0]));
+  secondExited = true;
   second.destroy();
   await vi.waitFor(() => expect(closed).toHaveBeenCalledTimes(2));
   await session.stop();
   expect(pipes.hasNext()).toBe(false);
+});
+
+it('flags live named-pipe EOF while capture continues', async () => {
+  const emit = vi.fn();
+  const close = vi.fn(async () => undefined);
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, async () => ({
+    offer: () => true,
+    close,
+  }));
+  liveSessions.push(session);
+  await session.prepareWindowsPipes(await testPipes(1));
+  const socket = await connectPipe(session.startWindowsHelper());
+  socket.end();
+  await once(socket, 'close');
+  await vi.waitFor(
+    () => expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 }),
+    { timeout: 3000 },
+  );
+  await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+});
+
+it('ignores EOF followed by helper exit or explicit Stop', async () => {
+  const emit = vi.fn();
+  const close = vi.fn(async () => undefined);
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, async () => ({
+    offer: () => true,
+    close,
+  }));
+  liveSessions.push(session);
+  await session.prepareWindowsPipes(await testPipes(2));
+
+  let exited = false;
+  const first = await connectPipe(session.startWindowsHelper(() => exited));
+  first.end();
+  await once(first, 'close');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  exited = true;
+  await vi.waitFor(() => expect(close).toHaveBeenCalledOnce(), { timeout: 3000 });
+  expect(emit).not.toHaveBeenCalledWith('transcriptionLag', {
+    status: 'failed',
+    lagMs: 0,
+  });
+
+  const second = await connectPipe(session.startWindowsHelper(() => true));
+  second.end();
+  await once(second, 'close');
+  await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(2));
+  expect(emit).not.toHaveBeenCalledWith('transcriptionLag', {
+    status: 'failed',
+    lagMs: 0,
+  });
 });
 
 it('isolates malformed Windows PCM frames', async () => {

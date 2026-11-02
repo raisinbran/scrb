@@ -44,8 +44,9 @@ require('node:readline').createInterface({ input: process.stdin }).on('line', (l
 const EXIT_HELPER = `#!/usr/bin/env node
 require('node:readline').createInterface({ input: process.stdin }).on('line', (line) => {
   const { id } = JSON.parse(line);
+  require('node:fs').closeSync(3);
   console.log(JSON.stringify({ type: 'ack', id, ok: true, gate: 'open', atNs: 5, activeTracks: [] }));
-  setTimeout(() => process.exit(2), 10);
+  setTimeout(() => process.exit(2), 100);
 });
 `;
 

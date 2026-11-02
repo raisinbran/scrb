@@ -263,10 +263,23 @@ export class RecordingController {
     if (process.platform === 'win32') await this.live?.prepareWindowsPipes();
     const session = new RecordingSession({
       launch: () => {
-        const adapter =
-          process.platform === 'win32'
-            ? new ProcessAdapter(this.helper, this.live?.startWindowsHelper() ?? [])
-            : new ProcessAdapter(this.helper, [], this.live?.startHelper());
+        let exited = false;
+        const windows = process.platform === 'win32';
+        const args = windows
+          ? (this.live?.startWindowsHelper(
+              () => exited || this.state.status === 'stopping',
+            ) ?? [])
+          : [];
+        const adapter = new ProcessAdapter(
+          this.helper,
+          args,
+          windows ? undefined : this.live?.startHelper(),
+        );
+        if (windows) {
+          adapter.onExit(() => {
+            exited = true;
+          });
+        }
         adapter.onEvent((event) => {
           if (event.type === 'health') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
