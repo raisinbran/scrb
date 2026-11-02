@@ -83,6 +83,7 @@ export function checkLiveProgress(samples) {
   let previous = null;
   let noProgressSec = 0;
   let maxStallSec = 0;
+  let largestSampleGapSec = 0;
   let audibleIntervals = 0;
   let progressedIntervals = 0;
   for (const sample of samples) {
@@ -91,6 +92,7 @@ export function checkLiveProgress(samples) {
     ensure(elapsedSec !== null && meetingWords !== null && typeof sample.speechPresent === 'boolean', 'Invalid live sample');
     if (previous) {
       ensure(elapsedSec > previous.elapsedSec && meetingWords >= previous.meetingWords, 'Nonmonotonic live samples');
+      largestSampleGapSec = Math.max(largestSampleGapSec, elapsedSec - previous.elapsedSec);
       if (sample.speechPresent && previous.speechPresent) {
         audibleIntervals++;
         if (meetingWords > previous.meetingWords) progressedIntervals++;
@@ -103,7 +105,7 @@ export function checkLiveProgress(samples) {
     previous = { elapsedSec, meetingWords, speechPresent: sample.speechPresent };
   }
   return {
-    status: maxStallSec >= STALL_LIMIT_SEC ? 'fail' : audibleIntervals && progressedIntervals ? 'no-stall-detected' : 'unverified',
+    status: maxStallSec >= STALL_LIMIT_SEC ? 'fail' : audibleIntervals && progressedIntervals && largestSampleGapSec <= STALL_LIMIT_SEC ? 'no-stall-detected' : 'unverified',
     maxStallSec, samples: samples.length,
   };
 }
@@ -162,7 +164,11 @@ export function summarize(meta, metrics, items, exitCode) {
   const live = checkLiveProgress(metrics?.live?.samples);
   const hasRecording = items.audioManifestPresent && recording.decodedChunks !== null && recording.decodedChunks > 0;
   const hasDecodeCheck = recording.decodeFailures === 0;
-  const hasLiveProof = meta.gate !== 3 || (live.status === 'no-stall-detected' && items.transcriptPresent);
+  const timeline = safeTimeline(metrics?.live?.samples);
+  const covered = recording.durationSec !== null && recording.durationSec > 0 && timeline.length > 1 &&
+    timeline[0].elapsedSec <= 60 &&
+    timeline[timeline.length - 1].elapsedSec >= recording.durationSec - 120;
+  const hasLiveProof = meta.gate !== 3 || (live.status === 'no-stall-detected' && items.transcriptPresent && covered);
   const failure = exitCode !== 0 || recording.decodeFailures > 0 || live.status === 'fail';
   const status = failure ? 'FAIL' : hasRecording && hasDecodeCheck && hasLiveProof ? 'CHECKS_PASSED' : 'INCOMPLETE';
   return {
@@ -179,7 +185,7 @@ export function summarize(meta, metrics, items, exitCode) {
     live: {
       status: live.status, sampleCount: live.samples, maxStallSec: live.maxStallSec,
       wordCount: finiteNumber(metrics?.live?.wordCount),
-      timeline: safeTimeline(metrics?.live?.samples),
+      timeline,
     },
     evidence: items,
   };
