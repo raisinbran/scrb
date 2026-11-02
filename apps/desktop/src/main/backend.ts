@@ -53,13 +53,14 @@ export async function openBackend(
       helper && finalPassConfig
         ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
         : null;
-    // The optional live model and native descriptor are enabled only on a development Mac.
+    // Live inference stays opt-in and disabled in packaged builds.
     const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
+    const livePlatform = process.platform === 'darwin' || process.platform === 'win32';
     const liveSetup =
-      process.platform === 'darwin' && helper && liveConfig
+      livePlatform && helper && liveConfig
         ? await readLiveSetup(liveConfig, path.join(__dirname, 'liveWorkerEntry.mjs'))
         : null;
-    if (liveConfig && !liveSetup && process.platform === 'darwin')
+    if (liveConfig && !liveSetup && livePlatform)
       library.logger.log('error', 'live-config-unavailable', {});
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
