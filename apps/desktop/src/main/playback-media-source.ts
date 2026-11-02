@@ -88,7 +88,7 @@ export async function readPlaybackChunk(
   const paths = library.meetingPaths(meetingId);
   const audioRoot = paths.audio;
   const folder = join(audioRoot, track);
-  let valid = false;
+  let valid: boolean;
   try {
     valid = await allowedChunk(folder, meeting.status === 'recording', meeting.source, file);
   } catch {
