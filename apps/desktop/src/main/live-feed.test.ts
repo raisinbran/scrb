@@ -229,15 +229,9 @@ it('isolates malformed Windows PCM frames', async () => {
 
 it('isolates Windows model startup failure', async () => {
   const emit = vi.fn();
-  const session = new LiveCaptureSession(
-    {} as Library,
-    'meeting',
-    emit,
-    setup,
-    async () => {
-      throw new Error('Invented model startup failure');
-    },
-  );
+  const session = new LiveCaptureSession({} as Library, 'meeting', emit, setup, async () => {
+    throw new Error('Invented model startup failure');
+  });
   liveSessions.push(session);
   await session.prepareWindowsPipes(await testPipes(1));
   const args = session.startWindowsHelper();
