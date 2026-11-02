@@ -223,6 +223,10 @@ export class LiveWhisper {
     return this.port;
   }
 
+  get pid(): number | undefined {
+    return this.worker.pid;
+  }
+
   private async waitReady(timeoutMs: number, signal?: AbortSignal): Promise<void> {
     let exit: WorkerExit | undefined;
     void this.worker.done.then((e) => (exit = e));

@@ -19,6 +19,7 @@ export type LiveAudioEvent =
 
 export interface LiveModelHost {
   port: number;
+  pid?: number;
   detect(track: TrackKind, signal: AbortSignal): Promise<VadSpan[]>;
   close(): Promise<void>;
   exited?: Promise<unknown>;
@@ -45,6 +46,8 @@ interface Run {
   ready: boolean;
   failed: boolean;
   workDir: string;
+  lastAckAtMs?: number;
+  lastSegmentAtMs?: number;
   pending: Map<TrackKind, { startNs: number; endNs: number }>;
   worker?: WorkerProcess;
   models?: LiveModelHost;
@@ -132,6 +135,25 @@ export class LiveAudioWorker {
     } catch {
       return false;
     }
+  }
+
+  getProgress(): {
+    workerPid: number | null;
+    modelPid: number | null;
+    ready: boolean;
+    queuedFrames: number;
+    lastAckAtMs: number | null;
+    lastSegmentAtMs: number | null;
+  } {
+    const run = this.run;
+    return {
+      workerPid: run?.worker?.pid ?? null,
+      modelPid: run?.models?.pid ?? null,
+      ready: run?.ready ?? false,
+      queuedFrames: [...this.queues.values()].reduce((count, queue) => count + queue.length, 0),
+      lastAckAtMs: run?.lastAckAtMs ?? null,
+      lastSegmentAtMs: run?.lastSegmentAtMs ?? null,
+    };
   }
 
   /** Stop discards provisional tails. The independent final pass owns complete transcription. */
@@ -299,6 +321,7 @@ export class LiveAudioWorker {
     });
     return {
       port: model.portNumber,
+      pid: model.pid,
       exited: model.exited,
       detect: (track, stop) =>
         detectSpeech(
@@ -338,6 +361,7 @@ export class LiveAudioWorker {
         )
           throw new Error('Invalid live buffer timing');
         run.pending.set(run.frame.track, { startNs: Number(start), endNs: pcmEndNs(run.frame) });
+        run.lastAckAtMs = Date.now();
         clearTimeout(run.timer);
         delete run.frame;
         this.lag();
@@ -395,6 +419,7 @@ export class LiveAudioWorker {
             throw new Error('Invalid live word');
           end = word.endMs;
         }
+        run.lastSegmentAtMs = Date.now();
         this.emit({
           type: 'segment',
           segment: {

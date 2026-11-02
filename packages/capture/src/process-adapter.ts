@@ -13,6 +13,7 @@ export class ProcessAdapter implements CaptureAdapter {
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly waiting = new Map<string, ((ack: CaptureAck) => void)[]>();
   private eventListener: (event: CaptureEvent) => void = () => undefined;
+  private stopSent = false;
 
   constructor(helperPath: string, args: string[] = [], live?: LivePipe) {
     const env = { ...process.env };
@@ -25,7 +26,12 @@ export class ProcessAdapter implements CaptureAdapter {
     });
     if (live) {
       const stream = this.child.stdio[3];
+      let reported = false;
+      let closing: ReturnType<typeof setTimeout> | undefined;
       const report = (kind: 'end' | 'error') => {
+        if (reported) return;
+        reported = true;
+        clearTimeout(closing);
         try {
           if (kind === 'end') live.onEnd();
           else live.onError();
@@ -33,6 +39,19 @@ export class ProcessAdapter implements CaptureAdapter {
           // Live consumers must never affect the durable helper.
         }
       };
+      const expected = () =>
+        this.stopSent || this.child.exitCode !== null || this.child.signalCode !== null;
+      const classifyClose = () => {
+        if (expected()) report('end');
+        else {
+          // A helper exit may reach us after its live descriptor closes.
+          closing ??= setTimeout(() => report(expected() ? 'end' : 'error'), 1000);
+          closing.unref();
+        }
+      };
+      this.child.once('exit', () => {
+        if (closing) report('end');
+      });
       if (stream) {
         stream.on('data', (bytes: Buffer) => {
           try {
@@ -41,8 +60,8 @@ export class ProcessAdapter implements CaptureAdapter {
             report('error');
           }
         });
-        stream.once('end', () => report('end'));
-        stream.once('error', () => report('error'));
+        stream.once('end', classifyClose);
+        stream.once('error', classifyClose);
       } else report('error');
     }
     this.child.on('error', () => undefined);
@@ -68,6 +87,7 @@ export class ProcessAdapter implements CaptureAdapter {
 
   send(id: string, command: CaptureCommand): Promise<CaptureAck> {
     return new Promise((resolve) => {
+      if (command.name === 'stop') this.stopSent = true;
       const replies = this.waiting.get(id) ?? [];
       this.waiting.set(id, [...replies, resolve]);
       const wire =
