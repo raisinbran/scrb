@@ -313,3 +313,33 @@ it('clamps model words within audio windows', async () => {
     ['steps.', 5000, 5000],
   ]);
 });
+
+describe('live stats', () => {
+  it('reports metadata per window and separates empty VAD from empty model results', async () => {
+    let spans = [{ startMs: 0, endMs: 200 }];
+    const engine = new LivePcmEngine(
+      {
+        detect: async () => spans,
+        transcribe: async () => [],
+      },
+      () => undefined,
+      () => undefined,
+    );
+    for (let i = 0; i < 5; i += 1) await engine.push(frame(i));
+    spans = [];
+    for (let i = 5; i < 10; i += 1) await engine.push(frame(i));
+    expect(engine.takeStats()).toEqual({
+      mic: {
+        vadCalls: 2,
+        vadEmpty: 1,
+        spans: 1,
+        modelCalls: 1,
+        modelEmpty: 1,
+        samples: 16000,
+        rms: 100,
+        peak: 100,
+      },
+    });
+    expect(engine.takeStats()).toEqual({});
+  });
+});

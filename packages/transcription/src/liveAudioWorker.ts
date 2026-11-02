@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ModelPaths, ToolPaths } from './config.js';
 import { encodePcmFrame, pcmEndNs, validPcmFrame, type LivePcmFrame } from './livePcmProtocol.js';
-import type { LiveSkip, TimedLiveSegment } from './livePcmEngine.js';
+import type { LiveSkip, LiveTrackStats, TimedLiveSegment } from './livePcmEngine.js';
 import type { TrackKind } from './types.js';
 import { detectSpeech, LiveWhisper, type LiveWhisperOptions, type VadSpan } from './whisper.js';
 import { WorkerProcess } from './worker.js';
@@ -40,6 +40,31 @@ export interface LiveAudioWorkerOptions {
   startModels?: (workDir: string, signal: AbortSignal) => Promise<LiveModelHost>;
 }
 
+const STAT_FIELDS = [
+  'vadCalls',
+  'vadEmpty',
+  'spans',
+  'modelCalls',
+  'modelEmpty',
+  'samples',
+  'rms',
+  'peak',
+] as const;
+
+/** Copies known numbers only, so nothing else from the worker can reach a log. */
+function flatStats(raw: unknown): Record<string, number> {
+  const stats: Record<string, number> = {};
+  for (const track of ['mic', 'meeting'] as const) {
+    const row = (raw as Partial<Record<TrackKind, LiveTrackStats>> | null | undefined)?.[track];
+    if (!row) continue;
+    for (const field of STAT_FIELDS) {
+      if (!Number.isFinite(row[field])) throw new Error('Invalid live stats');
+      stats[`${track}.${field}`] = row[field];
+    }
+  }
+  return stats;
+}
+
 interface Run {
   id: number;
   abort: AbortController;
@@ -48,6 +73,8 @@ interface Run {
   workDir: string;
   lastAckAtMs?: number;
   lastSegmentAtMs?: number;
+  stats?: Record<string, number>;
+  statsAtMs?: number;
   pending: Map<TrackKind, { startNs: number; endNs: number }>;
   worker?: WorkerProcess;
   models?: LiveModelHost;
@@ -144,6 +171,8 @@ export class LiveAudioWorker {
     queuedFrames: number;
     lastAckAtMs: number | null;
     lastSegmentAtMs: number | null;
+    stats: Record<string, number>;
+    statsAtMs: number | null;
   } {
     const run = this.run;
     return {
@@ -153,6 +182,8 @@ export class LiveAudioWorker {
       queuedFrames: [...this.queues.values()].reduce((count, queue) => count + queue.length, 0),
       lastAckAtMs: run?.lastAckAtMs ?? null,
       lastSegmentAtMs: run?.lastSegmentAtMs ?? null,
+      stats: run?.stats ?? {},
+      statsAtMs: run?.statsAtMs ?? null,
     };
   }
 
@@ -440,6 +471,9 @@ export class LiveAudioWorker {
             provisional: true,
           },
         });
+      } else if (message.type === 'stats') {
+        run.stats = flatStats(message.stats);
+        run.statsAtMs = Date.now();
       } else if (message.type === 'skipped' && run.frame) {
         const gap = message.gap as LiveSkip;
         if (
