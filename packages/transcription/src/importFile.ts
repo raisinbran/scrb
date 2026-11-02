@@ -5,7 +5,7 @@ import { basename, dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { probe, type ProbeResult } from './audio.js';
 import type { ModelPaths, ToolPaths } from './config.js';
-import { clearPreSkip } from './ogg.js';
+import { clearPreSkip, readOpusPreSkip } from './ogg.js';
 import { runFinalPass, type FinalPassOptions } from './finalPass.js';
 import type { AudioChunk, FinalPhase, FinalTranscript, Progress, RecordingGuard } from './types.js';
 import { WorkerFailed, WorkerProcess } from './worker.js';
@@ -127,6 +127,72 @@ export interface ImportResult {
 /** What an import writes in `audio/meeting/`, read back by later passes. */
 export const CHUNK_MANIFEST = 'chunks.json';
 
+/** Import-created chunks use the same timeline and field names as sealed capture chunks. */
+export function importedChunkManifest(
+  chunks: readonly AudioChunk[],
+  preSkips: readonly number[],
+): {
+  schemaVersion: 2;
+  origin: 'imported';
+  endedBy: 'stop';
+  endNs: number;
+  gaps: [];
+  chunks: Array<{
+    file: string;
+    seq: number;
+    startNs: number;
+    endNs: number;
+    rate: number;
+    preSkip: number;
+    openReason: 'imported';
+    closeReason: 'imported';
+    state: 'complete';
+  }>;
+} {
+  if (chunks.length === 0 || chunks.length !== preSkips.length) {
+    throw new ImportError('unreadable', 'incomplete imported chunks');
+  }
+  let previousEnd = 0;
+  const sealed = chunks.map((chunk, seq) => {
+    const file = basename(chunk.path);
+    const startNs = Math.round(chunk.startMs * 1e6);
+    const endNs = Math.round((chunk.startMs + chunk.durationMs) * 1e6);
+    const preSkip = preSkips[seq]!;
+    if (
+      !/^\d{6,}\.opus$/.test(file) ||
+      !Number.isSafeInteger(startNs) ||
+      !Number.isSafeInteger(endNs) ||
+      startNs < previousEnd ||
+      endNs <= startNs ||
+      !Number.isInteger(preSkip) ||
+      preSkip < 0 ||
+      preSkip > 65_535
+    ) {
+      throw new ImportError('unreadable', 'invalid imported chunk timing or header');
+    }
+    previousEnd = endNs;
+    return {
+      file,
+      seq,
+      startNs,
+      endNs,
+      rate: OPUS_RATE,
+      preSkip,
+      openReason: 'imported' as const,
+      closeReason: 'imported' as const,
+      state: 'complete' as const,
+    };
+  });
+  return {
+    schemaVersion: 2,
+    origin: 'imported',
+    endedBy: 'stop',
+    endNs: previousEnd,
+    gaps: [],
+    chunks: sealed,
+  };
+}
+
 /**
  * Imports one audio file as a meeting.  Everything is built in a hidden sibling
  * folder and renamed into place as the last step, so a failure or cancel at any
@@ -180,7 +246,9 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     }
 
     const relative = staged.map((c) => ({ ...c, path: basename(c.path) }));
-    await writeFile(join(stagedChunks, CHUNK_MANIFEST), JSON.stringify({ version: 1, chunks: relative }));
+    const preSkips = await Promise.all(staged.map((chunk) => readOpusPreSkip(chunk.path)));
+    const sealed = importedChunkManifest(staged, preSkips);
+    await writeFile(join(stagedChunks, CHUNK_MANIFEST), JSON.stringify(sealed));
     await rm(listPath);
     await rm(wavPath);
 
@@ -310,8 +378,47 @@ export async function sweepAbandonedImports(meetingsDir: string): Promise<string
   return swept;
 }
 
+/** Rejects malformed, future or path-escaping imported manifests before exposing chunk paths. */
 export async function readChunkManifest(meetingDir: string): Promise<AudioChunk[]> {
   const dir = join(meetingDir, 'audio', 'meeting');
-  const parsed = JSON.parse(await readFile(join(dir, CHUNK_MANIFEST), 'utf8')) as { chunks: AudioChunk[] };
-  return parsed.chunks.map((c) => ({ ...c, path: join(dir, c.path) }));
+  const parsed: unknown = JSON.parse(await readFile(join(dir, CHUNK_MANIFEST), 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Invalid imported audio manifest');
+  }
+  const manifest = parsed as Record<string, unknown>;
+  if (
+    manifest['schemaVersion'] !== 2 ||
+    manifest['origin'] !== 'imported' ||
+    !Array.isArray(manifest['chunks']) ||
+    manifest['chunks'].length === 0
+  ) {
+    throw new Error('Unsupported imported audio manifest');
+  }
+  let previousEnd = 0;
+  return manifest['chunks'].map((raw: unknown, index: number): AudioChunk => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('Invalid imported chunk');
+    }
+    const chunk = raw as Record<string, unknown>;
+    const { file, seq, startNs, endNs } = chunk;
+    if (
+      typeof file !== 'string' ||
+      !/^\d{6,}\.opus$/.test(file) ||
+      seq !== index ||
+      typeof startNs !== 'number' ||
+      typeof endNs !== 'number' ||
+      !Number.isSafeInteger(startNs) ||
+      !Number.isSafeInteger(endNs) ||
+      startNs < previousEnd ||
+      endNs <= startNs
+    ) {
+      throw new Error('Invalid imported chunk');
+    }
+    previousEnd = endNs;
+    return {
+      path: join(dir, file),
+      startMs: Math.round(startNs / 1e6),
+      durationMs: Math.round((endNs - startNs) / 1e6),
+    };
+  });
 }
