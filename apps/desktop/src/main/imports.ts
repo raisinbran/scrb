@@ -163,21 +163,21 @@ export class ImportCoordinator {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
       const result = await this.deps.run({
-            sourcePath,
-            meetingDir: staging,
-            signal: abort.signal,
-            vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
-            onProgress: (progress) => {
-              state.stage = STAGES[progress.phase];
-              state.fraction = Math.max(0, Math.min(1, progress.fraction));
-              this.deps.emit('importProgress', {
-                importId: state.importId,
-                fileName: state.fileName,
-                stage: state.stage,
-                fraction: state.fraction,
-              });
-            },
+        sourcePath,
+        meetingDir: staging,
+        signal: abort.signal,
+        vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
+        onProgress: (progress) => {
+          state.stage = STAGES[progress.phase];
+          state.fraction = Math.max(0, Math.min(1, progress.fraction));
+          this.deps.emit('importProgress', {
+            importId: state.importId,
+            fileName: state.fileName,
+            stage: state.stage,
+            fraction: state.fraction,
           });
+        },
+      });
       if (abort.signal.aborted) throw new Error('cancelled');
       if (!result.transcript) throw new Error('Final transcription was not produced');
       const created = await library.createMeeting({
@@ -201,7 +201,12 @@ export class ImportCoordinator {
       if (meetingId !== null) {
         try {
           const report = await library.discardImport(meetingId);
-          if (!report.ok) library.logger.log('error', 'import-discard-incomplete', { meetingId, leftCount: report.remaining.length });
+          if (!report.ok) {
+            library.logger.log('error', 'import-discard-incomplete', {
+              meetingId,
+              leftCount: report.remaining.length,
+            });
+          }
         } catch {
           // Reconciliation on next open handles unfinished import folders.
         }
