@@ -81,10 +81,15 @@ describe('Electron import coordination', () => {
     const at = Date.now();
     try {
       clock.mockReturnValue(at);
-      const pick = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+      const pick = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+        fileToken: string;
+      };
       clock.mockReturnValue(at + 600_001);
       await expect(
-        f.coordinator.handlers.importAudioFile!({ fileToken: pick.fileToken, buildVoiceProfiles: false }),
+        f.coordinator.handlers.importAudioFile!({
+          fileToken: pick.fileToken,
+          buildVoiceProfiles: false,
+        }),
       ).rejects.toMatchObject({ code: 'notFound' });
       expect(f.run).not.toHaveBeenCalled();
       expect(f.library.createMeeting).not.toHaveBeenCalled();
@@ -98,7 +103,12 @@ describe('Electron import coordination', () => {
   it('cancellation after provisional meeting creation discards the meeting and preserves source', async () => {
     const f = await fixture();
     let unblock!: () => void;
-    f.applied.mockImplementation(async () => new Promise<void>((resolve) => { unblock = resolve; }));
+    f.applied.mockImplementation(
+      async () =>
+        new Promise<void>((resolve) => {
+          unblock = resolve;
+        }),
+    );
     const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
     const { importId } = (await f.coordinator.handlers.importAudioFile!({
       fileToken: file.fileToken,
