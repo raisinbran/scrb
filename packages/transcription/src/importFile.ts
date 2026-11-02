@@ -418,7 +418,7 @@ export async function readChunkManifest(meetingDir: string): Promise<AudioChunk[
     return {
       path: join(dir, file),
       startMs: Math.round(startNs / 1e6),
-      durationMs: Math.round((endNs - startNs) / 1e6),
+      durationMs: Math.round(endNs / 1e6) - Math.round(startNs / 1e6),
     };
   });
 }
