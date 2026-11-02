@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -75,6 +75,47 @@ async function fixture() {
 }
 
 describe('Electron import coordination', () => {
+  it('expires private tokens after ten minutes without disclosing the source path', async () => {
+    const f = await fixture();
+    const clock = vi.spyOn(Date, 'now');
+    const at = Date.now();
+    try {
+      clock.mockReturnValue(at);
+      const pick = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+      clock.mockReturnValue(at + 600_001);
+      await expect(
+        f.coordinator.handlers.importAudioFile!({ fileToken: pick.fileToken, buildVoiceProfiles: false }),
+      ).rejects.toMatchObject({ code: 'notFound' });
+      expect(f.run).not.toHaveBeenCalled();
+      expect(f.library.createMeeting).not.toHaveBeenCalled();
+      expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+    } finally {
+      clock.mockRestore();
+      await f.coordinator.shutdown();
+    }
+  });
+
+  it('cancellation after provisional meeting creation discards the meeting and preserves source', async () => {
+    const f = await fixture();
+    let unblock!: () => void;
+    f.applied.mockImplementation(async () => new Promise<void>((resolve) => { unblock = resolve; }));
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const { importId } = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    })) as { importId: string };
+    await vi.waitFor(() => expect(f.applied).toHaveBeenCalledTimes(1));
+    const cancelled = f.coordinator.handlers.cancelImport!({ importId });
+    unblock();
+    await cancelled;
+    expect(f.discard).toHaveBeenCalledTimes(1);
+    expect(f.update).not.toHaveBeenCalledWith('imported-1', { status: 'ready' });
+    expect(f.emit).toHaveBeenCalledWith('importCancelled', expect.objectContaining({ importId }));
+    expect(f.emit).not.toHaveBeenCalledWith('importFinished', expect.anything());
+    expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+    await f.coordinator.shutdown();
+  });
+
   it('continues startup cleanup after a removal failure and logs no private path', async () => {
     const f = await fixture();
     const dir = join(f.root, 'cache', 'imports');
