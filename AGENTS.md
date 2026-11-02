@@ -28,6 +28,7 @@
 - Never weaken the Electron settings: context isolation, sandbox, no node integration, one call channel and one event channel, names allowlisted in both preload and main.
 - Colors live only in `apps/desktop/src/ui/theme/tokens.css`. A test enforces this and WCAG AA contrast.
 - Risky changes need a written plan the owner approves first. The Development Process lists them, including security settings and IPC.
+- Before multi-hour tests, follow the owner-approved short-test-first and evidence-reuse rules in `agents/agent_task_allocation.md`. Required gate durations are unchanged; do not run a separate diagnostic soak or automatically repeat a failed long test.
 - Comments state a needed fact the code does not. See the Development Process document.
 - Pin exact dependency versions. Keep models, recordings and generated data out of git.
 - The owner's real meeting recordings are confidential: never read, use or commit them. Test data is AMI fixtures or invented data.
