@@ -9,15 +9,16 @@ Maximize **useful, independently verified progress per scarce credit**, not the 
 
 ## Credit and availability snapshot
 
-Owner-reported snapshot as of November 2, 2026 (America/Los_Angeles), **not live usage telemetry**; recheck before scheduling.
+Two separate **owner-reported** snapshots from November 2, 2026 (America/Los_Angeles). Times below indicate **when each report was documented or verified**, not the precise time the owner checked the quota screen. These are historical observations, **not live usage telemetry**; recheck before scheduling.
 
-| Resource | ChatGPT Chat | Claude Code | ChatGPT Codex |
-| --- | --- | --- | --- |
-| Five-hour allowance remaining | Effectively unrestricted for chat | **100%** (just refreshed) | **34%** |
-| Five-hour allowance used | Effectively unrestricted for chat | 0% | 66% |
-| Weekly allowance remaining | Not a practical constraint | **15%** | **80%** |
-| Weekly allowance used | Not a practical constraint | 85% | 20% |
-| Additional limit | Cloud-only work | Free trial ends **Nov. 3, 2026**, unless renewed | **Two** free discretionary limit resets |
+| Report (PT) | Agent | 5-hour remaining | 5-hour used | Weekly remaining | Weekly used |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **Earlier Nov. 2** — documented **12:54 AM** | Claude Code | **100%** (just refreshed) | 0% | **15%** | 85% |
+| **Earlier Nov. 2** — documented **12:54 AM** | ChatGPT Codex | **34%** | 66% | **80%** | 20% |
+| **Later Nov. 2** — documented **2:31 AM** | Claude Code | **77%** | 23% | **12%** | 88% |
+| **Later Nov. 2** — documented **2:31 AM** | ChatGPT Codex | **14%** | 86% | **77%** | 23% |
+
+ChatGPT Chat remains effectively unrestricted for cloud-only work in both snapshots. Claude's reported free trial ends **Nov. 3, 2026** unless renewed; Codex has **two** free discretionary limit resets, each requiring owner authorization. The later figures supersede the earlier figures **for current scheduling only**; retain both snapshots for the historical record.
 
 **Cost lesson (owner estimate, Nov. 2):** The earlier description that Windows FFmpeg troubleshooting consumed *almost half* of Codex's five-hour allowance was an exaggeration and is superseded. At least two failed runs showed almost the same error; the owner estimates **roughly 12% of the five-hour allowance per run**, not a measured total. The Windows FFmpeg build subsequently passed on a GitHub-hosted Windows runner with MSYS2. Prefer ChatGPT Chat plus hosted CI for reproducible Windows build/test tasks; do not spend scarce local-agent credits repeating environment setup. Escalate repeated, similar failures promptly to targeted independent diagnosis rather than continuing speculative fixes.
 
@@ -36,7 +37,7 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 ### Claude Code — quality-sensitive work and independent Mac QA
 
 - Prefer for independent code/plan review, targeted troubleshooting, UI implementation, physical Mac tests, and complex work when higher quality or lower per-task credit cost justifies it.
-- Its **100% refreshed five-hour** but **15% remaining weekly** allowance and **Nov. 3** free-trial deadline make **critical Phase 3 diagnosis, QA and physical verification** more valuable than routine tasks.
+- In the latest reported snapshot, Claude had **77% of its five-hour** but only **12% of its weekly** allowance remaining; the **Nov. 3** trial deadline still favors critical Phase 3 diagnosis, QA and physical verification over routine tasks.
 - Avoid duplicate reviews and long, low-yield investigations. Do not interrupt an active assignment to start optional work.
 - Do not schedule Claude-only tasks after Nov. 3 without confirmed access. Future independent QA may be assigned to another available agent.
 - When reviewing Claude's implementation, assign another agent to provide the independent approval.
@@ -45,7 +46,7 @@ The owner observes that **Codex uses roughly 2–4 times as many credits per tas
 
 - Prefer for complex recording/capture paths, Windows/macOS native changes, backend state and storage, transcription integration, and tasks requiring actual local build/test tooling.
 - Use **Windows Codex on Windows** for Windows-native work and **Mac Codex on Mac** for macOS-native work. State the device explicitly.
-- Its high reported **2–4× relative credit use** and **34% remaining five-hour allowance** matter: reserve it for work where real local execution, reliability, or implementation complexity makes that cost worthwhile. Avoid Windows FFmpeg/toolchain setup already resolved in hosted CI.
+- Its high reported **2–4× relative credit use** and latest **14% remaining five-hour allowance** matter: reserve it for work where real local execution, reliability, or implementation complexity makes that cost worthwhile. Avoid Windows FFmpeg/toolchain setup already resolved in hosted CI.
 - Use its normal five-hour and weekly allowances efficiently before considering either discretionary reset. Do not invoke a reset without the owner's decision.
 - Do not assign overlapping native/backend edits to Codex and Claude/ChatGPT.
 
