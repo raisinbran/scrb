@@ -184,15 +184,13 @@ it('delivers PCM across helper restarts', async () => {
   const meeting = { ...frame(0), track: 'meeting' as const, generation: 9 };
   const boundary = { ...frame(1), generation: 3, boundary: true, samples: new Int16Array() };
   const resumed = { ...frame(2), generation: 4 };
-  first.write(
-    Buffer.concat([mic, meeting, boundary, resumed].map((pcm) => encodePcmFrame(pcm))),
-  );
+  first.write(Buffer.concat([mic, meeting, boundary, resumed].map((pcm) => encodePcmFrame(pcm))));
   await vi.waitFor(() =>
-    expect(received[0]?.map((pcm) => [pcm.track, pcm.sequence, pcm.generation, pcm.boundary])).toEqual([
-      ['mic', 0, 3, false],
-      ['meeting', 0, 9, false],
-      ['mic', 1, 3, true],
-      ['mic', 2, 4, false],
+    expect(received[0]).toMatchObject([
+      { track: 'mic', sequence: 0, generation: 3, boundary: false },
+      { track: 'meeting', sequence: 0, generation: 9, boundary: false },
+      { track: 'mic', sequence: 1, generation: 3, boundary: true },
+      { track: 'mic', sequence: 2, generation: 4, boundary: false },
     ]),
   );
   first.end();
