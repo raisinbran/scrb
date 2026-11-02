@@ -150,6 +150,34 @@ describe('LiveScreen', () => {
     });
   });
 
+  describe('after Stop', () => {
+    const notice = () => screen.getByText(/^Recording stopped\./).textContent;
+
+    it('follows the final pass instead of claiming it still runs', async () => {
+      await startMeeting();
+      fireEvent.click(button('Stop'));
+      await advance(0);
+      expect(notice()).toContain('final pass is running');
+      await trigger('finish-final-pass');
+      expect(notice()).toContain('final transcript is ready');
+    });
+
+    it('says when the transcript could not be finished', async () => {
+      await startMeeting();
+      const meetingId = (await backend.call('getRecordingSnapshot')).state.meetingId as string;
+      fireEvent.click(button('Stop'));
+      await advance(0);
+      const item = (await backend.call('listMeetings', {})).find((m) => m.id === meetingId);
+      act(() =>
+        backend.emit('meetingChanged', {
+          ...(item as NonNullable<typeof item>),
+          status: 'transcriptionFailed',
+        }),
+      );
+      expect(notice()).toContain('audio is saved');
+    });
+  });
+
   it('writes levels without re-rendering', async () => {
     await startMeeting();
     const [mic] = screen.getAllByRole('meter');
@@ -183,6 +211,12 @@ describe('LiveScreen', () => {
       await startMeeting();
       await trigger('lagging');
       expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: 14 s behind');
+    });
+
+    it('says transcription is catching up when the delay is under a second', async () => {
+      await startMeeting();
+      act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 0 }));
+      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: catching up');
     });
 
     it('shows the privacy banner until dismissed, and again at the next recording', async () => {
@@ -352,6 +386,50 @@ describe('LiveScreen', () => {
       fireEvent.click(button('Larger transcript text'));
       await advance(0);
       expect((await backend.call('getSettings')).transcriptFontPx).toBe(16);
+    });
+
+    it('stays on the text being read when a row above it goes away', async () => {
+      await renderLive();
+      await trigger('start-8-hours');
+      await advance(2000);
+      const element = transcript();
+      Object.defineProperty(element, 'scrollHeight', { value: 10_000_000 });
+      fireEvent.scroll(element);
+      element.scrollTop = 200_000;
+      fireEvent.scroll(element);
+      await advance(1000);
+      const id = document.querySelectorAll('[data-segment-id]')[8]?.getAttribute('data-segment-id');
+      const screenTop = () => {
+        const row = document.querySelector(`[data-segment-id="${id}"]`);
+        const slot = row?.parentElement as HTMLElement;
+        return Number(/translateY\((.+)px\)/.exec(slot.style.transform)?.[1]) - element.scrollTop;
+      };
+      const before = screenTop();
+
+      const meetingId = (await backend.call('getRecordingSnapshot')).state.meetingId as string;
+      const { revision } = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+      const above = document.querySelector('[data-segment-id]')?.getAttribute('data-segment-id');
+      act(() =>
+        backend.emit('transcriptChanged', {
+          meetingId,
+          revision: revision + 1,
+          change: { kind: 'replace', segments: [], removedSegmentIds: [above as string] },
+          speakers: [],
+        }),
+      );
+      await advance(0);
+
+      expect(screenTop()).toBeCloseTo(before, 0);
+      expect(element.dataset['following']).toBe('false');
+    });
+
+    it('keeps following off while a selection is open, even near the end', async () => {
+      await startMeeting();
+      fireEvent.doubleClick(words().at(-1) as HTMLElement);
+      fireEvent.scroll(transcript());
+      fireEvent.scroll(transcript());
+      await advance(0);
+      expect(transcript().dataset['following']).toBe('false');
     });
 
     it('applies a realigned or replaced segment without losing the selection', async () => {

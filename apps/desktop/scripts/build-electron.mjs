@@ -12,3 +12,14 @@ await build({
   external: ['electron'],
   logLevel: 'warning',
 });
+
+await build({
+  entryPoints: { liveWorkerEntry: '../../packages/transcription/src/liveWorkerEntry.ts' },
+  outdir: 'dist-electron',
+  outExtension: { '.js': '.mjs' },
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});

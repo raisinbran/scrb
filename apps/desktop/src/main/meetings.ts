@@ -88,7 +88,7 @@ function editState(t: TranscriptFile): { canUndo: boolean; canRedo: boolean } {
 }
 
 /** Only persisted changes are broadcast; the UI uses the revision to notice missing events. */
-function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit): void {
+export function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit): void {
   if (!emit || before.revision === after.revision) return;
   const oldSegments = toTranscriptPage(before, 0, Number.MAX_SAFE_INTEGER).segments;
   const fresh = toTranscriptPage(after, 0, Number.MAX_SAFE_INTEGER);

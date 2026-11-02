@@ -18,16 +18,31 @@ export function useRecordingStatus() {
   const [lag, setLag] = useState<TranscriptionLag | null>(null);
 
   useEffect(() => {
+    // An event that lands first is newer than the snapshot on its way.
+    const seen = new Set<'recording' | 'health' | 'lag'>();
     const unsubscribers = [
-      backend.on('recordingStateChanged', setRecording),
-      backend.on('recordingHealth', setHealth),
-      backend.on('transcriptionLag', setLag),
+      backend.on('recordingStateChanged', (state) => {
+        seen.add('recording');
+        setRecording(state);
+        if (state.status === 'idle') {
+          seen.add('lag');
+          setLag(null);
+        }
+      }),
+      backend.on('recordingHealth', (next) => {
+        seen.add('health');
+        setHealth(next);
+      }),
+      backend.on('transcriptionLag', (next) => {
+        seen.add('lag');
+        setLag(next);
+      }),
     ];
     void backend.call('getRecordingSnapshot').then(
       (snapshot) => {
-        setRecording(snapshot.state);
-        setHealth(snapshot.health);
-        setLag(snapshot.transcription);
+        if (!seen.has('recording')) setRecording(snapshot.state);
+        if (!seen.has('health')) setHealth(snapshot.health);
+        if (!seen.has('lag')) setLag(snapshot.transcription);
       },
       () => undefined,
     );
