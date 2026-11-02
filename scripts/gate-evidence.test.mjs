@@ -1,5 +1,4 @@
-import { strict as assert } from 'node:assert';
-import { test } from 'node:test';
+import { expect, test } from 'vitest';
 import { checkLiveProgress, summarize } from './gate-evidence.mjs';
 
 test('live check rejects an audible stall', () => {
@@ -8,8 +7,8 @@ test('live check rejects an audible stall', () => {
     { elapsedSec: 60, meetingWords: 10, speechPresent: true },
     { elapsedSec: 180, meetingWords: 10, speechPresent: true },
   ]);
-  assert.equal(result.status, 'fail');
-  assert.equal(result.maxStallSec, 180);
+  expect(result.status).toBe('fail');
+  expect(result.maxStallSec).toBe(180);
 });
 
 test('live check ignores genuine silence', () => {
@@ -18,7 +17,7 @@ test('live check ignores genuine silence', () => {
     { elapsedSec: 120, meetingWords: 10, speechPresent: false },
     { elapsedSec: 240, meetingWords: 11, speechPresent: true },
   ]);
-  assert.equal(result.status, 'no-stall-detected');
+  expect(result.status).toBe('no-stall-detected');
 });
 
 test('missing evidence cannot pass', () => {
@@ -28,8 +27,8 @@ test('missing evidence cannot pass', () => {
     { fileCount: 1, totalBytes: 10, inventorySha256: 'abc', audioManifestPresent: false, transcriptPresent: false },
     0,
   );
-  assert.equal(report.status, 'INCOMPLETE');
-  assert.equal(report.gateApproved, false);
+  expect(report.status).toBe('INCOMPLETE');
+  expect(report.gateApproved).toBe(false);
 });
 
 test('public report excludes private fields', () => {
@@ -46,6 +45,6 @@ test('public report excludes private fields', () => {
     { fileCount: 6, totalBytes: 55, inventorySha256: 'abc', audioManifestPresent: true, transcriptPresent: true },
     0,
   );
-  assert.equal(report.status, 'CHECKS_PASSED');
-  assert.equal(JSON.stringify(report).includes('PRIVATE'), false);
+  expect(report.status).toBe('CHECKS_PASSED');
+  expect(JSON.stringify(report).includes('PRIVATE')).toBe(false);
 });
