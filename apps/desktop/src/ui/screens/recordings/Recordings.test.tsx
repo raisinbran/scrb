@@ -120,6 +120,30 @@ describe('Recordings', () => {
       );
     });
 
+    it('shows a dismissible import privacy reminder only when required', async () => {
+      renderScreen();
+      await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
+      await startImport(true);
+      expect(
+        await screen.findByText('Voice profiles are being built from this imported file.'),
+      ).toBeTruthy();
+      fireEvent.click(
+        screen.getByRole('button', { name: /Dismiss voice-profile privacy reminder for/ }),
+      );
+      expect(
+        screen.queryByText('Voice profiles are being built from this imported file.'),
+      ).toBeNull();
+    });
+
+    it('does not show the import privacy reminder when profiling is off', async () => {
+      renderScreen();
+      await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
+      await startImport();
+      expect(
+        screen.queryByText('Voice profiles are being built from this imported file.'),
+      ).toBeNull();
+    });
+
     it('shows progress, then lets the user open the new meeting', async () => {
       renderScreen();
       await startImport();
