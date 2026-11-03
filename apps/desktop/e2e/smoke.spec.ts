@@ -149,6 +149,19 @@ test('launches and shows every screen against the mock backend', async () => {
     }
   }
 
+  // At 200% the source pickers must wrap below each other, not shrink until the choice is unreadable.
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(2),
+  );
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  for (const name of ['Meeting app', 'Microphone']) {
+    const box = await page.getByRole('combobox', { name }).boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(150);
+  }
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(1),
+  );
+
   await page.keyboard.press('Control+Shift+Alt+D');
   await page.locator('[data-trigger="start"]').click();
   await expect(page.getByTestId('recording-indicator')).toContainText('Recording');

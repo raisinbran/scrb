@@ -103,7 +103,7 @@ button:disabled {
   flex: 1;
   flex-wrap: wrap;
   gap: var(--space-3) var(--space-4);
-  min-width: 0;
+  min-width: min(320px, 100%);
 }
 
 .picker {
