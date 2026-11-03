@@ -95,23 +95,25 @@ function ImportRow({ entry, onOpen }: { entry: ImportEntry; onOpen(id: string): 
     <li className={styles.importRow}>
       <div className={styles.importBody}>
         <span className={styles.fileName}>{entry.fileName}</span>
-        {entry.source?.privacyBannerRequired && !entry.privacyDismissed && entry.state !== 'failed' && (
-          <div className={styles.bannerInfo} role="status">
-            <span>
-              {entry.state === 'finished'
-                ? 'Voice-profile building was enabled for this import.'
-                : 'Voice-profile building is enabled for this import.'}
-            </span>
-            <button
-              type="button"
-              className={styles.button}
-              aria-label={`Dismiss voice-profile privacy reminder for ${entry.fileName}`}
-              onClick={() => tracker.dismissPrivacy(entry.importId)}
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+        {entry.source?.privacyBannerRequired &&
+          !entry.privacyDismissed &&
+          entry.state !== 'failed' && (
+            <div className={styles.bannerInfo} role="status">
+              <span>
+                {entry.state === 'finished'
+                  ? 'Voice-profile building was enabled for this import.'
+                  : 'Voice-profile building is enabled for this import.'}
+              </span>
+              <button
+                type="button"
+                className={styles.button}
+                aria-label={`Dismiss voice-profile privacy reminder for ${entry.fileName}`}
+                onClick={() => tracker.dismissPrivacy(entry.importId)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         {entry.state === 'running' && (
           <>
             <span className={styles.muted}>
