@@ -4,6 +4,8 @@ import type { TrackKind } from './types.js';
 import type { VadSpan, WhisperWord } from './whisper.js';
 
 const HOP_MS = 500;
+/** Longest detection hop while frames are waiting. Stays under MAX_SPEECH_MS, so one pass clears it. */
+const BEHIND_HOP_MS = 2000;
 const SETTLE_MS = 300;
 const MAX_SPEECH_MS = 4000;
 /** Longer losses cut the speech apart anyway, so they restart context as before. */
@@ -150,7 +152,7 @@ export class LivePcmEngine {
     samples.set(frame.samples, state.samples.length);
     state.samples = samples;
     state.sinceDetect += frame.samples.length;
-    if (state.sinceDetect >= (HOP_MS * LIVE_PCM_RATE) / 1000) {
+    if (state.sinceDetect >= ((frame.more ? BEHIND_HOP_MS : HOP_MS) * LIVE_PCM_RATE) / 1000) {
       state.sinceDetect = 0;
       const startedAt = Date.now();
       await this.ready(frame.track, state, false);
