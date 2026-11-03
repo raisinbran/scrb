@@ -200,10 +200,9 @@ describe('createHybridBackend', () => {
       const backend = createHybridBackend(real, mock);
       for (const name of ['pauseSpansChanged', 'summaryOutdated', 'meetingChanged'] as const) {
         const listener = vi.fn();
-        const unsubscribe = backend.on(name, listener as never);
+        backend.on(name, listener as never);
         expect(real.on).toHaveBeenCalledWith(name, listener);
-        expect(mock).toBeDefined();
-        unsubscribe();
+
       }
     });
 
