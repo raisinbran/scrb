@@ -221,13 +221,19 @@ describe('createHybridBackend', () => {
       const meetingId = sample?.id ?? '';
       await backend.call('getUndoState', { meetingId });
       await backend.call('listSpeakerSuggestions', {});
-      await backend.call('renameSpeaker', {
-        target: { kind: 'profile', profileId: 'profile-1' },
-        name: 'New',
-      }).catch(() => undefined);
-      await backend.call('mergeSpeakers', {
-        kind: 'profiles', from: 'profile-1', into: 'profile-2',
-      }).catch(() => undefined);
+      await expect(
+        backend.call('renameSpeaker', {
+          target: { kind: 'profile', profileId: 'profile-1' },
+          name: 'New',
+        }),
+      ).resolves.toBeUndefined();
+      await expect(
+        backend.call('mergeSpeakers', {
+          kind: 'profiles',
+          from: 'profile-1',
+          into: 'profile-2',
+        }),
+      ).resolves.toBeUndefined();
       expect(real.call).not.toHaveBeenCalledWith('getUndoState', { meetingId });
       expect(real.call).not.toHaveBeenCalledWith('listSpeakerSuggestions', {});
       expect(real.call).not.toHaveBeenCalledWith('renameSpeaker', expect.anything());
