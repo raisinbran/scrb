@@ -4,6 +4,9 @@ Owner decision, 2026-11-02. Gate 3 is recorded separately for macOS and Windows.
 start Phase 4 work that does not depend on the other. V1 is still done only when every completion item
 works on both platforms. This records no gate approval.
 
+**Update, 2026-11-02:** the owner approved macOS Gate 3 at `e85eefe`; see [gate-3-macos.md](gate-3-macos.md).
+Windows Gate 3 remains open. The Mac items in "Open before a platform can pass" are closed by that record.
+
 ## Why
 
 The plan requires both platforms for V1 but gives no reason for moving them through each gate together.
