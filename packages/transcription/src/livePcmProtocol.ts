@@ -13,6 +13,8 @@ export interface LivePcmFrame {
   /** A boundary ends pending speech; it contains no PCM. */
   boundary: boolean;
   samples: Int16Array;
+  /** The sender already holds a later frame for this track. Set only between supervisor and worker. */
+  more?: boolean;
 }
 
 export function pcmEndNs(frame: LivePcmFrame): number {
@@ -28,6 +30,7 @@ export function validPcmFrame(frame: LivePcmFrame): boolean {
     Number.isSafeInteger(frame.startNs) &&
     frame.startNs >= 0 &&
     typeof frame.boundary === 'boolean' &&
+    (frame.more === undefined || typeof frame.more === 'boolean') &&
     frame.samples instanceof Int16Array &&
     frame.samples.length <= LIVE_PCM_MAX_SAMPLES &&
     (frame.boundary ? frame.samples.length === 0 : frame.samples.length > 0) &&
@@ -42,6 +45,7 @@ export function encodePcmFrame(frame: LivePcmFrame): Buffer {
   out[4] = 1;
   out[5] = frame.track === 'mic' ? 0 : 1;
   out[6] = frame.boundary ? 1 : 0;
+  out[7] = frame.more ? 1 : 0;
   out.writeUInt32LE(frame.sequence, 8);
   out.writeUInt32LE(frame.generation, 12);
   out.writeBigUInt64LE(BigInt(frame.startNs), 16);
@@ -79,7 +83,7 @@ export class PcmFrameDecoder {
             b[4] !== 1 ||
             b[5]! > 1 ||
             b[6]! > 1 ||
-            b[7] !== 0 ||
+            b[7]! > 1 ||
             b.readUInt32LE(24) !== LIVE_PCM_RATE ||
             samples > LIVE_PCM_MAX_SAMPLES ||
             (b[6] === 1 ? samples !== 0 : samples === 0) ||
@@ -100,6 +104,7 @@ export class PcmFrameDecoder {
           generation: this.buffer.readUInt32LE(12),
           startNs: Number(this.buffer.readBigUInt64LE(16)),
           samples,
+          ...(this.buffer[7] === 1 ? { more: true } : {}),
         };
         if (!validPcmFrame(frame)) throw new Error('Invalid live PCM timing');
         this.used = 0;
