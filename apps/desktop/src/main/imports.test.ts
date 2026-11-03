@@ -274,6 +274,32 @@ describe('Electron import coordination', () => {
     await f.coordinator.shutdown();
   });
 
+  it('logs the stage and system error behind a failed import, without its message', async () => {
+    const f = await fixture();
+    const cause = Object.assign(new Error('EPERM: rename C:\\private'), {
+      code: 'EPERM',
+      syscall: 'rename',
+    });
+    f.deps.run.mockRejectedValue(
+      Object.assign(new Error('unreadable: private', { cause }), { code: 'unreadable' }),
+    );
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    });
+    await vi.waitFor(() =>
+      expect(f.library.logger.log).toHaveBeenCalledWith('error', 'import-failed', {
+        stage: 'queued',
+        error: 'Error',
+        code: 'unreadable',
+        osCode: 'EPERM',
+        syscall: 'rename',
+      }),
+    );
+    await f.coordinator.shutdown();
+  });
+
   it('a recording preempts an import and reports the recording rather than user cancellation', async () => {
     const f = await fixture();
     f.deps.run.mockImplementation(

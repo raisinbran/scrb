@@ -257,6 +257,26 @@ describe('isolated live audio supervisor with invented processes', () => {
     expect(events[1]).toMatchObject({ type: 'lag', queuedFrames: 2 });
   });
 
+  it('counts frames separately at each stage, in the same totals', async () => {
+    const events: LiveAudioEvent[] = [];
+    const worker = await start(events, {
+      maxQueuedFrames: 1,
+      startModels: () => new Promise(() => undefined),
+    });
+    worker.offer(frame(0));
+    worker.offer(frame(0));
+    worker.offer(frame(3));
+    worker.offer(frame(0, 'meeting'));
+    const { stats } = worker.getProgress();
+    expect(stats).toMatchObject({
+      'mic.rejectedFrames': 1,
+      'mic.inputLostFrames': 2,
+      'mic.overflowFrames': 1,
+      'mic.sentFrames': 0,
+      'meeting.overflowFrames': 0,
+    });
+  });
+
   it('bounds noncontiguous status overflow and disables only live work', async () => {
     const events: LiveAudioEvent[] = [];
     const worker = await start(events, { maxQueuedFrames: 1 });
