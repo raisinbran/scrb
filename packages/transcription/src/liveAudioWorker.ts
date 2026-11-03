@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ModelPaths, ToolPaths } from './config.js';
 import { encodePcmFrame, pcmEndNs, validPcmFrame, type LivePcmFrame } from './livePcmProtocol.js';
-import type { LiveSkip, TimedLiveSegment } from './livePcmEngine.js';
+import type { LiveSkip, LiveTrackStats, TimedLiveSegment } from './livePcmEngine.js';
 import type { TrackKind } from './types.js';
 import { detectSpeech, LiveWhisper, type LiveWhisperOptions, type VadSpan } from './whisper.js';
 import { WorkerProcess } from './worker.js';
@@ -40,6 +40,39 @@ export interface LiveAudioWorkerOptions {
   startModels?: (workDir: string, signal: AbortSignal) => Promise<LiveModelHost>;
 }
 
+const STAT_FIELDS = [
+  'vadCalls',
+  'vadEmpty',
+  'spans',
+  'modelCalls',
+  'modelEmpty',
+  'samples',
+  'rms',
+  'peak',
+  'bridgedGaps',
+  'resetGaps',
+  'gapMs',
+  'lostFrames',
+  'slowestHopMs',
+] as const;
+
+/** Copies known numbers only, so nothing else from the worker can reach a log. */
+/** Ten seconds per track, longer than the slowest model calls seen in a real call (4.9 s). */
+const DEFAULT_QUEUED_FRAMES = 100;
+
+function flatStats(raw: unknown): Record<string, number> {
+  const stats: Record<string, number> = {};
+  for (const track of ['mic', 'meeting'] as const) {
+    const row = (raw as Partial<Record<TrackKind, LiveTrackStats>> | null | undefined)?.[track];
+    if (!row) continue;
+    for (const field of STAT_FIELDS) {
+      if (!Number.isFinite(row[field])) throw new Error('Invalid live stats');
+      stats[`${track}.${field}`] = row[field];
+    }
+  }
+  return stats;
+}
+
 interface Run {
   id: number;
   abort: AbortController;
@@ -48,6 +81,8 @@ interface Run {
   workDir: string;
   lastAckAtMs?: number;
   lastSegmentAtMs?: number;
+  stats?: Record<string, number>;
+  statsAtMs?: number;
   pending: Map<TrackKind, { startNs: number; endNs: number }>;
   worker?: WorkerProcess;
   models?: LiveModelHost;
@@ -61,6 +96,11 @@ interface Run {
 
 /** Owns only live processes and its own scratch directory, never a recording path or lock. */
 export class LiveAudioWorker {
+  /** Totals since start, one per stage: lost before arrival, refused, dropped from the queue, sent on. */
+  private readonly inputLostFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
+  private readonly rejectedFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
+  private readonly overflowFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
+  private readonly sentFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
   private readonly queues = new Map<TrackKind, LivePcmFrame[]>([
     ['mic', []],
     ['meeting', []],
@@ -84,12 +124,12 @@ export class LiveAudioWorker {
     private readonly options: LiveAudioWorkerOptions,
     private readonly scratch: string,
   ) {
-    this.capacity = options.maxQueuedFrames ?? 20;
+    this.capacity = options.maxQueuedFrames ?? DEFAULT_QUEUED_FRAMES;
   }
 
   static async start(options: LiveAudioWorkerOptions): Promise<LiveAudioWorker> {
-    const capacity = options.maxQueuedFrames ?? 20;
-    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 64)
+    const capacity = options.maxQueuedFrames ?? DEFAULT_QUEUED_FRAMES;
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 128)
       throw new RangeError('Invalid live queue capacity');
     for (const timeout of [
       options.requestTimeoutMs ?? 30_000,
@@ -116,8 +156,12 @@ export class LiveAudioWorker {
           frame.startNs < last.endNs ||
           frame.generation < last.generation ||
           (last.boundary && !frame.boundary && frame.generation === last.generation))
-      )
+      ) {
+        this.rejectedFrames[frame.track] += 1;
         return false;
+      }
+      if (last && frame.generation === last.generation)
+        this.inputLostFrames[frame.track] += frame.sequence - last.sequence - 1;
       const copy = { ...frame, samples: frame.samples.slice() };
       const queue = this.queues.get(frame.track)!;
       this.accepted.set(frame.track, {
@@ -126,7 +170,10 @@ export class LiveAudioWorker {
         generation: frame.generation,
         boundary: frame.boundary,
       });
-      if (queue.length === this.capacity) this.skip(queue.shift()!, 'overflow');
+      if (queue.length === this.capacity) {
+        this.skip(queue.shift()!, 'overflow');
+        this.overflowFrames[frame.track] += 1;
+      }
       if (this.closed) return false;
       queue.push(copy);
       this.lag();
@@ -144,6 +191,8 @@ export class LiveAudioWorker {
     queuedFrames: number;
     lastAckAtMs: number | null;
     lastSegmentAtMs: number | null;
+    stats: Record<string, number>;
+    statsAtMs: number | null;
   } {
     const run = this.run;
     return {
@@ -153,6 +202,18 @@ export class LiveAudioWorker {
       queuedFrames: [...this.queues.values()].reduce((count, queue) => count + queue.length, 0),
       lastAckAtMs: run?.lastAckAtMs ?? null,
       lastSegmentAtMs: run?.lastSegmentAtMs ?? null,
+      stats: {
+        ...run?.stats,
+        'mic.inputLostFrames': this.inputLostFrames.mic,
+        'meeting.inputLostFrames': this.inputLostFrames.meeting,
+        'mic.rejectedFrames': this.rejectedFrames.mic,
+        'meeting.rejectedFrames': this.rejectedFrames.meeting,
+        'mic.overflowFrames': this.overflowFrames.mic,
+        'meeting.overflowFrames': this.overflowFrames.meeting,
+        'mic.sentFrames': this.sentFrames.mic,
+        'meeting.sentFrames': this.sentFrames.meeting,
+      },
+      statsAtMs: run?.statsAtMs ?? null,
     };
   }
 
@@ -440,6 +501,9 @@ export class LiveAudioWorker {
             provisional: true,
           },
         });
+      } else if (message.type === 'stats') {
+        run.stats = flatStats(message.stats);
+        run.statsAtMs = Date.now();
       } else if (message.type === 'skipped' && run.frame) {
         const gap = message.gap as LiveSkip;
         if (
@@ -467,9 +531,11 @@ export class LiveAudioWorker {
     if (!run?.ready || run.failed || run.frame || this.closed) return;
     const candidates = [...this.queues.values()].filter((q) => q.length);
     candidates.sort((a, b) => a[0]!.startNs - b[0]!.startNs);
-    const frame = candidates[0]?.shift();
-    if (!frame) return;
+    const next = candidates[0]?.shift();
+    if (!next) return;
+    const frame = { ...next, more: candidates[0]!.length > 0 };
     run.frame = frame;
+    this.sentFrames[frame.track] += 1;
     run.pending.set(frame.track, {
       startNs: Math.min(frame.startNs, run.pending.get(frame.track)?.startNs ?? frame.startNs),
       endNs: pcmEndNs(frame),

@@ -165,23 +165,79 @@ describe('incremental PCM engine', () => {
     expect(r.engine.pendingStartNs('mic')).toBe(1500e6);
   });
 
-  it('drops context across skipped sequences, timestamp gaps and generation changes', async () => {
+  it('drops context across long gaps and generation changes', async () => {
     const r = rig();
     for (let i = 0; i < 4; i++) await r.engine.push(frame(i));
-    for (let i = 5; i < 10; i++) await r.engine.push(frame(i));
-    await r.boundary(10, 1000);
-    for (let i = 11; i < 16; i++)
-      await r.engine.push({ ...frame(i, 3000 + (i - 11) * 100), generation: 1 });
+    for (let i = 20; i < 25; i++) await r.engine.push(frame(i));
+    await r.boundary(25, 2500);
+    for (let i = 26; i < 31; i++)
+      await r.engine.push({ ...frame(i, 3000 + (i - 26) * 100), generation: 1 });
     await r.engine.push({
-      ...frame(16, 3500),
+      ...frame(31, 3500),
       generation: 1,
       boundary: true,
       samples: new Int16Array(),
     });
-    expect(r.skipped[0]).toEqual({ track: 'mic', startMs: 0, endMs: 500, reason: 'gap' });
-    expect(r.segments.map((s) => s.startMs)).toEqual([510, 3010]);
+    expect(r.skipped[0]).toEqual({ track: 'mic', startMs: 0, endMs: 2000, reason: 'gap' });
+    expect(r.segments.map((s) => s.startMs)).toEqual([2010, 3010]);
     expect(r.segments.every((s) => s.endMs - s.startMs < 500)).toBe(true);
-    await expect(r.engine.push(frame(16, 3500))).rejects.toThrow('Out-of-order');
+    await expect(r.engine.push(frame(31, 3500))).rejects.toThrow('Out-of-order');
+  });
+
+  it('keeps context across a short timed loss and reports only the missing audio', async () => {
+    const r = rig();
+    for (let i = 0; i < 4; i++) await r.engine.push(frame(i));
+    for (let i = 5; i < 10; i++) await r.engine.push(frame(i));
+    await r.boundary(10, 1000);
+    expect(r.skipped).toEqual([{ track: 'mic', startMs: 400, endMs: 500, reason: 'gap' }]);
+    expect(r.segments[0]!.startMs).toBe(10);
+    expect(r.engine.takeStats().mic).toMatchObject({
+      bridgedGaps: 1,
+      resetGaps: 0,
+      gapMs: 100,
+      lostFrames: 1,
+    });
+  });
+
+  it('does not bridge a boundary or a loss over one second', async () => {
+    const r = rig();
+    for (let i = 0; i < 2; i++) await r.engine.push(frame(i));
+    await r.engine.push(frame(3, 1201));
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 0, resetGaps: 1 });
+    await r.boundary(5, 2000);
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 0, resetGaps: 1 });
+  });
+
+  it('stays within its audio budget under repeated one-second losses', async () => {
+    const r = rig();
+    for (let i = 0; i < 200; i++) await r.engine.push(frame(i, i * 1100));
+    expect(r.engine.takeStats().mic).toMatchObject({ bridgedGaps: 199, resetGaps: 0 });
+    expect(r.segments.length).toBeGreaterThan(10);
+  });
+
+  it.each([0, 20, 6, 5, 4])('still produces text losing one frame in every %i', async (every) => {
+    const r = rig();
+    let sequence = 0;
+    let fed = 0;
+    for (let i = 0; i < 600; i++) {
+      if (every && i % every === every - 1) {
+        sequence += 1;
+        continue;
+      }
+      await r.engine.push(frame(sequence++, i * 100));
+      fed = i;
+    }
+    expect(r.segments.length).toBeGreaterThanOrEqual(10);
+    expect(r.skipped.every((s) => s.reason === 'gap' && s.endMs - s.startMs === 100)).toBe(true);
+    let end = 0;
+    for (const segment of r.segments) {
+      expect(segment.startMs).toBeGreaterThanOrEqual(end);
+      expect(segment.endMs).toBeLessThanOrEqual((fed + 1) * 100);
+      end = segment.endMs;
+    }
+    const stats = r.engine.takeStats().mic!;
+    expect(stats.resetGaps).toBe(0);
+    expect(stats.vadCalls).toBeGreaterThanOrEqual(100);
   });
 
   it('bounds continuous-speech windows and emits before waiting for a durable five-second chunk', async () => {
@@ -312,4 +368,117 @@ it('clamps model words within audio windows', async () => {
     ['media.', 4880, 5000],
     ['steps.', 5000, 5000],
   ]);
+});
+
+describe('live stats', () => {
+  it('reports metadata per window and separates empty VAD from empty model results', async () => {
+    let spans = [{ startMs: 0, endMs: 200 }];
+    const engine = new LivePcmEngine(
+      {
+        detect: async () => spans,
+        transcribe: async () => [],
+      },
+      () => undefined,
+      () => undefined,
+    );
+    for (let i = 0; i < 5; i += 1) await engine.push(frame(i));
+    spans = [];
+    for (let i = 5; i < 10; i += 1) await engine.push(frame(i));
+    expect(engine.takeStats()).toMatchObject({
+      mic: {
+        vadCalls: 2,
+        vadEmpty: 1,
+        spans: 1,
+        modelCalls: 1,
+        modelEmpty: 1,
+        samples: 16000,
+        rms: 100,
+        peak: 100,
+      },
+    });
+    expect(engine.takeStats()).toEqual({});
+  });
+});
+
+describe('live overload', () => {
+  /** Replays the supervisor's two queues against the real engine, on a virtual clock. */
+  async function overload(capacity: number, coalesce: boolean) {
+    const clock = { ms: 0 };
+    let words = 0;
+    const engine = new LivePcmEngine(
+      {
+        detect: async (_track, pcm) => {
+          clock.ms += 300;
+          return [{ startMs: 0, endMs: pcm.length / 16 }];
+        },
+        transcribe: async () => {
+          clock.ms += 1000;
+          words += 1;
+          return [{ text: 'word', startMs: 0, endMs: 100, confidence: 0.9 }];
+        },
+      },
+      () => undefined,
+      () => undefined,
+    );
+    const tracks = ['mic', 'meeting'] as const;
+    const queues = { mic: [] as LivePcmFrame[], meeting: [] as LivePcmFrame[] };
+    let overflow = 0;
+    let arrived = 0;
+    const seconds = 120;
+    const arrive = () => {
+      for (; arrived < seconds * 10 && arrived * 100 <= clock.ms; arrived++) {
+        for (const track of tracks) {
+          if (queues[track].length === capacity) {
+            queues[track].shift();
+            overflow += 1;
+          }
+          queues[track].push(frame(arrived, arrived * 100, track));
+        }
+      }
+    };
+    while (arrived < seconds * 10 || queues.mic.length || queues.meeting.length) {
+      arrive();
+      const track = tracks
+        .filter((name) => queues[name].length)
+        .sort((a, b) => queues[a][0]!.startNs - queues[b][0]!.startNs)[0];
+      if (!track) {
+        clock.ms += 10;
+        continue;
+      }
+      const next = queues[track].shift()!;
+      await engine.push({ ...next, more: coalesce && queues[track].length > 0 });
+    }
+    return { overflow, words };
+  }
+
+  it('reproduces the frame loss of per-hop detection on two busy tracks', async () => {
+    expect((await overload(20, false)).overflow).toBeGreaterThan(500);
+  });
+
+  it('keeps up with the same slow models once waiting frames share a detection', async () => {
+    const { overflow, words } = await overload(100, true);
+    expect(overflow).toBe(0);
+    expect(words).toBeGreaterThan(50);
+  });
+
+  it('detects once per batch while frames wait, and still at a normal hop when they do not', async () => {
+    const detect = vi.fn(async () => []);
+    const engine = new LivePcmEngine(
+      { detect, transcribe: async () => [] },
+      () => undefined,
+      () => undefined,
+    );
+    for (let i = 0; i < 20; i++) await engine.push({ ...frame(i), more: true });
+    expect(detect).toHaveBeenCalledTimes(1);
+    for (let i = 20; i < 25; i++) await engine.push(frame(i));
+    expect(detect).toHaveBeenCalledTimes(2);
+  });
+
+  it('carries the waiting-frames flag across the worker pipe', () => {
+    const frames: LivePcmFrame[] = [];
+    const decoder = new PcmFrameDecoder((decoded) => frames.push(decoded));
+    decoder.write(encodePcmFrame({ ...frame(1), more: true }));
+    decoder.write(encodePcmFrame(frame(2)));
+    expect(frames.map((decoded) => decoded.more)).toEqual([true, undefined]);
+  });
 });

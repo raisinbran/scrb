@@ -15,6 +15,8 @@ let busy = false;
 let stopped = false;
 let vad: ((spans: VadSpan[]) => void) | undefined;
 const abort = new AbortController();
+const STATS_EVERY_MS = 60_000;
+let statsAtMs = Date.now();
 
 function stop(): void {
   if (stopped) return;
@@ -65,6 +67,10 @@ process.on('message', (raw: unknown) => {
         .then(() => {
           if (!stopped) {
             busy = false;
+            if (Date.now() - statsAtMs >= STATS_EVERY_MS) {
+              statsAtMs = Date.now();
+              send({ type: 'stats', stats: engine!.takeStats() });
+            }
             send({
               type: 'ack',
               track: frame.track,

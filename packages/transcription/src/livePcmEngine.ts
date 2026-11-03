@@ -4,8 +4,13 @@ import type { TrackKind } from './types.js';
 import type { VadSpan, WhisperWord } from './whisper.js';
 
 const HOP_MS = 500;
+/** Longest detection hop while frames are waiting. Stays under MAX_SPEECH_MS, so one pass clears it. */
+const BEHIND_HOP_MS = 2000;
 const SETTLE_MS = 300;
 const MAX_SPEECH_MS = 4000;
+/** Longer losses cut the speech apart anyway, so they restart context as before. */
+const MAX_BRIDGE_MS = 1000;
+const NS_PER_SAMPLE = 62_500;
 
 export interface TimedLiveSegment extends LiveSegment {
   sequence: number;
@@ -24,6 +29,29 @@ export interface LiveSkip {
   reason: 'overflow' | 'gap' | 'worker' | 'closed';
 }
 
+/** Metadata for one reporting window; never carries audio or model output. */
+export interface LiveTrackStats {
+  vadCalls: number;
+  vadEmpty: number;
+  spans: number;
+  modelCalls: number;
+  modelEmpty: number;
+  samples: number;
+  rms: number;
+  peak: number;
+  /** Discontinuities kept in context, and those that restarted it. */
+  bridgedGaps: number;
+  resetGaps: number;
+  gapMs: number;
+  /** Frames the sequence numbers show as missing. */
+  lostFrames: number;
+  slowestHopMs: number;
+}
+
+interface Counts extends Omit<LiveTrackStats, 'rms'> {
+  squares: number;
+}
+
 interface State {
   samples: Int16Array;
   baseMs: number;
@@ -37,6 +65,7 @@ interface State {
 /** Runs only inside the isolated live process; no capture paths or durable files are accepted. */
 export class LivePcmEngine {
   private tracks = new Map<TrackKind, State>();
+  private counts = new Map<TrackKind, Counts>();
   private closed = false;
 
   constructor(
@@ -65,14 +94,34 @@ export class LivePcmEngine {
         frame.generation !== state.generation ||
         (!frame.boundary && frame.startNs !== state.endNs))
     ) {
-      if (state.samples.length || frame.startNs > state.endNs)
-        this.skip({
-          track: frame.track,
-          startMs: state.samples.length ? state.baseMs : state.endNs / 1e6,
-          endMs: startMs,
-          reason: 'gap',
-        });
-      state = undefined;
+      const missingNs = frame.startNs - state.endNs;
+      const lost = frame.generation === state.generation;
+      const counts = this.count(frame.track);
+      if (lost) {
+        counts.lostFrames += Math.max(0, frame.sequence - state.sequence - 1);
+        counts.gapMs += missingNs / 1e6;
+      }
+      if (lost && !frame.boundary && missingNs <= MAX_BRIDGE_MS * 1e6) {
+        counts.bridgedGaps += 1;
+        if (missingNs > 0)
+          this.skip({
+            track: frame.track,
+            startMs: state.endNs / 1e6,
+            endMs: startMs,
+            reason: 'gap',
+          });
+        this.bridge(state, missingNs);
+      } else {
+        if (lost) counts.resetGaps += 1;
+        if (state.samples.length || frame.startNs > state.endNs)
+          this.skip({
+            track: frame.track,
+            startMs: state.samples.length ? state.baseMs : state.endNs / 1e6,
+            endMs: startMs,
+            reason: 'gap',
+          });
+        state = undefined;
+      }
     }
     if (!state) {
       state = {
@@ -96,15 +145,19 @@ export class LivePcmEngine {
       state.boundary = true;
       return;
     }
+    this.measure(frame.track, frame.samples);
     if (!state.samples.length) state.baseMs = startMs;
     const samples = new Int16Array(state.samples.length + frame.samples.length);
     samples.set(state.samples);
     samples.set(frame.samples, state.samples.length);
     state.samples = samples;
     state.sinceDetect += frame.samples.length;
-    if (state.sinceDetect >= (HOP_MS * LIVE_PCM_RATE) / 1000) {
+    if (state.sinceDetect >= ((frame.more ? BEHIND_HOP_MS : HOP_MS) * LIVE_PCM_RATE) / 1000) {
       state.sinceDetect = 0;
+      const startedAt = Date.now();
       await this.ready(frame.track, state, false);
+      const counts = this.count(frame.track);
+      counts.slowestHopMs = Math.max(counts.slowestHopMs, Date.now() - startedAt);
     }
   }
 
@@ -118,11 +171,69 @@ export class LivePcmEngine {
     return state ? Math.round(state.samples.length ? state.baseMs * 1e6 : state.endNs) : 0;
   }
 
+  /** Silence stands for audio the timestamps prove is missing. Rounds down, so text never runs late. */
+  private bridge(state: State, missingNs: number): void {
+    if (!state.samples.length) return;
+    const silence = Math.floor(missingNs / NS_PER_SAMPLE);
+    const samples = new Int16Array(state.samples.length + silence);
+    samples.set(state.samples);
+    state.samples = samples;
+    state.sinceDetect += silence;
+  }
+
+  takeStats(): Partial<Record<TrackKind, LiveTrackStats>> {
+    const stats: Partial<Record<TrackKind, LiveTrackStats>> = {};
+    for (const [track, { squares, ...counts }] of this.counts) {
+      stats[track] = {
+        ...counts,
+        rms: counts.samples ? Math.round(Math.sqrt(squares / counts.samples)) : 0,
+      };
+    }
+    this.counts.clear();
+    return stats;
+  }
+
+  private count(track: TrackKind): Counts {
+    let counts = this.counts.get(track);
+    if (!counts) {
+      counts = {
+        vadCalls: 0,
+        vadEmpty: 0,
+        spans: 0,
+        modelCalls: 0,
+        modelEmpty: 0,
+        samples: 0,
+        squares: 0,
+        peak: 0,
+        bridgedGaps: 0,
+        resetGaps: 0,
+        gapMs: 0,
+        lostFrames: 0,
+        slowestHopMs: 0,
+      };
+      this.counts.set(track, counts);
+    }
+    return counts;
+  }
+
+  private measure(track: TrackKind, samples: Int16Array): void {
+    const counts = this.count(track);
+    counts.samples += samples.length;
+    for (const sample of samples) {
+      counts.squares += sample * sample;
+      counts.peak = Math.max(counts.peak, Math.abs(sample));
+    }
+  }
+
   private async ready(track: TrackKind, state: State, flush: boolean): Promise<void> {
     if (!state.samples.length) return;
     const durationMs = (state.samples.length * 1000) / LIVE_PCM_RATE;
     const detected = await this.models.detect(track, state.samples);
     if (this.closed) return;
+    const counts = this.count(track);
+    counts.vadCalls += 1;
+    counts.spans += detected.length;
+    if (!detected.length) counts.vadEmpty += 1;
     if (detected.length > 128) throw new Error('Invalid live VAD timing');
     const spans = detected.map((span) => {
       if (![span.startMs, span.endMs].every(Number.isFinite) || span.startMs >= durationMs) {
@@ -173,6 +284,8 @@ export class LivePcmEngine {
         ),
       );
       if (this.closed) return;
+      counts.modelCalls += 1;
+      if (!words.length) counts.modelEmpty += 1;
       const maxMs = endMs - span.startMs;
       let previous = 0;
       const bounded = words.map((word) => {
