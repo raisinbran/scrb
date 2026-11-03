@@ -399,3 +399,86 @@ describe('live stats', () => {
     expect(engine.takeStats()).toEqual({});
   });
 });
+
+describe('live overload', () => {
+  /** Replays the supervisor's two queues against the real engine, on a virtual clock. */
+  async function overload(capacity: number, coalesce: boolean) {
+    const clock = { ms: 0 };
+    let words = 0;
+    const engine = new LivePcmEngine(
+      {
+        detect: async (_track, pcm) => {
+          clock.ms += 300;
+          return [{ startMs: 0, endMs: pcm.length / 16 }];
+        },
+        transcribe: async () => {
+          clock.ms += 1000;
+          words += 1;
+          return [{ text: 'word', startMs: 0, endMs: 100, confidence: 0.9 }];
+        },
+      },
+      () => undefined,
+      () => undefined,
+    );
+    const tracks = ['mic', 'meeting'] as const;
+    const queues = { mic: [] as LivePcmFrame[], meeting: [] as LivePcmFrame[] };
+    let overflow = 0;
+    let arrived = 0;
+    const seconds = 120;
+    const arrive = () => {
+      for (; arrived < seconds * 10 && arrived * 100 <= clock.ms; arrived++) {
+        for (const track of tracks) {
+          if (queues[track].length === capacity) {
+            queues[track].shift();
+            overflow += 1;
+          }
+          queues[track].push(frame(arrived, arrived * 100, track));
+        }
+      }
+    };
+    while (arrived < seconds * 10 || queues.mic.length || queues.meeting.length) {
+      arrive();
+      const track = tracks
+        .filter((name) => queues[name].length)
+        .sort((a, b) => queues[a][0]!.startNs - queues[b][0]!.startNs)[0];
+      if (!track) {
+        clock.ms += 10;
+        continue;
+      }
+      const next = queues[track].shift()!;
+      await engine.push({ ...next, more: coalesce && queues[track].length > 0 });
+    }
+    return { overflow, words };
+  }
+
+  it('reproduces the frame loss of per-hop detection on two busy tracks', async () => {
+    expect((await overload(20, false)).overflow).toBeGreaterThan(500);
+  });
+
+  it('keeps up with the same slow models once waiting frames share a detection', async () => {
+    const { overflow, words } = await overload(100, true);
+    expect(overflow).toBe(0);
+    expect(words).toBeGreaterThan(50);
+  });
+
+  it('detects once per batch while frames wait, and still at a normal hop when they do not', async () => {
+    const detect = vi.fn(async () => []);
+    const engine = new LivePcmEngine(
+      { detect, transcribe: async () => [] },
+      () => undefined,
+      () => undefined,
+    );
+    for (let i = 0; i < 20; i++) await engine.push({ ...frame(i), more: true });
+    expect(detect).toHaveBeenCalledTimes(1);
+    for (let i = 20; i < 25; i++) await engine.push(frame(i));
+    expect(detect).toHaveBeenCalledTimes(2);
+  });
+
+  it('carries the waiting-frames flag across the worker pipe', () => {
+    const frames: LivePcmFrame[] = [];
+    const decoder = new PcmFrameDecoder((decoded) => frames.push(decoded));
+    decoder.write(encodePcmFrame({ ...frame(1), more: true }));
+    decoder.write(encodePcmFrame(frame(2)));
+    expect(frames.map((decoded) => decoded.more)).toEqual([true, undefined]);
+  });
+});

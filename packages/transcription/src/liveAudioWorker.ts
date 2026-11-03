@@ -57,6 +57,9 @@ const STAT_FIELDS = [
 ] as const;
 
 /** Copies known numbers only, so nothing else from the worker can reach a log. */
+/** Ten seconds per track, longer than the slowest model calls seen in a real call (4.9 s). */
+const DEFAULT_QUEUED_FRAMES = 100;
+
 function flatStats(raw: unknown): Record<string, number> {
   const stats: Record<string, number> = {};
   for (const track of ['mic', 'meeting'] as const) {
@@ -93,8 +96,11 @@ interface Run {
 
 /** Owns only live processes and its own scratch directory, never a recording path or lock. */
 export class LiveAudioWorker {
-  /** Totals since start. Sequence losses beyond these were lost before the queue. */
+  /** Totals since start, one per stage: lost before arrival, refused, dropped from the queue, sent on. */
+  private readonly inputLostFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
+  private readonly rejectedFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
   private readonly overflowFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
+  private readonly sentFrames: Record<TrackKind, number> = { mic: 0, meeting: 0 };
   private readonly queues = new Map<TrackKind, LivePcmFrame[]>([
     ['mic', []],
     ['meeting', []],
@@ -118,12 +124,12 @@ export class LiveAudioWorker {
     private readonly options: LiveAudioWorkerOptions,
     private readonly scratch: string,
   ) {
-    this.capacity = options.maxQueuedFrames ?? 20;
+    this.capacity = options.maxQueuedFrames ?? DEFAULT_QUEUED_FRAMES;
   }
 
   static async start(options: LiveAudioWorkerOptions): Promise<LiveAudioWorker> {
-    const capacity = options.maxQueuedFrames ?? 20;
-    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 64)
+    const capacity = options.maxQueuedFrames ?? DEFAULT_QUEUED_FRAMES;
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 128)
       throw new RangeError('Invalid live queue capacity');
     for (const timeout of [
       options.requestTimeoutMs ?? 30_000,
@@ -150,8 +156,12 @@ export class LiveAudioWorker {
           frame.startNs < last.endNs ||
           frame.generation < last.generation ||
           (last.boundary && !frame.boundary && frame.generation === last.generation))
-      )
+      ) {
+        this.rejectedFrames[frame.track] += 1;
         return false;
+      }
+      if (last && frame.generation === last.generation)
+        this.inputLostFrames[frame.track] += frame.sequence - last.sequence - 1;
       const copy = { ...frame, samples: frame.samples.slice() };
       const queue = this.queues.get(frame.track)!;
       this.accepted.set(frame.track, {
@@ -194,8 +204,14 @@ export class LiveAudioWorker {
       lastSegmentAtMs: run?.lastSegmentAtMs ?? null,
       stats: {
         ...run?.stats,
+        'mic.inputLostFrames': this.inputLostFrames.mic,
+        'meeting.inputLostFrames': this.inputLostFrames.meeting,
+        'mic.rejectedFrames': this.rejectedFrames.mic,
+        'meeting.rejectedFrames': this.rejectedFrames.meeting,
         'mic.overflowFrames': this.overflowFrames.mic,
         'meeting.overflowFrames': this.overflowFrames.meeting,
+        'mic.sentFrames': this.sentFrames.mic,
+        'meeting.sentFrames': this.sentFrames.meeting,
       },
       statsAtMs: run?.statsAtMs ?? null,
     };
@@ -515,9 +531,11 @@ export class LiveAudioWorker {
     if (!run?.ready || run.failed || run.frame || this.closed) return;
     const candidates = [...this.queues.values()].filter((q) => q.length);
     candidates.sort((a, b) => a[0]!.startNs - b[0]!.startNs);
-    const frame = candidates[0]?.shift();
-    if (!frame) return;
+    const next = candidates[0]?.shift();
+    if (!next) return;
+    const frame = { ...next, more: candidates[0]!.length > 0 };
     run.frame = frame;
+    this.sentFrames[frame.track] += 1;
     run.pending.set(frame.track, {
       startNs: Math.min(frame.startNs, run.pending.get(frame.track)?.startNs ?? frame.startNs),
       endNs: pcmEndNs(frame),
