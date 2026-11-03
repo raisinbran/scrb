@@ -139,6 +139,74 @@ describe('createHybridBackend', () => {
       expect(real.call).toHaveBeenCalledWith('pauseAudio', { meetingId: REAL_ID });
     });
 
+    it('routes edits and other meeting actions to their owning backend', async () => {
+      const real = realWithMeeting();
+      const backend = createHybridBackend(real, mock);
+      const range = { firstWordId: 'word-1', lastWordId: 'word-2' };
+      const requests = [
+        ['getUndoState', { meetingId: REAL_ID }],
+        ['applyCorrection', { meetingId: REAL_ID, range, text: 'edit', remember: false }],
+        ['reassignSpeaker', { meetingId: REAL_ID, range, speakerId: 'speaker-1' }],
+        ['undo', { meetingId: REAL_ID }],
+        ['redo', { meetingId: REAL_ID }],
+        ['splitSpeaker', { meetingId: REAL_ID, range, newLabel: 'New speaker' }],
+        ['answerSpeakerSuggestion', {
+          meetingId: REAL_ID, speakerId: 'speaker-1', profileId: 'profile-1', accepted: true,
+        }],
+        ['listSpeakerSuggestions', { meetingId: REAL_ID }],
+        ['updateMeeting', { meetingId: REAL_ID, title: 'Updated' }],
+        ['retryFinalPass', { meetingId: REAL_ID }],
+        ['generateSummary', { meetingId: REAL_ID, length: 'brief' }],
+        ['updateSummaryItem', { meetingId: REAL_ID, update: {} }],
+        ['openMeetingFolder', { meetingId: REAL_ID, folder: 'meeting' }],
+      ] as const;
+      for (const [name, request] of requests) {
+        await backend.call(name, request as never).catch(() => undefined);
+        expect(real.call).toHaveBeenCalledWith(name, request);
+      }
+      const rename = {
+        target: { kind: 'meetingSpeaker' as const, meetingId: REAL_ID, speakerId: 'speaker-1' },
+        name: 'Named',
+      };
+      const merge = { kind: 'meetingSpeakers' as const, meetingId: REAL_ID, from: 'a', into: 'b' };
+      await backend.call('renameSpeaker', rename).catch(() => undefined);
+      await backend.call('mergeSpeakers', merge).catch(() => undefined);
+      expect(real.call).toHaveBeenCalledWith('renameSpeaker', rename);
+      expect(real.call).toHaveBeenCalledWith('mergeSpeakers', merge);
+    });
+
+    it('keeps profile-only calls and sample meeting edits on the mock', async () => {
+      const real = realWithMeeting();
+      const backend = createHybridBackend(real, mock);
+      const [sample] = await mock.call('listMeetings', {});
+      const meetingId = sample?.id ?? '';
+      await backend.call('getUndoState', { meetingId });
+      await backend.call('listSpeakerSuggestions', {});
+      await backend.call('renameSpeaker', {
+        target: { kind: 'profile', profileId: 'profile-1' },
+        name: 'New',
+      }).catch(() => undefined);
+      await backend.call('mergeSpeakers', {
+        kind: 'profiles', from: 'profile-1', into: 'profile-2',
+      }).catch(() => undefined);
+      expect(real.call).not.toHaveBeenCalledWith('getUndoState', { meetingId });
+      expect(real.call).not.toHaveBeenCalledWith('listSpeakerSuggestions', {});
+      expect(real.call).not.toHaveBeenCalledWith('renameSpeaker', expect.anything());
+      expect(real.call).not.toHaveBeenCalledWith('mergeSpeakers', expect.anything());
+    });
+
+    it('forwards live pause, summary and meeting change events from real backend', () => {
+      const real = realWithMeeting();
+      const backend = createHybridBackend(real, mock);
+      for (const name of ['pauseSpansChanged', 'summaryOutdated', 'meetingChanged'] as const) {
+        const listener = vi.fn();
+        const unsubscribe = backend.on(name, listener as never);
+        expect(real.on).toHaveBeenCalledWith(name, listener);
+        expect(mock).toBeDefined();
+        unsubscribe();
+      }
+    });
+
     it('answers for a sample from the mock', async () => {
       const backend = createHybridBackend(realWithMeeting(), mock);
       const [sample] = await mock.call('listMeetings', {});
