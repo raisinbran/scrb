@@ -18,6 +18,7 @@ export type ImportEntry = {
     buildVoiceProfiles: boolean;
     privacyBannerRequired: boolean;
   } | null;
+  privacyDismissed: boolean;
 } & (
   | { state: 'running'; stage: ImportStage; fraction: number; cancelling: boolean }
   | { state: 'finished'; meetingId: MeetingId }
@@ -75,6 +76,7 @@ export class ImportTracker {
         importId,
         fileName: file.fileName,
         source,
+        privacyDismissed: false,
         state: 'running',
         stage: 'queued',
         fraction: 0,
@@ -101,12 +103,17 @@ export class ImportTracker {
     this.publish(this.entries.filter((entry) => entry.importId !== importId));
   }
 
+  dismissPrivacy(importId: ImportId): void {
+    this.update(importId, (entry) => ({ ...entry, privacyDismissed: true }));
+  }
+
   private apply(importId: ImportId, patch: Patch): void {
     const existing = this.entries.find((entry) => entry.importId === importId);
     const base = {
       importId,
       fileName: patch.fileName ?? existing?.fileName ?? '',
       source: existing?.source ?? null,
+      privacyDismissed: existing?.privacyDismissed ?? false,
     };
     const next: ImportEntry =
       patch.state === 'running'
