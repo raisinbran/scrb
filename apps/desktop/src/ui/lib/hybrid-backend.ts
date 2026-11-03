@@ -31,18 +31,35 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
 const MEETING_CALLS: ReadonlySet<CallName> = new Set([
   'getMeeting',
   'getTranscript',
-  'getSummary',
-  'deleteMeeting',
+  'getUndoState',
+  'applyCorrection',
+  'reassignSpeaker',
+  'undo',
+  'redo',
   'seekAudio',
   'pauseAudio',
   'getPlaybackMedia',
+  'listSpeakerSuggestions',
+  'splitSpeaker',
+  'answerSpeakerSuggestion',
+  'getSummary',
+  'generateSummary',
+  'updateSummaryItem',
+  'updateMeeting',
+  'retryFinalPass',
+  'openMeetingFolder',
+  'exportMeeting',
+  'deleteMeeting',
 ]);
 const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'recordingStateChanged',
+  'pauseSpansChanged',
   'recordingHealth',
   'levelMeter',
   'transcriptionLag',
   'transcriptChanged',
+  'summaryOutdated',
+  'meetingChanged',
   'playbackPosition',
   'importProgress',
   'importFinished',
@@ -76,6 +93,20 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
     }
   };
 
+  const meetingIdForCall = (name: CallName, request: unknown): MeetingId | undefined => {
+    if (name === 'renameSpeaker') {
+      const { target } = request as { target: { kind: string; meetingId?: MeetingId } };
+      return target.kind === 'meetingSpeaker' ? target.meetingId : undefined;
+    }
+    if (name === 'mergeSpeakers') {
+      const merge = request as { kind: string; meetingId?: MeetingId };
+      return merge.kind === 'meetingSpeakers' ? merge.meetingId : undefined;
+    }
+    return MEETING_CALLS.has(name)
+      ? (request as { meetingId?: MeetingId } | undefined)?.meetingId
+      : undefined;
+  };
+
   const listRealMeetings = async (request: unknown): Promise<MeetingListItem[]> => {
     try {
       return (await callReal('listMeetings', request)) as MeetingListItem[];
@@ -93,8 +124,8 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
         await synced;
         return [...meetings, ...((await callMock(name, request)) as MeetingListItem[])];
       }
-      if (MEETING_CALLS.has(name)) {
-        const { meetingId } = request as { meetingId: MeetingId };
+      const meetingId = meetingIdForCall(name, request);
+      if (meetingId !== undefined) {
         // Outside the fallback below: a real meeting's own notImplemented must reach the user.
         if (await isRealMeeting(meetingId)) return await callReal(name, request);
         await synced;
