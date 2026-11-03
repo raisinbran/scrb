@@ -62,6 +62,15 @@ describe('Recordings', () => {
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
     });
 
+    it('moves keyboard focus to the meeting title when a meeting opens', async () => {
+      renderScreen();
+      (await button(/Weekly project sync/)).focus();
+      await openMeeting(/Weekly project sync/);
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Weekly project sync' }),
+      );
+    });
+
     it('searches transcripts and opens a match at its time', async () => {
       renderScreen();
       await button(/Budget review/);
