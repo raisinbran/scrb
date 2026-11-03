@@ -27,6 +27,8 @@ const OPUS_RATE = 48_000;
 const MODEL_RATE = 16_000;
 const IMPORT_MARK = '.importing-';
 const GUARD_POLL_MS = 500;
+const LOCK_TRIES = 30;
+const LOCK_RETRY_MS = 100;
 
 export type ImportFailure =
   | 'not_found'
@@ -59,8 +61,9 @@ export class ImportError extends Error {
   constructor(
     readonly code: ImportFailure,
     detail?: string,
+    cause?: unknown,
   ) {
-    super(detail ? `${code}: ${detail}` : code);
+    super(detail ? `${code}: ${detail}` : code, cause === undefined ? undefined : { cause });
     this.name = 'ImportError';
     this.userMessage = MESSAGES[code];
   }
@@ -311,12 +314,12 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
     const preSkips = await Promise.all(staged.map((chunk) => readOpusPreSkip(chunk.path)));
     const sealed = importedChunkManifest(staged, preSkips);
     await writeFile(join(stagedChunks, CHUNK_MANIFEST), JSON.stringify(sealed));
-    await rm(listPath);
-    await rm(wavPath);
+    await retryWhileLocked(() => rm(listPath));
+    await retryWhileLocked(() => rm(wavPath));
 
     const fileDate = (await stat(o.sourcePath)).mtime;
     if (stop.signal.aborted) throw new ImportError('cancelled');
-    await rename(staging, o.meetingDir);
+    await retryWhileLocked(() => rename(staging, o.meetingDir));
     const finalDir = join(o.meetingDir, 'audio', 'meeting');
     return {
       meetingDir: o.meetingDir,
@@ -333,6 +336,22 @@ export async function importAudioFile(o: ImportOptions): Promise<ImportResult> {
   } finally {
     clearInterval(guard);
     o.signal?.removeEventListener('abort', cancel);
+  }
+}
+
+/** Windows scanners and indexers briefly lock new files, which must not lose a finished transcript. */
+export async function retryWhileLocked(
+  step: () => Promise<void>,
+  delayMs = LOCK_RETRY_MS,
+): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await step();
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? '';
+      if (attempt >= LOCK_TRIES || !['EBUSY', 'EPERM', 'EACCES'].includes(code)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 }
 
@@ -358,7 +377,7 @@ function classify(
   if (err instanceof ImportError) return err;
   const code = (err as NodeJS.ErrnoException).code;
   if (code === 'ENOSPC') return new ImportError('disk_full');
-  return new ImportError('unreadable', (err as Error).message);
+  return new ImportError('unreadable', (err as Error).message, err);
 }
 
 async function checkSource(o: ImportOptions, signal: AbortSignal): Promise<ProbeResult> {

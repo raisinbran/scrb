@@ -245,6 +245,13 @@ export class ImportCoordinator {
         };
       } else {
         const code = (error as { code?: string }).code;
+        const cause = (error as { cause?: { code?: unknown; syscall?: unknown } }).cause;
+        library.logger.log('error', 'import-failed', {
+          stage: state.stage,
+          ...errorFields(error),
+          osCode: cause?.code ?? 'none',
+          syscall: cause?.syscall ?? 'none',
+        });
         const reason: ImportFailureReason =
           code === 'disk_full'
             ? 'diskFull'
