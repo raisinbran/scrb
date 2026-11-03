@@ -82,7 +82,9 @@ describe('Electron import coordination', () => {
   it('requests the import privacy reminder only when building voice profiles', async () => {
     const f = await fixture();
     f.deps.privacyBanner.mockResolvedValue(true);
-    const first = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const first = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+    };
     const withoutProfiles = (await f.coordinator.handlers.importAudioFile!({
       fileToken: first.fileToken,
       buildVoiceProfiles: false,
@@ -93,7 +95,9 @@ describe('Electron import coordination', () => {
 
     const g = await fixture();
     g.deps.privacyBanner.mockResolvedValue(true);
-    const second = (await g.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    const second = (await g.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+    };
     const withProfiles = (await g.coordinator.handlers.importAudioFile!({
       fileToken: second.fileToken,
       buildVoiceProfiles: true,
