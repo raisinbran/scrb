@@ -143,9 +143,7 @@ describe('Recordings', () => {
       await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
       await startImport(true);
       await screen.findByRole('button', { name: 'Open' }, SLOW);
-      expect(
-        screen.getByText('Voice-profile building was enabled for this import.'),
-      ).toBeTruthy();
+      expect(screen.getByText('Voice-profile building was enabled for this import.')).toBeTruthy();
     });
 
     it('does not show the import privacy reminder when profiling is off', async () => {
