@@ -70,7 +70,6 @@ export function ImportDialog({ file, onClose }: ImportDialogProps) {
 function ImportRow({ entry, onOpen }: { entry: ImportEntry; onOpen(id: string): void }) {
   const { tracker, start } = useImports();
   const [error, setError] = useState<string | null>(null);
-  const [privacyDismissed, setPrivacyDismissed] = useState(false);
 
   const cancel = () => {
     setError(null);
@@ -96,14 +95,18 @@ function ImportRow({ entry, onOpen }: { entry: ImportEntry; onOpen(id: string): 
     <li className={styles.importRow}>
       <div className={styles.importBody}>
         <span className={styles.fileName}>{entry.fileName}</span>
-        {entry.source?.privacyBannerRequired && !privacyDismissed && entry.state !== 'failed' && (
+        {entry.source?.privacyBannerRequired && !entry.privacyDismissed && entry.state !== 'failed' && (
           <div className={styles.bannerInfo} role="status">
-            <span>Voice profiles are being built from this imported file.</span>
+            <span>
+              {entry.state === 'finished'
+                ? 'Voice-profile building was enabled for this import.'
+                : 'Voice-profile building is enabled for this import.'}
+            </span>
             <button
               type="button"
               className={styles.button}
               aria-label={`Dismiss voice-profile privacy reminder for ${entry.fileName}`}
-              onClick={() => setPrivacyDismissed(true)}
+              onClick={() => tracker.dismissPrivacy(entry.importId)}
             >
               Dismiss
             </button>
