@@ -302,7 +302,53 @@ export function mergeSpeakers(
   return replaceSpeakers(transcript, 'Merge speakers', [{ ...from, mergedInto: intoId }]);
 }
 
-/** Moves a span to another speaker. Splitting a speaker is a series of these. */
+export function splitSpeaker(
+  transcript: TranscriptFile,
+  wordIds: string[],
+  newLabel: string,
+): TranscriptFile {
+  const span = selectSpan(transcript, wordIds);
+  const effective = new Set(
+    span.map(({ word, segment }) => {
+      const override = overrideFor(transcript.speakerOverrides, segment.track, midpoint(word));
+      return resolveSpeakerId(transcript, override?.speakerId ?? segment.speakerId);
+    }),
+  );
+  if (effective.size !== 1) {
+    throw new CorrectionConflictError('Select words from one speaker.');
+  }
+  const first = span[0] as PlacedWord;
+  const last = span.at(-1) as PlacedWord;
+  const speaker: Speaker = {
+    id: randomUUID(),
+    label: newLabel,
+    name: newLabel,
+    profileId: null,
+    userNamed: true,
+    mergedInto: null,
+  };
+  const override: SpeakerOverride = {
+    id: randomUUID(),
+    track: first.segment.track,
+    startMs: first.word.startMs,
+    endMs: last.word.endMs,
+    speakerId: speaker.id,
+  };
+  return pushHistory(
+    {
+      ...transcript,
+      speakers: [...transcript.speakers, speaker],
+      speakerOverrides: [...transcript.speakerOverrides, override],
+    },
+    'Split speaker',
+    {
+      speakers: [{ id: speaker.id, before: null, after: speaker }],
+      overrides: [{ id: override.id, before: null, after: override }],
+    },
+  );
+}
+
+/** Moves a span to an existing speaker. */
 export function reassignSpeaker(
   transcript: TranscriptFile,
   wordIds: string[],
