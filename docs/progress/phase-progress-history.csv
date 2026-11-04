@@ -1,0 +1,5 @@
+snapshot_id,display_time_pacific,timestamp_confidence,phase_0,phase_1,phase_2,phase_3,phase_4,phase_5,phase_6,phase_7,phase_8,approved_gates,source_commit,notes
+2026-10-31-previous,"2026-10-31 23:23 PDT",approximate_prior_label,100,100,65,0,0,0,0,0,0,2,,"Transcribed from earlier user-facing chart; phase 2 was an estimate; original retrieval time not independently logged"
+2026-11-01-early,"2026-11-01 03:23 PST",approximate_prior_label,100,100,100,0,0,0,0,0,0,3,,"Transcribed from prior chart; DST boundary and exact retrieval time not audited"
+2026-11-01-late,"2026-11-01 21:17 PST",approximate_prior_label,100,100,100,35,0,0,0,0,0,3,9018e42a,"35% was a qualitative Gate 3 progress estimate; not code completion"
+2026-11-03-latest,"2026-11-03 18:24 PST",conversation_snapshot,100,100,100,70,0,0,0,0,0,3,2abb0d54f1bead39d80398a31c9037cfb960a354,"Mac Gate 3 owner-approved at e85eefe as documented in PR47; Windows Gate 3 not approved; Phase 3 70% is qualitative; Phases 4-8 zero means no gate approval not no implementation"
