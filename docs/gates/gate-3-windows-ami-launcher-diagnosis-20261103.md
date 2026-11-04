@@ -1,7 +1,7 @@
 # Windows Gate 3 — AMI owner-launch failure and Electron Node-mode diagnosis
 
 **Observed:** 2026-11-03 (Pacific). **Candidate:** `e85eefed98298221cf921ba62f9b2e3e325a54bd`.  
-**Disposition:** Failed launcher startup; **no AMI recording, no final pass, and no reference-based WER result**. Windows Gate 3 remains **NOT APPROVED**.
+**Disposition:** First launcher attempt failed before recording; corrected second attempt **completed** and produced a **numerical PASS** for the 15% relative WER reduction requirement (pending independent QA). Windows Gate 3 remains **NOT APPROVED**.
 
 This note documents a narrow Windows test-launcher problem encountered **after** the separate, successful owner-operated one-hour final-pass recovery. That recovery's result is recorded in [PR #53](https://github.com/raisinbran/scrb/pull/53) and is not invalidated or rerun by this incident.
 
@@ -60,10 +60,43 @@ A **targeted launcher-only correction** has been assigned to Windows Codex; resu
 5. Reuse the same pinned public AMI clip, tool/model assets, reference interval and scoring rules. No download, broad rebuild, long recording, model optimization or production-code change is required solely by this failure.
 6. Permit only safe non-recording validation by the agent. The owner must conduct any physical recording in a normal desktop session.
 
-**Reverification still required:** successful application startup with a new isolated profile, actual Windows live PCM transcript preserved before Stop, completed final transcript, audio coverage/alignment verification, and valid WER comparison against the unchanged AMI reference. Do not claim accuracy PASS from the environment diagnosis alone.
+**Follow-up (later November 3):** The owner completed the physical AMI test using the corrected launcher; see measurements below. The earlier startup diagnosis alone did not establish WER.
+
+## Follow-up: successful owner attempt and reference scoring (November 3, PT)
+
+The owner launched the corrected `Start-Owner-Test.ps1` in a normal Windows PowerShell session. The **second attempt** created `attempt-02`, `test-profile-02`, and `test-library-02`, preserving the first failed `attempt` unmodified. `attempt-02/startup-ready.json` records a responsive **Meeting Scribe** window, an absent Node-mode environment entry, and successful Electron startup. The fixed public source and pinned candidate were unchanged.
+
+The uploaded private archive contains `attempt-02/live-before-stop.json`, `final-transcript.json`, `completed-meeting.json`, `completion.json`, `snapshot.json`, captured audio chunks, and source WAV. The application transitioned from observed `finalPassRunning` to `ready`; the saved meeting has `transcriptionFailure: null`. Collection finished normally with **no automatic retry or second recording**.
+
+### WER calculation — read-only, preliminary QA
+
+The original `score.py` mistakenly hardcodes `p/'attempt'` and therefore produced `FileNotFoundError` for `attempt/live-before-stop.json`. The **actual transcripts are both in `attempt-02`**; neither was missing. The reviewer computed the scores independently from the retained ZIP with exactly the existing `phase0/scripts/score_ami_wer.py` lowercase/punctuation/filler normalization and unit-cost Levenshtein distance, retaining **all meeting-track words** (no time trimming) and excluding microphone words.
+
+| Metric | Live | Final |
+| --- | ---: | ---: |
+| Normalized reference words | 826 | 826 |
+| Hypothesis words (raw / normalized) | 596 / 594 | 704 / 701 |
+| Substitutions | 133 | 50 |
+| Deletions | 247 | 139 |
+| Insertions | 15 | 14 |
+| Total errors | 395 | 203 |
+| Word error rate | **47.82%** | **24.58%** |
+
+**Relative WER improvement:** `(395 - 203) / 395 * 100 = 48.61%`. The predefined accuracy requirement is **at least 15%** fewer errors relative to the Windows live transcript on the **same** AMI reference. The **numeric requirement passes for this one predeclared seven-minute sample**, subject to independent QA of the data and pipeline. These figures are from read-only review of the owner's archive, **not** a successfully executed local `score.py` output file.
+
+### Audio coverage, timing, and caveats
+
+- The saved recorded meeting duration is **940.683 s (15m 40.683s)** because the owner left recording running long after the seven-minute playback; the extra material is essentially silence, not a repeated audio test.
+- Review decoded and concatenated all **203 meeting Opus chunks**, and compared the resulting PCM signal to the pinned **420-second** source WAV. Source excerpts at the beginning, across the interior, and through the **final 10 seconds** correlate with the recorded track at a stable approximately **+4.701 s** alignment within the reconstructed file. No sampled alignment drift or repeated source playback was observed. Playback end corresponds to about **424.7 s** into the reconstructed recording.
+- The manifest lists **16 small gaps totaling ~0.236 s**: 15 startup gaps ending by approximately 1.63 s, and one at approximately 871 s, long after source playback. **No manifest gap intersects the AMI stimulus interval**. The transcript files themselves have zero transcript gap entries; these are not a substitute for audio-manifest review.
+- The meeting-audio RMS drops to effectively silent after approximately **425 s**; the recognized live and final words end at ~424.0 s and ~424.69 s respectively. No model output was trimmed after scoring.
+- Retained `live-progress` events show real live worker/model activity and meeting words. They report **nonzero input/lost-frame counters**, while logged rejected/overflow frame counters are zero at the sampled times. Their interpretation and any separate live-capture quality acceptance requirement remain for QA; do **not** write that all frame-loss metrics are zero.
+- Final processing was observed as `finalPassRunning` at **20:57:51 PT** and as `ready` at **21:03:16 PT**. The recorded **324.968 s** measures owner Stop acknowledgement to first observed ready, with ~5-second polling; it is **not** pure inference duration. This CPU-based test does not establish the separate GPU-capable speed requirement.
+
+**Scoped finding:** Preliminary **PASS for this sample's 15% relative WER improvement**, supported by real saved meeting audio and both transcripts. **Not** a Windows Gate 3 approval or evidence that the 4-hour endurance, activation latency, both-busy-track delay, GPU speed, imports or other acceptance requirements passed. Keep all private audio, annotations, reference, logs, both attempts, and both transcripts outside Git until owner-authorized cleanup.
 
 ## Retention, privacy and scope
 
 Private diagnostic evidence stays in the owner's `gate3-reference-e85-20261103` folder, including `attempt/electron-stderr.txt`, `attempt/electron-stdout.txt`, `attempt/launch-settings.json`, the launcher and the owner handoff. The original failed attempt is **not to be deleted** to permit reuse. Public source audio/reference assets and any later actual recordings or transcripts are retained locally under the [gate evidence-retention policy](evidence-retention-policy.md), not committed to Git.
 
-This is a **documentation-only diagnosis**, not a code fix, retest result, gate approval, or change to accepted thresholds.
+This is **documentation only**, including the first launch diagnosis and subsequent read-only evidence review. It does not change production code, test thresholds, or Gate 3 approval.
