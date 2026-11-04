@@ -33,6 +33,10 @@
 - **Do not automatically delete gate test recordings or evidence, even after a passing test.** Keep raw audio, transcripts and diagnostics until the owner passes the relevant gate and explicitly authorizes cleanup; preserve any evidence needed through final app completion. Follow [the gate evidence retention rule](docs/gates/evidence-retention-policy.md).
 - The owner's real meeting recordings are confidential: never read, use or commit them. Test data is AMI fixtures or invented data.
 
+## Mandatory agent-caused failure reporting
+
+**Owner decision, 2026-11-03:** ChatGPT and Codex must document **every identifiable self-induced failure** in [the existing agents-folder incident register](agents/agent_self_induced_failures.md), including wrong instructions, QA mistakes, false test failures, test-harness/setup errors, unnecessary retries, misleading completion claims, and preventable credit/owner-time waste. Log incidents even when subsequently fixed or unrelated to a production-code defect. Name the observed effect, source evidence, actual/provisional attribution, correction and remaining risk. Do not erase or silently relabel agent errors as application failures. Keep private evidence out of Git; correlate quota impacts with [the usage tracker](agents/agent_task_allocation.md) without inventing exact task cost.
+
 ## Commands
 
 Node is at `~/.local/share/scrb-node/current/bin` on the owner's Mac.
