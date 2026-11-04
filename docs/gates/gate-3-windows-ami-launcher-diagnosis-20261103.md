@@ -70,7 +70,7 @@ The uploaded private archive contains `attempt-02/live-before-stop.json`, `final
 
 ### WER calculation — read-only, preliminary QA
 
-The original `score.py` mistakenly hardcodes `p/'attempt'` and therefore produced `FileNotFoundError` for `attempt/live-before-stop.json`. The **actual transcripts are both in `attempt-02`**; neither was missing. The reviewer computed the scores independently from the retained ZIP with exactly the existing `phase0/scripts/score_ami_wer.py` lowercase/punctuation/filler normalization and unit-cost Levenshtein distance, retaining **all meeting-track words** (no time trimming) and excluding microphone words.
+The original `score.py` mistakenly hardcodes `p/'attempt'` and therefore produced `FileNotFoundError` for `attempt/live-before-stop.json`. The **actual transcripts are both in `attempt-02`**; neither was missing. The reviewer initially computed scores independently from the retained ZIP using the existing `phase0/scripts/score_ami_wer.py` lowercase/punctuation/filler normalization and unit-cost Levenshtein distance, retaining **all meeting-track words** (no time trimming) and excluding microphone words. **Afterward, the owner ran a separate corrected `score-attempt-02.py` locally; its printed numbers exactly matched the independently calculated values below.**
 
 | Metric | Live | Final |
 | --- | ---: | ---: |
@@ -82,7 +82,9 @@ The original `score.py` mistakenly hardcodes `p/'attempt'` and therefore produce
 | Total errors | 395 | 203 |
 | Word error rate | **47.82%** | **24.58%** |
 
-**Relative WER improvement:** `(395 - 203) / 395 * 100 = 48.61%`. The predefined accuracy requirement is **at least 15%** fewer errors relative to the Windows live transcript on the **same** AMI reference. The **numeric requirement passes for this one predeclared seven-minute sample**, subject to independent QA of the data and pipeline. These figures are from read-only review of the owner's archive, **not** a successfully executed local `score.py` output file.
+**Relative WER improvement:** `(395 - 203) / 395 * 100 = 48.61%`. The predefined accuracy requirement is **at least 15%** fewer errors relative to the Windows live transcript on the **same** AMI reference. The **numeric requirement passes for this one predeclared seven-minute sample**, subject to independent QA of the data and pipeline.
+
+**Owner-executed scorer confirmation (November 3, PT):** The owner created `score-attempt-02.py` by changing the input folder from `attempt` to `attempt-02` and ran it using the pinned local Python interpreter. The owner-provided PowerShell output reported `WER: 0.4782082324455206` (live), `WER: 0.2457627118644068` (final), `relativeImprovementPercent: 48.60759493670886`, `numericThresholdMet: true`, and **`verdict: INCONCLUSIVE_PENDING_ALIGNMENT_AUDIO_AND_COMPLETENESS_REVIEW`**. The final live/final word end times were `424019.2334` / `424690` ms. This is a **successful scorer execution**, not a scorer-certified overall PASS: the script intentionally leaves the separate audio alignment and completeness review unresolved. A separate read-only review of the retained audio is described below. The owner shared the stdout in chat; this documentation does **not** claim that a `scores.json` artifact was independently verified on disk.
 
 ### Audio coverage, timing, and caveats
 
