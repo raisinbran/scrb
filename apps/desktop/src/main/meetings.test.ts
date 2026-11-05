@@ -96,7 +96,10 @@ describe('createMeetingHandlers', () => {
         lastSelectedId: 'w2',
       },
     ])('rejects split affecting $scenario', async (testCase) => {
-      const { id: meetingId } = await recorded('Invented overlapping split', '2026-11-03T10:00:00Z');
+      const { id: meetingId } = await recorded(
+        'Invented overlapping split',
+        '2026-11-03T10:00:00Z',
+      );
       await library.appendSegments(
         meetingId,
         [
