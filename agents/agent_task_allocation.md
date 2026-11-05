@@ -39,6 +39,7 @@ All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not pe
 | Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Source and qualification |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Agent-reported start/end balance; account-wide; possible concurrent usage; actual per-task attribution and hourly rate unknown |
+| 2026-11-05 | ChatGPT Chat / cloud-only | `SRCB-PR50-P2-20261105`: overlap-safe split guard, handler regressions and historical-plan clarification ([PR #50](https://github.com/raisinbran/scrb/pull/50)); fixed two agent-authored CI setup errors | Not recorded | Not recorded | Not applicable | Not applicable | Not applicable | ChatGPT Chat has no visible rolling 5h/weekly quota; CI failures documented as A-013, not attributed to application code or a measurable per-task credit cost |
 
 ## Assignment routing
 
