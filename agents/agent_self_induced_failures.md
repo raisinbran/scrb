@@ -53,8 +53,10 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 
 ## Entry template for next agent
 
+Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
+
 ```markdown
-### A-013 — YYYY-MM-DD — Agent / environment
+### A-NNN — YYYY-MM-DD — Agent / environment
 - **Status / attribution:** Confirmed | Provisional; agent/test tooling vs application vs unknown
 - **What failed:** Reproducible observation, not a guess
 - **Agent-controlled cause:** Mistake actually established; note uncertainty
