@@ -2,6 +2,11 @@
 
 ## Overview
 
+> **Historical plan:** This document preserves the proposal and pre-implementation test notes.
+> The ready-only atomic split was subsequently implemented in PR #50; the passages below
+> describing it as unimplemented or awaiting review refer to the original planning stage.
+> Neither the implementation nor this historical note constitutes Gate 4/5 approval.
+
 The real final-pass diarization pipeline exists, but persistent speaker editing is incomplete. Start with one atomic split of selected words in a finished (`ready`) real meeting. This is a proposal for owner review, not implemented functionality or Phase 4/Gate 4 approval. The proposed restriction to finished meetings needs owner acceptance; live splits and speaker undo across a later final pass remain separate work.
 
 This plan follows the repository's short written-plan process. `dev-plan/Meeting Scribe - Development Process.md` requires approval before data-risk changes and says Planner was never installed. The create-plan CLI is unavailable here; the generated diff was checked with `git apply --check`, not `planner check`. No implementation source or interface was changed.

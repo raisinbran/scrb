@@ -80,6 +80,76 @@ describe('createMeetingHandlers', () => {
         newLabel: 'Invented voice',
       });
 
+    it.each([
+      {
+        scenario: 'an unselected overlapping speaker word',
+        secondSpeaker: 'b',
+        secondStartMs: 400,
+        secondEndMs: 600,
+        lastSelectedId: 'w1',
+      },
+      {
+        scenario: 'a selected overlapping word outside the override',
+        secondSpeaker: 'a',
+        secondStartMs: 200,
+        secondEndMs: 300,
+        lastSelectedId: 'w2',
+      },
+    ])('rejects split affecting $scenario', async (testCase) => {
+      const meetingId = await recorded('Invented overlapping split', '2026-11-03T10:00:00Z');
+      await library.appendSegments(
+        meetingId,
+        [
+          {
+            id: 's1',
+            speakerId: 'a',
+            track: 'meeting',
+            pass: 'final',
+            words: [{ id: 'w1', text: 'one', startMs: 0, endMs: 1000 }],
+          },
+          {
+            id: 's2',
+            speakerId: testCase.secondSpeaker,
+            track: 'meeting',
+            pass: 'final',
+            words: [
+              {
+                id: 'w2',
+                text: 'two',
+                startMs: testCase.secondStartMs,
+                endMs: testCase.secondEndMs,
+              },
+            ],
+          },
+        ],
+        [speaker('a'), speaker('b')],
+      );
+      await library.saveGeneratedSummary(meetingId, {
+        generatedAt: null,
+        brief: null,
+        full: null,
+        actionItems: [],
+        decisions: [],
+        openQuestions: [],
+        warnings: [],
+      });
+      const before = await library.readTranscript(meetingId);
+      const beforeBytes = readFileSync(library.meetingPaths(meetingId).transcript, 'utf8');
+      const summary = await library.readSummary(meetingId);
+      const metadata = await library.getMeeting(meetingId);
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+
+      expect(
+        await split(meetingId, { firstWordId: 'w1', lastWordId: testCase.lastSelectedId }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(await library.readTranscript(meetingId)).toEqual(before);
+      expect(readFileSync(library.meetingPaths(meetingId).transcript, 'utf8')).toBe(beforeBytes);
+      expect(await library.readSummary(meetingId)).toEqual(summary);
+      expect(await library.getMeeting(meetingId)).toEqual(metadata);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
     it('persists split undo across restarts', async () => {
       const meetingId = await seed();
       const unrelatedId = await seed();

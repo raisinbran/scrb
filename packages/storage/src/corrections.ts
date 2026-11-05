@@ -319,6 +319,19 @@ export function splitSpeaker(
   }
   const first = span[0] as PlacedWord;
   const last = span.at(-1) as PlacedWord;
+  const startMs = first.word.startMs;
+  const endMs = last.word.endMs;
+  const selectedIds = new Set(span.map(({ word }) => word.id));
+  // A timestamp override must change exactly the selected words under midpoint display rules.
+  const changesDifferentWords = trackWords(transcript.segments, first.segment.track).some(
+    ({ word }) => {
+      const at = midpoint(word);
+      return selectedIds.has(word.id) !== (at >= startMs && at <= endMs);
+    },
+  );
+  if (changesDifferentWords) {
+    throw new CorrectionConflictError('The selected words overlap other speech.');
+  }
   const speaker: Speaker = {
     id: randomUUID(),
     label: newLabel,
