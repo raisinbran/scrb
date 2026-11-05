@@ -30,6 +30,7 @@
 - Risky changes need a written plan the owner approves first. The Development Process lists them, including security settings and IPC.
 - Comments state a needed fact the code does not. See the Development Process document.
 - Pin exact dependency versions. Keep models, recordings and generated data out of git.
+- **Test-duration authorization (owner decision):** obtain explicit owner approval **before starting any test expected to exceed 20 minutes total**, including setup, recording, transcription/final processing, and cleanup. A test reasonably planned for 20 minutes or less may safely finish if it inadvertently runs slightly over; do **not** automatically stop it or interrupt the owner solely because the clock passes 20 minutes. Reassess material unplanned extensions and obtain approval for separately planned long tests or repeats. Do not automatically rerun failed or inconclusive tests.
 - **Do not automatically delete gate test recordings or evidence, even after a passing test.** Keep raw audio, transcripts and diagnostics until the owner passes the relevant gate and explicitly authorizes cleanup; preserve any evidence needed through final app completion. Follow [the gate evidence retention rule](docs/gates/evidence-retention-policy.md).
 - The owner's real meeting recordings are confidential: never read, use or commit them. Test data is AMI fixtures or invented data.
 
