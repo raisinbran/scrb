@@ -24,6 +24,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Gate 3 scorer regressions
+        run: |
+          python -m compileall -q phase0/scripts/evaluate_gate3.py phase0/scripts/test_evaluate_gate3.py
+          python -m unittest discover -s phase0/scripts -p test_evaluate_gate3.py
       - name: Check Prettier on changed TypeScript
         shell: bash
         run: |
