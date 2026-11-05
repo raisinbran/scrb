@@ -13,7 +13,8 @@ interface SpeakerLabelProps {
   /** Every speaker in the meeting, for merge and reassign targets. */
   speakers: Speaker[];
   /** The selected words. Reassign and split work on a selection, so they appear only with one. */
-  range?: WordRange;
+  range?: WordRange | undefined;
+  tabIndex?: number;
   /** Called after any change. A host showing live text also gets `transcriptChanged`. */
   onChanged?: () => void;
 }
@@ -24,6 +25,7 @@ export function SpeakerLabel({
   speaker,
   speakers,
   range,
+  tabIndex,
   onChanged,
 }: SpeakerLabelProps) {
   const backend = useBackend();
@@ -72,6 +74,7 @@ export function SpeakerLabel({
       <MenuButton
         label={`Speaker: ${speaker.label}`}
         className={`${styles.label} ${styles[speaker.kind]}`}
+        tabIndex={tabIndex}
         items={items}
       >
         {speaker.label}
