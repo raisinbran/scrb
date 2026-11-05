@@ -30,6 +30,7 @@
 - Risky changes need a written plan the owner approves first. The Development Process lists them, including security settings and IPC.
 - Comments state a needed fact the code does not. See the Development Process document.
 - Pin exact dependency versions. Keep models, recordings and generated data out of git.
+- **Mandatory agent usage log:** For every assigned task, record the agent and device, task outcome, and both five-hour and weekly **remaining allowance percentages at the start and end**, with observation times and any quota reset or overlapping work. Codex, Claude Code, and other metered agents must use their visible account readings; agents without accessible quotas record `unavailable` or `not applicable` rather than inventing values. Enter or propose the per-task row in the existing tracker at `agents/agent_task_allocation.md`, and include the readings and tracker status in the final handoff. Do not delete evidence or bypass branch/PR approval to log usage.
 - The owner's real meeting recordings are confidential: never read, use or commit them. Test data is AMI fixtures or invented data.
 
 ## Commands

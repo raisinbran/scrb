@@ -20,6 +20,26 @@ Owner-reported figures as of November 1, 2026; **recheck before scheduling**.
 
 The owner observes that **Codex uses roughly 2–4 times as many credits per task as Claude**, despite slightly lower quality at the model/effort settings currently selected. This is a practical observation, not a controlled benchmark. Codex has nevertheless been reliable at complex SRCB backend/native implementation. Claude's possible **$20/month** subscription is a separate owner decision; do not assume it will be purchased.
 
+## Mandatory per-task usage tracker — owner decision, November 3, 2026
+
+**Applies to every new assigned task**, including implementation, QA, documentation, diagnostics, work stopped early, and tasks that finish inconclusively. Codex and Claude Code must report this even if the deliverable is only a handoff. ChatGPT Chat and other agents without a visible five-hour/weekly quota still record the task with `not applicable` or `unavailable`; never fabricate a quota.
+
+**At task start**, before substantive work, record the date/time (America/Los_Angeles), agent/model or service, physical device/environment, assignment identifier, and the **percentage remaining** in both the **rolling five-hour** and **weekly** limits. Prefer the agent's actual quota display or an owner-provided reading. State the observation source. If a value cannot be seen, record `unavailable` and ask for an owner reading only if practical; do not block a safe assignment.
+
+**At task end**, including a blocker or failed attempt, record both remaining percentages again, observation time, outcome and evidence or PR link. Update the same row **in this existing tracker**; include the values in the handoff. For a new/updated row, use the permitted `rosmont/*` branch and PR workflow, never push directly to `main` or alter other agents' entries. If repository write access or review is pending, return a copy-ready row and identify it as **not yet committed**; the coordinator/owner reconciles concurrent entries.
+
+Compute **observed consumption** as `start remaining - end remaining`, in **percentage points (pp)**, only if both readings belong to the same quota window. Record any five-hour/weekly reset, owner-initiated discretionary reset, overlapping sessions, or uncertain observation time; then report the difference as **not attributable / unavailable** instead of treating a reset as negative spending. Multiple Codex sessions may share a quota, and displayed values can round, so these are **account-level changes, not isolated metered per-task costs**. Do not label the difference as an exact agent usage rate. A percentage-point-per-hour rate requires reliable elapsed time and an uninterrupted quota window. Compare efficiency alongside task complexity, independent QA, delivered quality, retries and work completed; do not rank agents solely by percentages.
+
+Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
+
+### Per-task log
+
+All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not percentage used. The change column reports observed decreases where valid, **not proven exclusive costs**.
+
+| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Source and qualification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Agent-reported start/end balance; account-wide; possible concurrent usage; actual per-task attribution and hourly rate unknown |
+
 ## Assignment routing
 
 ### ChatGPT Chat — default for cloud-safe work
