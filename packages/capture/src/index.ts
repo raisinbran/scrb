@@ -110,5 +110,5 @@ export interface CaptureAdapter {
   /** Ends the worker at once, stopping all capture. */
   kill(): void;
 }
-export { ProcessAdapter } from './process-adapter.ts';
+export { ProcessAdapter, type LivePipe } from './process-adapter.ts';
 export { readApps, readMics } from './source-lists.ts';

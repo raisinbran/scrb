@@ -18,6 +18,7 @@ import { errorFields, type Library } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import { listInputDevices, listMeetingApps, resolveSources } from './sources.ts';
 import { MicCheckController } from './mic-check.ts';
+import { LiveCaptureSession, type LiveSetup } from './live-feed.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
@@ -75,6 +76,7 @@ export class RecordingController {
   private readonly micCheck: MicCheckController;
   private deadStreams = new Set<Track>();
   private blockedTracks = new Set<Track>();
+  private live: LiveCaptureSession | null = null;
 
   constructor(
     private readonly library: Library,
@@ -84,6 +86,7 @@ export class RecordingController {
     /** Null leaves a stopped meeting ready with no transcript. */
     private readonly finalPasses: FinalPassQueue | null = null,
     private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
+    private readonly liveSetup: LiveSetup | null = null,
   ) {
     this.micCheck = new MicCheckController(
       helper,
@@ -174,6 +177,10 @@ export class RecordingController {
   private async finish(meetingId: string, end: SessionEnd): Promise<void> {
     clearInterval(this.ticker);
     this.session = null;
+    const live = this.live;
+    this.live = null;
+    // Live cleanup never delays the capture Stop acknowledgement.
+    await live?.stop();
     const audio = this.library.meetingPaths(meetingId).audio;
     const sealed = await sealAudio(audio, async () =>
       lockHeld(this.helper, join(audio, 'writer.lock')),
@@ -213,6 +220,8 @@ export class RecordingController {
       return await this.begin(title);
     } catch (failure) {
       this.session = null;
+      await this.live?.stop();
+      this.live = null;
       this.update(IDLE);
       throw failure;
     } finally {
@@ -247,9 +256,12 @@ export class RecordingController {
         'warning',
       );
     }
+    this.live = this.liveSetup
+      ? new LiveCaptureSession(this.library, meeting.id, this.emit, this.liveSetup)
+      : null;
     const session = new RecordingSession({
       launch: () => {
-        const adapter = new ProcessAdapter(this.helper);
+        const adapter = new ProcessAdapter(this.helper, [], this.live?.startHelper());
         adapter.onEvent((event) => {
           if (event.type === 'health') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
@@ -382,5 +394,7 @@ export class RecordingController {
     this.micCheck.stop('stopped');
     await this.session?.stop();
     await this.finishing;
+    await this.live?.stop();
+    this.live = null;
   }
 }
