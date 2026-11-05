@@ -116,6 +116,17 @@ test('launches and shows every screen against the mock backend', async () => {
   expect(policy).toContain("script-src 'self'");
   expect(new URL(page.url()).protocol).toBe('scribe:');
 
+  // This establishes renderer CSP egress isolation, not worker/main-process network isolation.
+  const outbound = await page.evaluate(async () => {
+    try {
+      await fetch('https://scrb-forbidden-egress.invalid/private-fixture');
+      return 'allowed';
+    } catch {
+      return 'blocked';
+    }
+  });
+  expect(outbound).toBe('blocked');
+
   const refused = await page.evaluate(async () => {
     try {
       await window.scribeBridge?.invoke('notARealCall' as never, undefined);

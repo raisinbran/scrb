@@ -115,7 +115,12 @@ async function loadJournal(file: string): Promise<UpgradeJournal | null> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw error;
   }
-  const value = JSON.parse(source) as Partial<UpgradeJournal>;
+  let value: Partial<UpgradeJournal>;
+  try {
+    value = JSON.parse(source) as Partial<UpgradeJournal>;
+  } catch {
+    throw new StorageError('INDEX_RECOVERY_REQUIRED', 'The index recovery record is unreadable.');
+  }
   if (
     !/^[0-9a-f-]{36}$/.test(value.attemptId ?? '') ||
     !Number.isInteger(value.oldVersion) ||

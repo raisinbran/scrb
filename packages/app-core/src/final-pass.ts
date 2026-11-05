@@ -10,16 +10,21 @@ import {
   type Speaker,
 } from '@scrb/storage';
 import {
+  importAudioFile,
   runFinalPass,
   toolsIn,
   YOU_ID,
   type FinalTranscript,
+  type ImportResult,
+  type Progress,
+  type ImportPhase,
   type ModelPaths,
   type ToolPaths,
   type TrackInput,
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
 import { vocabularyHint } from './vocabulary-hints.ts';
+import { LargeModelGate } from './large-model-gate.ts';
 
 export { YOU_ID };
 
@@ -131,6 +136,28 @@ async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models
   return { tools: toolsIn('', tools), models: models as ModelPaths };
 }
 
+/** Imports never publish partial results; the library owns the final meeting commit. */
+export function createConfiguredImportRunner(configPath: string) {
+  return async (input: {
+    sourcePath: string;
+    meetingDir: string;
+    signal: AbortSignal;
+    vocabularyHint?: string;
+    onProgress: (progress: Progress<ImportPhase>) => void;
+  }): Promise<ImportResult> => {
+    const { tools, models } = await loadSetup(configPath);
+    if (!existsSync(tools.ffprobe)) throw new FinalPassUnavailableError('ffprobe is missing');
+    return importAudioFile({
+      ...input,
+      tools,
+      transcribe: {
+        models,
+        ...(input.vocabularyHint ? { vocabularyHint: input.vocabularyHint } : {}),
+      },
+    });
+  };
+}
+
 /**
  * The real final pass, set up from a JSON file holding `tools` and `models` paths. The file is
  * read for each meeting, so a missing tool fails that meeting and not the app.
@@ -163,6 +190,7 @@ export class FinalPassQueue {
   constructor(
     private readonly library: Library,
     private readonly run: RunFinalPass,
+    private readonly modelGate: LargeModelGate = new LargeModelGate(),
   ) {}
 
   enqueue(meetingId: string): void {
@@ -196,12 +224,16 @@ export class FinalPassQueue {
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
-        const transcript = await this.run({
-          tracks,
-          workDir,
-          signal: this.abort.signal,
-          vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
-        });
+        const transcript = await this.modelGate.run(
+          () =>
+            this.run({
+              tracks,
+              workDir,
+              signal: this.abort.signal,
+              vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+            }),
+          this.abort.signal,
+        );
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
@@ -249,3 +281,5 @@ export async function resumeFinalPasses(
     }
   }
 }
+
+export type { ImportResult, ImportPhase, Progress } from '@scrb/transcription';

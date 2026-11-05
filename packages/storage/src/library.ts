@@ -125,6 +125,8 @@ export interface SearchOptions {
   fromDate?: string;
   toDate?: string;
   hitsPerMeeting?: number;
+  /** Caller-side, local-calendar filtering before opening transcript files. */
+  includeRow?: (row: MeetingRow) => boolean;
   signal?: AbortSignal;
 }
 
@@ -254,6 +256,44 @@ export class Library {
       if (this.locks.get(meetingId) === settled) this.locks.delete(meetingId);
     });
     return run;
+  }
+
+  private readonly activeExports = new Set<string>();
+
+  /** Snapshot the three files under one meeting lock and refuse deletion until export finishes. */
+  beginExport(meetingId: string): Promise<{
+    meeting: MeetingMeta;
+    transcript: TranscriptFile;
+    summary: SummaryFile | null;
+    release(): void;
+  }> {
+    return this.withLock(meetingId, async () => {
+      this.requireRow(meetingId);
+      if (this.activeExports.has(meetingId)) {
+        throw new StorageError('ACTIVE_MEETING', 'An export is already in progress.');
+      }
+      const meeting = await this.getMeeting(meetingId);
+      if (
+        meeting.status === 'recording' ||
+        meeting.status === 'importing' ||
+        meeting.status === 'finalPassRunning'
+      ) {
+        throw new StorageError('ACTIVE_MEETING', 'Finish the meeting operation before exporting.');
+      }
+      const [transcript, summary] = await Promise.all([
+        this.readTranscript(meetingId),
+        this.readSummary(meetingId),
+      ]);
+      this.activeExports.add(meetingId);
+      return {
+        meeting,
+        transcript,
+        summary,
+        release: () => {
+          this.activeExports.delete(meetingId);
+        },
+      };
+    });
   }
 
   private requireRow(meetingId: string): MeetingRow {
@@ -535,6 +575,17 @@ export class Library {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
   }
 
+  splitSpeaker(
+    meetingId: string,
+    wordIds: string[],
+    newLabel: string,
+  ): Promise<{ transcript: TranscriptFile; speakerId: string }> {
+    const speakerId = randomUUID();
+    return this.edit(meetingId, (t) =>
+      corrections.splitSpeaker(t, wordIds, newLabel, speakerId),
+    ).then((transcript) => ({ transcript, speakerId }));
+  }
+
   reassignSpeaker(
     meetingId: string,
     wordIds: string[],
@@ -692,11 +743,18 @@ export class Library {
       SummaryFile,
       'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
     >,
+    expectedTranscriptRevision?: number,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
       const loaded = await loadDocument(SUMMARY_FORMAT, file);
       const transcript = await this.readTranscript(meetingId);
+      if (
+        expectedTranscriptRevision !== undefined &&
+        transcript.revision !== expectedTranscriptRevision
+      ) {
+        throw new StaleRevisionError(expectedTranscriptRevision, transcript.revision);
+      }
       const fresh: SummaryFile = {
         ...generated,
         schemaVersion: 3,
@@ -719,7 +777,10 @@ export class Library {
       ...(options.toDate !== undefined && { toDate: options.toDate }),
     };
     const rows = findMeetingRows(this.db, dates).filter(
-      (row) => row.status !== 'importing' && (!options.origin || row.source === options.origin),
+      (row) =>
+        row.status !== 'importing' &&
+        (!options.origin || row.source === options.origin) &&
+        (!options.includeRow || options.includeRow(row)),
     );
     const trimmed = query.trim();
     const indexed = new Set(
@@ -770,6 +831,9 @@ export class Library {
   deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
+      if (this.activeExports.has(meetingId)) {
+        throw new StorageError('ACTIVE_MEETING', 'Wait for the export to finish.');
+      }
       await this.assertDeletionIdle(row, importCleanup);
       const remaining = await this.removeMeeting(meetingId, row.folder);
       const ok = remaining.length === 0;
