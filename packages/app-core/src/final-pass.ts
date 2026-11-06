@@ -8,6 +8,7 @@ import {
   type ModelReplacement,
   type Segment,
   type Speaker,
+  type TranscriptFile,
 } from '@scrb/storage';
 import {
   importAudioFile,
@@ -23,7 +24,11 @@ import {
   type TrackInput,
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
-import { startProfileMatching, type ProfileMatchingJob } from './profile-matching.ts';
+import {
+  startProfileMatching,
+  type ProfileMatchingJob,
+  type ProfileAssignmentEdit,
+} from './profile-matching.ts';
 import { vocabularyHint } from './vocabulary-hints.ts';
 import type { LargeModelGate } from './large-model-gate.ts';
 
@@ -198,6 +203,7 @@ export class FinalPassQueue {
     private readonly run: RunFinalPass,
     private readonly modelGate?: LargeModelGate,
     private readonly startMatching = startProfileMatching,
+    private readonly onProfileAssignment?: (before: TranscriptFile, after: TranscriptFile) => void,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -258,12 +264,20 @@ export class FinalPassQueue {
       this.abort.signal.throwIfAborted();
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
       if (transcript && matching) {
+        let edit: ProfileAssignmentEdit | undefined;
         try {
-          await matching(meetingId, transcript, modelPath, this.abort.signal);
+          edit = await matching(meetingId, transcript, modelPath, this.abort.signal);
         } catch {
           this.library.logger.log('warn', 'profile-matching-skipped', {
             reason: 'optional-failure',
           });
+        }
+        if (edit && this.onProfileAssignment) {
+          try {
+            this.onProfileAssignment(edit.before, edit.after);
+          } catch {
+            this.library.logger.log('warn', 'profile-matching-notification-failed', {});
+          }
         }
       }
     } catch (error) {
