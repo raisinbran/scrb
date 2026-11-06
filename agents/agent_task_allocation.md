@@ -90,6 +90,14 @@ All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not pe
 4. **Who independently verifies the result?** Use a different agent; give the reviewer the exact branch/commit and acceptance evidence. Avoid repeating QA already passed without code changes or new findings.
 5. **Is another agent already working in this area?** Preserve that assignment. Parallelize only independent tasks and avoid simultaneous edits to the same state machine, shared interface, or file layout.
 
+## Long-duration test triage — owner approved November 1, 2026
+
+- **Targeted checks first.** Reproduce suspected failure mechanisms with short, controlled tests; verify configuration, instrumentation, both saved tracks and known blockers before freezing a multi-hour acceptance candidate. Do not run a separate four-hour diagnostic merely to discover a fault that a targeted test can expose.
+- **One planned acceptance run per candidate and OS.** Collect reliability diagnostics and required gate measurements together. Gate 3 still requires four real hours on each OS; Gate 8's approved eight-hour duration is unchanged. A short fault-injection test cannot replace mandatory duration evidence.
+- **After failure, assess evidence before rerunning.** Stop safely when capture is endangered or continuing cannot produce useful evidence. Preserve logs, audio-integrity findings and valid partial measurements; identify the fault, affected acceptance claims, and which results remain applicable to the proposed fix.
+- **Rerun only what is invalidated.** Lead with a short reproduction and focused regression after the smallest correction. Recommend another full endurance run only when a mandatory duration remains unproven for the accepted candidate or a material recording/live-worker/scheduling change invalidates prior long-run evidence. Document the reason and obtain the owner's authorization; no automatic back-to-back endurance runs.
+- **Avoid contaminated parallel testing.** Independent development can continue on another machine during a long run; do not impose unrelated heavy workloads on the measurement host. This policy does not approve the separate T19/Gate 8 or maintenance-trigger revisions proposed in PR #25.
+
 ## Mandatory safeguards
 
 - Follow SRCB's `AGENTS.md`, Development Process, approved phase/gate plan, and applicable `personal-dev-env` skills.
