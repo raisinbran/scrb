@@ -23,6 +23,7 @@ import {
   type TrackInput,
 } from '@scrb/transcription';
 import type { SealedTrack, TrackName } from './recovery.ts';
+import { startProfileMatching, type ProfileMatchingJob } from './profile-matching.ts';
 import { vocabularyHint } from './vocabulary-hints.ts';
 import type { LargeModelGate } from './large-model-gate.ts';
 
@@ -53,6 +54,7 @@ export type RunFinalPass = (input: {
   workDir: string;
   signal: AbortSignal;
   vocabularyHint?: string;
+  onEmbeddingModel?: (path: string) => void;
 }) => Promise<FinalTranscript>;
 
 /** Tracks with audio, in the form the final pass reads. Throws on a damaged `chunks.json`. */
@@ -144,9 +146,11 @@ export function createConfiguredImportRunner(configPath: string) {
     meetingDir: string;
     signal: AbortSignal;
     vocabularyHint?: string;
+    onEmbeddingModel?: (path: string) => void;
     onProgress: (progress: Progress<ImportPhase>) => void;
   }): Promise<ImportResult> => {
     const { tools, models } = await loadSetup(configPath);
+    input.onEmbeddingModel?.(models.embedding);
     if (!existsSync(tools.ffprobe)) throw new FinalPassUnavailableError('ffprobe is missing');
     return importAudioFile({
       ...input,
@@ -164,8 +168,9 @@ export function createConfiguredImportRunner(configPath: string) {
  * read for each meeting, so a missing tool fails that meeting and not the app.
  */
 export function createFinalPassRunner(configPath: string): RunFinalPass {
-  return async ({ tracks, workDir, signal, vocabularyHint: hint }) => {
+  return async ({ tracks, workDir, signal, vocabularyHint: hint, onEmbeddingModel }) => {
     const { tools, models } = await loadSetup(configPath);
+    onEmbeddingModel?.(models.embedding);
     return runFinalPass({
       tools,
       models,
@@ -192,6 +197,7 @@ export class FinalPassQueue {
     private readonly library: Library,
     private readonly run: RunFinalPass,
     private readonly modelGate?: LargeModelGate,
+    private readonly startMatching = startProfileMatching,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -222,6 +228,14 @@ export class FinalPassQueue {
 
   private async process(meetingId: string): Promise<void> {
     const workDir = finalPassDir(this.library, meetingId);
+    let matching: ProfileMatchingJob | undefined;
+    try {
+      matching = this.startMatching(this.library);
+    } catch {
+      this.library.logger.log('warn', 'profile-matching-skipped', { reason: 'snapshot-failed' });
+    }
+    let transcript: FinalTranscript | undefined;
+    let modelPath: string | undefined;
     try {
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
@@ -231,13 +245,27 @@ export class FinalPassQueue {
             workDir,
             signal: this.abort.signal,
             vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+            onEmbeddingModel: (path) => {
+              modelPath = path;
+            },
           });
-        const transcript = this.modelGate
+        transcript = this.modelGate
           ? await this.modelGate.run(job, this.abort.signal)
           : await job();
+        this.abort.signal.throwIfAborted();
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
+      this.abort.signal.throwIfAborted();
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
+      if (transcript && matching) {
+        try {
+          await matching(meetingId, transcript, modelPath, this.abort.signal);
+        } catch {
+          this.library.logger.log('warn', 'profile-matching-skipped', {
+            reason: 'optional-failure',
+          });
+        }
+      }
     } catch (error) {
       if (this.abort.signal.aborted) return;
       await this.fail(meetingId, error);
