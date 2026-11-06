@@ -18,7 +18,12 @@ import {
 import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore } from './db/voice-profiles.ts';
-import { MeetingNotFoundError, StaleRevisionError, StorageError } from './errors.ts';
+import {
+  CorrectionConflictError,
+  MeetingNotFoundError,
+  StaleRevisionError,
+  StorageError,
+} from './errors.ts';
 import {
   MEETING_FORMAT,
   type MeetingMeta,
@@ -348,7 +353,7 @@ export class Library {
 
   private async changeTranscript(
     meetingId: string,
-    change: (current: TranscriptFile) => TranscriptFile,
+    change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
     options: { userEdit: boolean; expectedRevision?: number; write?: AtomicWriteOptions },
   ): Promise<TranscriptFile> {
     return this.withLock(meetingId, async () => {
@@ -359,7 +364,7 @@ export class Library {
       if (expectedRevision !== undefined && expectedRevision !== current.revision) {
         throw new StaleRevisionError(expectedRevision, current.revision);
       }
-      const changed = change(current);
+      const changed = await change(current);
       if (changed === current) return current;
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
       if (options.userEdit) await this.flagSummaryOutdated(meetingId);
@@ -535,6 +540,26 @@ export class Library {
 
   mergeSpeakers(meetingId: string, fromId: string, intoId: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
+  }
+
+  splitSpeaker(
+    meetingId: string,
+    wordIds: string[],
+    newLabel: string,
+    expectedRevision: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        if ((await this.getMeeting(meetingId)).status !== 'ready') {
+          throw new CorrectionConflictError(
+            'Wait for the final transcript before splitting a speaker.',
+          );
+        }
+        return corrections.splitSpeaker(current, wordIds, newLabel);
+      },
+      { userEdit: true, expectedRevision },
+    );
   }
 
   reassignSpeaker(
