@@ -129,7 +129,9 @@ export class ImportCoordinator {
         throw new ContractError({ code: 'notFound', message: 'Choose the audio file again.' });
       }
       sourcePath = selected.path;
-      privacyBannerRequired = await this.deps.privacyBanner().catch(() => true);
+      privacyBannerRequired = input.buildVoiceProfiles
+        ? await this.deps.privacyBanner().catch(() => true)
+        : false;
       if (this.deps.recordingBusy()) {
         throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
       }
