@@ -7,12 +7,17 @@ export const APPROVED_EMBEDDING_SHA256 =
   '1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b';
 export const APPROVED_PROFILE_MODEL = `sha256:${APPROVED_EMBEDDING_SHA256}`;
 
+export interface ProfileAssignmentEdit {
+  before: TranscriptFile;
+  after: TranscriptFile;
+}
+
 export type ProfileMatchingJob = (
   meetingId: string,
   transcript: FinalTranscript,
   modelPath: string | undefined,
   signal: AbortSignal,
-) => Promise<void>;
+) => Promise<ProfileAssignmentEdit | undefined>;
 
 async function hashModel(path: string): Promise<string> {
   const hash = createHash('sha256');
@@ -87,13 +92,20 @@ export function startProfileMatching(
         }
       }
       if (assignments.length === 0) return;
-      await library.assignSpeakerProfiles(meetingId, assignments, before.revision, signal);
+      const after = await library.assignSpeakerProfiles(
+        meetingId,
+        assignments,
+        before.revision,
+        signal,
+      );
+      return { before, after };
     } catch {
       // A rename may have committed even if its directory sync reported a failure. Never retry.
       let outcome = 'unknown';
+      let committed: ProfileAssignmentEdit | undefined;
       try {
         const saved = await library.readTranscript(meetingId);
-        outcome =
+        const complete =
           before &&
           saved.revision === before.revision + 1 &&
           assignments.length > 0 &&
@@ -105,9 +117,13 @@ export function startProfileMatching(
                 s.name === profile.name &&
                 !s.userNamed,
             ),
-          )
-            ? 'committed'
-            : 'uncommitted';
+          );
+        if (complete && before) {
+          outcome = 'committed';
+          committed = { before, after: saved };
+        } else {
+          outcome = before && saved.revision > before.revision + 1 ? 'ambiguous' : 'uncommitted';
+        }
       } catch {
         /* The core transcript remains authoritative if inspection is unavailable. */
       }
@@ -118,6 +134,7 @@ export function startProfileMatching(
           : 'profile-matching-skipped',
         { outcome },
       );
+      return committed;
     }
   };
 }

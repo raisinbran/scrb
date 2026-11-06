@@ -1,11 +1,12 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Library } from '@scrb/storage';
+import { Library, type TranscriptFile } from '@scrb/storage';
 import {
   APPROVED_EMBEDDING_SHA256,
   APPROVED_PROFILE_MODEL,
@@ -15,6 +16,8 @@ import {
 } from '@scrb/app-core';
 import type { FinalTranscript } from '@scrb/transcription';
 import { ImportCoordinator } from './imports.ts';
+import { createMeetingHandlers, publishEdit } from './meetings.ts';
+import { dispatchCall } from './dispatch.ts';
 
 const at = (score: number) => [score, Math.sqrt(1 - score * score)];
 const transcript = (
@@ -297,6 +300,213 @@ describe('verified profile recognition', () => {
     await queue.idle();
     expect((await library.getMeeting(id)).status).toBe('ready');
     expect((await library.readTranscript(id)).segments).toHaveLength(2);
+  });
+
+  describe('recorded assignment notifications', () => {
+    const runRecorded = async (
+      notify: typeof publishEdit = publishEdit,
+      prepare: typeof startProfileMatching = (store) =>
+        startProfileMatching(store, async () => APPROVED_EMBEDDING_SHA256),
+    ) => {
+      const { id } = await library.createMeeting({
+        title: 'Invented recorded notification',
+        status: 'finalPassRunning',
+      });
+      const audio = library.meetingPaths(id).audioMeeting;
+      await mkdir(audio, { recursive: true });
+      await writeFile(
+        join(audio, 'chunks.json'),
+        JSON.stringify({ chunks: [{ file: 'invented.opus', startNs: 0, endNs: 2000000000 }] }),
+      );
+      const timeline: string[] = [];
+      const emit = vi.fn();
+      library.setMeetingChangedListener((meeting) => {
+        if (meeting.status === 'ready') {
+          timeline.push('ready');
+          emit('meetingChanged', {
+            id: meeting.id,
+            title: meeting.title,
+            startedAt: meeting.date,
+            durationMs: meeting.durationMs,
+            origin: meeting.source,
+            status: meeting.status,
+            summaryState: 'notGenerated',
+            speakerCount: 0,
+          });
+        }
+      });
+      const listener = vi.fn((before: TranscriptFile, after: TranscriptFile) => {
+        timeline.push('matching');
+        const saved = JSON.parse(
+          readFileSync(library.meetingPaths(id).transcript, 'utf8'),
+        ) as TranscriptFile;
+        expect(saved.revision).toBe(after.revision);
+        notify(before, after, emit);
+      });
+      const queue = new FinalPassQueue(
+        library,
+        async ({ onEmbeddingModel }) => {
+          onEmbeddingModel?.('invented-model');
+          return transcript();
+        },
+        undefined,
+        prepare,
+        listener,
+      );
+      queue.enqueue(id);
+      await queue.idle();
+      return { id, timeline, emit, listener, queue };
+    };
+    const events = (emit: ReturnType<typeof vi.fn>) =>
+      emit.mock.calls.filter(([name]) => name === 'transcriptChanged');
+
+    it('updates an already listening transcript once', async () => {
+      const first = profile();
+      const second = profile({ name: 'Invented second', embedding: new Float32Array([0, 1]) });
+      const hashes = profileHashes(library);
+      const observed: unknown[] = [];
+      const { id, timeline, emit, listener, queue } = await runRecorded(
+        (before, after, publish) => {
+          publishEdit(before, after, (name, payload) => {
+            if (name === 'transcriptChanged') observed.push(payload);
+            publish?.(name, payload);
+          });
+        },
+      );
+      const saved = await library.readTranscript(id);
+      const [before, after] = listener.mock.calls[0]!;
+      expect(timeline).toEqual(['ready', 'matching']);
+      expect(emit.mock.calls.map(([name]) => name)).toEqual([
+        'meetingChanged',
+        'transcriptChanged',
+      ]);
+      expect(before.revision).toBeLessThan(after.revision);
+      expect(after).toEqual(saved);
+      expect(observed).toEqual([
+        expect.objectContaining({
+          meetingId: id,
+          revision: saved.revision,
+          change: { kind: 'replace', removedSegmentIds: [], segments: [] },
+          speakers: [
+            expect.objectContaining({ id: 's0', label: first.name, profileId: first.id }),
+            expect.objectContaining({ id: 's1', label: second.name, profileId: second.id }),
+          ],
+        }),
+      ]);
+      expect(events(emit)).toHaveLength(1);
+      expect(saved.undoStack).toHaveLength(1);
+      const handlers = createMeetingHandlers(library, emit);
+      expect(await dispatchCall(handlers, 'undo', { meetingId: id })).toMatchObject({ ok: true });
+      expect(events(emit)).toHaveLength(2);
+      expect(await dispatchCall(handlers, 'redo', { meetingId: id })).toMatchObject({ ok: true });
+      expect(events(emit)).toHaveLength(3);
+      expect(profileHashes(library)).toEqual(hashes);
+      queue.enqueue(id);
+      await queue.idle();
+      expect(events(emit)).toHaveLength(4);
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['stale', 'exception', 'abort', 'unnamed'] as const)(
+      'publishes no false event for %s',
+      async (mode) => {
+        profile(mode === 'unnamed' ? { name: null } : {});
+        const hashes = profileHashes(library);
+        const { id, emit, listener } = await runRecorded(publishEdit, (store) => {
+          if (mode === 'exception')
+            return async () => {
+              throw new Error('private failure');
+            };
+          return async (meetingId, result, path) => {
+            const abort = new AbortController();
+            const job = startProfileMatching(store, async () => {
+              if (mode === 'stale')
+                await store.renameSpeaker(meetingId, 's1', 'Concurrent manual name');
+              if (mode === 'abort') abort.abort();
+              return APPROVED_EMBEDDING_SHA256;
+            });
+            return job(meetingId, result, path, abort.signal);
+          };
+        });
+        expect((await library.getMeeting(id)).status).toBe('ready');
+        expect(
+          (await library.readTranscript(id)).speakers.every(
+            (speaker) => speaker.profileId === null,
+          ),
+        ).toBe(true);
+        expect(listener).not.toHaveBeenCalled();
+        expect(events(emit)).toEqual([]);
+        expect(profileHashes(library)).toEqual(hashes);
+      },
+    );
+
+    it.each(['complete', 'partial', 'advanced', 'unreadable'] as const)(
+      'verifies uncertain %s assignment before notifying',
+      async (mode) => {
+        profile();
+        profile({ name: 'Invented second', embedding: new Float32Array([0, 1]) });
+        const hashes = profileHashes(library);
+        const original = library.assignSpeakerProfiles.bind(library);
+        vi.spyOn(library, 'assignSpeakerProfiles').mockImplementationOnce(
+          async (id, assignments, revision, signal) => {
+            const saved = await original(
+              id,
+              mode === 'partial' ? assignments.slice(0, 1) : assignments,
+              revision,
+              signal,
+            );
+            if (mode === 'advanced') await library.saveTranscript(id, saved, saved.revision);
+            if (mode === 'unreadable')
+              vi.spyOn(library, 'readTranscript').mockRejectedValueOnce(new Error('private path'));
+            throw new Error('uncertain write');
+          },
+        );
+        const log = vi.spyOn(library.logger, 'log');
+        const { id, emit, listener } = await runRecorded();
+        const saved = await library.readTranscript(id);
+        expect((await library.getMeeting(id)).status).toBe('ready');
+        expect(saved.speakers.filter((speaker) => speaker.profileId !== null)).toHaveLength(
+          mode === 'partial' ? 1 : 2,
+        );
+        expect(events(emit)).toHaveLength(mode === 'complete' ? 1 : 0);
+        expect(listener).toHaveBeenCalledTimes(mode === 'complete' ? 1 : 0);
+        expect(library.assignSpeakerProfiles).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledWith(
+          'warn',
+          mode === 'complete'
+            ? 'profile-matching-committed-after-warning'
+            : 'profile-matching-skipped',
+          {
+            outcome:
+              mode === 'complete'
+                ? 'committed'
+                : mode === 'advanced'
+                  ? 'ambiguous'
+                  : mode === 'unreadable'
+                    ? 'unknown'
+                    : 'uncommitted',
+          },
+        );
+        expect(profileHashes(library)).toEqual(hashes);
+      },
+    );
+
+    it('isolates one notification failure without retry', async () => {
+      profile();
+      const log = vi.spyOn(library.logger, 'log');
+      const { id, emit, listener } = await runRecorded((before, after, publish) => {
+        publishEdit(before, after, publish);
+        throw new Error('private transcript and name');
+      });
+      expect((await library.getMeeting(id)).status).toBe('ready');
+      expect((await library.readTranscript(id)).speakers[0]?.profileId).not.toBeNull();
+      expect((await library.readTranscript(id)).undoStack).toHaveLength(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(events(emit)).toHaveLength(1);
+      expect(log.mock.calls.filter(([level]) => level === 'warn')).toEqual([
+        ['warn', 'profile-matching-notification-failed', {}],
+      ]);
+    });
   });
 
   it.each(['throw', 'abort', 'cancel before commit'] as const)(
