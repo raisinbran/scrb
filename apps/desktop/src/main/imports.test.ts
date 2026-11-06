@@ -79,6 +79,34 @@ async function fixture() {
 }
 
 describe('Electron import coordination', () => {
+  it('requests the import privacy reminder only when building voice profiles', async () => {
+    const f = await fixture();
+    f.deps.privacyBanner.mockResolvedValue(true);
+    const first = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+    };
+    const withoutProfiles = (await f.coordinator.handlers.importAudioFile!({
+      fileToken: first.fileToken,
+      buildVoiceProfiles: false,
+    })) as { privacyBannerRequired: boolean };
+    expect(withoutProfiles.privacyBannerRequired).toBe(false);
+    expect(f.deps.privacyBanner).not.toHaveBeenCalled();
+    await f.coordinator.shutdown();
+
+    const g = await fixture();
+    g.deps.privacyBanner.mockResolvedValue(true);
+    const second = (await g.coordinator.handlers.pickAudioFile!(undefined)) as {
+      fileToken: string;
+    };
+    const withProfiles = (await g.coordinator.handlers.importAudioFile!({
+      fileToken: second.fileToken,
+      buildVoiceProfiles: true,
+    })) as { privacyBannerRequired: boolean };
+    expect(withProfiles.privacyBannerRequired).toBe(true);
+    expect(g.deps.privacyBanner).toHaveBeenCalledTimes(1);
+    await g.coordinator.shutdown();
+  });
+
   it('expires private tokens after ten minutes without disclosing the source path', async () => {
     const f = await fixture();
     const clock = vi.spyOn(Date, 'now');
@@ -270,6 +298,32 @@ describe('Electron import coordination', () => {
         'importFailed',
         expect.objectContaining({ reason: 'unreadable' }),
       ),
+    );
+    await f.coordinator.shutdown();
+  });
+
+  it('logs the stage and system error behind a failed import, without its message', async () => {
+    const f = await fixture();
+    const cause = Object.assign(new Error('EPERM: rename C:\\private'), {
+      code: 'EPERM',
+      syscall: 'rename',
+    });
+    f.deps.run.mockRejectedValue(
+      Object.assign(new Error('unreadable: private', { cause }), { code: 'unreadable' }),
+    );
+    const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    await f.coordinator.handlers.importAudioFile!({
+      fileToken: file.fileToken,
+      buildVoiceProfiles: false,
+    });
+    await vi.waitFor(() =>
+      expect(f.library.logger.log).toHaveBeenCalledWith('error', 'import-failed', {
+        stage: 'queued',
+        error: 'Error',
+        code: 'unreadable',
+        osCode: 'EPERM',
+        syscall: 'rename',
+      }),
     );
     await f.coordinator.shutdown();
   });

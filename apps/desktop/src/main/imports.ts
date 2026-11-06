@@ -129,7 +129,9 @@ export class ImportCoordinator {
         throw new ContractError({ code: 'notFound', message: 'Choose the audio file again.' });
       }
       sourcePath = selected.path;
-      privacyBannerRequired = await this.deps.privacyBanner().catch(() => true);
+      privacyBannerRequired = input.buildVoiceProfiles
+        ? await this.deps.privacyBanner().catch(() => true)
+        : false;
       if (this.deps.recordingBusy()) {
         throw new ContractError({ code: 'conflict', message: 'Recording took priority.' });
       }
@@ -245,6 +247,13 @@ export class ImportCoordinator {
         };
       } else {
         const code = (error as { code?: string }).code;
+        const cause = (error as { cause?: { code?: unknown; syscall?: unknown } }).cause;
+        library.logger.log('error', 'import-failed', {
+          stage: state.stage,
+          ...errorFields(error),
+          osCode: cause?.code ?? 'none',
+          syscall: cause?.syscall ?? 'none',
+        });
         const reason: ImportFailureReason =
           code === 'disk_full'
             ? 'diskFull'

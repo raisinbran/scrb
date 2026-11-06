@@ -2,8 +2,8 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { importedChunkManifest, readChunkManifest } from '../src/importFile.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { importedChunkManifest, readChunkManifest, retryWhileLocked } from '../src/importFile.js';
 import { readOpusPreSkip } from '../src/ogg.js';
 
 const roots: string[] = [];
@@ -111,5 +111,32 @@ describe('imported audio manifests', () => {
     header.writeUInt16LE(312, 38);
     await writeFile(file, header);
     expect(await readOpusPreSkip(file)).toBe(312);
+  });
+});
+
+describe('final import file steps', () => {
+  const failure = (code: string) => Object.assign(new Error('invented'), { code });
+
+  it('retries a locked file until it is released', async () => {
+    const step = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(failure('EPERM'))
+      .mockRejectedValueOnce(failure('EBUSY'))
+      .mockResolvedValue(undefined);
+    await retryWhileLocked(step, 0);
+    expect(step).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up on a lock that stays and never retries other errors', async () => {
+    const locked = vi.fn(async () => {
+      throw failure('EACCES');
+    });
+    await expect(retryWhileLocked(locked, 0)).rejects.toMatchObject({ code: 'EACCES' });
+    expect(locked).toHaveBeenCalledTimes(30);
+    const full = vi.fn(async () => {
+      throw failure('ENOSPC');
+    });
+    await expect(retryWhileLocked(full, 0)).rejects.toMatchObject({ code: 'ENOSPC' });
+    expect(full).toHaveBeenCalledTimes(1);
   });
 });

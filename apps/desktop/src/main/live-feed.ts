@@ -140,6 +140,8 @@ export class LiveCaptureSession {
       sinkQueued: sink.queued,
       sinkDraining: sink.draining,
       revision: sink.lastRevision,
+      statsAgeMs: age(worker?.statsAtMs),
+      ...worker?.stats,
     });
   }
 
