@@ -17,7 +17,7 @@ import {
 } from './db/meetings-index.ts';
 import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
-import { VoiceProfileStore } from './db/voice-profiles.ts';
+import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
 import {
   CorrectionConflictError,
   MeetingNotFoundError,
@@ -354,7 +354,12 @@ export class Library {
   private async changeTranscript(
     meetingId: string,
     change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
-    options: { userEdit: boolean; expectedRevision?: number; write?: AtomicWriteOptions },
+    options: {
+      userEdit: boolean;
+      expectedRevision?: number;
+      write?: AtomicWriteOptions;
+      beforeSave?: () => void;
+    },
   ): Promise<TranscriptFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).transcript;
@@ -371,6 +376,7 @@ export class Library {
       const next = { ...changed, revision: current.revision + 1 };
       const learningChanged = current.corrections !== next.corrections;
       if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
+      options.beforeSave?.();
       await saveDocument(file, next, loaded?.fileVersion ?? null, options.write);
       if (learningChanged) {
         try {
@@ -532,6 +538,64 @@ export class Library {
     }
     this.voiceProfiles.delete(profileId);
     return changed;
+  }
+
+  assignSpeakerProfiles(
+    meetingId: string,
+    assignments: { speaker: Speaker; profile: VoiceProfile }[],
+    expectedRevision: number,
+    signal: AbortSignal,
+  ): Promise<TranscriptFile> {
+    const snapshot = (profile: VoiceProfile) =>
+      JSON.stringify({
+        ...profile,
+        meetingIds: [...profile.meetingIds].sort(),
+      });
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        if ((await this.getMeeting(meetingId)).status !== 'ready') {
+          throw new CorrectionConflictError('Meeting is not complete');
+        }
+        for (const { speaker } of assignments) {
+          const latest = current.speakers.find((s) => s.id === speaker.id);
+          if (
+            !latest ||
+            latest.userNamed ||
+            latest.mergedInto !== null ||
+            JSON.stringify(latest) !== JSON.stringify(speaker)
+          ) {
+            throw new CorrectionConflictError('Speaker changed');
+          }
+        }
+        if (assignments.length === 0) return current;
+        return corrections.assignSpeakerProfiles(
+          current,
+          assignments.map(({ speaker, profile }) => {
+            if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
+            return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
+          }),
+        );
+      },
+      {
+        userEdit: true,
+        expectedRevision,
+        beforeSave: () => {
+          signal.throwIfAborted();
+          for (const { profile } of assignments) {
+            const latest = this.voiceProfiles.get(profile.id);
+            if (
+              !latest ||
+              profile.name === null ||
+              profile.meetingIds.includes(meetingId) ||
+              snapshot(latest) !== snapshot(profile)
+            ) {
+              throw new CorrectionConflictError('Profile changed');
+            }
+          }
+        },
+      },
+    );
   }
 
   renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
