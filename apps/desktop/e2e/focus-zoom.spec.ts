@@ -81,14 +81,17 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         const win = BrowserWindow.getAllWindows()[0]!;
         win.setSize(1280, 720);
         win.webContents.setZoomFactor(factor);
-        return { bounds: win.getBounds(), zoom: win.webContents.getZoomFactor() };
+        return {
+          bounds: win.getBounds(),
+          contentWidth: win.getContentBounds().width,
+          zoom: win.webContents.getZoomFactor(),
+        };
       }, zoom);
-      const viewport = await page.evaluate(
-        () =>
-          new Promise<{ width: number; height: number }>((resolve) =>
-            requestAnimationFrame(() => resolve({ width: innerWidth, height: innerHeight })),
-          ),
-      );
+      await page.waitForFunction(({ width, factor }) => Math.abs(innerWidth - width / factor) < 1, {
+        width: window.contentWidth,
+        factor: zoom,
+      });
+      const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
       console.log('window', JSON.stringify({ ...window, viewport }));
       // Runner work areas can clamp height; bounds are screen-space DIP, not CSS pixels.
       // The 600-DIP CI safeguard does not change the supported 1280×720 app minimum.
