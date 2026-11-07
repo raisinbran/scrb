@@ -83,8 +83,18 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         win.webContents.setZoomFactor(factor);
         return { bounds: win.getBounds(), zoom: win.webContents.getZoomFactor() };
       }, zoom);
-      console.log('window', JSON.stringify(window));
-      expect(window.bounds).toMatchObject({ width: 1280, height: 720 });
+      const viewport = await page.evaluate(
+        () =>
+          new Promise<{ width: number; height: number }>((resolve) =>
+            requestAnimationFrame(() => resolve({ width: innerWidth, height: innerHeight })),
+          ),
+      );
+      console.log('window', JSON.stringify({ ...window, viewport }));
+      // Runner work areas can clamp height; bounds are screen-space DIP, not CSS pixels.
+      // The 600-DIP CI safeguard does not change the supported 1280×720 app minimum.
+      const dimensions = `Effective Electron window ${window.bounds.width}×${window.bounds.height} DIP; CSS viewport ${viewport.width}×${viewport.height} at ${zoom * 100}%`;
+      expect(window.bounds.width, dimensions).toBeGreaterThanOrEqual(1280);
+      expect(window.bounds.height, dimensions).toBeGreaterThanOrEqual(600);
       expect(window.zoom).toBe(zoom);
       await page.getByRole('button', { name: 'Live', exact: true }).click();
       await expect(page.getByRole('combobox', { name: 'Microphone' })).toBeVisible();
