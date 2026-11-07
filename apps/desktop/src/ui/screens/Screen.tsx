@@ -1,11 +1,23 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { BackendData } from '../lib/use-backend-data.ts';
 import styles from './Screen.module.css';
 
+/** Restore a heading only when a commit leaves focus on the document body. */
+export function useFocusFallback() {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) heading.current?.focus();
+  });
+  return heading;
+}
+
 export function Screen({ title, children }: { title: string; children: ReactNode }) {
+  const heading = useFocusFallback();
   return (
     <div className={styles.screen}>
-      <h1 className={styles.title}>{title}</h1>
+      <h1 ref={heading} className={styles.title} tabIndex={-1}>
+        {title}
+      </h1>
       {children}
     </div>
   );
