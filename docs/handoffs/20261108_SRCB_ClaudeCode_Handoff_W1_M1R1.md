@@ -1,5 +1,7 @@
 # SRCB: Claude Code handoff — Tasks W1 and M1/R1
 
+> **HISTORICAL — COMPLETED 2026-11-08. Do not re-execute.** W1 → PR #69; M1/R1 → PR #70. Results: `20261108_SRCB_ClaudeCode_W1_Result.md` and `20261108_SRCB_ClaudeCode_M1R1_Diagnosis.md`.
+
 **Date:** 2026-11-08 (PT) · **From:** SRCB master planning session (Sonnet 5.5) · **To:** Claude Code, **Opus 5.5, Medium effort**, Mac
 **Status:** Plan independently QA'd by ChatGPT (conditional approval); its corrections are applied below. This handoff authorizes **only** the two tasks below. It does not authorize merges, physical tests, gate approval, or PR B.
 
