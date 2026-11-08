@@ -184,6 +184,7 @@ export function analyzeLiveTrace(
       malformed ||
       missingWorkers.length > 0 ||
       !streams.length ||
+      !observations.length ||
       streams.some((s) => !s.complete) ||
       observations.some((o) => o.diagnosis === 'UNKNOWN'),
   };
