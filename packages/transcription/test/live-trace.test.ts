@@ -197,6 +197,19 @@ it('marks a completely absent expected worker stream UNKNOWN even without worker
   });
 });
 
+it('reports UNKNOWN for complete supervisor and worker traces with no analyzable processing', async () => {
+  const w = recorder(),
+    s = recorder('supervisor');
+  s.trace.record('run_start', { workerRun: 0 });
+  s.trace.record('run_stop', { workerRun: 0, reason: 'stopped' });
+  w.trace.record('engine_stop', { reason: 'stopped' });
+  await w.trace.close();
+  await s.trace.close();
+  const analysis = analyzeLiveTrace([...w.rows(), ...s.rows()]);
+  expect(analysis.streams.every((x) => x.complete)).toBe(true);
+  expect(analysis).toMatchObject({ unknown: true, missingWorkers: [], observations: [] });
+});
+
 it('keeps slow-model/backlog skip/defer/output decisions identical and measures enabled event overhead', async () => {
   async function simulate(enabled: boolean) {
     const r = recorder(),
