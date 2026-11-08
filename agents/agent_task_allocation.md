@@ -46,11 +46,13 @@ Preserve all historical snapshots above without rewriting them. Do not commit ac
 
 ### Per-task log
 
+Claude Code rows: fill **Model / effort** and **Retries**; model-split guidance is in [claude_model_split.md](claude_model_split.md). Other agents: `Not applicable`.
+
 All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not percentage used. The change column reports observed decreases where valid, **not proven exclusive costs**.
 
-| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Source and qualification |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Agent-reported start/end balance; account-wide; possible concurrent usage; actual per-task attribution and hourly rate unknown |
+| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Model / effort | Retries | Source and qualification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Not recorded | Not recorded | Agent-reported start/end balance; account-wide; possible concurrent usage; actual per-task attribution and hourly rate unknown |
 
 ## Assignment routing
 
