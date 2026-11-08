@@ -7,6 +7,8 @@
 
 Maximize **useful, independently verified progress per scarce credit**, not the number of tasks or credits consumed. Select an agent based on task risk, hardware access, demonstrated quality, credit cost, remaining allowance, and existing assignments.
 
+**Claude scarcity and context transfers (owner decision, 2026-11-08):** Treat the shared Claude Pro allowance as the scarcest resource for planning and QA. For routine next-task/test selection and exact test instructions, prefer ChatGPT Chat or the executor with sufficient verified context; use Claude only when its added value justifies quota draw. If Claude is assigned, start with Sonnet medium for bounded work and Opus medium for consequential ambiguity. Before transferring an assignment between agents, sessions, models, or effort levels, consider the cost of rereading context, rebuilding caches, repeating diagnostics, independent review, and owner time. Follow [Claude model routing](claude_model_split.md); do not transfer or rerun work merely to compare costs.
+
 ## Historical credit and availability snapshot
 
 Owner-reported figures **from November 1, 2026 only**, retained for history; the Claude trial/deadline and percentage figures below are not a current availability report. **Recheck before scheduling**.
@@ -44,7 +46,7 @@ This expands the November 7 **Codex-only** permission to any agent using a finit
 
 Compute **observed consumption** as `start remaining - end remaining`, in **percentage points (pp)**, only if both readings belong to the same quota window. Record any five-hour/weekly reset, owner-initiated discretionary reset, overlapping sessions, or uncertain observation time; then report the difference as **not attributable / unavailable** instead of treating a reset as negative spending. Codex sessions, and Claude chat/Claude Code sessions within one subscription, can share a quota; displayed values can also round. These are **account-level changes, not isolated metered per-task costs**; do not sum overlapping deltas as if independently consumed. Do not label the difference as an exact agent usage rate. A percentage-point-per-hour rate requires reliable elapsed time and an uninterrupted quota window. Compare efficiency alongside task complexity, independent QA, delivered quality, retries and work completed; do not rank agents solely by percentages.
 
-Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
+When a handoff or Claude model/effort switch occurs, note the reason and any *observed* extra setup, test repetition, or prompt-cache misses in the existing qualification column or linked handoff. A shared account percentage change is not a measured transfer cost; do not invent one or add mandatory tracker columns. Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
 
 ### Per-task log
 
