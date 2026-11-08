@@ -1,6 +1,7 @@
 import type { TraceRecord } from './liveTrace.js';
 
 export interface TraceAnalysis {
+  missingWorkers: { session: string; workerRun: number }[];
   streams: { stream: string; complete: boolean; dropped: number; ioFailures: number }[];
   observations: {
     session: string;
@@ -162,11 +163,26 @@ export function analyzeLiveTrace(
       ...(typeof a === 'number' && typeof b === 'number' ? { deliveryMs: b - a } : {}),
     });
   }
+  const expected = records.filter((r) => r.role === 'supervisor' && r.stage === 'run_start');
+  const missingWorkers = expected
+    .filter(
+      (r) =>
+        !records.some(
+          (w) =>
+            w.role === 'worker' &&
+            w.session === r.session &&
+            w.workerRun === r.workerRun &&
+            w.stage === 'trace_start',
+        ),
+    )
+    .map((r) => ({ session: r.session, workerRun: r.workerRun ?? 0 }));
   return {
+    missingWorkers,
     streams,
     observations,
     unknown:
       malformed ||
+      missingWorkers.length > 0 ||
       !streams.length ||
       streams.some((s) => !s.complete) ||
       observations.some((o) => o.diagnosis === 'UNKNOWN'),

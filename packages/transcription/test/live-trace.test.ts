@@ -184,6 +184,19 @@ it('reports UNKNOWN for absent stage exits, missing files, truncation, restart a
   expect(analyzeLiveTrace([], true).unknown).toBe(true);
 });
 
+it('marks a completely absent expected worker stream UNKNOWN even without worker observations', async () => {
+  const r = recorder('supervisor');
+  r.trace.record('run_start', { workerRun: 2 });
+  r.trace.record('run_failed', { workerRun: 2 });
+  r.trace.record('run_stop', { workerRun: 2, reason: 'stopped' });
+  await r.trace.close();
+  expect(analyzeLiveTrace(r.rows())).toMatchObject({
+    unknown: true,
+    missingWorkers: [{ session, workerRun: 2 }],
+    observations: [],
+  });
+});
+
 it('keeps slow-model/backlog skip/defer/output decisions identical and measures enabled event overhead', async () => {
   async function simulate(enabled: boolean) {
     const r = recorder(),
