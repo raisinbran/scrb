@@ -1,15 +1,15 @@
 # SRCB Agent Task Allocation
 
-**Updated:** November 1, 2026  
+**Updated:** November 8, 2026  
 **Scope:** SRCB development. These owner preferences supplement repository instructions and approved plans; they do not override safety rules or authorize merges.
 
 ## Guiding rule
 
 Maximize **useful, independently verified progress per scarce credit**, not the number of tasks or credits consumed. Select an agent based on task risk, hardware access, demonstrated quality, credit cost, remaining allowance, and existing assignments.
 
-## Credit and availability snapshot
+## Historical credit and availability snapshot
 
-Owner-reported figures as of November 1, 2026; **recheck before scheduling**.
+Owner-reported figures **from November 1, 2026 only**, retained for history; the Claude trial/deadline and percentage figures below are not a current availability report. **Recheck before scheduling**.
 
 | Resource | ChatGPT Chat | Claude Code | ChatGPT Codex |
 | --- | --- | --- | --- |
@@ -20,39 +20,41 @@ Owner-reported figures as of November 1, 2026; **recheck before scheduling**.
 
 The owner observes that **Codex uses roughly 2–4 times as many credits per task as Claude**, despite slightly lower quality at the model/effort settings currently selected. This is a practical observation, not a controlled benchmark. Codex has nevertheless been reliable at complex SRCB backend/native implementation. Claude's possible **$20/month** subscription is a separate owner decision; do not assume it will be purchased.
 
-## Codex weekly spending authorization — owner decision, November 7, 2026
+## Shared weekly quota authorization — owner decision, November 8, 2026
 
-**Default permission:** A Codex task may consume up to **99% of the account's weekly Codex allowance** (cumulative weekly usage, leaving **at least 1% remaining**) without a separate spending approval. This replaces earlier assumed low-credit stop thresholds. An agent must not interrupt a productive, otherwise authorized task solely because weekly usage is high or a five-percentage-point checkpoint was reached. Technical scope, safety, test-duration authorization, and owner merge approval remain unchanged.
+This expands the November 7 **Codex-only** permission to any agent using a finite included weekly allowance, including Claude Code and project-related Claude chat. Apply the limit to the **provider account/shared quota pool**, not independently per agent or session. Claude chat and Claude Code can consume the same Claude subscription quota; concurrent Windows/Mac Codex sessions can share a separate Codex quota. This grants no authority for paid usage.
 
-**Progress-based checkpoint (separate from low-quota limits):** For substantial Codex assignments, state the next verifiable milestone and a task-specific account-usage checkpoint before starting. If the stated amount of usage is reached without that milestone, report a brief status identifying work attempted, measured progress, account allowance changes, and the next concrete in-scope step. Continue if that next step is justified and within the assigned scope; otherwise stop and request the owner's direction. A checkpoint is **not** a quota-based automatic stop, and permission to use 99% does not justify repeated costly work without progress. Record overlapping Windows/Mac or other Codex sessions when known; account readings cannot be attributed exclusively to one task.
+**Default permission:** An otherwise authorized, in-scope task may use up to **99% cumulative weekly usage** (leave **at least 1% remaining**) without asking for additional spending approval. This is a ceiling, not a goal. Do not interrupt useful work solely because weekly usage is high or an intermediate checkpoint was reached. A rounded display and overlapping sessions make the last reported 1% unsafe to assume spendable: preserve a practical margin when the next action could exhaust the pool.
 
-**Permission for 100%:** Before a task may use the final weekly allowance and reach **100% used (0% remaining)**, ask the owner a clear **task-specific permit/deny question**: "Permit [specific task] to use the remaining weekly Codex allowance, potentially reaching 100%? Permit / Deny." Only an explicit permit authorizes that task; permission does not transfer to later tasks or authorize unrelated work. If denied or not answered, stop before the default 99%-used limit. The agent must not use credits or resets to bypass a platform limit.
+**Progress-based checkpoint:** For substantial tasks, declare a next verifiable milestone and a task-specific account-usage checkpoint before starting. If observed usage reaches that checkpoint without the milestone, briefly report work attempted, verified progress, account-level changes, and the next concrete in-scope step. Continue when justified; otherwise stop for owner direction. The checkpoint is **not** an automatic low-quota stop and never justifies repeated costly work without progress.
 
-**Handoff before exhaustion:** For any task permitted to reach 100%, complete and save a durable, usable handoff **before** reaching zero remaining allowance, not after. Include current branch/commit, changed and uncommitted files, tests and evidence, status and blockers, next action, and five-hour/weekly remaining readings. Keep private audio, transcripts, and secrets out of Git. Prepare the handoff early (normally when **5% or less weekly allowance remains**, or sooner if the next action could consume the remainder). If the quota display is coarse or other sessions overlap, leave a safety margin and stop before zero unless the handoff is already durable. Even tasks stopping at 99% must leave a clear end-of-task status and usage row.
+**Permission for 100%:** Before intentionally risking the final weekly allowance, ask the owner: "Permit [specific task] to use the remaining [provider] weekly allowance, potentially reaching 100% used? Permit / Deny." Only an explicit task-specific permit authorizes exhaustion; silence or a denial does not. Permission is not reusable by another task or session.
 
-**Other limits:** Continue to record both five-hour and weekly remaining percentages at task start/end. The five-hour window may constrain execution independently, and an owner-authorized quota use does not grant permission for discretionary resets. Tests **planned** to exceed 20 minutes still require separate advance owner approval. This policy does not authorize automatic retries, private-evidence uploads, scope expansion, bypassing independent review, or merging PRs.
+**Handoff before exhaustion:** For any task permitted to reach 100%, first save a durable handoff **before** credits reach zero: branch/commit or chat deliverable, changes, tests/evidence, outcome and blockers, next action, and observed five-hour/weekly readings. Prepare it early (normally at **5% weekly remaining**, or sooner if the next step could consume the rest). Even tasks stopping below 100% need an end-of-task status and usage row. Keep private recordings, transcripts, account identifiers, and secrets out of Git.
+
+**Other limits:** Five-hour limits operate independently. This policy does not authorize paid credits/overages or auto-reload, subscriptions, quota resets, automatic test reruns, tests planned over 20 minutes without prior approval, private-evidence uploads, scope changes, bypassing independent review, or PR merges.
 
 ## Mandatory per-task usage tracker — owner decision, November 3, 2026
 
-**Applies to every new assigned task**, including implementation, QA, documentation, diagnostics, work stopped early, and tasks that finish inconclusively. Codex and Claude Code must report this even if the deliverable is only a handoff. ChatGPT Chat and other agents without a visible five-hour/weekly quota still record the task with `not applicable` or `unavailable`; never fabricate a quota.
+**Applies to every new assigned task**, including implementation, QA, documentation, diagnostics, work stopped early, and inconclusive work. Include project-related Claude chat planning/review alongside Claude Code work because they can draw from one Claude Pro pool; do not log unrelated personal conversation content, but flag known concurrent account usage. ChatGPT Chat and agents without a visible quota record `not applicable` or `unavailable`; never invent a quota.
 
-**At task start**, before substantive work, record the date/time (America/Los_Angeles), agent/model or service, physical device/environment, assignment identifier, and the **percentage remaining** in both the **rolling five-hour** and **weekly** limits. Prefer the agent's actual quota display or an owner-provided reading. State the observation source. If a value cannot be seen, record `unavailable` and ask for an owner reading only if practical; do not block a safe assignment.
+**At task start**, before substantive work, record the date/time (America/Los_Angeles), agent/model and effort for the applicable task phase, device or surface, assignment ID, both **five-hour and weekly percentage remaining** readings, and each next reset time if visible. Prefer the agent's or owner's observed quota display and identify its source. Use `unavailable` when a value cannot be seen; do not block a safe task merely to obtain a reading.
 
-**At task end**, including a blocker or failed attempt, record both remaining percentages again, observation time, outcome and evidence or PR link. Update the same row **in this existing tracker**; include the values in the handoff. For a new/updated row, use the permitted `rosmont/*` branch and PR workflow, never push directly to `main` or alter other agents' entries. If repository write access or review is pending, return a copy-ready row and identify it as **not yet committed**; the coordinator/owner reconciles concurrent entries.
+**At task end**, including a blocker or failed attempt, record both remaining percentages again, observation time, **retry count**, **final acceptance** (`accepted`, `pending`, `failed`, or `inconclusive`), and evidence or PR link. For Opus-planning/Sonnet-execution or another hybrid, add only a short phase/model/effort breakdown tied to one task ID; detailed outcomes belong in the PR or handoff. Update the same row in this tracker using the permitted `rosmont/*` branch/PR process, not a direct push to `main`. If an edit awaits review, return a copy-ready row marked **not yet committed**.
 
-Compute **observed consumption** as `start remaining - end remaining`, in **percentage points (pp)**, only if both readings belong to the same quota window. Record any five-hour/weekly reset, owner-initiated discretionary reset, overlapping sessions, or uncertain observation time; then report the difference as **not attributable / unavailable** instead of treating a reset as negative spending. Multiple Codex sessions may share a quota, and displayed values can round, so these are **account-level changes, not isolated metered per-task costs**. Do not label the difference as an exact agent usage rate. A percentage-point-per-hour rate requires reliable elapsed time and an uninterrupted quota window. Compare efficiency alongside task complexity, independent QA, delivered quality, retries and work completed; do not rank agents solely by percentages.
+Compute **observed consumption** as `start remaining - end remaining`, in **percentage points (pp)**, only if both readings belong to the same quota window. Record any five-hour/weekly reset, owner-initiated discretionary reset, overlapping sessions, or uncertain observation time; then report the difference as **not attributable / unavailable** instead of treating a reset as negative spending. Codex sessions, and Claude chat/Claude Code sessions within one subscription, can share a quota; displayed values can also round. These are **account-level changes, not isolated metered per-task costs**; do not sum overlapping deltas as if independently consumed. Do not label the difference as an exact agent usage rate. A percentage-point-per-hour rate requires reliable elapsed time and an uninterrupted quota window. Compare efficiency alongside task complexity, independent QA, delivered quality, retries and work completed; do not rank agents solely by percentages.
 
 Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
 
 ### Per-task log
 
-Claude Code rows: fill **Model / effort** and **Retries**; model-split guidance is in [claude_model_split.md](claude_model_split.md). Other agents: `Not applicable`.
+Metered-agent rows: include **phase / model / effort**, **retries**, **acceptance**, and reset/overlap notes. For nonmetered agents, use `not applicable` where appropriate. Claude model guidance: [claude_model_split.md](claude_model_split.md).
 
 All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not percentage used. The change column reports observed decreases where valid, **not proven exclusive costs**.
 
-| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Model / effort | Retries | Source and qualification |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Not recorded | Not recorded | Agent-reported start/end balance; account-wide; possible concurrent usage; actual per-task attribution and hourly rate unknown |
+| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Phase / model / effort | Retries | Acceptance | Source, reset, overlap and qualification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Not recorded | Not recorded | Not recorded | Agent-reported start/end balance; account-wide; possible concurrent usage; reset time and actual per-task attribution unknown |
 
 ## Assignment routing
 
@@ -66,9 +68,9 @@ All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not pe
 ### Claude Code — quality-sensitive work and independent Mac QA
 
 - Prefer for independent code/plan review, targeted troubleshooting, UI implementation, physical Mac tests, and complex work when higher quality or lower per-task credit cost justifies it.
-- Its 22% remaining weekly allowance and **Nov. 3** free-trial deadline make **critical Phase 3 QA and physical verification** more valuable than routine tasks.
+- Verify current Claude account access, model availability, five-hour and weekly remaining balances before scheduling; November 1 figures above are historical.
 - Avoid duplicate reviews and long, low-yield investigations. Do not interrupt an active assignment to start optional work.
-- Do not schedule Claude-only tasks after Nov. 3 without confirmed access. Future independent QA may be assigned to another available agent.
+- If a designated reviewer is unavailable, report the review as pending; choose another reviewer only with owner authorization.
 - When reviewing Claude's implementation, assign another agent to provide the independent approval.
 
 ### ChatGPT Codex — reliable native/backend implementation
@@ -101,7 +103,7 @@ All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not pe
 1. **Can ChatGPT Chat complete the task safely in the cloud?** Assign it there first, with independent QA for any code changes.
 2. **Is physical access required?** Choose the agent on the required operating system; reserve Claude's limited Mac time for independent testing and high-value review.
 3. **Is substantial complex implementation required?** Prefer Codex where its demonstrated native/backend reliability matters. Choose Claude instead when expected quality and credits genuinely make it more efficient.
-4. **Who independently verifies the result?** Use a different agent; give the reviewer the exact branch/commit and acceptance evidence. Avoid repeating QA already passed without code changes or new findings.
+4. **Who independently verifies the result?** Planning-role proposals need at least one review round by another agent before owner approval. For code, run checks first, then independent review, then owner merge authorization. A model switch by the author does not count. Give the reviewer the branch/commit and acceptance evidence; avoid repeating QA without changes or new findings.
 5. **Is another agent already working in this area?** Preserve that assignment. Parallelize only independent tasks and avoid simultaneous edits to the same state machine, shared interface, or file layout.
 
 ## Mandatory safeguards
