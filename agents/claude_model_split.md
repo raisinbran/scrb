@@ -1,22 +1,30 @@
-# Claude Code: Opus vs Sonnet split (research, 2026-11-08)
+# Claude Code model routing (provisional, 2026-11-08)
 
-Claude credits are scarce (Pro plan). Evidence is mostly anecdote and vendor blogs; the per-task tracker in `agent_task_allocation.md` is the real test. Log **Model / effort** and **Retries** (extra attempts at the same acceptance test) for every Claude task.
+This guidance selects a Claude model **when Claude Code is assigned the work**. It does not reassign Codex work, authorize spending beyond `agents/agent_task_allocation.md`, replace required owner-approved plans, or count model switching as independent review.
 
-## Facts
-- API price per million tokens: Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 $0.10/$0.50 ([pricing](https://claude.com/pricing)). Anthropic publishes no Pro-plan multiplier for 5-hour or weekly draw; Opus's extra thinking tokens likely widen the gap on hard tasks ([Layer3 Labs](https://www.layer3labs.io/comparisons/claude-sonnet-5-token-usage-vs-opus-5), vendor blog). One guide says Opus and Sonnet share one weekly pool on Pro ([Hora de Codar](https://horadecodar.com.br/limites-claude-opus-5/)); unverified.
-- Features ([docs](https://code.claude.com/docs/en/model-config)): `/model opusplan` = Opus in plan mode, Sonnet to execute; subagents inherit the main model unless `model` is set in their definition; Opus/Sonnet/Haiku 5.5 default to `medium` effort (`low`..`max`); `/model` switches at once (`s` = this session only).
-- Retry evidence is weak. Opus wins only if it uses under roughly 40-50% of Sonnet's tokens including retries; about two or more average Sonnet retries per patch flips it (Layer3). Anecdotes: [Opus cheaper on complex one-shot tasks](https://reddit.sentinel-team.org/posts/1ss78xu/snapshots/2026-04-25T02%3A30%3A13.962987Z); [Sonnet ~5.5x cheaper on smoke tests, same pass rate](https://reddit.sentinel-team.org/posts/1snoazr/snapshots/2026-04-18T01%3A10%3A06.838236Z).
+## Evidence and configuration
 
-## Default setup (until the tracker says otherwise)
-| Task | Setup |
+- Claude and Claude Code can share five-hour and weekly subscription usage. Anthropic publishes no universal Opus-to-Sonnet **Pro quota** multiplier; API token prices are not subscription quota conversion rates. See [Anthropic usage guidance](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work) and [API pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+- Anthropic's coding measurements favor Opus accuracy on some hard tasks, but not the lowest cost per accepted task on every benchmark. Independent routine-task measurements are small. Treat model-loop anecdotes and exact price break-even claims as hypotheses, not SRCB measurements. See [Anthropic cost/effort research](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence) and [AutoRouter routine-task measurements](https://autorouter.com/blog/claude-code-task-costs-measured).
+- Claude Code supports `/model opusplan` (Opus planning and Sonnet execution), `/model` switching, effort levels, and subagent `model`/effort overrides. Verify actual versions and settings in the session. See [model configuration](https://code.claude.com/docs/en/model-config) and [subagents](https://code.claude.com/docs/en/sub-agents).
+
+## Starting choices
+
+| Work | Preferred starting configuration |
 | --- | --- |
-| Planning; plans for risky changes (IPC, security, recovery) | Opus, medium, plan mode; plan names files, tests, "done" |
-| Complex backend/native work | Opus directly |
-| Routine edits, UI, docs, mechanical fixes with a clear plan | Sonnet medium; `opusplan` for larger multi-file tasks |
-| Exploration, test runs | Haiku/Sonnet subagents (`model` in frontmatter) |
-| QA/review | Sonnet first pass; Opus for high-risk diffs; reviewer differs from author |
+| Risky architecture/implementation planning | Opus, medium effort, plan mode; require named files, failure modes, tests, and acceptance |
+| Difficult native/backend diagnosis or implementation | Opus, medium initially; increase effort selectively when needed |
+| Routine UI, docs, mechanical edits, and bounded tests | Sonnet, medium effort |
+| Larger, well-defined multi-file work | Opus plan then Sonnet execution, optionally using `opusplan`, **only when planning will likely reduce rework** |
+| Narrow exploration and log inspection | Sonnet or Haiku subagents with explicit model/effort when useful |
+| Independent QA | Sonnet for routine changes, Opus for high-risk changes, with a reviewer other than the author |
 
-Stop rule: if Sonnet fails the same acceptance test twice, switch to Opus with the failure output.
+**High-risk** means a change requiring an approved plan under the Development Process: audio capture, chunk writing/recovery, pause/resume, formats or index upgrades, correction precedence/frozen spans, deletion/auto-delete, security or IPC. Escalate other demonstrated recording/data-loss or security risks to the owner rather than assuming the list is exhaustive.
 
-## How to confirm
-Compute 5-hour points per **accepted** task (retries included; split planning from execution), compare same-type tasks across models, and check weekly points too. If Sonnet is under half of Opus per accepted task, keep it as default; if its retries average 2+, move that task type to Opus. Aim for about 5 routine Sonnet tasks plus a few hard tasks on each model before deciding.
+**Stop rule:** After **two failures of the same acceptance test without a new useful diagnosis**, stop and reassess the approach, effort, or model using the failed command, output, diff, and attempted fixes. This is a maximum trigger for reassessment, **not permission for automatic reruns** and not an automatic switch to Opus. Stricter test-duration, one-diagnostic-cycle, and owner-approval rules still apply.
+
+## Measure results before changing defaults
+
+Record model and effort for each phase (plan, execution, review), retries, final acceptance, both quota bars and reset times, and known overlapping use in [the tracker](agent_task_allocation.md). Include project-related Claude chat planning/review: it may affect the same quota as Claude Code. Use one short phase breakdown only for hybrid work; link to existing PRs/handoffs for details.
+
+Compare naturally occurring, similarly scoped tasks by **observed quota change per accepted task**, including failed attempts, planning, QA and rework, plus elapsed time and acceptance quality. Rounded readings, reset windows, and concurrent sessions make individual task costs uncertain. Do not sum overlapping account-level deltas, invent an exact quota multiplier, or run duplicate implementations just to collect data.
