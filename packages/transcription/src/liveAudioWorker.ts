@@ -9,6 +9,7 @@ import type { LiveSkip, LiveTrackStats, TimedLiveSegment } from './livePcmEngine
 import type { TrackKind } from './types.js';
 import { detectSpeech, LiveWhisper, type LiveWhisperOptions, type VadSpan } from './whisper.js';
 import { WorkerProcess } from './worker.js';
+import { openLiveTrace, type LiveTrace, type TraceFields } from './liveTrace.js';
 
 export type LiveAudioEvent =
   | { type: 'segment'; segment: TimedLiveSegment }
@@ -38,6 +39,8 @@ export interface LiveAudioWorkerOptions {
   workerArgs?: string[];
   tempRoot?: string;
   startModels?: (workDir: string, signal: AbortSignal) => Promise<LiveModelHost>;
+  /** Opt-in, private diagnostic JSONL outside automatically removed scratch. */
+  traceDirectory?: string;
 }
 
 const STAT_FIELDS = [
@@ -119,12 +122,20 @@ export class LiveAudioWorker {
   private notifications: LiveAudioEvent[] = [];
   private notificationScheduled = false;
   private notificationOverflow = false;
+  private readonly trace: LiveTrace | undefined;
+  private readonly queuedAt: WeakMap<LivePcmFrame, number> | undefined;
 
   private constructor(
     private readonly options: LiveAudioWorkerOptions,
     private readonly scratch: string,
   ) {
     this.capacity = options.maxQueuedFrames ?? DEFAULT_QUEUED_FRAMES;
+    this.trace = openLiveTrace(
+      options.traceDirectory ?? process.env['SCRB_LIVE_TRACE_DIR'],
+      this.namespace,
+      'supervisor',
+    );
+    this.queuedAt = this.trace ? new WeakMap() : undefined;
   }
 
   static async start(options: LiveAudioWorkerOptions): Promise<LiveAudioWorker> {
@@ -176,6 +187,10 @@ export class LiveAudioWorker {
       }
       if (this.closed) return false;
       queue.push(copy);
+      if (this.trace) {
+        this.queuedAt!.set(copy, this.trace.now());
+        this.trace.record('frame_enqueue', this.traceFrame(copy));
+      }
       this.lag();
       this.pump();
       return true;
@@ -237,6 +252,8 @@ export class LiveAudioWorker {
     } finally {
       this.accepted.clear();
       await rm(this.scratch, { recursive: true, force: true });
+      this.trace?.record('run_stop', { workerRun: this.run?.id ?? 0, reason: 'stopped' });
+      void this.trace?.close();
     }
   }
 
@@ -285,7 +302,21 @@ export class LiveAudioWorker {
         if (this.closed && notification.type === 'segment') continue;
         try {
           this.options.onEvent(notification);
+          if (notification.type === 'segment')
+            this.trace?.record('segment_delivered', {
+              track: notification.segment.track,
+              workerRun: this.run?.id ?? 0,
+              sequence: notification.segment.sequence,
+              segmentKey: notification.segment.id.replace(`${this.namespace}-${this.run?.id}-`, ''),
+              wordCount: notification.segment.words.length,
+            });
         } catch {
+          if (notification.type === 'segment')
+            this.trace?.record('segment_delivery_error', {
+              workerRun: this.run?.id ?? 0,
+              track: notification.segment.track,
+              reason: 'failed',
+            });
           /* Observers cannot fail recording. */
         }
       }
@@ -293,6 +324,7 @@ export class LiveAudioWorker {
   }
 
   private skip(frame: LivePcmFrame, reason: LiveSkip['reason']): void {
+    this.trace?.record('frame_skip', { ...this.traceFrame(frame), reason });
     this.emit({
       type: 'skipped',
       gap: {
@@ -331,6 +363,7 @@ export class LiveAudioWorker {
       pending: new Map(),
     };
     this.run = run;
+    this.trace?.record('run_start', { workerRun: run.id });
     run.timer = setTimeout(() => this.fail(run), this.options.startTimeoutMs ?? 60_000);
     run.startup = this.startRun(run);
   }
@@ -355,7 +388,22 @@ export class LiveAudioWorker {
         ],
         stdin: true,
         ipc: true,
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
+          ...(this.trace
+            ? {
+                SCRB_LIVE_TRACE_DIR:
+                  this.options.traceDirectory ?? process.env['SCRB_LIVE_TRACE_DIR'],
+                SCRB_LIVE_TRACE_SESSION: this.namespace,
+                SCRB_LIVE_TRACE_RUN: String(run.id),
+              }
+            : {
+                SCRB_LIVE_TRACE_DIR: '',
+                SCRB_LIVE_TRACE_SESSION: '',
+                SCRB_LIVE_TRACE_RUN: '',
+              }),
+        },
       });
       run.worker = worker;
       // No model stdout/stderr, PCM or transcript text is copied into application logs.
@@ -423,6 +471,7 @@ export class LiveAudioWorker {
           throw new Error('Invalid live buffer timing');
         run.pending.set(run.frame.track, { startNs: Number(start), endNs: pcmEndNs(run.frame) });
         run.lastAckAtMs = Date.now();
+        this.trace?.record('frame_ack', this.traceFrame(run.frame));
         clearTimeout(run.timer);
         delete run.frame;
         this.lag();
@@ -481,6 +530,11 @@ export class LiveAudioWorker {
           end = word.endMs;
         }
         run.lastSegmentAtMs = Date.now();
+        this.trace?.record('segment_received', {
+          ...this.traceFrame(run.frame),
+          segmentKey: segment.id,
+          wordCount: segment.words.length,
+        });
         this.emit({
           type: 'segment',
           segment: {
@@ -535,6 +589,14 @@ export class LiveAudioWorker {
     if (!next) return;
     const frame = { ...next, more: candidates[0]!.length > 0 };
     run.frame = frame;
+    if (this.trace)
+      this.trace.record('frame_dequeue', {
+        ...this.traceFrame(frame),
+        queueDelayMs: Math.max(
+          0,
+          this.trace.now() - (this.queuedAt?.get(next) ?? this.trace.now()),
+        ),
+      });
     this.sentFrames[frame.track] += 1;
     run.pending.set(frame.track, {
       startNs: Math.min(frame.startNs, run.pending.get(frame.track)?.startNs ?? frame.startNs),
@@ -585,6 +647,7 @@ export class LiveAudioWorker {
   private fail(run: Run): void {
     if (this.closed || run !== this.run || run.failed) return;
     run.failed = true;
+    this.trace?.record('run_failed', { workerRun: run.id, reason: 'failed' });
     for (const [track, pending] of run.pending)
       if (pending.endNs > pending.startNs) {
         this.emit({
@@ -614,5 +677,19 @@ export class LiveAudioWorker {
         void this.close();
       },
     );
+  }
+
+  private traceFrame(frame: LivePcmFrame): TraceFields {
+    return {
+      track: frame.track,
+      sequence: frame.sequence,
+      generation: frame.generation,
+      workerRun: this.run?.id ?? 0,
+      startNs: frame.startNs,
+      endNs: pcmEndNs(frame),
+      more: frame.more === true,
+      queueMic: this.queues.get('mic')!.length,
+      queueMeeting: this.queues.get('meeting')!.length,
+    };
   }
 }
