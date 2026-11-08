@@ -34,7 +34,7 @@ Invented PCM, fake VAD/recognition and actual dispatcher with a loopback fake wo
 
 The simulated slow-model/backlog comparison uses identical100source frames and a generation discontinuity, backlog markers and750ms simulated model duration. Diagnostics on/off produced identical segments, skips, VAD/model call counts and deferrals (5VAD evaluations,2model calls,3deferrals). A5000event benchmark measured2.073microseconds per enabled `record()` call on Windows (includes sanitization/serialization/enqueue, memory-sink benchmark; not asynchronous disk completion or a production throughput guarantee). No material processing disturbance observed in the simulated workload. Actual dispatcher integration writes real files outside scratch and verifies receipt/delivery records and absence of invented word text.
 
-Typecheck and changed-file ESLint pass. Full CI and independent review status will be recorded in the PR/handover; this document alone is not approval. No optional public-fixture replay or private owner recordings were used.
+Typecheck and changed-file ESLint pass. Full Windows/macOS CI passed for the initial commit578ebe8. Independent review then found that a completely absent worker file could escape completeness detection in a supervisor-only input. The analyzer now reconciles supervisor run-start IDs against worker stream starts; the added missing-worker regression passes, with all8tracing tests passing after the correction. Revised-head CI and review follow-up are tracked in the PR/handover; this document alone is not approval. No optional public-fixture replay or private owner recordings were used.
 
 ## PR B decision
 
