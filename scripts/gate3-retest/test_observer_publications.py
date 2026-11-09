@@ -317,6 +317,39 @@ class UAll(unittest.TestCase):
         self.assertFalse(report["u_pass"])
 
 
+class PreViewportInterval(unittest.TestCase):
+    """PROPOSED rule: the 250 ms limit starts at the first sample that found the viewport."""
+
+    def test_pre_viewport_interval_is_reported_but_ignored_for_u_pass(self):
+        # observer starts, the viewport is missing for 18 s, then it is found; no words yet
+        s = [sample(18000, 18020, ""), sample(18050, 18070, ""), sample(18100, 18120, "")]
+        _, report = build(s)
+        self.assertAlmostEqual(report["pre_viewport_interval_s"], 18.020, places=9)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.070, places=9)
+        self.assertTrue(report["u_pass"])
+        self.assertEqual(report["result_status"], "OK")
+
+    def test_interval_of_0_33_s_after_the_first_found_sample_still_fails(self):
+        s = [sample(18000, 18020, ""), sample(18050, 18070, ""), sample(18350, 18370, "")]
+        _, report = build(s)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.320, places=9)  # 18370 - 18050
+        self.assertFalse(report["u_pass"])
+        self.assertEqual(report["u_all_intervals_over_limit"][0][0], 2)
+
+    def test_words_in_the_first_found_sample_make_the_run_inconclusive(self):
+        s = [sample(18000, 18020, row("You", "0:05", "alpha", 150)), sample(18050, 18070, row("You", "0:05", "alpha", 150))]
+        records, report = build(s)
+        self.assertEqual(report["result_status"], "INCONCLUSIVE")
+        self.assertTrue(records[0]["present_at_start"])
+
+    def test_a_trailing_error_stretch_after_the_viewport_was_found_still_counts(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 18100 * FREQ // 1000, "qpc_end": ORIGIN + 18500 * FREQ // 1000}]
+        s = [sample(18000, 18020, "")]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.500, places=9)  # 18500 - 18000
+        self.assertFalse(report["u_pass"])
+
+
 class Schema(unittest.TestCase):
     def raw_file(self, directory):
         path = Path(directory) / "raw.jsonl"
