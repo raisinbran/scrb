@@ -72,6 +72,36 @@ def fit_clock(lead_recorded, trail_recorded, lead_harness, trail_harness):
             "valid": discrepancy <= 0.1, "marker_detection": "external independent input required"}
 
 
+def check_clock(clock):
+    """Enforce the existing clock rule before emitting a track acceptance verdict."""
+    if not isinstance(clock, dict):
+        return {"valid": False, "reason": "Missing independent marker clock report"}
+    discrepancy = clock.get("offset_disagreement_seconds")
+    uncertainty = clock.get("anchor_uncertainty_s", [])
+    if (not isinstance(discrepancy, (int, float)) or isinstance(discrepancy, bool)
+            or not math.isfinite(discrepancy) or discrepancy < 0
+            or not isinstance(uncertainty, list) or len(uncertainty) not in (0, 2)
+            or any(not isinstance(value, (int, float)) or isinstance(value, bool)
+                   or not math.isfinite(value) or value < 0 for value in uncertainty)):
+        return {"valid": False, "reason": "Invalid marker clock evidence"}
+    upper = discrepancy+sum(uncertainty)
+    valid = clock.get("valid") is True and upper <= 0.1
+    return {"valid": valid, "offset_disagreement_seconds": discrepancy,
+            "disagreement_upper_seconds": upper,
+            "reason": "Existing 100 ms rule satisfied" if valid else "Failed marker clock or existing 100 ms rule"}
+
+
+def analyze_track(units, clock):
+    """Suppress acceptance and recurrence verdicts when clock evidence is unusable."""
+    validation = check_clock(clock)
+    if not validation["valid"]:
+        return {"bounds": None, "latency": "INCONCLUSIVE", "recurrence": "INDETERMINATE",
+                "diagnosis": "INCONCLUSIVE; marker clock is missing or invalid",
+                "denominator": sum(bool(unit["eligible"]) for unit in units),
+                "units": [], "clock": validation}
+    return {**summarize_track(units), "clock": validation}
+
+
 def main():
     """Analyze adjudicated units only after their frozen identity evidence is supplied."""
     parser = argparse.ArgumentParser()
@@ -80,7 +110,9 @@ def main():
     args = parser.parse_args()
     data = json.loads(args.input.read_text(encoding="utf-8-sig"))
     assert data["frozen"] is True, "Unfrozen annotations cannot be scored"
-    result = {track: summarize_track([unit for unit in data["units"] if unit["track"] == track])
+    clocks = data.get("clocks", {})
+    result = {track: analyze_track([unit for unit in data["units"] if unit["track"] == track],
+                                   clocks.get(track) if isinstance(clocks, dict) else None)
               for track in ("microphone", "meeting")}
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump(sanitize_numbers(result), stream, indent=2, allow_nan=False)
