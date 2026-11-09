@@ -30,6 +30,148 @@
 | A-011 | Nov 3 / Codex | After the false-rejection episode, Codex did not provide a concrete next owner action until prompted; the owner had to ask whether it was functioning. | **Corrected:** later identified the four-minute acceptance recording as the prospective next step, subject to authorization and controller validation. | Owner-supplied Windows Codex session transcript (Nov 3, ~11:03–11:04 PM PT) |
 | A-012 | Nov 3 / ChatGPT | Recommended advancing to another physical acceptance recording based on a partial offline guard correction **before requiring replay of the full launch/decision/shutdown workflow**. Risked repeating the same harness failure and spending further credits. | **Recommendation withdrawn:** stop physical retries until complete offline-controller validation; budget before another Codex assignment. | Owner discussion and Codex false-rejection record (A-009/A-010) |
 
+### A-027 — 2026-11-08 — Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent implementation mistake, caught in author self-review before testing or publication; not an application defect.
+- **What failed:** The initial offline clock adapter mapped annotation times into harness time, which would move units relative to the existing analyzer's fixed 170–245 s recurrence window.
+- **Agent-controlled cause:** Chose the wrong direction for clock conversion while leaving the analyzer's window in recording time.
+- **Impact:** Short-lived uncommitted implementation replaced before use. No real audio, gate result, recording, source or threshold affected. No measured separate credit cost; see the occurrence-matcher task usage row proposed in its handoff.
+- **Evidence:** This task's local edit history and author admission; `test_recording_clock_mapping` and `test_cli_clock_integration` cover the corrected direction with a 100 s offset.
+- **Correction / remaining risk:** Map observer publication intervals into the unchanged annotation recording clock; propagate uncertainty. Synthetic regression checks passed. Physical clock/observer validation and independent code review remain pending.
+- **Owner approval:** No physical or over-20-minute test started; no merge or gate approval requested.
+
+### A-028 — 2026-11-08 — Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent CLI import error, not an application defect.
+- **What failed / evidence:** `test_cli_clock_integration` failed with `ModuleNotFoundError: No module named 'marker_clock'` when executing the matcher with `--clock` as a subprocess; 69 other Python tests passed in that run.
+- **Agent-controlled cause:** Assumed the script's sibling directory would be available for a bare import in this Python execution environment; initial tests exercised imported functions only.
+- **Impact:** One failed synthetic test run and a focused correction; no real recording or evidence changed. Task-level allowance is account-wide, not an isolated retry cost.
+- **Correction / remaining risk:** Load the clock helper by its explicit sibling file path, as existing analysis tests do. The corrected Python suite passed all 70 tests, including the CLI subprocess path. Independent review remains pending.
+- **Owner approval:** No physical or over-20-minute test, threshold change, source change or merge involved.
+
+### A-029 - 2026-11-08 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed initial offline analyzer defects found by ChatGPT's conditional review of `9a4d5a1`; agent implementation/test-coverage errors, not application defects.
+- **What failed:** Broad source spans allowed missed-plus-duplicated repeats to get exact credit; boundary detection used nominal time instead of the lower bound; clock conversion lacked track/recording binding and explicit basis enforcement; invalid anchors escaped as ValueError; synthetic scale naming overstated real-track fidelity.
+- **Evidence / impact:** Requested before-fix regressions reproduce these defects; see the handoff's before/after table. No real audio, recording, scored gate result, or frozen evidence was affected by this task.
+- **Correction / remaining risk:** Require distinguishing provenance, lower-bound boundary classification, explicit clock basis and fit identity, and explicit INCONCLUSIVE reporting. The new regressions and complete 80-test Python suite pass. Physical calibration, observer provenance, comment checker, and follow-up independent review remain pending.
+- **Usage / approval:** Usage row proposed in the handoff; intentional red runs are requested reproductions, not accidental retries. No rendering, recording, source/threshold/protocol change, freeze, merge, or planned over-20-minute test.
+
+### A-030 - 2026-11-08 - Codex / Windows Desktop
+
+- **Status / attribution:** Failed agent dependency-setup attempt; insufficient local npm cache is an environment limitation, not an application defect.
+- **What failed / evidence:** `npm ci --offline --ignore-scripts --no-audit --no-fund` exited ENOTCACHED for electron-45.2.1.tgz; cleanup also warned EPERM on partial node_modules directories.
+- **Agent-controlled cause / impact:** Tried cache-only installation without first establishing complete cache availability. One unsuccessful local install attempt; subsequent root-only dependency copy missed workspace-local modules, so the first npm check failed TS2307 for @vitejs/plugin-react; no network request, dependency/source edit, renderer, recording, or gate evidence affected. Partial node_modules is ignored test infrastructure.
+- **Correction / remaining risk:** Copy already-installed root and workspace-local dependencies, excluding junctions, then recreate worktree-local workspace links. The targeted diagnosis found apps/desktop/node_modules and packages/transcription/node_modules; copy both before rerunning the interrupted check. Do not retry network installation. Final checks and setup outcome are recorded in the handoff.
+- **Usage / approval:** Owner authorized offline testing; no over-20-minute test planned. Account changes are not isolated setup costs.
+
+### A-031 - 2026-11-08 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent documentation edit error, corrected before commit.
+- **What failed / evidence:** Initial exact-heading replacement silently failed to insert A-029; git status showed no change in the register after the handoff referred to it.
+- **Agent-controlled cause / impact:** Used an unchecked replacement against a heading containing a Unicode dash through a shell/stdin script; the same encoding boundary damaged newly inserted dash characters in the handoff. Briefly inconsistent uncommitted documentation; no production or evidence effect.
+- **Correction / remaining risk:** Insert using an asserted, unique ASCII heading prefix, repair the handoff characters, and verify both diffs. No pending documentation inconsistency from that edit.
+- **Usage / approval:** No external publication, test retry, recording, or merge involved.
+
+### A-032 - 2026-11-08 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed prior regression-evidence weakness identified by ChatGPT's PASS re-review of `28e3125`; agent test/documentation issue, not a remaining production defect.
+- **What failed / impact:** Broad-provenance regression accepted BOUNDED as well as UNIDENTIFIED and checked only non-reuse of exact credit instead of no exact credit. The strengthened tests passed the new clock_basis keyword, making direct historical replay incompatible without an adapter; the handoff had summarized earlier red runs without attaching their exact output. Evidence was weaker and less reproducible than intended; no real audio, gate outcome, or frozen evidence affected.
+- **Correction / evidence:** Require both occurrences exactly UNIDENTIFIED and exact-credit list empty. Add test-only `check_matcher_regressions.py`, loading the pinned `9a4d5a1` matcher and calling its original three-argument API while reusing the current fixtures/assertions. Attached historical red output shows two assertion failures, not TypeError; attached current output shows both tests pass. All 80 Python tests pass.
+- **Remaining risk / usage:** Full check outcome and proposed usage row are in the handoff. Expected historical failures are owner-requested reproductions; the subsequent commit-command sequencing mistake is recorded separately as A-033. No production, threshold, protocol, source-audio, freeze, or merge change.
+
+### A-033 - 2026-11-08 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent verification-command sequencing mistake, corrected before push.
+- **What failed / evidence:** Staged diff check flagged a trailing space in the raw unittest red transcript and an extra EOF blank line in the handoff, but the shell continued to the local commit because its exit code was not guarded.
+- **Impact:** One unpushed local commit contained whitespace findings; the draft's check-passed wording was temporarily premature. No implementation, test outcome, or external branch was affected.
+- **Correction / remaining risk:** Strip trailing transcript whitespace, document that normalization, remove the EOF blank, and explicitly stop if the staged check fails before amending the unpushed commit. No test result or assertion text changes.
+- **Usage / approval:** Owner authorized commit/push; no force-push, test rerun, source change, or merge required. Final usage is proposed in the handoff.
+
+### A-034 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent diagnostic-output mistake.
+- **What failed / evidence:** Initial recursive practice-directory inventory included app browser-profile filenames and produced a truncated 329-line tool result. It did not provide a useful bounded audio/log inventory.
+- **Agent-controlled cause / impact:** Selected every file rather than restricting inventory to audio manifests, chunks, and relevant logs. Extra filename output and a narrower follow-up inventory were needed; no profile content or confidential meeting audio was read, copied, or committed.
+- **Correction / remaining risk:** Constrain subsequent inventory and reads to the owner-authorized synthetic practice audio and specific metadata/logs. All measurement artifacts and hashes stay outside Git. No ongoing data mutation or application defect.
+- **Usage / approval:** Proposed task usage row in the practice marker audit handoff. Account usage is shared and not an isolated inventory cost; no recording, playback, render, threshold change, freeze, or merge involved.
+
+### A-035 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent analysis setup error, not an application defect.
+- **What failed / evidence:** Initial reconciliation script assumed Sonnet's generated analysis/practice_cache/microphone.s16 existed and raised FileNotFoundError before measurements. The input directory retained scripts/result.json but no cache.
+- **Agent-controlled cause / impact:** Reused a path from the historical script without checking file existence. One failed analysis setup attempt; no input mutation, playback, or false numerical result.
+- **Correction / remaining risk:** Preserve failed script externally; reconstruct only the marker windows from original chunks with the documented decoder/placement method outside Git. Marker-region PCM matches the prior independent decode and reproduces both historical feature times. Do not claim a direct comparison to the absent historical cache.
+- **Usage / approval:** Usage row proposed in the interior audit handoff. No audio rerun, threshold/protocol change, freeze, or merge.
+
+### A-036 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed earlier agent-created analyzer enforcement defect; not a recording defect.
+- **What failed / evidence:** fit_clock returned false under the current 100 ms rule, but main ignored validity and emitted Layer A PASS on synthetic frozen endpoints. Missing clock evidence also emitted PASS. External clock-enforcement-before.txt records both actual regression failures.
+- **Agent-controlled cause / impact:** Implemented the helper and unit checks without integrating the existing clock rule into the final CLI acceptance path. Could emit unjustified PASS/FAIL when synchronization was invalid. No real practice scoring or gate result was created by the demonstration.
+- **Correction / remaining risk:** Gate each CLI track on independent clock evidence and the same existing disagreement/uncertainty limit. Invalid/missing evidence produces INCONCLUSIVE with no acceptance bounds. Valid clock arithmetic stays unchanged. Five focused regressions pass; full checks and independent review status are in the handoff. No amendment exception implemented.
+- **Usage / approval:** Owner explicitly authorized this scoped current-rule fix if reproduced. No protocol/threshold/source change, freeze, or merge.
+
+### A-037 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed minor agent source-lookup mistake.
+- **What failed / evidence:** A git show command tried to read the later-added Protocol v3 handoff at candidate 553dd90 and failed because that path did not exist in the older commit.
+- **Agent-controlled cause / impact:** Applied the requested capture-code revision to a newer protocol document without checking its history. One failed read-only lookup; no measurement, input, recording, or acceptance result affected.
+- **Correction / remaining risk:** Inspect capture/playback code at immutable 553dd90 and current reviewed Protocol v3 separately; document that provenance distinction. Numerical analysis and code snapshots remain outside Git.
+- **Usage / approval:** Task usage row proposed in the two-timeline handoff. No source/protocol/threshold change, exception, recording, playback, freeze, or merge.
+
+### A-038 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent analysis-flag logic error, corrected before final reporting.
+- **What failed / evidence:** Initial bracketing flags checked whether a gap started after the numerical long-match start. A step beginning just before that candidate could overlap the long template yet remain unflagged, as with meeting-025's crossing bracket.
+- **Agent-controlled cause / impact:** Used point ordering instead of interval overlap over the bracket's expected search/support. Initial derived JSON had incomplete disturbance flags; no scoring, acceptance, source, or recording change.
+- **Correction / remaining risk:** Preserve original output and create enriched output using full predicted-support interval overlap. Add the explicitly targeted microphone short/crossing bracket case without replacing spread samples. Final tables flag microphone-020 and meeting-025. Numerical maxima and wide sensitivity estimates are not accepted timing evidence; crossing acoustic integrity remains unresolved.
+- **Usage / approval:** Task row proposed in the feasibility handoff. No correlation cutoff, amendment, threshold/protocol/capture change, recording, playback, freeze, or merge.
+
+### A-039 - 2026-11-09 - Codex / Windows Desktop — v3a implementation tooling
+
+- **Status / attribution:** Confirmed agent inspection, test-helper and CLI/setup errors; no application or recording failure.
+- **What failed / evidence:** Initial reads assumed nonexistent `test_analyze_bounds.py` and `testing` paths; PowerShell wildcard paths passed literally to rg failed. Initial Git inspection/fetch lacked the existing worktree ownership exception and Git metadata access. First v3a test run had five duplicate-keyword errors in its invented-unit helper. The first complete Python run exposed an isolated-runtime sibling import error in the new v3a CLI. Initial npm check passed type/lint but Vitest startup could not write `.vite-temp` through the shared desktop dependency junction.
+- **Agent-controlled cause / impact:** Incomplete path/runtime/access checks and a faulty helper override. A documentation patch initially failed on cp1252/UTF-8 decoding; an earlier inserted incident entry also used cp1252 for its new punctuation. Restored the original register from Git bytes and inserted the new entry with explicit UTF-8. Minor tool/check time and repeated setup/type/lint work; no physical attempt, owner audio use, invalid gate finding or evidence modification. Quota impact cannot be isolated from the shared account.
+- **Correction / verification:** Locate files with rg, use scoped Git access and an isolated worktree; merge helper overrides before calling make_unit; explicitly add the CLI sibling path, and cover direct/isolated entry points. Complete npm check with the dependency-cache filesystem access resolved; no failed application tests were rerun. Full Python and npm results are in the v3a handoff. No new dependency or product change.
+- **Independent-review findings and correction:** The first implementation trusted an ineligibility-basis label rather than reconciling scored IDs/eligibility with the frozen source inventory; reviewer reproduced an excluded crossing unit producing PASS with denominator 19 instead of 20. The implementation also replaced the original measured marker report with a generic placeholder on count inconsistency. Both were caught before publication. Reconcile the complete identity-bound source inventory, retain its denominator on mismatch, and preserve the original legacy-adapter marker check separately from invalid v3a views. Focused regressions cover the label bypass, missing/duplicate units, and original measured disagreement retention. These were agent scoring/reporting errors, not application defects; no actual recording was scored or gate credited.
+- **Remaining risk / approval:** Exact-PCM long matching is intentionally restricted; noisy/ambiguous or unequal-rate practice evidence remains INCONCLUSIVE. Independent review and owner acceptance are separate. Owner authorized offline implementation/checks/normal push only; no capture, recording, playback, rendering, freeze or merge.
+
+### A-040 - 2026-11-09 - Codex / Windows Desktop - noisy-step regression launcher
+
+- **Status / attribution:** Confirmed agent test-harness setup error; no application, detector or practice replay failure.
+- **What failed / evidence:** The new absent-fixture skip regression launched `python -m unittest test_long_correlation...` from the sibling directory. This host's isolated Python omits the working directory from imports, so that subprocess failed before running its target test. First full run: 128 tests, 127 passed and one launcher assertion failed; private `practice-d2-v3a-noisy-step-20261109/python-suite.txt` preserves it.
+- **Agent-controlled cause / effect:** Assumed CWD importability despite the previously observed isolated runtime. Minor check/context time and one corrected offline suite invocation; no audio playback/recording/render, evidence modification, failed acoustic detection, denominator change or acceptance credit.
+- **Correction / verification:** Use unittest discovery with an explicit sibling search directory and a single-test filter. The focused skip check then passed with the explicit absent-fixture reason. Final corrected suite and independent review are recorded in the noisy-step handoff; preserve the original failed log.
+- **Usage / remaining risk:** Shared account usage is in the task tracker; exact incident cost is unavailable. Existing interior-audit quality thresholds and method-sensitivity uncertainty are reused unchanged, not calibrated confidence limits. No new physical test, threshold tuning, freeze or merge was authorized or performed.
+
+### A-041 - 2026-11-09 - Codex / Windows Desktop - noisy-step integration and fixture checks
+
+- **Status / attribution:** Confirmed agent integration/test-coverage errors found by independent review before publication; not capture/application defects.
+- **Coverage failure:** Reused full-span exact-match coverage checks with narrower 3.018 s correlation templates. Complete first/last long units could consequently be rejected as uncovered. Bind each measured edge support by exact ID to its independently adjudicated full-unit continuous interval, require support plus/minus uncertainty inside that interval, and use those independent unit bounds only for coverage. No source-span extrapolation or endpoint correction is allowed. Step locations retain measured supports. Complete two-long-unit and missing/misbound/nonfinite/outside-support regressions verify the correction.
+- **Fixture failure:** The external fixture regression originally skipped on any absent file before hashing the files present, potentially hiding a corrupted present artifact in a partial fixture. Hash every present file before considering absence; a partial-missing/corrupt regression now must fail. No actual fixture hash mismatch or private-evidence modification occurred.
+- **Effect / verification:** Both errors were found before any latency acceptance or publication; original matching/practice numeric results were unaffected. Final targeted/full-suite and reviewer follow-up results are in the noisy-step handoff. Additional offline check time is shared account usage, not an isolated metered incident cost. No physical test, recording, playback, rendering, freeze, capture change or merge occurred.
+
+### A-042 - 2026-11-09 - Codex / Windows Desktop - persistent timing and raw-reader validation gaps
+
+- **Status / attribution:** Confirmed earlier agent analyzer/test-design defects identified in the owner's conditional independent review of 11d93b5; not application/capture failures.
+- **Persistent-offset error:** prepare_units stopped symmetric widening at the next anchor but kept later units on the old fixed schedule. A persistent negative 80 ms shift could falsely credit a 5.98 s old-schedule publication whose true latency is 6.06 s. Carry each unit's nearest preceding long-anchor offset and measured uncertainty forward; widen both directions only within unresolved step brackets. Updated the old next-anchor test and added both-sign six-second regressions. No short-word matching or recording-clock correction.
+- **Raw-reader validation gap:** Previous practice regressions used retained continuous WAVs and did not exercise the original chunk reader. Its exact count equality and overlap prohibition would reject preserved microphone evidence. Reproduce the prior audit's timestamped legacy windows, retain every continuous sample, represent bounded ordered overlaps, and allow only the exact audited 168-sample overrun bound to source/index hashes, track, sequence, rate and counts. Unknown count errors still fail. The raw CLI/native fixture regression verifies this path and original marker-result retention; no original evidence changes.
+- **Verification / impact:** Targeted conditional tests pass; full results and independent follow-up are in the conditional-fixes handoff. Early execution of the old v3a expected-bound tests produced four assertions because they omitted the newly required 1 ms anchor uncertainty; expectations were updated to the specified arithmetic. No actual latency acceptance, freeze or false gate credit resulted. Quota changes are shared-account observations, not exact incident costs.
+
+### A-043 - 2026-11-09 - Codex / Windows Desktop - native timing diagnostic assumptions
+
+- **Status / attribution:** Confirmed agent diagnostic setup/ordering mistakes, not a decoder/capture defect.
+- **What failed / evidence:** First raw timing diagnostic passed native gap/marker checks and 39 long matches, then assumed all 65 source units had preceding long anchors. microphone-000 is an initial short before the first long and correctly raised No preceding long anchor. A dependent fixture-manifest edit was then attempted despite that failed diagnostic and raised KeyError for the not-yet-written raw_microphone entry; it changed no file. An initial native metadata dump was also broader than needed and truncated; subsequent inspection used compact count/overlap summaries.
+- **Correction / remaining risk:** Construct/pin the raw manifest independently. The regression retains all 65 units, explicitly reports the unbounded initial short and checks preparation of the 64 supported units only as diagnostics, never as a reduced acceptance denominator. The native reader/clock is valid; full-track acceptance remains blocked by that separate missing-anchor condition. The diagnostic count field was also renamed from frozen_denominator to source_denominator with the original annotation status retained, so its label cannot imply a freeze; earlier JSONs remain preserved. No future-anchor borrowing, short-word matching, setup credit, artificial freeze or publication integration was introduced. Failed diagnostics generated no audio and modified no preserved input; a successful complete diagnostic JSON is retained externally. Remaining first-short timing needs a separate owner decision, not an unrequested policy change.
+
+### A-044 - 2026-11-09 - Codex / Windows Desktop - right-anchor prefix uncertainty
+
+- **Status / attribution:** Confirmed agent timing-model defect in the first persistent-offset correction, caught by independent review before publication.
+- **What failed:** Taking the right anchor's measured offset at its whole source utterance start excluded its unexamined 100 ms prefix from symmetric step widening. Reviewer reproduced a negative 80 ms step: source word start 10.01 s, template begins 10.1 s, nominal interval 9.929–9.931 s, publication 9.98 s incorrectly credited despite potentially preceding actual speech.
+- **Correction / verification:** Keep persistent offset placement, but determine bracket uncertainty separately for each source endpoint against measured template supports. The right-anchor prefix keeps both-sided uncertainty; later measured endpoints retain only anchor uncertainty. Both-sign prefix/pre-speech regressions pass through the actual bounds entry point. Include every gap crossed by the complete endpoint uncertainty interval, rather than looking up only its nominal point; a near-gap start regression protects that guard. Final reviewed suite and follow-up disposition are in the conditional handoff.
+- **Impact / remaining risk:** No actual recording acceptance or gate credit resulted. The earlier diagnostic JSON is retained and a reviewed JSON is generated separately; no original evidence changes. Source prefix timing is not certified by matching later template support. Shared quota changes cannot be assigned as an exact incident cost. No recording, playback, rendering, capture change, freeze, observer integration or merge.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
