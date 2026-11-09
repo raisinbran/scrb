@@ -120,6 +120,14 @@
 - **Correction / remaining risk:** Inspect capture/playback code at immutable 553dd90 and current reviewed Protocol v3 separately; document that provenance distinction. Numerical analysis and code snapshots remain outside Git.
 - **Usage / approval:** Task usage row proposed in the two-timeline handoff. No source/protocol/threshold change, exception, recording, playback, freeze, or merge.
 
+### A-038 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed agent analysis-flag logic error, corrected before final reporting.
+- **What failed / evidence:** Initial bracketing flags checked whether a gap started after the numerical long-match start. A step beginning just before that candidate could overlap the long template yet remain unflagged, as with meeting-025's crossing bracket.
+- **Agent-controlled cause / impact:** Used point ordering instead of interval overlap over the bracket's expected search/support. Initial derived JSON had incomplete disturbance flags; no scoring, acceptance, source, or recording change.
+- **Correction / remaining risk:** Preserve original output and create enriched output using full predicted-support interval overlap. Add the explicitly targeted microphone short/crossing bracket case without replacing spread samples. Final tables flag microphone-020 and meeting-025. Numerical maxima and wide sensitivity estimates are not accepted timing evidence; crossing acoustic integrity remains unresolved.
+- **Usage / approval:** Task row proposed in the feasibility handoff. No correlation cutoff, amendment, threshold/protocol/capture change, recording, playback, freeze, or merge.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
