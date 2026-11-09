@@ -12,14 +12,18 @@ def normalize_words(text):
     return re.findall(r"\w+", text.casefold(), re.UNICODE)
 
 
-def align_occurrences(annotations, publications, track):
+def align_occurrences(annotations, publications, track, *, clock_basis=None):
     """Return bounds-compatible rows from every minimum-edit chronological alignment.
 
     Publications are first-visible word positions, not repeated viewport snapshots.
     Stable word IDs deduplicate polls; optional independently established audio spans
-    constrain identity without imposing a maximum publication latency.
+    constrain identity without imposing a maximum publication latency.  All input
+    times must explicitly use the annotation recording clock.
     """
+    if clock_basis != "recording":
+        raise ValueError("Alignment requires an explicit recording clock basis; map harness words first")
     units = annotations["utterances"]
+    sequences = [normalize_words(" ".join(unit["reference_words"])) for unit in units]
     refs = []
     ranges = []
     previous_end = -math.inf
@@ -132,13 +136,17 @@ def align_occurrences(annotations, publications, track):
         boundary = False
         for j, hits in endpoints.items():
             pub = pubs[j]
-            boundary |= pub.get("observed_nominal", pub["observed"]) < unit["last_word_start"]
-            later = [other for other in units[index+1:]
-                     if normalize_words(" ".join(other["reference_words"]))
-                     == [word for word, _ in refs[start:end]]]
-            # Chronology cannot distinguish delayed output from a later identical sentence.
-            uncertain_repetition |= ("audio_start" not in pub and bool(later)
-                                     and pub["observed"] >= later[0]["last_word_start"])
+            boundary |= pub["observed"]-pub["u"] < unit["last_word_start"]
+            repeats = [other for k, other in enumerate(units) if sequences[k] == sequences[index]]
+            if "audio_start" in pub:
+                compatible = [other for other in repeats
+                              if pub["audio_start"] < other["latest_acoustic_end_s"]
+                              and pub["audio_end"] >= other["start"]]
+                uncertain_repetition |= len(compatible) != 1
+            else:
+                # Chronology cannot distinguish delayed output from a later identical sentence.
+                later = [other for other in repeats if other["start"] > unit["start"]]
+                uncertain_repetition |= bool(later) and pub["observed"] >= later[0]["last_word_start"]
             exact = refs[end-1][0] == pubs[j]["token"]
             if count > 1:
                 reliable &= hits/(count-1) >= 0.6
@@ -152,7 +160,7 @@ def align_occurrences(annotations, publications, track):
                 "MATCHED-SUBSTITUTED" if substituted else "MATCHED")
         row = {**unit, "track": track, "last_word_end": unit["latest_acoustic_end_s"],
                "outcome": outcome, "identity_confirmed": bool(reliable),
-               "identity_unique": all(len(claims[j]) == 1 for j in endpoints),
+               "identity_unique": not uncertain_repetition and all(len(claims[j]) == 1 for j in endpoints),
                "reference_word_count": count,
                "other_words_exact_fraction": min(endpoints.values(), default=0)/max(1, count-1),
                "endpoints": [{"observed": pubs[j]["observed"], "u": pubs[j]["u"],
@@ -175,16 +183,29 @@ def main():
     args = parser.parse_args()
     annotations = json.loads(args.annotations.read_text(encoding="utf-8-sig"))
     publications = json.loads(args.publications.read_text(encoding="utf-8-sig"))
+    basis = publications.get("clock_basis")
+    if basis not in {"harness", "recording"}:
+        parser.error("Publication clock_basis must explicitly be harness or recording")
+    if basis == "harness" and not args.clock:
+        parser.error("Harness-clock publications require a validated marker clock fit")
+    if basis == "recording" and args.clock:
+        parser.error("Recording-clock publications must not be converted with --clock")
     words = publications["words"]
     if args.clock:
         spec = importlib.util.spec_from_file_location("marker_clock", Path(__file__).with_name("marker_clock.py"))
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         clock = json.loads(args.clock.read_text(encoding="utf-8-sig"))
-        words = module.map_publications(words, clock)
-    rows = align_occurrences(annotations, words, args.track)
+        try:
+            words = module.map_publications(words, clock, track=args.track,
+                                            recording_sha256=publications.get("recording_sha256"))
+        except ValueError as error:
+            parser.error(str(error))
+    rows = align_occurrences(annotations, words, args.track, clock_basis="recording")
     with args.output.open("x", encoding="utf-8") as stream:
-        json.dump({"status": "OFFLINE_ALIGNMENT_ONLY", "units": rows}, stream, indent=2)
+        json.dump({"status": "OFFLINE_ALIGNMENT_ONLY", "clock_basis": "recording",
+                   "input_clock_basis": basis, "recording_sha256": publications.get("recording_sha256"),
+                   "track": args.track, "units": rows}, stream, indent=2)
         stream.write("\n")
 
 

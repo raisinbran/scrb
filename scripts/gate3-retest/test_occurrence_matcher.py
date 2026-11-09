@@ -47,13 +47,13 @@ class TestOccurrenceMatcher(unittest.TestCase):
         Identical sentences must retain separate publication endpoints.
         """
         annotations = make_annotations(15)
-        rows = align_occurrences(annotations, make_publications(annotations), "meeting")
+        rows = align_occurrences(annotations, make_publications(annotations), "meeting", clock_basis="recording")
         self.assertEqual([row["outcome"] for row in rows], ["MATCHED"]*15)
         self.assertEqual(bounds.summarize_track(rows)["latency"], "PASS")
         self.assertEqual(len({row["endpoints"][0]["publication_id"] for row in rows}), 15)
 
-    def test_actual_track_counts(self):
-        """Exercise 75 meeting and 65 microphone occurrences with repeated vocabulary.
+    def test_synthetic_scale_counts(self):
+        """Exercise synthetic scale coverage at 75 and 65 occurrences.
 
         The reference count must remain independent of distinct sentence count.
         """
@@ -64,7 +64,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
             pubs = make_publications(annotations)
             for pub in pubs:
                 pub["track"] = track
-            rows = align_occurrences(annotations, pubs, track)
+            rows = align_occurrences(annotations, pubs, track, clock_basis="recording")
             self.assertEqual(len(rows), count)
             self.assertTrue(all(row["outcome"] == "MATCHED" for row in rows))
 
@@ -80,9 +80,12 @@ class TestOccurrenceMatcher(unittest.TestCase):
             pub["observed"] += 100
         clock = fit_markers({"position": 1, "uncertainty_s": 0.005},
                             {"position": 381, "uncertainty_s": 0.005}, (101, 481))
+        clock.update(track="meeting", recording_sha256="a"*64)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name, value in (("annotations", annotations), ("words", {"words": pubs}), ("clock", clock)):
+            for name, value in (("annotations", annotations),
+                                ("words", {"words": pubs, "clock_basis": "harness", "recording_sha256": "a"*64}),
+                                ("clock", clock)):
                 (root/(name+".json")).write_text(json.dumps(value), encoding="utf-8")
             command = [sys.executable, str(Path(__file__).with_name("occurrence_matcher.py")),
                        str(root/"annotations.json"), str(root/"words.json"), str(root/"output.json"),
@@ -103,7 +106,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         pubs = make_publications(annotations)
         pubs.pop(1)
         pubs.insert(1, {**pubs[0], "id": "inserted", "text": "extra"})
-        row = align_occurrences(annotations, pubs, "meeting")[0]
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
         self.assertEqual(row["outcome"], "MATCHED")
 
     def test_endpoint_alone_does_not_confirm_identity(self):
@@ -114,7 +117,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(1)
         pubs = make_publications(annotations)
         pubs[0]["text"], pubs[1]["text"] = "wrong", "unrelated"
-        self.assertEqual(align_occurrences(annotations, pubs, "meeting")[0]["outcome"], "UNIDENTIFIED")
+        self.assertEqual(align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]["outcome"], "UNIDENTIFIED")
 
     def test_missing_repetition(self):
         """Keep the missing middle occurrence uncredited.
@@ -122,7 +125,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         A later identical sentence must not fill an earlier missing slot.
         """
         annotations = make_annotations()
-        rows = align_occurrences(annotations, make_publications(annotations, skip=(1,)), "meeting")
+        rows = align_occurrences(annotations, make_publications(annotations, skip=(1,)), "meeting", clock_basis="recording")
         self.assertEqual([row["outcome"] for row in rows], ["MATCHED", "UNIDENTIFIED", "MATCHED"])
 
     def test_missing_without_provenance(self):
@@ -131,7 +134,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         Publication time alone cannot identify a delayed repetition.
         """
         annotations = make_annotations()
-        rows = align_occurrences(annotations, make_publications(annotations, skip=(1,), source=False), "meeting")
+        rows = align_occurrences(annotations, make_publications(annotations, skip=(1,), source=False), "meeting", clock_basis="recording")
         self.assertEqual(rows[1]["outcome"], "UNIDENTIFIED")
         self.assertEqual(rows[2]["outcome"], "UNIDENTIFIED")
 
@@ -143,7 +146,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(2)
         pubs = make_publications(annotations, skip=(1,))
         pubs += [{**pub, "observed": pub["observed"]+1} for pub in pubs]
-        rows = align_occurrences(annotations, pubs, "meeting")
+        rows = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
         self.assertEqual([row["outcome"] for row in rows], ["MATCHED", "UNIDENTIFIED"])
 
     def test_later_duplicate_cannot_fill_missing(self):
@@ -154,7 +157,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(2)
         pubs = make_publications(annotations, skip=(0,), source=False)
         pubs += [{**pub, "id": "duplicate-"+pub["id"], "observed": pub["observed"]+1} for pub in pubs]
-        rows = align_occurrences(annotations, pubs, "meeting")
+        rows = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
         self.assertEqual(rows[0]["outcome"], "UNIDENTIFIED")
         self.assertTrue(rows[0]["repetition_identity_unresolved"])
 
@@ -165,10 +168,12 @@ class TestOccurrenceMatcher(unittest.TestCase):
         """
         annotations = make_annotations(1)
         pubs = make_publications(annotations)
-        pubs[-1].update(observed=22.01, observed_nominal=21.99, u=0.04)
-        pubs[0]["observed"] = pubs[1]["observed"] = 22
-        row = align_occurrences(annotations, pubs, "meeting")[0]
-        self.assertEqual(row["outcome"], "BOUNDED")
+        for observed, nominal, uncertainty in ((22.01, 21.99, 0.04), (22.010, 22.005, 0.050)):
+            with self.subTest(nominal=nominal):
+                pubs[-1].update(observed=observed, observed_nominal=nominal, u=uncertainty)
+                pubs[0]["observed"] = pubs[1]["observed"] = 22
+                row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
+                self.assertEqual(row["outcome"], "BOUNDED")
 
     def test_substituted_last_word(self):
         """Credit a substituted endpoint only with independent prefix identity.
@@ -178,7 +183,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(1)
         pubs = make_publications(annotations)
         pubs[-1]["text"] = "depart"
-        row = align_occurrences(annotations, pubs, "meeting")[0]
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
         self.assertEqual(row["outcome"], "MATCHED-SUBSTITUTED")
         self.assertEqual(bounds.analyze_unit(row)["conservative"], 1)
 
@@ -190,7 +195,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(1, ("Agreed",))
         pubs = make_publications(annotations)
         pubs[0]["text"] = "Wrong"
-        self.assertEqual(align_occurrences(annotations, pubs, "meeting")[0]["outcome"], "UNIDENTIFIED")
+        self.assertEqual(align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]["outcome"], "UNIDENTIFIED")
 
     def test_delayed_repetition(self):
         """Keep a source-identified delayed publication attached to its occurrence.
@@ -199,7 +204,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         """
         annotations = make_annotations(2)
         pubs = make_publications(annotations, skip=(1,), delay=15)
-        rows = align_occurrences(annotations, pubs, "meeting")
+        rows = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
         self.assertEqual(rows[0]["outcome"], "MATCHED")
         self.assertEqual(bounds.analyze_unit(rows[0])["conservative"], 16)
         self.assertEqual(rows[1]["outcome"], "UNIDENTIFIED")
@@ -212,7 +217,7 @@ class TestOccurrenceMatcher(unittest.TestCase):
         annotations = make_annotations(1)
         pubs = make_publications(annotations)
         pubs.append({**pubs[-1], "id": "another-position", "observed": 29})
-        row = align_occurrences(annotations, pubs, "meeting")[0]
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
         self.assertEqual(row["outcome"], "BOUNDED")
         self.assertEqual(len(row["endpoints"]), 2)
         self.assertEqual(bounds.analyze_unit(row)["conservative"], 6)
@@ -226,8 +231,8 @@ class TestOccurrenceMatcher(unittest.TestCase):
         pubs = make_publications(annotations)
         for pub in pubs:
             pub["observed"] = 21
-        self.assertEqual(align_occurrences(annotations, pubs, "meeting")[0]["outcome"], "UNIDENTIFIED")
-        self.assertEqual(align_occurrences(annotations, pubs, "microphone")[0]["outcome"], "UNIDENTIFIED")
+        self.assertEqual(align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]["outcome"], "UNIDENTIFIED")
+        self.assertEqual(align_occurrences(annotations, pubs, "microphone", clock_basis="recording")[0]["outcome"], "UNIDENTIFIED")
 
 
 if __name__ == "__main__":

@@ -86,12 +86,14 @@ class TestMarkerClock(unittest.TestCase):
         """
         clock = fit_markers({"position": 1, "uncertainty_s": 0.005},
                             {"position": 381, "uncertainty_s": 0.005}, (101, 481))
-        mapped = map_publications([{"observed": 307, "u": 0.1}], clock)[0]
+        clock.update(track="meeting", recording_sha256="a"*64)
+        mapped = map_publications([{"observed": 307, "u": 0.1}], clock,
+                                  track="meeting", recording_sha256="a"*64)[0]
         self.assertLessEqual(mapped["observed"]-mapped["u"], 206.9)
         self.assertGreaterEqual(mapped["observed"], 207)
         self.assertEqual(mapped["observed_nominal"], 207)
         with self.assertRaisesRegex(ValueError, "INCONCLUSIVE"):
-            map_publications([], {"valid": False})
+            map_publications([], {**clock, "valid": False}, track="meeting", recording_sha256="a"*64)
 
     def test_pcm_recording_integration(self):
         """Detect both markers through the PCM16 file adapter.
