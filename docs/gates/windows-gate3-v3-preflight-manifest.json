@@ -1,396 +1,413 @@
 {
-  "schema": "SRCB-W-G3-V3-preparation-1",
+  "schema": "SRCB-W-G3-V3-preparation-2-r3-draft",
   "status": "NOT_FROZEN",
-  "preflight": "BLOCKED_INCOMPLETE",
+  "draft": true,
+  "supersedes": "Earlier draft schema SRCB-W-G3-V3-preparation-1 (BLOCKED_INCOMPLETE). Full history is in git.",
   "recording_authorized": false,
-  "throwaway_validation_authorized_in_chat": true,
-  "throwaway_validation_executed": false,
-  "protocol": {
-    "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
-    "origin_main": "62978626adf02201a0eb2e4b4270a299e74634db",
-    "authority": "Owner assignment and November 8 review closure override stale Draft header; no protocol reconstruction",
-    "sha256": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4"
+  "freeze_authorized": false,
+  "owner_ratification_2026_11_08": {
+    "scope": "diagnostic retest only; approval of existing criteria, not permission to change a criterion after seeing latency results",
+    "speaking_rate_wpm_band": [
+      130,
+      170
+    ],
+    "short_fraction_band": [
+      0.35,
+      0.45
+    ],
+    "rates": {
+      "microphone": "default",
+      "meeting": "+30%"
+    }
   },
-  "candidate": {
-    "commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
-    "branch": "rosmont/gate3-upstream-diagnostics-20261107",
-    "source": "New clean detached git worktree required; not created in this source-only task",
-    "production_modified": false,
-    "clean_tree_statement": null,
+  "pending_note": "A value of PENDING, null or owner-stated below is not verified by this draft.",
+  "group_1_authority_and_rules": {
+    "protocol": {
+      "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
+      "origin_main": "62978626adf02201a0eb2e4b4270a299e74634db",
+      "sha256_recorded_in_prior_draft": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4",
+      "recheck_on_this_branch": "PENDING"
+    },
+    "sha256_lf_normalized": {
+      "AGENTS.md": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
+      "dev-plan/Meeting Scribe - V1 Requirements v1.2.md": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
+      "dev-plan/Meeting Scribe - Development Plan (v2.0).md": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
+      "dev-plan/Meeting Scribe - Development Process.md": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
+      "dev-plan/Meeting Scribe - UI Specification.md": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
+      "docs/gates/evidence-retention-policy.md": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
+      "docs/gates/gate-3-windows-word-timing-decision-20261108.md": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
+      "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md": "902a4e72b7f06e3f5a1fb44b5bb562942062ebb892bced114fe5876cd8f0f481"
+    },
+    "amendment_note": "The amendment hash changes with any further edit; refresh at freeze.",
+    "rules": {
+      "recording_seconds": 420,
+      "scored_interval_seconds": [
+        20,
+        380
+      ],
+      "failure_window_seconds": [
+        170,
+        245
+      ],
+      "median_limit_seconds": 3,
+      "within_six_required_fraction": 0.95,
+      "historical_result": "73/77 unchanged under original frozen detector-end rule",
+      "spread_policy": "onset spread <= 25 ms, offset spread <= 100 ms; owner-approved 2026-11-08 before r3; 100 ms is maximum permitted ambiguity, not an accuracy claim"
+    }
+  },
+  "group_2_candidate_tools_models": {
+    "candidate_commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
+    "candidate_branch": "rosmont/gate3-upstream-diagnostics-20261107",
+    "root_package_lock_sha256_recorded_in_prior_draft": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
     "clean_tree_verified": false,
-    "build_commands": ["npm ci", "npm run build"],
     "canonical_build_executed": false,
-    "binary_hashes": null,
-    "recording_candidate_change_requires_owner_reverification": true,
-    "root_package_lock_sha256": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
-    "provenance_still_required": [
-      "Exact HEAD and empty git status before and after candidate build",
-      "Built artifact hashes",
-      "Native capture helper, external tools and speech model hashes/configuration"
+    "binary_hashes": "PENDING",
+    "native_capture_helper_sha256": "PENDING",
+    "external_tool_hashes": "PENDING",
+    "speech_model_sha256_and_config": "PENDING",
+    "vad_source": "553dd9080f452f8a54ccff5cd5fea8d6937438ae:packages/transcription/src/whisper.ts:144 (-vsd 300)",
+    "tts_voices_in_unit_sidecars": [
+      "Microsoft David Desktop",
+      "Microsoft Zira Desktop"
+    ],
+    "unit_script_version_sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
+    "unit_renderer_version_sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481"
+  },
+  "group_3_sources": {
+    "method": "ConstructedUnits",
+    "sample_rate_hz": 24000,
+    "status": "UNFROZEN",
+    "render_folder_name": "renders-units-20261109-r3",
+    "derived_folder_name": "renders-units-20261109-r3-derived-1",
+    "rates": {
+      "microphone": "default",
+      "meeting": "+30%"
+    },
+    "joined_wav_sha256": {
+      "microphone.wav": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4",
+      "meeting.wav": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7"
+    },
+    "joined_wav_bytes": {
+      "microphone.wav": 20160044,
+      "meeting.wav": 20160044
+    },
+    "units_manifest_sha256": "f7741b4ee4cfd35794a6dd79bea78358e989e6dad21e2658f1ca778c1091f444",
+    "unit_count": 52,
+    "units": {
+      "meeting-utt00-u0.wav": {
+        "wav_sha256": "364415bfa9f27001924c8453f007245e8569be5b04dc3a9e85d2eff9ec9b027e",
+        "sidecar_sha256": "65b7ef71ea4bfdd5f53c0c486c3f484adf7003c38c92e78cfd4746887cd3bf90"
+      },
+      "meeting-utt00-u1.wav": {
+        "wav_sha256": "5cf869fdad0bab9af0e0f804db532376df597b3eae8a4d7c537d6b97e1eda4ef",
+        "sidecar_sha256": "9e93432559c2b5832c608672bb8e525130292c4c02334d8ce0405f1c09265fd9"
+      },
+      "meeting-utt01-u0.wav": {
+        "wav_sha256": "ea58c7d1d1fee83827f1e0c6198533a4518d4c8e51a8cb0e61f6310b0acaf4b6",
+        "sidecar_sha256": "16ad03e12743f40e68783904e950f74cf9b24584e6255f5418eaa7752c94b4b3"
+      },
+      "meeting-utt01-u1.wav": {
+        "wav_sha256": "e7d45f893564f5a52c43348db6e69c998596b1e66907419c38be70f4131ed213",
+        "sidecar_sha256": "832509cb0b7f2f6641dc73950522233aa0ef2a2e53c4eb26afcfe32d6fc428ee"
+      },
+      "meeting-utt02-u0.wav": {
+        "wav_sha256": "0dd6a7975063dae8aad4d4dee3fcfacb91f62a8209e9be824242cde1f3bdd84a",
+        "sidecar_sha256": "1dc6f7d1f0ce613bafa6d58d340215edcda8aa1a22887eb4e53a2fe5608724cb"
+      },
+      "meeting-utt02-u1.wav": {
+        "wav_sha256": "3c911562b3f4f66a489d351a6e8fe76f592cb94120dd3fb8eff46a34359653a1",
+        "sidecar_sha256": "5f78f7cd657501eeb339bd55b17cafe5a5705bac61353dfbdc74e403d45bb584"
+      },
+      "meeting-utt03-u0.wav": {
+        "wav_sha256": "b73b7d6170318369f598fccb3cdf99bb0e271e27a6bbce689c283ab1def4f4d6",
+        "sidecar_sha256": "5083c4db4a4ac00d1866a58561a2155fba7583ca37f341c50806093a611b5c90"
+      },
+      "meeting-utt04-u0.wav": {
+        "wav_sha256": "9eb920cbabd39d46a9ab71bb022e4f5cfb794af52e007f009c5232f9e42327eb",
+        "sidecar_sha256": "5ff0b688dfb021919bb8995d63e54458cbf541098eb4feede4f169cddf3afb9f"
+      },
+      "meeting-utt05-u0.wav": {
+        "wav_sha256": "f05714c1847ffc00d55d792f87c3c8304d39b295ee9aa14b768a73f616231859",
+        "sidecar_sha256": "26b0b8ac5f55770e56c0f9e4fbcc06f9d694f6ce05797527fa57e82c9473f842"
+      },
+      "meeting-utt06-u0.wav": {
+        "wav_sha256": "8fecbb36bd0c5b778bb863f9459ad5d60d5811c2f55595bbc4560b400129b62f",
+        "sidecar_sha256": "40f0058e6d828de553ca8e6870800618bf7363052c8a3c32d5164e2f6189bfd0"
+      },
+      "meeting-utt07-u0.wav": {
+        "wav_sha256": "87fc1f4692a28af50d5abea569b48dfc9188141f8dd7aaffb767bdd38b0d68e8",
+        "sidecar_sha256": "5b72efddabffe8957f35dd073bf4d366078a00788b9e65b95a45a7e0120c05e9"
+      },
+      "meeting-utt08-u0.wav": {
+        "wav_sha256": "215e56ce2f8520b8dd967032beb6b4dac693cddb220f936465cc2d4bf085d764",
+        "sidecar_sha256": "12207dcf83459fb11d4f5f8215c9f6de6bc4d2d1f65b9b2472b19709007e41f6"
+      },
+      "meeting-utt09-u0.wav": {
+        "wav_sha256": "7486310330fd9e4a75e3956a3c2ca70143976b4a89bfdd1b36c3841ebe5e8762",
+        "sidecar_sha256": "cd529e9ae84502be74107e3a452ea4add285cd9b565f4ddb3e28b7892ee2f17e"
+      },
+      "meeting-utt10-u0.wav": {
+        "wav_sha256": "7f1adf51c086324dd21fd9a18f4864ee6b30cd7da92165c22b74baec4faee11d",
+        "sidecar_sha256": "83c9ed2e040986ea68a547bd81e829f20e9b6046a1cd86803206a6c492feaef8"
+      },
+      "meeting-utt11-u0.wav": {
+        "wav_sha256": "7b3912cbfe1f0d7a779bd4ba2347b8abd008b1daa80414f17256fb564ab2d3da",
+        "sidecar_sha256": "286ccfdaf5d4fffcc5d2b7e6e0870343d42dc17ab9bc0ce45c0f3cdece376546"
+      },
+      "meeting-utt12-u0.wav": {
+        "wav_sha256": "f25ee821ddee8048d5cedcb19f6fb8b60a8d9b9bafed224059a290240396c518",
+        "sidecar_sha256": "3e323f1c5317e99f101bba9b0463c061be0fb48b200c394212f3ac6fd75294c5"
+      },
+      "meeting-utt13-u0.wav": {
+        "wav_sha256": "08f67fa9ab474f3c1eb3a418163022ffc62baefc3657f6e4914c3f4e96379ae2",
+        "sidecar_sha256": "e19ae8cc16236a2df99e5c6c0aed48b7c9ddf3328070cb4ed7c458276ee75dac"
+      },
+      "meeting-utt14-u0.wav": {
+        "wav_sha256": "2f0c8e051bb86ee7fe4ad4e6eb33865296d3250ff5696066b5b2cf6bcf4a7b09",
+        "sidecar_sha256": "159a7beb0c9650f7f09628d3e8b45308cc4aca1d503b9adf50c470f661ccb051"
+      },
+      "meeting-utt15-u0.wav": {
+        "wav_sha256": "23fe40607d9134b7a635e0154de2dfd355f586b34f59b5bba673e6a110a7649b",
+        "sidecar_sha256": "6cca0db51f0e8953c2d3a1fd880e6f3ade56ec9a819aac140bded8ddb9dda475"
+      },
+      "meeting-utt16-u0.wav": {
+        "wav_sha256": "e295819bcbce8238ae8e92695265f5e562073cac1851870f33581fee99f7ba3b",
+        "sidecar_sha256": "5f6fe7776cf740b35c1a4f2fa12b95fa8ac686c951043f6ab1503c9f311b04c4"
+      },
+      "meeting-utt17-u0.wav": {
+        "wav_sha256": "0a824e9d5830cb060c56eb27f8accb4cff398bb51a651b731de2fc841b2922e8",
+        "sidecar_sha256": "6a38498550eb384983a5d042095995c0d9cedc312353d87962b7ccbc0d31f39a"
+      },
+      "meeting-utt18-u0.wav": {
+        "wav_sha256": "7d791d364b27bcc25cbe6a448a8320f07ecc3f90c1875bbe64d25344d71b8ef3",
+        "sidecar_sha256": "58e14891412d52ad29b1f07c245e2cf36017c66f786b2babed54f1af7a66aead"
+      },
+      "meeting-utt19-u0.wav": {
+        "wav_sha256": "3f9440d046a87017bfecc07570b18f3cf1089b126663beed2f9b0abaee68fc81",
+        "sidecar_sha256": "f050a4f9fc8003fe13029780735030376dfbab49233ea48050a2b4b2c6c5e6da"
+      },
+      "meeting-utt20-u0.wav": {
+        "wav_sha256": "af516eab596c8ebcfa08bc367cdcaaa4709e12b4a5ef4c9c84d88254e17438c4",
+        "sidecar_sha256": "5635c96a46fd79676a94fc2aa4ef2117f86ca262f1936a9c59b7cf17857bbdf3"
+      },
+      "meeting-utt21-u0.wav": {
+        "wav_sha256": "a44058f159e6a7bafc4391b427be943ea3e489a9bc360677f67e6d38cc757a24",
+        "sidecar_sha256": "1bb872f6b4e0d1d370e216b3fbaad6eac740758c8e528f3d19acf9469c073044"
+      },
+      "meeting-utt22-u0.wav": {
+        "wav_sha256": "3e350c3d3c361012048575c63131e574b877df3ec69ec9dcd73234c1aea59d8d",
+        "sidecar_sha256": "7ee130e0fcc350878af3a81dcb5b4a49d95336a2c6ddaf773f6c9059dc2c6f7a"
+      },
+      "microphone-utt00-u0.wav": {
+        "wav_sha256": "8134bd8532dcd8de7b3438ddedefe8ab2301492dbfe6ea20cfaab74cd54fa630",
+        "sidecar_sha256": "27ffff8ebd8a76a40be6bdfa00887e4ecf20d48b2cf0bead39419608a291662e"
+      },
+      "microphone-utt00-u1.wav": {
+        "wav_sha256": "1263296522b9cda47c0f5125ec6ebc2a096964e30852fea4e97961a02c3bfa4b",
+        "sidecar_sha256": "852c18c04dcc75581d29e83a9f17b4e9a1c7128d799dcb261d84cbd968e4b729"
+      },
+      "microphone-utt01-u0.wav": {
+        "wav_sha256": "bac7945eefc7247dd391bfc3af47d4bffa271a32e0dd93e501b3e871fed3b05f",
+        "sidecar_sha256": "866e90372bb2b4fe10a9ab71fadface564b48ab786cef3f44198cff6c8ea0d3b"
+      },
+      "microphone-utt01-u1.wav": {
+        "wav_sha256": "dc95131bb4e3da2c78b7259c132d0bcfb1e1602ea46a06038ecb7c0dea99c3cc",
+        "sidecar_sha256": "96c64bd39de09b7dc263601f8b87e69dd52966ee539b2f8de5aed362d93b06ab"
+      },
+      "microphone-utt02-u0.wav": {
+        "wav_sha256": "aa438a030c37aa89cf5a59f8c08ebe32811cb85b36f4f30899519261408d5fa5",
+        "sidecar_sha256": "24e948b07f7de8a3e7413294d91875ffd357ad40070f0e92c70945653c3f9f5d"
+      },
+      "microphone-utt02-u1.wav": {
+        "wav_sha256": "e9485ba2b6c255ce9aec87007ab9d6c87d88fcf72113d2d647917fa05b049eb7",
+        "sidecar_sha256": "c34188709eafc510681df164d44f09c09bb231d382d8211192f2444f0ae29bbd"
+      },
+      "microphone-utt03-u0.wav": {
+        "wav_sha256": "e8794f0913ff767072b14d7b3a1483fc6a444697905947ffe7a340d6e3994e5e",
+        "sidecar_sha256": "f1f8779c3484f5ba07329e59fc433db773ef7f2262e081006f98d2d3891ea29d"
+      },
+      "microphone-utt04-u0.wav": {
+        "wav_sha256": "330e2132032ce08b5c3523722625f5683336a3ce598419e21476d971456de6eb",
+        "sidecar_sha256": "ae9beb9e855be2e3eae042ecfaba5ae829d30a374a8e757ce26471f6b5e6dac5"
+      },
+      "microphone-utt05-u0.wav": {
+        "wav_sha256": "bc27e907ed51f5b1f020187544a54045906d91daab95a26be95014af04116108",
+        "sidecar_sha256": "9b91dad2418876e18904d58dd223990b8ee68a8ca54a74e0e9ae98d272987051"
+      },
+      "microphone-utt06-u0.wav": {
+        "wav_sha256": "bb643cc6a91ecc722965fcc3bdb98707ce7599d8972efe3b0f89749e6593cb59",
+        "sidecar_sha256": "5fc3265622027a2e4612c1f6bc51cff58dfb10330e4c60ec85ef55780853f32e"
+      },
+      "microphone-utt07-u0.wav": {
+        "wav_sha256": "44a29b5cfceab4e9166d4cc68ab3b46816b08e4a3e8aac8ee91f5cb6b8aa6eb6",
+        "sidecar_sha256": "6e45bfc562927a3206782c67a1d883a582242c6a1b4f1efe36116add420f7916"
+      },
+      "microphone-utt08-u0.wav": {
+        "wav_sha256": "a3a5df7a066279e7629884ca0f5ee209907377fd649ff1d1e03a9390707f79b4",
+        "sidecar_sha256": "62694efe32d6148c65331cdc2d0f9ee0e79e97153fb6841e11cdba1b786ece47"
+      },
+      "microphone-utt09-u0.wav": {
+        "wav_sha256": "6298f5513f5e888d6f7b869ad08d06213933e88d45fcc91c6d48265ca86c24d2",
+        "sidecar_sha256": "7d36b29799c76935200caa1d9575b67228b2b689ca4d0cae486f54b946c99259"
+      },
+      "microphone-utt10-u0.wav": {
+        "wav_sha256": "6412570aa5144af936f85d76dc5c1e4fd5bc321b564abac38bd9eceda4574a90",
+        "sidecar_sha256": "9480073fae9edfce1392e23e86118eebe1cae4a6d9bea9bd48f11b5f205b0a28"
+      },
+      "microphone-utt11-u0.wav": {
+        "wav_sha256": "cc993a2115de2436d74e96e8e709cdfbb62dc97039cc2c8da918f5ccbe95efda",
+        "sidecar_sha256": "9dd27fa1caa023f0f72aeb24989bdf4bd7bd0b569a0521af6dfa3e9428b6512b"
+      },
+      "microphone-utt12-u0.wav": {
+        "wav_sha256": "6975d0f13fbe51d994632acab08347648b902c26f711b7ffc69f77a1c24ee14c",
+        "sidecar_sha256": "1d86eb76490a22b06bff96c31b89a367a99c34a5d16b811a75c4ef26d02252d5"
+      },
+      "microphone-utt13-u0.wav": {
+        "wav_sha256": "ca709ce1eb072d1bc98978abe786211b1ce66a44fd4e5a10d50f09a5673d88b6",
+        "sidecar_sha256": "856dfe561cb17e6b0f15c94567529c9c91258e4ad7854cbcef83793e9ca92e70"
+      },
+      "microphone-utt14-u0.wav": {
+        "wav_sha256": "1f0b4b03d9eb85086c994d9725409da5f4d62d27e14e368d98720cedeb8a172a",
+        "sidecar_sha256": "d94ef5dd5d6d3179625a90ab537bfa546a8380d27af4eb10bc80c75c832a274b"
+      },
+      "microphone-utt15-u0.wav": {
+        "wav_sha256": "f8497e6a3d8f8850cc8f44b6ce450399ddf43b74d6e606c11f0b0a71f0215c4a",
+        "sidecar_sha256": "22618a93538f6b3762e62e8a5887656263dd04c46b0f100f63389d9821486657"
+      },
+      "microphone-utt16-u0.wav": {
+        "wav_sha256": "9c931b08a90e644ff689f09a4b4715c01251b8dfdca08f84da547e99eb12eed4",
+        "sidecar_sha256": "ac0dfa1438841b960c200d17c54e7eb20356e0ff1aac29e11b5572e2812102a4"
+      },
+      "microphone-utt17-u0.wav": {
+        "wav_sha256": "7c15c23870687c9a592b4251b4e9453e043b03e94db985e099e73a8d766c9dd2",
+        "sidecar_sha256": "03428835ee7e888c457dbf037d47cede607816a352e9abb42d0a131660cf9acf"
+      },
+      "microphone-utt18-u0.wav": {
+        "wav_sha256": "3bd1e9230cd5b0a5c73979f015f4ee1baabc19e20bc9c28f8674e5db013808a8",
+        "sidecar_sha256": "118bb5debf6b5c537bc4ecf3c0e92b5af770781f007366eaf3e50d12346c19f1"
+      },
+      "microphone-utt19-u0.wav": {
+        "wav_sha256": "61b977a7edf1a5a77084ee55f85230bcf32cf0662af3667c0f1ea7d349b96c93",
+        "sidecar_sha256": "2fb934a6e9b87feca997af5aed28781ebec379e6b0e4bfde8260c423f320f37c"
+      },
+      "microphone-utt20-u0.wav": {
+        "wav_sha256": "59efa3a3fd052fcd3497e00a4371a2d7568aabf6b45e3834fb21618ad8e3723f",
+        "sidecar_sha256": "36321afa3c430b3b9bd98f6584ce56281b71a3655f9eeaf8b1c586c7b48aef9a"
+      },
+      "microphone-utt21-u0.wav": {
+        "wav_sha256": "597c06b6745917c6ed39b5c86497b3eb5bc06682c8237f0089d2f6129a896ae8",
+        "sidecar_sha256": "40096eb193d916dcd55d22af53586b5669d6e15f5f0d0b5d4da0fbb64d9181e8"
+      },
+      "microphone-utt22-u0.wav": {
+        "wav_sha256": "a4e8a10311335e550fe081e245c3365ec1d7cf27f1cc7df95426ed07ab93738d",
+        "sidecar_sha256": "8f5ac8d67879d46fe1b7dd256f6adec143b6ee226d175642352c01c3bf7b350b"
+      }
+    }
+  },
+  "group_4_annotations": {
+    "status": "UNFROZEN",
+    "sha256": {
+      "microphone-annotations.json": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d",
+      "meeting-annotations.json": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a",
+      "microphone-joined-manifest.json": "3bfcdd75776cdfd02002780a8c06eead1eef9ad25dadcbbf2171cb8e622fc3a3",
+      "meeting-joined-manifest.json": "26fce53711a50bea29ad883eba65c7778daa7eeb5f26152cd41d4149c675f0dd",
+      "microphone-joined-verification.json": "a931abc2e6ae518b1d44d67ffa86f5e2e6199f802a63b917726282a2a0390ef5",
+      "meeting-joined-verification.json": "a8a34dc277dd71e8456bb5a6c38c8a4fb670a8f2d1104fc12e12e3d47e331508",
+      "source-audit.json": "1ee8f6c431295935bdaf224ee52e131930196c6fa712e10be43c313a19c5149f"
+    }
+  },
+  "group_5_quality_evidence": {
+    "measurement": {
+      "file_sha256": "256fd80e150f9324025d4ee577fde064d6276e8dfd09f7fe0d1f1bdf0ed86468",
+      "result": "52/52 units accepted; max onset spread 15 ms; max offset spread 75 ms"
+    },
+    "joined_verification": {
+      "sha256": {
+        "microphone": "0be8b999899716a81a17931c00c674a75cd039a320e996076e7ab66d7a4bf98d",
+        "meeting": "6f2ffc44a5b16bbb611f3f8a64e695965ecae780ea0893bc6c47d2181ca13aa2"
+      },
+      "result": "PASS both tracks (arithmetic/consistency only, not independent acoustic ground truth)"
+    },
+    "assembled_results": {
+      "microphone": {
+        "utterances": 65,
+        "shorts": 26,
+        "shorts_in_170_245_window": 8,
+        "wpm": 142.83
+      },
+      "meeting": {
+        "utterances": 75,
+        "shorts": 30,
+        "shorts_in_170_245_window": 8,
+        "wpm": 164.26
+      },
+      "simultaneous_speech_seconds": 223.72
+    },
+    "waveform_spot_check": {
+      "units_checked": 12,
+      "sha256": {
+        "spotcheck-units.json": "4e1da2839b6d4259cbbf75e04780cbd4c52f8c1da50e6e09604f42c80fc1ff69",
+        "index-microphone.csv": "d1bd0a420f968e73647cdf0b54e5c0a552cd259a02ab92fb12dcc1cdc9329dca",
+        "index-meeting.csv": "288837a486460bc07f906c0cd578ea0ce9ad77caad3b1aca8d5db812494709ba",
+        "listen-checklist.md": "601da8b8e9cd3bd8c05049c7bee8f59b929791c2e1e256bea357778e6199c1f8"
+      },
+      "result": "no crop edge touches speech energy; no clipping; none suspect. Near-limit: Record. speech span 0.320 s vs 0.3 s minimum"
+    },
+    "owner_listen_through": {
+      "date": "2026-11-08",
+      "status": "OWNER_STATED_IN_CHAT_NOT_YET_RECORDED_AS_FILE",
+      "evidence_file_sha256": "PENDING",
+      "outcome_detail": "PENDING",
+      "note": "Reported by the owner in an assignment message; no sign-off file seen by the agent. Not frozen evidence until the file and hash are added."
+    },
+    "independent_review": "PENDING",
+    "known_concerns": [
+      "Meeting pace 164.26 wpm far above its 147 wpm projection (A-026)",
+      "Constructed speech may change prosody, VAD segmentation and recognition behavior",
+      "Microphone max acoustic-end spread 85 ms"
     ]
   },
-  "rules": {
-    "recording_seconds": 420,
-    "scored_interval_seconds": [20, 380],
-    "failure_window_seconds": [170, 245],
-    "required_interval_seconds": [203, 214],
-    "lead_marker_interval_seconds": [0, 10],
-    "trail_marker_interval_seconds": [380, 390],
-    "drain_interval_seconds": [390, 420],
-    "unit": "independently annotated reference utterance",
-    "endpoint": "last reference word end to first externally observed visible publication",
-    "median_limit_seconds": 3,
-    "within_six_required_fraction": 0.95,
-    "short_fraction_target": 0.4,
-    "failure_window_min_short_per_track": 8,
-    "simultaneous_speech_fraction_minimum": 0.5,
-    "substituted_endpoint_min_words": 3,
-    "substituted_endpoint_other_exact_fraction": 0.6,
-    "outcomes": ["MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED"],
-    "conservative": "latest endpoint and observed upper time; SETUP-AFFECTED and UNIDENTIFIED uncredited",
-    "best_case": "earliest endpoint and observed lower time; SETUP-AFFECTED credited, UNIDENTIFIED uncredited",
-    "pre_speech": "Never credited; boundary uncertainty remains BOUNDED",
-    "straddle": "Conservative late; not alone definite recurrence",
-    "one_publication_one_unit": true,
-    "historical_result": "73/77 unchanged under original frozen detector-end rule",
-    "draft_short_mix_check_fraction": [0.35, 0.45],
-    "draft_short_mix_check_status": "Explicit implementation interpretation of about 40%; review required before freeze; not a change to gate latency scoring"
+  "group_6_scoring_scripts": {
+    "sha256_lf_normalized": {
+      "scripts/gate3-retest/analyze-bounds.py": "2cda869cafcb77546a59a7f79d961927a329bab78dba82049a9d9252964dc631",
+      "scripts/gate3-retest/assemble-sources.py": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
+      "scripts/gate3-retest/constructed_units.py": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
+      "scripts/gate3-retest/measure-units.py": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
+      "scripts/gate3-retest/verify-joined.py": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
+      "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+      "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
+      "scripts/gate3-retest/speech-specs.ps1": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
+      "scripts/gate3-retest/UnitRenderer.cs": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
+      "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
+      "scripts/gate3-retest/render-constructed-units.ps1": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
+      "scripts/gate3-retest/prepare-speech.ps1": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
+      "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+      "scripts/gate3-retest/README.md": "231685f72e4c3bf5c3fd87e11cd3b54a7df0a103a880d4d8c09fe78fc23839cd",
+      "scripts/gate3-retest/test_analysis.py": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
+      "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
+      "scripts/gate3-retest/test_cli.py": "26c40d41b42ecfaef8ebe5bfc0787244284a3813bb93443952dc3405ce158c6f",
+      "scripts/gate3-retest/test_sources.py": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
+      "scripts/gate3-retest/test_units.py": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135"
+    },
+    "tests": "PENDING",
+    "matcher_and_marker_code": "NOT_WRITTEN; assigned to Codex"
   },
-  "sources": {
-    "type": "invented neutral speech; Windows David and Zira requested",
-    "render": "FAILED_OWNER_RUN_INCOMPLETE_ENGINE_BOOKMARKS_FOR_microphone-long-00; one attempt; no retry",
-    "render_retry_count": 0,
-    "microphone_wav_sha256": null,
-    "meeting_wav_sha256": null,
-    "microphone_annotation_sha256": null,
-    "meeting_annotation_sha256": null,
-    "eligible_denominators": null,
-    "listen_and_waveform_audit": "NOT_RUN",
-    "assembly": "NOT_RUN",
-    "actual_words_per_minute": null,
-    "owner_render_output": "renders-owner-20261108/microphone-long-00.wav retained, 405142 bytes; no complete engine-marks.json or source pack",
-    "bookmark_instrumentation": "Locked collection; synchronous synthesis; up to 5000 ms post-return diagnostics; audio positions logged separately from callback wall-clock arrivals; full render records selection and timing basis",
-    "probe_state": "NOT_RUN; source-only implementation; owner probe must pass for both voices before automatic full render",
-    "selected_encoding": null,
-    "encoding_preference": ["A", "C", "B"],
-    "probe_words_per_voice": 16,
-    "encoding_configuration": {
-      "A": {
-        "inter_word_break_ms": 30,
-        "timing": "observed ordered AudioPosition start/end marks"
-      },
-      "C": {
-        "word_render": "separate synchronous SSML",
-        "join_gap_samples": 720,
-        "sample_rate_hz": 24000,
-        "timing": "per-word observed marks with exact sample-count concatenation"
-      },
-      "B": {
-        "frame_ms": 5,
-        "minimum_rms_pcm16": 128,
-        "relative_local_peak_rms": 0.03,
-        "release_required": true,
-        "next_start_as_endpoint": false,
-        "timing": "independent acoustic energy end; waveform review required"
-      }
-    },
-    "method": "ConstructedUnits",
-    "constructed_units": {
-      "status": "STOPPED_OFFLINE_MEASUREMENT: microphone-utt16-u0 offset threshold spread 30 ms exceeds 25 ms; no assembly or joined verification",
-      "prefix": "all words except last, one synthesis",
-      "final": "one final word; only unit for one-word utterance",
-      "source_rate_hz": 24000,
-      "crop_lead_ms": 20,
-      "crop_trail_ms": 30,
-      "inserted_join_ms": 40,
-      "vad_silence_ms": 300,
-      "join_margin_ms": 20,
-      "effective_join_limit_s_exclusive": 0.28,
-      "vad_source": "553dd9080f452f8a54ccff5cd5fea8d6937438ae:packages/transcription/src/whisper.ts:144",
-      "frame_resolution_ms": 5,
-      "primary_threshold": "max(128 PCM16, 3% unit peak RMS)",
-      "secondary_threshold_pcm16": 184,
-      "max_threshold_spread_ms": 25,
-      "wpm_bounds": [130, 170],
-      "wpm_scope": "track words / summed acoustic utterance spans, excluding between-utterance placement gaps",
-      "timing_basis": "constructed-sample-offset+unit-energy",
-      "primary_bound": "acoustic_end",
-      "secondary_sensitivity_bound": "crop_end_bound",
-      "uncertainty": "offset threshold spread plus 5 ms frame resolution",
-      "verification": "arithmetic/consistency only; not independent acoustic ground truth",
-      "owner_waveform_and_listen_review": "pending"
-    },
-    "offline_render_integrity": "PASS 52/52 units and WAV hashes/sample counts/format/versions; originals untouched",
-    "offline_measurement": "19 microphone units passed, next unit rejected; 6 microphone and all 26 meeting units unprocessed; derived-1 import failure and corrected derived-2 output retained"
+  "group_7_runtime_environment": {
+    "windows_build": "PENDING",
+    "powershell_version": "PENDING",
+    "python_version": "PENDING",
+    "node_version": "PENDING",
+    "dell_gpu_validated": "PENDING",
+    "capture_device_and_format": "PENDING",
+    "background_app_state": "PENDING",
+    "whisper_binary_and_model": "PENDING",
+    "observer_overhead": "PENDING"
   },
-  "confirm_items": [
-    {
-      "item": "UIA transcript reach and labels",
-      "status": "UNRESOLVED",
-      "evidence": "No successfully built candidate launched; no actual Live validation"
-    },
-    {
-      "item": "UI labels You and Meeting",
-      "status": "UNRESOLVED; runtime labels not observed"
-    },
-    {
-      "item": "34/77 short original detector candidates",
-      "status": "CONFIRMED",
-      "evidence": "Allowlisted eligible.json metadata; 34 units under one second out of 77 meeting units"
-    },
-    {
-      "item": "Original simultaneous activity and planned 50% overlap",
-      "status": "UNRESOLVED",
-      "evidence": "No owner microphone audio opened; source assembly not run"
-    },
-    {
-      "item": "Trace-to-recording anchors",
-      "status": "FIELDS_CONFIRMED; new-run fit unresolved",
-      "evidence": "PR67 trace_start monoMs and bracketed wall anchors; capture start ack clockOriginNs/QPC; per-unit uncertainty still required"
-    },
-    {
-      "item": "Original failure clock",
-      "status": "CONFIRMED_NATIVE_RECORDING_ORIGIN",
-      "evidence": "Archived measure.py clips first 240000 native ms; diagnosis v2 explicitly states native recording origin"
-    },
-    {
-      "item": "November 7 workload",
-      "status": "PARTIAL",
-      "evidence": "6 threads, GPU disabled, audioContext 768, en; 808 memory samples, peak 1562148864 bytes; full CPU/GPU/background comparison unresolved"
-    },
-    {
-      "item": "PR67 diagnostic field names",
-      "status": "CONFIRMED_SOURCE",
-      "evidence": "Trace metadata and stage map below; no recognized text or downstream visibility"
-    },
-    {
-      "item": "Every required stage timestamp",
-      "status": "CONFIRMED_SOURCE_CAPABILITY_ONLY",
-      "evidence": "vad_span, model_start, model_end, segment_delivered carry monoMs; event-to-utterance identity and chronology not yet established"
-    },
-    {
-      "item": "Historical 73/77 and 95%",
-      "status": "CONFIRMED_UNCHANGED",
-      "evidence": "Diagnosis v2 and current origin/main owner instructions"
-    },
-    {
-      "item": "Over-20-minute approval wording",
-      "status": "CONFIRMED",
-      "evidence": "Current AGENTS.md requires explicit advance owner authorization"
-    },
-    {
-      "item": "Usable Dell GPU",
-      "status": "UNRESOLVED",
-      "evidence": "Prior test configured GPU false; no successful device/capability validation"
-    },
-    {
-      "item": "Corrected PR67 head D8",
-      "status": "PINNED_BY_OWNER",
-      "evidence": "553dd9080f452f8a54ccff5cd5fea8d6937438ae; build readiness remains unverified"
-    }
-  ],
-  "observer": {
-    "tool": "read-only Windows UI Automation reach probe",
-    "poll_target_hz": 10,
-    "required_max_u_ms": 250,
-    "measured_max_u_ms": null,
-    "read_time_ms": null,
-    "actual_live_screen_validation": "NOT_RUN",
-    "screen_recording_and_clock_overlay": "NOT_IMPLEMENTED",
-    "scroll_virtualization_and_10_frame_comparison": "NOT_RUN",
-    "cpu_memory_overhead": "NOT_MEASURED",
-    "ocr_fallback": "NOT_AUTHORIZED"
+  "group_8_retention": {
+    "private_evidence_directory": "gate3-v3-preflight-20261108 (outside Git; owner-local path provided in chat)",
+    "deletion": "NONE; per docs/gates/evidence-retention-policy.md keep audio and diagnostics until the owner passes the gate and authorizes cleanup",
+    "wavs_committed_to_git": false,
+    "auto_retry": false
   },
-  "capture_equivalence": {
-    "active_endpoints_observed": [
-      "Microphone Array (2- Realtek(R) Audio)",
-      "Speakers (2- Realtek(R) Audio)"
-    ],
-    "virtual_routes": "Owner confirms no virtual audio cables installed",
-    "drivers_installed": false,
-    "settings_changed": false,
-    "real_path_validation": "NOT_RUN",
-    "original_meeting_chunk_rate_hz": 48000,
-    "planned_source_rate_hz": 24000,
-    "device_type_sample_format_enhancements_comparison": "UNRESOLVED",
-    "equivalent": false
-  },
-  "clock": {
-    "method": "Harness and observer QPC; independent audio marker positions for offset and drift; separate trace process anchors",
-    "marker_offset_disagreement_limit_ms": 100,
-    "archived_qpc_to_wall_offset_change_ms": -0.271728515625,
-    "archive_audit_is_new_run_alignment": false,
-    "new_run_audio_alignment": "NOT_RUN",
-    "automatic_marker_detection": "NOT_IMPLEMENTED"
-  },
-  "trace": {
-    "config": "SCRB_LIVE_TRACE_DIR; private absolute directory outside scratch and Git",
-    "fields": [
-      "version",
-      "session",
-      "stream",
-      "role",
-      "pid",
-      "serial",
-      "stage",
-      "monoMs",
-      "anchorWallMs",
-      "anchorBeforeMs",
-      "anchorAfterMs",
-      "track",
-      "sequence",
-      "generation",
-      "workerRun",
-      "startNs",
-      "endNs",
-      "evaluation",
-      "call",
-      "spanId",
-      "parentSpanId",
-      "segmentKey",
-      "spanCount",
-      "wordCount",
-      "queueMic",
-      "queueMeeting",
-      "queueDelayMs",
-      "bufferedMs",
-      "more",
-      "flush",
-      "reason",
-      "dropped",
-      "ioFailures"
-    ],
-    "boundaries": [
-      "vad_span",
-      "model_start",
-      "model_end",
-      "segment_emit",
-      "segment_received",
-      "segment_delivered"
-    ],
-    "per_stream_max_bytes": 8388608,
-    "queued_records": 512,
-    "batch_records": 64,
-    "flush_timer_ms": 20,
-    "default_session_max_bytes": 41943040,
-    "default_session_bound_basis": "one supervisor and up to four worker runs; source/handoff bound, not a measured run",
-    "missing_footer_or_gaps_or_drops": "UNKNOWN; never absence-based causal attribution",
-    "private_directory_acl_and_free_space": "ACL inspected but some domain principals unresolved; inherited CodexSandboxUsers modify access; approximately 433674764288 bytes free. Owner-only privacy requirement unverified; no ACL changed",
-    "post_capture_readonly_and_hashes": "REQUIRED; no capture yet"
-  },
-  "analysis": {
-    "synthetic_bounds_tests": "18 metadata-only tests PASS; selection and all-encoding inter-word gap coverage included; no audio I/O",
-    "archive_metadata_audit": "FROZEN_AS_RECORDED; not rerun",
-    "ordered_occurrence_alignment": "NOT_IMPLEMENTED",
-    "independent_utterance_identity": "REQUIRES_ADJUDICATED_INPUT",
-    "event_chain_and_counterfactual_localization": "NOT_IMPLEMENTED; always INCONCLUSIVE",
-    "full_analysis_ready": false,
-    "constructed_tests": "30 deterministic tests PASS, including isolated CLI --help imports; no physical execution",
-    "layer_c": "INCONCLUSIVE unless unambiguous event chain; candidate processing spans limited to 4000 ms; no one-to-one reference/event assumption"
-  },
-  "retention": {
-    "private_evidence_directory": "gate3-v3-preflight-20261108 outside Git; exact owner-local path in chat",
-    "old_evidence_read": "Allowlisted timing/configuration/memory metadata and harness code only; no owner audio or transcripts",
-    "deletion": "NONE",
-    "auto_retry": false,
-    "main_recording_started": false,
-    "screen_recording_started": false
-  },
-  "artifact_sha256": {
-    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
-    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "d8afac913bfad488e9799127ae9c046c7dedcb9027daa7bf82f3168640d2ac81",
-    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-    "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
-    "scripts/gate3-retest/constructed_units.py": "257fa98f28683eda204942afdc43528d780a6d621e4e3cc1f776c6a06c1451c2",
-    "scripts/gate3-retest/measure-units.py": "2cd7992ed6fc635e0925484b25c2c942c923c66bbbe87bc4fdc61df860b3cfe7",
-    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
-    "scripts/gate3-retest/README.md": "9469461d38b013544e810e72717019a6a4f5409e7a203b5dbb54a3da220172a4",
-    "scripts/gate3-retest/render-constructed-units.ps1": "88b1321cdaf3df1a3ef783a33736843eebac95561136bc344cf786da72a48098",
-    "scripts/gate3-retest/speech-specs.ps1": "60e283a5ac7278fbf3238a68a104321f8f71f13f5b90c0d18f5f9b9e45805f70",
-    "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
-    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
-    "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
-    "scripts/gate3-retest/test_cli.py": "26c40d41b42ecfaef8ebe5bfc0787244284a3813bb93443952dc3405ce158c6f",
-    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d",
-    "scripts/gate3-retest/test_units.py": "42bff51731af4f721c140dd3093c45d246ca24961d417ee53f216dc496661a86",
-    "scripts/gate3-retest/UnitRenderer.cs": "ea4927fc00b2d01259024ae989e3b89ff50df932be14c7a2c6d870a32d093d6f",
-    "scripts/gate3-retest/verify-joined.py": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f"
-  },
-  "recorded_archive_audit": {
-    "status": "FROZEN_AS_PREVIOUSLY_RECORDED; audit script unchanged and not rerun",
-    "result_file_sha256": "5d5312e2e913f9c29b542e63c1189c5a1a22382c3288445468662725e884e3c5",
-    "result": {
-      "purpose": "metadata preflight only; not a rescore",
-      "frozen_result": "73/77 unchanged",
-      "original_clock": "native recording origin; measure.py clips first 240000 native ms",
-      "meeting_detector_count": 77,
-      "meeting_short_under_1s": 34,
-      "clock_before": {
-        "wall_minus_qpc_ms": 1793526145968.7688,
-        "bracket_ms": 0.0001
-      },
-      "clock_after": {
-        "wall_minus_qpc_ms": 1793526145968.497,
-        "bracket_ms": 0.0001
-      },
-      "offset_change_ms": -0.271728515625,
-      "native_origin_qpc_ns": 564425070959500,
-      "original_live_settings": {
-        "threads": 6,
-        "useGpu": false,
-        "audioContext": 768,
-        "language": "en"
-      },
-      "memory_samples": 808,
-      "original_app_memory_peak_bytes": 1562148864,
-      "original_app_memory_median_bytes": 869095424.0,
-      "not_verified": [
-        "audio sync markers",
-        "original simultaneous speech fraction",
-        "prior GPU/CPU utilization",
-        "background app equivalence",
-        "virtual route equivalence"
-      ]
-    }
-  },
-  "historical_artifact_sha256": {
-    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
-    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "cb76dc99c5942f34bb97b989121750dcd6fe858bbeb1bd29dd24c5f399f9086e",
-    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-    "scripts/gate3-retest/build-candidate.mjs": "baabceae78e6e55b95d69123eb44638490beb537ce589e9424a77410c3893274",
-    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "2deca3934e3a35f285bdedb42feaaeb985abc73cf3cd8ab3bdb14ba41194f432",
-    "scripts/gate3-retest/README.md": "bcd752fa14b1cb87ae4aff4f932e104761790f44b2d92d602c49f5583f9b9fbd",
-    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e"
-  },
-  "artifact_sha256_encoding": "UTF-8 repository text with LF newlines; historical hashes retained separately",
-  "source_corrections_artifact_sha256": {
-    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
-    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "7784eaefc6a720ccd4a11ad5e3a63fae7ec172bbe61cac1f2b718aa80f496a25",
-    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "b3fc842bddab679c0038be3a276fa063fd753f6ed4d0731e00a7cd8dec46d151",
-    "scripts/gate3-retest/README.md": "cc4cdf4ddd34a6da5c7daa0bee72198cdde0f03558a103e7d2081d68835563df",
-    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
-    "scripts/gate3-retest/test_sources.py": "0c2d42f3e0ba321c0e9a1f78f8397eb49035d6b3d98e129baa8081ad800c89ce"
-  },
-  "bookmark_probe_artifact_sha256": {
-    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
-    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "b93924df6c0643d280721be9253bbcced686da2c01e45ef6f266fcac06508c2c",
-    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-    "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
-    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "8542141f48b6030362c2a7c2b9ec5f83da8ee147e086d80b9275e0dcac059856",
-    "scripts/gate3-retest/README.md": "b28ebc8aefb382f3c57857627fbe887a9ad81526763831ebe29ce338bae592ec",
-    "scripts/gate3-retest/speech-specs.ps1": "8c244db7c3af8fadef0c6e64c3739df76d7ec446398a153ca3132100879c9298",
-    "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
-    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
-    "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
-    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d"
-  }
+  "prior_history": "The retired draft state (stopped measurement, 30 ms offset-spread rejection, r2 at 127.93 wpm) is preserved in git history and in the decision and amendment documents."
 }
