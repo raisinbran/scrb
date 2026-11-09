@@ -354,12 +354,16 @@ class PreViewportInterval(unittest.TestCase):
         self.assertTrue(report["u_pass"])
         self.assertFalse(report["validation_pass"])
 
-    def test_validation_pass_needs_u_pass_and_an_ok_status(self):
+    def test_validation_pass_needs_an_ok_status_and_not_the_250_ms_threshold(self):
         _, ok = build([sample(18000, 18020, ""), sample(18050, 18070, row("You", "0:05", "alpha", 150))])
         self.assertTrue(ok["u_pass"] and ok["result_status"] == "OK" and ok["validation_pass"])
+        # 250 ms is a reporting threshold: a slower run is reported as such but is not invalid for that reason.
         _, slow = build([sample(18000, 18020, ""), sample(18400, 18420, "")])
         self.assertFalse(slow["u_pass"])
-        self.assertFalse(slow["validation_pass"])
+        self.assertTrue(slow["validation_pass"])
+        self.assertEqual(slow["interval_statistics"]["all_intervals"]["count_over_250ms"], 1)
+        _, inconclusive = build([sample(18000, 18020, row("You", "0:05", "alpha", 150))])
+        self.assertFalse(inconclusive["validation_pass"])
 
     def test_a_trailing_error_stretch_after_the_viewport_was_found_still_counts(self):
         errors = [{"type": "error", "qpc_begin": ORIGIN + 18100 * FREQ // 1000, "qpc_end": ORIGIN + 18500 * FREQ // 1000}]
@@ -367,6 +371,60 @@ class PreViewportInterval(unittest.TestCase):
         _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
         self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.500, places=9)  # 18500 - 18000
         self.assertFalse(report["u_pass"])
+
+
+class ReportingThreshold(unittest.TestCase):
+    """Ruling: 250 ms is a reporting threshold; every word keeps its measured u, nothing is capped."""
+
+    def test_u_is_current_end_minus_previous_successful_begin_including_failed_polls(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 120 * FREQ // 1000, "qpc_end": ORIGIN + 150 * FREQ // 1000}]
+        s = [sample(0, 20, ""), sample(100, 120, ""), sample(400, 420, row("You", "0:05", "alpha", 150))]
+        records, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        self.assertAlmostEqual(records[0]["u"], 0.320, places=9)  # 420 - 100, the error lies inside
+        self.assertAlmostEqual(report["interval_statistics"]["first_observed_words"]["max_s"], records[0]["u"], places=12)
+        self.assertAlmostEqual(report["interval_statistics"]["all_intervals"]["max_s"], 0.320, places=9)
+
+    def test_word_with_u_0_312_is_kept_untruncated_and_listed_as_over_the_threshold(self):
+        s = [sample(0, 20, ""), sample(50, 70, ""), sample(342, 362, row("You", "0:05", "alpha", 150))]
+        records, report = build(s)
+        self.assertAlmostEqual(records[0]["u"], 0.312, places=9)  # 362 - 50
+        self.assertEqual(report["u_over_limit"], ["microphone|0:05|0"])
+        stats = report["interval_statistics"]
+        self.assertEqual(stats["first_observed_words"]["count_over_250ms"], 1)
+        self.assertEqual(stats["first_observed_words"]["worst"][0]["phase"], "other")
+
+    def test_interval_of_0_706_s_after_stop_is_reported_not_a_validity_failure(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 100 * FREQ // 1000, "qpc_end": ORIGIN + 756 * FREQ // 1000}]
+        s = [sample(0, 20, ""), sample(50, 70, "")]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        stats = report["interval_statistics"]["all_intervals"]
+        self.assertAlmostEqual(stats["max_s"], 0.706, places=9)
+        self.assertEqual((stats["count_over_250ms"], stats["worst"][0]["phase"]), (1, "stop"))
+        self.assertEqual(report["interval_statistics"]["over_250ms_by_phase"], {"other": 0, "stop": 1})
+        self.assertFalse(report["u_pass"])
+        self.assertTrue(report["validation_pass"])
+
+    def test_phases_before_viewport_scrolling_marker_and_other(self):
+        moving = lambda y: row("You", "0:05", "alpha", y)
+        s = [sample(0, 20, moving(150)), sample(50, 70, moving(150)), sample(100, 120, moving(190)),
+             sample(500, 520, moving(190)), sample(900, 920, moving(190)), sample(1500, 1520, moving(190))]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, markers={"recording": 1.1})
+        by_phase = report["interval_statistics"]["over_250ms_by_phase"]
+        self.assertEqual(by_phase, {"other": 1, "recording": 1, "scrolling": 1})  # 0.42 s after the move, 0.42 s later, 0.62 s holding 1.1 s
+        self.assertEqual(report["interval_statistics"]["threshold_s"], 0.25)
+
+    def test_cli_accepts_phase_marks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory) / "raw.jsonl"
+            lines = [HEADER, sample(0, 20, ""), sample(50, 70, ""), sample(900, 920, "")]
+            raw.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(op.__file__)), str(raw), str(Path(directory) / "p.json"),
+                                     "--harness-origin-qpc", str(ORIGIN), "--expected-frequency", str(FREQ),
+                                     "--recording-sha256", "a" * 64, "--phase-mark", "recording=0.5"],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["interval_statistics"]["over_250ms_by_phase"], {"other": 0, "recording": 1})
 
 
 class Schema(unittest.TestCase):

@@ -278,6 +278,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - The earlier ~165 s microphone-text gap was traced to muffled/unintelligible input on the saved track; a transcription/software failure was not demonstrated.
 - Interrupted one-hour processing, the Windows FFmpeg/awk build issue, and historic four-hour live failures have not been shown to be **agent-induced** from the evidence reviewed here. Do not count them as self-induced without a documented cause.
 
+### A-057 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - integration-2 branch: test and edit mistakes caught before commit
+- **Status / attribution:** Confirmed; agent.
+- **What failed:** (1) a bulk scripted edit wrote a real newline into a string and broke `test_observer_publications.py` (syntax error); (2) a phases test expectation and two CLI/stop tests ignored the new `other` phase key; (3) a slow-word test hid a repeated sentence, which makes later repeats UNIDENTIFIED; (4) a junk assertion line was left in; (5) my new header-hash test used a header whose origin differed from the publication file, so it failed in the full run.
+- **Agent-controlled cause:** Edits made without asserting each landed and without checking the matcher's conservatism or the new dictionary keys first.
+- **Impact:** Extra test cycles (the full suite takes about 3 minutes). Nothing reached a commit, a recording or the owner. Credit not measured.
+- **Evidence:** Test output of the runs on this branch before the commit.
+- **Correction / prevention:** Each fixed and the full suite rerun green. Real-data finding on the observer-validation-3 converted file (old 1 ms allowance, header hash taken from the `load_raw` header) is a property of that older file, handled by hashing only the header fields that exist in the first line.
+- **Owner approval:** Not required.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
