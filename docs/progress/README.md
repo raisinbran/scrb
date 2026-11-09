@@ -20,28 +20,30 @@
 
 ## Historical chart and data
 
-![Four-snapshot comparison chart with a dated color legend and explicit unassessed phase markers](phase-progress-comparison.svg)
+**Latest phase snapshot:** November 9, 2026, 2:52 PM PST (America/Los_Angeles), with `main` pinned at `a964d25e09da453d027d2bddfc9cdaccb5d15076`. The earlier November 3 phase assessment and the separate November 9 commit/gate timeline remain preserved, not replaced.
 
-The chart uses four dated colors for the historical estimates. Blank/unassessed categories are not graphed as measured 0% completion. The archived numeric zeroes are retained for continuity and labeled `not_assessed` in the CSV.
+![Five-snapshot grouped bar chart with a dated legend and explicit unassessed phase markers](phase-progress-comparison.svg)
+
+The chart uses five dated colors for the historical estimates and the November 9 update. Blank/unassessed categories are not graphed as measured 0% completion. The archived numeric zeroes are retained for continuity and labeled `not_assessed` in the CSV.
 
 The source-of-truth chart data is [phase-progress-history.csv](phase-progress-history.csv). **Do not retroactively overwrite** previous estimates; append subsequent observations. The times on the first three rows were shown in earlier conversation charts and are *approximate labels*, not audited fetch times. Oct 31/Nov 1 spans a Pacific daylight-saving switch.
 
-| Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST |
-| --- | ---: | ---: | ---: | ---: |
-| 0 — Feasibility | 100% | 100% | 100% | 100% |
-| 1 — Foundation | 100% | 100% | 100% | 100% |
-| 2 — Recording | 65% | 100% | 100% | 100% |
-| 3 — Transcription | 0%† | 0%† | 35% | **70%** |
-| 4 — Speakers | 0%† | 0%† | 0%† | 0%† |
-| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%† |
-| 6 — Summaries | 0%† | 0%† | 0%† | 0%† |
-| 7 — Library and export | 0%† | 0%† | 0%† | 0%† |
-| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%† |
-| **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** |
+| Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST | Nov 9 2:52 PM PST |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 0 — Feasibility | 100% | 100% | 100% | 100%  100% |
+| 1 — Foundation | 100% | 100% | 100% | 100%  100% |
+| 2 — Recording | 65% | 100% | 100% | 100%  100% |
+| 3 — Transcription | 0%† | 0%† | 35% | **70%**  **70%** |
+| 4 — Speakers | 0%† | 0%† | 0%† | 0%†  0%† |
+| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%†  0%† |
+| 6 — Summaries | 0%† | 0%† | 0%† | 0%†  0%† |
+| 7 — Library and export | 0%† | 0%† | 0%† | 0%†  0%† |
+| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%†  0%† |
+| **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** | **3/9** |
 
 † **Unassessed:** zero is a historical chart placeholder, *not* an observation of 0% engineering work or no progress. The CSV's corresponding `phase_N_assessment_status` is `not_assessed`; consumers should treat that cell as missing data in percentage analyses. Formally approved gates and subjective readiness estimates have different meanings.
 
-### Latest snapshot, bar view
+### Historical November 3 snapshot, bar view (retained)
 
 Each `#` is approximately 5 percentage points. This is a **single latest-snapshot bar chart**, not a substitute for the four-column historical chart above.
 
@@ -56,6 +58,16 @@ Phase 6                          0  gate unapproved; preliminary code exists
 Phase 7                          0  gate unapproved; preliminary code exists
 Phase 8                          0  gate unapproved; preliminary code exists
 ```
+
+## November 9 phase assessment
+
+**Gate-validation status:** Gates 0–2 approved; Mac Gate 3 owner-approved November 2; Windows Gate 3 still open. **3/9 fully approved gates.** Latest checked `main` [`a964d25e`](https://github.com/raisinbran/scrb/commit/a964d25e09da453d027d2bddfc9cdaccb5d15076). This adds a **new fifth bar series** without rewriting the original four.
+
+- **Phase 3 = 70% (estimated, unchanged).** Additional Windows timing/observer validation and retest planning are substantial but are not a new accepted cross-platform pass. The [Windows integration branch `64e3d03`](https://github.com/raisinbran/scrb/commit/64e3d03fe318216210b69ca3ee1f9ada3ddc3bdf) still describes a draft, not-frozen evidence surface; [PR #74 `6b75b6f`](https://github.com/raisinbran/scrb/pull/74) remains unapproved for the scored retest. Do not increase a subjective readiness estimate merely for more iterations without a new acceptance result.
+- **Phase 4/5 = N/A (unassessed gate readiness).** [PR #48](https://github.com/raisinbran/scrb/pull/48) and stacked [PR #50](https://github.com/raisinbran/scrb/pull/50) are merged into their respective stacked branches; [PR #58](https://github.com/raisinbran/scrb/pull/58) adds draft voice-profile recognition. None establishes Gate 4 or 5 approval, and the timeline does not assume these changes are in `main`.
+- **Phases 6–8 = N/A.** Code and preliminary work may exist, but no independently justified gate-readiness percentage is supplied.
+
+**Pinned inputs for this snapshot:** `main@a964d25e09da453d027d2bddfc9cdaccb5d15076`; `PR42@2d1f8150cb68d56ec3fc842f1709f276f124ef55`; `PR47@1eda6eb0fae5b672e23250a3d0782da24d4e8624`; `PR48@1afc4e0b88356c412642261f72a2ca9c5865e187`; `PR50@6cf09396b5f42154e7039f7fd1cd3d7dda576c91`; `PR58@111cb1e74ea0557d3a19cded1bda373cca53e361`; `PR74@6b75b6f5d19cc37834bf20717780bbd0c8a8a07f`; `windows-gate3-integration@64e3d03fe318216210b69ca3ee1f9ada3ddc3bdf`. These match the machine-readable CSV source-ref field. The displayed time is minute-rounded from a current local time lookup; historical snapshot labels remain approximate.
 
 ## Immutable snapshot evidence (November 3)
 
