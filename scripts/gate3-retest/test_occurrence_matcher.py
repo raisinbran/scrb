@@ -235,5 +235,63 @@ class TestOccurrenceMatcher(unittest.TestCase):
         self.assertEqual(align_occurrences(annotations, pubs, "microphone", clock_basis="recording")[0]["outcome"], "UNIDENTIFIED")
 
 
+class Apostrophes(unittest.TestCase):
+    """An internal apostrophe is part of one token on both sides; other punctuation is unchanged."""
+    WORDS = ("Lantern's", "light", "guides", "sailors")
+
+    def test_tokens(self):
+        from occurrence_matcher import normalize_words
+        self.assertEqual(normalize_words("Lantern's"), ["lantern's"])
+        self.assertEqual(normalize_words("Lantern’s"), ["lantern's"])
+        self.assertEqual(normalize_words("rock'n'roll don't"), ["rock'n'roll", "don't"])
+        for text, expected in (("well-known", ["well", "known"]), ("3.5", ["3", "5"]), ("'quoted'", ["quoted"]),
+                               ("end.", ["end"]), ("a, b", ["a", "b"]), ("dogs'", ["dogs"])):
+            self.assertEqual(normalize_words(text), expected, text)
+
+    def test_possessive_publication_matches_and_is_credited(self):
+        annotations = make_annotations(2, self.WORDS)
+        rows = align_occurrences(annotations, make_publications(annotations), "meeting", clock_basis="recording")
+        self.assertEqual([r["outcome"] for r in rows], ["MATCHED", "MATCHED"])
+        self.assertTrue(all(r["identity_confirmed"] for r in rows))
+
+    def test_curly_apostrophe_in_the_display_matches_the_straight_source(self):
+        annotations = make_annotations(1, self.WORDS)
+        pubs = make_publications(annotations)
+        pubs[0]["text"] = "Lantern’s"
+        rows = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
+        self.assertEqual(rows[0]["outcome"], "MATCHED")
+
+    def test_display_split_into_lantern_and_s_is_not_silently_accepted(self):
+        # Interior word: the unit is still identified by its other words, but the split shows in the exact fraction.
+        annotations = make_annotations(1, self.WORDS)
+        pubs = make_publications(annotations)
+        first = pubs[0]
+        pubs[:1] = [dict(first, id="word-0-0a", text="Lantern"), dict(first, id="word-0-0b", text="s")]
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
+        self.assertLess(row["other_words_exact_fraction"], 1.0)
+        # Final word: no exact endpoint, so the unit is BOUNDED (no point credit), not MATCHED.
+        annotations = make_annotations(1, ("light", "guides", "the", "Lantern's"))
+        pubs = make_publications(annotations)
+        last = pubs[-1]
+        pubs[-1:] = [dict(last, id="word-0-3a", text="Lantern"), dict(last, id="word-0-3b", text="s")]
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
+        self.assertEqual(row["outcome"], "BOUNDED")
+
+    def test_symbol_only_element_is_not_a_word_and_does_not_stop_the_track(self):
+        annotations = make_annotations(1, self.WORDS)
+        pubs = make_publications(annotations)
+        pubs.insert(2, dict(pubs[0], id="word-0-sym", text=">>"))
+        row = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")[0]
+        self.assertEqual((row["outcome"], row["other_words_exact_fraction"]), ("MATCHED", 1.0))
+        self.assertNotIn("word-0-sym", row["candidate_publication_ids"])
+
+    def test_multiword_publication_text_is_still_rejected(self):
+        annotations = make_annotations(1, self.WORDS)
+        pubs = make_publications(annotations)
+        pubs[1]["text"] = "light guides"
+        with self.assertRaises(ValueError):
+            align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -305,6 +305,14 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** A label is a row header only when the next non-empty element is a time stamp (same rule for unmapped-label detection); matching stays case-sensitive; fixtures now use per-word elements with space separators. New report-only `unattributed_text_elements` counts viewport text that belongs to no recognised row. Known limit: an unrecognised word directly before a time-like word inside a row is read as an unmapped header (the run becomes INCONCLUSIVE, the conservative direction).
 - **Owner approval:** Not required (offline).
 
+### A-060 - 2026-11-09 - Codex-written matcher tokenizer stopped the track on real displays; found late by Claude Code (Sonnet 5.5)
+- **Status / attribution:** Defect in Codex-written `occurrence_matcher.py` (`normalize_words`, `\w+`), found late by me during the validation-3 dry run, not by the earlier matcher tests (invented words only). Also a review gap on my side: I had not run the matcher on real displayed words before.
+- **What failed:** (1) A displayed `Lantern's` / `rocket's` normalized to two tokens and the matcher raised, which stops the whole track. (2) A symbol-only element (`>>`, 2 in each of validations 4 and 5) normalized to zero tokens and raised the same way.
+- **Impact:** None on a scored result (no scored run). Had the real run shown such a display, that track would have gone INCONCLUSIVE, a systematic non-credit.
+- **Evidence:** 4 of 5 new apostrophe tests fail on f06a5c3. Note for the record: the source pack contains no apostrophes (only trailing periods); `Lantern's` and `rocket's` come from the recognizer (source `lanterns`, `rockets`), so under the fix they are one token that does not match the source word and the word is not credited, which is the correct reading.
+- **Correction / prevention:** An internal apostrophe (straight or curly) is part of one token on both sides; symbol-only elements are skipped (they stay in the converted file); a display of two or more tokens (hyphen, `3.5`) still raises, now naming the id and text. Not seen in real data (validations 3 to 5). Offline tests only.
+- **Owner approval:** Not required (offline).
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
