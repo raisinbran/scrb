@@ -355,10 +355,11 @@
     },
     "owner_listen_through": {
       "date": "2026-11-08",
-      "status": "OWNER_STATED_IN_CHAT_NOT_YET_RECORDED_AS_FILE",
-      "evidence_file_sha256": "PENDING",
-      "outcome_detail": "PENDING",
-      "note": "Reported by the owner in an assignment message; no sign-off file seen by the agent. Not frozen evidence until the file and hash are added."
+      "approved_for_saving": "2026-11-09",
+      "status": "OWNER_SIGNED_OFF_RECORDED_IN_REPO",
+      "evidence_file": "docs/gates/gate-3-windows-r3-listen-through-signoff-20261108.md",
+      "evidence_file_sha256": "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87",
+      "note": "Covers r3 constructed sources only; manifest remains NOT_FROZEN."
     },
     "independent_review": "PENDING",
     "known_concerns": [
