@@ -2,7 +2,7 @@
 
 **Purpose:** append-only historical snapshots of the *gate-validation chart* shared with the owner. The source of formal gate requirements is [Development Plan v2.0](../../dev-plan/Meeting%20Scribe%20-%20Development%20Plan%20(v2.0).md), not this report.
 
-**Current report snapshot:** 2026-11-03 18:24 PST (America/Los_Angeles). Evidence inspected: `main` at `2abb0d54f1bead39d80398a31c9037cfb960a354` plus draft/stacked PRs as indicated. Snapshot time is the conversation's reported local time; it is not a separately logged second-precision GitHub API timestamp.
+**Historical phase chart snapshot:** 2026-11-03 18:24 PST (America/Los_Angeles). Evidence inspected: `main` at `2abb0d54f1bead39d80398a31c9037cfb960a354` plus draft/stacked PRs as indicated. Snapshot time is the conversation's reported local time; it is not a separately logged second-precision GitHub API timestamp.
 
 ## Git commit counts and gate pass dates (November 9 refresh)
 
