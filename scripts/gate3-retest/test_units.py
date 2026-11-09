@@ -141,6 +141,14 @@ class TestConstructedUnits(unittest.TestCase):
         self.assertEqual(result['earliest_acoustic_end_s'], result['earliest_acoustic_end_sample']/units.RATE)
         self.assertEqual(result['final_onset_threshold_spread_s'], 0.0)
 
+    def test_utterance_speech_span_excludes_padding(self):
+        """Measure speech from the earliest onset to the latest offset, not the padded clip."""
+        samples = {'f': make_tail(0.080)}
+        measured = {'f': units.measure(samples['f'])}
+        result = units.construct_utterance([{'unit_id': 'f', 'role': 'final', 'text': 'word'}], measured, samples)
+        self.assertAlmostEqual(result['speech_span_s'], (9120-2400)/units.RATE)
+        self.assertGreater(len(result['pcm'])/units.RATE-result['speech_span_s'], 0.049)
+
     def test_report_only_records_instead_of_raising(self):
         """Record limit exceedances without a verdict and without changing measure().
 

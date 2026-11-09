@@ -21,7 +21,8 @@ def place_units(track, clips):
     """Fit whole utterances by distributing gaps instead of leaving a silent tail."""
     choices = {kind: [clip for clip in clips if clip["kind"] == kind] for kind in ("short", "long")}
     assert all(choices.values()), "Both short and long source clips are required"
-    assert all(0.3 <= clip["duration"] < 1 for clip in choices["short"]), "Short duration needs review; do not silently time-stretch"
+    # Protocol v3: a short word is 0.3-1.0 s of speech, not of padded clip; clip duration still drives placement.
+    assert all(0.3 <= clip.get("speech_span", clip["duration"]) < 1 for clip in choices["short"]), "Short duration needs review; do not silently time-stretch"
     assert all(4 <= clip["duration"] <= 12 for clip in choices["long"]), "Long duration needs review"
     counters, units = {"short": 0, "long": 0}, []
     offset = 0 if track == "microphone" else 0.25
@@ -60,6 +61,7 @@ def place_units(track, clips):
                           "status": "UNFROZEN",
                           "encoding": clip.get("encoding", "synthetic"), "timing_basis": clip.get("timing_basis", "synthetic metadata"),
                           "start": cursor, "end": cursor+clip["duration"], "short": clip["kind"] == "short",
+                          "speech_span": clip.get("speech_span", clip["duration"]),
                           "eligible": None, "eligibility_reason": "pending waveform and listen audit",
                           "words": [{"text": word["text"], "start": cursor+word["start"],
                                      "end": cursor+word["end"]} for word in clip["words"]]})
@@ -89,7 +91,8 @@ def assert_track_coverage(units):
     for index, unit in enumerate(units):
         assert 20-1e-9 <= unit["start"] < unit["end"] <= 380+1e-9
         duration = unit["end"]-unit["start"]
-        assert (0.3-1e-9 <= duration < 1) if unit["short"] else (4-1e-9 <= duration <= 12+1e-9)
+        speech = unit.get("speech_span", duration)
+        assert (0.3-1e-9 <= speech < 1) if unit["short"] else (4-1e-9 <= duration <= 12+1e-9)
         assert len(unit["words"]) == 1 if unit["short"] else len(unit["words"]) >= 1
         previous_end = unit["start"]
         for word in unit["words"]:
@@ -150,7 +153,7 @@ def assemble_track(track, manifest, measured, root, output, join_samples):
     for key, parts in groups.items():
         result = constructed.construct_utterance(parts, measured['units'], source_samples, join_samples)
         clips.append({**result, 'id': key, 'kind': parts[0]['kind'], 'text': parts[0]['utterance_text'],
-                      'duration': len(result['pcm'])/constructed.RATE,
+                      'duration': len(result['pcm'])/constructed.RATE, 'speech_span': result['speech_span_s'],
                       'encoding': 'ConstructedUnits', 'timing_basis': 'constructed-sample-offset+unit-energy'})
     units = place_units(track, clips)
     by_id = {clip['id']: clip for clip in clips}
