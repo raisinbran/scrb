@@ -115,3 +115,37 @@ Follow-up commit title: `fix: address occurrence matcher conditional review`.  T
 | 2026-11-08 | Codex / Windows Desktop; own scrb-codex worktree | Conditional-review fixes to 9a4d5a1; demonstrated before/after regressions; 80 Python tests and npm check passed | Initial pre-worktree read; exact PT time unavailable | Post-code-push observation (exact PT time unavailable) | 70% -> 63% | 88% -> 87% | 7 / 1 | Implementation / GPT-6 (exact variant unavailable) / effort unavailable | 2 setup failures; corrected npm check rerun once; no accidental Python failure | pending | get_usage_limits, rateLimitsByLimitId.codex. Same windows: 5h reset Nov 9 00:47:56 PT; week reset Nov 15 16:43:52 PT. Other Codex overlap unknown; Sonnet concurrently works in a separate worktree/quota pool. Account-level movement is not isolated task cost. |
 
 Implementation commit `fce384df2ca8596f0e2208721e83356a4570eae0` was pushed normally; local and upstream refs matched and the worktree was clean.  A final account read after that push showed 63% five-hour / 87% weekly remaining; the proposed follow-up usage row above records that reading.  This final handoff update is documentation-only.
+
+## PASS Re-Review: P2 Test-Evidence Follow-Up
+
+Owner supplied ChatGPT's PASS re-review of `28e3125` with two P2 evidence fixes.  This follow-up stays in the existing `scrb-codex` worktree on `codex/gate3-occurrence-matcher`.  Only tests, a test-evidence runner, captured invented-input test outputs, this handoff, and the incident register change.  No implementation, threshold, protocol, source audio, rendering, recording, freeze, or merge change.  No network reads or installs; normal branch push is separately authorized.
+
+`test_broad_provenance_cannot_confirm_repeats` now asserts the outcome list is exactly `["UNIDENTIFIED", "UNIDENTIFIED"]`, both identity flags are false, and the exact-credit publication list is empty.  The clock-boundary regression retains the nominal 22.005 s / lower bound 21.960 s case.
+
+The new test-only runner loads the matcher text from the pinned full historical SHA `9a4d5a135b5e68fc07c51b4d3c005ebe7315a331` using local `git show`.  It runs these same two current test methods and fixtures.  Only its historical adapter strips `clock_basis` and calls `module.align_occurrences(annotations, publications, track)` with three positional arguments.  No historical code is installed over current files and no production files are edited.
+
+Executed commands (output files must not already exist):
+
+```powershell
+python scripts/gate3-retest/check_matcher_regressions.py --historical --output docs/handoffs/gate3-occurrence-historical-red.txt
+python scripts/gate3-retest/check_matcher_regressions.py --output docs/handoffs/gate3-occurrence-current-green.txt
+```
+
+Captured outputs (trailing line whitespace stripped, with assertions and results unchanged) are committed beside this handoff in `gate3-occurrence-historical-red.txt` and `gate3-occurrence-current-green.txt`.
+
+| Regression | Historical output, expected exit 1 | Current output, exit 0 |
+| --- | --- | --- |
+| Broad provenance | FAIL: `['MATCHED', 'MATCHED'] != ['UNIDENTIFIED', 'UNIDENTIFIED']` | PASS: both exactly UNIDENTIFIED and zero exact publication credit |
+| Clock boundary | FAIL: `'MATCHED' != 'BOUNDED'` in nominal=22.005 subcase | PASS: BOUNDED |
+
+Historical run: 2 tests, 2 assertion failures; no API error.  Current run: 2 tests, OK.  Full Python suite: **80 passed** in 4.799 s.  These are intentional historical red tests, not accidental retries.  A-032 records the earlier evidence shortcomings; A-033 records a subsequent whitespace-check/commit-command sequencing mistake, corrected before push.
+
+`npm run check` passed in the own worktree: type checks, ESLint, and Vitest (819 passed, 63 skipped; 52 files passed, 6 skipped; 36.17 s).  Existing Vite/CommonJS and localStorage warnings remain.  The boundary command skipped this branch naming pattern; changed-path review confirms no implementation or protected files changed.  `git diff --check` passed; staged diff checked before commit.  The unavailable Python comment checker limitation remains; no merge is authorized.
+
+Proposed usage row for the shared tracker (not inserted to avoid overlapping tracker edits):
+
+| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Phase / model / effort | Retries | Acceptance | Source, reset, overlap and qualification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-08 | Codex / Windows Desktop; own scrb-codex worktree | PASS re-review P2 evidence fixes; exact outcomes/no credit assertion; reproducible historical red/current green outputs; 80 Python tests and npm check passed | Initial read; exact PT time unavailable | 23:16 PT, after checks before commit/push housekeeping | 62% -> 60% | 87% -> 86% | 2 / 1 | Tests and evidence / GPT-6 (exact variant unavailable) / effort unavailable | 1 whitespace-check sequencing mistake corrected before push; 1 intentional historical red run | pending owner acceptance | get_usage_limits, rateLimitsByLimitId.codex. Same windows: 5h reset Nov 9 00:47:56 PT; week reset Nov 15 16:43:52 PT. Other Codex overlap unknown; Sonnet has separate assigned work/quota pool. Account movement is not isolated task cost. |
+
+Commit title: `test: tighten occurrence assertions and attach historical red evidence`.  Final SHA/publication outcome supplied in chat.  Next step is owner review of these test-evidence changes; no implementation work or gate action remains authorized by this follow-up.

@@ -68,11 +68,11 @@ class TestReviewFixes(unittest.TestCase):
         for pub in pubs:
             pub.update(audio_start=20, audio_end=33)
         rows = align_occurrences(annotations, pubs, "meeting", clock_basis="recording")
-        self.assertTrue(all(row["outcome"] in {"UNIDENTIFIED", "BOUNDED"} for row in rows), rows)
+        self.assertEqual([row["outcome"] for row in rows], ["UNIDENTIFIED", "UNIDENTIFIED"])
         self.assertTrue(all(not row["identity_confirmed"] and not row["identity_unique"] for row in rows))
         credited = [point["publication_id"] for row in rows if row["outcome"] == "MATCHED"
                     for point in row["endpoints"]]
-        self.assertEqual(len(credited), len(set(credited)))
+        self.assertEqual(credited, [])
 
     def test_clock_track_mismatch_rejected(self):
         """Reject a fit from the other track at the matcher CLI.
