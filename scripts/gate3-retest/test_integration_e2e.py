@@ -4,15 +4,18 @@ occurrence matcher -> v3a timing -> analyze-bounds. No skip paths; only the audi
 Written by Claude Code as an independent check of Codex's matcher and v3a code."""
 import importlib.util
 import copy
+import hashlib
 import json
 import math
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import binding_fixture  # noqa: E402
 import marker_clock  # noqa: E402
 import observer_publications as op  # noqa: E402
 import observer_session_map as osm  # noqa: E402
@@ -133,7 +136,7 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
-             supplied_marker=None, conversion_u=CONVERSION_U, source=None):
+             supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None):
     units = units or build_units()
     header, samples = observer_lines(units, quarantine)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
@@ -165,12 +168,21 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
         evidence['lead_marker'] = True
         if supplied_marker is not None:
             evidence['lead_marker_source_s'] = supplied_marker
-    with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
-         patch.object(timing, 'load_views', return_value=([], [], mapping)), \
-         patch.object(timing, 'pcm16', return_value=source or source_pcm()), \
-         patch.object(timing, 'load_long_anchors', return_value=inventory), \
-         patch.object(timing, 'digest', return_value='c' * 64):
-        result = bounds.analyze_v3a_track(scored, evidence if evidence_present else None, 'microphone')
+    with tempfile.TemporaryDirectory() as directory:
+        written = copy.deepcopy(mapped)
+        header_out, events_out = dict(header), harness_events()
+        if file_tamper:
+            file_tamper(written, header_out, events_out, scored)
+        evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out))
+        published = hashlib.sha256(Path(evidence['publication_file']).read_bytes()).hexdigest()
+        evidence.pop(drop_key, None)
+        with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
+             patch.object(timing, 'load_views', return_value=([], [], mapping)), \
+             patch.object(timing, 'pcm16', return_value=source or source_pcm()), \
+             patch.object(timing, 'load_long_anchors', return_value=inventory), \
+             patch.object(timing, 'digest', return_value='c' * 64):
+            result = bounds.analyze_v3a_track(scored, evidence if evidence_present else None, 'microphone')
+        result['_publication_sha256'] = published
     return result, rows, report, mapped
 
 
@@ -308,6 +320,73 @@ class NoClockNoPass(unittest.TestCase):
                        session_changed, header_frequency, header_origin, log_frequency, log_before_origin, no_log):
             with self.subTest(tamper=tamper.__name__), self.assertRaises(ValueError):
                 pipeline(tamper=tamper)
+
+    def test_matching_converted_file_passes_and_records_hashes(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        result = pipeline(units=clean)[0]
+        self.assertEqual(result['latency'], 'PASS', result.get('error'))
+        self.assertEqual(result['endpoint_binding_failures'], [])
+        for key in ('observer_raw_sha256', 'harness_log_sha256', 'publication_file_sha256'):
+            self.assertRegex(result['evidence_hashes'][key], '^[0-9a-f]{64}$')
+        self.assertEqual(result['evidence_hashes']['publication_file_sha256'], result['_publication_sha256'])
+        self.assertEqual(result['conversion_identity']['origin_ns'], ORIGIN_NS)
+
+    def test_endpoints_that_do_not_match_the_converted_file_are_never_credited(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        target = 'microphone-005'
+
+        def word_of(doc, scored):
+            identifier = next(r for r in scored if r['id'] == target)['endpoints'][0]['publication_id']
+            return next(w for w in doc['words'] if w['id'] == identifier)
+
+        def shifted(doc, header, events, scored):
+            word_of(doc, scored)['observed'] -= 0.5
+
+        def changed_u(doc, header, events, scored):
+            word_of(doc, scored)['u'] += 0.01
+
+        def absent(doc, header, events, scored):
+            doc['words'].remove(word_of(doc, scored))
+
+        def within_tolerance(doc, header, events, scored):
+            word_of(doc, scored)['observed'] += 5e-10
+
+        for tamper in (shifted, changed_u, absent):
+            with self.subTest(tamper=tamper.__name__):
+                result = pipeline(units=clean, file_tamper=tamper)[0]
+                row = by_id(result)[target]
+                self.assertEqual((row['conservative'], row['best']), (math.inf, math.inf))
+                self.assertEqual(result['denominator'], 16)
+                self.assertEqual([f['id'] for f in result['endpoint_binding_failures']], [target])
+                self.assertNotEqual(result['latency'], 'PASS')
+        self.assertEqual(pipeline(units=clean, file_tamper=within_tolerance)[0]['latency'], 'PASS')
+
+    def test_document_whose_conversion_identity_does_not_match_never_scores(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        changes = {
+            'origin': lambda d, h, e, s: d['conversion'].__setitem__('origin_ns', ORIGIN_NS + 1),
+            'chunk hashes': lambda d, h, e, s: d['conversion']['ordered_source_sha256'].reverse(),
+            'metadata hash': lambda d, h, e, s: d['conversion'].__setitem__('chunks_metadata_sha256', 'd' * 64),
+            'session': lambda d, h, e, s: d['conversion'].__setitem__('session_id', 's2'),
+            'track identity': lambda d, h, e, s: d['conversion'].__setitem__('track_identity_sha256', '0' * 64),
+            'frequency': lambda d, h, e, s: d['conversion'].__setitem__('observer_header_frequency_hz', FREQ + 1),
+            'harness origin': lambda d, h, e, s: d['conversion'].__setitem__('harness_origin_qpc', H0 + 1),
+            'conversion u': lambda d, h, e, s: d['conversion'].__setitem__('conversion_u_s', 0.0),
+            'other track': lambda d, h, e, s: d.__setitem__('track', 'meeting'),
+            'log changed after conversion': lambda d, h, e, s: e[1]['stamp'].__setitem__('qpc_ticks', H0 + FREQ + 1)}
+        for name, change in changes.items():
+            with self.subTest(change=name):
+                result = pipeline(units=clean, file_tamper=change)[0]
+                self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
+                self.assertTrue(result['error'])
+
+    def test_missing_binding_paths_never_pass(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        for key in ('publication_file', 'observer_raw', 'harness_log'):
+            with self.subTest(key=key):
+                result = pipeline(units=clean, drop_key=key)[0]
+                self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
+                self.assertIn(key, result['error'])
 
     def test_missing_conversion_uncertainty_stops(self):
         for value in (0, None, -1, float('nan'), 1 / FREQ / 2):

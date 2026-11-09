@@ -1,5 +1,6 @@
 """Compute protocol bounds from independently adjudicated publication endpoints."""
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -104,6 +105,94 @@ def analyze_track(units, clock):
     return {**summarize_track(units), "clock": validation}
 
 
+FLOAT_TOLERANCE_S = 1e-9
+CREDITED_OUTCOMES = {'MATCHED', 'MATCHED-SUBSTITUTED', 'BOUNDED'}
+
+
+def file_sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def read_events(path):
+    """Harness log: a JSON list or JSON lines of events."""
+    text = Path(path).read_text(encoding='utf-8-sig')
+    try:
+        events = json.loads(text)
+        if isinstance(events, list):
+            return events
+    except json.JSONDecodeError:
+        pass
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def read_observer_header(path):
+    """The observer's first line, exactly as hashed when the publications were converted."""
+    for line in Path(path).read_text(encoding='utf-8-sig').splitlines():
+        if line.strip():
+            return json.loads(line)
+    raise ValueError('Empty observer raw file')
+
+
+def verify_conversion_document(doc, mapping, track, header, events):
+    """The converted publication file must come from observer_session_map.py for this track's clock context."""
+    import observer_session_map as osm
+    osm.need(isinstance(doc, dict) and doc.get('schema') == osm.SCHEMA and doc.get('clock_basis') == 'recording'
+             and doc.get('publication_basis') == 'timestamped-capture' and doc.get('track') == track
+             and isinstance(doc.get('words'), list), 'Not a converted publication document for this track')
+    conv = doc['conversion']
+    chunks = osm.verify_chunk_evidence(mapping, track)
+    for key in ('origin_ns', 'session_id', 'track', 'chunk_count', 'ordered_source_sha256',
+                'chunks_metadata_sha256', 'track_identity_sha256'):
+        osm.need(conv[key] == chunks[key], 'Conversion %s differs from the track clock context' % key)
+    frequency, origin = conv['observer_header_frequency_hz'], conv['harness_origin_qpc']
+    logs = osm.verify_clock_logs({'qpc_frequency': frequency, 'harness_origin_qpc': origin}, header, events)
+    for key, value in logs.items():
+        osm.need(conv[key] == value, 'Conversion %s differs from the observer file or harness log' % key)
+    shift = (origin*1_000_000_000//frequency - chunks['origin_ns'])/1e9
+    osm.need(abs(conv['shift_s']-shift) <= FLOAT_TOLERANCE_S, 'Conversion shift differs from the reconstructed origin')
+    e = conv['conversion_u_s']
+    osm.need(isinstance(e, (int, float)) and not isinstance(e, bool) and math.isfinite(e) and e >= 1/frequency
+             and isinstance(conv['conversion_u_basis'], str) and conv['conversion_u_basis'].strip()
+             and conv['marker_fit_used'] is False, 'Conversion allowance or method is not as validated')
+    return conv
+
+
+def bind_endpoints(units, doc, track):
+    """Every credited endpoint must equal a word of the converted file (id, observed, u); else the unit is uncredited."""
+    words = {}
+    for word in doc['words']:
+        if word.get('id') in words or word.get('track') != track:
+            raise ValueError('Converted publication file has a duplicated or foreign-track word id')
+        words[word['id']] = word
+    used, report, bound = set(), [], []
+    for unit in units:
+        points = unit.get('endpoints') or []
+        credited = unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES
+        reason = None
+        if credited:
+            if not points:
+                reason = 'no publication endpoints'
+            for point in points:
+                word = words.get(point.get('publication_id'))
+                if word is None:
+                    reason = 'endpoint id %r is absent from the converted file' % (point.get('publication_id'),)
+                elif point['publication_id'] in used:
+                    reason = 'endpoint id %s is used more than once' % point['publication_id']
+                elif not (abs(point['observed']-word['observed']) <= FLOAT_TOLERANCE_S
+                          and abs(point['u']-word['u']) <= FLOAT_TOLERANCE_S):
+                    reason = 'endpoint %s differs from the converted file' % point['publication_id']
+                if reason:
+                    break
+                used.add(point['publication_id'])
+        if reason:
+            report.append({'id': unit['id'], 'binding_failure': reason})
+            if unit['eligible']:
+                unit = {**unit, 'outcome': 'UNIDENTIFIED', 'identity_confirmed': False, 'endpoints': [],
+                        'binding_failure': reason}
+        bound.append(unit)
+    return bound, report
+
+
 def analyze_v3a_track(units, evidence, track):
     """Fail closed on unsupported evidence; reuse Layer A's opposite-end pairing.
 
@@ -156,6 +245,17 @@ def analyze_v3a_track(units, evidence, track):
                     for u in units), 'Eligibility differs from bound frozen source inventory')
         steps = step_bounds(anchors, [])
         require(clocks['valid'], 'Invalid v3a marker/gap evidence; step diagnostics do not waive it')
+        # Bind scored endpoints to the converted publication file; the label alone proves nothing.
+        for key in ('publication_file', 'observer_raw', 'harness_log'):
+            require(isinstance(evidence.get(key), (str, Path)), 'Missing %s path for endpoint binding' % key)
+        publication = json.loads(Path(evidence['publication_file']).read_text(encoding='utf-8-sig'))
+        conversion = verify_conversion_document(publication, mapping, track,
+                                                read_observer_header(evidence['observer_raw']),
+                                                read_events(evidence['harness_log']))
+        units, binding_failures = bind_endpoints(units, publication, track)
+        evidence_hashes = {'observer_raw_sha256': file_sha256(evidence['observer_raw']),
+                           'harness_log_sha256': file_sha256(evidence['harness_log']),
+                           'publication_file_sha256': file_sha256(evidence['publication_file'])}
         prepared, steps = prepare_units(units, mapping, anchors)
         for unit in prepared:
             require(type(unit['eligible']) is bool, 'Invalid eligibility')
@@ -175,6 +275,8 @@ def analyze_v3a_track(units, evidence, track):
                             'PRE-SPEECH or uncertain speech presence across last-word start interval')
         return {**summarize_track(prepared), 'mode': 'v3a', 'denominator': denominator,
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
+                'evidence_hashes': evidence_hashes, 'conversion_identity': conversion,
+                'endpoint_binding_failures': binding_failures,
                 'source_sha256': source_sha, 'source_annotations_sha256': inventory['annotations_sha256'],
                 'speech_intervals': prepared}
     except (ValueError, KeyError, TypeError, OSError, AssertionError, subprocess.SubprocessError) as error:

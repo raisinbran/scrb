@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 import wave
 
+import binding_fixture
 import marker_clock
 import v3a_timing as timing
 from test_analysis import make_unit
@@ -305,17 +306,19 @@ class TestScoringGuards(unittest.TestCase):
         if inventory is None:
             inventory = [{'id': u['id'], 'eligible': True} for u in units]
         inventory_report = {'anchors': anchors(), 'utterances': inventory, 'annotations_sha256': 'd'*64}
-        m = mapping()
-        clock = {'valid': True, 'gap_map': m, 'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE'}}
-        evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json',
-                    'decoder': 'decoder', 'source': 'source.wav', 'harness': [11, 391],
-                    'long_anchors': [{}, {}], 'source_annotations': 'annotations.json'}
-        with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
-             patch.object(timing, 'load_views', return_value=([], [], m)), \
-             patch.object(timing, 'pcm16', return_value=([], 1000)), \
-             patch.object(timing, 'load_long_anchors', return_value=inventory_report), \
-             patch.object(timing, 'digest', return_value='c'*64):
-            return bounds.analyze_v3a_track(units, evidence, 'microphone')
+        m = binding_fixture.enrich(mapping())
+        with tempfile.TemporaryDirectory() as directory:
+            units, files = binding_fixture.bind_units(directory, m, units)
+            clock = {'valid': True, 'gap_map': m, 'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE'}}
+            evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json',
+                        'decoder': 'decoder', 'source': 'source.wav', 'harness': [11, 391],
+                        'long_anchors': [{}, {}], 'source_annotations': 'annotations.json', **files}
+            with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
+                 patch.object(timing, 'load_views', return_value=([], [], m)), \
+                 patch.object(timing, 'pcm16', return_value=([], 1000)), \
+                 patch.object(timing, 'load_long_anchors', return_value=inventory_report), \
+                 patch.object(timing, 'digest', return_value='c'*64):
+                return bounds.analyze_v3a_track(units, evidence, 'microphone')
 
     def test_crossing_gap_near_six_seconds_keeps_denominator(self):
         result = self.score([unit(), unit()]+[unit(endpoints=[{'observed': 142, 'u': .01}]) for _ in range(18)])
