@@ -1,6 +1,16 @@
 # Gate 3 Windows: D2 capture-equivalence checklist (DRAFT)
 
-Status: **DRAFT, NOT_FROZEN.** Nothing here was measured on a device. Every field marked PENDING is still to be read or measured by the owner or by a later, separately authorized harness step. No recording, test, rendering, installation or Windows audio setting change was done to write this document.
+Status: **DRAFT, NOT_FROZEN.** Fields marked PENDING are still to be read or measured. The 2026-11-09 PT practice run (not scored, freezes nothing) measured the route once; its results are in `gate-3-windows-d2-practice-run-results-20261109.md`. The items below are OPEN and are not accepted differences.
+
+## OPEN ITEMS (from the 2026-11-09 PT practice run; none accepted, none investigated)
+
+| ID | Open item | Status |
+| --- | --- | --- |
+| O-1 | **Common clock drift.** Source markers arrive about 200 ms later at 381 s than at 1 s on both tracks (microphone +205 ms, meeting +200 ms; about 0.53 ms per second). Cause undetermined: playback clock versus capture clock. To be handled by the marker clock fit and verified by Codex's calibration on this recording. | OPEN, cause undetermined |
+| O-2 | **Constant microphone-behind-meeting offset.** The microphone track is 40 ms behind the meeting track at the start and 45 ms behind at the end. | OPEN, not explained |
+| O-3 | **Gain differences against the source.** System track about +2.1 dB, microphone track about -0.4 dB. Cause unknown. Recorded as a difference whose effect on detection is untested. | OPEN, effect untested |
+| O-4 | **Speaker volume and settings.** The retest must use speaker volume 10 and the same settings as the practice run. One run cannot show how changing the Windows speaker volume changes the recording. | OPEN, requirement for the retest |
+
 
 ## 0. Owner approvals
 
