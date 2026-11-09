@@ -56,6 +56,7 @@ Temporary `CL-` IDs avoid colliding with A-013..A-026 on the PR 74 branch; renum
 | CL-004 | Claude Code (Sonnet, Mac review) | Reported usage as `unavailable` without trying `get_usage`. | Corrected; rule recorded in the usage-measurement memory. |
 | CL-005 | Claude Code (Sonnet, Windows) | Self-reported: over-broad rate-literal test, wrong test expectation for a clipped unit, a patch-script quoting error, a too-small zero count in a join test, and a re-measure into a new derived folder without being asked. | Fixed in tests or process; no thresholds changed. |
 | CL-006 | Claude Code (Opus session) | Asserted without evidence that Codex "tends to make more mistakes"; this register is lopsided because only ChatGPT/Codex were required to log. Also read the logging rule too narrowly. | Corrected 2026-11-08 after the owner's challenge; scope widened above. |
+| CL-007 | Claude Code (Opus session) | Repeated an unverified claim from the D2 draft (written by Sonnet; the draft itself marks the November 7 default output as unresolved) that headphones were worn on November 7, and built advice on it ("keep headphones", wired headphones as the best option). The owner states no headphones existed; the retained endpoint record shows only Realtek Speakers. Effect: wrong setup guidance, an unnecessary `-HeadphonesWorn` guard in play-sources.ps1, and owner confusion. | Corrected 2026-11-08 after the owner's challenge; D2 draft and script guard to be fixed. |
 
 ## Explicit exclusions: do not assign blame without evidence
 
