@@ -1,10 +1,12 @@
 """Detect existing three-pulse sync tones in PCM16 recordings and fit clocks."""
 import argparse
 import array
+import hashlib
 import json
 import math
 from pathlib import Path
 import sys
+import re
 import wave
 
 
@@ -87,6 +89,8 @@ def fit_markers(lead, trail, harness, harness_u=(0, 0)):
 
 def analyze_recording(path, track, harness, channel=0, harness_u=(0, 0)):
     """Read one explicit PCM16 channel and detect both existing source markers."""
+    identity = {"track": track, "recording_sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+                "channel": channel}
     with wave.open(str(path), "rb") as stream:
         if stream.getsampwidth() != 2 or stream.getcomptype() != "NONE":
             raise ValueError("Only uncompressed PCM16 recordings are supported")
@@ -94,6 +98,7 @@ def analyze_recording(path, track, harness, channel=0, harness_u=(0, 0)):
         if not 0 <= channel < channels:
             raise ValueError("Invalid recording channel")
         rate = stream.getframerate()
+        identity["sample_rate"] = rate
         pcm = array.array("h", stream.readframes(stream.getnframes()))
     if sys.byteorder != "little":
         pcm.byteswap()
@@ -102,20 +107,29 @@ def analyze_recording(path, track, harness, channel=0, harness_u=(0, 0)):
     try:
         lead = detect_marker(samples, rate, frequency, (0, 10))
         trail = detect_marker(samples, rate, frequency, (380, 390))
+        fit = fit_markers(lead, trail, harness, harness_u)
     except ValueError as error:
-        return {"valid": False, "latency": "INCONCLUSIVE", "error": str(error)}
-    return {**fit_markers(lead, trail, harness, harness_u), "lead": lead, "trail": trail}
+        return {**identity, "valid": False, "latency": "INCONCLUSIVE", "error": str(error)}
+    return {**identity, **fit, "lead": lead, "trail": trail}
 
 
-def map_publications(publications, clock):
+def map_publications(publications, clock, *, track, recording_sha256):
     """Map observer intervals to recording time without moving scored windows."""
-    if not clock["valid"]:
+    if clock.get("track") != track:
+        raise ValueError("Marker clock track mismatch")
+    if (not isinstance(recording_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", recording_sha256)
+            or clock.get("recording_sha256") != recording_sha256):
+        raise ValueError("Marker clock recording identity missing or mismatched")
+    if clock.get("valid") is not True:
         raise ValueError("Invalid marker clock; latency is INCONCLUSIVE")
     low_slope, high_slope = clock["slope_bounds"]
     low_offset, high_offset = clock["offset_bounds"]
 
-    if low_slope <= 0:
-        raise ValueError("Clock slope must be positive")
+    if (not all(math.isfinite(value) for value in
+                (low_slope, high_slope, low_offset, high_offset, clock["slope"], clock["offset"]))
+            or not 0 < low_slope <= clock["slope"] <= high_slope
+            or not low_offset <= clock["offset"] <= high_offset):
+        raise ValueError("Invalid marker clock fit bounds; latency is INCONCLUSIVE")
     words = []
     for publication in publications:
         values = [(time-offset)/scale
