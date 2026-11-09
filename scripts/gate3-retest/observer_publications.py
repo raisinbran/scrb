@@ -16,6 +16,20 @@ OUT_SCHEMA = "SRCB-G3-OBSERVER-PUBLICATIONS-1"
 DEFAULT_LABELS = {"You": "microphone", "Meeting": "meeting"}
 MAX_U_SECONDS = 0.25
 TIME_TEXT = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
+# The app (packages/transcription/src/livePass.ts labelFor) labels the microphone "You" and the meeting track
+# "Speaker N", "Speaker ?" or, only when diarization is off or failed, "Meeting".
+MEETING_LABEL = re.compile(r"^Speaker (\?|[1-9][0-9]*)$")
+
+
+def track_for_label(name, labels):
+    """The ONE place a row label becomes a track; None when the label is not recognised.
+
+    Used by the publication conversion and by the scorer's regeneration (both call build_publications).
+    An explicit mapping in `labels` wins; otherwise "Speaker ?" and "Speaker N" (any positive integer) are meeting.
+    """
+    if name in labels:
+        return labels[name]
+    return "meeting" if MEETING_LABEL.match(name) else None
 
 
 def inside(bounds, viewport):
@@ -40,23 +54,43 @@ def observation_u(previous_begin, current_end):
     return current_end - previous_begin
 
 
-def split_rows(elements, labels):
-    """Group a document-ordered element list into rows: label, time text, then paragraph elements."""
-    rows, current = [], None
+def walk_rows(elements, labels):
+    """Group a document-ordered element list into rows: label, time text, then paragraph elements.
+
+    Returns (rows, unmapped). A row whose label is not recognised is returned in `unmapped`, never dropped silently.
+    """
+    rows, unmapped, current, previous = [], [], None, None
     for element in elements:
         name = (element.get("name") or "").strip()
-        if name in labels:
-            current = {"label": name, "track": labels[name], "time": None, "paragraphs": [], "label_element": element}
+        track = track_for_label(name, labels)
+        if track is not None:
+            current = {"label": name, "track": track, "time": None, "paragraphs": [], "label_element": element}
             rows.append(current)
+        elif (TIME_TEXT.match(name) and (current is None or current["time"] is not None) and previous is not None
+              and not TIME_TEXT.match((previous.get("name") or "").strip())):
+            # A time stamp that opens a new row: the element just before it was the (unmapped) label.
+            if current is not None and current["paragraphs"] and current["paragraphs"][-1] is previous:
+                current["paragraphs"].pop()
+            current = {"label": previous.get("name", "").strip(), "track": None, "time": name, "paragraphs": [],
+                       "label_element": previous}
+            unmapped.append(current)
         elif current is not None and current["time"] is None and TIME_TEXT.match(name):
             current["time"] = name
-        elif current is not None and current["paragraphs"] and TIME_TEXT.match(name):
-            # A time stamp after paragraphs opens a row whose label is not mapped: drop it and its label.
-            current["paragraphs"].pop()
-            current = None
         elif current is not None and name and current["time"] is not None:
             current["paragraphs"].append(element)
-    return rows
+        previous = element
+    return rows, unmapped
+
+
+def split_rows(elements, labels):
+    return walk_rows(elements, labels)[0]
+
+
+def unmapped_rows(sample, labels):
+    """Rows with words whose label is not You, Meeting, Speaker ? or Speaker N: [(label, time, word count)]."""
+    viewport = sample.get("viewport")
+    return [(row["label"], row["time"], len(row_words(row, viewport)))
+            for row in walk_rows(sample.get("elements", []), labels)[1] if row_words(row, viewport)]
 
 
 def row_words(row, viewport):
@@ -217,7 +251,12 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
     # pre_viewport_interval_s and left out of the all-interval statistics.
     pre_viewport_interval_s = intervals[0][1] / frequency
     first_sample_visible = visible_before_dedup(samples[0], labels)
-    inconclusive = first_sample_visible > 0 or any(r["present_at_start"] for r in records)
+    unmapped = [{"sample": n, "label": label, "time": time, "words": words}
+                for n, s in enumerate(samples) for label, time, words in unmapped_rows(s, labels)]
+    unmapped_counts = {}
+    for item in unmapped:
+        unmapped_counts[item["label"]] = unmapped_counts.get(item["label"], 0) + 1
+    inconclusive = first_sample_visible > 0 or any(r["present_at_start"] for r in records) or bool(unmapped)
     result_status = "INCONCLUSIVE" if inconclusive else "OK"
     all_u = [(n, ticks / frequency) for n, ticks in intervals if n != 0]
     u_all_max = max((u for _, u in all_u), default=0.0)
@@ -230,12 +269,15 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
               "result_status": result_status,
               "first_sample_visible_words_before_dedup": first_sample_visible,
               "validation_pass": bool(result_status == "OK"),
+              "unmapped_label_row_count": len(unmapped), "unmapped_labels": unmapped_counts,
+              "unmapped_label_rows": unmapped[:20],
               "u_limit_role": "reporting threshold only; u_pass and the statistics below never block scoring or validation_pass",
               "interval_statistics": interval_statistics(intervals, spans, records, samples, labels, frequency,
                                                          harness_origin_qpc, markers),
               "result_status_note": "INCONCLUSIVE when the first sample that found the viewport already holds visible words: "
                                     "the observer was started too late for this run. Counted before deduplication and quarantine, so quarantined or "
-                                    "duplicate first-sample rows still count. validation_pass needs result_status OK; u above the 250 ms reporting threshold does not fail it. "
+                                    "duplicate first-sample rows still count. A row with words under a label that is not You, Meeting, Speaker ? or Speaker N "
+                                    "also makes the run INCONCLUSIVE (unmapped_labels lists the labels). validation_pass needs result_status OK; u above the 250 ms reporting threshold does not fail it. "
                                     "PROPOSED rule, not frozen.",
               "u_over_limit": [r["id"] for r in records if r["u"] > MAX_U_SECONDS and not r["present_at_start"]],
               "read_max_s": max(reads), "gap_max_s": max(gaps) if gaps else 0.0,
@@ -293,7 +335,8 @@ def interval_statistics(intervals, spans, records, samples, labels, frequency, h
     all_rows = [(n, u / frequency, phase[n]) for n, u in intervals if n != 0]
     first_rows = [(r["sample_index"], r["u"], phase[r["sample_index"]]) for r in records if not r["present_at_start"]]
     phases = sorted({ph for _, _, ph in all_rows})
-    return {"threshold_s": MAX_U_SECONDS, "all_intervals": describe(all_rows), "first_observed_words": describe(first_rows),
+    return {"threshold_s": MAX_U_SECONDS, "all_intervals": describe(all_rows), "published_word_positions": describe(first_rows),
+            "published_word_positions_note": "Word positions the observer published (first visible sample each, excluding words already on screen in the first sample); not necessarily scored words. Scored-word counts are in the scorer output observer_u_summary.",
             "over_250ms_by_phase": {ph: sum(1 for _, u, p in all_rows if p == ph and u > MAX_U_SECONDS) for ph in phases},
             "phases_note": "before viewport / stop / scrolling / other are derived from the raw samples; 'recording' "
                            "(or any other marker) appears only when its harness second is supplied with --phase-mark"}

@@ -204,7 +204,7 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Owner approval:** Not required (offline); the amendment sentence stays a marked proposal.
 
 ### A-055 - 2026-11-09 - Claude Code / Windows Desktop - end-chunk-only placement and unbound scored endpoints (c0eb03c)
-- **Status / attribution:** Confirmed agent defects in my own fix c0eb03c, found by ChatGPT's independent re-review (conditional, two P1s) before any scored run. The id A-051 was chosen as the next one after A-050 on the sibling branch; renumber on merge if it collides.
+- **Status / attribution:** Confirmed agent defects in my own fix c0eb03c, found by ChatGPT's independent re-review (conditional, two P1s) before any scored run. This entry was A-051 on its own branch and was renumbered to A-055 when the observer-validation branch was merged (97a904d), because A-051 was already used there.
 - **What failed:** (1) The A-046 fix examined only the chunks at the two ends of an uncertain range; with overlaps the displacement is non-monotonic, so for chunks A 0-0.1/0-0.1, B 0.1-0.2 timestamped 0.02-0.12, C 0.2-0.3 and range 0.095-0.205 s the interval [0.095, 0.285] missed continuous 0.105 s, which maps to 0.025 s. (2) The scorer accepted adjudicated endpoints on the "timestamped-capture" label without checking them against the converted file from `observer_session_map.py`.
 - **Agent-controlled cause:** (1) I fixed the case I had in front of me (a single overlap at an end chunk) and assumed monotonicity. (2) I verified the conversion step but did not carry that verification into the scorer, so the label was trusted.
 - **Impact:** No scored run or gate credit; the integration branch carried a placement and a binding that were not safe.
@@ -213,7 +213,7 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Owner approval:** Not required (offline); the amendment wording stays a marked proposal.
 
 ### A-056 - 2026-11-09 - Claude Code / Windows Desktop - conversion allowance floor and file-versus-raw check missing in 2831b67
-- **Status / attribution:** Confirmed agent design gaps in my own commit 2831b67, found by ChatGPT's independent re-review before any scored run. Id chosen after A-051 on this branch; renumber on merge if it collides.
+- **Status / attribution:** Confirmed agent design gaps in my own commit 2831b67, found by ChatGPT's independent re-review before any scored run. This entry was A-052 on its own branch and was renumbered to A-056 at the merge (97a904d). ChatGPT's later review (head 49a1af9) found two further gaps in the regeneration check, logged in A-058.
 - **What failed:** (1) The scorer accepted any conversion allowance of at least one counter tick, although the approved v3a procedure is 2 ms. (2) It checked endpoints against the converted publication file but never regenerated that file from the raw observer samples, so changing a word time in both the file and the endpoint passed every check.
 - **Agent-controlled cause:** (1) I reused the converter's one-tick sanity floor as the scorer's rule. (2) I bound endpoints to the file and stopped, without asking what binds the file itself to the raw evidence.
 - **Impact:** No scored run or gate credit.
@@ -286,6 +286,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Evidence:** Test output of the runs on this branch before the commit.
 - **Correction / prevention:** Each fixed and the full suite rerun green. Real-data finding on the observer-validation-3 converted file (old 1 ms allowance, header hash taken from the `load_raw` header) is a property of that older file, handled by hashing only the header fields that exist in the first line.
 - **Owner approval:** Not required.
+
+### A-058 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - regeneration ignored the observer's own validity; Speaker labels not mapped (49a1af9 and earlier)
+- **Status / attribution:** Confirmed agent defects in my own commits, found by ChatGPT's independent review of 49a1af9 before any scored run.
+- **What failed:** (1) `regenerate_converted` rebuilt the publications but never looked at the rebuilt report's `validation_pass`, so a run that was INCONCLUSIVE because words were already visible in the first found sample could still be scored PASS. (2) The observer mapped only the labels You and Meeting; the app labels the meeting track Speaker N or Speaker ? when diarization works, so those rows were silently ignored, and a test even asserted that Speaker 3 is ignored. (3) `interval_statistics["first_observed_words"]` counted observer-published word positions under a name that suggested scored words.
+- **Agent-controlled cause:** (1) I made the report decide validity for the observer tool but did not wire that decision into the scorer. (2) I took the labels from the early practice data instead of the app source (`labelFor` in `livePass.ts`), and wrote a test that encoded the assumption. (3) Loose naming.
+- **Impact:** No scored run or gate credit; a diarized meeting track would have scored zero publications, and an invalid run could have passed Layer A.
+- **Evidence:** New tests that fail on 49a1af9 and pass after: the already-visible first-sample end-to-end test, the Speaker 1 / Speaker ? meeting end-to-end test, the unmapped-label tests, and the label-change-between-samples test. Retained real data (validation-3, -4, -5) only ever showed You and Meeting, so the label gap could not appear there.
+- **Correction / prevention:** The scorer rejects the track (INCONCLUSIVE) when the regenerated report's `validation_pass` is false; `track_for_label` is the one place a label becomes a track (You is microphone; Meeting, Speaker ? and Speaker N are meeting); a row with words under any other label is reported (count and labels) and makes the run INCONCLUSIVE; the statistic is now `published_word_positions`, with the scorer reporting `observer_u_summary` for scored endpoints. Offline tests only.
+- **Owner approval:** Not required (offline).
 
 ## Entry template for next agent
 

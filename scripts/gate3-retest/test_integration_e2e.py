@@ -56,10 +56,11 @@ def build_units():
     return units
 
 
-def observer_lines(units, quarantine=True, gap=None, hide=()):
+def observer_lines(units, quarantine=True, gap=None, hide=(), stale=False, labeler=None):
     """Raw observer JSONL records: rows appear at the publication instants; one key collides."""
     header = {"type": "header", "schema": op.RAW_SCHEMA, "qpc_frequency": FREQ, "origin_qpc": H0}
-    appear = []
+    labeler = labeler or (lambda uid, sample_index: "You")
+    appear = [('stale', 'stale', ['Stale', 'row'], 1.0, 0.0)] if stale else []  # already on screen in the first sample, never scored
     for uid, words, s, lws, lwe, latency, kind in units:
         if uid in hide:
             continue  # never shown on screen
@@ -67,6 +68,7 @@ def observer_lines(units, quarantine=True, gap=None, hide=()):
         end_ts = ts(lwe)  # speech end on the timestamped timeline
         appear.append((uid, kind, words, s, end_ts + latency - SHIFT))
     samples, shown, t = [], [], 0.0
+    sample_index = 0
     horizon = max(a[4] for a in appear) + 1.0
     while t < horizon:
         for uid, kind, words, s, when in appear:
@@ -75,13 +77,14 @@ def observer_lines(units, quarantine=True, gap=None, hide=()):
         elements, top = [], 150.0
         for uid, kind, words, s, when in shown:
             clock_text = fmt(s)
-            elements += [{"role": "Text", "name": "You", "offscreen": False, "bounds": [110, top - 20, 40, 14]},
+            label = labeler(uid, sample_index)
+            elements += [{"role": "Text", "name": label, "offscreen": False, "bounds": [110, top - 20, 40, 14]},
                          {"role": "Text", "name": clock_text, "offscreen": False, "bounds": [160, top - 20, 40, 14]},
                          {"role": "Text", "name": " ".join(words), "offscreen": False, "bounds": [110, top, 300, 18],
                           "words": [{"text": w, "bounds": [110 + 60 * i, top, 50, 18]} for i, w in enumerate(words)]}]
             if kind == "quarantined" and quarantine:
                 # a second row with the same track and displayed time appears at the same moment
-                elements += [{"role": "Text", "name": "You", "offscreen": False, "bounds": [110, top + 40, 40, 14]},
+                elements += [{"role": "Text", "name": label, "offscreen": False, "bounds": [110, top + 40, 40, 14]},
                              {"role": "Text", "name": clock_text, "offscreen": False, "bounds": [160, top + 40, 40, 14]},
                              {"role": "Text", "name": "Other row text", "offscreen": False, "bounds": [110, top + 60, 300, 18],
                               "words": [{"text": w, "bounds": [110 + 60 * i, top + 60, 50, 18]} for i, w in enumerate(["Other", "row", "text"])]}]
@@ -93,6 +96,7 @@ def observer_lines(units, quarantine=True, gap=None, hide=()):
             continue  # the observer made no successful read in this stretch
         samples.append({"type": "sample", "qpc_begin": begin, "qpc_end": begin + FREQ // 100,
                         "viewport": VIEW, "elements": elements})
+        sample_index += 1
         t += 0.1
     return header, samples
 
@@ -102,14 +106,14 @@ CONVERSION_U = 0.002
 CONVERSION_BASIS = "invented fixture: assumed counter agreement within 2 ms"
 
 
-def source_pcm(marker_at=1.0):
+def source_pcm(marker_at=1.0, hz=880):
     """Invented source audio: silence with the 880 Hz three-pulse lead marker (200 ms pulses, 500 ms apart)."""
     import array
     samples = array.array('h', [0]) * (12 * SOURCE_RATE)
     for pulse in range(3):
         first = round((marker_at + 0.5 * pulse) * SOURCE_RATE)
         for i in range(round(0.2 * SOURCE_RATE)):
-            samples[first + i] = round(12000 * math.sin(2 * math.pi * 880 * i / SOURCE_RATE))
+            samples[first + i] = round(12000 * math.sin(2 * math.pi * hz * i / SOURCE_RATE))
     return samples, SOURCE_RATE
 
 
@@ -142,26 +146,26 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
              supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None,
-             gap=None, hide=()):
+             gap=None, hide=(), stale=False, track='microphone', labeler=None):
     units = units or build_units()
-    header, samples = observer_lines(units, quarantine, gap, hide)
+    header, samples = observer_lines(units, quarantine, gap, hide, stale, labeler)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
     doc = {"clock_basis": "harness", "recording_sha256": "f" * 64, "words": publications,
            "harness_origin_qpc": H0, "qpc_frequency": FREQ, "quarantined_rows": report["quarantined_rows"]}
-    mapping = timing.gap_map(records(), 'microphone', 1000, 'c' * 64)
+    mapping = timing.gap_map(records(), track, 1000, 'c' * 64)
     parts = {"doc": doc, "gap_map": copy.deepcopy(mapping), "raw_header": dict(header), "events": harness_events()}
     if tamper:
         tamper(parts)
-    mapped = osm.publications_to_timestamped(parts["doc"], parts["gap_map"], track="microphone", raw_header=parts["raw_header"],
+    mapped = osm.publications_to_timestamped(parts["doc"], parts["gap_map"], track=track, raw_header=parts["raw_header"],
                                              harness_events=parts["events"], conversion_u_s=conversion_u,
                                              conversion_u_basis=CONVERSION_BASIS)
     annotations = {"utterances": [{"id": u[0], "reference_words": u[1], "start": u[2], "last_word_start": u[3],
                                    "earliest_acoustic_end_s": u[4], "latest_acoustic_end_s": u[4], "eligible": True}
                                   for u in units]}
-    rows = occurrence_matcher.align_occurrences(annotations, mapped["words"], "microphone", clock_basis="recording")
+    rows = occurrence_matcher.align_occurrences(annotations, mapped["words"], track, clock_basis="recording")
     scored = []
     for row, u in zip(rows, units):
-        scored.append({**row, "track": "microphone", "source_start_s": u[2], "source_last_word_start_s": u[3],
+        scored.append({**row, "track": track, "source_start_s": u[2], "source_last_word_start_s": u[3],
                        "source_last_word_end_s": u[4]})
     continuous_check = {'valid': clock_valid, 'lead': {'position': 1.0, 'uncertainty_s': 0.002}}
     clock = {'valid': clock_valid, 'gap_map': mapping, 'sample_continuous': continuous_check,
@@ -184,10 +188,10 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
         evidence.pop(drop_key, None)
         with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
              patch.object(timing, 'load_views', return_value=([], [], mapping)), \
-             patch.object(timing, 'pcm16', return_value=source or source_pcm()), \
+             patch.object(timing, 'pcm16', return_value=source or source_pcm(hz={'microphone': 880, 'meeting': 1320}[track])), \
              patch.object(timing, 'load_long_anchors', return_value=inventory), \
              patch.object(timing, 'digest', return_value='c' * 64):
-            result = bounds.analyze_v3a_track(scored, evidence if evidence_present else None, 'microphone')
+            result = bounds.analyze_v3a_track(scored, evidence if evidence_present else None, track)
         result['_publication_sha256'] = published
     return result, rows, report, mapped
 
@@ -267,6 +271,34 @@ class EndToEnd(unittest.TestCase):
         result = pipeline(lead=False)[0]
         self.assertEqual(result['latency'], 'INCONCLUSIVE')
         self.assertIn('No preceding long anchor', result['error'])
+
+    def test_already_visible_unscored_first_sample_word_makes_the_run_inconclusive_not_pass(self):
+        """The regenerated report's validation_pass (from the raw samples) must be true; the file cannot vouch for it."""
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        self.assertEqual(pipeline(units=clean)[0]['latency'], 'PASS')
+        result, _, report, _ = pipeline(units=clean, stale=True)
+        self.assertEqual(report['result_status'], 'INCONCLUSIVE')
+        self.assertEqual(result['latency'], 'INCONCLUSIVE')
+        self.assertIn('first', result['error'].lower())
+
+    def test_meeting_track_with_speaker_labels_scores_end_to_end(self):
+        """Speaker 1 and Speaker ? rows (and a row whose label changes between samples) reach the meeting track."""
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        labeler = lambda uid, n: 'Speaker 1' if int(uid.split('-')[1]) % 2 else ('Speaker ?' if n % 2 else 'Speaker 2')
+        result, rows, report, mapped = pipeline(units=clean, track='meeting', labeler=labeler)
+        self.assertEqual(report['result_status'], 'OK')
+        self.assertEqual({w['track'] for w in mapped['words']}, {'meeting'})
+        self.assertTrue(mapped['words'])
+        self.assertEqual(report['quarantined_rows'], [])
+        self.assertEqual(result['latency'], 'PASS', result.get('error'))
+
+    def test_unmapped_label_makes_the_run_inconclusive_through_the_scorer(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        result, _, report, _ = pipeline(units=clean, track='meeting', labeler=lambda uid, n: 'Speaker X')
+        self.assertEqual(report['result_status'], 'INCONCLUSIVE')
+        self.assertEqual(list(report['unmapped_labels']), ['Speaker X'])
+        self.assertGreater(report['unmapped_labels']['Speaker X'], 0)
+        self.assertEqual(result['latency'], 'INCONCLUSIVE')
 
     def test_clean_run_can_pass(self):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
@@ -379,6 +411,8 @@ class NoClockNoPass(unittest.TestCase):
         row = by_id(result)['microphone-005']
         self.assertTrue(math.isfinite(row['conservative']) and math.isfinite(row['best']))
         self.assertEqual(result['bounds']['conservative']['denominator'], 16)
+        self.assertEqual(result['observer_u_summary']['scored_endpoints_over_250ms'], 1)
+        self.assertGreater(result['observer_u_summary']['scored_endpoint_u_max_s'], 0.25)
 
     def test_unobserved_word_gets_no_credit_and_stays_in_the_denominator(self):
         # Unique wording, so the later units are unaffected (an unseen repeated sentence leaves its later repeats
