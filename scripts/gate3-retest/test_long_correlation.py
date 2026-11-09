@@ -68,11 +68,10 @@ class TestNoisyLongCorrelation(unittest.TestCase):
             u = unit(continuous_start_s=10, continuous_last_word_start_s=11, continuous_last_word_end_s=12)
             first = unit(id='before', continuous_start_s=3, continuous_last_word_start_s=6.8,
                          continuous_last_word_end_s=7)
-            last = unit(id='after', continuous_start_s=14+change, continuous_last_word_start_s=17.8+change,
-                        continuous_last_word_end_s=18+change)
+            last = unit(id='after', source_start_s=14, source_last_word_start_s=17.8, source_last_word_end_s=18)
             prepared, _ = prepare_units([first, u, last], mapping(), report['anchors'])
-            self.assertAlmostEqual(prepared[1]['earliest_acoustic_end_s'], 12-step['symmetric_uncertainty_s'])
-            self.assertAlmostEqual(prepared[1]['latest_acoustic_end_s'], 12+step['symmetric_uncertainty_s'])
+            self.assertAlmostEqual(prepared[1]['earliest_acoustic_end_s'], 12-step['symmetric_uncertainty_s']-report['anchors'][0]['uncertainty_s'])
+            self.assertAlmostEqual(prepared[1]['latest_acoustic_end_s'], 12+step['symmetric_uncertainty_s']+report['anchors'][0]['uncertainty_s'])
 
     def test_full_unit_coverage_is_independent_of_narrow_template_support(self):
         source = speech_like()
@@ -80,15 +79,14 @@ class TestNoisyLongCorrelation(unittest.TestCase):
                                               source, 4000, long_units(4000), 0)
         first = unit(id='before', continuous_start_s=3, continuous_last_word_start_s=6.8,
                      continuous_last_word_end_s=7)
-        last = unit(id='after', continuous_start_s=14.08, continuous_last_word_start_s=17.88,
-                    continuous_last_word_end_s=18.08)
+        last = unit(id='after', source_start_s=14, source_last_word_start_s=17.8, source_last_word_end_s=18)
         prepared, steps = prepare_units([first, last], mapping(), report['anchors'])
         self.assertEqual(len(prepared), 2)
         self.assertEqual(steps, report['steps'])
-        self.assertEqual(prepared[-1]['last_word_end'], 18.08)
+        self.assertAlmostEqual(prepared[-1]['last_word_end'], 18+report['anchors'][-1]['offset_s']-report['anchors'][0]['offset_s'])
         for bad in ([{**first, 'id': 'misbound'}, last], [first],
                     [{**first, 'continuous_start_s': 3.11}, last],
-                    [first, {**last, 'continuous_last_word_end_s': 17.1}],
+                    [first, {**last, 'source_last_word_start_s': 17, 'source_last_word_end_s': 17.1}],
                     [{**first, 'continuous_start_s': float('nan')}, last]):
             with self.subTest(units=bad), self.assertRaises(ValueError):
                 prepare_units(bad, mapping(), report['anchors'])

@@ -57,8 +57,8 @@ class TestGapMap(unittest.TestCase):
                 self.assertEqual(gapmap['chunks'][1]['gap_before_samples'], round(gap*1000))
                 prepared, _ = timing.prepare_units([unit()], gapmap, anchors())
                 row = bounds.analyze_unit(prepared[0])
-                self.assertAlmostEqual(row['conservative'], 6.05)
-                self.assertAlmostEqual(row['best'], 6.04-gap)
+                self.assertAlmostEqual(row['conservative'], 6.051)
+                self.assertAlmostEqual(row['best'], 6.039-gap)
                 self.assertTrue(prepared[0]['eligible'])
                 self.assertEqual(prepared[0]['outcome'], 'MATCHED')
                 self.assertEqual(gapmap['chunks'][1]['source_sha256'], 'b'*64)
@@ -197,10 +197,10 @@ class TestSteps(unittest.TestCase):
             prepared, steps = timing.prepare_units([unit()], mapping(), anchors(change))
             row = prepared[0]
             self.assertAlmostEqual(steps[0]['symmetric_uncertainty_s'], .082)
-            self.assertAlmostEqual(row['earliest_acoustic_end_s'], 140.1-.082)
-            self.assertAlmostEqual(row['latest_acoustic_end_s'], 140.31+.082)
-            self.assertAlmostEqual(row['last_word_start_interval_s'][0], 139.9-.082)
-            self.assertAlmostEqual(row['last_word_start_interval_s'][1], 139.9+.082)
+            self.assertAlmostEqual(row['earliest_acoustic_end_s'], 140.1-.083)
+            self.assertAlmostEqual(row['latest_acoustic_end_s'], 140.31+.083)
+            self.assertAlmostEqual(row['last_word_start_interval_s'][0], 139.9-.083)
+            self.assertAlmostEqual(row['last_word_start_interval_s'][1], 139.9+.083)
 
     def test_favorable_only_widening_cannot_create_pass(self):
         u = unit(endpoints=[{'observed': 143.14, 'u': 0}])
@@ -224,6 +224,9 @@ class TestSteps(unittest.TestCase):
         prepared, _ = timing.prepare_units([unit(continuous_start_s=160,
             continuous_last_word_start_s=161, continuous_last_word_end_s=162)], mapping(), aa)
         self.assertEqual(prepared[0]['step_uncertainty_s'], 0)
+        self.assertEqual(prepared[0]['timing_anchor_id'], 'after')
+        self.assertAlmostEqual(prepared[0]['timing_anchor_offset_s'], .08)
+        self.assertAlmostEqual(prepared[0]['earliest_acoustic_end_s'], 162.08-.001)
 
     def test_detects_step_from_actual_long_matches(self):
         rate = 1000
@@ -256,6 +259,29 @@ class TestSteps(unittest.TestCase):
                 timing.load_long_anchors(source, source, 1000, searches[::2], path, 'a'*64)
             with self.assertRaisesRegex(ValueError, 'Unbound source'):
                 timing.load_long_anchors(source, source, 1000, searches, path, 'b'*64)
+
+    def test_persistent_signed_shift_after_anchor_cannot_credit_false_six_seconds(self):
+        for change in (-.080, .080):
+            aa = []
+            for identity, start, offset in [('before', 100, 0), ('after', 150, change), ('later', 210, change)]:
+                aa.append({'id': identity, 'source_start_s': start, 'source_end_s': start+2,
+                    'recording_start_s': start+offset, 'recording_end_s': start+2+offset,
+                    'offset_s': offset, 'uncertainty_s': .001,
+                    'method': 'unique-exact-long-PCM', 'validated': True})
+            u = unit(source_start_s=200, source_last_word_start_s=204, source_last_word_end_s=205,
+                     endpoints=[{'observed': 210.98, 'u': 0}])
+            prepared, _ = timing.prepare_units([u], mapping(gap=0), aa)
+            row = bounds.analyze_unit(prepared[0])
+            self.assertEqual(prepared[0]['timing_anchor_id'], 'after')
+            self.assertEqual(prepared[0]['step_uncertainty_s'], 0)
+            self.assertAlmostEqual(prepared[0]['earliest_acoustic_end_s'], 205+change-.001)
+            self.assertAlmostEqual(prepared[0]['latest_acoustic_end_s'], 205+change+.001)
+            if change < 0:
+                self.assertGreater(row['best'], 6)
+                self.assertAlmostEqual(row['conservative'], 6.061)
+            else:
+                self.assertLess(row['conservative'], 6)
+                self.assertAlmostEqual(row['conservative'], 5.901)
 
     def test_unique_exact_long_match_and_negative_controls(self):
         source = array.array('h', [(i*i+7*i)%30000 for i in range(3000)])
