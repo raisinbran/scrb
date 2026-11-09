@@ -237,5 +237,31 @@ class TestConstructedUnits(unittest.TestCase):
             self.assertNotIn(forbidden, renderer)
 
 
+class TestRateSingleSource(unittest.TestCase):
+    """Keep the prosody rate in one place so the manifest records what was rendered."""
+
+    root = Path(__file__).parent
+
+    def test_renderer_has_no_hardcoded_rate(self):
+        """Fail if the renderer carries its own copy of the old slowdown."""
+        renderer = (self.root/'UnitRenderer.cs').read_text(encoding='utf-8-sig')
+        self.assertNotIn('-15%', renderer)
+        self.assertIn('rate != "default"', renderer)
+        self.assertIn('<prosody', renderer)
+
+    def test_spec_declares_per_track_rate_and_manifest_records_it(self):
+        """Declare the rate once per track and pass it, unmodified, to render and manifest."""
+        specs = (self.root/'speech-specs.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn("track='microphone';voice='Microsoft David Desktop';rate='-15%'", specs)
+        self.assertIn("track='meeting';voice='Microsoft Zira Desktop';rate='default'", specs)
+        self.assertEqual(specs.count('-15%'), 1)
+        self.assertIn('prosody_rate=$spec.rate', specs)
+        script = (self.root/'render-constructed-units.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn('Render($unit.voice,$unit.text,$unit.prosody_rate,$file)', script)
+        self.assertIn('$row[$key]=$unit[$key]', script)
+        self.assertIn("if (Test-Path -LiteralPath $OutputDirectory) { throw", script)
+        self.assertLess(script.index('Test-Path -LiteralPath $OutputDirectory'), script.index('New-Item -ItemType Directory'))
+
+
 if __name__ == '__main__':
     unittest.main()
