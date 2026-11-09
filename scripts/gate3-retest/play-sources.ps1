@@ -1,7 +1,7 @@
 # Plays the two assembled r3 source WAVs for the Gate 3 diagnostic retest (Windows PowerShell 5.1).
 # Microphone WAV -> CABLE Input only. System WAV -> the app's loopback endpoint (default eConsole render device).
 # Default mode is a dry run: it resolves and verifies everything and plays nothing. Real playback needs -Play,
-# -OwnerApprovedLongTest, and (when the system route is the built-in speakers) -HeadphonesWorn.
+# -OwnerApprovedLongTest, and (when the system route is the built-in speakers) -HeadphonesWorn or -OwnerChoseSpeakers.
 # -SelfTest runs the hardware-free logic checks and prints JSON.
 [CmdletBinding()]
 param(
@@ -16,6 +16,7 @@ param(
     [switch]$Play,
     [switch]$OwnerApprovedLongTest,
     [switch]$HeadphonesWorn,
+    [switch]$OwnerChoseSpeakers,         # owner decision: the system track plays aloud on the speakers
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
@@ -67,9 +68,9 @@ function Test-StartDelay([double]$ReadyToStartSeconds, [double]$MaxSeconds) {
     }
 }
 
-function Test-PlayGuards([bool]$Approved, [bool]$Headphones, $SystemDevice) {
+function Test-PlayGuards([bool]$Approved, [bool]$Headphones, [bool]$SpeakersChosen, $SystemDevice) {
     if (-not $Approved) { throw 'Real playback needs -OwnerApprovedLongTest (explicit owner approval of the run length)' }
-    if ($SystemDevice.Name -like 'Speakers*' -and -not $Headphones) { throw 'System route is the built-in speakers; supply -HeadphonesWorn only if headphones are on that output' }
+    if ($SystemDevice.Name -like 'Speakers*' -and -not $Headphones -and -not $SpeakersChosen) { throw 'System route is the built-in speakers; supply -HeadphonesWorn only if headphones are on that output, or -OwnerChoseSpeakers if the owner chose to play aloud' }
 }
 
 if ($SelfTest) {
@@ -92,9 +93,10 @@ if ($SelfTest) {
     $r.hash_match_ok = -not (Expect-Throw { Assert-Hash 'x' 'AA' 'aa' })
     $r.late_start_refused = Expect-Throw { Test-StartDelay 7.5 6.0 }
     $r.timely_start_ok = -not (Expect-Throw { Test-StartDelay 3.0 6.0 })
-    $r.play_needs_approval = Expect-Throw { Test-PlayGuards $false $true $dev[2] }
-    $r.speakers_need_headphones = Expect-Throw { Test-PlayGuards $true $false $dev[2] }
-    $r.play_guards_ok = -not (Expect-Throw { Test-PlayGuards $true $true $dev[2] })
+    $r.play_needs_approval = Expect-Throw { Test-PlayGuards $false $true $false $dev[2] }
+    $r.speakers_need_headphones = Expect-Throw { Test-PlayGuards $true $false $false $dev[2] }
+    $r.play_guards_ok = -not (Expect-Throw { Test-PlayGuards $true $true $false $dev[2] })
+    $r.speakers_chosen_ok = -not (Expect-Throw { Test-PlayGuards $true $false $true $dev[2] })
     $good = New-Object byte[] 48; [Text.Encoding]::ASCII.GetBytes('RIFF').CopyTo($good, 0); [BitConverter]::GetBytes([uint32]40).CopyTo($good, 4)
     [Text.Encoding]::ASCII.GetBytes('WAVEfmt ').CopyTo($good, 8); [BitConverter]::GetBytes([uint32]16).CopyTo($good, 16)
     [BitConverter]::GetBytes([uint16]1).CopyTo($good, 20); [BitConverter]::GetBytes([uint16]1).CopyTo($good, 22)
@@ -257,7 +259,7 @@ Write-Host 'OWNER-CONFIRM: the app microphone must be CABLE Output; this script 
 Write-Host ('Format query 24000 Hz mono PCM16: microphone rc={0}, system rc={1} (0 = accepted; nothing was played)' -f $micQuery, $sysQuery)
 if (-not $Play) { Write-Host 'Dry run complete. Nothing was played and no folder was created.'; return }
 
-Test-PlayGuards $OwnerApprovedLongTest.IsPresent $HeadphonesWorn.IsPresent $system
+Test-PlayGuards $OwnerApprovedLongTest.IsPresent $HeadphonesWorn.IsPresent $OwnerChoseSpeakers.IsPresent $system
 if (-not $RecordingReadyFile) { throw '-RecordingReadyFile is required for real playback' }
 $null = New-Item -ItemType Directory -Path $OutFolder
 $script:LogPath = Join-Path $OutFolder 'play-sources-log.jsonl'
