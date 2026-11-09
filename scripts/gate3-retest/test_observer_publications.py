@@ -317,6 +317,58 @@ class UAll(unittest.TestCase):
         self.assertFalse(report["u_pass"])
 
 
+class PreViewportInterval(unittest.TestCase):
+    """PROPOSED rule: the 250 ms limit starts at the first sample that found the viewport."""
+
+    def test_pre_viewport_interval_is_reported_but_ignored_for_u_pass(self):
+        # observer starts, the viewport is missing for 18 s, then it is found; no words yet
+        s = [sample(18000, 18020, ""), sample(18050, 18070, ""), sample(18100, 18120, "")]
+        _, report = build(s)
+        self.assertAlmostEqual(report["pre_viewport_interval_s"], 18.020, places=9)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.070, places=9)
+        self.assertTrue(report["u_pass"])
+        self.assertEqual(report["result_status"], "OK")
+
+    def test_interval_of_0_33_s_after_the_first_found_sample_still_fails(self):
+        s = [sample(18000, 18020, ""), sample(18050, 18070, ""), sample(18350, 18370, "")]
+        _, report = build(s)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.320, places=9)  # 18370 - 18050
+        self.assertFalse(report["u_pass"])
+        self.assertEqual(report["u_all_intervals_over_limit"][0][0], 2)
+
+    def test_words_in_the_first_found_sample_make_the_run_inconclusive(self):
+        s = [sample(18000, 18020, row("You", "0:05", "alpha", 150)), sample(18050, 18070, row("You", "0:05", "alpha", 150))]
+        records, report = build(s)
+        self.assertEqual(report["result_status"], "INCONCLUSIVE")
+        self.assertTrue(records[0]["present_at_start"])
+
+    def test_quarantined_first_sample_rows_still_make_the_run_inconclusive(self):
+        # two same-track, same-time rows visible together in the first found sample: deduplicated and quarantined
+        dup = row("You", "0:05", "alpha", 150) + row("You", "0:05", "other", 250)
+        s = [sample(18000, 18020, dup), sample(18050, 18070, row("You", "0:09", "later", 150))]
+        records, report = build(s)
+        self.assertFalse(any(r["present_at_start"] for r in records))
+        self.assertEqual(report["quarantined_rows"][0]["time"], "0:05")
+        self.assertGreater(report["first_sample_visible_words_before_dedup"], 0)
+        self.assertEqual(report["result_status"], "INCONCLUSIVE")
+        self.assertTrue(report["u_pass"])
+        self.assertFalse(report["validation_pass"])
+
+    def test_validation_pass_needs_u_pass_and_an_ok_status(self):
+        _, ok = build([sample(18000, 18020, ""), sample(18050, 18070, row("You", "0:05", "alpha", 150))])
+        self.assertTrue(ok["u_pass"] and ok["result_status"] == "OK" and ok["validation_pass"])
+        _, slow = build([sample(18000, 18020, ""), sample(18400, 18420, "")])
+        self.assertFalse(slow["u_pass"])
+        self.assertFalse(slow["validation_pass"])
+
+    def test_a_trailing_error_stretch_after_the_viewport_was_found_still_counts(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 18100 * FREQ // 1000, "qpc_end": ORIGIN + 18500 * FREQ // 1000}]
+        s = [sample(18000, 18020, "")]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.500, places=9)  # 18500 - 18000
+        self.assertFalse(report["u_pass"])
+
+
 class Schema(unittest.TestCase):
     def raw_file(self, directory):
         path = Path(directory) / "raw.jsonl"
@@ -396,6 +448,17 @@ class Scripts(unittest.TestCase):
 
     def test_raw_schema_name_matches_adapter(self):
         self.assertIn(op.RAW_SCHEMA, self.read("observe-live-v2.ps1"))
+        self.assertIn(op.RAW_SCHEMA, self.read("observe-live-v3.ps1"))
+
+    def test_v3_keeps_v2_guards_and_adds_cache_request(self):
+        text = self.read("observe-live-v3.ps1")
+        for forbidden in ("SendKeys", "SendInput", "mouse_event", "InvokePattern", "SetFocus", "SetValue", "Click", "Start-Process", "npm "):
+            self.assertNotIn(forbidden, text)
+        for required in ("CreateNew", "[IO.FileShare]::Read", "input_sent = $false", "SRCB-G3-OBSERVER-RAW-1",
+                         "CacheRequest", "$cache.Activate()", "$scope.Dispose()", ".Cached", "bounds = (Get-Rect $c.BoundingRectangle)",
+                         "Transcript viewport element not found", "SkipWhitespaceElements", "$findCondition"):
+            self.assertIn(required, text)
+        self.assertNotIn(".Current", text.replace("$viewport.Current", "").replace("TryGetCurrentPattern", ""))
 
     def test_overlay_uses_the_same_qpc_ticks(self):
         text = self.read("clock-overlay.ps1")

@@ -59,7 +59,7 @@ function Get-WordRanges($element) {
 $originQpc = [Diagnostics.Stopwatch]::GetTimestamp()
 $originUtc = [DateTime]::UtcNow.ToString('o')
 $afterQpc = [Diagnostics.Stopwatch]::GetTimestamp()
-$stream = [IO.File]::Open($OutputFile, [IO.FileMode]::CreateNew)
+$stream = [IO.File]::Open($OutputFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
 $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($false)))
 try {
     $header = @{ type = 'header'; schema = 'SRCB-G3-OBSERVER-RAW-1'; qpc_frequency = $frequency; origin_qpc = $originQpc
