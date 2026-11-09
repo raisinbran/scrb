@@ -1,6 +1,6 @@
 # Gate 3 Windows: D2 practice run checklist (DRAFT)
 
-**Status:** DRAFT, not owner-approved to run. **This is a practice run: it is not scored and it freezes nothing.** It validates the D2 route (microphone track through VB-CABLE, system track through endpoint loopback) on the real Live screen, so that the scored retest does not discover route problems.
+**Status:** DRAFT, not owner-approved to run. **NOT READY TO FOLLOW: step 3 needs a launchable build of the candidate, which does not exist yet (see "Blocker").** **This is a practice run: it is not scored and it freezes nothing.** It validates the D2 route (microphone track through VB-CABLE, system track through endpoint loopback) on the real Live screen, so that the scored retest does not discover route problems.
 
 Planned total: **about 17 minutes, under the 20-minute limit** (setup, 420 s of recording, processing). If any step runs materially long, stop and tell me before repeating anything. Do not rerun a failed or inconclusive practice automatically.
 
@@ -20,7 +20,7 @@ Test data only: the r3 assembled WAVs (AMI-derived constructed units). Nothing o
 
 | What | Path | SHA-256 of raw bytes |
 | --- | --- | --- |
-| Playback script | `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\tools-d2\play-sources.ps1` | `96465f109b97fd1a8a3d08d62c05ab3b69a9091c57eb50c8537454c908e5133f` |
+| Playback script | `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\tools-d2\play-sources.ps1` | `56df9b5ce3d09d8714269d1bc86a69747f4217da5b3ade822cf053bcea9e2dd2` |
 | Endpoint listing script | `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\tools-d2\list-audio-endpoints.ps1` | `90f022ebc6e7a0199574ed1b4e8b51c5bf3020a650b8a5ef9c4edd5fb5da6094` |
 | Microphone source | `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3-derived-1\assembly\microphone.wav` | `1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4` |
 | Meeting source | `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3-derived-1\assembly\meeting.wav` | `3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7` |
@@ -28,11 +28,15 @@ Test data only: the r3 assembled WAVs (AMI-derived constructed units). Nothing o
 
 All commands are Windows PowerShell 5.1, **not Administrator**. The `-ExecutionPolicy Bypass` applies to that one process only and changes no Windows setting.
 
+## Blocker (found 2026-11-08 PT)
+
+The candidate checkout in `gate3-v3-preflight-20261108\candidate` has the web part built (`apps/desktop/dist`) but no `dist-electron` main/preload bundle and no built native capture helper, and its recorded build log (`build-corrected-20261108.log`) ends in a failed build. So there is no app to open and no Record button yet. Building it needs the owner's approval (a build, not an install, but it runs compilers and writes files). November 7 used a separate custom build script for a different commit (2d1f815), not 553dd90.
+
 ## Steps (T is minutes from your start; no admin anywhere)
 
 **Window A and Window B:** open two ordinary PowerShell windows now. A runs the playback script. B holds the ready-file command.
 
-1. **T+0 Settings.** Apply the D2 draft section 5 settings (default playback = the Realtek output with headphones plugged in; Listen to this device off; desktop apps may use the microphone; notification sounds silenced; volume as that section states). Wear the headphones. Do not play anything aloud in the room.
+1. **T+0 Settings.** Apply the D2 draft section 5 settings (default playback = `Speakers (2- Realtek(R) Audio)`; Listen to this device off; desktop apps may use the microphone; notification sounds silenced; volume as that section states). **Owner decision 2026-11-08 PT: the system track plays aloud on the speakers.** The microphone track goes through the cable, so the speakers do not reach it. On 2026-11-09 07:44 UTC the endpoint listing showed the default playback was `Headphones (No Air 3)`, so it must be changed back to `Speakers (2- Realtek(R) Audio)` first.
 2. **T+2 Endpoint listing.** In Window A run this, then paste its content to me (no screenshots):
 
    ```powershell
@@ -61,7 +65,7 @@ All commands are Windows PowerShell 5.1, **not Administrator**. The `-ExecutionP
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\tools-d2\play-sources.ps1' -MicrophoneWav 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3-derived-1\assembly\microphone.wav' -MeetingWav 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3-derived-1\assembly\meeting.wav' -ExpectedMicrophoneSha256 '1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4' -ExpectedMeetingSha256 '3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7' -OutFolder 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\practice-d2\playback-log-real' -Play -OwnerApprovedLongTest
    ```
 
-   (`-OwnerApprovedLongTest` here records your approval of this 420 s practice run, which is planned under 20 minutes.) If the dry run named the system device `Speakers (2- Realtek(R) Audio)`, the script refuses to play unless you add ` -HeadphonesWorn`. Add it only if you are really wearing headphones plugged into that Realtek output, so nothing sounds aloud in the room. Otherwise stop.
+   (`-OwnerApprovedLongTest` here records your approval of this 420 s practice run, which is planned under 20 minutes.) The dry run must name the system device `Speakers (2- Realtek(R) Audio)`. Because you chose speakers, add ` -OwnerChoseSpeakers` to the end of this command (the script refuses speakers without it). Do not use `-HeadphonesWorn`.
 7. **T+7 Press Record** in the app.
 8. **Within 5 seconds of pressing Record, press Enter in Window B** (the ready-file command). The script starts playback about a second later. If it reports the ready file was too late, it aborts before any sound: stop the recording, tell me, and do not repeat without asking.
 9. **T+7 to T+14 Wait.** About 420 s plays. Watch only that the Live screen shows text for both tracks; change nothing.
