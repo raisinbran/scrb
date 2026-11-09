@@ -1,7 +1,7 @@
 # Plays the two assembled r3 source WAVs for the Gate 3 diagnostic retest (Windows PowerShell 5.1).
 # Microphone WAV -> CABLE Input only. System WAV -> the app's loopback endpoint (default eConsole render device).
 # Default mode is a dry run: it resolves and verifies everything and plays nothing. Real playback needs -Play,
-# -OwnerApprovedLongTest, and (when the system route is the built-in speakers) -HeadphonesWorn or -OwnerChoseSpeakers.
+# -OwnerApprovedLongTest. The system route must be a Realtek output (the default playback device); anything else is refused.
 # -SelfTest runs the hardware-free logic checks and prints JSON.
 [CmdletBinding()]
 param(
@@ -15,8 +15,6 @@ param(
     [double]$ReadyTimeoutSeconds = 120,
     [switch]$Play,
     [switch]$OwnerApprovedLongTest,
-    [switch]$HeadphonesWorn,
-    [switch]$OwnerChoseSpeakers,         # owner decision: the system track plays aloud on the speakers
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
@@ -54,6 +52,7 @@ function Resolve-SystemDevice($Devices, [string]$DefaultRenderEndpointId) {
     $hits = @($Devices | Where-Object { $_.EndpointId -eq $DefaultRenderEndpointId })
     if ($hits.Count -ne 1) { throw 'The default eConsole render endpoint is not exactly one wave-out device; refusing (loopback and playback would differ)' }
     if ($hits[0].Name -like 'CABLE*') { throw ('A CABLE device is the default playback device ({0}); loopback would capture the microphone WAV. Refusing.' -f $hits[0].Name) }
+    if ($hits[0].Name -notlike '*Realtek*') { throw ('The default playback device is not a Realtek output ({0}); only Realtek is permitted. Refusing.' -f $hits[0].Name) }
     return $hits[0]
 }
 
@@ -68,16 +67,17 @@ function Test-StartDelay([double]$ReadyToStartSeconds, [double]$MaxSeconds) {
     }
 }
 
-function Test-PlayGuards([bool]$Approved, [bool]$Headphones, [bool]$SpeakersChosen, $SystemDevice) {
+function Test-PlayGuards([bool]$Approved) {
     if (-not $Approved) { throw 'Real playback needs -OwnerApprovedLongTest (explicit owner approval of the run length)' }
-    if ($SystemDevice.Name -like 'Speakers*' -and -not $Headphones -and -not $SpeakersChosen) { throw 'System route is the built-in speakers; supply -HeadphonesWorn only if headphones are on that output, or -OwnerChoseSpeakers if the owner chose to play aloud' }
 }
 
 if ($SelfTest) {
     $dev = @(
         [pscustomobject]@{ Index = 0; Name = 'CABLE Input (VB-Audio Virtual C'; EndpointId = '{0.0.0.00000000}.{A}' },
         [pscustomobject]@{ Index = 1; Name = 'CABLE In 16ch (VB-Audio Virtual'; EndpointId = '{0.0.0.00000000}.{B}' },
-        [pscustomobject]@{ Index = 2; Name = 'Speakers (2- Realtek(R) Audio)'; EndpointId = '{0.0.0.00000000}.{C}' })
+        [pscustomobject]@{ Index = 2; Name = 'Speakers (2- Realtek(R) Audio)'; EndpointId = '{0.0.0.00000000}.{C}' },
+        [pscustomobject]@{ Index = 3; Name = 'Headphones (No Air 3)'; EndpointId = '{0.0.0.00000000}.{D}' },
+        [pscustomobject]@{ Index = 4; Name = 'Speakers (USB Audio Device)'; EndpointId = '{0.0.0.00000000}.{E}' })
     $r = [ordered]@{}
     $r.mic_selected = (Select-MicrophoneDevice $dev).Name
     function Expect-Throw([scriptblock]$Block) { try { & $Block; return $false } catch { return $true } }
@@ -86,6 +86,8 @@ if ($SelfTest) {
     $r.system_selected = (Resolve-SystemDevice $dev '{0.0.0.00000000}.{C}').Name
     $r.system_refuses_cable_default = Expect-Throw { Resolve-SystemDevice $dev '{0.0.0.00000000}.{A}' }
     $r.system_refuses_16ch_default = Expect-Throw { Resolve-SystemDevice $dev '{0.0.0.00000000}.{B}' }
+    $r.system_refuses_bluetooth_default = Expect-Throw { Resolve-SystemDevice $dev '{0.0.0.00000000}.{D}' }
+    $r.system_refuses_usb_default = Expect-Throw { Resolve-SystemDevice $dev '{0.0.0.00000000}.{E}' }
     $r.system_refuses_unmapped = Expect-Throw { Resolve-SystemDevice $dev '{0.0.0.00000000}.{Z}' }
     $r.system_refuses_empty = Expect-Throw { Resolve-SystemDevice $dev '' }
     $r.hash_mismatch_refused = Expect-Throw { Assert-Hash 'x' 'aa' 'bb' }
@@ -93,10 +95,8 @@ if ($SelfTest) {
     $r.hash_match_ok = -not (Expect-Throw { Assert-Hash 'x' 'AA' 'aa' })
     $r.late_start_refused = Expect-Throw { Test-StartDelay 7.5 6.0 }
     $r.timely_start_ok = -not (Expect-Throw { Test-StartDelay 3.0 6.0 })
-    $r.play_needs_approval = Expect-Throw { Test-PlayGuards $false $true $false $dev[2] }
-    $r.speakers_need_headphones = Expect-Throw { Test-PlayGuards $true $false $false $dev[2] }
-    $r.play_guards_ok = -not (Expect-Throw { Test-PlayGuards $true $true $false $dev[2] })
-    $r.speakers_chosen_ok = -not (Expect-Throw { Test-PlayGuards $true $false $true $dev[2] })
+    $r.play_needs_approval = Expect-Throw { Test-PlayGuards $false }
+    $r.play_guards_ok = -not (Expect-Throw { Test-PlayGuards $true })
     $good = New-Object byte[] 48; [Text.Encoding]::ASCII.GetBytes('RIFF').CopyTo($good, 0); [BitConverter]::GetBytes([uint32]40).CopyTo($good, 4)
     [Text.Encoding]::ASCII.GetBytes('WAVEfmt ').CopyTo($good, 8); [BitConverter]::GetBytes([uint32]16).CopyTo($good, 16)
     [BitConverter]::GetBytes([uint16]1).CopyTo($good, 20); [BitConverter]::GetBytes([uint16]1).CopyTo($good, 22)
@@ -259,7 +259,7 @@ Write-Host 'OWNER-CONFIRM: the app microphone must be CABLE Output; this script 
 Write-Host ('Format query 24000 Hz mono PCM16: microphone rc={0}, system rc={1} (0 = accepted; nothing was played)' -f $micQuery, $sysQuery)
 if (-not $Play) { Write-Host 'Dry run complete. Nothing was played and no folder was created.'; return }
 
-Test-PlayGuards $OwnerApprovedLongTest.IsPresent $HeadphonesWorn.IsPresent $OwnerChoseSpeakers.IsPresent $system
+Test-PlayGuards $OwnerApprovedLongTest.IsPresent
 if (-not $RecordingReadyFile) { throw '-RecordingReadyFile is required for real playback' }
 $null = New-Item -ItemType Directory -Path $OutFolder
 $script:LogPath = Join-Path $OutFolder 'play-sources-log.jsonl'

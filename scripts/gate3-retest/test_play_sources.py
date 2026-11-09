@@ -36,9 +36,25 @@ class StaticChecks(unittest.TestCase):
         if checklist.exists():
             self.assertIn(path, checklist.read_text(encoding='utf-8'))
 
+    def test_realtek_only_and_no_headphone_flags(self):
+        self.assertIn("-notlike '*Realtek*'", self.text)
+        for word in ('HeadphonesWorn', 'OwnerChoseSpeakers'):
+            self.assertNotIn(word, self.text)
+
     def test_no_audio_settings_changes(self):
         for word in ('SetDefaultEndpoint', 'SetEndpointVisibility', 'SetMasterVolume', 'Set-AudioDevice'):
             self.assertNotIn(word, self.text)
+
+
+class LaunchScriptChecks(unittest.TestCase):
+    def test_launch_never_builds(self):
+        text = pathlib.Path(__file__).with_name('launch-candidate.ps1').read_text(encoding='utf-8')
+        code = chr(10).join(l for l in text.splitlines() if not l.lstrip().startswith('#'))
+        for word in ('npm', 'vite', 'esbuild', 'npx', 'cl.exe', 'build.cmd', 'Set-Content'):
+            self.assertNotIn(word, code)
+        self.assertIn('electron.exe', code)
+        self.assertIn('[switch]$Launch', code)
+        self.assertLess(code.index('if (-not $Launch)'), code.index('Start-Process'))
 
 
 @unittest.skipUnless(POWERSHELL, 'needs Windows PowerShell')
