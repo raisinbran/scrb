@@ -59,6 +59,24 @@ class TestSourceCoverage(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError, "Failure-window"):
                     sources.assert_track_coverage(units)
 
+    def test_checks_gap_across_window_edges(self):
+        """Apply the outside-window gap rule to gaps that straddle 170 s or 245 s.
+
+        Units placed at 170.25 or 244.75 used to escape a comparison against the nominal edge.
+        """
+        for track in ("microphone", "meeting"):
+            with self.subTest(track=track):
+                units = sources.place_units(track, make_clips(track))
+                first = next(unit for unit in units if unit["start"] >= 170)
+                shift = 2.9-(first["start"]-units[units.index(first)-1]["end"])
+                first["start"] += shift
+                first["end"] += shift
+                for word in first["words"]:
+                    word["start"] += shift
+                    word["end"] += shift
+                with self.assertRaisesRegex(AssertionError, "Outside-window gap"):
+                    sources.assert_track_coverage(units)
+
     def test_includes_leading_and_trailing_gaps(self):
         """Measure silence against both edges of the required window.
 

@@ -102,7 +102,7 @@ def assert_track_coverage(units):
             prior = units[index-1]
             gap = unit["start"]-prior["end"]
             assert gap >= -1e-9, "Same-track overlap"
-            if unit["start"] <= 170 or prior["end"] >= 245:
+            if prior["end"] < 170 or unit["start"] > 245:  # gap not wholly inside the failure window
                 assert 0.8-1e-9 <= gap <= 2.5+1e-9, "Outside-window gap must be 0.8-2.5 seconds"
     largest = measure_window_gap([(word["start"], word["end"]) for word in words], 170, 245)
     assert largest < 0.5, "Failure-window speech gap is 0.5 seconds or more"
@@ -212,14 +212,14 @@ def main():
     parser.add_argument('--join-ms', type=float, default=40)
     args = parser.parse_args()
     args.output.mkdir(exist_ok=False)
-    manifest, measured = constructed.read_json(args.manifest), constructed.read_json(args.measurements)
-    if manifest['method'] != 'ConstructedUnits' or measured['unit_manifest_sha256'] != hashlib.sha256(args.manifest.read_bytes()).hexdigest():
-        raise ValueError('Constructed unit/measurement manifest mismatch')
-    join_samples = round(args.join_ms*constructed.RATE/1000)
-    if abs(join_samples/constructed.RATE-args.join_ms/1000) > 1e-12:
-        raise ValueError('Join must resolve to exact source samples')
     tracks, reports = [], []
     try:
+        manifest, measured = constructed.read_json(args.manifest), constructed.read_json(args.measurements)
+        if manifest['method'] != 'ConstructedUnits' or measured['unit_manifest_sha256'] != hashlib.sha256(args.manifest.read_bytes()).hexdigest():
+            raise ValueError('Constructed unit/measurement manifest mismatch')
+        join_samples = round(args.join_ms*constructed.RATE/1000)
+        if abs(join_samples/constructed.RATE-args.join_ms/1000) > 1e-12:
+            raise ValueError('Join must resolve to exact source samples')
         for track in ('microphone', 'meeting'):
             units, report = assemble_track(track, manifest, measured, args.manifest.parent, args.output, join_samples)
             tracks.append(units); reports.append(report)

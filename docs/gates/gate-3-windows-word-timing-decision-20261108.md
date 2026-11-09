@@ -32,7 +32,7 @@ Timing in the joined track, all values exact sample indices:
 - utterance start = placement + (onset − crop start)
 - last-word start = the final-word unit's placement + (onset − crop start)
 - **acoustic end** = the final-word unit's placement + (offset − crop start)
-- **detector-end bound** = the first sample of the digital silence after that unit (the crop end). The acoustic end lies at or before it; the two differ by at most 30 ms plus frame and threshold uncertainty.
+- **`crop_end_bound`** = the first sample of the digital silence after that unit (the crop end). The acoustic end lies at or before it; the two differ by at most 30 ms plus frame and threshold uncertainty.
 
 Prefix-internal word boundaries are not claimed. The protocol needs only each utterance's start, its last-word start and its last-word end.
 
@@ -42,17 +42,17 @@ Check against protocol v3:
 |---|---|
 | Neutral voices, two distinct (one per track) | Unchanged: Zira for meeting, David for microphone, same `-15%` prosody |
 | About 150 wpm | Phrase units keep connected speech. New check: words-per-minute of the constructed speech span in [130, 170] |
-| Failure window 170–245 s, gaps under 0.5 s | Placement controls every inserted gap. Verified independently by a silence-run scan of the **joined** file (section 4) |
+| Failure window 170–245 s, gaps under 0.5 s | Placement controls every inserted gap. Checked by a same-method silence-run scan of the **joined** file (section 4) |
 | No overlap within a track | Sample-index intervals are disjoint by construction and asserted |
 | Disjoint vocabularies | Unchanged; the existing assertion runs on unit text |
-| Separate detector-end and acoustic-end bounds | Both recorded per utterance, as defined above |
+| Separate crop-end and acoustic-end bounds (`crop_end_bound`, `acoustic_end`) | Both recorded per utterance, as defined above |
 | Short/long mix, at least 8 shorts in the window, simultaneous speech for at least 180 s | Existing assertions, run on the constructed intervals |
 
-Independent evidence that makes the constructed timing trustworthy, all deterministic and offline:
+Checks on the constructed timing, all deterministic and offline. Items 1, 2 and 5 are arithmetic or same-method consistency checks, not independent acoustic ground truth. Item 3 is **not implemented**: `verify-joined.py` runs no fresh joined-file energy analysis and so does not confirm onsets or acoustic ends within ±5 ms. Item 4 is a second energy threshold on the same unit, not independent evidence:
 
 1. Every inserted silence span in the joined WAV is exactly zero samples.
-2. The SHA-256 of each unit segment in the joined file equals the hash of its cropped slice of the source unit WAV (no off-by-one, no resampling).
-3. A fresh energy analysis of the **joined** file finds every constructed onset and acoustic end within ±5 ms.
+2. The SHA-256 of each unit segment in the joined file equals the hash of its cropped slice of the source unit WAV (no off-by-one, no resampling). This is an arithmetic consistency check.
+3. A fresh energy analysis of the **joined** file finds every constructed onset and acoustic end within ±5 ms. (Not implemented; planned only. A consistency check against the same method, not ground truth.)
 4. A second threshold (absolute −45 dBFS, PCM16 amplitude 184) moves no edge by more than 25 ms. The spread is recorded as boundary uncertainty.
 5. No silence run of 0.5 s or more inside 170–245 s, measured on the joined file.
 
@@ -73,7 +73,7 @@ All on the PR 74 branch, under `scripts/gate3-retest/`; no `packages/contracts`,
 2. **`SpeechRenderer.cs`**: add a mark-free render path. Plain SSML (voice plus prosody, **no `<mark>`**) to a 24 kHz mono 16-bit WAV per unit, a single `SpeakSsml` call per unit, no retry. Return the sample count and SHA-256 per file. The A/B/C paths stay, as probe-only diagnostics that never feed timing.
 3. **`prepare-speech.ps1`**: add `-Method ConstructedUnits`, the only path that renders full sources. Fail if the output directory exists or is not empty. Write `units-manifest.json` (unit id, text, voice, file, samples, SHA-256, renderer version). Stop on the first failure, keeping all files.
 4. **`measure-units.py`** (new): per unit, 5 ms RMS onset and offset at the primary threshold max(128, 3% unit peak) and at the secondary −45 dBFS threshold. Record lead, trail and spread. Fail on no active frame, a spread over 25 ms, or an onset/offset inside the first or last frame (clipped synthesis).
-5. **`assemble-sources.py`**: drop the engine-mark input. Consume `units-manifest.json` plus the measurements. Crop and join by sample counts, with `J` from the command line (default 960). Fail if `J` ≥ (the candidate VAD minimum-silence setting in samples − 480). Emit per-utterance `start`, `last_word_start`, `acoustic_end`, `detector_end_bound`, `uncertainty_s` and `timing_basis: "constructed-sample-offset+unit-energy"`. Run all existing placement assertions on these intervals plus the new 130–170 wpm check.
+5. **`assemble-sources.py`**: drop the engine-mark input. Consume `units-manifest.json` plus the measurements. Crop and join by sample counts, with `J` from the command line (default 960). Fail if `J` ≥ (the candidate VAD minimum-silence setting in samples − 480). Emit per-utterance `start`, `last_word_start`, `acoustic_end`, `crop_end_bound`, `uncertainty_s` and `timing_basis: "constructed-sample-offset+unit-energy"`. Run all existing placement assertions on these intervals plus the new 130–170 wpm check.
 6. **`verify-joined.py`** (new): checks 1–5 of section 2 on the joined WAVs. Writes `joined-verification.json` and exits non-zero on any failure. The assembler must refuse to emit annotations without a passing verification.
 7. **Tests** (`test_sources.py`, plus a new `test_units.py`): in-memory synthetic bursts with known lead/trail silence. Cover:
    - measurement accuracy within ±5 ms
@@ -97,7 +97,7 @@ Codex runs: the unit tests, then `measure-units.py`, `assemble-sources.py` and `
 
 Replace section 2, line 36, second and third sentences:
 
-> Word timings come from construction, not from TTS engine word-boundary marks, which were shown not to follow the WAV timeline on this host. Each utterance is synthesized as separate units: prefix phrases of 3–5 words and the final word alone. The synthesizer's lead and trail silence in each unit is measured by waveform energy and cropped. Units are joined with digital silence inserted by sample count. The utterance start, last-word start, acoustic end (last-word energy offset) and detector-end bound (start of the following inserted silence) are exact sample offsets in the joined file. They are verified by an independent energy analysis of the joined file within ±5 ms, a second-threshold spread of 25 ms or less, exact-zero silence spans and per-segment hashes. They are independent of the app's own speech model. Within-utterance joins are shorter than the candidate VAD's minimum silence.
+> Word timings come from construction, not from TTS engine word-boundary marks, which were shown not to follow the WAV timeline on this host. Each utterance is synthesized as separate units: prefix phrases of 3–5 words and the final word alone. The synthesizer's lead and trail silence in each unit is measured by waveform energy and cropped. Units are joined with digital silence inserted by sample count. The utterance start, last-word start, acoustic end (last-word energy offset) and `crop_end_bound` (start of the following inserted silence) are exact sample offsets in the joined file. They are checked by a second-threshold spread of 25 ms or less, exact-zero silence spans and per-segment hashes (arithmetic and consistency checks, not independent acoustic ground truth; a fresh joined-file energy analysis within ±5 ms is not implemented). They do not depend on the app's own speech model. Within-utterance joins are shorter than the candidate VAD's minimum silence.
 
 Append to section 2, line 77:
 

@@ -53,7 +53,7 @@ class TestConstructedUnits(unittest.TestCase):
         """
         result, _ = make_utterance()
         result['pcm'].insert(result['silences'][0]['start'], 0)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, 'Segment hash'):
             units.verify_arithmetic(result['pcm'], result['segments'], result['silences'])
 
     def test_rejects_nonzero_silence(self):
@@ -85,6 +85,22 @@ class TestConstructedUnits(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Threshold spread'):
             units.measure(samples)
 
+    def test_report_only_records_instead_of_raising(self):
+        """Record limit exceedances without a verdict and without changing measure().
+
+        Report mode must flag the same cases that measure() rejects.
+        """
+        spread = array.array('h', [0])*2400+array.array('h', [150])*720+array.array('h', [1000])*4800+array.array('h', [0])*2400
+        row = units.measure_report(spread)
+        self.assertEqual(row['limits_exceeded'], ['threshold_spread_over_25_ms'])
+        self.assertGreater(row['onset_threshold_spread_s'], 0.025)
+        self.assertEqual(units.measure_report(array.array('h', [0])*4800)['limits_exceeded'], ['no_active_frame'])
+        self.assertEqual(units.measure_report(make_burst(lead=0))['limits_exceeded'], ['clipped_edge', 'crop_padding_clips_unit'])
+        good = units.measure_report(make_burst())
+        self.assertEqual(good['limits_exceeded'], [])
+        self.assertEqual(good['onset'], units.measure(make_burst())['onset'])
+        self.assertNotIn('status', good)
+
     def test_rejects_clipped_or_silent_units(self):
         """Fail when an acoustic edge cannot be measured safely.
 
@@ -112,6 +128,17 @@ class TestConstructedUnits(unittest.TestCase):
         samples = array.array('h', [1000])*(246*units.RATE)
         samples[200*units.RATE:round(200.5*units.RATE)] = array.array('h', [0])*12000
         with self.assertRaisesRegex(ValueError, '0.5 seconds'):
+            units.assert_window_energy_gap(samples)
+
+    def test_rejects_off_grid_half_second_silence(self):
+        """Reject a true 0.5 s silence that starts between 5 ms frame boundaries.
+
+        On the fixed grid such a gap can cover only 99 whole frames.
+        """
+        samples = array.array('h', [1000])*(246*units.RATE)
+        start = 200*units.RATE+60
+        samples[start:start+12000] = array.array('h', [0])*12000
+        with self.assertRaisesRegex(ValueError, 'near-silence'):
             units.assert_window_energy_gap(samples)
 
     def test_wpm_bounds(self):
