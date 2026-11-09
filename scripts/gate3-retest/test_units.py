@@ -10,6 +10,12 @@ def make_burst(seconds=0.4, lead=0.1, trail=0.1):
     return array.array('h', [0])*round(lead*units.RATE)+array.array('h', [1000])*round(seconds*units.RATE)+array.array('h', [0])*round(trail*units.RATE)
 
 
+def make_tail(tail_s):
+    """Build a burst whose last tail_s is visible to the primary threshold only (amplitude 150)."""
+    return (array.array('h', [0])*2400+array.array('h', [1000])*4800+
+            array.array('h', [150])*round(tail_s*units.RATE)+array.array('h', [0])*4800)
+
+
 def make_utterance():
     """Construct one prefix/final pair for arithmetic tests."""
     samples = {'p': make_burst(4), 'f': make_burst()}
@@ -76,14 +82,64 @@ class TestConstructedUnits(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Overlap'):
             units.verify_arithmetic(result['pcm'], result['segments'], result['silences'])
 
-    def test_rejects_threshold_spread_over_25_ms(self):
-        """Reject ambiguous low-energy boundaries.
+    def test_rejects_onset_spread_over_25_ms(self):
+        """Reject ambiguous low-energy onsets.
 
-        The primary and absolute thresholds must not disagree by over 25 ms.
+        The primary and absolute thresholds must not disagree by over 25 ms at onset.
         """
         samples = array.array('h', [0])*2400+array.array('h', [150])*720+array.array('h', [1000])*4800+array.array('h', [0])*2400
-        with self.assertRaisesRegex(ValueError, 'Threshold spread'):
+        with self.assertRaisesRegex(ValueError, 'Onset spread'):
             units.measure(samples)
+
+    def test_offset_spread_limit_is_100_ms(self):
+        """Accept an 80 ms trailing edge, reject 105 ms.
+
+        Offsets may disagree further than onsets, but not without bound.
+        """
+        units.measure(make_tail(0.080))
+        with self.assertRaisesRegex(ValueError, 'Offset spread'):
+            units.measure(make_tail(0.105))
+
+    def test_crop_keeps_every_threshold_supported_sample(self):
+        """Keep the later trailing edge, plus 30 ms, inside the crop.
+
+        An 80 ms tail visible only to the primary threshold must not be discarded.
+        """
+        samples = make_tail(0.080)
+        measured = units.measure(samples)
+        self.assertEqual((measured['offset'], measured['secondary_offset']), (9120, 7200))
+        self.assertEqual(measured['crop_end'], 9120+720)
+        self.assertEqual(measured['crop_start'], 2400-480)
+        supported = [i for i, v in enumerate(samples) if abs(v) >= 128]
+        self.assertGreaterEqual(supported[0], measured['crop_start'])
+        self.assertLess(supported[-1], measured['crop_end'])
+        self.assertGreaterEqual(measured['crop_end']-measured['later_offset'], round(0.030*units.RATE))
+
+    def test_join_gap_uses_earlier_outgoing_offset(self):
+        """Count the trailing edge's full ambiguity as near-silence.
+
+        The earlier offset maximizes the quiet span the candidate VAD could see.
+        """
+        tail, plain = units.measure(make_tail(0.080)), units.measure(make_burst())
+        self.assertAlmostEqual(units.assert_join(tail, plain, 960), (2640+960+480)/units.RATE)
+        with self.assertRaisesRegex(ValueError, 'Effective join'):
+            units.assert_join(tail, plain, round(0.160*units.RATE))
+
+    def test_utterance_records_both_acoustic_ends(self):
+        """Record earliest and latest plausible ends in seconds and samples.
+
+        Earliest is the earlier offset minus 5 ms; latest is the later offset plus 5 ms.
+        """
+        samples = {'p': make_burst(4), 'f': make_tail(0.080)}
+        measured = {key: units.measure(value) for key, value in samples.items()}
+        parts = [{'unit_id': 'p', 'role': 'prefix', 'text': 'one two'}, {'unit_id': 'f', 'role': 'final', 'text': 'three'}]
+        result = units.construct_utterance(parts, measured, samples)
+        origin = result['segments'][1]['start']-measured['f']['crop_start']
+        self.assertEqual(result['earliest_acoustic_end_sample'], origin+7200-120)
+        self.assertEqual(result['latest_acoustic_end_sample'], origin+9120+120)
+        self.assertAlmostEqual(result['acoustic_end_spread_s'], 0.090)
+        self.assertEqual(result['earliest_acoustic_end_s'], result['earliest_acoustic_end_sample']/units.RATE)
+        self.assertEqual(result['final_onset_threshold_spread_s'], 0.0)
 
     def test_report_only_records_instead_of_raising(self):
         """Record limit exceedances without a verdict and without changing measure().
@@ -92,7 +148,9 @@ class TestConstructedUnits(unittest.TestCase):
         """
         spread = array.array('h', [0])*2400+array.array('h', [150])*720+array.array('h', [1000])*4800+array.array('h', [0])*2400
         row = units.measure_report(spread)
-        self.assertEqual(row['limits_exceeded'], ['threshold_spread_over_25_ms'])
+        self.assertEqual(row['limits_exceeded'], ['onset_spread_over_25_ms'])
+        self.assertEqual(units.measure_report(make_tail(0.080))['limits_exceeded'], [])
+        self.assertEqual(units.measure_report(make_tail(0.105))['limits_exceeded'], ['offset_spread_over_100_ms'])
         self.assertGreater(row['onset_threshold_spread_s'], 0.025)
         self.assertEqual(units.measure_report(array.array('h', [0])*4800)['limits_exceeded'], ['no_active_frame'])
         self.assertEqual(units.measure_report(make_burst(lead=0))['limits_exceeded'], ['clipped_edge', 'crop_padding_clips_unit'])

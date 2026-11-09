@@ -11,7 +11,7 @@ spec.loader.exec_module(bounds)
 def make_unit(**changes):
     """Create an invented adjudicated endpoint near the failure window."""
     return {"id": "invented", "eligible": True, "start": 203, "last_word_start": 204,
-            "last_word_end": 205, "outcome": "MATCHED", "identity_confirmed": True,
+            "last_word_end": 205, "earliest_acoustic_end_s": 205, "latest_acoustic_end_s": 205, "outcome": "MATCHED", "identity_confirmed": True,
             "endpoints": [{"observed": 207, "u": 0.1}], **changes}
 
 
@@ -59,6 +59,45 @@ class TestAcceptanceBounds(unittest.TestCase):
         with self.assertRaises(AssertionError):
             bounds.analyze_unit(make_unit(outcome="MATCHED-SUBSTITUTED", reference_word_count=1,
                                          other_words_exact_fraction=1, identity_unique=True))
+
+    def test_conservative_uses_earliest_end_and_best_uses_latest_end_for_median(self):
+        """Pair each latency bound with the opposite acoustic endpoint in the 3 s median test.
+
+        Using one midpoint end would hide that the bounds disagree about the median.
+        """
+        unit = make_unit(earliest_acoustic_end_s=204.9, latest_acoustic_end_s=205.1,
+                         endpoints=[{"observed": 207.95, "u": 0}])
+        row = bounds.analyze_unit(unit)
+        self.assertAlmostEqual(row["conservative"], 3.05)
+        self.assertAlmostEqual(row["best"], 2.85)
+        result = bounds.summarize_track([dict(unit) for _ in range(18)])
+        self.assertFalse(result["bounds"]["conservative"]["pass"])
+        self.assertTrue(result["bounds"]["best"]["pass"])
+        self.assertEqual(result["latency"], "INCONCLUSIVE")
+
+    def test_six_second_coverage_uses_the_same_pairing(self):
+        """Apply the earliest and latest ends to the 95% six-second coverage test.
+
+        Two late units are untimely only under the conservative bound.
+        """
+        late = make_unit(earliest_acoustic_end_s=204.9, latest_acoustic_end_s=205.1,
+                         endpoints=[{"observed": 210.95, "u": 0}])
+        normal = make_unit(earliest_acoustic_end_s=204.9, latest_acoustic_end_s=205.1,
+                           endpoints=[{"observed": 207, "u": 0}])
+        result = bounds.summarize_track([dict(late) for _ in range(2)] + [dict(normal) for _ in range(18)])
+        self.assertEqual(result["bounds"]["conservative"]["within6"], 18)
+        self.assertEqual(result["bounds"]["best"]["within6"], 20)
+        self.assertEqual(result["latency"], "INCONCLUSIVE")
+
+    def test_requires_both_acoustic_end_bounds(self):
+        """Refuse a unit scored from a single selected endpoint.
+
+        Choosing one end would be a selective endpoint choice.
+        """
+        unit = make_unit()
+        del unit["latest_acoustic_end_s"]
+        with self.assertRaises(KeyError):
+            bounds.analyze_unit(unit)
 
     def test_rejects_marker_disagreement(self):
         """Reject markers with excessive clock offset change.

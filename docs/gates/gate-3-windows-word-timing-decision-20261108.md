@@ -1,6 +1,6 @@
 # Gate 3 retest: word-timing method decision (Claude Code, 2026-11-08)
 
-Scope: timing method only. Analysis of preserved files only; no synthesis, recording, playback or build. Branch `rosmont/windows-gate3-retest-preflight-20261108` at `a07f091` (PR 74). Evidence: `gate3-v3-preflight-20261108\renders-probe-selected-20261108\probe`. Measurement: 5 ms RMS frames, threshold max(128, 3% of file-peak RMS), read-only Python (script kept outside Git). Status: **recommendation for independent review; not owner-approved.**
+Scope: timing method only. Analysis of preserved files only; no synthesis, recording, playback or build. Branch `rosmont/windows-gate3-retest-preflight-20261108` at `a07f091` (PR 74). Evidence: `gate3-v3-preflight-20261108\renders-probe-selected-20261108\probe`. Measurement: 5 ms RMS frames, threshold max(128, 3% of file-peak RMS), read-only Python (script kept outside Git). Status: **recommendation for independent review; not owner-approved.** Revision 2026-11-09: the 25 ms spread limit below was replaced for offsets by the owner-approved 100 ms policy (onset stays 25 ms); see the README and the proposed amendment for the rule text.
 
 ## 1. Engine marks: drop them
 

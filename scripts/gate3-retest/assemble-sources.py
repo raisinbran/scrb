@@ -162,6 +162,10 @@ def assemble_track(track, manifest, measured, root, output, join_samples):
         unit.update({'last_word_start': origin/constructed.RATE+clip['last_word_start'],
                      'acoustic_end': origin/constructed.RATE+clip['acoustic_end'],
                      'crop_end_bound': (origin+len(clip['pcm']))/constructed.RATE,
+                     'earliest_acoustic_end_s': origin/constructed.RATE+clip['earliest_acoustic_end_s'],
+                     'latest_acoustic_end_s': origin/constructed.RATE+clip['latest_acoustic_end_s'],
+                     'acoustic_end_spread_s': clip['acoustic_end_spread_s'],
+                     'final_onset_threshold_spread_s': clip['final_onset_threshold_spread_s'],
                      'threshold_spread_s': clip['threshold_spread_s'], 'frame_resolution_s': clip['frame_resolution_s'],
                      'uncertainty_s': clip['uncertainty_s'], 'timing_basis': clip['timing_basis']})
         unit['reference_text'] = clip['text']
@@ -227,12 +231,15 @@ def main():
         for track, units in zip(('microphone', 'meeting'), tracks):
             annotations = []
             for unit in units:
-                row = {**unit, 'crop_start': unit['start'], 'start': unit['words'][0]['start'],
-                       'reference_spans': unit['words']}
+                row = {**unit, 'crop_start': unit['start'], 'crop_start_sample': round(unit['start']*constructed.RATE),
+                       'start': unit['words'][0]['start'], 'reference_spans': unit['words']}
                 row.pop('words'); row.pop('end')
                 for field in ('start', 'last_word_start', 'acoustic_end', 'crop_end_bound'):
                     row[field+'_sample'] = round(row[field]*constructed.RATE)
                     row[field] = row[field+'_sample']/constructed.RATE
+                for field in ('earliest_acoustic_end', 'latest_acoustic_end'):
+                    row[field+'_sample'] = round(row[field+'_s']*constructed.RATE)
+                    row[field+'_s'] = row[field+'_sample']/constructed.RATE
                 annotations.append(row)
             constructed.write_json(args.output/(track+'-annotations.json'), {'status': 'UNFROZEN', 'sample_rate': constructed.RATE, 'utterances': annotations})
         constructed.write_json(args.output/'source-audit.json', {'status': 'UNFROZEN', 'tracks': reports, 'overlap_seconds': overlap,

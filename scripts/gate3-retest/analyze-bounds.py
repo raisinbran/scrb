@@ -22,8 +22,10 @@ def analyze_unit(unit):
     assert endpoints
     assert all(point["u"] >= 0 for point in endpoints)
     assert all(point["observed"] >= unit["last_word_start"] for point in endpoints), "PRE-SPEECH cannot receive credit"
-    conservative = max(point["observed"] for point in endpoints)-unit["last_word_end"]
-    best = min(point["observed"]-point["u"] for point in endpoints)-unit["last_word_end"]
+    assert unit["earliest_acoustic_end_s"] <= unit["latest_acoustic_end_s"], "Acoustic end bounds are inverted"
+    # Conservative latency pairs the latest publication with the earliest acoustic end; best case the reverse.
+    conservative = max(point["observed"] for point in endpoints)-unit["earliest_acoustic_end_s"]
+    best = min(point["observed"]-point["u"] for point in endpoints)-unit["latest_acoustic_end_s"]
     return {"id": unit["id"], "conservative": conservative, "best": best, "outcome": outcome,
             "straddle": conservative > 6 >= best}
 
