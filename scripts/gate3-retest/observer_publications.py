@@ -75,6 +75,17 @@ def row_words(row, viewport):
     return out
 
 
+def visible_before_dedup(sample, labels):
+    """Count visible words in one sample BEFORE ambiguous-row deduplication or quarantine.
+
+    Used for the first found sample: words that were already visible there make the run INCONCLUSIVE even
+    when their rows are later quarantined or removed as same-time duplicates.
+    """
+    viewport = sample.get("viewport")
+    return sum(1 for row in split_rows(sample.get("elements", []), labels) if row["time"]
+               for word in row_words(row, viewport) if word["visible"])
+
+
 def visible_words_in_sample(sample, labels):
     """All visible word positions of one sample, as (id, track, text, source) in document order.
 
@@ -201,6 +212,9 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
     # that found the transcript viewport onward. The single earlier interval (observer start to that sample,
     # widened by read errors) is reported as pre_viewport_interval_s and not counted toward u_pass.
     pre_viewport_interval_s = intervals[0][1] / frequency
+    first_sample_visible = visible_before_dedup(samples[0], labels)
+    inconclusive = first_sample_visible > 0 or any(r["present_at_start"] for r in records)
+    result_status = "INCONCLUSIVE" if inconclusive else "OK"
     all_u = [(n, ticks / frequency) for n, ticks in intervals if n != 0]
     u_all_max = max((u for _, u in all_u), default=0.0)
     report = {"samples": len(samples), "publications": len(records),
@@ -209,9 +223,13 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
               "u_all_intervals_over_limit": [[n, u] for n, u in all_u if u > MAX_U_SECONDS],
               "u_limit_s": MAX_U_SECONDS, "u_pass": u_all_max <= MAX_U_SECONDS,
               "pre_viewport_interval_s": pre_viewport_interval_s,
-              "result_status": "INCONCLUSIVE" if any(r["present_at_start"] for r in records) else "OK",
+              "result_status": result_status,
+              "first_sample_visible_words_before_dedup": first_sample_visible,
+              "validation_pass": bool(u_all_max <= MAX_U_SECONDS and result_status == "OK"),
               "result_status_note": "INCONCLUSIVE when the first sample that found the viewport already holds visible words: "
-                                    "the observer was started too late for this run. PROPOSED rule, not frozen.",
+                                    "the observer was started too late for this run. Counted before deduplication and quarantine, so quarantined or "
+                                    "duplicate first-sample rows still count. The decision needs u_pass AND result_status OK (validation_pass). "
+                                    "PROPOSED rule, not frozen.",
               "u_over_limit": [r["id"] for r in records if r["u"] > MAX_U_SECONDS and not r["present_at_start"]],
               "read_max_s": max(reads), "gap_max_s": max(gaps) if gaps else 0.0,
               "present_at_start": [r["id"] for r in records if r["present_at_start"]],

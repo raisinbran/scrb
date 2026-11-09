@@ -342,6 +342,25 @@ class PreViewportInterval(unittest.TestCase):
         self.assertEqual(report["result_status"], "INCONCLUSIVE")
         self.assertTrue(records[0]["present_at_start"])
 
+    def test_quarantined_first_sample_rows_still_make_the_run_inconclusive(self):
+        # two same-track, same-time rows visible together in the first found sample: deduplicated and quarantined
+        dup = row("You", "0:05", "alpha", 150) + row("You", "0:05", "other", 250)
+        s = [sample(18000, 18020, dup), sample(18050, 18070, row("You", "0:09", "later", 150))]
+        records, report = build(s)
+        self.assertFalse(any(r["present_at_start"] for r in records))
+        self.assertEqual(report["quarantined_rows"][0]["time"], "0:05")
+        self.assertGreater(report["first_sample_visible_words_before_dedup"], 0)
+        self.assertEqual(report["result_status"], "INCONCLUSIVE")
+        self.assertTrue(report["u_pass"])
+        self.assertFalse(report["validation_pass"])
+
+    def test_validation_pass_needs_u_pass_and_an_ok_status(self):
+        _, ok = build([sample(18000, 18020, ""), sample(18050, 18070, row("You", "0:05", "alpha", 150))])
+        self.assertTrue(ok["u_pass"] and ok["result_status"] == "OK" and ok["validation_pass"])
+        _, slow = build([sample(18000, 18020, ""), sample(18400, 18420, "")])
+        self.assertFalse(slow["u_pass"])
+        self.assertFalse(slow["validation_pass"])
+
     def test_a_trailing_error_stretch_after_the_viewport_was_found_still_counts(self):
         errors = [{"type": "error", "qpc_begin": ORIGIN + 18100 * FREQ // 1000, "qpc_end": ORIGIN + 18500 * FREQ // 1000}]
         s = [sample(18000, 18020, "")]
