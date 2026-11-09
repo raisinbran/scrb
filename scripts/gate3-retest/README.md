@@ -266,7 +266,7 @@ Add a `v3a_evidence` object with a separate entry for each track:
   "source": "C:/evidence/source-native-mono.wav",
   "source_annotations": "C:/evidence/source-annotations.json",
   "long_anchors": [
-    {"id": "long-001", "search_start_sample": 0, "search_end_sample": 100000}
+    {"id": "long-001"}
   ]
 }
 ```
@@ -275,20 +275,54 @@ Paths are explicit filesystem paths (prefer absolute). Source annotations bind
 `frozen: true`, `sample_rate`, `source_sha256` and the complete ordered
 `utterances` inventory. Each utterance has `id`, Boolean `short`,
 `source_start_sample`, `source_end_sample`, and Boolean `eligible`. Searches must include **every**
-non-short utterance in that order. A missing immediate long neighbor, unequal
-native sample rates, absent brackets, or unsupported match prevents acceptance.
+non-short utterance in that order. A missing immediate long neighbor, absent brackets, or unsupported match prevents
+acceptance. Native source and recording rates may differ for bounded correlation;
+each RMS envelope uses its own native samples on the shared time grid.
 No short-word matching occurs.
 
-**Supported matching is deliberately limited:** a nonflat, annotated long
-utterance of at least one second must have exactly one sample-exact PCM match
-inside its declared bounded search. One-sample timing uncertainty is retained.
-This validates a narrow exact-PCM path, with ambiguous/wrong/noisy negative
-controls; it does not validate the earlier feasibility correlation peaks or a
-noisy microphone matcher. Real route gain/noise and the existing 24/48 kHz
-source/capture mismatch can therefore make real practice evidence INCONCLUSIVE.
-No new correlation cutoff or calibrated acoustic uncertainty is claimed.
+**The v3a default matcher is now bounded long-utterance correlation.** It reuses
+the predeclared interior-audit criteria unchanged: +/-1 s search, 2 ms grid,
+10 ms log RMS / 20 ms log RMS / 10 ms linear RMS; each method needs NCC >=0.80,
+a margin >=0.10 over a secondary local peak >=100 ms away, and a nonboundary
+winner. These existing analysis quality criteria are now the explicitly requested
+v3a anchor guard, not new Layer A latency targets. No new numeric threshold is
+introduced. The original v3 marker/default path is unchanged.
 
-Adjacent validated long anchors bound any offset change exceeding their combined
+Only annotated long utterances are searched. A source-only 3 s template begins
+100 ms inside each declared source span, using the interior audit's >=3.3 s
+passage guard. No recording score chooses that support. Full-unit timing must remain independently
+adjudicated: each edge long anchor binds by ID to its scored unit, and its entire
+measured support plus/minus uncertainty must lie inside that full-unit continuous
+interval. Those supplied full-unit intervals establish coverage only; no source
+span is projected and no speech endpoint is moved. Missing, misbound or inconsistent
+edge timing stays INCONCLUSIVE. Step locations retain measured supports.
+The output retains both
+the full source utterance span and the narrower matched forward-frame support;
+matching part of a long utterance does not certify its unexamined remainder or
+remove a crossing unit. Every long ID remains required in source order. Source
+and recording envelope grids use their own native samples; neither PCM array is
+resampled, trimmed or rate-warped. A constant search offset is not a correction.
+
+Uncertainty is exactly the interior audit's maximum contiguous near-top extent
+(within 0.01 NCC), plus cross-method displacement, 10 ms half-frame, 1 ms half-grid,
+and one sample at each native rate. This is a method-sensitivity radius, not a
+calibrated statistical confidence interval or a guarantee against unknown route
+bias. All methods must meet uniqueness; ambiguous, weak, flat, boundary or
+unbounded anchors make track timing INCONCLUSIVE. Step significance is tested
+against **combined measured anchor uncertainty**, as before.
+
+The bounds evidence may specify `long_matcher: "bounded-correlation"` (the v3a
+default) and `step_search_offset_s` (optional: otherwise continuous lead marker
+minus the protocol's 1 s source lead). Each `long_anchors` entry can now contain
+only its source `id`; its expected template position is source span start +100 ms
++ that constant offset. Alternatively supply `expected_recording_s` explicitly
+for that template; the search is still exactly +/-1 s. The earlier `exact`
+matcher remains available explicitly with `long_matcher: "exact"`, equal native
+rates and the original sample search bounds. Scoring still requires independent
+frozen identity/eligibility, validated gap/marker evidence and all other v3a
+preconditions. Diagnostic matching does not freeze any annotation.
+
+Adjacent validated long-template supports bound any offset change exceeding their combined
 uncertainty. The change's magnitude **plus** that uncertainty widens both sides
 of every potentially affected unit, including units crossing the bracket, through
 the next bracketing anchor. This is uncertainty, never an offset correction.
@@ -307,3 +341,40 @@ a claimed ineligibility label cannot remove a crossing unit. `SETUP-AFFECTED` ad
 matching `sha256`; gap evidence alone grants none. There is no numerical gap
 cutoff. These declared independent adjudications remain review obligations;
 the scorer does not infer semantic identity or harness failure from silence.
+
+
+### Retained practice regression and step diagnostic
+
+`test_long_correlation.py` uses `practice_step_fixture.json` to pin the external
+invented practice source WAVs, source annotations, continuous recording WAVs and
+lead-marker reports by SHA-256. Set `SCRB_V3A_PRACTICE_ROOT` to the preserved
+`gate3-v3-preflight-20261108` directory. The sibling evidence location is the local
+default. Missing files produce an explicit skip reason; present hash mismatches
+fail. Audio, original evidence and generated reports remain outside Git. The test
+uses only the original lead marker as a constant search offset; it does not use
+any affine slope/offset or stored step result as detector input.
+
+The practice replay scans every long unit: 45 meeting anchors yield no detected
+continuous-view step; 39 microphone anchors yield one +78 ms change between
+`microphone-019` and `microphone-021`, magnitude interval +51.875 to +104.125 ms,
+location interval 138.3619375 to146.4530625 s (including 141.7 s). These are template
+support bounds, not an exact step sample or a causal capture diagnosis. A hidden
+change/reversal between anchors or a change within combined uncertainty is not
+ruled out. Synthetic voiced/noisy tests inject +/-80 ms with gain/noise changes,
+check both uncertainty directions, and reject ambiguous repeats and wrong windows.
+
+For a standalone identity-bound diagnostic, `detect-v3a-steps.py` accepts an
+explicit preserved **sample-continuous** mono PCM16 WAV and writes a new JSON:
+
+```powershell
+python scripts/gate3-retest/detect-v3a-steps.py CONTINUOUS.wav STEPS.json --source SOURCE.wav --annotations SOURCE-ANNOTATIONS.json --recording-sha256 RECORDING_HASH --source-sha256 SOURCE_HASH --annotations-sha256 ANNOTATION_HASH --search-offset OFFSET_SECONDS
+```
+
+Output includes every anchor's three-method uniqueness evidence/uncertainty,
+step magnitude and location intervals, bracketing IDs and symmetric widening.
+It exits 2 on unsupported/ambiguous timing. A BOUNDED diagnostic is **not** a track
+latency PASS or an exemption: the bounds scorer continues to reject invalid gap
+maps, failed markers and unsupported speech/publication evidence, while retaining
+step diagnostics when available. The microphone's existing chunk-count mismatch
+is not waived by detecting its step. The original timestamped marker result
+remains in the marker/bounds reports.

@@ -1,8 +1,8 @@
 """Offline Protocol v3a evidence views, finite timing intervals and long anchors.
 
 No resampling, affine fitting, sample deletion or capture changes occur here.
-Exact PCM matching is deliberately strict: noisy/ambiguous matches are unsupported,
-not calibrated by an invented correlation cutoff.
+The bounded long-correlation path reuses the interior audit criteria unchanged.
+Ambiguous anchors are unsupported; exact PCM matching remains explicitly available.
 """
 import array
 import hashlib
@@ -237,9 +237,12 @@ def match_long(recording, source, rate, anchor):
             'method': 'unique-exact-long-PCM', 'validated': True}
 
 
-def load_long_anchors(recording, source, rate, searches, annotations_path, source_sha256):
+def load_long_anchors(recording, source, rate, searches, annotations_path, source_sha256,
+                      *, method='exact', recording_rate=None, search_offset_s=None):
     """Match the complete frozen long inventory, preventing selective bracketing."""
-    annotations = json.loads(Path(annotations_path).read_text(encoding='utf-8-sig'))
+    annotation_bytes = Path(annotations_path).read_bytes()
+    annotation_sha = hashlib.sha256(annotation_bytes).hexdigest()
+    annotations = json.loads(annotation_bytes.decode('utf-8-sig'))
     require(annotations.get('frozen') is True and annotations.get('sample_rate') == rate
             and annotations.get('source_sha256') == source_sha256, 'Unbound source annotations')
     utterances = annotations['utterances']
@@ -257,11 +260,23 @@ def load_long_anchors(recording, source, rate, searches, annotations_path, sourc
     require(len(searches) == len(longs) and [a['id'] for a in searches] == [u['id'] for u in longs],
             'Missing, duplicated or reordered long anchors; immediate brackets unavailable')
     result = []
+    recording_rate = rate if recording_rate is None else recording_rate
+    require(method in ('exact', 'bounded-correlation'), 'Unknown long matcher')
     for unit, search in zip(longs, searches):
-        result.append(match_long(recording, source, rate,
-            {**unit, 'search_start_sample': search['search_start_sample'],
-             'search_end_sample': search['search_end_sample']}))
-    return {'anchors': result, 'utterances': utterances, 'annotations_sha256': digest(annotations_path)}
+        if method == 'bounded-correlation':
+            from long_correlation import match_long_correlation
+            expected = search.get('expected_recording_s')
+            if expected is None:
+                require(finite(search_offset_s), 'Missing constant long-anchor search offset')
+                expected = unit['source_start_sample']/rate+.1+search_offset_s
+            result.append(match_long_correlation(recording, recording_rate, source, rate, unit, expected))
+        else:
+            require(recording_rate == rate, 'Exact PCM matching requires equal native rates')
+            result.append(match_long(recording, source, rate,
+                {**unit, 'search_start_sample': search['search_start_sample'],
+                 'search_end_sample': search['search_end_sample']}))
+    require(digest(annotations_path) == annotation_sha, 'Source annotations changed during matching')
+    return {'anchors': result, 'utterances': utterances, 'annotations_sha256': annotation_sha}
 
 
 def step_bounds(anchors, units):
@@ -274,7 +289,10 @@ def step_bounds(anchors, units):
     require(len(anchors) >= 2, 'Missing bracketing long anchors')
     require(len({a['id'] for a in anchors}) == len(anchors), 'Duplicated long anchor')
     for anchor in anchors:
-        require(anchor.get('validated') is True and anchor.get('method') == 'unique-exact-long-PCM',
+        require(anchor.get('validated') is True and anchor.get('method') in ('unique-exact-long-PCM', 'bounded-long-correlation')
+                and (anchor['method'] != 'bounded-long-correlation'
+                     or (anchor.get('unique') is True and len(anchor.get('methods', [])) == 3
+                         and all(m.get('unique') is True for m in anchor['methods']))),
                 'Unvalidated long anchor')
         require(all(finite(anchor[k]) for k in ('source_start_s', 'source_end_s', 'recording_start_s',
                                                'recording_end_s', 'offset_s', 'uncertainty_s'))
@@ -289,11 +307,37 @@ def step_bounds(anchors, units):
             steps.append({'location_interval_s': [before['recording_end_s']-before['uncertainty_s'],
                                                  after['recording_start_s']+after['uncertainty_s']],
                           'until_s': after['recording_end_s']+after['uncertainty_s'], 'signed_change_s': change,
+                          'magnitude_interval_s': [change-combined, change+combined],
+                          'combined_anchor_uncertainty_s': combined,
                           'symmetric_uncertainty_s': abs(change)+combined,
                           'anchors': [before['id'], after['id']]})
+    coverage_start = anchors[0]['recording_start_s']
+    coverage_end = anchors[-1]['recording_end_s']
+    if units:
+        # Full-unit continuous placements are independent adjudications already
+        # required by the scorer. They provide coverage, never extrapolated
+        # source timing. Step locations still use only measured template support.
+        by_id = {unit['id']: unit for unit in units}
+        require(len(by_id) == len(units), 'Duplicated independently timed unit')
+        for anchor, edge in ((anchors[0], 'start'), (anchors[-1], 'end')):
+            if anchor['method'] != 'bounded-long-correlation':
+                continue
+            require(anchor['id'] in by_id, 'Missing full-unit timing for edge long anchor')
+            boundary = by_id[anchor['id']]
+            first, last_start, last = (boundary[k] for k in ('continuous_start_s',
+                                      'continuous_last_word_start_s', 'continuous_last_word_end_s'))
+            require(all(finite(v) for v in (first, last_start, last))
+                    and first <= last_start <= last, 'Invalid independent full-unit timing')
+            require(first <= anchor['recording_start_s']-anchor['uncertainty_s']
+                    and anchor['recording_end_s']+anchor['uncertainty_s'] <= last,
+                    'Measured template support outside independently timed full unit')
+            if edge == 'start':
+                coverage_start = first
+            else:
+                coverage_end = last
     for unit in units:
-        require(anchors[0]['recording_start_s'] <= unit['continuous_start_s']
-                and unit['continuous_last_word_end_s'] <= anchors[-1]['recording_end_s'],
+        require(coverage_start <= unit['continuous_start_s']
+                and unit['continuous_last_word_end_s'] <= coverage_end,
                 'Unit has no bracketing long-anchor coverage')
     return steps
 

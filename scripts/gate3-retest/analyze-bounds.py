@@ -113,12 +113,13 @@ def analyze_v3a_track(units, evidence, track):
     desired publication result.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, require,
+    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, step_bounds, require,
                              finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
     clocks = None
     prepared = []
+    anchors, steps = [], []
     try:
         require(isinstance(evidence, dict), 'Missing v3a evidence')
         require(evidence['publication_basis'] == 'timestamped-capture', 'Unsupported publication clock')
@@ -126,13 +127,16 @@ def analyze_v3a_track(units, evidence, track):
         continuous, _, mapping = views
         clocks = analyze_v3a(evidence['chunks'], evidence['decoder'], track,
                               evidence['harness'], evidence.get('harness_u', (0, 0)), views=views)
-        require(clocks['valid'], 'Invalid v3a marker/gap evidence')
         source_sha = digest(evidence['source'])
         source, rate = pcm16(evidence['source'])
         require(digest(evidence['source']) == source_sha, 'Source changed during matching')
-        require(rate == mapping['rate'], 'Long templates must use native decoded rate; no resampling')
         inventory = load_long_anchors(continuous, source, rate, evidence['long_anchors'],
-                                    evidence['source_annotations'], source_sha)
+                                    evidence['source_annotations'], source_sha,
+                                    method=evidence.get('long_matcher', 'bounded-correlation'),
+                                    recording_rate=mapping['rate'],
+                                    search_offset_s=evidence.get('step_search_offset_s',
+                                        clocks.get('sample_continuous', {}).get('lead', {}).get('position', 1)-1))
+        require(digest(evidence['source']) == source_sha, 'Source changed during matching')
         anchors = inventory['anchors']
         frozen_units = {u['id']: u for u in inventory['utterances']}
         denominator = sum(u['eligible'] for u in frozen_units.values())
@@ -141,6 +145,8 @@ def analyze_v3a_track(units, evidence, track):
                 'Missing or duplicated scored units; frozen denominator mismatch')
         require(all(type(u['eligible']) is bool and u['eligible'] == frozen_units[u['id']]['eligible']
                     for u in units), 'Eligibility differs from bound frozen source inventory')
+        steps = step_bounds(anchors, [])
+        require(clocks['valid'], 'Invalid v3a marker/gap evidence; step diagnostics do not waive it')
         prepared, steps = prepare_units(units, mapping, anchors)
         for unit in prepared:
             require(type(unit['eligible']) is bool, 'Invalid eligibility')
@@ -166,7 +172,7 @@ def analyze_v3a_track(units, evidence, track):
         return {'mode': 'v3a', 'latency': 'INCONCLUSIVE', 'bounds': None,
                 'recurrence': 'INDETERMINATE', 'denominator': denominator,
                 'error': str(error), 'clocks': clocks, 'speech_intervals': prepared,
-                'units': []}
+                'units': [], 'long_anchors': anchors, 'steps': steps}
 
 
 def main():
