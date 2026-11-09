@@ -6,7 +6,7 @@ at `6297862` on origin/main. The owner's November 8 assignment establishes appro
 
 This directory cannot start recording. It contains preparation tools only. Sources and raw output belong in a new private directory outside Git. Existing evidence must never be overwritten. No driver installation, routing change, retry, or acceptance run is implicit in running these tools.
 
-- `prepare-speech.ps1` renders invented speech with two installed Windows voices and records SSML word-boundary bookmarks. It never plays audio or opens capture.
+- `prepare-speech.ps1` probes three encodings with both installed voices and chooses A, then C, then B only if both voices pass. `-Probe` stops after the probe; without it, a successful probe continues directly to full invented-source rendering. It never plays audio or opens capture.
 - `assemble-sources.py` builds the 420-second WAVs, independent annotations and source audit from those renders. Word ends come from engine bookmarks, not recognition. A waveform spot-check and listen-through remain mandatory before eligibility is frozen.
 - `observe-live.ps1` is a read-only UI Automation probe restricted to an explicitly supplied app PID. It records screen bounds, offscreen flags and QPC brackets; it does not send input or start capture. Its raw samples do not constitute validated visibility or track matching.
 - `audit-archive.py` reads only allowlisted, non-transcript metadata from the November 7 archive. It does not open audio, renderer words, or any microphone reference. It cannot re-score 73/77.
@@ -42,7 +42,7 @@ Stop on any command failure; do not proceed to the next command or retry. Record
 Open **Start → Windows PowerShell → Open**, not “Run as administrator.” In that normal **Windows PowerShell 5.1** window, run this once. It generates invented speech files without recording or playback. The new output folder preserves both earlier failed attempts.
 
 ```powershell
-powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-instrumented-20261108"
+powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-probe-selected-20261108"
 ```
 
 On failure, keep all files and report the error and `.bookmarks.tsv` timeline; do not rerun. On success, report completion and leave assembly and eligibility review for the next authorized step.
@@ -99,3 +99,23 @@ Continuation usage, November 8 PT: 17:20:14 start to 17:22:32 stopping observati
 - **A-021, confirmed agent/development-check mistake:** The first new coverage check used an exact floating-point 380-second boundary and falsely failed the valid synthetic plan by rounding error. Three tests failed at that guard. A one-nanosecond arithmetic tolerance on the outer scored boundary corrected it; the strict less-than-0.5-second failure-gap rule is unchanged. All twelve tests then passed. No physical test, owner action or evidence was affected.
 
 All earlier A-013–A-019 entries and their historical attribution remain above. The model/effort omission in the continuation usage paragraph was subsequently recovered from per-turn metadata as `gpt-6.1-sol`, low effort, Codex Desktop; the original report is retained and the tracker note carries the correction. The moved manifest publication, guard/checker and usage records are preserved in `docs/handoffs/PR74-preflight-tracker-note.md` and the prepared PR body. They are not test-freeze inputs.
+
+## Bookmark probe encodings (source-only revision)
+
+The single owner command above probes first, then performs the full render in the same process only if an encoding passes for both voices. `-Probe` is available for an explicitly probe-only run into a different fresh directory. The probe has sixteen words per voice for each A/B/C encoding. All variants retain their diagnostics; expected and received counts and non-decreasing AudioPosition checks are reported in `probe-results.json`. `encoding-selection.json` records the preference decision. Each full `engine-marks.json` row records encoding and timing basis.
+
+- **A:** Keep start/end marks, inserting a 30 ms SSML break between each end mark and the following start mark. Both counts and ordered, non-decreasing AudioPosition values must pass.
+- **C:** Render each word as a separate synchronous SSML utterance with its own engine timeline. Require both marks, crop on their rounded 24000 Hz sample positions, and join with exactly 720 zero samples (30 ms). Aggregate boundaries are constructed sample offsets, explicitly distinguished from observed callbacks. Individual WAVs and timelines remain retained. This changes prosody and may change short/long durations; the source assertions and later waveform/listening audit can still reject it.
+- **B:** Keep only start marks plus the last end mark. `bookmark-timing.py` searches the WAV in 5 ms RMS frames for each word's active energy, using threshold max(128 PCM16 amplitude, 3% of local peak RMS). It requires an inactive release frame before the search boundary; an unidentifiable release fails B. A next-word start only bounds the search and is never used as the word end. The derived endpoint has frame/threshold uncertainty and requires waveform spot-checking and listening before eligibility is frozen.
+
+The assembler consumes the resulting per-word intervals, preserving explicit inter-word gaps in all encodings, and tests the entire 170–245 s window at word level. Any actual gap of 0.5 s or more in those reference intervals prevents assembly approval. No acoustic validation is claimed from these source-only tests. Energy thresholding and sample cropping still require owner review against the actual audio. No custom screen recorder or application code is changed.
+
+### Additional evidence under A-019
+
+The owner's instrumented run produced 17 of 32 marks across all 47 polls: s0–s15 and e15, with e0–e14 absent from the first poll through 5002 ms, no duplicates or unexpected names. All received callbacks arrived within about 15 ms during file synthesis. Wall-clock receipt times do not define audio boundaries; only AudioPosition is used for source timing. The SSML placed each missing end adjacent to the next start, separated only by whitespace. Adjacent-mark suppression is a strong but unproven hypothesis, not an application defect. A-019 remains open; A-013 through A-021 are unchanged. No failed synthesis was rerun by the agent.
+
+### Proposed A-022 — inspection and patch tooling mistakes
+
+At this task's start I read branch-local paths before checking that another operation had switched the checkout to main. Those reads failed without modification; I then verified the checkout and selected the requested PR74 branch. A later patch attempt used delete/add operations against the same path and was rejected before changing files; I replaced it with a source-file rewrite. These caused minor tool/context waste, no physical execution or evidence change. This entry is proposed, not entered in the agents register.
+
+A syntax-check command also used an ambiguous shell selection and produced a C# assembly-reference error in the wrong runtime. A subsequent check used the explicit Windows PowerShell executable, asserted version 5, and compiled the class successfully without invoking any renderer. The initially piped multiline check had produced no confirmation output and was not accepted as verification. These verification mistakes are included under proposed A-022; none was a synthesis or application failure.

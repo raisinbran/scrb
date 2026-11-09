@@ -54,6 +54,7 @@ def place_units(track, clips):
         cursor = left
         for clip in planned:
             units.append({"id": f"{track}-{len(units):03}", "track": track, "source": clip["id"],
+                          "encoding": clip.get("encoding", "synthetic"), "timing_basis": clip.get("timing_basis", "synthetic metadata"),
                           "start": cursor, "end": cursor+clip["duration"], "short": clip["kind"] == "short",
                           "eligible": None, "eligibility_reason": "pending waveform and listen audit",
                           "words": [{"text": word["text"], "start": cursor+word["start"],
@@ -146,6 +147,8 @@ def assemble_track(track, renders, source, output):
     for render in renders:
         if render["track"] != track:
             continue
+        assert render.get("encoding") in {"A", "B", "C"}, "A validated encoding selection is required"
+        assert render.get("timing_basis"), "Independent timing provenance is required"
         with wave.open(str(source / render["file"]), "rb") as stream:
             assert (stream.getnchannels(), stream.getsampwidth(), stream.getframerate()) == (1, 2, rate)
             data = array.array("h")

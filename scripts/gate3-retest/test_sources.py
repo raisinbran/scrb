@@ -43,6 +43,22 @@ class TestSourceCoverage(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "Failure-window"):
             sources.assert_track_coverage(units)
 
+    def test_checks_inter_word_gaps_for_all_encodings(self):
+        """Reject hidden word gaps regardless of how a phrase was rendered.
+
+        Phrase envelopes cannot hide silence introduced by separate word synthesis.
+        """
+        for encoding in ("A", "B", "C"):
+            with self.subTest(encoding=encoding):
+                units = sources.place_units("microphone", make_clips("microphone"))
+                unit = next(unit for unit in units if not unit["short"] and 170 <= unit["start"] <= 230)
+                start, end = unit["start"], unit["end"]
+                unit["encoding"] = encoding
+                unit["words"] = [{"text": "alpha", "start": start, "end": start+1},
+                                 {"text": "beta", "start": start+1.5, "end": end}]
+                with self.assertRaisesRegex(AssertionError, "Failure-window"):
+                    sources.assert_track_coverage(units)
+
     def test_includes_leading_and_trailing_gaps(self):
         """Measure silence against both edges of the required window.
 

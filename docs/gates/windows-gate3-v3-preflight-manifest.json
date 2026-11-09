@@ -69,7 +69,31 @@
     "assembly": "NOT_RUN",
     "actual_words_per_minute": null,
     "owner_render_output": "renders-owner-20261108/microphone-long-00.wav retained, 405142 bytes; no complete engine-marks.json or source pack",
-    "bookmark_instrumentation": "Synchronous SpeakSsml retained; locked snapshots poll up to 5000 ms after return, interval 100 ms; per-WAV TSV records expected/received/missing/duplicate/unexpected/order and UTC arrivals; no instrumented render executed"
+    "bookmark_instrumentation": "Locked collection; synchronous synthesis; up to 5000 ms post-return diagnostics; audio positions logged separately from callback wall-clock arrivals; full render records selection and timing basis",
+    "probe_state": "NOT_RUN; source-only implementation; owner probe must pass for both voices before automatic full render",
+    "selected_encoding": null,
+    "encoding_preference": ["A", "C", "B"],
+    "probe_words_per_voice": 16,
+    "encoding_configuration": {
+      "A": {
+        "inter_word_break_ms": 30,
+        "timing": "observed ordered AudioPosition start/end marks"
+      },
+      "C": {
+        "word_render": "separate synchronous SSML",
+        "join_gap_samples": 720,
+        "sample_rate_hz": 24000,
+        "timing": "per-word observed marks with exact sample-count concatenation"
+      },
+      "B": {
+        "frame_ms": 5,
+        "minimum_rms_pcm16": 128,
+        "relative_local_peak_rms": 0.03,
+        "release_required": true,
+        "next_start_as_endpoint": false,
+        "timing": "independent acoustic energy end; waveform review required"
+      }
+    }
   },
   "confirm_items": [
     {
@@ -227,7 +251,7 @@
     "post_capture_readonly_and_hashes": "REQUIRED; no capture yet"
   },
   "analysis": {
-    "synthetic_bounds_tests": "Existing six PASS; six additional timing-only coverage tests PASS; no audio I/O",
+    "synthetic_bounds_tests": "18 metadata-only tests PASS; selection and all-encoding inter-word gap coverage included; no audio I/O",
     "archive_metadata_audit": "FROZEN_AS_RECORDED; not rerun",
     "ordered_occurrence_alignment": "NOT_IMPLEMENTED",
     "independent_utterance_identity": "REQUIRES_ADJUDICATED_INPUT",
@@ -245,13 +269,17 @@
   "artifact_sha256": {
     "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
     "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "7784eaefc6a720ccd4a11ad5e3a63fae7ec172bbe61cac1f2b718aa80f496a25",
+    "scripts/gate3-retest/assemble-sources.py": "b93924df6c0643d280721be9253bbcced686da2c01e45ef6f266fcac06508c2c",
     "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+    "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
     "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "b3fc842bddab679c0038be3a276fa063fd753f6ed4d0731e00a7cd8dec46d151",
-    "scripts/gate3-retest/README.md": "cc4cdf4ddd34a6da5c7daa0bee72198cdde0f03558a103e7d2081d68835563df",
+    "scripts/gate3-retest/prepare-speech.ps1": "8542141f48b6030362c2a7c2b9ec5f83da8ee147e086d80b9275e0dcac059856",
+    "scripts/gate3-retest/README.md": "b28ebc8aefb382f3c57857627fbe887a9ad81526763831ebe29ce338bae592ec",
+    "scripts/gate3-retest/speech-specs.ps1": "8c244db7c3af8fadef0c6e64c3739df76d7ec446398a153ca3132100879c9298",
+    "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
     "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
-    "scripts/gate3-retest/test_sources.py": "0c2d42f3e0ba321c0e9a1f78f8397eb49035d6b3d98e129baa8081ad800c89ce"
+    "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
+    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d"
   },
   "recorded_archive_audit": {
     "status": "FROZEN_AS_PREVIOUSLY_RECORDED; audit script unchanged and not rerun",
@@ -301,5 +329,16 @@
     "scripts/gate3-retest/README.md": "bcd752fa14b1cb87ae4aff4f932e104761790f44b2d92d602c49f5583f9b9fbd",
     "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e"
   },
-  "artifact_sha256_encoding": "UTF-8 repository text with LF newlines; historical hashes retained separately"
+  "artifact_sha256_encoding": "UTF-8 repository text with LF newlines; historical hashes retained separately",
+  "source_corrections_artifact_sha256": {
+    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
+    "scripts/gate3-retest/assemble-sources.py": "7784eaefc6a720ccd4a11ad5e3a63fae7ec172bbe61cac1f2b718aa80f496a25",
+    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+    "scripts/gate3-retest/prepare-speech.ps1": "b3fc842bddab679c0038be3a276fa063fd753f6ed4d0731e00a7cd8dec46d151",
+    "scripts/gate3-retest/README.md": "cc4cdf4ddd34a6da5c7daa0bee72198cdde0f03558a103e7d2081d68835563df",
+    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
+    "scripts/gate3-retest/test_sources.py": "0c2d42f3e0ba321c0e9a1f78f8397eb49035d6b3d98e129baa8081ad800c89ce"
+  }
 }
