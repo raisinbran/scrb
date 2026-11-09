@@ -6,8 +6,8 @@ Status: **DRAFT, NOT_FROZEN.** Fields marked PENDING are still to be read or mea
 
 | ID | Open item | Status |
 | --- | --- | --- |
-| O-1 | **Common clock drift.** Source markers arrive about 200 ms later at 381 s than at 1 s on both tracks (microphone +205 ms, meeting +200 ms; about 0.53 ms per second). Cause undetermined: playback clock versus capture clock. To be handled by the marker clock fit and verified by Codex's calibration on this recording. | OPEN, cause undetermined |
-| O-2 | **Constant microphone-behind-meeting offset.** The microphone track is 40 ms behind the meeting track at the start and 45 ms behind at the end. | OPEN, not explained |
+| O-1 | **Common clock drift.** Source markers arrive about 200 ms later at 381 s than at 1 s on both tracks (microphone +205 ms, meeting +200 ms; about 0.53 ms per second). Cause undetermined: playback clock versus capture clock. To be handled by the marker clock fit and verified by Codex's calibration on this recording. Practice evidence: the affine fit was INCONCLUSIVE. See `gate-3-windows-v3a-clock-amendment-proposed.md`. | OPEN until that amendment is approved and implemented; cause undetermined |
+| O-2 | **Constant microphone-behind-meeting offset.** The microphone track is 40 ms behind the meeting track at the start and 45 ms behind at the end. It enters the clock handling in `gate-3-windows-v3a-clock-amendment-proposed.md`. | OPEN until that amendment is approved and implemented; not explained |
 | O-3 | **Gain differences against the source.** System track about +2.1 dB, microphone track about -0.4 dB. Cause unknown. Recorded as a difference whose effect on detection is untested. | OPEN, effect untested |
 | O-4 | **Speaker volume and settings.** The retest must use speaker volume 10 and the same settings as the practice run. One run cannot show how changing the Windows speaker volume changes the recording. | OPEN, requirement for the retest |
 

@@ -574,5 +574,14 @@
       "path": "scripts/gate3-retest/play-sources.ps1",
       "status": "written, not run for playback; hash pinned at freeze"
     }
+  },
+  "group_10_v3a_clock_amendment": {
+    "status": "PROPOSED, NOT_FROZEN",
+    "path": "docs/gates/gate-3-windows-v3a-clock-amendment-proposed.md",
+    "amendment_text_hash": "PENDING: pin at the freeze commit",
+    "gap_map_reader_hash": "PENDING: script not written",
+    "v3a_scoring_script_hash": "PENDING: script not written",
+    "owner_approval_of_v3a": "PENDING",
+    "independent_code_review": "PENDING"
   }
 }
