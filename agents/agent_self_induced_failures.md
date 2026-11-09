@@ -212,6 +212,15 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Correction / prevention:** `placement_range` takes the minimum and maximum over every chunk the range intersects; the scorer requires the converted file, raw observer file and harness log, binds every credited endpoint by id, observed time and u (1e-9 s), and records the three SHA-256 values. No threshold changed. Offline tests only.
 - **Owner approval:** Not required (offline); the amendment wording stays a marked proposal.
 
+### A-052 - 2026-11-09 - Claude Code / Windows Desktop - conversion allowance floor and file-versus-raw check missing in 2831b67
+- **Status / attribution:** Confirmed agent design gaps in my own commit 2831b67, found by ChatGPT's independent re-review before any scored run. Id chosen after A-051 on this branch; renumber on merge if it collides.
+- **What failed:** (1) The scorer accepted any conversion allowance of at least one counter tick, although the approved v3a procedure is 2 ms. (2) It checked endpoints against the converted publication file but never regenerated that file from the raw observer samples, so changing a word time in both the file and the endpoint passed every check.
+- **Agent-controlled cause:** (1) I reused the converter's one-tick sanity floor as the scorer's rule. (2) I bound endpoints to the file and stopped, without asking what binds the file itself to the raw evidence.
+- **Impact:** No scored run or gate credit.
+- **Evidence:** Regressions in `test_integration_e2e.py`: 1 ms refused, 2 ms and 5 ms accepted; file and endpoint changed together, and a text-only edit, both make the track INCONCLUSIVE.
+- **Correction / prevention:** `MIN_CONVERSION_U_S = 0.002` in the scorer (larger documented values stay valid); `regenerate_converted` rebuilds the file from `observer_raw` with the same code and the document's own parameters and requires equality (floats within 1e-9 s). Timing-only tests that invent endpoints skip just that regeneration step through `binding_fixture.without_regeneration`. Offline tests only.
+- **Owner approval:** Not required (offline); the amendment wording stays a marked proposal.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.

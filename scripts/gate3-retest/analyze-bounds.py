@@ -106,6 +106,9 @@ def analyze_track(units, clock):
 
 
 FLOAT_TOLERANCE_S = 1e-9
+# Approved v3a procedure: a conservative numerical allowance for converting between two QPC-based clocks.
+# Larger documented values stay valid; smaller ones are refused.
+MIN_CONVERSION_U_S = 0.002
 CREDITED_OUTCOMES = {'MATCHED', 'MATCHED-SUBSTITUTED', 'BOUNDED'}
 
 
@@ -151,10 +154,43 @@ def verify_conversion_document(doc, mapping, track, header, events):
     shift = (origin*1_000_000_000//frequency - chunks['origin_ns'])/1e9
     osm.need(abs(conv['shift_s']-shift) <= FLOAT_TOLERANCE_S, 'Conversion shift differs from the reconstructed origin')
     e = conv['conversion_u_s']
-    osm.need(isinstance(e, (int, float)) and not isinstance(e, bool) and math.isfinite(e) and e >= 1/frequency
+    osm.need(isinstance(e, (int, float)) and not isinstance(e, bool) and math.isfinite(e)
+             and e >= max(1/frequency, MIN_CONVERSION_U_S)
              and isinstance(conv['conversion_u_basis'], str) and conv['conversion_u_basis'].strip()
-             and conv['marker_fit_used'] is False, 'Conversion allowance or method is not as validated')
+             and conv['marker_fit_used'] is False,
+             'Conversion allowance (at least %g s required) or method is not as validated' % MIN_CONVERSION_U_S)
     return conv
+
+
+def regenerate_converted(doc, mapping, track, observer_raw, header, events):
+    """Rebuild the converted publications from the raw observer samples with the same code and the document's
+    own parameters, and require the supplied file to equal them (floats within the tolerance)."""
+    import observer_publications as op
+    import observer_session_map as osm
+    conv = doc['conversion']
+    raw_header, samples = op.load_raw(observer_raw)
+    records, report = op.build_publications(raw_header, samples, op.DEFAULT_LABELS, conv['harness_origin_qpc'],
+                                            conv['observer_header_frequency_hz'])
+    harness = {'clock_basis': 'harness', 'recording_sha256': doc.get('recording_sha256'),
+               'harness_origin_qpc': conv['harness_origin_qpc'], 'qpc_frequency': conv['observer_header_frequency_hz'],
+               'words': records, 'quarantined_rows': report['quarantined_rows']}
+    rebuilt = osm.publications_to_timestamped(harness, mapping, track=track, raw_header=header, harness_events=events,
+                                              conversion_u_s=conv['conversion_u_s'],
+                                              conversion_u_basis=conv['conversion_u_basis'])
+
+    def same(a, b):
+        if isinstance(a, float) or isinstance(b, float):
+            return (isinstance(a, (int, float)) and isinstance(b, (int, float)) and not isinstance(a, bool)
+                    and not isinstance(b, bool) and abs(a-b) <= FLOAT_TOLERANCE_S)
+        if isinstance(a, dict) and isinstance(b, dict):
+            return a.keys() == b.keys() and all(same(a[k], b[k]) for k in a)
+        if isinstance(a, list) and isinstance(b, list):
+            return len(a) == len(b) and all(same(x, y) for x, y in zip(a, b))
+        return a == b and type(a) is type(b)
+    if not (same(doc['words'], rebuilt['words']) and same(doc.get('quarantined_rows'), rebuilt['quarantined_rows'])
+            and doc.get('recording_sha256') == rebuilt['recording_sha256']
+            and same(conv, rebuilt['conversion'])):
+        raise ValueError('Converted publication file differs from the one regenerated from the raw observer samples')
 
 
 def bind_endpoints(units, doc, track):
@@ -249,9 +285,9 @@ def analyze_v3a_track(units, evidence, track):
         for key in ('publication_file', 'observer_raw', 'harness_log'):
             require(isinstance(evidence.get(key), (str, Path)), 'Missing %s path for endpoint binding' % key)
         publication = json.loads(Path(evidence['publication_file']).read_text(encoding='utf-8-sig'))
-        conversion = verify_conversion_document(publication, mapping, track,
-                                                read_observer_header(evidence['observer_raw']),
-                                                read_events(evidence['harness_log']))
+        header, events = read_observer_header(evidence['observer_raw']), read_events(evidence['harness_log'])
+        conversion = verify_conversion_document(publication, mapping, track, header, events)
+        regenerate_converted(publication, mapping, track, evidence['observer_raw'], header, events)
         units, binding_failures = bind_endpoints(units, publication, track)
         evidence_hashes = {'observer_raw_sha256': file_sha256(evidence['observer_raw']),
                            'harness_log_sha256': file_sha256(evidence['harness_log']),

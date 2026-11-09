@@ -294,7 +294,9 @@ Every credited endpoint must carry its `publication_id` and match the converted 
 (produced by `observer_session_map.py`) by id, observed time and u (1e-9 s tolerance); the file's conversion
 identity must match the track's clock context, the observer raw header and the harness log. A mismatched,
 missing or stale endpoint leaves that unit uncredited in the denominator; a mismatched document makes the
-track INCONCLUSIVE. The output records the SHA-256 of the raw observer file, harness log and converted file.
+track INCONCLUSIVE. The scorer also regenerates the converted file from `observer_raw` with the same code (default
+labels, the file's own origin, frequency and allowance) and requires it to equal the supplied file, and it requires
+a conversion allowance of at least 0.002 s (larger documented values stay valid). The output records the SHA-256 of the raw observer file, harness log and converted file.
 The 2 ms conversion allowance is a conservative numerical allowance for converting between two QPC-based clocks
 (Stopwatch ticks and capture timestamps); it is not measured device timestamp accuracy and not a bound on
 playback or capture delay.

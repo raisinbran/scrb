@@ -1,6 +1,7 @@
 """Invented evidence files for tests of the endpoint binding in analyze-bounds.py (no real recordings)."""
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import observer_session_map as osm
 import v3a_timing as timing
@@ -36,12 +37,13 @@ def converted_document(mapping, words, track='microphone', e=0.002):
     return {**doc, 'words': words}, header
 
 
-def write_evidence(root, doc, header, events):
+def write_evidence(root, doc, header, events, samples=None):
     root = Path(root)
     paths = {'publication_file': root / 'converted.json', 'observer_raw': root / 'observer.jsonl',
              'harness_log': root / 'harness.jsonl'}
     paths['publication_file'].write_text(json.dumps(doc), encoding='utf-8')
-    paths['observer_raw'].write_text(json.dumps(header) + '\n' + json.dumps({'type': 'sample'}) + '\n', encoding='utf-8')
+    lines = [header] + (samples if samples is not None else [{'type': 'sample'}])
+    paths['observer_raw'].write_text(''.join(json.dumps(x) + '\n' for x in lines), encoding='utf-8')
     paths['harness_log'].write_text('\n'.join(json.dumps(e) for e in events) + '\n', encoding='utf-8')
     return {k: str(v) for k, v in paths.items()}
 
@@ -58,3 +60,10 @@ def bind_units(root, mapping, units, track='microphone'):
         bound.append({**unit, 'endpoints': points} if points else unit)
     doc, header = converted_document(mapping, words, track)
     return bound, write_evidence(root, doc, header, harness_events())
+
+
+def without_regeneration(bounds_module):
+    """For timing tests whose endpoints are invented directly: skip only the regeneration from raw samples.
+
+    The end-to-end tests run the real regeneration; the other binding checks still run here."""
+    return patch.object(bounds_module, 'regenerate_converted', return_value=None)
