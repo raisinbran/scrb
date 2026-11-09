@@ -57,6 +57,7 @@ All times are Pacific (PT). `5h` and `week` are **percentage remaining**, not pe
 | Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Phase / model / effort | Retries | Acceptance | Source, reset, overlap and qualification |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-03 | Codex / Windows Dell | Gate 3 preserved-recording final-pass recovery **preparation**: GO; no run launched in this task | Not recorded | Not recorded | 78% -> 61% | 34% -> 32% | 17 / 2 | Not recorded | Not recorded | Not recorded | Agent-reported start/end balance; account-wide; possible concurrent usage; reset time and actual per-task attribution unknown |
+| 2026-11-08 | Claude Code (Sonnet 5.5) / Mac, Claude desktop app Code tab | Independent review of PR 74 head 1dd42de (`scripts/gate3-retest/`, `docs/gates/`); review only, no edits, no audio or Windows step; no P1, six P2 | Not recorded | About 20:33 PT (observed) | Not measured at start (my omission) -> 80% | Not measured at start (my omission) -> 94% | Not measurable / not measurable | Review / Sonnet 5.5 / default | 0 | Pending owner | Pro plan; `get_usage` read after the review: 5h 19% used at review end, 20% used when logged; weekly 6% used; 5h resets 2026-11-09 04:49:59 UTC, weekly 2026-11-13 12:59:59 UTC; account-wide, shared with Claude chat and other Claude Code sessions, so per-task cost is unknown |
 
 ## Assignment routing
 
