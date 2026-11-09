@@ -171,6 +171,12 @@ def regenerate_converted(doc, mapping, track, observer_raw, header, events):
     raw_header, samples = op.load_raw(observer_raw)
     records, report = op.build_publications(raw_header, samples, op.DEFAULT_LABELS, conv['harness_origin_qpc'],
                                             conv['observer_header_frequency_hz'])
+    if not report['validation_pass']:
+        # Computed here from the raw samples; a flag in the supplied publication file is never consulted.
+        raise ValueError('Observer run is not valid (first found sample already showed words, or a row had an unmapped label): '
+                         'result_status %s, first-sample visible words %s, unmapped label rows %s' % (
+                             report['result_status'], report['first_sample_visible_words_before_dedup'],
+                             report.get('unmapped_label_row_count', 0)))
     harness = {'clock_basis': 'harness', 'recording_sha256': doc.get('recording_sha256'),
                'harness_origin_qpc': conv['harness_origin_qpc'], 'qpc_frequency': conv['observer_header_frequency_hz'],
                'words': records, 'quarantined_rows': report['quarantined_rows']}
@@ -292,6 +298,11 @@ def analyze_v3a_track(units, evidence, track):
         evidence_hashes = {'observer_raw_sha256': file_sha256(evidence['observer_raw']),
                            'harness_log_sha256': file_sha256(evidence['harness_log']),
                            'publication_file_sha256': file_sha256(evidence['publication_file'])}
+        scored_u = [point['u'] for unit in units if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES
+                    for point in unit.get('endpoints') or []]
+        observer_u_summary = {'scored_endpoints': len(scored_u), 'scored_endpoints_over_250ms': sum(u > 0.25 for u in scored_u),
+                              'scored_endpoint_u_max_s': max(scored_u, default=None),
+                              'note': 'Reporting only (250 ms is a reporting threshold); counts endpoints of credited scored units.'}
         prepared, steps = prepare_units(units, mapping, anchors)
         for unit in prepared:
             require(type(unit['eligible']) is bool, 'Invalid eligibility')
@@ -313,6 +324,7 @@ def analyze_v3a_track(units, evidence, track):
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
                 'evidence_hashes': evidence_hashes, 'conversion_identity': conversion,
                 'endpoint_binding_failures': binding_failures,
+                'observer_u_summary': observer_u_summary,
                 'source_sha256': source_sha, 'source_annotations_sha256': inventory['annotations_sha256'],
                 'speech_intervals': prepared}
     except (ValueError, KeyError, TypeError, OSError, AssertionError, subprocess.SubprocessError) as error:

@@ -100,10 +100,47 @@ class Identity(unittest.TestCase):
         self.assertEqual(records, [])
         self.assertEqual(report["ambiguous_rows"], [["microphone", "0:05"]])
 
-    def test_tracks_by_label_and_unknown_label_ignored(self):
-        e = row("You", "0:05", "alpha", 150) + row("Meeting", "0:05", "beta", 250) + row("Speaker 3", "0:06", "gamma", 350)
-        records, _ = build([sample(0, 10, e)])
-        self.assertEqual({(r["track"], r["text"]) for r in records}, {("microphone", "alpha"), ("meeting", "beta")})
+    def test_labels_map_to_tracks_in_one_place(self):
+        for name in ("Meeting", "Speaker ?", "Speaker 1", "Speaker 2", "Speaker 12"):
+            self.assertEqual(op.track_for_label(name, LABELS), "meeting", name)
+        self.assertEqual(op.track_for_label("You", LABELS), "microphone")
+        for name in ("Speaker", "Speaker 0", "Speaker 01", "Speaker -1", "Speaker X", "Speaker  1", "Someone", "you", ""):
+            self.assertIsNone(op.track_for_label(name, LABELS), name)
+
+    def test_meeting_speaker_labels_are_published_on_the_meeting_track(self):
+        e = row("You", "0:05", "alpha", 150) + row("Speaker 1", "0:06", "beta", 250) + row("Speaker ?", "0:07", "gamma", 350)
+        records, report = build([sample(0, 10, e)])
+        self.assertEqual({(r["track"], r["text"]) for r in records},
+                         {("microphone", "alpha"), ("meeting", "beta"), ("meeting", "gamma")})
+        self.assertEqual(report["unmapped_label_row_count"], 0)
+
+    def test_speaker_three_is_no_longer_ignored(self):
+        records, _ = build([sample(0, 10, row("Speaker 3", "0:06", "gamma", 350))])
+        self.assertEqual([(r["track"], r["text"]) for r in records], [("meeting", "gamma")])
+
+    def test_same_row_changing_label_between_samples_is_one_row(self):
+        s0 = sample(0, 20, row("Speaker ?", "0:10", "first line here", 150))
+        s1 = sample(100, 120, row("Speaker 2", "0:10", "first line here now", 150))
+        records, report = build([s0, s1])
+        self.assertEqual(report["quarantined_rows"], [])
+        self.assertEqual(report["ambiguous_rows"], [])
+        self.assertEqual([r["id"] for r in records],
+                         ["meeting|0:10|0", "meeting|0:10|1", "meeting|0:10|2", "meeting|0:10|3"])
+
+    def test_unmapped_label_with_words_is_reported_and_inconclusive(self):
+        for e in (row("Zed", "0:05", "alpha beta", 150),
+                  row("You", "0:04", "first", 100) + row("Zed", "0:05", "alpha beta", 250)):
+            s = [sample(0, 10, []), sample(100, 110, e)]
+            records, report = build(s)
+            self.assertEqual(report["unmapped_labels"], {"Zed": 1})
+            self.assertEqual(report["unmapped_label_rows"][0]["words"], 2)
+            self.assertEqual(report["result_status"], "INCONCLUSIVE")
+            self.assertFalse(report["validation_pass"])
+
+    def test_unmapped_label_without_words_is_not_reported(self):
+        _, report = build([sample(0, 10, []), sample(100, 110, [el("Zed", [110, 100, 40, 14]), el("0:05", [160, 100, 40, 14]),
+                                                              el("You", [110, 200, 40, 14]), el("0:06", [160, 200, 40, 14])])])
+        self.assertEqual(report["unmapped_label_row_count"], 0)
 
     def test_provisional_to_final_change_is_reported_not_published(self):
         s0 = sample(0, 10, row("You", "0:05", "thank you", 150))
@@ -381,7 +418,7 @@ class ReportingThreshold(unittest.TestCase):
         s = [sample(0, 20, ""), sample(100, 120, ""), sample(400, 420, row("You", "0:05", "alpha", 150))]
         records, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
         self.assertAlmostEqual(records[0]["u"], 0.320, places=9)  # 420 - 100, the error lies inside
-        self.assertAlmostEqual(report["interval_statistics"]["first_observed_words"]["max_s"], records[0]["u"], places=12)
+        self.assertAlmostEqual(report["interval_statistics"]["published_word_positions"]["max_s"], records[0]["u"], places=12)
         self.assertAlmostEqual(report["interval_statistics"]["all_intervals"]["max_s"], 0.320, places=9)
 
     def test_word_with_u_0_312_is_kept_untruncated_and_listed_as_over_the_threshold(self):
@@ -390,8 +427,8 @@ class ReportingThreshold(unittest.TestCase):
         self.assertAlmostEqual(records[0]["u"], 0.312, places=9)  # 362 - 50
         self.assertEqual(report["u_over_limit"], ["microphone|0:05|0"])
         stats = report["interval_statistics"]
-        self.assertEqual(stats["first_observed_words"]["count_over_250ms"], 1)
-        self.assertEqual(stats["first_observed_words"]["worst"][0]["phase"], "other")
+        self.assertEqual(stats["published_word_positions"]["count_over_250ms"], 1)
+        self.assertEqual(stats["published_word_positions"]["worst"][0]["phase"], "other")
 
     def test_interval_of_0_706_s_after_stop_is_reported_not_a_validity_failure(self):
         errors = [{"type": "error", "qpc_begin": ORIGIN + 100 * FREQ // 1000, "qpc_end": ORIGIN + 756 * FREQ // 1000}]
