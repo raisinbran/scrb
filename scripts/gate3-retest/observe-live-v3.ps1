@@ -9,7 +9,8 @@ param(
     [Parameter(Mandatory = $true)][ValidateRange(5, 900)][int]$Seconds,
     [string]$ViewportName = 'Live transcript',
     [int]$PollMilliseconds = 0,
-    [switch]$WordBounds
+    [switch]$WordBounds,
+    [switch]$SkipWhitespaceElements   # exclude the ' ' separator Text elements in the UIA query (about 39% of nodes); publications were identical offline on runs 3 and 4
 )
 $ErrorActionPreference = 'Stop'
 if (Test-Path -LiteralPath $OutputFile) { throw 'Observer output exists; no automatic repeat.' }
@@ -24,6 +25,8 @@ if ($null -eq $window) { throw 'No UIA window for the explicitly supplied app PI
 $cache = New-Object System.Windows.Automation.CacheRequest
 $cache.Add($UIA::NameProperty); $cache.Add($UIA::ControlTypeProperty); $cache.Add($UIA::IsOffscreenProperty); $cache.Add($UIA::BoundingRectangleProperty)
 $cache.TreeScope = [System.Windows.Automation.TreeScope]::Element
+$findCondition = [System.Windows.Automation.Condition]::TrueCondition
+if ($SkipWhitespaceElements) { $findCondition = New-Object System.Windows.Automation.NotCondition((New-Object System.Windows.Automation.PropertyCondition($UIA::NameProperty, ' '))) }
 $viewportCondition = New-Object System.Windows.Automation.PropertyCondition($UIA::NameProperty, $ViewportName)
 
 function Get-Rect($rect) { if ($rect.IsEmpty) { $null } else { , @([double]$rect.X, [double]$rect.Y, [double]$rect.Width, [double]$rect.Height) } }
@@ -69,7 +72,7 @@ $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($fal
 try {
     $header = @{ type = 'header'; schema = 'SRCB-G3-OBSERVER-RAW-1'; qpc_frequency = $frequency; origin_qpc = $originQpc
         origin_pair_gap_ticks = ($afterQpc - $originQpc); origin_utc = $originUtc; app_pid = $AppProcessId
-        strategy = 'cache-request'; script = 'observe-live-v3'; viewport_name = $ViewportName; poll_ms = $PollMilliseconds; word_bounds = [bool]$WordBounds
+        strategy = 'cache-request'; script = 'observe-live-v3'; viewport_name = $ViewportName; poll_ms = $PollMilliseconds; word_bounds = [bool]$WordBounds; skip_whitespace_elements = [bool]$SkipWhitespaceElements
         powershell = $PSVersionTable.PSVersion.ToString(); input_sent = $false }
     $writer.WriteLine(($header | ConvertTo-Json -Depth 4 -Compress)); $writer.Flush()
     while ((([Diagnostics.Stopwatch]::GetTimestamp() - $originQpc) / $frequency) -lt $Seconds) {
@@ -80,7 +83,7 @@ try {
             if ($null -eq $viewport) { throw 'Transcript viewport element not found' }
             $viewportBounds = Get-Rect $viewport.Cached.BoundingRectangle
             $elements = @()
-            foreach ($e in $viewport.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            foreach ($e in $viewport.FindAll([System.Windows.Automation.TreeScope]::Descendants, $findCondition)) {
                 $c = $e.Cached
                 if (-not $c.Name) { continue }
                 $row = @{ role = $c.ControlType.ProgrammaticName; name = $c.Name; offscreen = $c.IsOffscreen; bounds = (Get-Rect $c.BoundingRectangle) }
