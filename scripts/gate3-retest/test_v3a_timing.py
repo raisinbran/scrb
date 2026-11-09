@@ -317,7 +317,8 @@ class TestScoringGuards(unittest.TestCase):
                  patch.object(timing, 'load_views', return_value=([], [], m)), \
                  patch.object(timing, 'pcm16', return_value=([], 1000)), \
                  patch.object(timing, 'load_long_anchors', return_value=inventory_report), \
-                 patch.object(timing, 'digest', return_value='c'*64):
+                 patch.object(timing, 'digest', return_value='c'*64), \
+                 binding_fixture.without_regeneration(bounds):
                 return bounds.analyze_v3a_track(units, evidence, 'microphone')
 
     def test_crossing_gap_near_six_seconds_keeps_denominator(self):

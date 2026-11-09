@@ -52,7 +52,8 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
                      patch.object(marker_clock, 'analyze_v3a', return_value={'valid':True}), \
                      patch.object(timing, 'pcm16', return_value=([],1000)), \
                      patch.object(timing, 'digest', return_value='a'*64), \
-                     patch.object(timing, 'load_long_anchors', return_value=report):
+                     patch.object(timing, 'load_long_anchors', return_value=report), \
+                     binding_fixture.without_regeneration(bounds):
                     result = bounds.analyze_v3a_track(units, evidence, 'microphone')
             self.assertEqual(result['latency'], 'INCONCLUSIVE')
             self.assertIn('PRE-SPEECH', result['error'])

@@ -173,7 +173,7 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
         header_out, events_out = dict(header), harness_events()
         if file_tamper:
             file_tamper(written, header_out, events_out, scored)
-        evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out))
+        evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out, samples))
         published = hashlib.sha256(Path(evidence['publication_file']).read_bytes()).hexdigest()
         evidence.pop(drop_key, None)
         with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
@@ -335,21 +335,22 @@ class NoClockNoPass(unittest.TestCase):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
         target = 'microphone-005'
 
-        def word_of(doc, scored):
-            identifier = next(r for r in scored if r['id'] == target)['endpoints'][0]['publication_id']
-            return next(w for w in doc['words'] if w['id'] == identifier)
+        # The converted file stays genuine (it must equal the regeneration from the raw samples); the scored
+        # endpoint is what drifts away from it.
+        def endpoint(scored):
+            return next(r for r in scored if r['id'] == target)['endpoints'][0]
 
         def shifted(doc, header, events, scored):
-            word_of(doc, scored)['observed'] -= 0.5
+            endpoint(scored)['observed'] -= 0.5
 
         def changed_u(doc, header, events, scored):
-            word_of(doc, scored)['u'] += 0.01
+            endpoint(scored)['u'] += 0.01
 
         def absent(doc, header, events, scored):
-            doc['words'].remove(word_of(doc, scored))
+            endpoint(scored)['publication_id'] = 'microphone|9:99|0'
 
         def within_tolerance(doc, header, events, scored):
-            word_of(doc, scored)['observed'] += 5e-10
+            endpoint(scored)['observed'] += 5e-10
 
         for tamper in (shifted, changed_u, absent):
             with self.subTest(tamper=tamper.__name__):
@@ -360,6 +361,35 @@ class NoClockNoPass(unittest.TestCase):
                 self.assertEqual([f['id'] for f in result['endpoint_binding_failures']], [target])
                 self.assertNotEqual(result['latency'], 'PASS')
         self.assertEqual(pipeline(units=clean, file_tamper=within_tolerance)[0]['latency'], 'PASS')
+
+    def test_conversion_allowance_below_2_ms_is_refused_larger_is_accepted(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        refused = pipeline(units=clean, conversion_u=0.001)[0]
+        self.assertEqual((refused['latency'], refused['bounds']), ('INCONCLUSIVE', None))
+        self.assertIn('allowance', refused['error'])
+        for value in (0.002, 0.005):
+            with self.subTest(conversion_u=value):
+                self.assertEqual(pipeline(units=clean, conversion_u=value)[0]['latency'], 'PASS')
+
+    def test_file_and_endpoint_changed_together_do_not_survive_regeneration_from_raw_samples(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        target = 'microphone-005'
+
+        def together(doc, header, events, scored):
+            row = next(r for r in scored if r['id'] == target)
+            point = row['endpoints'][0]
+            word = next(w for w in doc['words'] if w['id'] == point['publication_id'])
+            word['observed'] -= 0.75      # the file and the scored endpoint agree with each other...
+            point['observed'] -= 0.75     # ...but not with the raw observer samples
+
+        def text_only(doc, header, events, scored):
+            doc['words'][3]['text'] = 'edited'
+
+        for tamper in (together, text_only):
+            with self.subTest(tamper=tamper.__name__):
+                result = pipeline(units=clean, file_tamper=tamper)[0]
+                self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
+                self.assertIn('regenerated from the raw observer samples', result['error'])
 
     def test_document_whose_conversion_identity_does_not_match_never_scores(self):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
