@@ -16,6 +16,8 @@ import json
 import math
 
 SCHEMA = "SRCB-G3-OBSERVER-SESSION-MAP-2"
+# observer_publications.load_raw adds these to the header it returns; they are not in the first line of the file.
+HEADER_DERIVED_KEYS = ("errors", "error_samples")
 
 
 def canonical_sha256(value):
@@ -91,7 +93,7 @@ def verify_clock_logs(doc, raw_header, harness_events):
     need(ticks == sorted(ticks) and ticks[0] >= origin,
          "Harness log ticks are not on the observer's counter (before its origin or out of order)")
     return {"observer_header_origin_qpc": origin, "observer_header_frequency_hz": frequency,
-            "observer_header_sha256": canonical_sha256(raw_header),
+            "observer_header_sha256": canonical_sha256({k: v for k, v in raw_header.items() if k not in HEADER_DERIVED_KEYS}),
             "harness_log_frequency_hz": frequency, "harness_log_events": len(harness_events),
             "harness_log_first_qpc": ticks[0], "harness_log_last_qpc": ticks[-1],
             "harness_log_sha256": canonical_sha256(harness_events)}

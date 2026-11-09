@@ -155,6 +155,14 @@ class EvidenceBinding(unittest.TestCase):
         with self.assertRaises(ValueError):
             build(track='meeting')
 
+    def test_header_hash_is_the_same_for_the_first_line_and_the_load_raw_header(self):
+        """Real-data finding: the old conversion hashed the header load_raw returns (with errors added)."""
+        first_line = {'type': 'header', 'qpc_frequency': FREQ, 'origin_qpc': H0}
+        loaded = {**first_line, 'errors': [{'type': 'error', 'qpc_begin': 1, 'qpc_end': 2}], 'error_samples': 1}
+        a, _, _ = build(raw_header=first_line)
+        b, _, _ = build(raw_header=loaded)
+        self.assertEqual(a['conversion']['observer_header_sha256'], b['conversion']['observer_header_sha256'])
+
     def test_other_track_words_dropped_and_input_unchanged(self):
         out, doc, _ = build()
         self.assertEqual([w['id'] for w in out['words']], ['x'])

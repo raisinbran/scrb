@@ -56,11 +56,13 @@ def build_units():
     return units
 
 
-def observer_lines(units, quarantine=True):
+def observer_lines(units, quarantine=True, gap=None, hide=()):
     """Raw observer JSONL records: rows appear at the publication instants; one key collides."""
     header = {"type": "header", "schema": op.RAW_SCHEMA, "qpc_frequency": FREQ, "origin_qpc": H0}
     appear = []
     for uid, words, s, lws, lwe, latency, kind in units:
+        if uid in hide:
+            continue  # never shown on screen
         # session instant of the publication, then back to the harness clock the observer reads
         end_ts = ts(lwe)  # speech end on the timestamped timeline
         appear.append((uid, kind, words, s, end_ts + latency - SHIFT))
@@ -86,6 +88,9 @@ def observer_lines(units, quarantine=True):
                 top += 60
             top += 40
         begin = H0 + int(t * FREQ)
+        if gap and gap[0] <= t < gap[1]:
+            t += 0.1
+            continue  # the observer made no successful read in this stretch
         samples.append({"type": "sample", "qpc_begin": begin, "qpc_end": begin + FREQ // 100,
                         "viewport": VIEW, "elements": elements})
         t += 0.1
@@ -136,9 +141,10 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
-             supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None):
+             supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None,
+             gap=None, hide=()):
     units = units or build_units()
-    header, samples = observer_lines(units, quarantine)
+    header, samples = observer_lines(units, quarantine, gap, hide)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
     doc = {"clock_basis": "harness", "recording_sha256": "f" * 64, "words": publications,
            "harness_origin_qpc": H0, "qpc_frequency": FREQ, "quarantined_rows": report["quarantined_rows"]}
@@ -361,6 +367,29 @@ class NoClockNoPass(unittest.TestCase):
                 self.assertEqual([f['id'] for f in result['endpoint_binding_failures']], [target])
                 self.assertNotEqual(result['latency'], 'PASS')
         self.assertEqual(pipeline(units=clean, file_tamper=within_tolerance)[0]['latency'], 'PASS')
+
+    def test_slow_observation_is_scored_with_its_measured_u_not_capped_or_refused(self):
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        result, rows, report, mapped = pipeline(units=clean, gap=(78.35, 78.95))
+        self.assertEqual(result['latency'], 'PASS', result.get('error'))
+        word = next(w for w in mapped['words'] if w['id'] == rows[5]['endpoints'][0]['publication_id'])
+        self.assertGreater(word['u'], 0.25 + 2 * CONVERSION_U)      # above the reporting threshold, kept whole
+        self.assertFalse(report['u_pass'])
+        self.assertTrue(report['validation_pass'])
+        row = by_id(result)['microphone-005']
+        self.assertTrue(math.isfinite(row['conservative']) and math.isfinite(row['best']))
+        self.assertEqual(result['bounds']['conservative']['denominator'], 16)
+
+    def test_unobserved_word_gets_no_credit_and_stays_in_the_denominator(self):
+        # Unique wording, so the later units are unaffected (an unseen repeated sentence leaves its later repeats
+        # unidentified, which is the matcher's conservative behaviour and also gives no credit).
+        units = [u for u in build_units() if u[6] in ('lead', 'rep', 'boundary-in')]
+        result = pipeline(units=units, hide={'microphone-017'})[0]
+        row = by_id(result)['microphone-017']
+        self.assertEqual((row['outcome'], row['conservative'], row['best']), ('UNIDENTIFIED', math.inf, math.inf))
+        self.assertEqual(result['denominator'], 17)
+        self.assertEqual(result['bounds']['conservative']['within6'], 16)
+        self.assertNotEqual(result['latency'], 'PASS')
 
     def test_conversion_allowance_below_2_ms_is_refused_larger_is_accepted(self):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]

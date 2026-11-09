@@ -135,7 +135,7 @@ def _gap_between(errors, previous_end, current_begin):
     return any(e["qpc_begin"] >= previous_end and e["qpc_end"] <= current_begin for e in errors)
 
 
-def build_publications(header, samples, labels, harness_origin_qpc, expected_frequency, errors=None):
+def build_publications(header, samples, labels, harness_origin_qpc, expected_frequency, errors=None, markers=None):
     """Return (publication records, report) from parsed raw samples.
 
     Frequency must equal the harness log's. The observed time is the sample's end; u follows
@@ -153,6 +153,7 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
         raise ValueError("No samples")
     errors = header.get("errors", []) if errors is None else errors
     first, seen, revisions, quarantined, known, intervals = {}, {}, [], {}, {}, []
+    spans = []
     ambiguous = set()
     previous_begin = header["origin_qpc"]
     last_end = None
@@ -170,6 +171,7 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
             raise ValueError("Samples must be chronological and non-overlapping")
         u_ticks = observation_u(previous_begin, end)
         intervals.append((number, u_ticks))
+        spans.append((number, previous_begin, end))
         found, excluded = visible_words_in_sample(sample, labels)
         ambiguous.update(excluded)
         for key in excluded:
@@ -204,13 +206,15 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
     trailing = max([e["qpc_end"] for e in errors if e["qpc_begin"] >= last_end], default=None)
     if trailing is not None:
         intervals.append((len(samples), observation_u(previous_begin, trailing)))
+        spans.append((len(samples), previous_begin, trailing))
     records = list(first.values())  # insertion order is sample order, then document order
     gaps = [(samples[i]["qpc_begin"] - samples[i - 1]["qpc_end"]) / frequency for i in range(1, len(samples))]
     reads = [(s["qpc_end"] - s["qpc_begin"]) / frequency for s in samples] + \
             [(e["qpc_end"] - e["qpc_begin"]) / frequency for e in errors]
-    # PROPOSED rule (owner approval pending): the 250 ms limit applies to every interval from the first sample
-    # that found the transcript viewport onward. The single earlier interval (observer start to that sample,
-    # widened by read errors) is reported as pre_viewport_interval_s and not counted toward u_pass.
+    # PROPOSED rule (owner approval pending): 250 ms is a REPORTING threshold, not a run-validity threshold.
+    # Every publication keeps its measured u. The single interval before the first sample that found the
+    # transcript viewport (observer start to that sample, widened by read errors) is reported as
+    # pre_viewport_interval_s and left out of the all-interval statistics.
     pre_viewport_interval_s = intervals[0][1] / frequency
     first_sample_visible = visible_before_dedup(samples[0], labels)
     inconclusive = first_sample_visible > 0 or any(r["present_at_start"] for r in records)
@@ -225,10 +229,13 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
               "pre_viewport_interval_s": pre_viewport_interval_s,
               "result_status": result_status,
               "first_sample_visible_words_before_dedup": first_sample_visible,
-              "validation_pass": bool(u_all_max <= MAX_U_SECONDS and result_status == "OK"),
+              "validation_pass": bool(result_status == "OK"),
+              "u_limit_role": "reporting threshold only; u_pass and the statistics below never block scoring or validation_pass",
+              "interval_statistics": interval_statistics(intervals, spans, records, samples, labels, frequency,
+                                                         harness_origin_qpc, markers),
               "result_status_note": "INCONCLUSIVE when the first sample that found the viewport already holds visible words: "
                                     "the observer was started too late for this run. Counted before deduplication and quarantine, so quarantined or "
-                                    "duplicate first-sample rows still count. The decision needs u_pass AND result_status OK (validation_pass). "
+                                    "duplicate first-sample rows still count. validation_pass needs result_status OK; u above the 250 ms reporting threshold does not fail it. "
                                     "PROPOSED rule, not frozen.",
               "u_over_limit": [r["id"] for r in records if r["u"] > MAX_U_SECONDS and not r["present_at_start"]],
               "read_max_s": max(reads), "gap_max_s": max(gaps) if gaps else 0.0,
@@ -239,6 +246,57 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
               "credit_policy": "Quarantined rows are never credited in either bound; their reference utterances stay in the denominator.",
               "text_revisions": revisions, "error_samples": len(errors)}
     return records, report
+
+
+def _nearest_rank(values, fraction):
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, max(0, math.ceil(fraction * len(ordered)) - 1))] if ordered else None
+
+
+def interval_phase(number, begin, end, motion, sample_count, frequency, harness_origin_qpc, markers):
+    """Context of one observation interval, derived from the raw samples (and optional harness-second markers).
+
+    Order: before viewport (the first sample), stop (the interval after the last sample), a marker whose time lies
+    in the interval (e.g. recording, stop), scrolling (the sample or its predecessor shows pane motion), other.
+    The raw file carries no recording or Stop marker, so those two appear only when supplied.
+    """
+    if number == 0:
+        return "before viewport"
+    if number == sample_count:
+        return "stop"
+    for name, seconds in (markers or {}).items():
+        if begin <= harness_origin_qpc + seconds * frequency <= end:
+            return name
+    return "scrolling" if number in motion or number - 1 in motion else "other"
+
+
+def interval_statistics(intervals, spans, records, samples, labels, frequency, harness_origin_qpc, markers, worst=5):
+    """Descriptive statistics for the 250 ms reporting threshold; nothing here changes scoring.
+
+    All intervals: every interval after the pre-viewport one, each equal to the u of the publications first seen
+    in that sample (current successful sample end minus previous successful sample begin, so failed polls in
+    between are inside it). First-observed scored words: the publications themselves, with the same u.
+    """
+    motion = set(virtualization_evidence(samples, labels)["pane_motion_samples"])
+    phase = {n: interval_phase(n, b, e, motion, len(samples), frequency, harness_origin_qpc, markers)
+             for n, b, e in spans}
+    ticks = {n: u for n, u in intervals}
+
+    def describe(rows):
+        values = [u for _, u, _ in rows]
+        over = [r for r in rows if r[1] > MAX_U_SECONDS]
+        return {"count": len(rows), "max_s": max(values, default=None), "median_s": _nearest_rank(values, 0.5),
+                "p90_s": _nearest_rank(values, 0.9), "p99_s": _nearest_rank(values, 0.99),
+                "count_over_250ms": len(over),
+                "worst": [{"sample": n, "u_s": u, "phase": ph}
+                          for n, u, ph in sorted(rows, key=lambda r: -r[1])[:worst]]}
+    all_rows = [(n, u / frequency, phase[n]) for n, u in intervals if n != 0]
+    first_rows = [(r["sample_index"], r["u"], phase[r["sample_index"]]) for r in records if not r["present_at_start"]]
+    phases = sorted({ph for _, _, ph in all_rows})
+    return {"threshold_s": MAX_U_SECONDS, "all_intervals": describe(all_rows), "first_observed_words": describe(first_rows),
+            "over_250ms_by_phase": {ph: sum(1 for _, u, p in all_rows if p == ph and u > MAX_U_SECONDS) for ph in phases},
+            "phases_note": "before viewport / stop / scrolling / other are derived from the raw samples; 'recording' "
+                           "(or any other marker) appears only when its harness second is supplied with --phase-mark"}
 
 
 def virtualization_evidence(samples, labels):
@@ -326,13 +384,16 @@ def main():
     parser.add_argument("--harness-origin-qpc", type=int, required=True)
     parser.add_argument("--expected-frequency", type=int, required=True)
     parser.add_argument("--recording-sha256", required=True)
+    parser.add_argument("--phase-mark", action="append", default=[], help="NAME=harness_seconds, repeatable (e.g. recording=30)")
     parser.add_argument("--label", action="append", default=[], help="LABEL=track, repeatable")
     args = parser.parse_args()
     labels = dict(item.split("=", 1) for item in args.label) if args.label else dict(DEFAULT_LABELS)
     if not re.fullmatch(r"[0-9a-f]{64}", args.recording_sha256):
         parser.error("recording sha256 must be 64 lowercase hex characters")
     header, samples = load_raw(args.raw)
-    records, report = build_publications(header, samples, labels, args.harness_origin_qpc, args.expected_frequency)
+    markers = {k: float(v) for k, v in (item.split("=", 1) for item in args.phase_mark)}
+    records, report = build_publications(header, samples, labels, args.harness_origin_qpc, args.expected_frequency,
+                                         markers=markers)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump({"schema": OUT_SCHEMA, "clock_basis": "harness", "recording_sha256": args.recording_sha256,
                    "harness_origin_qpc": args.harness_origin_qpc, "qpc_frequency": header["qpc_frequency"],
