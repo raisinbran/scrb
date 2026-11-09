@@ -252,7 +252,13 @@ def placement_interval(seconds, mapping):
     sample = seconds*mapping['rate']
     # At a boundary, the following sample belongs after the gap.
     row = next((r for r in mapping['chunks'] if sample < r['continuous_end_sample']), mapping['chunks'][-1])
-    return [seconds, seconds+row['cumulative_gap_samples']/mapping['rate']]
+    # Both readings stay possible: the continuous view (no displacement) and the timestamped view, whose
+    # signed displacement is cumulative gaps minus overlaps and audited overruns. A negative displacement
+    # (overlap or overrun) places the word EARLIER than the continuous time; a gap places it later.
+    shift = row['timestamp_displacement_samples']
+    low = min(0, shift)
+    high = max(row['cumulative_gap_samples'], shift)
+    return [seconds+low/mapping['rate'], seconds+high/mapping['rate']]
 
 
 def match_long(recording, source, rate, anchor):
@@ -413,21 +419,23 @@ def source_schedule(unit, first_anchor):
     return values, basis
 
 
-def lead_marker_anchor(continuous_check, source_start_s, span_s=1.2):
+def lead_marker_anchor(continuous_check, source_start_s, source_uncertainty_s, span_s=1.2):
     """Proposal: the lead marker as first anchor, so units before the first long anchor are placed.
 
     Offset = recorded continuous position minus the marker's source time, uncertainty = the marker's
-    measured detection uncertainty. Used only when no long anchor precedes a unit. The span is the
+    measured detection uncertainty plus the uncertainty of the same detector on the frozen source file
+    (source_start_s must be derived from that file, never typed). Used only when no long anchor precedes a unit. The span is the
     existing three 200 ms pulses at 500 ms spacing (1.2 s).
     """
     require(isinstance(continuous_check, dict) and continuous_check.get('valid') is True,
             'Lead marker needs a valid continuous marker check')
     lead = continuous_check['lead']
-    require(all(finite(v) for v in (lead['position'], lead['uncertainty_s'], source_start_s, span_s))
-            and lead['uncertainty_s'] >= 0 and span_s > 0, 'Unsupported lead marker')
+    require(all(finite(v) for v in (lead['position'], lead['uncertainty_s'], source_start_s, source_uncertainty_s, span_s))
+            and lead['uncertainty_s'] >= 0 and source_uncertainty_s >= 0 and span_s > 0, 'Unsupported lead marker')
     return {'id': 'lead-marker', 'source_start_s': source_start_s, 'source_end_s': source_start_s+span_s,
             'recording_start_s': lead['position'], 'recording_end_s': lead['position']+span_s,
-            'offset_s': lead['position']-source_start_s, 'uncertainty_s': lead['uncertainty_s'],
+            'offset_s': lead['position']-source_start_s,
+            'uncertainty_s': lead['uncertainty_s']+source_uncertainty_s, 'source_uncertainty_s': source_uncertainty_s,
             'method': 'lead-marker', 'validated': True}
 
 

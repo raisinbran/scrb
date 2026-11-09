@@ -172,6 +172,37 @@
 - **Correction / verification:** Keep persistent offset placement, but determine bracket uncertainty separately for each source endpoint against measured template supports. The right-anchor prefix keeps both-sided uncertainty; later measured endpoints retain only anchor uncertainty. Both-sign prefix/pre-speech regressions pass through the actual bounds entry point. Include every gap crossed by the complete endpoint uncertainty interval, rather than looking up only its nominal point; a near-gap start regression protects that guard. Final reviewed suite and follow-up disposition are in the conditional handoff.
 - **Impact / remaining risk:** No actual recording acceptance or gate credit resulted. The earlier diagnostic JSON is retained and a reviewed JSON is generated separately; no original evidence changes. Source prefix timing is not certified by matching later template support. Shared quota changes cannot be assigned as an exact incident cost. No recording, playback, rendering, capture change, freeze, observer integration or merge.
 
+## Claude Code (Sonnet 5.5) incidents
+
+Per-session detail for Claude Code also lives in `agents/claude-session-failures/`; the entries below are the ones found by independent review.
+
+### A-045 - 2026-11-09 - Claude Code / Windows Desktop - observer-to-session conversion widened only one side
+- **Status / attribution:** Confirmed agent defect in `observer_session_map.py` (commit 3ed4d32), found by ChatGPT's independent review before any scored run.
+- **What failed:** The conversion uncertainty was added to `u` only. The scorer reads a publication as lying in [observed - u, observed], so a symmetric +/- e error left the latest possible appearance unchanged; a nominal 5.995 s latency with e = 10 ms still counted as on time.
+- **Agent-controlled cause:** I did not check which end of the interval the scorer treats as fixed before choosing where to add the error.
+- **Impact:** No scored run or gate credit; the integration branch carried an optimistic conversion.
+- **Evidence:** `analyze-bounds.py` `analyze_unit` (conservative uses `observed`, best uses `observed - u`); regression in `test_lead_and_session_map.py`.
+- **Correction / prevention:** `observed = nominal + e`, `u = polling_u + 2e`; regression for the 5.995 s / 10 ms case. Offline tests only.
+- **Owner approval:** Not required (offline); no gate change.
+
+### A-046 - 2026-11-09 - Claude Code / Windows Desktop - overlap and overrun placement missed by my end-to-end check
+- **Status / attribution:** Confirmed defect in Codex's `placement_interval` (it used only cumulative positive gaps); my end-to-end regression and my report ("no defect in Codex's code") did not exercise overlaps or audited overruns, so the claim was too strong.
+- **What failed:** With chunk 2 timestamped 200 ms before the end of chunk 1, a word at continuous 10.5 s maps to 10.3 s, outside the returned [10.5, 10.5]; a publication at 16.4 s gave 5.9 s conservative latency instead of 6.1 s.
+- **Agent-controlled cause:** My fixtures used gaps only; I reported absence of defects from the cases I had written.
+- **Impact:** No scored run; found by review.
+- **Evidence:** `gap_map` already recorded `overlap_before_samples` and `timestamp_displacement_samples`; regressions in `test_lead_and_session_map.py`.
+- **Correction / prevention:** Earliest placement adds min(0, displacement), latest adds max(cumulative gap, displacement); gap-only tests unchanged. No new numeric threshold. Future "no defect found" statements must list the cases covered.
+- **Owner approval:** Not required (offline).
+
+### A-047 - 2026-11-09 - Claude Code / Windows Desktop - clock inputs and lead-marker time taken as arguments
+- **Status / attribution:** Confirmed agent design defect in `observer_session_map.py` and the lead-marker path (3ed4d32), found by review.
+- **What failed:** The lead-marker source time, the harness origin ticks and the QPC frequency were plain inputs; a wrong marker time shifts early units by the error and could flip their credit. Chunk hashes, session identity and the origin's constancy were not re-verified at the point of conversion.
+- **Agent-controlled cause:** I treated values the evidence could supply as caller parameters.
+- **Impact:** No scored run.
+- **Evidence:** Tests for each mismatch in `test_integration_e2e.py` and `test_lead_and_session_map.py`.
+- **Correction / prevention:** Marker source time is detected in the frozen source file (supplied value must equal it) and its detection uncertainty is added; the mapper verifies header, harness log, publication file, chunk rows, hashes, session and origin, and records them in the output. The origin is called the reconstructed effective origin, never a logged `clockOriginNs`.
+- **Owner approval:** Not required (offline); the amendment sentence stays a marked proposal.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.

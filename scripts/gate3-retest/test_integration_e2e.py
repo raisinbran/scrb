@@ -3,6 +3,7 @@ occurrence matcher -> v3a timing -> analyze-bounds. No skip paths; only the audi
 (views, PCM, long-anchor correlation) is replaced by synthetic stand-ins, as in test_v3a_timing.
 Written by Claude Code as an independent check of Codex's matcher and v3a code."""
 import importlib.util
+import copy
 import json
 import math
 import sys
@@ -88,19 +89,37 @@ def observer_lines(units, quarantine=True):
     return header, samples
 
 
-def clock_context():
-    return {"schema_version": 1, "session_id": "s1", "session_origin_ns": ORIGIN_NS,
-            "origin_status": "RECONSTRUCTED_CONSTANT", "origin_evidence_chunks": 2,
-            "qpc_basis": {"capture_units": "ns", "nanoseconds_per_second": 1_000_000_000},
-            "track_identity": {"track": "microphone"}}
+SOURCE_RATE = 8000
+CONVERSION_U = 0.002
+CONVERSION_BASIS = "invented fixture: assumed counter agreement within 2 ms"
+
+
+def source_pcm(marker_at=1.0):
+    """Invented source audio: silence with the 880 Hz three-pulse lead marker (200 ms pulses, 500 ms apart)."""
+    import array
+    samples = array.array('h', [0]) * (12 * SOURCE_RATE)
+    for pulse in range(3):
+        first = round((marker_at + 0.5 * pulse) * SOURCE_RATE)
+        for i in range(round(0.2 * SOURCE_RATE)):
+            samples[first + i] = round(12000 * math.sin(2 * math.pi * 880 * i / SOURCE_RATE))
+    return samples, SOURCE_RATE
+
+
+def harness_events():
+    return [{"event": "devices", "stamp": {"qpc_ticks": H0 + FREQ // 10, "utc": "x"},
+             "data": {"stopwatch_frequency": FREQ}},
+            {"event": "microphone_start", "stamp": {"qpc_ticks": H0 + FREQ}, "data": {}}]
 
 
 def records():
-    return [{'seq': 0, 'source_sha256': 'a' * 64, 'start_ns': 0, 'metadata_start_ns': 0,
+    rows = [{'seq': 0, 'source_sha256': 'a' * 64, 'start_ns': 0, 'metadata_start_ns': 0,
              'metadata_end_ns': 140_000_000_000, 'decoded_samples': 140_000},
             {'seq': 1, 'source_sha256': 'b' * 64, 'start_ns': round((140 + GAP) * 1e9),
              'metadata_start_ns': round((140 + GAP) * 1e9), 'metadata_end_ns': round((440 + GAP) * 1e9),
              'decoded_samples': 300_000}]
+    for row in rows:
+        row.update(session_id='s1', device_stamp_ns=row['start_ns'] + ORIGIN_NS)
+    return rows
 
 
 def long_anchor(name, source_s, offset, uncertainty=0.001):
@@ -113,14 +132,20 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
            long_anchor('plus-step', 150, 0.08), long_anchor('minus-step', 300, -0.04)]
 
 
-def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, context=None):
+def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
+             supplied_marker=None, conversion_u=CONVERSION_U, source=None):
     units = units or build_units()
     header, samples = observer_lines(units, quarantine)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
     doc = {"clock_basis": "harness", "recording_sha256": "f" * 64, "words": publications,
-           "quarantined_rows": report["quarantined_rows"]}
-    mapped = osm.publications_to_timestamped(doc, clock_context() if context is None else context, track="microphone", harness_origin_qpc=H0,
-                                             frequency=FREQ, conversion_u_s=0.002)
+           "harness_origin_qpc": H0, "qpc_frequency": FREQ, "quarantined_rows": report["quarantined_rows"]}
+    mapping = timing.gap_map(records(), 'microphone', 1000, 'c' * 64)
+    parts = {"doc": doc, "gap_map": copy.deepcopy(mapping), "raw_header": dict(header), "events": harness_events()}
+    if tamper:
+        tamper(parts)
+    mapped = osm.publications_to_timestamped(parts["doc"], parts["gap_map"], track="microphone", raw_header=parts["raw_header"],
+                                             harness_events=parts["events"], conversion_u_s=conversion_u,
+                                             conversion_u_basis=CONVERSION_BASIS)
     annotations = {"utterances": [{"id": u[0], "reference_words": u[1], "start": u[2], "last_word_start": u[3],
                                    "earliest_acoustic_end_s": u[4], "latest_acoustic_end_s": u[4], "eligible": True}
                                   for u in units]}
@@ -129,7 +154,6 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
     for row, u in zip(rows, units):
         scored.append({**row, "track": "microphone", "source_start_s": u[2], "source_last_word_start_s": u[3],
                        "source_last_word_end_s": u[4]})
-    mapping = timing.gap_map(records(), 'microphone', 1000, 'c' * 64)
     continuous_check = {'valid': clock_valid, 'lead': {'position': 1.0, 'uncertainty_s': 0.002}}
     clock = {'valid': clock_valid, 'gap_map': mapping, 'sample_continuous': continuous_check,
              'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE'}}
@@ -138,10 +162,12 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
     evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json', 'decoder': 'decoder', 'source': 's.wav',
                 'harness': [11, 391], 'long_anchors': [{}], 'source_annotations': 'a.json'}
     if lead:
-        evidence['lead_marker_source_s'] = 1.0
+        evidence['lead_marker'] = True
+        if supplied_marker is not None:
+            evidence['lead_marker_source_s'] = supplied_marker
     with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
          patch.object(timing, 'load_views', return_value=([], [], mapping)), \
-         patch.object(timing, 'pcm16', return_value=([], 1000)), \
+         patch.object(timing, 'pcm16', return_value=source or source_pcm()), \
          patch.object(timing, 'load_long_anchors', return_value=inventory), \
          patch.object(timing, 'digest', return_value='c' * 64):
         result = bounds.analyze_v3a_track(scored, evidence if evidence_present else None, 'microphone')
@@ -217,7 +243,7 @@ class EndToEnd(unittest.TestCase):
         low, high = self.spans['microphone-000']
         self.assertEqual(self.units['microphone-000']['outcome'], 'MATCHED')
         self.assertAlmostEqual((low + high) / 2, 5.0, places=3)
-        self.assertAlmostEqual(high - low, 0.004, places=3)
+        self.assertAlmostEqual(high - low, 0.014, places=3)
 
     def test_without_the_lead_marker_that_unit_is_inconclusive(self):
         result = pipeline(lead=False)[0]
@@ -241,12 +267,75 @@ class NoClockNoPass(unittest.TestCase):
             self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
             self.assertTrue(result['error'])
 
-    def test_missing_or_wrong_session_origin_stops_before_matching(self):
-        for context in ({}, {**clock_context(), 'session_origin_ns': None},
-                        {**clock_context(), 'origin_status': 'INCONSISTENT'},
-                        {**clock_context(), 'track_identity': {'track': 'meeting'}}):
-            with self.assertRaises(ValueError):
-                pipeline(context=context)
+    def test_missing_or_inconsistent_clock_evidence_stops_before_matching(self):
+        def drop_origin(parts):
+            parts["gap_map"]["clock_context"]["session_origin_ns"] = None
+
+        def wrong_status(parts):
+            parts["gap_map"]["clock_context"]["origin_status"] = "INCONSISTENT"
+
+        def other_track(parts):
+            parts["gap_map"]["clock_context"]["track_identity"]["track"] = "meeting"
+
+        def empty_context(parts):
+            parts["gap_map"]["clock_context"] = {}
+
+        def one_chunk_origin_differs(parts):
+            parts["gap_map"]["chunks"][1]["device_stamp_ns"] += 1
+
+        def hash_changed(parts):
+            parts["gap_map"]["chunks"][1]["source_sha256"] = "e" * 64
+
+        def session_changed(parts):
+            parts["gap_map"]["chunks"][1]["session_id"] = "s2"
+
+        def header_frequency(parts):
+            parts["raw_header"]["qpc_frequency"] = FREQ + 1
+
+        def header_origin(parts):
+            parts["raw_header"]["origin_qpc"] = H0 + 1
+
+        def log_frequency(parts):
+            parts["events"][0]["data"]["stopwatch_frequency"] = FREQ * 2
+
+        def log_before_origin(parts):
+            parts["events"][0]["stamp"]["qpc_ticks"] = H0 - 1
+
+        def no_log(parts):
+            parts["events"] = []
+
+        for tamper in (drop_origin, wrong_status, other_track, empty_context, one_chunk_origin_differs, hash_changed,
+                       session_changed, header_frequency, header_origin, log_frequency, log_before_origin, no_log):
+            with self.subTest(tamper=tamper.__name__), self.assertRaises(ValueError):
+                pipeline(tamper=tamper)
+
+    def test_missing_conversion_uncertainty_stops(self):
+        for value in (0, None, -1, float('nan'), 1 / FREQ / 2):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                pipeline(conversion_u=value)
+
+    def test_wrongly_supplied_lead_marker_time_is_rejected_and_the_derived_time_accepted(self):
+        good = pipeline(supplied_marker=1.0)[0]
+        self.assertEqual(good['units'][0]['outcome'], 'MATCHED')
+        bad = pipeline(supplied_marker=1.5)[0]
+        self.assertEqual((bad['latency'], bad['bounds']), ('INCONCLUSIVE', None))
+        self.assertIn('differs from the one detected in the frozen source file', bad['error'])
+        # Had it been accepted, the early unit would have moved by the 0.5 s error and flipped its latency.
+        wrong = timing.lead_marker_anchor({'valid': True, 'lead': {'position': 1.0, 'uncertainty_s': 0.002}}, 1.5, 0.005)
+        right = timing.lead_marker_anchor({'valid': True, 'lead': {'position': 1.0, 'uncertainty_s': 0.002}}, 1.0, 0.005)
+        self.assertAlmostEqual(right['offset_s'] - wrong['offset_s'], 0.5)
+
+    def test_lead_marker_uncertainty_includes_the_source_detection(self):
+        result = pipeline()[0]
+        anchor = result['long_anchors'][0]
+        self.assertEqual(anchor['id'], 'lead-marker')
+        self.assertAlmostEqual(anchor['uncertainty_s'], 0.007)
+        self.assertAlmostEqual(anchor['source_start_s'], 1.0)
+
+    def test_source_without_a_marker_stops_the_lead_anchor(self):
+        import array
+        result = pipeline(source=(array.array('h', [0]) * (12 * SOURCE_RATE), SOURCE_RATE))[0]
+        self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
 
 
 if __name__ == "__main__":
