@@ -226,6 +226,15 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Also noted (not mistakes, limits):** the script frames, not the mp4, were the screen-agreement evidence because the mp4 could not be decoded here and its shell duration (6:45) is shorter than the run (about 7:48); `launch-checkonly.txt` holds one line because of `Select -First 1`. My own wall clock for the task exceeded 20 minutes counting analysis; the run itself was under 15.
 - **Correction / prevention:** order steps so foregrounding precedes opening any overlay; verify the recording is live before pressing Record.
 
+### A-052 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - four wrong or incomplete statements in my observer-validation-3 report
+- **Status / attribution:** Confirmed; agent analysis errors, no effect on the app. Found when re-reading raw.jsonl and the code in the follow-up task.
+- **What was wrong:** (1) I called the bounds "paragraph-level only". The app exposes every word as its own UIA Text element with its own bounds; `bounds_source: element` means that word element (all 1186 publications are single words). The paragraph fallback never applied. (2) I said the virtualization check failed because 165 rows were removed and never returned. `virtualization_evidence` passes or fails on returns and identity, not on never-returned rows: it returned 165 times, 164 with preserved identity and 1 not (`microphone|05:35`: "Copper Basket." came back as a different, longer row under the same track and displayed second). The 165 never-returned keys are rows that aged out of the app's rolling tree (about 18 rows) by the end. (3) I said the session map could not be produced. It can: `v3a_timing.load_views` with the ffmpeg decoder in `gate3-integrated-evidence\decoder` builds the valid gap maps (microphone 90 chunks, meeting 85) and `observer_session_map.py` converts all 1186 words. I had not looked for that loader. (4) I said the mp4 was not decodable; I had no decoder on PATH. Windows Media Foundation opens it (2522x1246, 6:45, H.264 and AAC, moov box complete).
+- **Impact:** the owner received a wrong bounds description and a wrong cause for the check failure; one step (session map) was reported as unmet when it was feasible.
+- **Correction / prevention:** corrected in the follow-up report and in the plan (proposal bullet). Check what the data actually contains before naming it, and search the repo for an existing loader before declaring a step impossible.
+
+### A-053 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - minor tool slips in the observer fix task
+- **Status / attribution:** Confirmed, minor. A wrong COM class id in my volume-reading snippet (first read failed, fixed and read 0.10); a repository-wide grep that exceeded the 120 s limit (stopped, replaced by a scoped search); the first Python test run had the two environment variables unset (3 skips; rerun with both set: 215 tests, no skips). No evidence affected.
+
 
 ## Additional previously reported ChatGPT errors — provenance to verify
 
