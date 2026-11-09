@@ -429,6 +429,17 @@ class Scripts(unittest.TestCase):
 
     def test_raw_schema_name_matches_adapter(self):
         self.assertIn(op.RAW_SCHEMA, self.read("observe-live-v2.ps1"))
+        self.assertIn(op.RAW_SCHEMA, self.read("observe-live-v3.ps1"))
+
+    def test_v3_keeps_v2_guards_and_adds_cache_request(self):
+        text = self.read("observe-live-v3.ps1")
+        for forbidden in ("SendKeys", "SendInput", "mouse_event", "InvokePattern", "SetFocus", "SetValue", "Click", "Start-Process", "npm "):
+            self.assertNotIn(forbidden, text)
+        for required in ("CreateNew", "[IO.FileShare]::Read", "input_sent = $false", "SRCB-G3-OBSERVER-RAW-1",
+                         "CacheRequest", "$cache.Activate()", "$scope.Dispose()", ".Cached", "bounds = (Get-Rect $c.BoundingRectangle)",
+                         "Transcript viewport element not found"):
+            self.assertIn(required, text)
+        self.assertNotIn(".Current", text.replace("$viewport.Current", "").replace("TryGetCurrentPattern", ""))
 
     def test_overlay_uses_the_same_qpc_ticks(self):
         text = self.read("clock-overlay.ps1")
