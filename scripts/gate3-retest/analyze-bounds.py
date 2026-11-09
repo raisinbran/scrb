@@ -113,7 +113,7 @@ def analyze_v3a_track(units, evidence, track):
     desired publication result.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, step_bounds, require,
+    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, step_bounds, require, lead_marker_anchor,
                              finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
@@ -138,6 +138,8 @@ def analyze_v3a_track(units, evidence, track):
                                         clocks.get('sample_continuous', {}).get('lead', {}).get('position', 1)-1))
         require(digest(evidence['source']) == source_sha, 'Source changed during matching')
         anchors = inventory['anchors']
+        if evidence.get('lead_marker_source_s') is not None:
+            anchors = [lead_marker_anchor(clocks.get('sample_continuous', {}), evidence['lead_marker_source_s'])] + anchors
         frozen_units = {u['id']: u for u in inventory['utterances']}
         denominator = sum(u['eligible'] for u in frozen_units.values())
         require(len({u['id'] for u in units}) == len(units)

@@ -341,7 +341,9 @@ def step_bounds(anchors, units):
     require(len(anchors) >= 2, 'Missing bracketing long anchors')
     require(len({a['id'] for a in anchors}) == len(anchors), 'Duplicated long anchor')
     for anchor in anchors:
-        require(anchor.get('validated') is True and anchor.get('method') in ('unique-exact-long-PCM', 'bounded-long-correlation')
+        require(anchor.get('method') != 'lead-marker' or (anchor is anchors[0] and anchor.get('validated') is True),
+                'Lead marker may only be the first, validated anchor')
+        require(anchor.get('validated') is True and anchor.get('method') in ('unique-exact-long-PCM', 'bounded-long-correlation', 'lead-marker')
                 and (anchor['method'] != 'bounded-long-correlation'
                      or (anchor.get('unique') is True and len(anchor.get('methods', [])) == 3
                          and all(m.get('unique') is True for m in anchor['methods']))),
@@ -371,7 +373,8 @@ def step_bounds(anchors, units):
         # source timing. Step locations still use only measured template support.
         by_id = {unit['id']: unit for unit in units}
         require(len(by_id) == len(units), 'Duplicated independently timed unit')
-        for anchor, edge in ((anchors[0], 'start'), (anchors[-1], 'end')):
+        first_long = next(a for a in anchors if a['method'] != 'lead-marker')
+        for anchor, edge in ((first_long, 'start'), (anchors[-1], 'end')):
             if anchor['method'] != 'bounded-long-correlation':
                 continue
             require(anchor['id'] in by_id, 'Missing full-unit timing for edge long anchor')
@@ -383,7 +386,7 @@ def step_bounds(anchors, units):
             require(first <= anchor['recording_start_s']-anchor['uncertainty_s']
                     and anchor['recording_end_s']+anchor['uncertainty_s'] <= last,
                     'Measured template support outside independently timed full unit')
-            if edge == 'start':
+            if edge == 'start' and anchors[0]['method'] != 'lead-marker':
                 coverage_start = first
             else:
                 coverage_end = last
@@ -410,6 +413,24 @@ def source_schedule(unit, first_anchor):
     return values, basis
 
 
+def lead_marker_anchor(continuous_check, source_start_s, span_s=1.2):
+    """Proposal: the lead marker as first anchor, so units before the first long anchor are placed.
+
+    Offset = recorded continuous position minus the marker's source time, uncertainty = the marker's
+    measured detection uncertainty. Used only when no long anchor precedes a unit. The span is the
+    existing three 200 ms pulses at 500 ms spacing (1.2 s).
+    """
+    require(isinstance(continuous_check, dict) and continuous_check.get('valid') is True,
+            'Lead marker needs a valid continuous marker check')
+    lead = continuous_check['lead']
+    require(all(finite(v) for v in (lead['position'], lead['uncertainty_s'], source_start_s, span_s))
+            and lead['uncertainty_s'] >= 0 and span_s > 0, 'Unsupported lead marker')
+    return {'id': 'lead-marker', 'source_start_s': source_start_s, 'source_end_s': source_start_s+span_s,
+            'recording_start_s': lead['position'], 'recording_end_s': lead['position']+span_s,
+            'offset_s': lead['position']-source_start_s, 'uncertainty_s': lead['uncertainty_s'],
+            'method': 'lead-marker', 'validated': True}
+
+
 def anchor_source_start(anchor):
     return anchor.get('source_utterance_start_s', anchor['source_start_s'])
 
@@ -420,7 +441,7 @@ def prepare_units(units, mapping, anchors):
     by_anchor = {a['id']: a for a in anchors}
     nominal_units = []
     for unit in units:
-        (a, b, c), basis = source_schedule(unit, anchors[0])
+        (a, b, c), basis = source_schedule(unit, next(x for x in anchors if x['method'] != 'lead-marker'))
         preceding = [anchor for anchor in anchors if anchor_source_start(anchor) <= a]
         require(preceding, 'No preceding long anchor for source utterance')
         anchor = preceding[-1]
