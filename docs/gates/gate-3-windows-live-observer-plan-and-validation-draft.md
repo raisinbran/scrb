@@ -11,7 +11,7 @@ Rules this serves: Protocol v3 section 1 (observer, validation items 1 to 6, pol
 | `scripts/gate3-retest/observe-live-v2.ps1` | Polls UI Automation under the element named `Live transcript` and writes raw JSONL (`SRCB-G3-OBSERVER-RAW-1`). Header: QPC frequency, origin QPC and UTC pair, pair gap. Each sample: QPC begin and end, the viewport rectangle read in that sample, and every named element with role, name, bounds, off-screen flag, and (with `-WordBounds`) per-word bounds from TextPattern. Read errors are logged as `error` lines and widen the next interval. Sends no input. Output file created new, no repeat. |
 | `scripts/gate3-retest/observer_publications.py` | Turns the raw file into the matcher's publication file plus a report. Applies the visibility rule, builds word-position ids, keeps each position's first visible sample, computes `observed` and `u`, and compares hand-read screen-recording frames with the rule. Refuses to overwrite. |
 | `scripts/gate3-retest/clock-overlay.ps1` | Separate always-on-top window showing seconds on the same QPC clock since a given origin, updated every 10 ms, for the screen recording. |
-| `scripts/gate3-retest/test_observer_publications.py` | 23 offline tests on invented fixtures (see section 4). |
+| `scripts/gate3-retest/test_observer_publications.py` | 39 offline tests on invented fixtures (see section 4). |
 
 **Rules implemented**
 
@@ -20,6 +20,9 @@ Rules this serves: Protocol v3 section 1 (observer, validation items 1 to 6, pol
 - **First visible only:** later polls of the same id are dropped. A later change of a position's text is listed under `text_revisions` and not published; the matcher cannot ingest revisions.
 - **Time:** `observed` = sample end, in seconds on the harness QPC clock = (QPC ticks − harness origin ticks) / frequency. The harness log (`play-sources.ps1`) already records `qpc_ticks` and `stopwatch_frequency` from the same `Stopwatch`. A frequency mismatch is refused.
 - **Uncertainty:** `u` = this sample's end − the previous successful sample's begin, which is the gap plus both read times. A failed sample is skipped, so it widens `u`. This is wider than the old reach probe, which used end minus the previous end. Largest `u` over 250 ms is listed. Words already on screen at the first sample are flagged `present_at_start`; their `u` runs from the observer origin and they are not counted as over the limit.
+- **Quarantine (cross-sample collisions):** a row key (track plus displayed time) is quarantined for the whole run, and any earlier records for it are removed, when it cannot be the same row everywhere it was seen: two rows with that key in one sample, or a return after absence or a read-error gap with different or shorter text. A quarantined or excluded row gets no publication, so its reference utterances are uncredited in both the conservative and the best-case bound and stay in the denominator. They are reported under `quarantined_rows`. A contiguous change with no absence is a revision, reported, not a collision. An unnoticed replacement of one row by another with the same key while it stayed on screen cannot be detected.
+- **Largest `u` over all intervals:** the report's `u_all_intervals_max_s` covers every polling interval (origin to first sample, each sample to the next, and a trailing read-error stretch), with read errors widening the interval they sit in. `u_pass` is true only if that maximum is 250 ms or less. The per-publication `u_max_s` is kept but is not the acceptance figure.
+- **Virtualization evidence from the data:** `virtualization_evidence` finds rows that left the accessibility tree (not merely the viewport) and returned later with the same text, and rows that moved on screen between samples. A row outside the viewport but still in the tree does not count. A typed "scrolled" or "virtualized" flag in a review item is ignored.
 - **Not done by the observer:** the 100 ms marker fit and the harness-to-recording mapping stay in `marker_clock.py` and the matcher.
 
 ## 2. Screen-recording plan
@@ -29,31 +32,37 @@ Rules this serves: Protocol v3 section 1 (observer, validation items 1 to 6, pol
 - Frame time reads to about one frame (17 to 33 ms) plus the overlay's redraw delay; that uncertainty is added when a frame fixes a sample time. Frames are extracted with the existing decoder tool and read by an agent or the owner; this is manual reading, not OCR.
 - The recording is a backup that confirms what was in the viewport; UI Automation stays the primary source (Protocol v3, D7).
 
-## 3. Owner-run VALIDATION checklist (not scored, under 20 minutes)
+## 3. Owner-run VALIDATION checklist (full 420 s playback; not scored, not frozen)
 
-Planned: setup about 4 min, run 5 min, copy-back about 3 min, about 12 min in total. The app's own final processing after Stop is **not** included and is unmeasured; if it would push the total past 20 minutes, ask before starting. Use a fresh run folder and the pinned candidate `553dd9080f452f8a54ccff5cd5fea8d6937438ae`. Test audio only (the r3 assembled WAVs). Do not use any real meeting recording.
+**Duration (needs the owner's advance approval).** Planned: setup about 4 min (launch, observer, overlay, recorder), recording about 7.5 min (the practice run's capture lasted 449 s; playback 420 s), copy-back about 3 min: **about 14.5 min before final processing**. Final processing after Stop is unmeasured for this app; Protocol v3 plans 1x to 2x the meeting length, 7 to 14 min, so the **total is about 21.5 to 28.5 min, which is over 20 minutes. Do not start without the owner's explicit approval of this planned total.** Cleanup is not counted. No automatic stop and no automatic repeat.
 
-Folder for everything: `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\observer-validation-1\`. No administrator rights are needed for any step.
+Use a fresh run folder and the pinned candidate `553dd9080f452f8a54ccff5cd5fea8d6937438ae`. Test audio only (the r3 assembled WAVs); no real meeting recording. Folder for everything: `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\observer-validation-1\`. No administrator rights are needed for any step.
 
-1. Apply the same Windows settings as the practice run (speaker volume 10, Realtek default output). Do not change any other setting.
-2. Run `launch-candidate.ps1` check-only from `tools-d2-v2`; all hashes must match. Then run it with `-Launch -RunFolder <the new folder>\app-run`. In the app choose `CABLE Output` as the microphone, open the Live screen, and press **Record**. Write down the clock time.
-3. In a Windows PowerShell 5.1 window run the observer for 300 seconds with word bounds on, using the app's process id (`-AppProcessId`, `-OutputFile <folder>\raw.jsonl`, `-Seconds 300`, `-ViewportName 'Live transcript'`, `-WordBounds`). Reading the first line of `raw.jsonl` gives `origin_qpc`.
-4. In a second window run `clock-overlay.ps1 -OriginQpc <origin_qpc>`. Start the screen recording of the transcript pane and the overlay together.
-5. Start the playback exactly as in the practice checklist (`play-sources.ps1 -Play -OwnerApprovedLongTest`, ready file first). Let it play about 4 minutes. Press Ctrl+C in that window to end it early; note that you did.
-6. Visibility samples while both tracks speak. Do each with the mouse wheel on the transcript pane only; touch nothing else and say nothing:
-   - minute 1: leave the pane following the live end for 30 s (samples 1 to 3 come from this stretch);
-   - minute 2: scroll up about 3 screens, hold 10 s, press **Jump to Live** (scrolling samples 4 to 6);
-   - minute 3: scroll up as far as the top and hold 10 s, then **Jump to Live** (older lines out of the viewport and, if the app removes them from the page, virtualized away; samples 7 to 9);
-   - minute 4: scroll slowly down through lines 10 s and stop at the live end (sample 10).
-   Write down the overlay time of each action.
-7. Press **Stop** in the app. Stop the screen recording. The observer ends by itself at 300 s.
-8. Copy back, read-only, into the folder: `raw.jsonl`, the screen recording, the playback log, your action times from step 6, and the Task Manager CPU and memory of the observer's PowerShell process and of the app at minute 2 (screenshot). Do not delete anything.
+1. Apply the same Windows settings as the practice run (speaker volume 10, Realtek default output). Change nothing else.
+2. Run `launch-candidate.ps1` check-only from `tools-d2-v2`; all hashes must match. Run it again with `-Launch` and a new `-RunFolder` inside the folder above. In the app choose `CABLE Output` as the microphone and open the Live screen. Do not press Record yet.
+3. In a Windows PowerShell 5.1 window start the observer **before playback**: `observe-live-v2.ps1 -AppProcessId <pid> -OutputFile <folder>\raw.jsonl -Seconds 480 -ViewportName 'Live transcript' -WordBounds`. Read `origin_qpc` from the first line of `raw.jsonl`.
+4. In a second window start `clock-overlay.ps1 -OriginQpc <origin_qpc>`. Start the Windows screen recording of the transcript pane and the overlay together.
+5. Press **Record**; write down the clock time. Then start the playback exactly as in the practice checklist (ready file, then `play-sources.ps1 -Play -OwnerApprovedLongTest`). Let the **full 420 s** play.
+6. Scroll actions with the mouse wheel on the transcript pane only, with both tracks speaking; write each overlay time down. They are for the owner's record; the report derives scrolling and virtualization from the observer data, not from these notes:
+   - 60 to 120 s: leave the pane following the live end;
+   - about 120 s: scroll up about 3 screens, hold 10 s, press **Jump to Live**;
+   - about 200 s and about 300 s: scroll up as far as it goes, hold 10 s, **Jump to Live**; between them scroll slowly down through lines and stop at the live end.
+7. After playback ends, press **Stop**, stop the screen recording, and let the app finish final processing (do not interrupt it). The observer ends by itself at 480 s.
+8. Copy back, read-only, into the folder: `raw.jsonl`, the screen recording, the playback log, your action times, and a Task Manager screenshot of the CPU and memory of the observer's PowerShell process and of the app at about 120 s. Delete nothing.
 
-What I do with it (offline, no app): build the publication file, extract 10 or more frames at the overlay times, read the visible words, run the visibility comparison, and report largest `u`, largest read time and the overhead. PASS needs: UI Automation exposes the transcript text, labels and bounds; at least 10 frames agree with the rule including scrolling and virtualized cases; largest `u` of 250 ms or less; no truncated or hidden text.
+What I do with it offline: build the publication file, extract 10 or more frames at chosen overlay times, read the visible words, and run the report. PASS needs all of: UI Automation exposes the transcript text, labels and bounds; `u_pass` (largest `u` over **all** polling intervals including read errors is 250 ms or less); `virtualization_evidence` passes from the observer data (rows left the accessibility tree, scrolling back brought them back, identities preserved) in the **observer's own samples**, not as noted by a person; at least 10 frames agree with the visibility rule, with scrolling and virtualized cases found by derivation; no truncated or hidden text. If virtualization never occurs in 420 s, that item is NOT MET and is reported so, not assumed.
 
 ## 4. Offline checks that exist
 
-Schema keys and types, matcher acceptance of the output shape (run against matcher commit `437bbcc` with `SCRB_MATCHER_DIR`; skipped when absent), overwrite refusal, chronological output, id stability when a row moves, repeated words at distinct positions, same-time row exclusion, unknown labels ignored, first-visible time kept across scrolling out and back, per-sample viewport use, clipped and off-screen words, provisional-to-final revisions reported, interval arithmetic (gap plus both reads, failed samples widen, origin conversion, frequency mismatch), the 10-sample review comparison, and static guards that the scripts send no input, create output new, and use `Stopwatch` ticks. The two scripts parse with the PowerShell parser (no run).
+39 tests on invented fixtures: schema keys and types; matcher acceptance of the output shape (run against matcher commit `437bbcc` with `SCRB_MATCHER_DIR`; skipped when absent); overwrite refusal; chronological output; id stability when a row moves; repeated words at distinct positions; same-time row exclusion; unknown labels ignored; first-visible time kept across scrolling out and back; per-sample viewport use; clipped and off-screen words; revisions reported; interval arithmetic (gap plus both reads, failed samples widen, origin conversion, frequency mismatch); largest `u` over all intervals including errors and trailing errors; quarantine (different or shorter text after absence, after a read gap, two rows seen together after separately, permanence, no credit for a quarantined unit in either bound); virtualization derived from tree removal and return, not from viewport exit or typed flags; and static guards that the scripts send no input, create output new and use `Stopwatch` ticks. The scripts parse with the PowerShell parser; they were never run.
+
+**Word-level vs paragraph-level handling (code reading, unverified on the real screen).**
+
+- `observe-live-v2.ps1` asks TextPattern for each word's rectangles. `GetBoundingRectangles()` returns an array of rectangles, one per line the word covers. One rectangle is a normal word (the earlier code wrongly required four or more and dropped such words; fixed). Several rectangles are united. Empty rectangles are dropped; a word left with none is written with `bounds: null` and the adapter treats it as not visible.
+- If the element has no TextPattern or the call yields no words, the `words` list is empty and the adapter falls back to the paragraph's bounds: all its words count as visible only if the whole paragraph is inside the viewport, and each such record carries `bounds_source: element` (the report counts them). A paragraph clipped at a viewport edge then shows no visible words, which can delay a first-visible time.
+- Single-word elements skip the TextPattern call; the element is the word.
+
+**To check on the real Live screen:** (a) which of the two paths the pane yields; (b) that the word units match the sentence words (UIA word splitting of apostrophes, hyphens and trailing punctuation) and the matcher's normalized tokens; (c) that word rectangles are in the same screen coordinates as the viewport rectangle (including display scaling and a window that is not at 100%); (d) rectangles for words outside the viewport: empty, or present but outside; (e) wrapped words; (f) the extra read time of `-WordBounds` per sample.
 
 ## 5. What could NOT be verified without the app, and what each step needs from the owner
 
@@ -65,13 +74,16 @@ Schema keys and types, matcher acceptance of the output shape (run against match
 | Word ids cannot come from the app: `data-word-id` and `data-segment-id` are DOM attributes that UIA does not expose, so ids use track plus the row's displayed time plus word index | Source reading only | Decision: accept this id, or ask for a UI/contract change (owner approval, handoff note) |
 | Row time text unique per track, rows stay put when text is revised | Same-second rows are excluded, not resolved; a revised word count shifts later indices | The run shows how often `ambiguous_rows` and `text_revisions` occur |
 | Speaker labels are `You` and `Meeting` | Protocol marks it [CONFIRM] | Read from the run |
-| Older lines really leave the viewport or the page during 4 minutes | Rows are virtualized only beyond the viewport plus 6 rows of overscan; a short run may never reach that | The element counts per sample in `raw.jsonl`; a longer run needs a separate approval |
-| Largest `u` of 250 ms or less under full load | Poll interval 50 ms is a setting, not a measurement; each read takes unknown time | Step 3 to 7 under the load of both tracks, recording and the screen recording |
+| Older lines really leave the viewport or the page during the 420 s run | Rows are virtualized only beyond the viewport plus 6 rows of overscan; a short run may never reach that | The element counts per sample in `raw.jsonl`; a longer run needs a separate approval |
+| Largest `u` of 250 ms or less under full load | Poll interval 50 ms is a setting, not a measurement; each read takes unknown time | Steps 3 to 7 under the load of both tracks, recording and the screen recording |
 | Observer and overlay share the harness QPC | Same `Stopwatch` ticks, same machine; never compared on a real run | The validation run shows both against one clock |
 | Built-in screen recorder exists and its frame accuracy | Not checked | Owner names the tool; admin no |
 | Screen-recording frame reading is accurate | Reading frames is manual, not independent OCR | Review of my frame reading by another agent or the owner |
 | Observer CPU and memory overhead | Never measured | Step 8 screenshots |
 | Behavior of the matcher on real observer output (revisions, rows that move words) | Matcher refuses conflicting text per id; the adapter publishes first-visible only | Codex review after the run |
 | Review of this plan and code by an agent other than the author | Not yet done | Assign a reviewer before the owner run; automated comment checking is also still pending |
+| Quarantine rules cover real collisions | Rules come from the source and invented cases; a row replaced by another with the same time text while continuously on screen is undetectable | The run's `quarantined_rows`, `ambiguous_rows` and `text_revisions` |
+| Virtualization occurs and is detectable within 420 s | Overscan is 6 rows; rows may never leave the tree in this run | `virtualization_evidence` on the observer data; otherwise reported NOT MET |
+| Largest `u` over all intervals | Never measured | `u_all_intervals_max_s` and `u_pass` from the run |
 
 No file here is frozen. Hashes for the observer, adapter and overlay stay PENDING until review and the owner's approval.

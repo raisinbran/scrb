@@ -96,63 +96,171 @@ def visible_words_in_sample(sample, labels):
     return found, excluded
 
 
-def build_publications(header, samples, labels, harness_origin_qpc, expected_frequency):
+def _prefix(key):
+    return "|".join(key)
+
+
+def tree_rows(sample, labels):
+    """Rows present in the accessibility tree in one sample, visible or not.
+
+    Returns {(track, time): {"texts": [...], "y": label top or None, "in_viewport": bool}}.
+    Same-time duplicates within the sample are left out.
+    """
+    viewport = sample.get("viewport")
+    rows = [row for row in split_rows(sample.get("elements", []), labels) if row["time"]]
+    keys = [(row["track"], row["time"]) for row in rows]
+    out = {}
+    for row, key in zip(rows, keys):
+        if keys.count(key) > 1:
+            continue
+        words = row_words(row, viewport)
+        bounds = row["label_element"].get("bounds")
+        out[key] = {"texts": [w["text"] for w in words], "y": bounds[1] if bounds else None,
+                    "in_viewport": any(w["visible"] for w in words)}
+    return out
+
+
+def _gap_between(errors, previous_end, current_begin):
+    return any(e["qpc_begin"] >= previous_end and e["qpc_end"] <= current_begin for e in errors)
+
+
+def build_publications(header, samples, labels, harness_origin_qpc, expected_frequency, errors=None):
     """Return (publication records, report) from parsed raw samples.
 
     Frequency must equal the harness log's. The observed time is the sample's end; u follows
-    observation_u. Later changes of a position's text are reported, not published.
+    observation_u. Later changes of a position's text are reported, not published. A row key
+    (track + displayed time) is QUARANTINED, permanently and with any earlier records removed,
+    when it cannot be the same row everywhere it was seen: two such rows in one sample, or a
+    return after absence (or after a read error) with different or shorter text. Quarantined
+    rows get no publication, so their reference utterances stay uncredited in both bounds and
+    in the denominator.
     """
     frequency = header["qpc_frequency"]
     if frequency != expected_frequency:
         raise ValueError("QPC frequency differs from the harness log; no conversion is defined")
     if not samples:
         raise ValueError("No samples")
-    first, seen, revisions, ambiguous, rows_seen, u_values = {}, {}, [], set(), {}, []
+    errors = header.get("errors", []) if errors is None else errors
+    first, seen, revisions, quarantined, known, intervals = {}, {}, [], {}, {}, []
+    ambiguous = set()
     previous_begin = header["origin_qpc"]
     last_end = None
+
+    def quarantine(key, number, reason):
+        if key in quarantined:
+            return
+        quarantined[key] = {"track": key[0], "time": key[1], "sample": number, "reason": reason}
+        for identifier in [i for i in first if i.rsplit("|", 1)[0] == _prefix(key)]:
+            del first[identifier]
+
     for number, sample in enumerate(samples):
         begin, end = sample["qpc_begin"], sample["qpc_end"]
         if end < begin or (last_end is not None and begin < last_end):
             raise ValueError("Samples must be chronological and non-overlapping")
         u_ticks = observation_u(previous_begin, end)
+        intervals.append((number, u_ticks))
         found, excluded = visible_words_in_sample(sample, labels)
         ambiguous.update(excluded)
+        for key in excluded:
+            quarantine(tuple(key), number, "rows with the same track and time seen together")
+        rows = {}
         for word in found:
-            if word["id"] in seen and seen[word["id"]] != word["text"] and word["visible"]:
-                revisions.append({"id": word["id"], "from": seen[word["id"]], "to": word["text"], "sample": number})
-            if not word["visible"]:
+            rows.setdefault((word["track"], word["id"].split("|")[1]), []).append(word)
+        contiguous = number > 0 and not _gap_between(errors, last_end, begin)
+        for key, words in rows.items():
+            if key in quarantined:
                 continue
-            seen.setdefault(word["id"], word["text"])
-            if word["id"] not in first:
-                first[word["id"]] = {"id": word["id"], "track": word["track"], "text": word["text"],
-                                     "observed": (end - harness_origin_qpc) / frequency,
-                                     "u": u_ticks / frequency, "sample_index": number,
-                                     "bounds_source": word["source"], "present_at_start": number == 0}
-                u_values.append(u_ticks / frequency)
+            texts = [w["text"] for w in words]
+            old = known.get(key)
+            if old is not None and not (contiguous and old["sample"] == number - 1):
+                count = len(old["texts"])
+                if len(texts) < count or texts[:count] != old["texts"]:
+                    quarantine(key, number, "reappeared after absence or a read gap with different or shorter text")
+                    continue
+            known[key] = {"texts": texts, "sample": number}
+            for word in words:
+                if word["id"] in seen and seen[word["id"]] != word["text"] and word["visible"]:
+                    revisions.append({"id": word["id"], "from": seen[word["id"]], "to": word["text"], "sample": number})
+                if not word["visible"]:
+                    continue
+                seen.setdefault(word["id"], word["text"])
+                if word["id"] not in first:
+                    first[word["id"]] = {"id": word["id"], "track": word["track"], "text": word["text"],
+                                         "observed": (end - harness_origin_qpc) / frequency,
+                                         "u": u_ticks / frequency, "sample_index": number,
+                                         "bounds_source": word["source"], "present_at_start": number == 0}
         previous_begin, last_end = begin, end
+    trailing = max([e["qpc_end"] for e in errors if e["qpc_begin"] >= last_end], default=None)
+    if trailing is not None:
+        intervals.append((len(samples), observation_u(previous_begin, trailing)))
     records = list(first.values())  # insertion order is sample order, then document order
     gaps = [(samples[i]["qpc_begin"] - samples[i - 1]["qpc_end"]) / frequency for i in range(1, len(samples))]
-    reads = [(s["qpc_end"] - s["qpc_begin"]) / frequency for s in samples]
+    reads = [(s["qpc_end"] - s["qpc_begin"]) / frequency for s in samples] + \
+            [(e["qpc_end"] - e["qpc_begin"]) / frequency for e in errors]
+    all_u = [(n, ticks / frequency) for n, ticks in intervals]
+    u_all_max = max(u for _, u in all_u)
     report = {"samples": len(samples), "publications": len(records),
-              "u_max_s": max(u_values) if u_values else None,
+              "u_max_s": max((r["u"] for r in records), default=None),
+              "u_all_intervals_max_s": u_all_max, "u_all_intervals_count": len(all_u),
+              "u_all_intervals_over_limit": [[n, u] for n, u in all_u if u > MAX_U_SECONDS],
+              "u_limit_s": MAX_U_SECONDS, "u_pass": u_all_max <= MAX_U_SECONDS,
               "u_over_limit": [r["id"] for r in records if r["u"] > MAX_U_SECONDS and not r["present_at_start"]],
               "read_max_s": max(reads), "gap_max_s": max(gaps) if gaps else 0.0,
               "present_at_start": [r["id"] for r in records if r["present_at_start"]],
               "paragraph_bounds_only": sum(1 for r in records if r["bounds_source"] == "element"),
-              "ambiguous_rows": [list(k) for k in sorted(ambiguous)], "text_revisions": revisions,
-              "error_samples": header.get("error_samples", 0)}
+              "ambiguous_rows": [list(k) for k in sorted(ambiguous)],
+              "quarantined_rows": sorted(quarantined.values(), key=lambda q: (q["sample"], q["track"], q["time"])),
+              "credit_policy": "Quarantined rows are never credited in either bound; their reference utterances stay in the denominator.",
+              "text_revisions": revisions, "error_samples": len(errors)}
     return records, report
 
 
-def compare_review(samples, labels, review, frequency, harness_origin_qpc):
-    """Compare the visibility rule with hand-read screen-recording samples.
+def virtualization_evidence(samples, labels):
+    """Derive from the samples whether rows really left the accessibility tree and came back.
 
-    Each review item: {"t": harness seconds of a recording frame, "expected_visible": [words in order],
-    "scrolling": bool, "virtualized_older_lines": bool, "track": "microphone"|"meeting"}.
-    The nearest earlier-or-equal sample is used; mismatches are listed, not silently dropped.
+    A row that is only scrolled out of the viewport stays in the tree and does not count. Evidence
+    needs a row removed from the tree and later returned with consistent text (same identity), and
+    rows moving on screen between consecutive samples. Nothing here is typed by a person.
     """
+    tree = [tree_rows(s, labels) for s in samples]
+    last_texts, removed_at, returns, motion, windows, never_returned = {}, {}, [], [], [], set()
+    previous = {}
+    for index, rows in enumerate(tree):
+        for key in set(previous) - set(rows):
+            removed_at[key] = index
+            never_returned.add(key)
+        for key, info in rows.items():
+            if key in removed_at:
+                old = last_texts[key]
+                preserved = len(info["texts"]) >= len(old) and info["texts"][:len(old)] == old
+                returns.append({"row": list(key), "removed_sample": removed_at[key], "returned_sample": index,
+                                "identity_preserved": preserved})
+                windows.append([removed_at.pop(key), index])
+                never_returned.discard(key)
+            last_texts[key] = info["texts"]
+        if any(key in previous and info["y"] is not None and previous[key]["y"] is not None
+               and abs(info["y"] - previous[key]["y"]) > 1 for key, info in rows.items()):
+            motion.append(index)
+        previous = rows
+    outside = max((sum(1 for info in rows.values() if not info["in_viewport"]) for rows in tree), default=0)
+    ok = bool(returns) and all(r["identity_preserved"] for r in returns) and bool(motion)
+    return {"rows_returned_after_removal": len(returns), "returns": returns,
+            "rows_removed_never_returned": sorted(list(k) for k in never_returned),
+            "max_rows_in_tree_outside_viewport": outside, "pane_motion_samples": motion,
+            "virtualized_windows": windows, "pass": ok}
+
+
+def compare_review(samples, labels, review, frequency, harness_origin_qpc):
+    """Compare the visibility rule with hand-read screen-recording frames.
+
+    Each review item: {"t": harness seconds of a recording frame, "track": ..., "expected_visible": [words in order]}.
+    Whether a frame falls in a scrolling stretch or a virtualized stretch is derived from the samples,
+    not stated by the reviewer. The nearest earlier-or-equal sample is used; mismatches are listed.
+    """
+    evidence = virtualization_evidence(samples, labels)
+    motion = set(evidence["pane_motion_samples"])
     ends = [(s["qpc_end"] - harness_origin_qpc) / frequency for s in samples]
-    results, mismatches = [], []
+    results, mismatches, scrolling, virtualized = [], [], 0, 0
     for item in review:
         candidates = [i for i, t in enumerate(ends) if t <= item["t"]]
         if not candidates:
@@ -161,14 +269,15 @@ def compare_review(samples, labels, review, frequency, harness_origin_qpc):
         found, _ = visible_words_in_sample(samples[index], labels)
         got = [w["text"] for w in found if w["visible"] and w["track"] == item["track"]]
         ok = got == list(item["expected_visible"])
+        scrolling += index in motion or index - 1 in motion
+        virtualized += any(a <= index < b for a, b in evidence["virtualized_windows"])
         results.append({"t": item["t"], "sample": index, "ok": ok})
         if not ok:
             mismatches.append({"t": item["t"], "expected": item["expected_visible"], "observed": got})
-    counts = {"total": len(review), "scrolling": sum(1 for i in review if i.get("scrolling")),
-              "virtualized": sum(1 for i in review if i.get("virtualized_older_lines"))}
-    enough = counts["total"] >= 10 and counts["scrolling"] >= 1 and counts["virtualized"] >= 1
-    return {"counts": counts, "enough_samples": enough, "mismatches": mismatches,
-            "pass": enough and not mismatches}
+    counts = {"total": len(review), "scrolling_derived": scrolling, "virtualized_derived": virtualized}
+    enough = counts["total"] >= 10 and scrolling >= 1 and virtualized >= 1
+    return {"counts": counts, "enough_samples": enough, "virtualization": evidence, "mismatches": mismatches,
+            "pass": enough and evidence["pass"] and not mismatches}
 
 
 def load_raw(path):
@@ -178,7 +287,8 @@ def load_raw(path):
         raise ValueError("Missing or wrong raw observer header")
     header = dict(lines[0])
     samples = [line for line in lines[1:] if line.get("type") == "sample"]
-    header["error_samples"] = sum(1 for line in lines[1:] if line.get("type") == "error")
+    header["errors"] = [line for line in lines[1:] if line.get("type") == "error"]
+    header["error_samples"] = len(header["errors"])
     return header, samples
 
 
@@ -199,7 +309,8 @@ def main():
     records, report = build_publications(header, samples, labels, args.harness_origin_qpc, args.expected_frequency)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump({"schema": OUT_SCHEMA, "clock_basis": "harness", "recording_sha256": args.recording_sha256,
-                   "words": records, "report": report}, stream, indent=2)
+                   "words": records, "quarantined_rows": report["quarantined_rows"],
+                   "credit_policy": report["credit_policy"], "report": report}, stream, indent=2)
         stream.write("\n")
     print(json.dumps(report))
 

@@ -159,30 +159,162 @@ class Uncertainty(unittest.TestCase):
             op.observation_u(10, 5)
 
 
+def scroll_run():
+    """14 samples: rows A and B; A moves (pane motion), leaves the tree, then returns unchanged."""
+    out = []
+    for i in range(14):
+        if i < 4:
+            elements = row("You", "0:05", "alpha beta", 150) + row("You", "0:20", "gamma delta", 300)
+        elif i < 7:
+            elements = row("You", "0:05", "alpha beta", 250) + row("You", "0:20", "gamma delta", 400)
+        elif i < 10:
+            elements = row("You", "0:20", "gamma delta", 400)
+        else:
+            elements = row("You", "0:05", "alpha beta", 250) + row("You", "0:20", "gamma delta", 400)
+        out.append(sample(i * 100, i * 100 + 20, elements))
+    return out
+
+
 class Review(unittest.TestCase):
     def setUp(self):
-        a = row("You", "0:05", "alpha beta", 150)
-        b = row("You", "0:20", "gamma delta", 300)
-        self.samples = [sample(i * 100, i * 100 + 20, a if i < 5 else b) for i in range(12)]
+        self.samples = scroll_run()
 
-    def item(self, t, words, **extra):
-        return {"t": t, "track": "microphone", "expected_visible": words, **extra}
+    def item(self, index, **extra):
+        words = ["gamma", "delta"] if 7 <= index < 10 else ["alpha", "beta", "gamma", "delta"]
+        return {"t": index * 0.1 + 0.03, "track": "microphone", "expected_visible": words, **extra}
 
-    def test_pass_needs_ten_samples_scrolling_and_virtualization(self):
-        review = [self.item(0.05 + 0.1 * i, ["alpha", "beta"] if i < 5 else ["gamma", "delta"],
-                            scrolling=(i == 5), virtualized_older_lines=(i == 6)) for i in range(10)]
+    def test_pass_needs_ten_frames_and_derived_scrolling_and_virtualization(self):
+        review = [self.item(i) for i in (1, 2, 3, 4, 5, 6, 7, 8, 10, 12)]
         result = op.compare_review(self.samples, LABELS, review, FREQ, ORIGIN)
         self.assertTrue(result["pass"], result)
-        short = op.compare_review(self.samples, LABELS, review[:9], FREQ, ORIGIN)
-        self.assertFalse(short["enough_samples"])
-        none = [dict(i, scrolling=False) for i in review]
-        self.assertFalse(op.compare_review(self.samples, LABELS, none, FREQ, ORIGIN)["pass"])
+        self.assertGreaterEqual(result["counts"]["scrolling_derived"], 1)
+        self.assertGreaterEqual(result["counts"]["virtualized_derived"], 1)
+        self.assertFalse(op.compare_review(self.samples, LABELS, review[:9], FREQ, ORIGIN)["enough_samples"])
+
+    def test_typed_flags_are_ignored(self):
+        still = [sample(i * 100, i * 100 + 20, row("You", "0:05", "alpha beta", 150)) for i in range(12)]
+        review = [{"t": i * 0.1 + 0.03, "track": "microphone", "expected_visible": ["alpha", "beta"],
+                   "scrolling": True, "virtualized_older_lines": True} for i in range(10)]
+        result = op.compare_review(still, LABELS, review, FREQ, ORIGIN)
+        self.assertFalse(result["pass"])
+        self.assertEqual(result["counts"]["scrolling_derived"], 0)
+        self.assertEqual(result["counts"]["virtualized_derived"], 0)
 
     def test_mismatch_is_reported(self):
-        review = [self.item(0.05 + 0.1 * i, ["alpha", "WRONG"]) for i in range(10)]
+        review = [dict(self.item(i), expected_visible=["alpha", "WRONG"]) for i in (1, 2, 3, 4, 5, 6, 7, 8, 10, 12)]
         result = op.compare_review(self.samples, LABELS, review, FREQ, ORIGIN)
         self.assertFalse(result["pass"])
         self.assertTrue(result["mismatches"])
+
+
+class Virtualization(unittest.TestCase):
+    def test_removed_and_returned_with_identity_preserved(self):
+        evidence = op.virtualization_evidence(scroll_run(), LABELS)
+        self.assertTrue(evidence["pass"])
+        self.assertEqual(evidence["virtualized_windows"], [[7, 10]])
+        self.assertEqual(evidence["pane_motion_samples"], [4])
+        self.assertTrue(all(r["identity_preserved"] for r in evidence["returns"]))
+
+    def test_scrolled_out_but_still_in_tree_is_not_virtualization(self):
+        samples = []
+        for i in range(8):
+            top = 150 if i < 4 else 900  # row A outside the viewport but still in the tree
+            samples.append(sample(i * 100, i * 100 + 20, row("You", "0:05", "alpha beta", top)))
+        evidence = op.virtualization_evidence(samples, LABELS)
+        self.assertEqual(evidence["rows_returned_after_removal"], 0)
+        self.assertFalse(evidence["pass"])
+        self.assertEqual(evidence["max_rows_in_tree_outside_viewport"], 1)
+
+    def test_return_with_changed_text_breaks_identity(self):
+        samples = scroll_run()
+        samples[10] = sample(1000, 1020, row("You", "0:05", "ALTERED beta", 250) + row("You", "0:20", "gamma delta", 400))
+        evidence = op.virtualization_evidence(samples, LABELS)
+        self.assertFalse(evidence["pass"])
+        self.assertFalse(evidence["returns"][0]["identity_preserved"])
+
+    def test_row_removed_and_never_returned_is_listed(self):
+        evidence = op.virtualization_evidence(scroll_run()[:9], LABELS)
+        self.assertEqual(evidence["rows_removed_never_returned"], [["microphone", "0:05"]])
+        self.assertFalse(evidence["pass"])
+
+
+class Quarantine(unittest.TestCase):
+    def a(self, i, text="alpha beta", top=150):
+        return sample(i * 100, i * 100 + 20, row("You", "0:05", text, top))
+
+    def test_reappearing_with_different_text_is_quarantined_and_records_removed(self):
+        gone = sample(100, 120, [])
+        records, report = build([self.a(0), gone, sample(200, 220, row("You", "0:05", "other words", 150))])
+        self.assertEqual(records, [])
+        self.assertEqual(report["quarantined_rows"][0]["time"], "0:05")
+        self.assertIn("different or shorter", report["quarantined_rows"][0]["reason"])
+        self.assertIn("denominator", report["credit_policy"])
+
+    def test_reappearing_with_same_or_longer_text_is_kept(self):
+        records, report = build([self.a(0), sample(100, 120, []), self.a(2, "alpha beta gamma")])
+        self.assertEqual([r["text"] for r in records], ["alpha", "beta", "gamma"])
+        self.assertEqual(report["quarantined_rows"], [])
+
+    def test_reappearing_shorter_is_quarantined(self):
+        records, report = build([self.a(0, "alpha beta gamma"), sample(100, 120, []), self.a(2, "alpha beta")])
+        self.assertEqual(records, [])
+        self.assertEqual(len(report["quarantined_rows"]), 1)
+
+    def test_return_after_a_read_error_gap_is_checked(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 30 * FREQ // 1000, "qpc_end": ORIGIN + 90 * FREQ // 1000}]
+        records, report = op.build_publications(HEADER, [self.a(0), self.a(1, "different text")], LABELS, ORIGIN, FREQ, errors)
+        self.assertEqual(records, [])
+        self.assertEqual(len(report["quarantined_rows"]), 1)
+
+    def test_contiguous_revision_without_a_gap_is_not_a_collision(self):
+        records, report = build([self.a(0, "thank you"), self.a(1, "thanks you")])
+        self.assertEqual(report["quarantined_rows"], [])
+        self.assertEqual(report["text_revisions"][0]["to"], "thanks")
+
+    def test_two_rows_first_seen_separately_then_together(self):
+        together = row("You", "0:05", "alpha beta", 150) + row("You", "0:05", "different row", 300)
+        records, report = build([self.a(0), sample(100, 120, together)])
+        self.assertEqual(records, [])  # the earlier record of the key is removed too
+        self.assertEqual(report["quarantined_rows"][0]["reason"], "rows with the same track and time seen together")
+
+    def test_quarantine_is_permanent_so_later_clean_sightings_never_publish(self):
+        together = row("You", "0:05", "alpha beta", 150) + row("You", "0:05", "different row", 300)
+        records, _ = build([sample(0, 20, together), self.a(1), self.a(2), self.a(3)])
+        self.assertEqual(records, [])
+
+    def test_quarantined_row_cannot_be_credited_in_either_bound(self):
+        """Excluded rows leave no publication, so no bound (best-case included) can credit their unit."""
+        together = row("You", "0:05", "alpha beta", 150) + row("You", "0:05", "different row", 300)
+        other = row("You", "0:20", "gamma delta", 450)
+        records, report = build([sample(0, 20, together + other), self.a(1), sample(200, 220, other)])
+        self.assertEqual({r["id"].rsplit("|", 1)[0] for r in records}, {"microphone|0:20"})
+        self.assertEqual(len(report["quarantined_rows"]), 1)
+
+
+class UAll(unittest.TestCase):
+    def test_max_u_covers_all_intervals_not_only_first_visible(self):
+        # words appear in the first sample only; a later 420 ms interval carries no new word
+        s = [sample(0, 20, row("You", "0:05", "alpha", 150)), sample(50, 70, row("You", "0:05", "alpha", 150)),
+             sample(450, 470, row("You", "0:05", "alpha", 150))]
+        records, report = build(s)
+        self.assertLess(report["u_max_s"], 0.25)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.420, places=9)  # 470 - 50
+        self.assertFalse(report["u_pass"])
+        self.assertEqual(report["u_all_intervals_over_limit"][0][0], 2)
+
+    def test_read_errors_widen_the_all_interval_maximum(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 100 * FREQ // 1000, "qpc_end": ORIGIN + 130 * FREQ // 1000}]
+        s = [sample(0, 20, row("You", "0:05", "alpha", 150)), sample(300, 320, row("You", "0:05", "alpha", 150))]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.320, places=9)
+        self.assertEqual(report["error_samples"], 1)
+
+    def test_trailing_errors_count(self):
+        errors = [{"type": "error", "qpc_begin": ORIGIN + 100 * FREQ // 1000, "qpc_end": ORIGIN + 600 * FREQ // 1000}]
+        s = [sample(0, 20, row("You", "0:05", "alpha", 150))]
+        _, report = op.build_publications(HEADER, s, LABELS, ORIGIN, FREQ, errors)
+        self.assertAlmostEqual(report["u_all_intervals_max_s"], 0.600, places=9)
+        self.assertFalse(report["u_pass"])
 
 
 class Schema(unittest.TestCase):
@@ -254,6 +386,13 @@ class Scripts(unittest.TestCase):
         self.assertIn("input_sent = $false", text)
         self.assertIn("Stopwatch]::GetTimestamp", text)
         self.assertIn("SRCB-G3-OBSERVER-RAW-1", text)
+
+    def test_single_bounding_rectangle_is_a_valid_word(self):
+        text = self.read("observe-live-v2.ps1")
+        self.assertNotIn("Count -ge 4", text)
+        self.assertIn("@(@($range.GetBoundingRectangles())", text)
+        self.assertIn("$boxes.Count -ge 1", text)
+        self.assertIn("bounds = $null", text)
 
     def test_raw_schema_name_matches_adapter(self):
         self.assertIn(op.RAW_SCHEMA, self.read("observe-live-v2.ps1"))

@@ -37,6 +37,8 @@ Every result states which view it used. The original result under the unamended 
 3. **Unlogged interior steps.** If a step in the track clock is not in the gap log, the long utterances before and after it locate it. The step is then carried as a **symmetric uncertainty** around its located position. If the long utterances cannot locate it, the affected units are **INCONCLUSIVE**.
 4. **Gaps never remove or excuse.** A gap never removes a unit from the count and never grants SETUP-AFFECTED.
 5. **No numeric gap cutoff.** No gap length is chosen as a pass or fail line. A bound that is finite and validated is evaluated normally. Timing that is unbounded or unsupported is INCONCLUSIVE.
+6. **A finite interval is not proof of intact capture.** A finite timing interval does not establish that speech crossing a gap was captured intact. If a scored word's presence or endpoint cannot be supported from the recording, the uncertainty never produces acceptance credit: the unit is uncredited in both bounds and stays in the denominator. A **confirmed capture failure** (the word is shown absent or damaged in the preserved recording) and a **measurement limitation** (the word cannot be confirmed either way) are reported as separate outcomes and are never merged or relabelled.
+7. **Steps persist.** After an unlogged step the offset persists. Later units use the offset measured at the nearest **preceding** long anchor. Only units between two bracketing anchors that span a detected step are widened by the symmetric uncertainty in rule 3; units outside such a bracket are not widened.
 
 ## 5. Unchanged
 

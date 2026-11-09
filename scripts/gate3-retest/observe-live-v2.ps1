@@ -34,14 +34,21 @@ function Get-WordRanges($element) {
         $moved = $range.MoveEndpointByUnit([System.Windows.Automation.Text.TextPatternRangeEndpoint]::End, [System.Windows.Automation.Text.TextUnit]::Word, 1)
         if ($moved -eq 0) { break }
         $text = $range.GetText(80).Trim()
-        $boxes = $range.GetBoundingRectangles()
-        if ($text -and $boxes.Count -ge 4) {
-            # A word wrapped over two lines has several boxes; use the union.
-            $left = ($boxes | ForEach-Object { $_.Left } | Measure-Object -Minimum).Minimum
-            $top = ($boxes | ForEach-Object { $_.Top } | Measure-Object -Minimum).Minimum
-            $right = ($boxes | ForEach-Object { $_.Right } | Measure-Object -Maximum).Maximum
-            $bottom = ($boxes | ForEach-Object { $_.Bottom } | Measure-Object -Maximum).Maximum
-            $words += , @{ text = $text; bounds = @($left, $top, ($right - $left), ($bottom - $top)) }
+        # GetBoundingRectangles() returns an array of System.Windows.Rect, one per line the range covers.
+        # One rectangle is a normal word. A word wrapped over lines has several; use their union.
+        # Empty rectangles (not laid out or scrolled away) are dropped; a word with none gets bounds = null,
+        # which the offline visibility rule treats as not visible.
+        $boxes = @(@($range.GetBoundingRectangles()) | Where-Object { -not $_.IsEmpty -and $_.Width -gt 0 -and $_.Height -gt 0 })
+        if ($text) {
+            if ($boxes.Count -ge 1) {
+                $left = ($boxes | ForEach-Object { $_.Left } | Measure-Object -Minimum).Minimum
+                $top = ($boxes | ForEach-Object { $_.Top } | Measure-Object -Minimum).Minimum
+                $right = ($boxes | ForEach-Object { $_.Right } | Measure-Object -Maximum).Maximum
+                $bottom = ($boxes | ForEach-Object { $_.Bottom } | Measure-Object -Maximum).Maximum
+                $words += , @{ text = $text; bounds = @([double]$left, [double]$top, [double]($right - $left), [double]($bottom - $top)) }
+            } else {
+                $words += , @{ text = $text; bounds = $null }
+            }
         }
         $range.MoveEndpointByRange([System.Windows.Automation.Text.TextPatternRangeEndpoint]::Start, $range, [System.Windows.Automation.Text.TextPatternRangeEndpoint]::End)
     }
