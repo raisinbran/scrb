@@ -221,6 +221,12 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 ### A-050 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - commit message heredoc failed
 - **Status / attribution:** Confirmed, minor. My first `git commit -F -` with a PowerShell here-string treated the message as a pathspec and committed nothing, and the following `git push` published the unchanged `c0eb03c` as the new branch. Fixed by committing from a message file (`5f1522c`). No effect on content.
 
+### A-051 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - first rerun attempt aborted by my own foregrounding
+- **Status / attribution:** Confirmed, minor; agent/test tooling. In the observer-validation-3 orchestrator attempt 1, bringing the app window to the foreground closed the Snipping Tool selection overlay I had opened earlier, so the screen-recording start failed and the script aborted before Record (as designed). No recording or playback had started. Fixed by moving the Snipping New, drag and Start steps into the orchestrator after foregrounding (attempt 2 ran the full 420 s). Log: `actions-attempt1-aborted.log` in the evidence folder.
+- **Also noted (not mistakes, limits):** the script frames, not the mp4, were the screen-agreement evidence because the mp4 could not be decoded here and its shell duration (6:45) is shorter than the run (about 7:48); `launch-checkonly.txt` holds one line because of `Select -First 1`. My own wall clock for the task exceeded 20 minutes counting analysis; the run itself was under 15.
+- **Correction / prevention:** order steps so foregrounding precedes opening any overlay; verify the recording is live before pressing Record.
+
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
