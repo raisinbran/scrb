@@ -211,3 +211,99 @@ Files changed after the pinned commit must be re-pinned at the freeze commit.
 ## Playing the sources (D2 route)
 
 `play-sources.ps1` (Windows PowerShell 5.1) plays the microphone WAV to `CABLE Input` only and the system WAV to the default eConsole render endpoint, which is the endpoint the app captures by loopback. It defaults to a dry run. See `docs/gates/gate-3-windows-d2-capture-equivalence-draft.md` section 7 for the guards. Real playback needs the owner's approval of the run length.
+## Explicit Protocol v3a timing mode (offline analysis only)
+
+`v3` remains the default for both CLIs. Select `--mode v3a` explicitly; a mode
+label in input JSON does not select it. No evidence or annotation is frozen by
+these commands. Outputs are created exclusively, as in v3.
+
+```powershell
+python scripts/gate3-retest/marker_clock.py TRACK/chunks.json REPORT.json --mode v3a --decoder C:/path/to/ffmpeg.exe --track microphone --harness LEAD TRAIL --harness-u LEAD_U TRAIL_U
+python scripts/gate3-retest/analyze-bounds.py ADJUDICATED.json BOUNDS.json --mode v3a
+```
+
+For marker v3a, the positional input is the original per-track `chunks.json`,
+not a previously padded/clipped WAV. The adapter reads `SEQUENCE`, `START_NS`
+and `RATE` from each original OpusTags packet, cross-checks the complete chunk
+index and its end timestamps, and decodes native mono PCM16 in memory. Supply an
+existing offline ffmpeg executable explicitly. It never downloads tools, changes
+capture, resamples, trims, pads the continuous view, or writes audio.
+
+The sample-continuous view contains **every decoded sample in order**. The
+original timestamped capture view places those same samples at their embedded
+timestamps, with unassigned gaps represented by zero placeholders. Those zeros
+do not establish physical silence or speech absence. The report includes
+`sample_continuous`, `original_timestamped` (the original 100 ms check and affine
+fit, including its INCONCLUSIVE result), and the per-track `gap_map`. The v3a
+check uses the same 100 ms limit plus anchor uncertainties, without an affine
+correction. Invalid, missing, duplicate, overlapping or inconsistent timestamp/
+count evidence makes the track INCONCLUSIVE, rather than silently clipping a
+chunk. If post-decode count validation fails, the report separately retains the
+**original v3 legacy adapter's** measured marker check, reproducing its declared-
+end clipping solely for that legacy result. That clipped view never enters v3a
+speech intervals, and the v3a timestamped view is explicitly unvalidated. Missing
+original evidence can prevent reconstruction entirely; the output then states
+that the original measurement is unavailable instead of fabricating one.
+
+The bounds input retains the original `frozen`, `units`, identity/adjudication
+and publication endpoint fields. Each v3a unit also needs
+`continuous_start_s`, `continuous_last_word_start_s`, and
+`continuous_last_word_end_s`: independently adjudicated **recording sample-
+continuous placements**, not unaligned source times. The scorer derives end
+and last-word-start intervals. Publications must already be independently
+mapped into timestamped capture seconds; v3a does not silently apply the old
+affine publication mapping. Existing v3 `map_publications` remains v3-only.
+
+Add a `v3a_evidence` object with a separate entry for each track:
+
+```json
+{
+  "publication_basis": "timestamped-capture",
+  "chunks": "C:/evidence/microphone/chunks.json",
+  "decoder": "C:/tools/ffmpeg.exe",
+  "harness": [101.0, 481.0],
+  "harness_u": [0.001, 0.001],
+  "source": "C:/evidence/source-native-mono.wav",
+  "source_annotations": "C:/evidence/source-annotations.json",
+  "long_anchors": [
+    {"id": "long-001", "search_start_sample": 0, "search_end_sample": 100000}
+  ]
+}
+```
+
+Paths are explicit filesystem paths (prefer absolute). Source annotations bind
+`frozen: true`, `sample_rate`, `source_sha256` and the complete ordered
+`utterances` inventory. Each utterance has `id`, Boolean `short`,
+`source_start_sample`, `source_end_sample`, and Boolean `eligible`. Searches must include **every**
+non-short utterance in that order. A missing immediate long neighbor, unequal
+native sample rates, absent brackets, or unsupported match prevents acceptance.
+No short-word matching occurs.
+
+**Supported matching is deliberately limited:** a nonflat, annotated long
+utterance of at least one second must have exactly one sample-exact PCM match
+inside its declared bounded search. One-sample timing uncertainty is retained.
+This validates a narrow exact-PCM path, with ambiguous/wrong/noisy negative
+controls; it does not validate the earlier feasibility correlation peaks or a
+noisy microphone matcher. Real route gain/noise and the existing 24/48 kHz
+source/capture mismatch can therefore make real practice evidence INCONCLUSIVE.
+No new correlation cutoff or calibrated acoustic uncertainty is claimed.
+
+Adjacent validated long anchors bound any offset change exceeding their combined
+uncertainty. The change's magnitude **plus** that uncertainty widens both sides
+of every potentially affected unit, including units crossing the bracket, through
+the next bracketing anchor. This is uncertainty, never an offset correction.
+Unbounded or unsupported timing makes the track INCONCLUSIVE. The speech end
+interval is `[continuous end, continuous end + cumulative preceding gap]`, then
+symmetrically widened for steps. Layer A reuses the original conservative/
+best-case opposite-end pairing. The earliest publication bound must be at or
+after the latest possible last-word start; an overlapping start interval cannot
+receive pre-speech credit.
+
+Gaps do not change eligibility, outcomes or denominator. Every scored unit ID and
+eligibility must exactly reconcile with the bound complete frozen source inventory.
+Omission, duplication or an eligibility mismatch makes the track INCONCLUSIVE;
+a claimed ineligibility label cannot remove a crossing unit. `SETUP-AFFECTED` additionally requires
+`independent_harness_failure` with `independently_confirmed: true`, `path` and
+matching `sha256`; gap evidence alone grants none. There is no numerical gap
+cutoff. These declared independent adjudications remain review obligations;
+the scorer does not infer semantic identity or harness failure from silence.

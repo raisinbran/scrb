@@ -4,6 +4,8 @@ import json
 import math
 from pathlib import Path
 import statistics
+import subprocess
+import sys
 
 
 def analyze_unit(unit):
@@ -102,18 +104,89 @@ def analyze_track(units, clock):
     return {**summarize_track(units), "clock": validation}
 
 
+def analyze_v3a_track(units, evidence, track):
+    """Fail closed on unsupported evidence; reuse Layer A's opposite-end pairing.
+
+    Publications must already be independently adjudicated in timestamped capture
+    seconds. Continuous speech placements are supplied like original v3 acoustic
+    endpoints; gap and step intervals are constructed here, never selected by a
+    desired publication result.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, require,
+                             finite, digest)
+    from marker_clock import analyze_v3a
+    denominator = sum(bool(unit['eligible']) for unit in units)
+    clocks = None
+    prepared = []
+    try:
+        require(isinstance(evidence, dict), 'Missing v3a evidence')
+        require(evidence['publication_basis'] == 'timestamped-capture', 'Unsupported publication clock')
+        views = load_views(evidence['chunks'], evidence['decoder'], track)
+        continuous, _, mapping = views
+        clocks = analyze_v3a(evidence['chunks'], evidence['decoder'], track,
+                              evidence['harness'], evidence.get('harness_u', (0, 0)), views=views)
+        require(clocks['valid'], 'Invalid v3a marker/gap evidence')
+        source_sha = digest(evidence['source'])
+        source, rate = pcm16(evidence['source'])
+        require(digest(evidence['source']) == source_sha, 'Source changed during matching')
+        require(rate == mapping['rate'], 'Long templates must use native decoded rate; no resampling')
+        inventory = load_long_anchors(continuous, source, rate, evidence['long_anchors'],
+                                    evidence['source_annotations'], source_sha)
+        anchors = inventory['anchors']
+        frozen_units = {u['id']: u for u in inventory['utterances']}
+        denominator = sum(u['eligible'] for u in frozen_units.values())
+        require(len({u['id'] for u in units}) == len(units)
+                and set(frozen_units) == {u['id'] for u in units},
+                'Missing or duplicated scored units; frozen denominator mismatch')
+        require(all(type(u['eligible']) is bool and u['eligible'] == frozen_units[u['id']]['eligible']
+                    for u in units), 'Eligibility differs from bound frozen source inventory')
+        prepared, steps = prepare_units(units, mapping, anchors)
+        for unit in prepared:
+            require(type(unit['eligible']) is bool, 'Invalid eligibility')
+            if unit['outcome'] == 'SETUP-AFFECTED':
+                failure = unit.get('independent_harness_failure', {})
+                require(failure.get('independently_confirmed') is True
+                        and digest(failure['path']) == failure['sha256'],
+                        'No independent harness-failure evidence; gaps grant no setup credit')
+            if unit['eligible'] and unit['outcome'] not in ('UNIDENTIFIED', 'SETUP-AFFECTED'):
+                start_low, start_high = unit['last_word_start_interval_s']
+                require(start_low <= start_high, 'Invalid last-word start interval')
+                require(bool(unit['endpoints']), 'Missing publication endpoints')
+                for point in unit['endpoints']:
+                    require(finite(point['observed']) and finite(point['u']) and point['u'] >= 0,
+                            'Invalid publication interval')
+                    require(point['observed']-point['u'] >= start_high,
+                            'PRE-SPEECH or uncertain speech presence across last-word start interval')
+        return {**summarize_track(prepared), 'mode': 'v3a', 'denominator': denominator,
+                'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
+                'source_sha256': source_sha, 'source_annotations_sha256': inventory['annotations_sha256'],
+                'speech_intervals': prepared}
+    except (ValueError, KeyError, TypeError, OSError, AssertionError, subprocess.SubprocessError) as error:
+        return {'mode': 'v3a', 'latency': 'INCONCLUSIVE', 'bounds': None,
+                'recurrence': 'INDETERMINATE', 'denominator': denominator,
+                'error': str(error), 'clocks': clocks, 'speech_intervals': prepared,
+                'units': []}
+
+
 def main():
     """Analyze adjudicated units only after their frozen identity evidence is supplied."""
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument('--mode', choices=('v3', 'v3a'), default='v3')
     args = parser.parse_args()
     data = json.loads(args.input.read_text(encoding="utf-8-sig"))
     assert data["frozen"] is True, "Unfrozen annotations cannot be scored"
     clocks = data.get("clocks", {})
-    result = {track: analyze_track([unit for unit in data["units"] if unit["track"] == track],
-                                   clocks.get(track) if isinstance(clocks, dict) else None)
-              for track in ("microphone", "meeting")}
+    if args.mode == 'v3a':
+        result = {track: analyze_v3a_track([u for u in data['units'] if u['track'] == track],
+                                           data.get('v3a_evidence', {}).get(track), track)
+                  for track in ('microphone', 'meeting')}
+    else:
+        result = {track: analyze_track([unit for unit in data['units'] if unit['track'] == track],
+                                       clocks.get(track) if isinstance(clocks, dict) else None)
+                  for track in ('microphone', 'meeting')}
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump(sanitize_numbers(result), stream, indent=2, allow_nan=False)
         stream.write("\n")

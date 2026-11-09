@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import re
 import wave
+import subprocess
 
 
 def detect_marker(samples, rate, frequency, window, scored=(20, 380)):
@@ -141,6 +142,60 @@ def map_publications(publications, clock, *, track, recording_sha256):
     return words
 
 
+def check_continuous_markers(lead, trail, harness, harness_u=(0, 0)):
+    """Apply the 100 ms rule without an affine correction in Protocol v3a."""
+    values = [lead['position'], trail['position'], *harness,
+              lead['uncertainty_s'], trail['uncertainty_s'], *harness_u]
+    if (not all(math.isfinite(v) for v in values)
+            or min(values[4:]) < 0 or values[1] <= values[0] or harness[1] <= harness[0]):
+        raise ValueError('Invalid v3a clock anchors')
+    offsets = [harness[i]-marker['position'] for i, marker in enumerate((lead, trail))]
+    uncertainty = [lead['uncertainty_s']+harness_u[0], trail['uncertainty_s']+harness_u[1]]
+    disagreement = abs(offsets[1]-offsets[0])
+    valid = disagreement+sum(uncertainty) <= 0.1
+    return {'mode': 'v3a', 'valid': valid,
+            'latency': 'READY_FOR_ALIGNMENT' if valid else 'INCONCLUSIVE',
+            'offset_disagreement_seconds': disagreement, 'anchor_uncertainty_s': uncertainty,
+            'offset_bounds': [min(o-u for o, u in zip(offsets, uncertainty)),
+                              max(o+u for o, u in zip(offsets, uncertainty))],
+            'mapping': 'translation interval only; no affine clock correction',
+            'lead': lead, 'trail': trail}
+
+
+def analyze_v3a(metadata, decoder, track, harness, harness_u=(0, 0), *, views=None):
+    """Report both derived views of the same preserved chunks, without audio output."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from v3a_timing import load_views
+    try:
+        continuous, timestamped, mapping = load_views(metadata, decoder, track) if views is None else views
+        rate = mapping['rate']
+        frequency = {'microphone': 880, 'meeting': 1320}[track]
+        def markers(samples):
+            return (detect_marker(samples, rate, frequency, (0, 10)),
+                    detect_marker(samples, rate, frequency, (380, 390)))
+        def report(samples, original):
+            try:
+                lead, trail = markers(samples)
+                check = fit_markers if original else check_continuous_markers
+                return {**check(lead, trail, harness, harness_u), 'lead': lead, 'trail': trail}
+            except ValueError as error:
+                return {'valid': False, 'latency': 'INCONCLUSIVE', 'error': str(error)}
+        original = report(timestamped, True)
+        amended = report(continuous, False)
+        valid = mapping['valid'] and amended['valid']
+        if not mapping['valid']:
+            original['view_basis'] = mapping['original_view_basis']
+        return {'mode': 'v3a', 'track': track, 'valid': valid,
+                'latency': 'READY_FOR_ALIGNMENT' if valid else 'INCONCLUSIVE', 'gap_map': mapping,
+                'sample_continuous': amended, 'original_timestamped': original}
+    except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
+        return {'mode': 'v3a', 'track': track, 'valid': False, 'latency': 'INCONCLUSIVE',
+                'gap_map': {'valid': False, 'error': str(error)},
+                'sample_continuous': {'valid': False, 'latency': 'INCONCLUSIVE'},
+                'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE',
+                                         'error': 'Cannot derive a validated timestamped view: '+str(error)}}
+
+
 def main():
     """Write a new clock report and signal invalid synchronization to the caller."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -150,8 +205,15 @@ def main():
     parser.add_argument("--harness", type=float, nargs=2, required=True)
     parser.add_argument("--harness-u", type=float, nargs=2, default=(0, 0))
     parser.add_argument("--channel", type=int, default=0)
+    parser.add_argument('--mode', choices=('v3', 'v3a'), default='v3')
+    parser.add_argument('--decoder', type=Path, help='v3a only: explicit offline ffmpeg path; recording is chunks.json')
     args = parser.parse_args()
-    result = analyze_recording(args.recording, args.track, args.harness, args.channel, args.harness_u)
+    if args.mode == 'v3a':
+        if args.decoder is None or args.channel != 0:
+            parser.error('v3a requires --decoder and native mono channel 0')
+        result = analyze_v3a(args.recording, args.decoder, args.track, args.harness, args.harness_u)
+    else:
+        result = analyze_recording(args.recording, args.track, args.harness, args.channel, args.harness_u)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump(result, stream, indent=2, allow_nan=False)
         stream.write("\n")
