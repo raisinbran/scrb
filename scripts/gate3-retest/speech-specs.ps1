@@ -10,3 +10,22 @@ $specs = @(
     'Golden satellites transmit digital signals toward remote stations beneath polar skies after automated sensors identify magnetic storms.'
   );short=@('Proceed.','Continue.','Advance.','Launch.','Begin.','Resume.','Transmit.','Receive.','Observe.','Inspect.','Measure.','Record.','Report.','Verify.','Review.','Assess.','Check.','Test.','Save.','Send.')}
 )
+$constructedUnits=@()
+foreach ($spec in $specs) {
+  $utterance=0
+  foreach ($kind in @('long','short')) {
+    foreach ($text in $spec[$kind]) {
+      $words=$text.Split(' ',[StringSplitOptions]::RemoveEmptyEntries)
+      $id='{0}-utt{1:D2}' -f $spec.track,$utterance
+      $parts=@()
+      if ($words.Count -gt 1) { $parts+=@{role='prefix';text=($words[0..($words.Count-2)] -join ' ')} }
+      $parts+=@{role='final';text=$words[-1]}
+      $index=0
+      foreach ($part in $parts) {
+        $constructedUnits+=@{unit_id=$id+'-u'+$index;utterance_id=$id;utterance_text=$text;track=$spec.track;kind=$kind;voice=$spec.voice;role=$part.role;text=$part.text;prosody_rate='-15%'}
+        $index++
+      }
+      $utterance++
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""Assemble independently marked invented sources without playing or recording audio."""
+"""Assemble constructed units offline, preserving measured boundary uncertainty."""
 import argparse
 import array
 import hashlib
@@ -7,6 +7,7 @@ import math
 import re
 from pathlib import Path
 import wave
+import constructed_units as constructed
 
 
 def normalize_word(text):
@@ -22,7 +23,7 @@ def place_units(track, clips):
     assert all(4 <= clip["duration"] <= 12 for clip in choices["long"]), "Long duration needs review"
     counters, units = {"short": 0, "long": 0}, []
     offset = 0 if track == "microphone" else 0.25
-    windows = [(20+offset, 169, 0.8, 2.5), (170+offset, 245-offset, 0, 0.49),
+    windows = [(20+offset, 169, 0.8, 2.5), (170+offset, 245-offset, 0, 0.44),
                (246, 380-offset, 0.8, 2.5)]
     for left, right, minimum, maximum in windows:
         span = right-left
@@ -54,6 +55,7 @@ def place_units(track, clips):
         cursor = left
         for clip in planned:
             units.append({"id": f"{track}-{len(units):03}", "track": track, "source": clip["id"],
+                          "status": "UNFROZEN",
                           "encoding": clip.get("encoding", "synthetic"), "timing_basis": clip.get("timing_basis", "synthetic metadata"),
                           "start": cursor, "end": cursor+clip["duration"], "short": clip["kind"] == "short",
                           "eligible": None, "eligibility_reason": "pending waveform and listen audit",
@@ -112,12 +114,13 @@ def assert_track_coverage(units):
 
 def assert_joint_coverage(tracks):
     """Require disjoint vocabularies and at least half the scored time in overlap."""
-    vocabularies = [{normalize_word(word["text"]) for unit in units for word in unit["words"]} for units in tracks]
+    vocabularies = [{normalize_word(token) for unit in units for word in unit["words"] for token in word["text"].split()} for units in tracks]
     assert not (vocabularies[0] & vocabularies[1]), "Track vocabularies must be disjoint"
     overlap = 0
     left = right = 0
-    while left < len(tracks[0]) and right < len(tracks[1]):
-        a, b = tracks[0][left], tracks[1][right]
+    spans = [[word for unit in units for word in unit['words']] for units in tracks]
+    while left < len(spans[0]) and right < len(spans[1]):
+        a, b = spans[0][left], spans[1][right]
         overlap += max(0, min(a["end"], b["end"], 380)-max(a["start"], b["start"], 20))
         if a["end"] <= b["end"]:
             left += 1
@@ -127,93 +130,117 @@ def assert_joint_coverage(tracks):
     return overlap
 
 
-def read_json(path):
-    """Read UTF-8 JSON including Windows PowerShell output."""
-    return json.loads(path.read_text(encoding="utf-8-sig"))
-
-
-def write_json(path, value):
-    """Write a new artifact without replacing existing evidence."""
-    with path.open("x", encoding="utf-8") as stream:
-        json.dump(value, stream, indent=2)
-        stream.write("\n")
-
-
-def assemble_track(track, renders, source, output):
-    """Place engine-marked units in the protocol's prospective time windows."""
-    rate = 24000
-    pcm = array.array("h", [0]) * (420 * rate)
-    clips = []
-    for render in renders:
-        if render["track"] != track:
+def assemble_track(track, manifest, measured, root, output, join_samples):
+    """Derive one track from immutable units, then verify before annotations."""
+    groups = {}
+    source_samples = {}
+    for unit in manifest['units']:
+        if unit['track'] != track:
             continue
-        assert render.get("encoding") in {"A", "B", "C"}, "A validated encoding selection is required"
-        assert render.get("timing_basis"), "Independent timing provenance is required"
-        with wave.open(str(source / render["file"]), "rb") as stream:
-            assert (stream.getnchannels(), stream.getsampwidth(), stream.getframerate()) == (1, 2, rate)
-            data = array.array("h")
-            data.frombytes(stream.readframes(stream.getnframes()))
-        marks = {mark["name"]: mark["seconds"] for mark in render["marks"]}
-        words = render["text"].split()
-        start, end = marks["s0"], marks[f"e{len(words)-1}"]
-        assert end > start
-        clips.append({**render, "pcm": data, "duration": end-start,
-                      "trim": start, "words": [
-                          {"text": word, "start": marks[f"s{i}"]-start,
-                           "end": marks[f"e{i}"]-start}
-                          for i, word in enumerate(words)]})
+        path = root/unit['file']
+        if hashlib.sha256(path.read_bytes()).hexdigest() != unit['sha256']:
+            raise ValueError('Unit hash mismatch')
+        source_samples[unit['unit_id']] = constructed.read_wav(path)
+        if len(source_samples[unit['unit_id']]) != unit['samples'] or measured['units'][unit['unit_id']]['source_sha256'] != unit['sha256']:
+            raise ValueError('Unit samples or measurement provenance mismatch')
+        groups.setdefault(unit['utterance_id'], []).append(unit)
+    clips = []
+    for key, parts in groups.items():
+        result = constructed.construct_utterance(parts, measured['units'], source_samples, join_samples)
+        clips.append({**result, 'id': key, 'kind': parts[0]['kind'], 'text': parts[0]['utterance_text'],
+                      'duration': len(result['pcm'])/constructed.RATE,
+                      'encoding': 'ConstructedUnits', 'timing_basis': 'constructed-sample-offset+unit-energy'})
     units = place_units(track, clips)
-    coverage = assert_track_coverage(units)
-    by_id = {clip["id"]: clip for clip in clips}
+    by_id = {clip['id']: clip for clip in clips}
+    pcm = array.array('h', [0])*(420*constructed.RATE)
+    segments, joins = [], []
     for unit in units:
-        clip = by_id[unit["source"]]
-        begin, finish = round(unit["start"]*rate), round(unit["end"]*rate)
-        raw = clip["pcm"][round(clip["trim"]*rate):round(clip["trim"]*rate)+finish-begin]
-        assert len(raw) == finish-begin
-        pcm[begin:finish] = raw
-    frequency = 880 if track == "microphone" else 1320
+        clip = by_id[unit['source']]
+        origin = round(unit['start']*constructed.RATE)
+        unit.update({'last_word_start': origin/constructed.RATE+clip['last_word_start'],
+                     'acoustic_end': origin/constructed.RATE+clip['acoustic_end'],
+                     'crop_end_bound': (origin+len(clip['pcm']))/constructed.RATE,
+                     'threshold_spread_s': clip['threshold_spread_s'], 'frame_resolution_s': clip['frame_resolution_s'],
+                     'uncertainty_s': clip['uncertainty_s'], 'timing_basis': clip['timing_basis']})
+        unit['reference_text'] = clip['text']
+        unit['reference_words'] = clip['text'].split()
+        unit['words'] = [{'text': span['text'], 'start': (origin+round(span['start']*constructed.RATE))/constructed.RATE,
+                         'end': (origin+round(span['end']*constructed.RATE))/constructed.RATE} for span in clip['words']]
+        for segment in clip['segments']:
+            segments.append({**segment, 'start': origin+segment['start'], 'end': origin+segment['end']})
+        for silence in clip['silences']:
+            joins.append({'start': origin+silence['start'], 'end': origin+silence['end'], 'expected_samples': join_samples})
+        pcm[origin:origin+len(clip['pcm'])] = clip['pcm']
+    coverage = assert_track_coverage(units)
+    words = sum(len(by_id[unit['source']]['text'].split()) for unit in units)
+    speech = sum(unit['acoustic_end']-unit['words'][0]['start'] for unit in units)
+    wpm = constructed.assert_wpm(words, speech)
+    frequency = 880 if track == 'microphone' else 1320
     for origin in (1, 381):
         for pulse in range(3):
-            start = round((origin+pulse*0.5)*rate)
-            for i in range(round(0.2*rate)):
-                pcm[start+i] = round(8000*math.sin(2*math.pi*frequency*i/rate))
-    wav_path = output / f"{track}.wav"
-    with wav_path.open("xb") as raw_stream:
-        with wave.open(raw_stream, "wb") as stream:
-            stream.setparams((1, 2, rate, len(pcm), "NONE", "not compressed"))
-            stream.writeframes(pcm.tobytes())
-    write_json(output / f"{track}-annotations.json", units)
-    shorts = [unit for unit in units if unit["short"]]
-    inside = [unit for unit in shorts if 170 <= unit["start"] and unit["end"] <= 245]
-    repeated = []
-    for i, unit in enumerate(shorts):
-        for prior in shorts[:i]:
-            if prior["words"][0]["text"] == unit["words"][0]["text"] and unit["start"]-prior["start"] < 30:
-                repeated.append(unit["id"])
-    return {"track": track, "units": len(units), "shorts": len(shorts),
-            "short_fraction": len(shorts)/len(units), "failure_window_shorts": len(inside),
-            "short_repeats_under_30s": repeated, "wav_sha256": hashlib.sha256(wav_path.read_bytes()).hexdigest(),
-            "coverage": coverage, "freeze_ready": False, "units_data": units}
+            start = round((origin+pulse*0.5)*constructed.RATE)
+            tone = array.array('h', (round(8000*math.sin(2*math.pi*frequency*i/constructed.RATE)) for i in range(round(0.2*constructed.RATE))))
+            pcm[start:start+len(tone)] = tone
+            segments.append({'unit_id': 'sync-marker', 'start': start, 'end': start+len(tone), 'sha256': constructed.digest(tone)})
+    cursor, silences = 0, []
+    for segment in sorted(segments, key=lambda row: row['start']):
+        if segment['start'] < cursor:
+            raise ValueError('Overlapping segment placements')
+        if segment['start'] > cursor:
+            silences.append({'start': cursor, 'end': segment['start']})
+        cursor = segment['end']
+    silences.append({'start': cursor, 'end': len(pcm)})
+    verification = constructed.verify_arithmetic(pcm, segments, silences, joins)
+    verification['same_method_window_gap_s'] = constructed.assert_window_energy_gap(pcm)
+    verification.update({'frame_resolution_s': 0.005, 'waveform_spot_check': 'pending', 'listen_through': 'pending'})
+    constructed.write_wav(output/(track+'.wav'), pcm)
+    constructed.write_json(output/(track+'-joined-manifest.json'), {'status': 'UNFROZEN', 'file': track+'.wav', 'segments': segments, 'silences': silences, 'joins': joins})
+    constructed.write_json(output/(track+'-joined-verification.json'), verification)
+    return units, {'track': track, 'wpm_over_acoustic_spans': wpm, 'coverage': coverage,
+                   'wav_sha256': hashlib.sha256((output/(track+'.wav')).read_bytes()).hexdigest(),
+                   'joined_verification_sha256': hashlib.sha256((output/(track+'-joined-verification.json')).read_bytes()).hexdigest()}
 
 
 def main():
-    """Create a prospective source pack with pending human eligibility review."""
+    """Write UNFROZEN annotations only after both track checks pass."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("renders", type=Path)
-    parser.add_argument("output", type=Path)
+    parser.add_argument('manifest', type=Path)
+    parser.add_argument('measurements', type=Path)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--join-ms', type=float, default=40)
     args = parser.parse_args()
     args.output.mkdir(exist_ok=False)
-    renders = read_json(args.renders / "engine-marks.json")
-    reports = [assemble_track(track, renders, args.renders, args.output) for track in ("microphone", "meeting")]
-    timelines = [report.pop("units_data") for report in reports]
-    overlap = assert_joint_coverage(timelines)
-    vocabularies = [{word["text"].lower().strip(".,") for unit in units for word in unit["words"]} for units in timelines]
-    write_json(args.output / "source-audit.json", {"tracks": reports, "overlap_seconds": overlap,
-               "scored_seconds": 360, "failure_window": [170, 245], "required_interval": [203, 214],
-               "shared_vocabulary": sorted(vocabularies[0] & vocabularies[1]),
-               "waveform_spot_check": "pending", "listen_through": "pending", "frozen": False})
-    print(json.dumps({"tracks": reports, "overlap_seconds": overlap}))
+    manifest, measured = constructed.read_json(args.manifest), constructed.read_json(args.measurements)
+    if manifest['method'] != 'ConstructedUnits' or measured['unit_manifest_sha256'] != hashlib.sha256(args.manifest.read_bytes()).hexdigest():
+        raise ValueError('Constructed unit/measurement manifest mismatch')
+    join_samples = round(args.join_ms*constructed.RATE/1000)
+    if abs(join_samples/constructed.RATE-args.join_ms/1000) > 1e-12:
+        raise ValueError('Join must resolve to exact source samples')
+    tracks, reports = [], []
+    try:
+        for track in ('microphone', 'meeting'):
+            units, report = assemble_track(track, manifest, measured, args.manifest.parent, args.output, join_samples)
+            tracks.append(units); reports.append(report)
+        overlap = assert_joint_coverage(tracks)
+        for track, units in zip(('microphone', 'meeting'), tracks):
+            annotations = []
+            for unit in units:
+                row = {**unit, 'crop_start': unit['start'], 'start': unit['words'][0]['start'],
+                       'reference_spans': unit['words']}
+                row.pop('words'); row.pop('end')
+                for field in ('start', 'last_word_start', 'acoustic_end', 'crop_end_bound'):
+                    row[field+'_sample'] = round(row[field]*constructed.RATE)
+                    row[field] = row[field+'_sample']/constructed.RATE
+                annotations.append(row)
+            constructed.write_json(args.output/(track+'-annotations.json'), {'status': 'UNFROZEN', 'sample_rate': constructed.RATE, 'utterances': annotations})
+        constructed.write_json(args.output/'source-audit.json', {'status': 'UNFROZEN', 'tracks': reports, 'overlap_seconds': overlap,
+                               'join_ms': args.join_ms, 'timing_basis': 'constructed-sample-offset+unit-energy',
+                               'waveform_spot_check': 'pending', 'listen_through': 'pending',
+                               'assembly_script_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest()})
+    except Exception as error:
+        constructed.write_json(args.output/'assembly-failure.json', {'status': 'UNFROZEN', 'error': str(error), 'completed': reports})
+        raise
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
