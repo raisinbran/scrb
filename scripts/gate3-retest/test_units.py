@@ -242,6 +242,31 @@ class TestRateSingleSource(unittest.TestCase):
 
     root = Path(__file__).parent
 
+    def test_no_undeclared_rate_literal_in_constructed_path(self):
+        """Fail if any rate literal other than the declared per-track values appears.
+
+        Scans every constructed-path file for signed percentages and quoted rate values.
+        """
+        import re
+        allowed = {'+30%'}
+        for name in ('speech-specs.ps1', 'UnitRenderer.cs', 'render-constructed-units.ps1'):
+            text = (self.root/name).read_text(encoding='utf-8-sig')
+            self.assertEqual(set(re.findall(r'[+-]\d+%', text))-allowed, set(), name)
+            self.assertEqual(set(re.findall(r"rate\s*=\s*'([^'\"+]*)'", text))-{'default', '+30%'}, set(), name)
+
+    def test_renderer_accepts_signed_percentage_rates(self):
+        """Run the renderer's own validation pattern against the declared and rejected rates.
+
+        Uses the pattern text from UnitRenderer.cs; no synthesizer is created.
+        """
+        import re
+        source = (self.root/'UnitRenderer.cs').read_text(encoding='utf-8-sig')
+        pattern = re.search(r'IsMatch\(rate \?\? "", @"([^"]*)"\)', source).group(1)
+        for rate in ('+30%', '-15%', '+0%'):
+            self.assertTrue(re.match(pattern, rate), rate)
+        for rate in ('fast', '+20', '+2000%', '', 'x-fast'):
+            self.assertIsNone(re.match(pattern, rate), rate)
+
     def test_renderer_has_no_hardcoded_rate(self):
         """Fail if the renderer carries its own copy of the old slowdown."""
         renderer = (self.root/'UnitRenderer.cs').read_text(encoding='utf-8-sig')
@@ -252,9 +277,9 @@ class TestRateSingleSource(unittest.TestCase):
     def test_spec_declares_per_track_rate_and_manifest_records_it(self):
         """Declare the rate once per track and pass it, unmodified, to render and manifest."""
         specs = (self.root/'speech-specs.ps1').read_text(encoding='utf-8-sig')
-        self.assertIn("track='microphone';voice='Microsoft David Desktop';rate='-15%'", specs)
-        self.assertIn("track='meeting';voice='Microsoft Zira Desktop';rate='default'", specs)
-        self.assertEqual(specs.count('-15%'), 1)
+        self.assertIn("track='microphone';voice='Microsoft David Desktop';rate='default'", specs)
+        self.assertIn("track='meeting';voice='Microsoft Zira Desktop';rate='+30%'", specs)
+        self.assertEqual(specs.count('+30%'), 1)
         self.assertIn('prosody_rate=$spec.rate', specs)
         script = (self.root/'render-constructed-units.ps1').read_text(encoding='utf-8-sig')
         self.assertIn('Render($unit.voice,$unit.text,$unit.prosody_rate,$file)', script)

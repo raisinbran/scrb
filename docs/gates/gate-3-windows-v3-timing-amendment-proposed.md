@@ -33,3 +33,7 @@ The 100 ms is a maximum permitted ambiguity, not a claim that the endpoint is kn
 ## Revision 2026-11-09 (b): meeting-track speaking rate
 
 The meeting track is rendered at the voice's default rate and the microphone track keeps a `-15%` prosody rate, each recorded per unit in the manifest. This follows the first constructed render measuring 118.14 wpm on the meeting track against the unchanged 130-170 wpm check. The check, the short and long duration rules and Protocol v3 are not changed. The earlier render is retained as evidence.
+
+## Revision 2026-11-09 (c): calibrated speaking rates
+
+The microphone track is rendered at the voice's default rate and the meeting track at a `+30%` prosody rate, each recorded per unit in the manifest. The first constructed render (`-15%`) measured the meeting track at 118.14 wpm and the second (`default`) at 127.93 wpm against the unchanged 130-170 wpm check. The rate is a projection-based calibration (two-point extrapolation for Zira, one-point cross-voice estimate for David) and will be verified only by measuring the render. The in-window planned gap budget now accounts for crop padding; the 0.5 s rule is unchanged. The earlier renders are retained as evidence. Protocol v3 is not edited.

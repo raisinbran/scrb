@@ -103,6 +103,25 @@ class TestSourceCoverage(unittest.TestCase):
         with self.assertRaises(AssertionError):
             sources.assert_track_coverage(units)
 
+    def test_window_gap_budget_accounts_for_crop_padding(self):
+        """Keep the padded in-window speech gap under 0.5 s with a 20 ms margin.
+
+        Long 7.0 s and short 0.65 s clips with 0.13 s of lead plus trail padding made the old fixed
+        0.44 s planned budget produce a speech gap of 0.5 s or more (the microphone 50% projection case).
+        """
+        def padded(track):
+            clips = []
+            for kind, count, duration in (("long", 3, 7.0), ("short", 20, 0.65)):
+                for index in range(count):
+                    clips.append({"id": f"{track}-{kind}-{index}", "kind": kind, "duration": duration,
+                                  "words": [{"text": f"{track}{kind}{index}", "start": 0.03, "end": duration-0.10}]})
+            return clips
+        for track in ("microphone", "meeting"):
+            with self.subTest(track=track):
+                units = sources.place_units(track, padded(track))
+                report = sources.assert_track_coverage(units)
+                self.assertLess(report["failure_window_max_word_gap_seconds"], 0.48)
+
     def test_includes_leading_and_trailing_gaps(self):
         """Measure silence against both edges of the required window.
 
