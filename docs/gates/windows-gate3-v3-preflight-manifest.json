@@ -26,17 +26,8 @@
       "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
       "origin_main": "62978626adf02201a0eb2e4b4270a299e74634db",
       "sha256_recorded_in_prior_draft": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4",
-      "recheck_on_this_branch": "PENDING"
-    },
-    "sha256_lf_normalized": {
-      "AGENTS.md": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
-      "dev-plan/Meeting Scribe - V1 Requirements v1.2.md": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
-      "dev-plan/Meeting Scribe - Development Plan (v2.0).md": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
-      "dev-plan/Meeting Scribe - Development Process.md": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
-      "dev-plan/Meeting Scribe - UI Specification.md": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
-      "docs/gates/evidence-retention-policy.md": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
-      "docs/gates/gate-3-windows-word-timing-decision-20261108.md": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
-      "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md": "902a4e72b7f06e3f5a1fb44b5bb562942062ebb892bced114fe5876cd8f0f481"
+      "recheck_on_this_branch": "PENDING",
+      "sha256_recorded_in_prior_draft_method": "carried_from_prior_draft"
     },
     "amendment_note": "The amendment hash changes with any further edit; refresh at freeze.",
     "rules": {
@@ -53,10 +44,59 @@
       "within_six_required_fraction": 0.95,
       "historical_result": "73/77 unchanged under original frozen detector-end rule",
       "spread_policy": "onset spread <= 25 ms, offset spread <= 100 ms; owner-approved 2026-11-08 before r3; 100 ms is maximum permitted ambiguity, not an accuracy claim"
-    }
+    },
+    "git_text": [
+      {
+        "path": "AGENTS.md",
+        "sha256": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "dev-plan/Meeting Scribe - V1 Requirements v1.2.md",
+        "sha256": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "dev-plan/Meeting Scribe - Development Plan (v2.0).md",
+        "sha256": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "dev-plan/Meeting Scribe - Development Process.md",
+        "sha256": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "dev-plan/Meeting Scribe - UI Specification.md",
+        "sha256": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "docs/gates/evidence-retention-policy.md",
+        "sha256": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "docs/gates/gate-3-windows-word-timing-decision-20261108.md",
+        "sha256": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md",
+        "sha256": "902a4e72b7f06e3f5a1fb44b5bb562942062ebb892bced114fe5876cd8f0f481",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      }
+    ]
   },
   "group_2_candidate_tools_models": {
-    "candidate_commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
     "candidate_branch": "rosmont/gate3-upstream-diagnostics-20261107",
     "root_package_lock_sha256_recorded_in_prior_draft": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
     "clean_tree_verified": false,
@@ -71,7 +111,10 @@
       "Microsoft Zira Desktop"
     ],
     "unit_script_version_sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
-    "unit_renderer_version_sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481"
+    "unit_renderer_version_sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
+    "candidate_commit_git_id": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
+    "candidate_commit_note": "Git commit id, not a content digest",
+    "root_package_lock_sha256_method": "carried_from_prior_draft"
   },
   "group_3_sources": {
     "method": "ConstructedUnits",
@@ -302,7 +345,8 @@
         "wav_sha256": "a4e8a10311335e550fe081e245c3365ec1d7cf27f1cc7df95426ed07ab93738d",
         "sidecar_sha256": "8f5ac8d67879d46fe1b7dd256f6adec143b6ee226d175642352c01c3bf7b350b"
       }
-    }
+    },
+    "hash_method": "raw-file-bytes (applies to every digest in this group)"
   },
   "group_4_annotations": {
     "status": "UNFROZEN",
@@ -314,19 +358,22 @@
       "microphone-joined-verification.json": "a931abc2e6ae518b1d44d67ffa86f5e2e6199f802a63b917726282a2a0390ef5",
       "meeting-joined-verification.json": "a8a34dc277dd71e8456bb5a6c38c8a4fb670a8f2d1104fc12e12e3d47e331508",
       "source-audit.json": "1ee8f6c431295935bdaf224ee52e131930196c6fa712e10be43c313a19c5149f"
-    }
+    },
+    "hash_method": "raw-file-bytes (applies to every digest in this group)"
   },
   "group_5_quality_evidence": {
     "measurement": {
       "file_sha256": "256fd80e150f9324025d4ee577fde064d6276e8dfd09f7fe0d1f1bdf0ed86468",
-      "result": "52/52 units accepted; max onset spread 15 ms; max offset spread 75 ms"
+      "result": "52/52 units accepted; max onset spread 15 ms; max offset spread 75 ms",
+      "hash_method": "raw-file-bytes"
     },
     "joined_verification": {
       "sha256": {
         "microphone": "0be8b999899716a81a17931c00c674a75cd039a320e996076e7ab66d7a4bf98d",
         "meeting": "6f2ffc44a5b16bbb611f3f8a64e695965ecae780ea0893bc6c47d2181ca13aa2"
       },
-      "result": "PASS both tracks (arithmetic/consistency only, not independent acoustic ground truth)"
+      "result": "PASS both tracks (arithmetic/consistency only, not independent acoustic ground truth)",
+      "hash_method": "raw-file-bytes"
     },
     "assembled_results": {
       "microphone": {
@@ -351,7 +398,8 @@
         "index-meeting.csv": "288837a486460bc07f906c0cd578ea0ce9ad77caad3b1aca8d5db812494709ba",
         "listen-checklist.md": "601da8b8e9cd3bd8c05049c7bee8f59b929791c2e1e256bea357778e6199c1f8"
       },
-      "result": "no crop edge touches speech energy; no clipping; none suspect. Near-limit: Record. speech span 0.320 s vs 0.3 s minimum"
+      "result": "no crop edge touches speech energy; no clipping; none suspect. Near-limit: Record. speech span 0.320 s vs 0.3 s minimum",
+      "hash_method": "raw-file-bytes"
     },
     "owner_listen_through": {
       "date": "2026-11-08",
@@ -359,7 +407,9 @@
       "status": "OWNER_SIGNED_OFF_RECORDED_IN_REPO",
       "evidence_file": "docs/gates/gate-3-windows-r3-listen-through-signoff-20261108.md",
       "evidence_file_sha256": "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87",
-      "note": "Covers r3 constructed sources only; manifest remains NOT_FROZEN."
+      "note": "Covers r3 constructed sources only; manifest remains NOT_FROZEN.",
+      "hash_method": "git-show-blob-bytes",
+      "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
     },
     "independent_review": "PENDING",
     "known_concerns": [
@@ -369,29 +419,124 @@
     ]
   },
   "group_6_scoring_scripts": {
-    "sha256_lf_normalized": {
-      "scripts/gate3-retest/analyze-bounds.py": "2cda869cafcb77546a59a7f79d961927a329bab78dba82049a9d9252964dc631",
-      "scripts/gate3-retest/assemble-sources.py": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
-      "scripts/gate3-retest/constructed_units.py": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
-      "scripts/gate3-retest/measure-units.py": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
-      "scripts/gate3-retest/verify-joined.py": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
-      "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-      "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
-      "scripts/gate3-retest/speech-specs.ps1": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
-      "scripts/gate3-retest/UnitRenderer.cs": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
-      "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
-      "scripts/gate3-retest/render-constructed-units.ps1": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
-      "scripts/gate3-retest/prepare-speech.ps1": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
-      "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-      "scripts/gate3-retest/README.md": "231685f72e4c3bf5c3fd87e11cd3b54a7df0a103a880d4d8c09fe78fc23839cd",
-      "scripts/gate3-retest/test_analysis.py": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
-      "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
-      "scripts/gate3-retest/test_cli.py": "26c40d41b42ecfaef8ebe5bfc0787244284a3813bb93443952dc3405ce158c6f",
-      "scripts/gate3-retest/test_sources.py": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
-      "scripts/gate3-retest/test_units.py": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135"
-    },
     "tests": "PENDING",
-    "matcher_and_marker_code": "NOT_WRITTEN; assigned to Codex"
+    "matcher_and_marker_code": "NOT_WRITTEN; assigned to Codex",
+    "git_text": [
+      {
+        "path": "scripts/gate3-retest/analyze-bounds.py",
+        "sha256": "2cda869cafcb77546a59a7f79d961927a329bab78dba82049a9d9252964dc631",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/assemble-sources.py",
+        "sha256": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/constructed_units.py",
+        "sha256": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/measure-units.py",
+        "sha256": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/verify-joined.py",
+        "sha256": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/audit-archive.py",
+        "sha256": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/bookmark-timing.py",
+        "sha256": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/speech-specs.ps1",
+        "sha256": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/UnitRenderer.cs",
+        "sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/SpeechRenderer.cs",
+        "sha256": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/render-constructed-units.ps1",
+        "sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/prepare-speech.ps1",
+        "sha256": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/observe-live.ps1",
+        "sha256": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/README.md",
+        "sha256": "231685f72e4c3bf5c3fd87e11cd3b54a7df0a103a880d4d8c09fe78fc23839cd",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/test_analysis.py",
+        "sha256": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/test_bookmarks.py",
+        "sha256": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/test_cli.py",
+        "sha256": "26c40d41b42ecfaef8ebe5bfc0787244284a3813bb93443952dc3405ce158c6f",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/test_sources.py",
+        "sha256": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      },
+      {
+        "path": "scripts/gate3-retest/test_units.py",
+        "sha256": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135",
+        "method": "git-show-blob-bytes",
+        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+      }
+    ]
   },
   "group_7_runtime_environment": {
     "windows_build": "PENDING",
@@ -410,5 +555,24 @@
     "wavs_committed_to_git": false,
     "auto_retry": false
   },
-  "prior_history": "The retired draft state (stopped measurement, 30 ms offset-spread rejection, r2 at 127.93 wpm) is preserved in git history and in the decision and amendment documents."
+  "prior_history": "The retired draft state (stopped measurement, 30 ms offset-spread rejection, r2 at 127.93 wpm) is preserved in git history and in the decision and amendment documents.",
+  "hashing_methods": {
+    "rule": "Every digest is a SHA-256 of content bytes. A Git object id (commit or blob id) is never a content digest and never goes in a sha256 field. Record method, commit and file name beside each digest.",
+    "git_tracked_text": "SHA-256 of the bytes printed by `git show COMMIT:path` at the pinned full commit id. LF content as stored in Git, independent of working-tree line endings.",
+    "wavs_and_private_binaries": "SHA-256 of the raw file bytes (for example Get-FileHash -Algorithm SHA256). Not committed to Git.",
+    "carried_from_prior_draft": "Digests copied from the earlier draft whose method was not recorded; recompute with one of the two methods above before freeze.",
+    "pinned_commit_for_git_text_in_this_draft": "cb26f9c04b58db1143c24554b1fe8d277e288cac",
+    "repin_note": "Files changed after the pinned commit (the amendment, the D2 draft, this README, play-sources.ps1, test_play_sources.py and this manifest) must be re-pinned at the freeze commit."
+  },
+  "group_9_d2_capture_equivalence": {
+    "status": "DRAFT",
+    "path": "docs/gates/gate-3-windows-d2-capture-equivalence-draft.md",
+    "owner_approval": "microphone track via VB-CABLE (CABLE Input / CABLE Output), system track via the existing endpoint-loopback route; conditional on measured isolation and capture equivalence; no acceptance threshold changed",
+    "hash": "PENDING: pin at the freeze commit",
+    "pending_fields": "see the draft section 4",
+    "playback_script": {
+      "path": "scripts/gate3-retest/play-sources.ps1",
+      "status": "written, not run for playback; hash pinned at freeze"
+    }
+  }
 }
