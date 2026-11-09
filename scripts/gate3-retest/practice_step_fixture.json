@@ -37,5 +37,578 @@
         "sha256": "90de85380ecf0b23056d76227ca3bdeed54843dc8691ce11c71e60942d373342"
       }
     }
+  },
+  "raw_microphone": {
+    "metadata": {
+      "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/chunks.json",
+      "sha256": "c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290"
+    },
+    "decoder": {
+      "path": "../gate3-integrated-evidence/decoder/ffmpeg.exe",
+      "sha256": "e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030"
+    },
+    "marker_context": {
+      "path": "practice-d2-codex-marker-audit-20261109/audit-summary.json",
+      "sha256": "93da64f8b2ae2b19350dddfb1efea69cd594200ecbe5a0e32b9d49750c2ab920"
+    },
+    "expected_origin_ns": 6784091222800,
+    "chunks": [
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000000.opus",
+        "sha256": "7319c6432ddb6fddca706b43f9924c128d035b2a8732b193fcb777eeb0dfabd7"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000001.opus",
+        "sha256": "4deca4844cc5c548c6d609cd021a7317efd67adc118af19502f0d10677d22d67"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000002.opus",
+        "sha256": "190a7945a7692de994bd5217062dba21e1e22b83317ec9eae565495694007076"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000003.opus",
+        "sha256": "b40a6a130d76da802f4e0977a4d98dca4064320c0c1df1a8afb222263ff5dded"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000004.opus",
+        "sha256": "d44fba2a22416896a57baf5797b3635af8920cf82d06b8dfbe93cfbb42a53076"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000005.opus",
+        "sha256": "d91a14777b8b867ec40f389bef95c74c0a996ddef5ce32ddb89d1cb8aae18127"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000006.opus",
+        "sha256": "ede627c99f8c103c9fe216191676552872afcc859ab74b7acef19e88fce61fc1"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000007.opus",
+        "sha256": "f3a731d7bbce653e93b806e9c53455483341cc4c322f0f74b47ba9df9892fd6c"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000008.opus",
+        "sha256": "e38f1b7840871d33217ae40362601b83a85fdc90af812af9d12f90f20f7372c1"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000009.opus",
+        "sha256": "560350e01945d3e9473a5e9b94ee0334691646c4fb628b42b60fec6f530618a5"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000010.opus",
+        "sha256": "99d442a498fc9d619e116bb05bec26f9dee8a84c761de1fbed5bf0f1841d0bfa"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000011.opus",
+        "sha256": "0f015771539a7672077b6ff7e566ecb155859bb106659f385b1dad893a7059f0"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000012.opus",
+        "sha256": "ed68eaf34ed4440a154e5bc6a0e5ec10374ce8fdd0c3d296be4ab96d67918c9a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000013.opus",
+        "sha256": "9dfc90154078736a8b7935d1be5c08d140ee36bf90a6404dc5a887dbd7874511"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000014.opus",
+        "sha256": "684a7e1a1af420182bfa9c7170b1f7ef470db96eb03adc152648ec09eec589ec"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000015.opus",
+        "sha256": "e1e2107c07d87b80ad2717cc815be4e4bdff41ab12e12150a297f69289ecef56"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000016.opus",
+        "sha256": "103e623dad983bf0cc5a837914c29cb55bb5524b0818e50bae118bd5e6defafe"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000017.opus",
+        "sha256": "d59659ad404da5b71158f9487fdb8ad0b8e6d6529017e6ef96fddd5b5dabd380"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000018.opus",
+        "sha256": "326578f61c39adf9bae0761ab93988bb518eb00bfcdc9586aedfc470ff25c315"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000019.opus",
+        "sha256": "f34a4de142685a1be7788d3b81abe0cda9a101d65687fc60a1dedd81863c340e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000020.opus",
+        "sha256": "7ea2b34ed7070e67e5e4f26b9917acea3956499fdb3f071441be902943378d1e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000021.opus",
+        "sha256": "3300a69e67ef7b9012db3b8fc59198021f7dd518812c08b1e9e66eeecb57a111"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000022.opus",
+        "sha256": "c5d13f1302a03f5d1df1acec58b47785f6baaf2775b5d43e2a1a86b707922541"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000023.opus",
+        "sha256": "36979f9d39f1915a4b030767664874b9deccf476a20eed77b59abf0232413fa1"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000024.opus",
+        "sha256": "2d26ac2374f83e90b0aedb7e492528fc3a37e536a3ce4b988552dbd206aaadc7"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000025.opus",
+        "sha256": "5e26474c054eff0e93deabaf37c652ee106a95ed8a4d5855adac3c4430127723"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000026.opus",
+        "sha256": "a9ae4814d91f814b2c9030cb460a4604e6f98999cde47d4e571790b79d14e40d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000027.opus",
+        "sha256": "89a723eecaa0991a1b7e0c31a980cf3a91599b1cc4e4210d7babfb582566c2bc"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000028.opus",
+        "sha256": "c6f10d9793925a917bb86e3569a59612a245fd0e596d8d9e1fafbc2ec5571cbd"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000029.opus",
+        "sha256": "c48dfb26f7619e638c668b6aa2fa28dc711b80e4074c91910f2c871b539e7820"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000030.opus",
+        "sha256": "0468c8d98569241914d7d78d9b22a838e000f1fb9446392d4528fa7989f1eafa"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000031.opus",
+        "sha256": "bd08320c62365f4bb5430a23ae0df222a3493b117910c31157c93300ddfd110f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000032.opus",
+        "sha256": "86198be2632f2435a0044ee702401601a9d1e5af520916186b738a6d8d9f4571"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000033.opus",
+        "sha256": "ef0757649498014a7d1caca55157e78d2097450235a4963e03d930159741856c"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000034.opus",
+        "sha256": "d6a8be5cb7526e93852d9eea9c7a8ccbd79791270df1d2886b719bf380e34ce5"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000035.opus",
+        "sha256": "3b1095bf138cf08c8d3780e92f8f3191a4986afeea3b7a65de368dfe03e320d9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000036.opus",
+        "sha256": "d94eba406fc8ce0303983b25ff0418716fa6f08175a93553416365672a63fff3"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000037.opus",
+        "sha256": "084133402ddbbd82114c2da024bb03beb26ceaa88624cafe581c04782205f58a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000038.opus",
+        "sha256": "0cec1192b4acc019b6863b421178d11eb61e16c1275326d24b0c03832fa6b7ec"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000039.opus",
+        "sha256": "bfa556ee826fefe176aa76420c040fa833ce8b1efb0461b8443bc5d52dcbf709"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000040.opus",
+        "sha256": "fae8d15d2d070d8111e6462ce798cf5bd33707ba3967d1366e2fe0f902b3dd99"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000041.opus",
+        "sha256": "d2c11433be891e6b585f36d58c3b79f508ec3ccd3db2668971a38c376ef6c644"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000042.opus",
+        "sha256": "6675d01e4a1e56abc8cb0a19ccab98e374b25e864debc6ff6d8960deeaa201fc"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000043.opus",
+        "sha256": "78aefbbe0eacc285ccaa1e1df30938d199c311fbfa24e106c7d9f7066cb7c773"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000044.opus",
+        "sha256": "c7d0cd48c107102e1ab4dba1ac904528eb139d46e5294472535a56462fb80cf9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000045.opus",
+        "sha256": "d0705c7f88fd397658664898348da0ed20ec5a357e276c41fff4dfba5933875b"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000046.opus",
+        "sha256": "b5feece467b7515790e04522c60fde46e46470119daba911e0d4dfded49eb724"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000047.opus",
+        "sha256": "429524ab73cfd16d86b983c0fed3fe77bf4cfc71afa0d4936cf505f736bd0992"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000048.opus",
+        "sha256": "4fd7f8e4d86e047ed3e891aa44fcccfc445495927e6b146d9f2737fa6cc22abf"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000049.opus",
+        "sha256": "ec5c8ed62eb300007e0fcde2b7fe0b4aec5a3c6e3f0994b644e8ce2b85e20060"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000050.opus",
+        "sha256": "7b8a017c9dfa29b85a6f9f3e03a6ef5a26aacd5839d0a146e243953d7e21ecae"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000051.opus",
+        "sha256": "99c536e9dd83bb9b2964021415f61e18bb0adee43d79254965bc374135c0835d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000052.opus",
+        "sha256": "be88ec5de91c695e16dec3838ac66cdc8e21112e5e1ead2c6ccc5c4b5d79b4f8"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000053.opus",
+        "sha256": "d8114dde3f62b2e4789aeb7c17b8297687dcf5ce99a92699288ceaf3130cc1d5"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000054.opus",
+        "sha256": "92cf2d803703a78e313c452d94b1e1d803176e0fa56d91e28eb630af6546498a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000055.opus",
+        "sha256": "718fc1bf2a885452fad753147e0690cc8328bb0533e8d0c118c579e34d1fcf57"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000056.opus",
+        "sha256": "13ae7d80dfd53a05fa5cc4cd6fdb7751f4b97db26fa47050bfff02f74cf97b07"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000057.opus",
+        "sha256": "b85e150e27ed562b87ec2e66bb767e857477f0d978779f1322715e58e385ef34"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000058.opus",
+        "sha256": "b12846de0e84de8cc3647d09133aa3490379d96a287af425c701f4f47e2ea017"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000059.opus",
+        "sha256": "ee18ed5cdf6550afc5b481a7ab3a065115415040b9326e6d43aa1d80b06fe410"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000060.opus",
+        "sha256": "a21f5c2a2a46956431e137d0cf914debf591db50017037ed53ede3ffd97a2d6d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000061.opus",
+        "sha256": "edfb1f3f02c346a6cc24f04fcc5dedf4b6ec99beb3018f73bbd2f378efab988e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000062.opus",
+        "sha256": "25fef6421c6432c8a457a8940aeb247cd6287e80b35a84725cfdce4ffaff6919"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000063.opus",
+        "sha256": "33f3ced08b349f45990c1da8b78328b06b10003f90712eb6608bda9554d8319d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000064.opus",
+        "sha256": "b2523055a38dc9a89ba4d76054a75b8a54dc3c5ba52ec67421cfac76092213ee"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000065.opus",
+        "sha256": "723b5aacbf9d4e49b7c6576a1a0c15f2340e4a5eb5a2d63849ea0668f54b6ef9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000066.opus",
+        "sha256": "6ed7ce4ca229a836854e9d4264fab1466c5b5aa197a8ac98b7a27fec15861f41"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000067.opus",
+        "sha256": "769bcb7737141838bea9ffaef2e9b14ad3c0d24f1008ea9fd638b6c61035f08e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000068.opus",
+        "sha256": "48acb46d5438aa0b41b1b5ea908bfb4bae0c3045012c02c29bc14e5ffbef293e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000069.opus",
+        "sha256": "8143e46b6ca9ed0a6dc589f63e5e63f911fd23ae3e7122ec61a03224cdfa2df7"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000070.opus",
+        "sha256": "49642ebbe5a06642fd01f9ce78ce75be58f8a1c2e9eaa1a870863b019811e717"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000071.opus",
+        "sha256": "9f2b8298a7e7d321e992eeb76849cfa79593676e3e166e4256333d75ee8aec93"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000072.opus",
+        "sha256": "3cd4d396950a3a48e9e54c1b1687e96c26ed5fc21782b71a3df536625e838c2f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000073.opus",
+        "sha256": "1f0d729ad40ca073821c72e3bec326e94b1775332bdfe2a989a1023c52238ea6"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000074.opus",
+        "sha256": "fde57867a2554215b51c84cda14b2123c9c66a03b17c1f369c8cf55f719e0979"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000075.opus",
+        "sha256": "d01ec60567d39a0b1e3ab6db3f63c55c05b7b0646c3c843a704039eec68725ea"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000076.opus",
+        "sha256": "060bcddd05db937e2c8f8bf35e0086dd8d492dd0d133f400fd512ab6f671cb01"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000077.opus",
+        "sha256": "4f2ef54382316d0cb56c8c260aa39a7c28d8e36b917e0dafa6af6be4361f4879"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000078.opus",
+        "sha256": "241e1286f8e4bff431d146aa756fe7458da8ef7aec28665ea0a4afecc87232be"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000079.opus",
+        "sha256": "0adc86eaf531e506acf70db23830373f02deecd81ec06425ce6e3356e3eee1e4"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000080.opus",
+        "sha256": "baa772bd558dfd2f541d62b0c5c2343f937a14af8d89a5fb7a23504adc3c4fc9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000081.opus",
+        "sha256": "e55336edc5226209c65010708728f46d266a75a0344544b878f2d96d9bf9851f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000082.opus",
+        "sha256": "21b7b7fc8be39bfbdd5875bd5412afbebce5afc5a9f9d22bf525bdd5a60ed3ea"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000083.opus",
+        "sha256": "8bf70eada1bc0dbf4927539ec2131bb6ae3a122bc7062ad26b395f63417d149c"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000084.opus",
+        "sha256": "cb1f5af10e1a5e771445472d99fd0d73d04548302ec68d21fd8ec4a04a10af71"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000085.opus",
+        "sha256": "cd9bff15b75426410f1bc878142ac0b62722e2731b5872fa5f42373a70f96a57"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000086.opus",
+        "sha256": "ff7d1ebee060273b174b5d678ef03184c943236bdbc276efa482df6468c7fc3a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000087.opus",
+        "sha256": "f8154fb700f83306a35fa267b7aff37099ec6b5c19c86af685fe3226a53830af"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000088.opus",
+        "sha256": "a625f81580047c0ffaf1013bdee439d98eda18ba4e4f4072de718ec82ab79c75"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000089.opus",
+        "sha256": "3b461ff6e9494062c02cf7fbf75fad588726b0c866a4b12c85ec9d27cfe246dc"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000090.opus",
+        "sha256": "7e3bf2bd3e99ce6a497da4bc3f668b3017a123c5e3fb85edf81fd27850ee4e22"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000091.opus",
+        "sha256": "7467d6bdd9f71ef2051c838b286060d4ec339f85460e3e858148a4296710b52f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000092.opus",
+        "sha256": "688a2230f6b04033a478f6b1135c9747be9cc2baba8876deea0dbb36cbf81cba"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000093.opus",
+        "sha256": "a692d42225caac4b31180ec124ad6a04105e9c41ea3f873f18119e4423f931c5"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000094.opus",
+        "sha256": "a51f0b7dd25d20414c725baca9ac14502ef7c69e133d3676518391cda7d9378e"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000095.opus",
+        "sha256": "6883573ba0b56e9a3ba51a08dcad5b06fde3795b25d31adb80468d6505ca1131"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000096.opus",
+        "sha256": "d4e8c7b7ddee41ed2eb47264d635ab852621511c9391be1ac5731d8350e779e8"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000097.opus",
+        "sha256": "875966a55eae821a0421eb123ed5dc198bd2672cb22cd60d20debab5d31a446d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000098.opus",
+        "sha256": "bf6a448ac5959fb53c0b9cbd5a24abd9662a9c812de67c79ab4a4c421bc8f6e8"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000099.opus",
+        "sha256": "68b5fe8834d2fc374247f8f042a841b37b9c7a0abb14f2fb05a12ebdcd5d1143"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000100.opus",
+        "sha256": "72b448fb515f2620646fcf293fdcabcd5e98bc871176209c05ad9ca508d949e2"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000101.opus",
+        "sha256": "baf143bddd8c2de922617d275d69d2845c57f0f98b0fe221fbaa89827d748cde"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000102.opus",
+        "sha256": "9b9fd4fda91d10f4b7a0d54f696b13e0c8210ceac08d5ce14dcd93caa9e33f92"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000103.opus",
+        "sha256": "b535edf9a51c62882c2c3e3c70067f993766bbede30e76c86450a210a9f6c6f2"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000104.opus",
+        "sha256": "7b578f1ca4f959eb69da6e939beb0661fff25c101070ea0416a2b45930da7eb4"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000105.opus",
+        "sha256": "8a651981a2094133914281dce9d0ac5edacad067b8dfbad2e247ad6b6559a295"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000106.opus",
+        "sha256": "4fbfb3505133b7affa0777833d0d0e4fec9d2b44bb4cca815035c5385c2639bd"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000107.opus",
+        "sha256": "f13bcc100dee685b28191ccd90abf49fb93d7f5aafa06e8810d7539e99573d65"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000108.opus",
+        "sha256": "1a7afd594dd1acb3570e9aea96cad533c19c9e65c59d24a49dabe7c27c4ee83f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000109.opus",
+        "sha256": "13e8d0ac45f823b8eddd5e1869aa2d71eb51f85c7615930babd314f58e3b6b6b"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000110.opus",
+        "sha256": "1e0b54f2a67e39b37c786f18c608ecb6ef27f56824d9ffee845d1687e768331a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000111.opus",
+        "sha256": "1aaee0b6ba127ab45327a6c0d229318cb75e5acc724244fb2baa8b31adfa5c76"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000112.opus",
+        "sha256": "e2ac155fd09fce3d0fd05499c9e6b7c73dc075a011c51d4cff3d0f63afec40e1"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000113.opus",
+        "sha256": "a7295b442da77e48a16a07b88db4fd3e065781b7b51efdf7e9e0d144a71d6095"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000114.opus",
+        "sha256": "c19f42b7c1d07e09a2d10e995ec4d739dff17722d992e50c1ff9470bfa2fe6b1"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000115.opus",
+        "sha256": "ca74873143c6ad3726260892ee1aff8a1079dad556b5b655e32ebf537781c5a8"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000116.opus",
+        "sha256": "7feea71df3c866ea3579f0910add6653cc2a09e1f791c1149f42388ef3c29911"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000117.opus",
+        "sha256": "322b5df5cbe95f3db5195c82cef89b12c6a22df8088ed5ff43ac3732f071486d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000118.opus",
+        "sha256": "0759361306fdd919a7f85c80ff367a2fbedb72f43b7363e5ec2a7a791a6cf1e9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000119.opus",
+        "sha256": "cf1dfcdadfedc6efba91827414abf88ec5218b16ef24f1815dad1ab9dc014240"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000120.opus",
+        "sha256": "846fa9114ae43aa77aea13839ccaa5722a050acbc12d1c75f6ea427e2f77719f"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000121.opus",
+        "sha256": "94e74fa30e3bf2d03d901548d573e4d3f9277d312e7efbfcb423602cd9560b37"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000122.opus",
+        "sha256": "f9e0da8b73a47fdadb29579fd7625731b1359a2c16dc93b68de8f2c3224873c4"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000123.opus",
+        "sha256": "54fddb534332449e95ac979bd12ec5ef3e11482b0daf03b93abf03073337005b"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000124.opus",
+        "sha256": "77ffacc3d0b51a3082bf0f5f9b54e9591b77c26c9d03831c8baab31addff5b57"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000125.opus",
+        "sha256": "70f77c71403dfc5d6e557438949829cad92ca815e249d060a1b9fddbcef809da"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000126.opus",
+        "sha256": "68731db24ef2eb34fa3c9529380370dab42e3f23965c1e31afe1209de9c0cb0a"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000127.opus",
+        "sha256": "275c469a35fc3be04599585d2119ede2916568622fa84409aff4eb5ef195b605"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000128.opus",
+        "sha256": "e3a2452a9cd98a4d4736e92cc6a3083f40154b3e31317b7efe57e6b98ae6a49c"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000129.opus",
+        "sha256": "9d9ee78a7321963ebacec78c702733bae349072d84a3bce6d6c8261baa7ebcc7"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000130.opus",
+        "sha256": "e2df3a5b8d08f398d06a2d4ac73630e673c93af5dbdda99bd2deb41f75599b54"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000131.opus",
+        "sha256": "35db53b4989befbcf63b1679969f82914e786bf89b5830be896a834e45310281"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000132.opus",
+        "sha256": "7d6868d14706a2696662ae409ccf7c8b571a13b9f7f8e205dc486be3dfb43cd9"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000133.opus",
+        "sha256": "c52f35084ebda0bd6d6910da5195a31cec41ffa6d9462a46c91b727415443cf2"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000134.opus",
+        "sha256": "6595c5121867e917b1deab0670de4bd51c59e1623244e0daf1d22e06d11132e8"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000135.opus",
+        "sha256": "553acb35eda2263d4c64dc979a200240dfb6e0bd28978a484169e93160315747"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000136.opus",
+        "sha256": "d311ba9d1681f389399229c096c9afccb5462500e2aff03f69e19c614ec46c1d"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000137.opus",
+        "sha256": "c4d15e94e62a20443ad17c628320272173a4bd7e6ad0286cd0809e135a92b7d7"
+      },
+      {
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/000138.opus",
+        "sha256": "22589051360896eb6ebd2b1b6bea38e6bee6b9234d18fbd1dc512307cd6a52d0"
+      }
+    ]
   }
 }

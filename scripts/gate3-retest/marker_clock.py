@@ -181,15 +181,29 @@ def analyze_v3a(metadata, decoder, track, harness, harness_u=(0, 0), *, views=No
             except ValueError as error:
                 return {'valid': False, 'latency': 'INCONCLUSIVE', 'error': str(error)}
         original = report(timestamped, True)
+        original['view_basis'] = mapping.get('timestamped_view_policy', mapping.get('original_view_basis', 'timestamped capture'))
         amended = report(continuous, False)
+        context = mapping.get('clock_context')
+        for view, samples, label in ((amended, continuous, 'sample-continuous'),
+                                      (original, timestamped, 'timestamped-legacy')):
+            pcm = array.array('h', samples)
+            if sys.byteorder != 'little':
+                pcm.byteswap()
+            view.update(track=track, clock_context=context,
+                        view_identity={'view': label, 'pcm16le_sha256': hashlib.sha256(pcm.tobytes()).hexdigest(),
+                                       'sample_rate': rate, 'sample_count': len(samples),
+                                       'track_identity_sha256': (context or {}).get('track_identity', {}).get('sha256')})
         valid = mapping['valid'] and amended['valid']
         if not mapping['valid']:
             original['view_basis'] = mapping['original_view_basis']
-        return {'mode': 'v3a', 'track': track, 'valid': valid,
+        return {'schema_version': 2, 'mode': 'v3a', 'track': track, 'valid': valid,
+                'clock_context': mapping.get('clock_context'),
+                'track_identity': mapping.get('clock_context', {}).get('track_identity'),
                 'latency': 'READY_FOR_ALIGNMENT' if valid else 'INCONCLUSIVE', 'gap_map': mapping,
                 'sample_continuous': amended, 'original_timestamped': original}
     except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
-        return {'mode': 'v3a', 'track': track, 'valid': False, 'latency': 'INCONCLUSIVE',
+        return {'schema_version': 2, 'mode': 'v3a', 'track': track, 'valid': False, 'latency': 'INCONCLUSIVE',
+                'clock_context': None, 'track_identity': {'track': track, 'status': 'UNAVAILABLE'},
                 'gap_map': {'valid': False, 'error': str(error)},
                 'sample_continuous': {'valid': False, 'latency': 'INCONCLUSIVE'},
                 'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE',

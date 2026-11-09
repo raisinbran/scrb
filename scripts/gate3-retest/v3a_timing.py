@@ -84,6 +84,37 @@ def opus_tags(raw):
     return found
 
 
+def capture_clock_fields(records, track, metadata_sha256):
+    """Carry preserved clock evidence; do not integrate observer publications."""
+    sessions = {r.get('session_id') for r in records if r.get('session_id') is not None}
+    complete = all(r.get('device_stamp_ns') is not None and r.get('session_id') is not None for r in records)
+    origins = {r['device_stamp_ns']-r['start_ns'] for r in records if r.get('device_stamp_ns') is not None}
+    origin = next(iter(origins)) if complete and len(origins) == 1 and len(sessions) == 1 else None
+    session = next(iter(sessions)) if len(sessions) == 1 else None
+    identity = {'track': track, 'session_id': session, 'chunks_metadata_sha256': metadata_sha256,
+                'ordered_source_sha256': [r['source_sha256'] for r in records]}
+    identity['sha256'] = hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return {'schema_version': 1, 'session_id': session, 'session_origin_ns': origin,
+            'origin_status': 'RECONSTRUCTED_CONSTANT' if origin is not None else 'UNAVAILABLE_OR_INCONSISTENT',
+            'origin_method': 'SCRB_DEVICE_STAMP_NS minus embedded START_NS; constant across every chunk; not a retained start ACK',
+            'origin_evidence_chunks': len(records) if origin is not None else 0,
+            'qpc_basis': {'capture_clock': 'QueryPerformanceCounter-derived monotonic nanoseconds',
+                          'capture_units': 'ns', 'nanoseconds_per_second': 1000000000,
+                          'raw_qpc_frequency_hz': None, 'observer_clock': 'Stopwatch.GetTimestamp',
+                          'observer_frequency_hz': None, 'observer_integration': 'NOT_IMPLEMENTED'},
+            'track_identity': identity, 'observer_to_scorer_integration': 'NOT_IMPLEMENTED'}
+
+
+def audited_overrun(record, track, rate, metadata_sha256, declared):
+    policy = json.loads(Path(__file__).with_name('audited_decode_spans.json').read_text(encoding='utf-8-sig'))
+    for row in policy['overruns']:
+        if (row['track'] == track and row['rate'] == rate and row['metadata_sha256'] == metadata_sha256
+                and row['source_sha256'] == record['source_sha256'] and row['seq'] == record['seq']
+                and row['declared_samples'] == declared and row['decoded_samples'] == record['decoded_samples']):
+            return row['overrun_samples']
+    return 0
+
+
 def gap_map(records, track, rate, metadata_sha256):
     """Validate a complete ordered inventory, retaining each source identity.
 
@@ -96,6 +127,9 @@ def gap_map(records, track, rate, metadata_sha256):
     require(bool(records), 'Missing chunk records')
     continuous = 0
     previous_end = 0
+    previous_start = -1
+    cumulative_gaps = 0
+    cumulative_overruns = 0
     seen = set()
     rows = []
     for seq, record in enumerate(records):
@@ -110,18 +144,30 @@ def gap_map(records, track, rate, metadata_sha256):
         start = round(record['start_ns']*rate/1e9)
         end = round(record['metadata_end_ns']*rate/1e9)
         count = record['decoded_samples']
-        require(count > 0 and end-start == count, 'Inconsistent timestamp/sample-count record')
-        require(start >= previous_end, 'Overlapping timestamp/sample-count record')
-        gap = start-previous_end
+        overrun = audited_overrun(record, track, rate, metadata_sha256, end-start)
+        require(count > 0 and end > start and count-(end-start) == overrun,
+                'Inconsistent timestamp/sample-count record outside audited span allowance')
+        require(start > previous_start, 'Reordered or duplicated embedded timestamps')
+        gap = max(0, start-previous_end)
+        overlap = max(0, previous_end-start)
+        cumulative_gaps += gap
+        cumulative_overruns += overrun
         rows.append({**record, 'continuous_start_sample': continuous,
                      'continuous_end_sample': continuous+count,
                      'timestamped_start_sample': start, 'timestamped_end_sample': end,
-                     'gap_before_samples': gap, 'cumulative_gap_samples': start-continuous})
+                     'gap_before_samples': gap, 'overlap_before_samples': overlap,
+                     'decoded_overrun_samples': overrun, 'cumulative_overrun_samples': cumulative_overruns,
+                     'timestamp_displacement_samples': start-continuous,
+                     'cumulative_gap_samples': cumulative_gaps})
         continuous += count
-        previous_end = end
-    return {'valid': True, 'track': track, 'rate': rate, 'metadata_sha256': metadata_sha256,
+        previous_end = max(previous_end, end)
+        previous_start = start
+    return {'schema_version': 2, 'valid': True, 'track': track, 'rate': rate, 'metadata_sha256': metadata_sha256,
             'chunks': rows, 'decoded_samples': continuous, 'timestamped_samples': previous_end,
-            'definition': 'Gaps have no assigned samples; timestamped zero placeholders are not physical silence.'}
+            'clock_context': capture_clock_fields(records, track, metadata_sha256),
+            'audited_overrun_samples': cumulative_overruns,
+            'timestamped_view_policy': 'original audit declared windows; overrun clipped and overlaps last-chunk-wins only in legacy view',
+            'definition': 'Gaps are union intervals with no assigned samples; overlaps remain explicit and never subtract gaps. Continuous samples are never trimmed.'}
 
 
 def load_views(metadata_path, decoder, track):
@@ -146,6 +192,8 @@ def load_views(metadata_path, decoder, track):
         if rate is None:
             rate = chunk_rate
         require(chunk_rate == rate and int(tags['SEQUENCE']) == row['seq'], 'Inconsistent chunk rate/sequence')
+        require(tags.get('TRACK', track) == track, 'Embedded track identity mismatch')
+        require(not records or tags.get('SESSION') == records[0].get('session_id'), 'Embedded session identity mismatch')
         decoded = subprocess.run([str(decoder), '-nostdin', '-v', 'error', '-protocol_whitelist',
                                   'file,pipe', '-i', str(path), '-map', '0:a:0', '-f', 'wav',
                                   '-acodec', 'pcm_s16le', '-'], capture_output=True, check=True).stdout
@@ -163,7 +211,10 @@ def load_views(metadata_path, decoder, track):
         records.append({'seq': row['seq'], 'source_file': row['file'],
                         'source_sha256': hashlib.sha256(raw).hexdigest(),
                         'start_ns': int(tags['START_NS']), 'metadata_start_ns': row['startNs'],
-                        'metadata_end_ns': row['endNs'], 'decoded_samples': len(block)})
+                        'metadata_end_ns': row['endNs'], 'decoded_samples': len(block),
+                        'session_id': tags.get('SESSION'), 'embedded_track': tags.get('TRACK'),
+                        'device_stamp_ns': int(tags['SCRB_DEVICE_STAMP_NS']) if 'SCRB_DEVICE_STAMP_NS' in tags else None,
+                        'wall_utc': tags.get('SCRB_WALL_UTC')})
     require(digest(metadata_path) == metadata_sha, 'Chunk inventory changed during decode')
     try:
         mapping = gap_map(records, track, rate, metadata_sha)
@@ -184,13 +235,14 @@ def load_views(metadata_path, decoder, track):
         return continuous, legacy, {'valid': False, 'track': track, 'rate': rate,
              'metadata_sha256': metadata_sha, 'chunks': records, 'error': str(error),
              'original_view_basis': 'original-v3 legacy adapter: timestamp placement and declared-end clipping',
-             'timestamped_capture_view': 'INCONCLUSIVE: no validated all-sample placement'}
+             'timestamped_capture_view': 'INCONCLUSIVE: no validated all-sample placement',
+             'clock_context': capture_clock_fields(records, track, metadata_sha)}
     continuous = array.array('h')
     timestamped = array.array('h', [0])*mapping['timestamped_samples']
     for record, block in zip(mapping['chunks'], blocks):
         continuous.extend(block)
         a, b = record['timestamped_start_sample'], record['timestamped_end_sample']
-        timestamped[a:b] = block
+        timestamped[a:b] = block[:b-a]
     return continuous, timestamped, mapping
 
 
@@ -342,21 +394,70 @@ def step_bounds(anchors, units):
     return steps
 
 
+def source_schedule(unit, first_anchor):
+    """Explicit source endpoints, or the previous fixed first-anchor schedule."""
+    keys = ('source_start_s', 'source_last_word_start_s', 'source_last_word_end_s')
+    if any(k in unit for k in keys):
+        require(all(k in unit for k in keys), 'Incomplete source speech endpoints')
+        values = [unit[k] for k in keys]
+        basis = 'source'
+    else:
+        baseline = unit.get('reference_schedule_offset_s', first_anchor['offset_s'])
+        require(finite(baseline), 'Unsupported reference-schedule offset')
+        values = [unit[k]-baseline for k in ('continuous_start_s', 'continuous_last_word_start_s', 'continuous_last_word_end_s')]
+        basis = 'legacy-first-anchor-reference-schedule'
+    require(all(finite(v) for v in values) and values[0] <= values[1] <= values[2], 'Unsupported source speech placement')
+    return values, basis
+
+
+def anchor_source_start(anchor):
+    return anchor.get('source_utterance_start_s', anchor['source_start_s'])
+
+
 def prepare_units(units, mapping, anchors):
-    """Keep the denominator and widen both speech endpoints and last-word start."""
-    steps = step_bounds(anchors, units)
-    result = []
+    """Carry local offsets forward; only unresolved between-anchor steps widen."""
+    steps = step_bounds(anchors, [])
+    by_anchor = {a['id']: a for a in anchors}
+    nominal_units = []
     for unit in units:
-        a, b, c = (unit[k] for k in ('continuous_start_s', 'continuous_last_word_start_s',
-                                    'continuous_last_word_end_s'))
-        require(all(finite(t) for t in (a, b, c)) and a <= b <= c, 'Unsupported speech placement')
-        end = placement_interval(c, mapping)
-        start = placement_interval(b, mapping)
-        widening = sum(step['symmetric_uncertainty_s'] for step in steps
-                       if c >= step['location_interval_s'][0] and a <= step['until_s'])
+        (a, b, c), basis = source_schedule(unit, anchors[0])
+        preceding = [anchor for anchor in anchors if anchor_source_start(anchor) <= a]
+        require(preceding, 'No preceding long anchor for source utterance')
+        anchor = preceding[-1]
+        shifted = [t+anchor['offset_s'] for t in (a, b, c)]
+        nominal_units.append({**unit, 'continuous_start_s': shifted[0],
+            'continuous_last_word_start_s': shifted[1], 'continuous_last_word_end_s': shifted[2],
+            'source_start_s': a, 'source_last_word_start_s': b, 'source_last_word_end_s': c,
+            'speech_time_basis': basis, 'timing_anchor_id': anchor['id'],
+            'timing_anchor_offset_s': anchor['offset_s'], 'timing_anchor_uncertainty_s': anchor['uncertainty_s']})
+    step_bounds(anchors, nominal_units)
+    result = []
+    for unit in nominal_units:
+        a, b, c = (unit[k] for k in ('continuous_start_s', 'continuous_last_word_start_s', 'continuous_last_word_end_s'))
+        def bracket_uncertainty(source_time):
+            return sum(step['symmetric_uncertainty_s'] for step in steps
+                       if by_anchor[step['anchors'][0]]['source_end_s'] < source_time
+                       < by_anchor[step['anchors'][1]]['source_start_s'])
+        end_step_u = bracket_uncertainty(unit['source_last_word_end_s'])
+        start_step_u = bracket_uncertainty(unit['source_last_word_start_s'])
+        onset_step_u = bracket_uncertainty(unit['source_start_s'])
+        anchor_u = unit['timing_anchor_uncertainty_s']
+        def interval(time, uncertainty):
+            require(0 <= time-uncertainty <= time+uncertainty <= mapping['decoded_samples']/mapping['rate'],
+                    'Speech uncertainty outside preserved continuous samples')
+            # The upper acoustic bound can cross a chunk boundary even when its
+            # nominal point does not. Include any intervening unassigned gap.
+            return [placement_interval(time-uncertainty, mapping)[0],
+                    placement_interval(time+uncertainty, mapping)[1]]
+        end = interval(c, anchor_u+end_step_u)
+        word_start = interval(b, anchor_u+start_step_u)
+        onset = interval(a, anchor_u+onset_step_u)
         result.append({**unit, 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
-                       'last_word_end': c, 'earliest_acoustic_end_s': end[0]-widening,
-                       'latest_acoustic_end_s': end[1]+widening,
-                       'last_word_start_interval_s': [start[0]-widening, start[1]+widening],
-                       'step_uncertainty_s': widening})
+                       'last_word_end': c, 'earliest_acoustic_end_s': end[0],
+                       'latest_acoustic_end_s': end[1],
+                       'last_word_start_interval_s': word_start, 'speech_start_interval_s': onset,
+                       'speech_end_step_uncertainty_s': end_step_u,
+                       'last_word_start_step_uncertainty_s': start_step_u,
+                       'speech_start_step_uncertainty_s': onset_step_u,
+                       'step_uncertainty_s': max(end_step_u, start_step_u, onset_step_u)})
     return result, steps

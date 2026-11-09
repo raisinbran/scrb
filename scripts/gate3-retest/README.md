@@ -229,30 +229,66 @@ index and its end timestamps, and decodes native mono PCM16 in memory. Supply an
 existing offline ffmpeg executable explicitly. It never downloads tools, changes
 capture, resamples, trims, pads the continuous view, or writes audio.
 
-The sample-continuous view contains **every decoded sample in order**. The
-original timestamped capture view places those same samples at their embedded
-timestamps, with unassigned gaps represented by zero placeholders. Those zeros
-do not establish physical silence or speech absence. The report includes
-`sample_continuous`, `original_timestamped` (the original 100 ms check and affine
-fit, including its INCONCLUSIVE result), and the per-track `gap_map`. The v3a
-check uses the same 100 ms limit plus anchor uncertainties, without an affine
-correction. Invalid, missing, duplicate, overlapping or inconsistent timestamp/
-count evidence makes the track INCONCLUSIVE, rather than silently clipping a
-chunk. If post-decode count validation fails, the report separately retains the
-**original v3 legacy adapter's** measured marker check, reproducing its declared-
-end clipping solely for that legacy result. That clipped view never enters v3a
-speech intervals, and the v3a timestamped view is explicitly unvalidated. Missing
-original evidence can prevent reconstruction entirely; the output then states
-that the original measurement is unavailable instead of fabricating one.
+The sample-continuous view contains **every decoded sample in order**. The gap
+map retains each chunk's embedded timestamp, actual decoded count, declared span,
+unassigned gap and overlap. Ordered timestamp overlaps are finite evidence,
+not missing records or negative gaps; their samples remain in the continuous
+view. Duplicate/reordered timestamps or unknown count mismatches are INCONCLUSIVE.
+
+`audited_decode_spans.json` contains one narrow compatibility allowance: the
+preserved microphone chunk 32 has 47688 decoded samples against 47520 declared
+samples (+168 samples, 3.5 ms at 48 kHz). It is bound to that exact source SHA-256,
+track, sequence, native rate, metadata SHA-256 and both counts. A changed hash,
+167/169-sample discrepancy or another recording does not inherit that allowance.
+There is no generic numerical count or gap cutoff. The scalar original-v3
+**timestamped legacy view** reproduces the prior audit's declared-end clipping
+and last-chunk-wins overlap placement; only this legacy view clips. The continuous
+view retains all 168 extra samples. Those timing facts and the allowance are
+visible in the gap map, including cumulative overrun and unassigned gaps. Gaps
+are computed against the union of declared windows; overlaps never subtract them.
+Zero placeholders do not establish physical silence or speech absence.
+
+The report retains `sample_continuous`, `original_timestamped` (the unchanged
+original 100 ms check/affine fit, including its INCONCLUSIVE result), and `gap_map`.
+The v3a check keeps the 100 ms limit and anchor uncertainty, without an affine
+clock correction. Unknown invalid evidence still blocks acceptance; the original
+legacy marker result is retained when reconstructable.
 
 The bounds input retains the original `frozen`, `units`, identity/adjudication
-and publication endpoint fields. Each v3a unit also needs
-`continuous_start_s`, `continuous_last_word_start_s`, and
-`continuous_last_word_end_s`: independently adjudicated **recording sample-
-continuous placements**, not unaligned source times. The scorer derives end
-and last-word-start intervals. Publications must already be independently
-mapped into timestamped capture seconds; v3a does not silently apply the old
-affine publication mapping. Existing v3 `map_publications` remains v3-only.
+and publication fields. v3a source speech endpoints are explicit:
+`source_start_s`, `source_last_word_start_s`, `source_last_word_end_s`. Each unit
+uses the offset and uncertainty measured at the nearest preceding long anchor
+(in source order, using its source utterance start). A long unit can use its own
+measured anchor. The resulting continuous placements are recorded as
+`continuous_*`, with `timing_anchor_id`, `timing_anchor_offset_s` and
+`timing_anchor_uncertainty_s` for audit.
+
+For earlier v3a JSON, `continuous_start_s`, `continuous_last_word_start_s`, and
+`continuous_last_word_end_s` are accepted as a **fixed reference schedule**, not
+already corrected local placements: subtract `reference_schedule_offset_s`
+(default first long anchor offset) to recover source times, then use the local
+preceding anchor. The output labels this legacy basis explicitly. Prefer the new
+source fields to avoid ambiguity. A source unit before the first long anchor is
+unbounded, stays in the denominator and cannot borrow a future anchor or receive
+setup credit. No short-word matching occurs.
+
+The speech end interval uses the locally placed continuous end and cumulative
+unassigned gaps, with measured anchor uncertainty on both sides. Significant
+unlogged offset changes add symmetric uncertainty **only inside their unresolved
+bracket**; a crossing suffix after the before-anchor support remains bounded by
+that bracket. The new measured offset persists for every later unit. Endpoint uncertainty
+remains symmetric in the right anchor's unexamined prefix until measured support
+begins, even if that prefix belongs to the anchor utterance itself. Speech end,
+last-word start and utterance onset have separate bracket uncertainty. After
+measured support, extra step widening stops; the persistent offset and measured
+anchor uncertainty do not stop. Gap lookup encloses the entire endpoint uncertainty
+interval so a nominal point just before a gap cannot hide a later speech start. No recording samples or native
+clock are corrected. The pre-speech guard uses the last-word-start interval.
+
+Publications must already be independently mapped into timestamped capture
+seconds. Observer-to-scorer integration is **not implemented**; existing v3
+`map_publications` remains v3-only. Full latency acceptance also requires frozen
+source identity/eligibility and independently adjudicated publication endpoints.
 
 Add a `v3a_evidence` object with a separate entry for each track:
 
@@ -290,12 +326,11 @@ introduced. The original v3 marker/default path is unchanged.
 
 Only annotated long utterances are searched. A source-only 3 s template begins
 100 ms inside each declared source span, using the interior audit's >=3.3 s
-passage guard. No recording score chooses that support. Full-unit timing must remain independently
-adjudicated: each edge long anchor binds by ID to its scored unit, and its entire
-measured support plus/minus uncertainty must lie inside that full-unit continuous
-interval. Those supplied full-unit intervals establish coverage only; no source
-span is projected and no speech endpoint is moved. Missing, misbound or inconsistent
-edge timing stays INCONCLUSIVE. Step locations retain measured supports.
+passage guard. No recording score chooses that support. Edge supports bind by ID
+to their full unit's locally placed source interval for coverage; the entire
+measured support plus/minus uncertainty must fit. Coverage never changes the
+measured supports used for step localization. Missing or inconsistent edge timing
+stays INCONCLUSIVE.
 The output retains both
 the full source utterance span and the narrower matched forward-frame support;
 matching part of a long utterance does not certify its unexamined remainder or
@@ -322,15 +357,15 @@ rates and the original sample search bounds. Scoring still requires independent
 frozen identity/eligibility, validated gap/marker evidence and all other v3a
 preconditions. Diagnostic matching does not freeze any annotation.
 
-Adjacent validated long-template supports bound any offset change exceeding their combined
-uncertainty. The change's magnitude **plus** that uncertainty widens both sides
-of every potentially affected unit, including units crossing the bracket, through
-the next bracketing anchor. This is uncertainty, never an offset correction.
-Unbounded or unsupported timing makes the track INCONCLUSIVE. The speech end
-interval is `[continuous end, continuous end + cumulative preceding gap]`, then
-symmetrically widened for steps. Layer A reuses the original conservative/
-best-case opposite-end pairing. The earliest publication bound must be at or
-after the latest possible last-word start; an overlapping start interval cannot
+Adjacent validated long-template supports bound any offset change exceeding their
+combined uncertainty. Magnitude plus that uncertainty widens both sides of units
+in the unresolved bracket. After the next anchor, the local measured offset
+persists with its own uncertainty; it must not revert to the source schedule.
+`test_next_anchor_limits_widening` now asserts both facts. The signed 80 ms
+counterexample verifies that 5.98 s against an obsolete endpoint can really be
+6.06 s after a negative shift and cannot receive timely credit. Layer A retains
+conservative earliest-end / best latest-end pairing. Unsupported timing is
+INCONCLUSIVE, and a publication overlapping last-word-start uncertainty cannot
 receive pre-speech credit.
 
 Gaps do not change eligibility, outcomes or denominator. Every scored unit ID and
@@ -375,6 +410,39 @@ step magnitude and location intervals, bracketing IDs and symmetric widening.
 It exits 2 on unsupported/ambiguous timing. A BOUNDED diagnostic is **not** a track
 latency PASS or an exemption: the bounds scorer continues to reject invalid gap
 maps, failed markers and unsupported speech/publication evidence, while retaining
-step diagnostics when available. The microphone's existing chunk-count mismatch
-is not waived by detecting its step. The original timestamped marker result
+step diagnostics when available. The known microphone count/span difference is separately covered by its
+hash-bound audited allowance; detecting a step grants no count/identity exemption. The original timestamped marker result
 remains in the marker/bounds reports.
+
+
+### Clock metadata for later observer integration
+
+v3a clock reports and gap maps carry `clock_context` (schema 1); the outer v3a
+report is schema 2. It contains `session_id`, integer `session_origin_ns`,
+`origin_status`, `origin_method`, `origin_evidence_chunks`, `qpc_basis` and
+`track_identity`. The origin is reconstructed as device stamp minus embedded
+start, only when constant across every chunk in one session. It is explicitly
+not a retained start-ACK observation and is distinct from acoustic marker offsets.
+Missing or inconsistent origin evidence is null with an unavailable status.
+
+The QPC basis states capture monotonic nanoseconds and 10^9 ns/s. Raw QPC and
+observer tick frequencies are null because chunks do not supply them; no value
+is invented. Observer clock/binding and observer-to-scorer integration remain
+unimplemented. No publication timestamp conversion is added.
+
+Track identity binds session, track, chunk-index hash and ordered source hashes.
+Each derived view also carries a separately labeled mono PCM16LE hash, sample
+count/rate, view kind and track-identity hash. A PCM digest is never labeled a
+WAV-file digest. The same clock context accompanies both marker checks and the
+gap map so a later bridge can bind its input explicitly.
+
+`test_v3a_conditional.py` pins original microphone metadata, all 139 encoded chunks,
+decoder and harness-context hashes. It invokes the real v3a marker CLI, confirms
+a valid clock/map with the 168-sample allowance, compares decoded PCM identity to
+the retained untrimmed continuous WAV, then runs long matching and local timing
+preparation. All 64 units having a preceding long anchor prepare successfully.
+The initial short `microphone-000` has none: it remains explicitly unsupported
+and in the full 65-unit denominator. Thus no count-caused INCONCLUSIVE remains,
+but full-track latency acceptance is not claimed. Original annotations stay
+unfrozen, original timestamped markers remain INCONCLUSIVE, and observer
+integration/actual latency scoring have not been performed.
