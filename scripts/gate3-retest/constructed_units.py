@@ -10,6 +10,11 @@ RATE = 24000
 FRAME = 120
 VAD_SILENCE_S = 0.300
 JOIN_LIMIT_S = VAD_SILENCE_S-0.020
+ONSET_SPREAD_LIMIT_S = 0.025
+OFFSET_SPREAD_LIMIT_S = 0.100
+ENDPOINT_MARGIN = FRAME  # 5 ms, one analysis frame
+CROP_LEAD = round(0.020*RATE)
+CROP_TRAIL = round(0.030*RATE)
 
 
 def reject_engine_timing(value):
@@ -77,18 +82,24 @@ def energy_edges(samples, threshold):
 
 
 def measure(samples):
-    """Record two-threshold edge spread and conservative boundary uncertainty."""
+    """Record two-threshold edges; keep both threshold-supported edges inside the crop."""
     onset, offset = energy_edges(samples, None)
     second_onset, second_offset = energy_edges(samples, 184)
     onset_spread = abs(onset-second_onset)/RATE
     offset_spread = abs(offset-second_offset)/RATE
-    if max(onset_spread, offset_spread) > 0.025+1e-12:
-        raise ValueError('Threshold spread exceeds 25 ms')
-    left, right = onset-round(0.020*RATE), offset+round(0.030*RATE)
+    if onset_spread > ONSET_SPREAD_LIMIT_S+1e-12:
+        raise ValueError('Onset spread exceeds 25 ms')
+    if offset_spread > OFFSET_SPREAD_LIMIT_S+1e-12:
+        raise ValueError('Offset spread exceeds 100 ms')
+    earlier_onset, later_onset = min(onset, second_onset), max(onset, second_onset)
+    earlier_offset, later_offset = min(offset, second_offset), max(offset, second_offset)
+    left, right = earlier_onset-CROP_LEAD, later_offset+CROP_TRAIL
     if not 0 <= left < right <= len(samples):
         raise ValueError('Crop padding would clip the unit')
     return {'onset': onset, 'offset': offset, 'secondary_onset': second_onset,
-            'secondary_offset': second_offset, 'crop_start': left, 'crop_end': right,
+            'secondary_offset': second_offset, 'earlier_onset': earlier_onset, 'later_onset': later_onset,
+            'earlier_offset': earlier_offset, 'later_offset': later_offset,
+            'crop_start': left, 'crop_end': right,
             'lead_samples': onset, 'trail_samples': len(samples)-offset,
             'onset_threshold_spread_s': onset_spread, 'offset_threshold_spread_s': offset_spread,
             'threshold_spread_s': max(onset_spread, offset_spread), 'frame_resolution_s': FRAME/RATE,
@@ -127,11 +138,15 @@ def measure_report(samples):
         row['onset_threshold_spread_s'] = abs(primary['onset']-secondary['onset'])/RATE
         row['offset_threshold_spread_s'] = abs(primary['offset']-secondary['offset'])/RATE
         row['threshold_spread_s'] = max(row['onset_threshold_spread_s'], row['offset_threshold_spread_s'])
-        if row['threshold_spread_s'] > 0.025+1e-12:
-            exceeded.append('threshold_spread_over_25_ms')
-    if primary['onset'] is not None:
-        left, right = primary['onset']-round(0.020*RATE), primary['offset']+round(0.030*RATE)
-        row.update({'lead_samples': primary['onset'], 'trail_samples': len(samples)-primary['offset'],
+        if row['onset_threshold_spread_s'] > ONSET_SPREAD_LIMIT_S+1e-12:
+            exceeded.append('onset_spread_over_25_ms')
+        if row['offset_threshold_spread_s'] > OFFSET_SPREAD_LIMIT_S+1e-12:
+            exceeded.append('offset_spread_over_100_ms')
+        left = min(primary['onset'], secondary['onset'])-CROP_LEAD
+        right = max(primary['offset'], secondary['offset'])+CROP_TRAIL
+        row.update({'earlier_onset': min(primary['onset'], secondary['onset']), 'later_onset': max(primary['onset'], secondary['onset']),
+                    'earlier_offset': min(primary['offset'], secondary['offset']), 'later_offset': max(primary['offset'], secondary['offset']),
+                    'lead_samples': primary['onset'], 'trail_samples': len(samples)-primary['offset'],
                     'crop_start': left, 'crop_end': right})
         if not 0 <= left < right <= len(samples):
             exceeded.append('crop_padding_clips_unit')
@@ -140,11 +155,11 @@ def measure_report(samples):
 
 
 def assert_join(previous, following, zeros):
-    """Compare effective near-silence in seconds with the candidate's VAD split."""
+    """Compare effective near-silence (earlier outgoing offset to earlier incoming onset) with the candidate's VAD split."""
     if zeros < 0 or int(zeros) != zeros:
         raise ValueError('Join must have a nonnegative exact sample count')
-    gap = ((previous['crop_end']-previous['offset'])+zeros+
-           (following['onset']-following['crop_start']))/RATE
+    gap = ((previous['crop_end']-previous['earlier_offset'])+zeros+
+           (following['earlier_onset']-following['crop_start']))/RATE
     if gap >= JOIN_LIMIT_S:
         raise ValueError('Effective join gap reaches VAD silence minus 20 ms')
     return gap
@@ -176,7 +191,14 @@ def construct_utterance(parts, measurements, samples, join_samples=960):
         spans.append({'text': part['text'], 'start': (start+timing['onset']-timing['crop_start'])/RATE,
                       'end': (start+timing['offset']-timing['crop_start'])/RATE})
     final = measurements[parts[-1]['unit_id']]
-    return {'pcm': output, 'segments': segments, 'silences': silences, 'words': spans,
+    final_start = segments[-1]['start']-final['crop_start']
+    earliest_end = final_start+final['earlier_offset']-ENDPOINT_MARGIN
+    latest_end = final_start+final['later_offset']+ENDPOINT_MARGIN
+    return {'earliest_acoustic_end_sample': earliest_end, 'latest_acoustic_end_sample': latest_end,
+            'earliest_acoustic_end_s': earliest_end/RATE, 'latest_acoustic_end_s': latest_end/RATE,
+            'acoustic_end_spread_s': (latest_end-earliest_end)/RATE,
+            'final_onset_threshold_spread_s': final['onset_threshold_spread_s'],
+            'pcm': output, 'segments': segments, 'silences': silences, 'words': spans,
             'last_word_start': spans[-1]['start'], 'acoustic_end': spans[-1]['end'],
             'crop_end_bound': len(output)/RATE, 'uncertainty_s': final['uncertainty_s'],
             'threshold_spread_s': final['offset_threshold_spread_s'], 'frame_resolution_s': FRAME/RATE}
