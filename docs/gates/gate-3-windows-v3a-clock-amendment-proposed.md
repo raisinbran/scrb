@@ -1,0 +1,61 @@
+# Gate 3 Windows: Protocol v3a clock amendment (PROPOSED)
+
+Status: **PROPOSED, NOT_FROZEN.** Separate document. Protocol v3 and the earlier v3 timing amendment are not edited. Nothing here is approved, implemented or run. No recording, playback, build, launch, freeze or merge is authorized by this text. The practice run (2026-11-09 PT) was not scored and freezes nothing.
+
+## 1. Practice evidence this proposal rests on
+
+Figures below were supplied in the owner's assignment from the Codex analysis of the practice recording. Claude Code has not re-derived them; they are to be re-checked before approval. The practice recording is test data (r3 assembled WAVs).
+
+| Observation | Value |
+| --- | --- |
+| Affine (offset plus drift) fit of the marker times | **INCONCLUSIVE** at 210 ms and 200 ms (microphone and meeting) |
+| Gaps in capture timestamps | 161 ms and 210 ms; **no assigned samples near 141.7 s** |
+| Marker span error on the continuous view | **+80 ms** microphone, **-10 ms** meeting |
+| Direct matching of short words | **Not reliable** |
+| Matching of long utterances | **Reliable** |
+
+Practice-run facts that stay as written in `gate-3-windows-d2-practice-run-results-20261109.md`: common drift of about +205 ms microphone and +200 ms meeting over 380 s (D2 draft O-1) and a 40 to 45 ms microphone-behind-meeting offset (O-2).
+
+## 2. Cause not determined
+
+The cause of the gaps (a playback stall, a capture timestamp artifact, or something else) is **undetermined**. No document, script or report may assert one. The rules below are written so that they hold whichever it is.
+
+## 3. Two named views of a captured track
+
+- **Sample-continuous view:** the track's samples laid end to end in the order captured, with no gap inserted. A sample's position is its index divided by 48000.
+- **Timestamped capture view:** each chunk placed by its recorded start time (`startNs`), so a recorded gap appears as missing time.
+
+Every result states which view it used. The original result under the unamended rule is preserved and reported beside any v3a result; v3a never replaces or relabels it.
+
+## 4. Proposed rules
+
+1. **Marker check.** The 100 ms marker check (as in Protocol v3) is applied on the **sample-continuous view** as an explicit amendment. The result on the timestamped view is also reported. Neither is deleted.
+2. **Speech-time interval.** For each scored unit, the capture time of the speech is an interval, not a point:
+   - **Earliest** = its placement on the sample-continuous view.
+   - **Latest** = earliest plus the cumulative recorded gap time before that point.
+   - Conservative latency uses the **earliest** speech time. Best-case latency uses the **latest**. Both are reported.
+3. **Unlogged interior steps.** If a step in the track clock is not in the gap log, the long utterances before and after it locate it. The step is then carried as a **symmetric uncertainty** around its located position. If the long utterances cannot locate it, the affected units are **INCONCLUSIVE**.
+4. **Gaps never remove or excuse.** A gap never removes a unit from the count and never grants SETUP-AFFECTED.
+5. **No numeric gap cutoff.** No gap length is chosen as a pass or fail line. A bound that is finite and validated is evaluated normally. Timing that is unbounded or unsupported is INCONCLUSIVE.
+
+## 5. Unchanged
+
+3 s median limit; 6 s within-limit rule; 95% fraction; denominator; the failure window; Layers B and C; the historical 73/77 result under the original frozen detector-end rule. No acceptance threshold changes.
+
+## 6. Observer requirements to verify later (not yet verified)
+
+- The observer's clock uses the **same QPC epoch and frequency** as the session, or a **known conversion** to the session origin.
+- Observations are **visible-text** observations.
+- Each observation carries its own **uncertainty**.
+
+## 7. Approval state
+
+| Item | State |
+| --- | --- |
+| Amendment text hash | PENDING |
+| Gap-map reader hash | PENDING (not written) |
+| v3a scoring-script hash | PENDING (not written) |
+| Owner approval of v3a | PENDING |
+| Independent code review of the reader and scoring script | PENDING |
+
+Codex writes the matcher and marker code; Claude Code does not.
