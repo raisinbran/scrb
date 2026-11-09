@@ -11,7 +11,7 @@ $scriptVersion=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
 $rows=@()
 foreach ($unit in $constructedUnits) {
   $file=Join-Path $OutputDirectory ($unit.unit_id+'.wav')
-  $render=[UnitRenderer]::Render($unit.voice,$unit.text,$file)
+  $render=[UnitRenderer]::Render($unit.voice,$unit.text,$unit.prosody_rate,$file)
   $row=@{}; foreach ($key in $unit.Keys) { $row[$key]=$unit[$key] }
   $row.file=$unit.unit_id+'.wav'; $row.samples=$render.samples; $row.sha256=$render.sha256
   $row.renderer_version=$version; $row.script_version=$scriptVersion

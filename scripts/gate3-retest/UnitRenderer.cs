@@ -5,12 +5,16 @@ using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
 public class UnitRenderResult { public long samples; public string sha256; }
 public class UnitRenderer {
-  public static UnitRenderResult Render(string voice, string text, string output) {
+  // rate is the spec's prosody rate: 'default' (no prosody wrapper) or a signed percentage from the spec.
+  public static UnitRenderResult Render(string voice, string text, string rate, string output) {
+    if (rate != "default" && !System.Text.RegularExpressions.Regex.IsMatch(rate ?? "", @"^[+-]?[0-9]{1,3}%$")) throw new ArgumentException("Unsupported prosody rate");
     if (File.Exists(output)) throw new IOException("Unit output already exists");
     using (var synth = new SpeechSynthesizer()) {
       synth.SelectVoice(voice);
       synth.SetOutputToWaveFile(output, new SpeechAudioFormatInfo(24000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
-      synth.SpeakSsml("<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><prosody rate='-15%'>"+System.Security.SecurityElement.Escape(text)+"</prosody></speak>");
+      string body = System.Security.SecurityElement.Escape(text);
+      if (rate != "default") body = "<prosody rate='"+rate+"'>"+body+"</prosody>";
+      synth.SpeakSsml("<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"+body+"</speak>");
     }
     long count = -1;
     using (var reader = new BinaryReader(File.OpenRead(output))) {

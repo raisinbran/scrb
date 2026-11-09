@@ -28,6 +28,16 @@ The owner approved ChatGPT's Option B (CONDITIONAL review) as the source-validit
 
 The 100 ms is a maximum permitted ambiguity, not a claim that the endpoint is known to 100 ms. Waveform spot-check and listen-through remain required. Constructed-speech results do not supersede the historical 73/77 detector-end result. The joined-file checks remain arithmetic/consistency checks, not independent acoustic ground truth. Annotations record `earliest_acoustic_end_s`, `latest_acoustic_end_s`, their `_sample` counterparts, `acoustic_end_spread_s`, `final_onset_threshold_spread_s` and `crop_start_sample`; `crop_end_bound` is retained. `analyze-bounds.py` requires both ends per unit. Protocol v3 is not edited.
 
+### Revision 2026-11-09: meeting-track pace (render r2, owner-approved 2026-11-08)
+
+The first constructed render measured the meeting track at 118.14 wpm (rule: 130-170) and the microphone track at 131.75 wpm, a narrow pass. Cause: both tracks used our own `-15%` prosody slowdown, an unreviewed design choice; Protocol v3 asks only for "about 150 wpm". The owner approved one new render with the meeting track's slowdown removed. The microphone track keeps `-15%`. No exemption, rule change or long-only wpm check is authorized.
+
+The rate now lives only in `speech-specs.ps1` (`rate='-15%'` for microphone, `rate='default'` for meeting). `render-constructed-units.ps1` passes it to `UnitRenderer.Render`, which wraps the text in `<prosody>` only when the rate is not `default`, and `units-manifest.json` records it per unit as `prosody_rate`. A test fails if `-15%` appears in `UnitRenderer.cs` or more than once in the specs. The legacy probe renderer `SpeechRenderer.cs` still carries its own diagnostic-only `-15%` and never feeds timing. Texts, voices, unit boundaries and the output format are unchanged. The new render goes to `renders-units-20261109-r2`; `renders-units-20261109` and derived-1 to derived-5 are retained as evidence.
+
+Pre-flight projection (derived-5 meeting measurements x 0.85; speech engines need not scale linearly): meeting 138.9 wpm, shorts 0.387-0.837 s of speech, long units 7.15-7.58 s, and in-memory placement passes every assertion. This is a projection, not a result.
+
+**Proposed A-026, confirmed agent design/test-planning mistake:** I applied a `-15%` slowdown to both tracks without review. It made the meeting track fail the pace rule (118.14 wpm) and the microphone track pass only narrowly (131.75 wpm), and the rate was stored in two places (`speech-specs.ps1` and `UnitRenderer.cs`). One extra owner render is needed. Earlier incidents are unchanged.
+
 ### Owner command after independent source review
 
 Open **Start → Windows PowerShell → Open**, **Windows PowerShell 5.1, not Administrator**. The output folder must not exist. The command renders unit WAVs only; it does not run probes, measurement, assembly, verification, playback or recording.
