@@ -2,7 +2,7 @@
 
 **Status:** DRAFT, not approved to run. **This is a practice run: it is not scored and it freezes nothing.** It validates the D2 route (microphone track through VB-CABLE, system track through endpoint loopback on the Realtek speakers) on the real Live screen, so the scored retest does not discover route problems.
 
-**Needs the owner's explicit advance approval before it starts.** The planned fixed steps total about 17 minutes, but the app's final processing after Stop and the cleanup are not measured (see "Duration"), so the complete practice cannot be shown to stay under 20 minutes. I have not assumed approval. Approval line for the owner: `Practice run approved by the owner in chat on ____ (time not recorded unless noted)`.
+**Needed the owner's explicit advance approval, now given (below).** The planned fixed steps total about 17 minutes, but the app's final processing after Stop and the cleanup are not measured (see "Duration"), so the complete practice cannot be shown to stay under 20 minutes. I have not assumed approval. **Owner approval recorded:** on 2026-11-09 PT (time not recorded) the owner approved, in chat, the full practice run including final processing, even if it exceeds 20 minutes. This approves this one practice run only; it is not a rerun approval.
 
 Test data only: the r3 assembled WAVs (AMI-derived constructed units). Nothing of the owner's real meetings is used. Do not rerun a failed or inconclusive practice automatically.
 
