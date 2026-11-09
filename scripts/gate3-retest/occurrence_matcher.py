@@ -8,8 +8,12 @@ import re
 
 
 def normalize_words(text):
-    """Normalize case and punctuation while retaining word order."""
-    return re.findall(r"\w+", text.casefold(), re.UNICODE)
+    """Normalize case and punctuation while retaining word order.
+
+    An apostrophe between two word characters (straight or curly) belongs to the token, so "Lantern's" is one
+    token on the source and the publication side; other punctuation separates tokens as before.
+    """
+    return [token.replace("’", "'") for token in re.findall(r"\w+(?:['’]\w+)*", text.casefold(), re.UNICODE)]
 
 
 def align_occurrences(annotations, publications, track, *, clock_basis=None):
@@ -43,8 +47,10 @@ def align_occurrences(annotations, publications, track, *, clock_basis=None):
             continue
         item = dict(publication)
         tokens = normalize_words(item["text"])
+        if not tokens:
+            continue  # a symbol-only element such as ">>" is not a word; it stays in the converted file, never aligned
         if len(tokens) != 1:
-            raise ValueError("Each publication must identify one visible word position")
+            raise ValueError("Each publication must identify one visible word position (%r: %r)" % (item.get("id"), item["text"]))
         if not all(math.isfinite(item[key]) for key in ("observed", "u")) or item["u"] < 0:
             raise ValueError("Invalid publication interval")
         if item["id"] in seen:
