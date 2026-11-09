@@ -1,0 +1,41 @@
+{
+  "description": "Preserved invented D2 practice evidence; external files only, no audio committed",
+  "tracks": {
+    "meeting": {
+      "source": {
+        "path": "renders-units-20261109-r3-derived-1/assembly/meeting.wav",
+        "sha256": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7"
+      },
+      "annotations": {
+        "path": "renders-units-20261109-r3-derived-1/assembly/meeting-annotations.json",
+        "sha256": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a"
+      },
+      "continuous": {
+        "path": "practice-d2-codex-timeline-comparison-20261109/meeting-concatenated.wav",
+        "sha256": "7d2e9e90ef50a19b572e17758696b42a65f4a77ba1c712f9060958fe72c1a587"
+      },
+      "clock": {
+        "path": "practice-d2-codex-timeline-comparison-20261109/meeting-concat-clock.json",
+        "sha256": "4f6f69ce8774caa61f92148e6ebc9e88bef9a818fe7052a6eddd19079b49fdde"
+      }
+    },
+    "microphone": {
+      "source": {
+        "path": "renders-units-20261109-r3-derived-1/assembly/microphone.wav",
+        "sha256": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4"
+      },
+      "annotations": {
+        "path": "renders-units-20261109-r3-derived-1/assembly/microphone-annotations.json",
+        "sha256": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d"
+      },
+      "continuous": {
+        "path": "practice-d2-codex-timeline-comparison-20261109/microphone-concatenated.wav",
+        "sha256": "8e3362d1b715be880fca1cf394499ea3a805060b8c140e6f5f62d549953c2d6c"
+      },
+      "clock": {
+        "path": "practice-d2-codex-timeline-comparison-20261109/microphone-concat-clock.json",
+        "sha256": "90de85380ecf0b23056d76227ca3bdeed54843dc8691ce11c71e60942d373342"
+      }
+    }
+  }
+}
