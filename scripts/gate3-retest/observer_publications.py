@@ -309,6 +309,7 @@ def main():
     records, report = build_publications(header, samples, labels, args.harness_origin_qpc, args.expected_frequency)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump({"schema": OUT_SCHEMA, "clock_basis": "harness", "recording_sha256": args.recording_sha256,
+                   "harness_origin_qpc": args.harness_origin_qpc, "qpc_frequency": header["qpc_frequency"],
                    "words": records, "quarantined_rows": report["quarantined_rows"],
                    "credit_policy": report["credit_policy"], "report": report}, stream, indent=2)
         stream.write("\n")

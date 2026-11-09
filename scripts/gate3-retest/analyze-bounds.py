@@ -138,8 +138,15 @@ def analyze_v3a_track(units, evidence, track):
                                         clocks.get('sample_continuous', {}).get('lead', {}).get('position', 1)-1))
         require(digest(evidence['source']) == source_sha, 'Source changed during matching')
         anchors = inventory['anchors']
-        if evidence.get('lead_marker_source_s') is not None:
-            anchors = [lead_marker_anchor(clocks.get('sample_continuous', {}), evidence['lead_marker_source_s'])] + anchors
+        if evidence.get('lead_marker') is True or evidence.get('lead_marker_source_s') is not None:
+            # The marker's source time is derived from the frozen source file by the recording's own detector.
+            from marker_clock import detect_marker
+            source_marker = detect_marker(source, rate, {'microphone': 880, 'meeting': 1320}[track], (0, 10))
+            supplied = evidence.get('lead_marker_source_s')
+            require(supplied is None or supplied == source_marker['position'],
+                    'Supplied lead-marker source time differs from the one detected in the frozen source file')
+            anchors = [lead_marker_anchor(clocks.get('sample_continuous', {}), source_marker['position'],
+                                          source_marker['uncertainty_s'])] + anchors
         frozen_units = {u['id']: u for u in inventory['utterances']}
         denominator = sum(u['eligible'] for u in frozen_units.values())
         require(len({u['id'] for u in units}) == len(units)
