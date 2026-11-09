@@ -296,6 +296,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** The scorer rejects the track (INCONCLUSIVE) when the regenerated report's `validation_pass` is false; `track_for_label` is the one place a label becomes a track (You is microphone; Meeting, Speaker ? and Speaker N are meeting); a row with words under any other label is reported (count and labels) and makes the run INCONCLUSIVE; the statistic is now `published_word_positions`, with the scorer reporting `observer_u_summary` for scored endpoints. Offline tests only.
 - **Owner approval:** Not required (offline).
 
+### A-059 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - a label word inside a row opened a phantom row (64e3d03)
+- **Status / attribution:** Confirmed agent defect in my own commit 64e3d03 (the "one label rule"), found by the owner reading `walk_rows()` and by ChatGPT's review, before any scored run.
+- **What failed:** `walk_rows` recognised You, Meeting, Speaker ? and Speaker N anywhere in the element list. In the live tree every word is its own Text element, so a transcript word equal to a label (for example "You are here") started a new row without a time stamp; the following words were dropped and the first-sample visible-word count could read 0 while 3 words were visible. The same flaw hid an unmapped-label row whose words contained "You".
+- **Agent-controlled cause:** I unified the label rule in one function but kept recognising labels without header context, and my fixtures were paragraph-level (one element per row of words), not the per-word elements the app really exposes, so no test could hit it.
+- **Impact:** None on retained data: validation-3 regenerated with the corrected parser gives word-for-word the same 538 microphone and 648 meeting publications. No scored run or gate credit was affected.
+- **Evidence:** `test_observer_publications.RowHeaderContext` (7 of 9 fail on 64e3d03) and the end-to-end `test_already_visible_you_are_here_first_sample_row_is_inconclusive_not_pass` (fails on 64e3d03 with `0 != 3`) pass after the fix. While testing, two of my new test expectations were wrong (an unsplit "Speaker 2" element is split into words; a stray element placed after a row is read as that row's word) and were corrected before commit.
+- **Correction / prevention:** A label is a row header only when the next non-empty element is a time stamp (same rule for unmapped-label detection); matching stays case-sensitive; fixtures now use per-word elements with space separators. New report-only `unattributed_text_elements` counts viewport text that belongs to no recognised row. Known limit: an unrecognised word directly before a time-like word inside a row is read as an unmapped header (the run becomes INCONCLUSIVE, the conservative direction).
+- **Owner approval:** Not required (offline).
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.

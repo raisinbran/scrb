@@ -56,11 +56,11 @@ def build_units():
     return units
 
 
-def observer_lines(units, quarantine=True, gap=None, hide=(), stale=False, labeler=None):
+def observer_lines(units, quarantine=True, gap=None, hide=(), stale=False, labeler=None, stale_words=None, per_word=False):
     """Raw observer JSONL records: rows appear at the publication instants; one key collides."""
     header = {"type": "header", "schema": op.RAW_SCHEMA, "qpc_frequency": FREQ, "origin_qpc": H0}
     labeler = labeler or (lambda uid, sample_index: "You")
-    appear = [('stale', 'stale', ['Stale', 'row'], 1.0, 0.0)] if stale else []  # already on screen in the first sample, never scored
+    appear = [('stale', 'stale', stale_words or ['Stale', 'row'], 1.0, 0.0)] if stale else []  # already on screen in the first sample, never scored
     for uid, words, s, lws, lwe, latency, kind in units:
         if uid in hide:
             continue  # never shown on screen
@@ -79,9 +79,15 @@ def observer_lines(units, quarantine=True, gap=None, hide=(), stale=False, label
             clock_text = fmt(s)
             label = labeler(uid, sample_index)
             elements += [{"role": "Text", "name": label, "offscreen": False, "bounds": [110, top - 20, 40, 14]},
-                         {"role": "Text", "name": clock_text, "offscreen": False, "bounds": [160, top - 20, 40, 14]},
-                         {"role": "Text", "name": " ".join(words), "offscreen": False, "bounds": [110, top, 300, 18],
-                          "words": [{"text": w, "bounds": [110 + 60 * i, top, 50, 18]} for i, w in enumerate(words)]}]
+                         {"role": "Text", "name": clock_text, "offscreen": False, "bounds": [160, top - 20, 40, 14]}]
+            if per_word:  # as the live tree reports it: one Text element per word, ' ' separators between
+                for i, w in enumerate(words):
+                    if i:
+                        elements.append({"role": "Text", "name": " ", "offscreen": False, "bounds": [110 + 60 * i - 8, top, 7, 18]})
+                    elements.append({"role": "Text", "name": w, "offscreen": False, "bounds": [110 + 60 * i, top, 50, 18]})
+            else:
+                elements.append({"role": "Text", "name": " ".join(words), "offscreen": False, "bounds": [110, top, 300, 18],
+                                 "words": [{"text": w, "bounds": [110 + 60 * i, top, 50, 18]} for i, w in enumerate(words)]})
             if kind == "quarantined" and quarantine:
                 # a second row with the same track and displayed time appears at the same moment
                 elements += [{"role": "Text", "name": label, "offscreen": False, "bounds": [110, top + 40, 40, 14]},
@@ -146,9 +152,9 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
              supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None,
-             gap=None, hide=(), stale=False, track='microphone', labeler=None):
+             gap=None, hide=(), stale=False, track='microphone', labeler=None, stale_words=None, per_word=False):
     units = units or build_units()
-    header, samples = observer_lines(units, quarantine, gap, hide, stale, labeler)
+    header, samples = observer_lines(units, quarantine, gap, hide, stale, labeler, stale_words, per_word)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
     doc = {"clock_basis": "harness", "recording_sha256": "f" * 64, "words": publications,
            "harness_origin_qpc": H0, "qpc_frequency": FREQ, "quarantined_rows": report["quarantined_rows"]}
@@ -278,6 +284,17 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(pipeline(units=clean)[0]['latency'], 'PASS')
         result, _, report, _ = pipeline(units=clean, stale=True)
         self.assertEqual(report['result_status'], 'INCONCLUSIVE')
+        self.assertEqual(result['latency'], 'INCONCLUSIVE')
+        self.assertIn('first', result['error'].lower())
+
+    def test_already_visible_you_are_here_first_sample_row_is_inconclusive_not_pass(self):
+        """Regression: the label word 'You' inside a row used to open a phantom row, hiding the visible words."""
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+        self.assertEqual(pipeline(units=clean, per_word=True)[0]['latency'], 'PASS')
+        result, _, report, _ = pipeline(units=clean, stale=True, per_word=True, stale_words=['You', 'are', 'here'])
+        self.assertEqual(report['first_sample_visible_words_before_dedup'], 3)
+        self.assertEqual(report['result_status'], 'INCONCLUSIVE')
+        self.assertFalse(report['validation_pass'])
         self.assertEqual(result['latency'], 'INCONCLUSIVE')
         self.assertIn('first', result['error'].lower())
 

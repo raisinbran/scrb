@@ -155,6 +155,96 @@ class Identity(unittest.TestCase):
         self.assertEqual(report["paragraph_bounds_only"], 2)
 
 
+def word_row(label, time, text, top, spaces=True):
+    """A row as the live UI Automation tree reports it: label, time, then one Text element per word with ' ' separators."""
+    out = [el(label, [110, top - 20, 40, 14]), el(time, [160, top - 20, 40, 14])]
+    for i, w in enumerate(text.split()):
+        if i and spaces:
+            out.append(el(" ", [110 + 60 * i - 8, top, 7, 18]))
+        out.append(el(w, [110 + 60 * i, top, 50, 18]))
+    return out
+
+
+class RowHeaderContext(unittest.TestCase):
+    """A label word is a row header only when the next non-empty element is a time stamp."""
+
+    def published(self, elements):
+        records, report = build([sample(0, 10, []), sample(100, 110, elements)])
+        return [(r["id"], r["text"]) for r in records], report
+
+    def test_recognised_label_word_inside_a_row_is_a_word(self):
+        got, report = self.published(word_row("You", "0:05", "You are here", 150))
+        self.assertEqual(got, [("microphone|0:05|0", "You"), ("microphone|0:05|1", "are"), ("microphone|0:05|2", "here")])
+        self.assertEqual(report["unmapped_label_row_count"], 0)
+
+    def test_first_sample_visible_count_includes_the_words_after_a_label_word(self):
+        sampled = sample(0, 10, word_row("You", "0:05", "You are here", 150))
+        self.assertEqual(op.visible_before_dedup(sampled, LABELS), 3)
+
+    def test_meeting_word_inside_a_meeting_row(self):
+        got, _ = self.published(word_row("Meeting", "0:10", "Meeting notes today", 150))
+        self.assertEqual([(i, t) for i, t in got],
+                         [("meeting|0:10|0", "Meeting"), ("meeting|0:10|1", "notes"), ("meeting|0:10|2", "today")])
+
+    def test_speaker_label_text_as_one_element_inside_a_row(self):
+        e = word_row("Speaker 1", "0:10", "so", 150) + [el("Speaker 2", [230, 150, 90, 18])]
+        got, report = self.published(e)
+        self.assertEqual(got, [("meeting|0:10|0", "so"), ("meeting|0:10|1", "Speaker"), ("meeting|0:10|2", "2")])
+        self.assertEqual(report["unmapped_label_row_count"], 0)
+
+    def test_unmapped_label_row_whose_words_include_you_is_still_found(self):
+        got, report = self.published(word_row("Zed", "0:05", "You are here", 150))
+        self.assertEqual(report["unmapped_labels"], {"Zed": 1})
+        self.assertEqual(report["unmapped_label_rows"][0]["words"], 3)
+        self.assertEqual(report["result_status"], "INCONCLUSIVE")
+        self.assertEqual(got, [])
+
+    def test_unmapped_row_after_a_normal_row_keeps_the_previous_row_whole(self):
+        e = word_row("You", "0:04", "ok now", 100) + word_row("Zed", "0:05", "You are here", 250)
+        got, report = self.published(e)
+        self.assertEqual(got, [("microphone|0:04|0", "ok"), ("microphone|0:04|1", "now")])
+        self.assertEqual(report["unmapped_labels"], {"Zed": 1})
+
+    def test_real_header_followed_by_its_time_is_recognised_even_with_empty_elements_between(self):
+        e = [el("You", [110, 130, 40, 14]), el("  ", [150, 130, 5, 14]), el("", [155, 130, 5, 14]),
+             el("0:05", [160, 130, 40, 14]), el("hello", [110, 150, 50, 18])]
+        got, _ = self.published(e)
+        self.assertEqual(got, [("microphone|0:05|0", "hello")])
+
+    def test_label_not_followed_by_a_time_is_only_a_word(self):
+        e = word_row("You", "0:05", "thank you", 150) + [el("You", [400, 150, 40, 18]), el("again", [450, 150, 50, 18])]
+        got, _ = self.published(e)
+        self.assertEqual([t for _, t in got], ["thank", "you", "You", "again"])
+
+    def test_labels_are_case_sensitive(self):
+        got, _ = self.published(word_row("You", "0:05", "you meeting speaker", 150))
+        self.assertEqual([t for _, t in got], ["you", "meeting", "speaker"])
+        self.assertIsNone(op.track_for_label("you", LABELS))
+        self.assertIsNone(op.track_for_label("meeting", LABELS))
+
+
+class Conservation(unittest.TestCase):
+    """Every nonblank Text element inside the viewport is a label, time or word of a recognised row, or is reported."""
+
+    def test_row_elements_are_all_attributed_and_chrome_is_listed(self):
+        chrome = el("Text appears here once people start talking.", [110, 110, 300, 18])
+        s0 = sample(0, 10, [chrome])
+        s1 = sample(100, 110, [el("Pause", [600, 105, 50, 18])] + word_row("You", "0:05", "You are here", 150))
+        s2 = sample(200, 210, word_row("You", "0:05", "You are here", 150) + [el("Outside", [10, 10, 50, 18])])
+        records, report = build([s0, s1, s2])
+        u = report["unattributed_text_elements"]
+        self.assertEqual((u["total"], u["per_sample_max"], u["samples_with_any"]), (2, 1, 2))
+        self.assertEqual([e["sample"] for e in u["examples"]], [0, 1])
+        self.assertEqual(u["outside_known_chrome_total"], 1)
+        self.assertEqual(u["outside_known_chrome_examples"], [{"sample": 1, "text": "Pause"}])
+        self.assertTrue(u["proposed_rule_would_be_inconclusive"])
+        self.assertEqual(report["result_status"], "OK")  # report only: not a gate
+
+    def test_unmapped_row_elements_are_unattributed(self):
+        s = sample(0, 10, word_row("Zed", "0:05", "alpha beta", 150))
+        self.assertEqual([t for t, _ in op.unattributed_elements(s, LABELS)], ["Zed", "0:05", "alpha", "beta"])
+
+
 class Uncertainty(unittest.TestCase):
     def test_u_is_gap_plus_both_read_times(self):
         # previous sample reads 0-40 ms, this one 100-130 ms: gap 60, reads 40 + 30, interval 130 ms

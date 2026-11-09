@@ -105,7 +105,8 @@ def publications_to_timestamped(doc, gap_map, *, track, raw_header, harness_even
 
     `doc` is observer_publications.py output (clock_basis harness, seconds since harness_origin_qpc, carrying
     harness_origin_qpc and qpc_frequency). `conversion_u_s` bounds the observer-to-capture QPC mismatch
-    (the raw capture frequency is not logged); it must be at least one counter tick, and its basis is recorded.
+    (the raw capture frequency is not logged); this function accepts at least one counter tick, but the scorer (analyze-bounds.py MIN_CONVERSION_U_S) requires at least 2 ms; its basis is recorded.
+    The allowance applies at both ends of the interval: u = polling_u + 2e.
     """
     need(doc.get("clock_basis") == "harness", "Publications must be on the harness clock")
     logs = verify_clock_logs(doc, raw_header, harness_events)
