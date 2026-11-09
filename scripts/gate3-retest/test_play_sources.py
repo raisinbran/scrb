@@ -29,6 +29,13 @@ class StaticChecks(unittest.TestCase):
         self.assertIn('Assert-Hash', self.text)
         self.assertIn('OutFolder already exists', self.text)
 
+    def test_default_ready_file_path_matches_checklist(self):
+        path = r'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\practice-d2\recording-ready.txt'
+        self.assertIn(path, self.text)
+        checklist = pathlib.Path(__file__).parents[2] / 'docs' / 'gates' / 'gate-3-windows-d2-practice-run-checklist-draft.md'
+        if checklist.exists():
+            self.assertIn(path, checklist.read_text(encoding='utf-8'))
+
     def test_no_audio_settings_changes(self):
         for word in ('SetDefaultEndpoint', 'SetEndpointVisibility', 'SetMasterVolume', 'Set-AudioDevice'):
             self.assertNotIn(word, self.text)

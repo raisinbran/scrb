@@ -4,7 +4,7 @@ Status: **DRAFT, NOT_FROZEN.** Nothing here was measured on a device. Every fiel
 
 ## 0. Owner approvals
 
-- **2026-11-08 PT (2026-11-09 UTC; about 23:15 PT, time of day approximate):** the owner approved, in chat, this narrow clarification for this retest: the **microphone track uses VB-CABLE (`CABLE Input` / `CABLE Output`)** and the **system track uses the existing endpoint-loopback route**, conditional on **measured isolation and capture equivalence**. No acceptance threshold is changed by this approval. The same approval is recorded in the amendment.
+- **2026-11-08 PT (time not recorded):** the owner approved, in chat, the protocol wording change for this retest: the **microphone track uses VB-CABLE (`CABLE Input` / `CABLE Output`)** and the **system track uses the existing endpoint-loopback route**, conditional on **measured isolation and capture equivalence**. No acceptance threshold is changed by this approval. The same approval is recorded in the amendment.
 - Earlier, same retest: Option 1 (virtual audio cable, VB-Audio VBCABLE_Driver_Pack46) was chosen; the PT/UTC time of that message was not recorded in the files available to me.
 
 Owner decision: Option 1, a virtual audio cable (VB-Audio VBCABLE_Driver_Pack46) for the microphone track. The cable's Windows endpoints are present on this PC (read-only listing shows `CABLE Input`, `CABLE Output` and `CABLE In 16ch`, all status OK). **Do not use `CABLE In 16ch`.**

@@ -10,7 +10,7 @@ param(
     [string]$ExpectedMicrophoneSha256,   # SHA-256 of the raw file bytes (manifest hashing-method table)
     [string]$ExpectedMeetingSha256,
     [string]$OutFolder,                  # new folder; refused if it exists
-    [string]$RecordingReadyFile,         # written by the step that confirms the native Start ack
+    [string]$RecordingReadyFile = 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\practice-d2\recording-ready.txt',   # the owner creates it right after pressing Record
     [double]$MaxStartDelaySeconds = 6.0, # lead-in marker interval is 0-10 s; the WAV's beeps end 2.2 s in
     [double]$ReadyTimeoutSeconds = 120,
     [switch]$Play,
