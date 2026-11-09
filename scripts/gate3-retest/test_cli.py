@@ -13,7 +13,7 @@ class TestIsolatedEntryPoints(unittest.TestCase):
 
         Unittest discovery added a search path that direct script execution lacked.
         """
-        for name in ('measure-units.py', 'assemble-sources.py', 'verify-joined.py'):
+        for name in ('measure-units.py', 'assemble-sources.py', 'verify-joined.py', 'marker_clock.py', 'analyze-bounds.py', 'detect-v3a-steps.py'):
             with self.subTest(script=name):
                 result = subprocess.run([sys.executable, '-I', '-S', str(Path(__file__).with_name(name)), '--help'],
                                         capture_output=True, text=True, timeout=10)

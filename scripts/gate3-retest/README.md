@@ -211,3 +211,238 @@ Files changed after the pinned commit must be re-pinned at the freeze commit.
 ## Playing the sources (D2 route)
 
 `play-sources.ps1` (Windows PowerShell 5.1) plays the microphone WAV to `CABLE Input` only and the system WAV to the default eConsole render endpoint, which is the endpoint the app captures by loopback. It defaults to a dry run. See `docs/gates/gate-3-windows-d2-capture-equivalence-draft.md` section 7 for the guards. Real playback needs the owner's approval of the run length.
+## Explicit Protocol v3a timing mode (offline analysis only)
+
+`v3` remains the default for both CLIs. Select `--mode v3a` explicitly; a mode
+label in input JSON does not select it. No evidence or annotation is frozen by
+these commands. Outputs are created exclusively, as in v3.
+
+```powershell
+python scripts/gate3-retest/marker_clock.py TRACK/chunks.json REPORT.json --mode v3a --decoder C:/path/to/ffmpeg.exe --track microphone --harness LEAD TRAIL --harness-u LEAD_U TRAIL_U
+python scripts/gate3-retest/analyze-bounds.py ADJUDICATED.json BOUNDS.json --mode v3a
+```
+
+For marker v3a, the positional input is the original per-track `chunks.json`,
+not a previously padded/clipped WAV. The adapter reads `SEQUENCE`, `START_NS`
+and `RATE` from each original OpusTags packet, cross-checks the complete chunk
+index and its end timestamps, and decodes native mono PCM16 in memory. Supply an
+existing offline ffmpeg executable explicitly. It never downloads tools, changes
+capture, resamples, trims, pads the continuous view, or writes audio.
+
+The sample-continuous view contains **every decoded sample in order**. The gap
+map retains each chunk's embedded timestamp, actual decoded count, declared span,
+unassigned gap and overlap. Ordered timestamp overlaps are finite evidence,
+not missing records or negative gaps; their samples remain in the continuous
+view. Duplicate/reordered timestamps or unknown count mismatches are INCONCLUSIVE.
+
+`audited_decode_spans.json` contains one narrow compatibility allowance: the
+preserved microphone chunk 32 has 47688 decoded samples against 47520 declared
+samples (+168 samples, 3.5 ms at 48 kHz). It is bound to that exact source SHA-256,
+track, sequence, native rate, metadata SHA-256 and both counts. A changed hash,
+167/169-sample discrepancy or another recording does not inherit that allowance.
+There is no generic numerical count or gap cutoff. The scalar original-v3
+**timestamped legacy view** reproduces the prior audit's declared-end clipping
+and last-chunk-wins overlap placement; only this legacy view clips. The continuous
+view retains all 168 extra samples. Those timing facts and the allowance are
+visible in the gap map, including cumulative overrun and unassigned gaps. Gaps
+are computed against the union of declared windows; overlaps never subtract them.
+Zero placeholders do not establish physical silence or speech absence.
+
+The report retains `sample_continuous`, `original_timestamped` (the unchanged
+original 100 ms check/affine fit, including its INCONCLUSIVE result), and `gap_map`.
+The v3a check keeps the 100 ms limit and anchor uncertainty, without an affine
+clock correction. Unknown invalid evidence still blocks acceptance; the original
+legacy marker result is retained when reconstructable.
+
+The bounds input retains the original `frozen`, `units`, identity/adjudication
+and publication fields. v3a source speech endpoints are explicit:
+`source_start_s`, `source_last_word_start_s`, `source_last_word_end_s`. Each unit
+uses the offset and uncertainty measured at the nearest preceding long anchor
+(in source order, using its source utterance start). A long unit can use its own
+measured anchor. The resulting continuous placements are recorded as
+`continuous_*`, with `timing_anchor_id`, `timing_anchor_offset_s` and
+`timing_anchor_uncertainty_s` for audit.
+
+For earlier v3a JSON, `continuous_start_s`, `continuous_last_word_start_s`, and
+`continuous_last_word_end_s` are accepted as a **fixed reference schedule**, not
+already corrected local placements: subtract `reference_schedule_offset_s`
+(default first long anchor offset) to recover source times, then use the local
+preceding anchor. The output labels this legacy basis explicitly. Prefer the new
+source fields to avoid ambiguity. A source unit before the first long anchor is
+unbounded, stays in the denominator and cannot borrow a future anchor or receive
+setup credit. No short-word matching occurs.
+
+The speech end interval uses the locally placed continuous end and cumulative
+unassigned gaps, with measured anchor uncertainty on both sides. Significant
+unlogged offset changes add symmetric uncertainty **only inside their unresolved
+bracket**; a crossing suffix after the before-anchor support remains bounded by
+that bracket. The new measured offset persists for every later unit. Endpoint uncertainty
+remains symmetric in the right anchor's unexamined prefix until measured support
+begins, even if that prefix belongs to the anchor utterance itself. Speech end,
+last-word start and utterance onset have separate bracket uncertainty. After
+measured support, extra step widening stops; the persistent offset and measured
+anchor uncertainty do not stop. Gap lookup encloses the entire endpoint uncertainty
+interval so a nominal point just before a gap cannot hide a later speech start. No recording samples or native
+clock are corrected. The pre-speech guard uses the last-word-start interval.
+
+Publications must already be independently mapped into timestamped capture
+seconds. Observer-to-scorer integration is **not implemented**; existing v3
+`map_publications` remains v3-only. Full latency acceptance also requires frozen
+source identity/eligibility and independently adjudicated publication endpoints.
+
+Add a `v3a_evidence` object with a separate entry for each track:
+
+```json
+{
+  "publication_basis": "timestamped-capture",
+  "chunks": "C:/evidence/microphone/chunks.json",
+  "decoder": "C:/tools/ffmpeg.exe",
+  "harness": [101.0, 481.0],
+  "harness_u": [0.001, 0.001],
+  "source": "C:/evidence/source-native-mono.wav",
+  "source_annotations": "C:/evidence/source-annotations.json",
+  "long_anchors": [
+    {"id": "long-001"}
+  ]
+}
+```
+
+Paths are explicit filesystem paths (prefer absolute). Source annotations bind
+`frozen: true`, `sample_rate`, `source_sha256` and the complete ordered
+`utterances` inventory. Each utterance has `id`, Boolean `short`,
+`source_start_sample`, `source_end_sample`, and Boolean `eligible`. Searches must include **every**
+non-short utterance in that order. A missing immediate long neighbor, absent brackets, or unsupported match prevents
+acceptance. Native source and recording rates may differ for bounded correlation;
+each RMS envelope uses its own native samples on the shared time grid.
+No short-word matching occurs.
+
+**The v3a default matcher is now bounded long-utterance correlation.** It reuses
+the predeclared interior-audit criteria unchanged: +/-1 s search, 2 ms grid,
+10 ms log RMS / 20 ms log RMS / 10 ms linear RMS; each method needs NCC >=0.80,
+a margin >=0.10 over a secondary local peak >=100 ms away, and a nonboundary
+winner. These existing analysis quality criteria are now the explicitly requested
+v3a anchor guard, not new Layer A latency targets. No new numeric threshold is
+introduced. The original v3 marker/default path is unchanged.
+
+Only annotated long utterances are searched. A source-only 3 s template begins
+100 ms inside each declared source span, using the interior audit's >=3.3 s
+passage guard. No recording score chooses that support. Edge supports bind by ID
+to their full unit's locally placed source interval for coverage; the entire
+measured support plus/minus uncertainty must fit. Coverage never changes the
+measured supports used for step localization. Missing or inconsistent edge timing
+stays INCONCLUSIVE.
+The output retains both
+the full source utterance span and the narrower matched forward-frame support;
+matching part of a long utterance does not certify its unexamined remainder or
+remove a crossing unit. Every long ID remains required in source order. Source
+and recording envelope grids use their own native samples; neither PCM array is
+resampled, trimmed or rate-warped. A constant search offset is not a correction.
+
+Uncertainty is exactly the interior audit's maximum contiguous near-top extent
+(within 0.01 NCC), plus cross-method displacement, 10 ms half-frame, 1 ms half-grid,
+and one sample at each native rate. This is a method-sensitivity radius, not a
+calibrated statistical confidence interval or a guarantee against unknown route
+bias. All methods must meet uniqueness; ambiguous, weak, flat, boundary or
+unbounded anchors make track timing INCONCLUSIVE. Step significance is tested
+against **combined measured anchor uncertainty**, as before.
+
+The bounds evidence may specify `long_matcher: "bounded-correlation"` (the v3a
+default) and `step_search_offset_s` (optional: otherwise continuous lead marker
+minus the protocol's 1 s source lead). Each `long_anchors` entry can now contain
+only its source `id`; its expected template position is source span start +100 ms
++ that constant offset. Alternatively supply `expected_recording_s` explicitly
+for that template; the search is still exactly +/-1 s. The earlier `exact`
+matcher remains available explicitly with `long_matcher: "exact"`, equal native
+rates and the original sample search bounds. Scoring still requires independent
+frozen identity/eligibility, validated gap/marker evidence and all other v3a
+preconditions. Diagnostic matching does not freeze any annotation.
+
+Adjacent validated long-template supports bound any offset change exceeding their
+combined uncertainty. Magnitude plus that uncertainty widens both sides of units
+in the unresolved bracket. After the next anchor, the local measured offset
+persists with its own uncertainty; it must not revert to the source schedule.
+`test_next_anchor_limits_widening` now asserts both facts. The signed 80 ms
+counterexample verifies that 5.98 s against an obsolete endpoint can really be
+6.06 s after a negative shift and cannot receive timely credit. Layer A retains
+conservative earliest-end / best latest-end pairing. Unsupported timing is
+INCONCLUSIVE, and a publication overlapping last-word-start uncertainty cannot
+receive pre-speech credit.
+
+Gaps do not change eligibility, outcomes or denominator. Every scored unit ID and
+eligibility must exactly reconcile with the bound complete frozen source inventory.
+Omission, duplication or an eligibility mismatch makes the track INCONCLUSIVE;
+a claimed ineligibility label cannot remove a crossing unit. `SETUP-AFFECTED` additionally requires
+`independent_harness_failure` with `independently_confirmed: true`, `path` and
+matching `sha256`; gap evidence alone grants none. There is no numerical gap
+cutoff. These declared independent adjudications remain review obligations;
+the scorer does not infer semantic identity or harness failure from silence.
+
+
+### Retained practice regression and step diagnostic
+
+`test_long_correlation.py` uses `practice_step_fixture.json` to pin the external
+invented practice source WAVs, source annotations, continuous recording WAVs and
+lead-marker reports by SHA-256. Set `SCRB_V3A_PRACTICE_ROOT` to the preserved
+`gate3-v3-preflight-20261108` directory. The sibling evidence location is the local
+default. Missing files produce an explicit skip reason; present hash mismatches
+fail. Audio, original evidence and generated reports remain outside Git. The test
+uses only the original lead marker as a constant search offset; it does not use
+any affine slope/offset or stored step result as detector input.
+
+The practice replay scans every long unit: 45 meeting anchors yield no detected
+continuous-view step; 39 microphone anchors yield one +78 ms change between
+`microphone-019` and `microphone-021`, magnitude interval +51.875 to +104.125 ms,
+location interval 138.3619375 to146.4530625 s (including 141.7 s). These are template
+support bounds, not an exact step sample or a causal capture diagnosis. A hidden
+change/reversal between anchors or a change within combined uncertainty is not
+ruled out. Synthetic voiced/noisy tests inject +/-80 ms with gain/noise changes,
+check both uncertainty directions, and reject ambiguous repeats and wrong windows.
+
+For a standalone identity-bound diagnostic, `detect-v3a-steps.py` accepts an
+explicit preserved **sample-continuous** mono PCM16 WAV and writes a new JSON:
+
+```powershell
+python scripts/gate3-retest/detect-v3a-steps.py CONTINUOUS.wav STEPS.json --source SOURCE.wav --annotations SOURCE-ANNOTATIONS.json --recording-sha256 RECORDING_HASH --source-sha256 SOURCE_HASH --annotations-sha256 ANNOTATION_HASH --search-offset OFFSET_SECONDS
+```
+
+Output includes every anchor's three-method uniqueness evidence/uncertainty,
+step magnitude and location intervals, bracketing IDs and symmetric widening.
+It exits 2 on unsupported/ambiguous timing. A BOUNDED diagnostic is **not** a track
+latency PASS or an exemption: the bounds scorer continues to reject invalid gap
+maps, failed markers and unsupported speech/publication evidence, while retaining
+step diagnostics when available. The known microphone count/span difference is separately covered by its
+hash-bound audited allowance; detecting a step grants no count/identity exemption. The original timestamped marker result
+remains in the marker/bounds reports.
+
+
+### Clock metadata for later observer integration
+
+v3a clock reports and gap maps carry `clock_context` (schema 1); the outer v3a
+report is schema 2. It contains `session_id`, integer `session_origin_ns`,
+`origin_status`, `origin_method`, `origin_evidence_chunks`, `qpc_basis` and
+`track_identity`. The origin is reconstructed as device stamp minus embedded
+start, only when constant across every chunk in one session. It is explicitly
+not a retained start-ACK observation and is distinct from acoustic marker offsets.
+Missing or inconsistent origin evidence is null with an unavailable status.
+
+The QPC basis states capture monotonic nanoseconds and 10^9 ns/s. Raw QPC and
+observer tick frequencies are null because chunks do not supply them; no value
+is invented. Observer clock/binding and observer-to-scorer integration remain
+unimplemented. No publication timestamp conversion is added.
+
+Track identity binds session, track, chunk-index hash and ordered source hashes.
+Each derived view also carries a separately labeled mono PCM16LE hash, sample
+count/rate, view kind and track-identity hash. A PCM digest is never labeled a
+WAV-file digest. The same clock context accompanies both marker checks and the
+gap map so a later bridge can bind its input explicitly.
+
+`test_v3a_conditional.py` pins original microphone metadata, all 139 encoded chunks,
+decoder and harness-context hashes. It invokes the real v3a marker CLI, confirms
+a valid clock/map with the 168-sample allowance, compares decoded PCM identity to
+the retained untrimmed continuous WAV, then runs long matching and local timing
+preparation. All 64 units having a preceding long anchor prepare successfully.
+The initial short `microphone-000` has none: it remains explicitly unsupported
+and in the full 65-unit denominator. Thus no count-caused INCONCLUSIVE remains,
+but full-track latency acceptance is not claimed. Original annotations stay
+unfrozen, original timestamped markers remain INCONCLUSIVE, and observer
+integration/actual latency scoring have not been performed.
