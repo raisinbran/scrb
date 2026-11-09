@@ -38,6 +38,16 @@ Pre-flight projection (derived-5 meeting measurements x 0.85; speech engines nee
 
 **Proposed A-026, confirmed agent design/test-planning mistake:** I applied a `-15%` slowdown to both tracks without review. It made the meeting track fail the pace rule (118.14 wpm) and the microphone track pass only narrowly (131.75 wpm), and the rate was stored in two places (`speech-specs.ps1` and `UnitRenderer.cs`). One extra owner render is needed. Earlier incidents are unchanged.
 
+### Revision 2026-11-09 (r3): calibrated meeting pace and in-window gap budget
+
+Render r2 (meeting at `default`) measured the meeting track at 127.93 wpm, still under 130. The `-15%` rate had slowed Zira by only about 8% (118.14 to 127.93 wpm), not the 15% I assumed: the linear assumption was wrong. The owner approved one more render (`renders-units-20261109-r3`) with calibrated rates: **microphone `default`, meeting `+30%`**, declared once in `speech-specs.ps1` and recorded per unit as `prosody_rate`. The earlier renders `renders-units-20261109` (`-15%` both tracks) and `-r2`, and every derived folder, are retained as evidence.
+
+Projection formula, one for both tracks: `wpm_new = wpm_ref x (1 + 0.083 x delta_points / 15)`, with `delta_points` measured from the `-15%` reference and 0.083 the measured Zira speedup (127.93/118.14 - 1) per 15 points. Meeting (delta 45) is a two-point extrapolation (measured at -15% and default) and goes beyond the measured range; microphone (delta 15) is a cross-voice estimate from a single measured point. Durations scale by 1/(speedup factor) with fixed crop padding. Both 100% and 50% of the effect were evaluated by running the assembler's placement code in memory: microphone 142.5 / 137.2 wpm, meeting 147.2 / 132.7 wpm; shorts stay within 0.332-0.876 s of speech, long units 6.68-7.94 s, and every placement requirement holds in both scenarios. These are projections, not guarantees. The `+30%` setting has not been accepted by the speech engine; that is untested until the render.
+
+Placement defect fixed: the planned in-window gap budget (0.44 s) ignored the 20 ms and 30 ms crop padding, so a layout could reach a 0.5 s speech gap (found in the microphone 50% projection). The budget is now `min(0.44, 0.48 - largest lead - largest trail)`, keeping 20 ms margin. The 0.5 s assertion is unchanged and still checks the gap actually produced.
+
+**A-026 addendum:** the linear `-15%` assumption was wrong (measured about 8%), which wasted the r2 render; the pre-flight also found the placement-padding defect above.
+
 ### Owner command after independent source review
 
 Open **Start → Windows PowerShell → Open**, **Windows PowerShell 5.1, not Administrator**. The output folder must not exist. The command renders unit WAVs only; it does not run probes, measurement, assembly, verification, playback or recording.

@@ -26,7 +26,12 @@ def place_units(track, clips):
     assert all(4 <= clip["duration"] <= 12 for clip in choices["long"]), "Long duration needs review"
     counters, units = {"short": 0, "long": 0}, []
     offset = 0 if track == "microphone" else 0.25
-    windows = [(20+offset, 169, 0.8, 2.5), (170+offset, 245-offset, 0, 0.44),
+    # The word-level gap seen by the 0.5 s rule is the planned gap plus the outgoing trail and incoming lead
+    # of the cropped clips, so budget the planned in-window gap against the largest actual padding, keeping 20 ms margin.
+    padding = max(clip["words"][0]["start"] for clip in clips)+max(clip["duration"]-clip["words"][-1]["end"] for clip in clips)
+    window_gap = min(0.44, 0.48-padding)
+    assert window_gap > 0, "Clip padding leaves no in-window gap budget"
+    windows = [(20+offset, 169, 0.8, 2.5), (170+offset, 245-offset, 0, window_gap),
                (246, 380-offset, 0.8, 2.5)]
     for left, right, minimum, maximum in windows:
         span = right-left
