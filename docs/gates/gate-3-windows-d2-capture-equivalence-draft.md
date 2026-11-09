@@ -29,11 +29,11 @@ Everything in the table above is **verified from the source files** at commit 55
 
 **Private-log findings** (local retained files under `gate3-two-track-20261107\`, outside Git, read by the agent for this draft; no audio or transcripts opened):
 - The saved session log's first line is `open` with `wholeComputer: true` and an empty `followApp`, so the system track was endpoint loopback of the default render device.
-- Microphone source: a phone recording played acoustically so that the **physical Realtek microphone array** picked it up. Headphones were worn so that the microphone did not hear the system speech.
+- Microphone source: a phone recording played acoustically so that the **physical Realtek microphone array** picked it up. The system output on November 7 was `Speakers (2- Realtek(R) Audio)` per the endpoint record; how audible it was, and at what volume, is not recorded. **Owner correction 2026-11-09: no headphones existed on November 7 and none are in use. An earlier version of this draft said headphones were worn; that was unverified and is withdrawn.** Whether the physical microphone array heard the system speech on November 7 is unknown.
 - System source: the public AMI file played by `System.Media.SoundPlayer` (PowerShell `PlaySync`) to the **default output device**.
 - Active endpoints recorded in the archive audit: `Microphone Array (2- Realtek(R) Audio)` and `Speakers (2- Realtek(R) Audio)`.
 
-**Unresolved November 7 settings** (not recorded in anything I could read; PENDING below): which output device was the default (headphones or speakers) and its format; the microphone's mix format, gain and enhancement state; the microphone endpoint ID (not in `session.log`); the Windows power plan; and the state of every other process on the PC.
+**Unresolved November 7 settings** (not recorded in anything I could read; PENDING below): the output device's format and the speaker volume; the microphone's mix format, gain and enhancement state; the microphone endpoint ID (not in `session.log`); the Windows power plan; and the state of every other process on the PC.
 
 ### 1.2 Background workload on November 7 and the rule for the retest
 
@@ -43,12 +43,12 @@ Rule for the retest: run the **same set where feasible** (same app build, same w
 
 ## 2. Does one cable suffice? (finding)
 
-**Yes, in principle, provided the default playback device stays the Realtek speakers/headphones.**
+**Yes, in principle, provided the default playback device is the Realtek speakers.**
 
 - Microphone WAV is played into `CABLE Input`. `CABLE Output` is chosen as the app's microphone in the app's own microphone picker; it appears in the list because it is an active capture endpoint.
 - System WAV is played to the default output and captured by endpoint loopback exactly as the candidate did on November 7. The system capture path is therefore unchanged **as long as `CABLE Input` is not the default playback device**. If it were, loopback would carry the microphone WAV as well and the two tracks would no longer be independent. Verified in code that the helper opens the default render endpoint (role `eConsole`) at start; how it reacts to a later default change was not examined.
 - Because the helper plays silence into the default render endpoint, nothing in the cable setup interferes with that.
-- The microphone track does not hear the system speech (virtual cable, no acoustic path), so the headphones no longer protect the microphone from the system WAV, and the cable removes the need for a quiet room for the microphone WAV.
+- The microphone track does not hear the system speech (virtual cable, no acoustic path). Whether the physical array heard the system speech on November 7 is unknown, and the cable removes that path. Expected effect: any speaker-to-microphone leakage present on November 7 is absent, so the microphone track is cleaner than November 7; this is a stated difference, not a measured one.
 
 No stop condition was met: one cable is enough and the system capture path would not differ. The stop condition would trigger if the owner's default playback device is changed to a cable device.
 
@@ -61,7 +61,7 @@ No stop condition was met: one cable is enough and the system capture path would
 | 3 | Microphone transport label becomes `other` instead of `builtIn` | UI label only; no capture behavior change found in code | Verified by code |
 | 4 | Microphone WAV is 24 kHz mono, played through a shared-mode path and converted by the Windows engine to the cable's format and then to the helper's 48 kHz | The size of any effect is unknown. It needs validation by the sync markers (position and frequency) and by audio checks on the captured chunks (level, clipping, silence); no claim is made before that | PENDING |
 | 5 | System WAV is played by a harness player instead of `SoundPlayer` (same default device, same shared-mode path) | None expected; confirm the device is the same as the one captured | PENDING |
-| 6 | Output device (headphones or speakers) may differ from November 7 | If different, loopback is still the same engine-level tap; format may differ | PENDING |
+| 6 | Output device: Realtek speakers on both days, but the November 7 volume and format are not recorded | Loopback is the same engine-level tap; level may differ with the speaker volume | PENDING |
 | 7 | Windows enhancements on the Realtek array no longer apply to the microphone track | Part of difference 1 | Known |
 | 8 | CABLE Output's own enhancement state is unknown | Could alter the signal | PENDING |
 | 9 | Both sources are started by one program on one clock; November 7 used a phone started by a person and a separate player | Offsets between tracks will be measured from sync beeps in the saved audio instead of assumed | Design |
@@ -93,7 +93,7 @@ Nothing was changed by the agent. **Finding (agent dry run of `play-sources.ps1`
 
 | # | What to set | Where | Admin | Then screenshot or copy |
 | --- | --- | --- | --- | --- |
-| 1 | **Default playback device = the Realtek output you will use** (headphones on the Realtek jack, as on November 7). Not any `CABLE` device. | Settings, System, Sound, Output (choose the device) | No | Screenshot of the Output list showing the selected device |
+| 1 | **Default playback device = the Realtek output you will use** (`Speakers (2- Realtek(R) Audio)`). Not any `CABLE` device, not Bluetooth, USB or HDMI; the script refuses anything but Realtek. The owner's default on 2026-11-09 07:44 UTC was `Headphones (No Air 3)` (Bluetooth) and must be changed first. | Settings, System, Sound, Output (choose the device) | No | Screenshot of the Output list showing the selected device |
 | 2 | Default **recording** device: leave as it is; write down which one it is. The app uses the microphone you pick in the app. | Settings, System, Sound, Input | No | Screenshot of the Input list |
 | 3 | In **the app** (pinned candidate build 2d1f815 or the build the owner names), choose **`CABLE Output`** as the microphone, never `CABLE In 16ch` | The app's microphone picker (Settings, Audio, or the Live screen) | No | Screenshot of the app picker with `CABLE Output` selected |
 | 4 | **Sample rate and bit depth**: read and record, do not change unless the owner decides so afterward: default format of `CABLE Input`, `CABLE Output`, the default Realtek output and the Realtek microphone array | Sound control panel (`mmsys.cpl`), Playback or Recording tab, device, Properties, Advanced, "Default Format" | No | Screenshot of each Advanced tab (4 screenshots) |
@@ -102,7 +102,7 @@ Nothing was changed by the agent. **Finding (agent dry run of `play-sources.ps1`
 | 7 | "Listen to this device" **off** on `CABLE Output` | `mmsys.cpl`, Recording, `CABLE Output`, Properties, Listen | No | Screenshot of the Listen tab |
 | 8 | Desktop-app **microphone access on** | Settings, Privacy and security, Microphone, "Let desktop apps access your microphone" | No | Screenshot |
 | 9 | Silence **notification sounds** and close other audio apps (extraneous audio only; do not close workload apps) | Settings, System, Sound, Volume mixer, "System sounds"; close media apps | No | Note what was closed |
-| 10 | Wear **headphones** as on November 7 | Physical | No | Note the device name |
+| 10 | Set the **speaker volume low but audible** and write the setting down (the same volume must be used in the real retest) | Volume control | No | The volume setting you chose |
 
 After steps 1 to 8, send the screenshots or the copied text so the PENDING fields in section 4 can be filled. `play-sources.ps1` (dry run, which plays nothing) then prints the resolved device names and endpoint IDs.
 
@@ -119,7 +119,7 @@ This checklist stays DRAFT until the PENDING fields are filled, an independent r
 - **Hashes** of both WAVs (raw file bytes) are required and checked before anything starts. The WAV header must be PCM, mono, 24000 Hz, 16-bit.
 - **Recording readiness:** real playback needs `-RecordingReadyFile`, written by the step that confirms the native Start acknowledgement. The script waits for a file newer than its own start, then refuses to start if more than `-MaxStartDelaySeconds` (default 6 s) have passed, so the lead-in marker interval (0 to 10 s, the WAV's beeps end 2.2 s in) is not missed. It cannot see the app's recording state itself.
 - **One clock:** `Stopwatch.GetTimestamp()` ticks and UTC are logged before and after each start, with the device identities, to a new folder outside Git. Both buffers are written paused, then released one after the other.
-- **Guards:** `-Play`, `-OwnerApprovedLongTest` (over-20-minute approval), and `-HeadphonesWorn` when the system device is the built-in speakers. No retry, no change to defaults or volume.
+- **Guards:** `-Play`, `-OwnerApprovedLongTest` (over-20-minute approval), and the system device must be a Realtek output (anything else, including Bluetooth, USB, HDMI and CABLE devices, is refused). No retry, no change to defaults or volume.
 - **Sample rate question resolved:** a `WAVE_FORMAT_QUERY` on 2026-11-08 PT (nothing played, no setting changed) reported that winmm wave-out **accepts 24 kHz mono PCM16** on `WAVE_MAPPER`, `CABLE Input`, `CABLE In 16ch` and the Realtek output. So no resampling or other change to the source files is needed. Acceptance of the format query does not show the converted audio is clean; that is checked by the markers and audio checks (difference 4).
 - **Not verified by the script:** that `CABLE Output` is the app's selected microphone. It prints an OWNER-CONFIRM line.
 - Tests: `scripts/gate3-retest/test_play_sources.py` (static text checks on any OS, and the hardware-free `-SelfTest` logic on Windows).
