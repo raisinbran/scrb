@@ -95,6 +95,50 @@ def measure(samples):
             'uncertainty_s': offset_spread+FRAME/RATE}
 
 
+def report_edges(samples, threshold):
+    """Locate the same 5 ms energy edges as energy_edges, but report instead of raising."""
+    rms = [math.sqrt(sum(v*v for v in samples[i:i+FRAME])/len(samples[i:i+FRAME]))
+           for i in range(0, len(samples), FRAME)]
+    level = max(128, max(rms, default=0)*0.03) if threshold is None else threshold
+    active = [i for i, value in enumerate(rms) if value >= level]
+    if not active:
+        return {'level': level, 'onset': None, 'offset': None, 'no_active_frame': True, 'clipped_edge': False}
+    return {'level': level, 'onset': active[0]*FRAME, 'offset': min((active[-1]+1)*FRAME, len(samples)),
+            'no_active_frame': False, 'clipped_edge': active[0] == 0 or active[-1] == len(rms)-1}
+
+
+def measure_report(samples):
+    """Record every measure() value and which existing limits it would exceed; never raises, never judges."""
+    primary, secondary = report_edges(samples, None), report_edges(samples, 184)
+    row = {'duration_s': len(samples)/RATE, 'samples': len(samples),
+           'primary_level': primary['level'], 'secondary_level': secondary['level'],
+           'onset': primary['onset'], 'offset': primary['offset'],
+           'secondary_onset': secondary['onset'], 'secondary_offset': secondary['offset'],
+           'primary_no_active_frame': primary['no_active_frame'], 'secondary_no_active_frame': secondary['no_active_frame'],
+           'primary_clipped_edge': primary['clipped_edge'], 'secondary_clipped_edge': secondary['clipped_edge'],
+           'onset_threshold_spread_s': None, 'offset_threshold_spread_s': None, 'threshold_spread_s': None,
+           'lead_samples': None, 'trail_samples': None, 'crop_start': None, 'crop_end': None}
+    exceeded = []
+    if primary['no_active_frame'] or secondary['no_active_frame']:
+        exceeded.append('no_active_frame')
+    if primary['clipped_edge'] or secondary['clipped_edge']:
+        exceeded.append('clipped_edge')
+    if not (primary['no_active_frame'] or secondary['no_active_frame']):
+        row['onset_threshold_spread_s'] = abs(primary['onset']-secondary['onset'])/RATE
+        row['offset_threshold_spread_s'] = abs(primary['offset']-secondary['offset'])/RATE
+        row['threshold_spread_s'] = max(row['onset_threshold_spread_s'], row['offset_threshold_spread_s'])
+        if row['threshold_spread_s'] > 0.025+1e-12:
+            exceeded.append('threshold_spread_over_25_ms')
+    if primary['onset'] is not None:
+        left, right = primary['onset']-round(0.020*RATE), primary['offset']+round(0.030*RATE)
+        row.update({'lead_samples': primary['onset'], 'trail_samples': len(samples)-primary['offset'],
+                    'crop_start': left, 'crop_end': right})
+        if not 0 <= left < right <= len(samples):
+            exceeded.append('crop_padding_clips_unit')
+    row['limits_exceeded'] = exceeded
+    return row
+
+
 def assert_join(previous, following, zeros):
     """Compare effective near-silence in seconds with the candidate's VAD split."""
     if zeros < 0 or int(zeros) != zeros:
@@ -167,7 +211,7 @@ def verify_arithmetic(samples, segments, silences, joins=()):
 
 
 def assert_window_energy_gap(samples, left=170, right=245):
-    """Reject half-second quiet runs as a same-method consistency check."""
+    """Reject quiet runs of 99 frames (0.495 s) or more as a same-method consistency check."""
     start, end = round(left*RATE), round(right*RATE)
     values = [math.sqrt(sum(v*v for v in samples[i:i+FRAME])/len(samples[i:i+FRAME]))
               for i in range(start, end, FRAME)]
@@ -176,6 +220,6 @@ def assert_window_energy_gap(samples, left=170, right=245):
     for value in values:
         run = run+1 if value < threshold else 0
         longest = max(longest, run)
-    if longest*FRAME/RATE >= 0.5:
+    if longest >= 99:  # the 5 ms grid can split a true 0.5 s silence into 99 frames
         raise ValueError('Failure-window near-silence reaches 0.5 seconds')
     return longest*FRAME/RATE
