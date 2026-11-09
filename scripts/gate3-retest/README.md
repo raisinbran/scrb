@@ -38,6 +38,14 @@ A-019 closes as **engine marks unusable as a WAV timebase; cause not established
 
 **Proposed A-024:** The first source-only PowerShell spec checker grouped hashtables directly and falsely reported invalid prefix construction. Converting the records to PSCustomObject before grouping corrected the checker; all prefix/final spec assertions and C# compilations passed in Windows PowerShell 5.1. Both checker files are retained outside Git. A trailing blank line was caught and fixed before commit. A handoff helper initially used the Windows default text encoding and failed to read UTF-8 prose; explicit UTF-8 corrected that helper before it changed files. No render or evidence was affected.
 
+### Preserved owner render: offline measurement stop
+
+All 52 expected unit WAVs and sidecars matched the unit manifest, sample counts, hashes, renderer/script versions and 24 kHz mono PCM16 format. Original source duration including padding was 59.062 s (microphone) and 62.937 s (meeting). The first measurement invocation failed before WAV I/O because isolated embedded Python did not add the script directory to its import path. `derived-1/measurement-entrypoint-failure.json` preserves that attempt and its script hash. The three offline CLIs now explicitly resolve their sibling module; a regression invokes each with isolated Python and `--help`, without audio I/O. All 30 deterministic tests pass.
+
+The permitted corrected attempt used **derived-2**, leaving originals and derived-1 untouched. It passed 19 microphone units, then stopped at `microphone-utt16-u0` ("Complete."): primary offset 0.635 s versus secondary offset 0.665 s, **30 ms spread**, exceeding the fixed 25 ms limit. Both onsets were 0.135 s. The remaining six microphone units and all 26 meeting units were not measured. No assembly or joined verification ran; annotations remain UNFROZEN. No threshold, rendering or source text was changed. The private diagnostic summary records corrected script hashes and the original manifest hash.
+
+**Proposed A-025, confirmed agent CLI defect:** Direct measurement failed with `ModuleNotFoundError` because the embedded interpreter has isolated/safe-path mode enabled. Earlier unittest discovery inserted a path and missed this entry-point failure. Explicit sibling resolution plus isolated-CLI regression checks corrected it. No original WAV was modified and no synthesis rerun occurred. The later 30 ms source uncertainty is separately reported as a measurement rejection, not attributed to this import defect or to the application. Both attempts are retained.
+
 Candidate: `553dd9080f452f8a54ccff5cd5fea8d6937438ae`.
 Protocol: `docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md`
 at `6297862` on origin/main. The owner's November 8 assignment establishes approval despite the source's stale draft header.
