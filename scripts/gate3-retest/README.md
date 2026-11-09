@@ -290,6 +290,15 @@ seconds. Observer-to-scorer integration is **not implemented**; existing v3
 `map_publications` remains v3-only. Full latency acceptance also requires frozen
 source identity/eligibility and independently adjudicated publication endpoints.
 
+Every credited endpoint must carry its `publication_id` and match the converted file `publication_file`
+(produced by `observer_session_map.py`) by id, observed time and u (1e-9 s tolerance); the file's conversion
+identity must match the track's clock context, the observer raw header and the harness log. A mismatched,
+missing or stale endpoint leaves that unit uncredited in the denominator; a mismatched document makes the
+track INCONCLUSIVE. The output records the SHA-256 of the raw observer file, harness log and converted file.
+The 2 ms conversion allowance is a conservative numerical allowance for converting between two QPC-based clocks
+(Stopwatch ticks and capture timestamps); it is not measured device timestamp accuracy and not a bound on
+playback or capture delay.
+
 Add a `v3a_evidence` object with a separate entry for each track:
 
 ```json
@@ -299,6 +308,9 @@ Add a `v3a_evidence` object with a separate entry for each track:
   "decoder": "C:/tools/ffmpeg.exe",
   "harness": [101.0, 481.0],
   "harness_u": [0.001, 0.001],
+  "publication_file": "C:/evidence/microphone/converted-publications.json",
+  "observer_raw": "C:/evidence/observer.jsonl",
+  "harness_log": "C:/evidence/harness.jsonl",
   "source": "C:/evidence/source-native-mono.wav",
   "source_annotations": "C:/evidence/source-annotations.json",
   "long_anchors": [

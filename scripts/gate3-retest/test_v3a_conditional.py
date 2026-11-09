@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import binding_fixture
 import marker_clock
 import v3a_timing as timing
 from long_correlation import annotation_units, detect_long_steps
@@ -41,15 +42,18 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
             self.assertAlmostEqual(right['earliest_acoustic_end_s'], 14+change-.001)
             report = {'anchors':anchors, 'utterances':[{'id':u['id'], 'eligible':True} for u in units],
                       'annotations_sha256':'d'*64}
-            evidence = {'publication_basis':'timestamped-capture', 'chunks':'index', 'decoder':'decoder',
-                        'source':'source', 'source_annotations':'annotations', 'harness':[11,391],
-                        'long_anchors':[{'id':a['id']} for a in anchors]}
-            with patch.object(timing, 'load_views', return_value=([],[],gapmap)), \
-                 patch.object(marker_clock, 'analyze_v3a', return_value={'valid':True}), \
-                 patch.object(timing, 'pcm16', return_value=([],1000)), \
-                 patch.object(timing, 'digest', return_value='a'*64), \
-                 patch.object(timing, 'load_long_anchors', return_value=report):
-                result = bounds.analyze_v3a_track(units, evidence, 'microphone')
+            gapmap = binding_fixture.enrich(gapmap)
+            with tempfile.TemporaryDirectory() as directory:
+                units, files = binding_fixture.bind_units(directory, gapmap, units)
+                evidence = {'publication_basis':'timestamped-capture', 'chunks':'index', 'decoder':'decoder',
+                            'source':'source', 'source_annotations':'annotations', 'harness':[11,391],
+                            'long_anchors':[{'id':a['id']} for a in anchors], **files}
+                with patch.object(timing, 'load_views', return_value=([],[],gapmap)), \
+                     patch.object(marker_clock, 'analyze_v3a', return_value={'valid':True}), \
+                     patch.object(timing, 'pcm16', return_value=([],1000)), \
+                     patch.object(timing, 'digest', return_value='a'*64), \
+                     patch.object(timing, 'load_long_anchors', return_value=report):
+                    result = bounds.analyze_v3a_track(units, evidence, 'microphone')
             self.assertEqual(result['latency'], 'INCONCLUSIVE')
             self.assertIn('PRE-SPEECH', result['error'])
             self.assertEqual(result['denominator'], 2)

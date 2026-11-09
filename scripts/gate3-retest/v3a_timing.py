@@ -246,19 +246,29 @@ def load_views(metadata_path, decoder, track):
     return continuous, timestamped, mapping
 
 
-def placement_interval(seconds, mapping):
-    require(finite(seconds) and 0 <= seconds <= mapping['decoded_samples']/mapping['rate'],
+def placement_range(low_s, high_s, mapping):
+    """Timestamped placements possible for a continuous range [low_s, high_s].
+
+    Overlaps make the signed displacement non-monotonic, so every chunk that intersects the whole
+    range is examined, not only the chunks at its two ends. At a boundary the following sample
+    belongs after the gap.
+    """
+    require(finite(low_s) and finite(high_s) and 0 <= low_s <= high_s <= mapping['decoded_samples']/mapping['rate'],
             'Unsupported continuous placement')
-    sample = seconds*mapping['rate']
-    # At a boundary, the following sample belongs after the gap.
-    row = next((r for r in mapping['chunks'] if sample < r['continuous_end_sample']), mapping['chunks'][-1])
+    rate = mapping['rate']
+    first, last = low_s*rate, high_s*rate
+    rows = [r for r in mapping['chunks']
+            if r['continuous_start_sample'] <= last and r['continuous_end_sample'] > first] or [mapping['chunks'][-1]]
     # Both readings stay possible: the continuous view (no displacement) and the timestamped view, whose
     # signed displacement is cumulative gaps minus overlaps and audited overruns. A negative displacement
     # (overlap or overrun) places the word EARLIER than the continuous time; a gap places it later.
-    shift = row['timestamp_displacement_samples']
-    low = min(0, shift)
-    high = max(row['cumulative_gap_samples'], shift)
-    return [seconds+low/mapping['rate'], seconds+high/mapping['rate']]
+    low = min(min(0, r['timestamp_displacement_samples']) for r in rows)
+    high = max(max(r['cumulative_gap_samples'], r['timestamp_displacement_samples']) for r in rows)
+    return [low_s+low/rate, high_s+high/rate]
+
+
+def placement_interval(seconds, mapping):
+    return placement_range(seconds, seconds, mapping)
 
 
 def match_long(recording, source, rate, anchor):
@@ -476,8 +486,7 @@ def prepare_units(units, mapping, anchors):
                     'Speech uncertainty outside preserved continuous samples')
             # The upper acoustic bound can cross a chunk boundary even when its
             # nominal point does not. Include any intervening unassigned gap.
-            return [placement_interval(time-uncertainty, mapping)[0],
-                    placement_interval(time+uncertainty, mapping)[1]]
+            return placement_range(time-uncertainty, time+uncertainty, mapping)
         end = interval(c, anchor_u+end_step_u)
         word_start = interval(b, anchor_u+start_step_u)
         onset = interval(a, anchor_u+onset_step_u)

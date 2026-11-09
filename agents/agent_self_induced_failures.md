@@ -203,6 +203,15 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Correction / prevention:** Marker source time is detected in the frozen source file (supplied value must equal it) and its detection uncertainty is added; the mapper verifies header, harness log, publication file, chunk rows, hashes, session and origin, and records them in the output. The origin is called the reconstructed effective origin, never a logged `clockOriginNs`.
 - **Owner approval:** Not required (offline); the amendment sentence stays a marked proposal.
 
+### A-051 - 2026-11-09 - Claude Code / Windows Desktop - end-chunk-only placement and unbound scored endpoints (c0eb03c)
+- **Status / attribution:** Confirmed agent defects in my own fix c0eb03c, found by ChatGPT's independent re-review (conditional, two P1s) before any scored run. The id A-051 was chosen as the next one after A-050 on the sibling branch; renumber on merge if it collides.
+- **What failed:** (1) The A-046 fix examined only the chunks at the two ends of an uncertain range; with overlaps the displacement is non-monotonic, so for chunks A 0-0.1/0-0.1, B 0.1-0.2 timestamped 0.02-0.12, C 0.2-0.3 and range 0.095-0.205 s the interval [0.095, 0.285] missed continuous 0.105 s, which maps to 0.025 s. (2) The scorer accepted adjudicated endpoints on the "timestamped-capture" label without checking them against the converted file from `observer_session_map.py`.
+- **Agent-controlled cause:** (1) I fixed the case I had in front of me (a single overlap at an end chunk) and assumed monotonicity. (2) I verified the conversion step but did not carry that verification into the scorer, so the label was trusted.
+- **Impact:** No scored run or gate credit; the integration branch carried a placement and a binding that were not safe.
+- **Evidence:** Regression `test_middle_chunk_overlap_is_inside_the_range_interval`; binding regressions in `test_integration_e2e.py` (shifted time, changed u, absent id, mismatched origin, matching case passes).
+- **Correction / prevention:** `placement_range` takes the minimum and maximum over every chunk the range intersects; the scorer requires the converted file, raw observer file and harness log, binds every credited endpoint by id, observed time and u (1e-9 s), and records the three SHA-256 values. No threshold changed. Offline tests only.
+- **Owner approval:** Not required (offline); the amendment wording stays a marked proposal.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.

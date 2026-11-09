@@ -218,6 +218,30 @@ class OverlapPlacement(unittest.TestCase):
         self.assertEqual(low, 200.0)
         self.assertAlmostEqual(high, 200.21)
 
+    def test_middle_chunk_overlap_is_inside_the_range_interval(self):
+        """Review P1-A: the middle chunk (B) has the most negative displacement; the end chunks do not."""
+        rows = [{'seq': i, 'source_sha256': h * 64, 'start_ns': s, 'metadata_start_ns': s,
+                 'metadata_end_ns': s + 100_000_000, 'decoded_samples': 100}
+                for i, (h, s) in enumerate([('a', 0), ('b', 20_000_000), ('e', 200_000_000)])]
+        mapping = timing.gap_map(rows, 'microphone', 1000, 'c' * 64)
+        self.assertEqual([r['timestamp_displacement_samples'] for r in mapping['chunks']], [0, -80, 0])
+        low, high = timing.placement_range(0.095, 0.205, mapping)
+        self.assertLessEqual(low, 0.025)   # continuous 0.105 s lies in B and maps to timestamped 0.025 s
+        self.assertGreaterEqual(high, 0.025)
+        self.assertAlmostEqual(low, 0.015)
+        self.assertAlmostEqual(high, 0.285)
+        # The previous end-chunk-only reading missed it.
+        self.assertGreater(timing.placement_interval(0.095, mapping)[0], 0.0149)
+        self.assertEqual(timing.placement_interval(0.095, mapping), [0.095, 0.095])
+
+    def test_range_placement_equals_the_end_rule_when_only_gaps_exist(self):
+        mapping = timing.gap_map(records(), 'microphone', 1000, 'c' * 64)
+        for a, b in [(100.0, 150.0), (139.9, 140.1), (140.0, 140.0), (139.0, 400.0), (250.0, 399.9)]:
+            end = lambda t: timing.placement_interval(t, mapping)
+            self.assertEqual(timing.placement_range(a, b, mapping), [end(a)[0], end(b)[1]])
+        self.assertEqual(timing.placement_range(139.9, 140.1, mapping)[0], 139.9)
+        self.assertAlmostEqual(timing.placement_range(139.9, 140.1, mapping)[1], 140.31)
+
 
 if __name__ == '__main__':
     unittest.main()
