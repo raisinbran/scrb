@@ -195,3 +195,19 @@ The owner's instrumented run produced 17 of 32 marks across all 47 polls: s0–s
 At this task's start I read branch-local paths before checking that another operation had switched the checkout to main. Those reads failed without modification; I then verified the checkout and selected the requested PR74 branch. A later patch attempt used delete/add operations against the same path and was rejected before changing files; I replaced it with a source-file rewrite. These caused minor tool/context waste, no physical execution or evidence change. This entry is proposed, not entered in the agents register.
 
 A syntax-check command also used an ambiguous shell selection and produced a C# assembly-reference error in the wrong runtime. A subsequent check used the explicit Windows PowerShell executable, asserted version 5, and compiled the class successfully without invoking any renderer. The initially piped multiline check had produced no confirmation output and was not accepted as verification. These verification mistakes are included under proposed A-022; none was a synthesis or application failure.
+
+## Hashing methods
+
+Every digest in the draft manifest is a SHA-256 of content bytes, with the method, the full commit id and the file name recorded beside it. A Git object id is never put in a `sha256` field.
+
+| Kind of file | Method | Recorded beside the digest |
+| --- | --- | --- |
+| Git-tracked text (docs, scripts, tests) | SHA-256 of the bytes printed by `git show COMMIT:path` at a pinned full commit id (LF as stored in Git) | method `git-show-blob-bytes`, `git_commit_id`, `path` |
+| WAVs, unit sidecars, annotation JSON and other private files | SHA-256 of the raw file bytes (for example `Get-FileHash -Algorithm SHA256`) | method `raw-file-bytes`, file name |
+| Digests carried from an earlier draft | method not recorded | method `carried_from_prior_draft`; recompute before freeze |
+
+Files changed after the pinned commit must be re-pinned at the freeze commit.
+
+## Playing the sources (D2 route)
+
+`play-sources.ps1` (Windows PowerShell 5.1) plays the microphone WAV to `CABLE Input` only and the system WAV to the default eConsole render endpoint, which is the endpoint the app captures by loopback. It defaults to a dry run. See `docs/gates/gate-3-windows-d2-capture-equivalence-draft.md` section 7 for the guards. Real playback needs the owner's approval of the run length.
