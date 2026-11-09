@@ -112,6 +112,14 @@
 - **Correction / remaining risk:** Gate each CLI track on independent clock evidence and the same existing disagreement/uncertainty limit. Invalid/missing evidence produces INCONCLUSIVE with no acceptance bounds. Valid clock arithmetic stays unchanged. Five focused regressions pass; full checks and independent review status are in the handoff. No amendment exception implemented.
 - **Usage / approval:** Owner explicitly authorized this scoped current-rule fix if reproduced. No protocol/threshold/source change, freeze, or merge.
 
+### A-037 - 2026-11-09 - Codex / Windows Desktop
+
+- **Status / attribution:** Confirmed minor agent source-lookup mistake.
+- **What failed / evidence:** A git show command tried to read the later-added Protocol v3 handoff at candidate 553dd90 and failed because that path did not exist in the older commit.
+- **Agent-controlled cause / impact:** Applied the requested capture-code revision to a newer protocol document without checking its history. One failed read-only lookup; no measurement, input, recording, or acceptance result affected.
+- **Correction / remaining risk:** Inspect capture/playback code at immutable 553dd90 and current reviewed Protocol v3 separately; document that provenance distinction. Numerical analysis and code snapshots remain outside Git.
+- **Usage / approval:** Task usage row proposed in the two-timeline handoff. No source/protocol/threshold change, exception, recording, playback, freeze, or merge.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
