@@ -77,6 +77,32 @@ class TestSourceCoverage(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError, "Outside-window gap"):
                     sources.assert_track_coverage(units)
 
+    def test_short_rule_uses_speech_span_not_padded_clip(self):
+        """Judge a short word by its speech, while placement still uses the padded clip.
+
+        Protocol v3 defines short as 0.3-1.0 s of speech; crop padding is not speech.
+        """
+        def clips(speech):
+            return [{**clip, "speech_span": speech, "duration": 1.035} if clip["kind"] == "short" else clip
+                    for clip in make_clips("meeting")]
+        passing = sources.place_units("meeting", clips(0.98))
+        shorts = [unit for unit in passing if unit["short"]]
+        self.assertTrue(shorts)
+        self.assertTrue(all(abs(unit["end"]-unit["start"]-1.035) < 1e-9 for unit in shorts))
+        self.assertTrue(all(unit["speech_span"] == 0.98 for unit in shorts))
+        with self.assertRaisesRegex(AssertionError, "Short duration"):
+            sources.place_units("meeting", clips(1.0))
+
+    def test_final_assertion_checks_short_speech_span(self):
+        """Reject a placed short unit whose speech span reaches 1.0 s.
+
+        The final coverage check must agree with the placement check.
+        """
+        units = sources.place_units("microphone", make_clips("microphone"))
+        next(unit for unit in units if unit["short"])["speech_span"] = 1.0
+        with self.assertRaises(AssertionError):
+            sources.assert_track_coverage(units)
+
     def test_includes_leading_and_trailing_gaps(self):
         """Measure silence against both edges of the required window.
 

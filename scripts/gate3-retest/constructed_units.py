@@ -194,7 +194,10 @@ def construct_utterance(parts, measurements, samples, join_samples=960):
     final_start = segments[-1]['start']-final['crop_start']
     earliest_end = final_start+final['earlier_offset']-ENDPOINT_MARGIN
     latest_end = final_start+final['later_offset']+ENDPOINT_MARGIN
-    return {'earliest_acoustic_end_sample': earliest_end, 'latest_acoustic_end_sample': latest_end,
+    first = measurements[parts[0]['unit_id']]
+    first_onset = segments[0]['start']-first['crop_start']+first['earlier_onset']
+    return {'speech_span_s': (final_start+final['later_offset']-first_onset)/RATE,
+            'earliest_acoustic_end_sample': earliest_end, 'latest_acoustic_end_sample': latest_end,
             'earliest_acoustic_end_s': earliest_end/RATE, 'latest_acoustic_end_s': latest_end/RATE,
             'acoustic_end_spread_s': (latest_end-earliest_end)/RATE,
             'final_onset_threshold_spread_s': final['onset_threshold_spread_s'],
