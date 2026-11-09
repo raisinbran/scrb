@@ -40,20 +40,20 @@ Pre-flight projection (derived-5 meeting measurements x 0.85; speech engines nee
 
 ### Revision 2026-11-09 (r3): calibrated meeting pace and in-window gap budget
 
-Render r2 (meeting at `default`) measured the meeting track at 127.93 wpm, still under 130. The `-15%` rate had slowed Zira by only about 8% (118.14 to 127.93 wpm), not the 15% I assumed: the linear assumption was wrong. The owner approved one more render (`renders-units-20261109-r3`) with calibrated rates: **microphone `default`, meeting `+30%`**, declared once in `speech-specs.ps1` and recorded per unit as `prosody_rate`. The earlier renders `renders-units-20261109` (`-15%` both tracks) and `-r2`, and every derived folder, are retained as evidence.
+Render r2 (meeting at `default`) measured the meeting track at 127.93 wpm, still under 130. The `-15%` rate had slowed Zira by only about 8% (118.14 to 127.93 wpm), not the 15% I assumed: the linear assumption was wrong. The owner approved one more render (`renders-units-20261109-r3`) with calibrated rates: **microphone `default`, meeting `+30%`** (the `+30%` rate was approved by the owner on 2026-11-08 after the pre-flight; the earlier `+20%` version failed the half-effect check at a projected 129.6 wpm), declared once in `speech-specs.ps1` and recorded per unit as `prosody_rate`. The earlier renders `renders-units-20261109` (`-15%` both tracks) and `-r2`, and every derived folder, are retained as evidence.
 
-Projection formula, one for both tracks: `wpm_new = wpm_ref x (1 + 0.083 x delta_points / 15)`, with `delta_points` measured from the `-15%` reference and 0.083 the measured Zira speedup (127.93/118.14 - 1) per 15 points. Meeting (delta 45) is a two-point extrapolation (measured at -15% and default) and goes beyond the measured range; microphone (delta 15) is a cross-voice estimate from a single measured point. Durations scale by 1/(speedup factor) with fixed crop padding. Both 100% and 50% of the effect were evaluated by running the assembler's placement code in memory: microphone 142.5 / 137.2 wpm, meeting 147.2 / 132.7 wpm; shorts stay within 0.332-0.876 s of speech, long units 6.68-7.94 s, and every placement requirement holds in both scenarios. These are projections, not guarantees. The `+30%` setting has not been accepted by the speech engine; that is untested until the render.
+Projection formula, one for both tracks: `wpm_new = wpm_ref x (1 + 0.083 x delta_points / 15)`, with `delta_points` measured from the `-15%` reference and 0.083 the measured Zira speedup (127.93/118.14 - 1) per 15 points. Meeting (delta 45) is a two-point extrapolation (measured at -15% and default) and goes beyond the measured range; microphone (delta 15) is a cross-voice estimate from a single measured point. Durations scale by 1/(speedup factor) with fixed crop padding. Both 100% and 50% of the effect were evaluated by running the assembler's placement code in memory: microphone 142.5 / 137.2 wpm, meeting 147.2 / 132.7 wpm; shorts stay within 0.332-0.876 s of speech, long units 6.68-7.94 s, and every placement requirement holds in both scenarios. These are projections, not guarantees. The `+30%` rate is untested in the actual speech engine: only the application-side regex check (`^[+-]?[0-9]{1,3}%$`) has accepted it, and nothing has verified that the engine accepts the SSML `rate='+30%'` or produces the projected pace until the render is measured.
 
 Placement defect fixed: the planned in-window gap budget (0.44 s) ignored the 20 ms and 30 ms crop padding, so a layout could reach a 0.5 s speech gap (found in the microphone 50% projection). The budget is now `min(0.44, 0.48 - largest lead - largest trail)`, keeping 20 ms margin. The 0.5 s assertion is unchanged and still checks the gap actually produced.
 
 **A-026 addendum:** the linear `-15%` assumption was wrong (measured about 8%), which wasted the r2 render; the pre-flight also found the placement-padding defect above.
 
-### Owner command after independent source review
+### Owner command after independent source review (current: render r3)
 
-Open **Start → Windows PowerShell → Open**, **Windows PowerShell 5.1, not Administrator**. The output folder must not exist. The command renders unit WAVs only; it does not run probes, measurement, assembly, verification, playback or recording.
+This is the one approved render attempt into `renders-units-20261109-r3`, which must not exist yet. The earlier folders `renders-units-20261109` (first render) and `renders-units-20261109-r2` are evidence; never target them. Open **Start → Windows PowerShell → Open**, **Windows PowerShell 5.1, not Administrator**. The output folder must not exist. The command renders unit WAVs only; it does not run probes, measurement, assembly, verification, playback or recording.
 
 ```powershell
-powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -Method ConstructedUnits -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109"
+powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -Method ConstructedUnits -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3"
 ```
 
 ### Stop rule
@@ -115,7 +115,7 @@ Stop on any command failure; do not proceed to the next command or retry. Record
 
 ## Owner's next speech run (separately executed once by the owner)
 
-Open **Start → Windows PowerShell → Open**, not “Run as administrator.” In that normal **Windows PowerShell 5.1** window, run this once. It generates invented speech files without recording or playback. The new output folder preserves both earlier failed attempts.
+**HISTORICAL — do not run.** This is the November 8 probe-selected command, kept as incident history. Open **Start → Windows PowerShell → Open**, not “Run as administrator.” In that normal **Windows PowerShell 5.1** window, run this once. It generates invented speech files without recording or playback. The new output folder preserves both earlier failed attempts.
 
 ```powershell
 powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-probe-selected-20261108"

@@ -107,10 +107,10 @@ Section 8, item 3: after "word timings", insert "(timing basis, unit manifest an
 
 ## 6. Owner-run step
 
-One run, after Codex's changes pass the unit tests and Claude review, and after the protocol amendment is reviewed. Expected under 10 minutes; nothing else should use speech or audio meanwhile. In normal Windows PowerShell 5.1, **not** Administrator:
+(Updated 2026-11-09: the original run used `renders-units-20261109` and is HISTORICAL; the current approved single attempt targets the `-r3` folder below. Never target the earlier folders.) One run, after Codex's changes pass the unit tests and Claude review, and after the protocol amendment is reviewed. Expected under 10 minutes; nothing else should use speech or audio meanwhile. In normal Windows PowerShell 5.1, **not** Administrator:
 
 ```powershell
-powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -Method ConstructedUnits -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109"
+powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -Method ConstructedUnits -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109-r3"
 ```
 
 It renders unit WAVs only: no playback, no recording.
