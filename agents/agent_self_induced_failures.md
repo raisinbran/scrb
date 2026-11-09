@@ -235,6 +235,10 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 ### A-053 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - minor tool slips in the observer fix task
 - **Status / attribution:** Confirmed, minor. A wrong COM class id in my volume-reading snippet (first read failed, fixed and read 0.10); a repository-wide grep that exceeded the 120 s limit (stopped, replaced by a scoped search); the first Python test run had the two environment variables unset (3 skips; rerun with both set: 215 tests, no skips). No evidence affected.
 
+### A-054 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - validation-4 and -5 ran on a reused app with the old transcript on screen
+- **Status / attribution:** Confirmed; agent/test setup. Both short tests reused the app instance from validation-3, whose Live pane still showed the previous recording's rows. The first sample that found the viewport therefore already held 70 visible words, so under the revised rule both runs are INCONCLUSIVE (`result_status`), and validation-5 is not "the same conditions as the real run" (which uses a fresh profile). I noticed only when the corrected report ran on the data. Interval statistics are unaffected; the tree size and word counts differ from a fresh run.
+- **Correction / prevention:** start every validation from a fresh app launch and profile, or confirm the pane is empty before starting the observer, and run the publications report right after the run, not only the interval script. Not repeated automatically; owner approval needed for another test.
+
 
 ## Additional previously reported ChatGPT errors — provenance to verify
 
