@@ -14,41 +14,29 @@
   "candidate": {
     "commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
     "branch": "rosmont/gate3-upstream-diagnostics-20261107",
-    "source": "git archive of pinned commit",
+    "source": "New clean detached git worktree required; not created in this source-only task",
     "production_modified": false,
-    "build": "FAILED_MISSING_APP_LOCAL_DEPENDENCY_LINK",
-    "build_script_corrected": true,
-    "corrected_build_executed": false,
+    "clean_tree_statement": null,
+    "clean_tree_verified": false,
+    "build_commands": ["npm ci", "npm run build"],
+    "canonical_build_executed": false,
     "binary_hashes": null,
     "recording_candidate_change_requires_owner_reverification": true,
-    "source_verification": "RAW_BYTE_CHECK_MISMATCH; core.autocrlf true; one focused sample identical after newline normalization; full normalized verification pending"
+    "root_package_lock_sha256": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
+    "provenance_still_required": [
+      "Exact HEAD and empty git status before and after candidate build",
+      "Built artifact hashes",
+      "Native capture helper, external tools and speech model hashes/configuration"
+    ]
   },
   "rules": {
     "recording_seconds": 420,
-    "scored_interval_seconds": [
-      20,
-      380
-    ],
-    "failure_window_seconds": [
-      170,
-      245
-    ],
-    "required_interval_seconds": [
-      203,
-      214
-    ],
-    "lead_marker_interval_seconds": [
-      0,
-      10
-    ],
-    "trail_marker_interval_seconds": [
-      380,
-      390
-    ],
-    "drain_interval_seconds": [
-      390,
-      420
-    ],
+    "scored_interval_seconds": [20, 380],
+    "failure_window_seconds": [170, 245],
+    "required_interval_seconds": [203, 214],
+    "lead_marker_interval_seconds": [0, 10],
+    "trail_marker_interval_seconds": [380, 390],
+    "drain_interval_seconds": [390, 420],
     "unit": "independently annotated reference utterance",
     "endpoint": "last reference word end to first externally observed visible publication",
     "median_limit_seconds": 3,
@@ -58,23 +46,19 @@
     "simultaneous_speech_fraction_minimum": 0.5,
     "substituted_endpoint_min_words": 3,
     "substituted_endpoint_other_exact_fraction": 0.6,
-    "outcomes": [
-      "MATCHED",
-      "MATCHED-SUBSTITUTED",
-      "UNIDENTIFIED",
-      "BOUNDED",
-      "SETUP-AFFECTED"
-    ],
+    "outcomes": ["MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED"],
     "conservative": "latest endpoint and observed upper time; SETUP-AFFECTED and UNIDENTIFIED uncredited",
     "best_case": "earliest endpoint and observed lower time; SETUP-AFFECTED credited, UNIDENTIFIED uncredited",
     "pre_speech": "Never credited; boundary uncertainty remains BOUNDED",
     "straddle": "Conservative late; not alone definite recurrence",
     "one_publication_one_unit": true,
-    "historical_result": "73/77 unchanged under original frozen detector-end rule"
+    "historical_result": "73/77 unchanged under original frozen detector-end rule",
+    "draft_short_mix_check_fraction": [0.35, 0.45],
+    "draft_short_mix_check_status": "Explicit implementation interpretation of about 40%; review required before freeze; not a change to gate latency scoring"
   },
   "sources": {
     "type": "invented neutral speech; Windows David and Zira requested",
-    "render": "FAILED_NO_USABLE_VOICE_IN_EXECUTION_CONTEXT",
+    "render": "FAILED_OWNER_RUN_INCOMPLETE_ENGINE_BOOKMARKS_FOR_microphone-long-00; one attempt; no retry",
     "render_retry_count": 0,
     "microphone_wav_sha256": null,
     "meeting_wav_sha256": null,
@@ -83,7 +67,9 @@
     "eligible_denominators": null,
     "listen_and_waveform_audit": "NOT_RUN",
     "assembly": "NOT_RUN",
-    "actual_words_per_minute": null
+    "actual_words_per_minute": null,
+    "owner_render_output": "renders-owner-20261108/microphone-long-00.wav retained, 405142 bytes; no complete engine-marks.json or source pack",
+    "bookmark_instrumentation": "Synchronous SpeakSsml retained; locked snapshots poll up to 5000 ms after return, interval 100 ms; per-WAV TSV records expected/received/missing/duplicate/unexpected/order and UTC arrivals; no instrumented render executed"
   },
   "confirm_items": [
     {
@@ -168,7 +154,7 @@
       "Microphone Array (2- Realtek(R) Audio)",
       "Speakers (2- Realtek(R) Audio)"
     ],
-    "virtual_routes": "NONE_IDENTIFIED; owner did not know of others",
+    "virtual_routes": "Owner confirms no virtual audio cables installed",
     "drivers_installed": false,
     "settings_changed": false,
     "real_path_validation": "NOT_RUN",
@@ -241,8 +227,8 @@
     "post_capture_readonly_and_hashes": "REQUIRED; no capture yet"
   },
   "analysis": {
-    "synthetic_bounds_tests": "PASS 6/6",
-    "archive_metadata_audit": "PASS",
+    "synthetic_bounds_tests": "Existing six PASS; six additional timing-only coverage tests PASS; no audio I/O",
+    "archive_metadata_audit": "FROZEN_AS_RECORDED; not rerun",
     "ordered_occurrence_alignment": "NOT_IMPLEMENTED",
     "independent_utterance_identity": "REQUIRES_ADJUDICATED_INPUT",
     "event_chain_and_counterfactual_localization": "NOT_IMPLEMENTED; always INCONCLUSIVE",
@@ -256,17 +242,55 @@
     "main_recording_started": false,
     "screen_recording_started": false
   },
-  "publication": {
-    "preparation_branch": "rosmont/windows-gate3-retest-preflight-20261108",
-    "base": "6297862",
-    "draft_pr": "PENDING_GUARD_UNAVAILABLE",
-    "guard_failure": "Existing pdev2 tool failed to compile on Windows: syscall.Flock/LOCK_EX undefined",
-    "independent_review": "PENDING",
-    "comment_checker": "UNAVAILABLE; Python-rule wrapper depends on missing checker",
-    "syntax_checks": "PASS Node mjs, PowerShell parser, Python compile",
-    "eslint": "PASS build-candidate.mjs"
-  },
   "artifact_sha256": {
+    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
+    "scripts/gate3-retest/assemble-sources.py": "7784eaefc6a720ccd4a11ad5e3a63fae7ec172bbe61cac1f2b718aa80f496a25",
+    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+    "scripts/gate3-retest/prepare-speech.ps1": "b3fc842bddab679c0038be3a276fa063fd753f6ed4d0731e00a7cd8dec46d151",
+    "scripts/gate3-retest/README.md": "cc4cdf4ddd34a6da5c7daa0bee72198cdde0f03558a103e7d2081d68835563df",
+    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
+    "scripts/gate3-retest/test_sources.py": "0c2d42f3e0ba321c0e9a1f78f8397eb49035d6b3d98e129baa8081ad800c89ce"
+  },
+  "recorded_archive_audit": {
+    "status": "FROZEN_AS_PREVIOUSLY_RECORDED; audit script unchanged and not rerun",
+    "result_file_sha256": "5d5312e2e913f9c29b542e63c1189c5a1a22382c3288445468662725e884e3c5",
+    "result": {
+      "purpose": "metadata preflight only; not a rescore",
+      "frozen_result": "73/77 unchanged",
+      "original_clock": "native recording origin; measure.py clips first 240000 native ms",
+      "meeting_detector_count": 77,
+      "meeting_short_under_1s": 34,
+      "clock_before": {
+        "wall_minus_qpc_ms": 1793526145968.7688,
+        "bracket_ms": 0.0001
+      },
+      "clock_after": {
+        "wall_minus_qpc_ms": 1793526145968.497,
+        "bracket_ms": 0.0001
+      },
+      "offset_change_ms": -0.271728515625,
+      "native_origin_qpc_ns": 564425070959500,
+      "original_live_settings": {
+        "threads": 6,
+        "useGpu": false,
+        "audioContext": 768,
+        "language": "en"
+      },
+      "memory_samples": 808,
+      "original_app_memory_peak_bytes": 1562148864,
+      "original_app_memory_median_bytes": 869095424.0,
+      "not_verified": [
+        "audio sync markers",
+        "original simultaneous speech fraction",
+        "prior GPU/CPU utilization",
+        "background app equivalence",
+        "virtual route equivalence"
+      ]
+    }
+  },
+  "historical_artifact_sha256": {
     "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
     "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
     "scripts/gate3-retest/assemble-sources.py": "cb76dc99c5942f34bb97b989121750dcd6fe858bbeb1bd29dd24c5f399f9086e",
@@ -277,29 +301,5 @@
     "scripts/gate3-retest/README.md": "bcd752fa14b1cb87ae4aff4f932e104761790f44b2d92d602c49f5583f9b9fbd",
     "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e"
   },
-  "usage_and_handoff": {
-    "assignment": "W-G3-V3-PREP-20261108",
-    "start_pt": "2026-11-08 16:52:10 PST",
-    "five_hour_remaining_start": 98,
-    "weekly_remaining_start": 100,
-    "five_hour_reset_pt": "2026-11-08 19:15:48 PST",
-    "weekly_reset_pt": "2026-11-15 16:43:52 PST",
-    "model_effort": "Codex; exact model and effort unavailable",
-    "surface": "Windows Codex desktop",
-    "overlapping_usage": "unknown; no subagents spawned",
-    "tracker_row": "PROPOSED_NOT_COMMITTED; final readings in chat",
-    "incidents": "A-013 through A-017 proposed in scripts/gate3-retest/README.md; not entered in agents register",
-    "next": "Owner decides supported PR publication path and authorizes failed-check reattempts; resolve virtual routes and usable TTS; validate sources, build, observer and full analysis; freeze only after all preflight items pass; then request specific up-to-30-minute retest authorization",
-    "end_observation_pt": "2026-11-08 17:04:49 PST",
-    "five_hour_remaining_end": 87,
-    "weekly_remaining_end": 98,
-    "observed_decrease_pp": {
-      "five_hour": 11,
-      "weekly": 2
-    },
-    "attribution": "account-wide rounded changes; same reset windows; overlap unknown",
-    "test_retries": 0,
-    "final_acceptance": "inconclusive",
-    "proposed_tracker_row": "| 2026-11-08 | Codex / Windows desktop | W-G3-V3-PREP-20261108; incomplete preparation; no recording; preflight blocked | 16:52:10 PST | 17:04:49 PST | 98% -> 87% | 100% -> 98% | 11 / 2 account-wide | Preparation / exact model and effort unavailable | 0 test retries | inconclusive | get_usage_limits; resets 2026-11-08 19:15:48 PST / 2026-11-15 16:43:52 PST; overlap unknown; manifest and README contain handoff; row proposed not committed to tracker |"
-  }
+  "artifact_sha256_encoding": "UTF-8 repository text with LF newlines; historical hashes retained separately"
 }
