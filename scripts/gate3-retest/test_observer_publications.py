@@ -437,7 +437,7 @@ class Scripts(unittest.TestCase):
             self.assertNotIn(forbidden, text)
         for required in ("CreateNew", "[IO.FileShare]::Read", "input_sent = $false", "SRCB-G3-OBSERVER-RAW-1",
                          "CacheRequest", "$cache.Activate()", "$scope.Dispose()", ".Cached", "bounds = (Get-Rect $c.BoundingRectangle)",
-                         "Transcript viewport element not found"):
+                         "Transcript viewport element not found", "SkipWhitespaceElements", "$findCondition"):
             self.assertIn(required, text)
         self.assertNotIn(".Current", text.replace("$viewport.Current", "").replace("TryGetCurrentPattern", ""))
 
