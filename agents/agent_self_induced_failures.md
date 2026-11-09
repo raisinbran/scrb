@@ -1,6 +1,6 @@
-# SRCB — ChatGPT and Codex self-induced failure register
+# SRCB — Agent self-induced failure register (all agents)
 
-**Owner decision:** 2026-11-03 (Pacific). **Applies to:** ChatGPT Chat, Codex on Windows/macOS, and their test scripts, instructions, QA, handoffs, and workflow actions. Record incidents **even when production code is unaffected**. This supplements [agent allocation and usage](agent_task_allocation.md), not Gate 3 acceptance evidence.
+**Owner decision:** 2026-11-03 (Pacific). **Applies to:** every agent: ChatGPT Chat, Codex on Windows/macOS, Claude Chat, Claude Code (all models), and their test scripts, instructions, QA, handoffs, and workflow actions. Record incidents **even when production code is unaffected**. This supplements [agent allocation and usage](agent_task_allocation.md), not Gate 3 acceptance evidence.
 
 ## Logging policy
 
@@ -43,6 +43,19 @@ These were acknowledged in prior SRCB conversations but have not been cross-chec
 ## Credit and result impact — do not over-attribute
 
 The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 81% and weekly remaining 31% -> 28%** during the recent closure work, while two-track acceptance remained **NOT PROVEN**. The owner also reported some repeated attempts using approximately 5% of the five-hour allowance each. These observations are **account-level balance changes**, potentially shared or rounded, **not verified per-attempt token costs**; they belong in [the usage tracker](agent_task_allocation.md) when reconciled. The material result was wasted owner interactions and test attempts, not a proven failure of durable recording.
+
+## Claude-agent incidents (backfill 2026-11-08, provisional IDs)
+
+Temporary `CL-` IDs avoid colliding with A-013..A-026 on the PR 74 branch; renumber to the next unused `A-` ID when merged. All are confirmed by the agent's own admission or an artifact; usage costs are not measured.
+
+| ID | Agent | Failure and impact | Status |
+| --- | --- | --- | --- |
+| CL-001 | Claude Code (Opus session) | Reversed the best-case and conservative latency endpoints in spread Option B; caught by ChatGPT QA before the rule took effect. | Corrected in the amendment and tests. |
+| CL-002 | Claude Code (Opus session) | Pre-flight for the r2 render assumed the `-15%` rate slowed speech linearly (projected 138.9 wpm); measured 127.93 wpm. The owner ran a render that missed the pace band. Same event as the A-026 addendum on PR 74. | Corrected by the r3 rate plan; formula now labeled an extrapolation. |
+| CL-003 | Claude Code (Opus session) | Treated the pre-flight formula as reliable for r3: it projected about 147 wpm for the meeting at `+30%`, measured 164.26. Passed the band, but the formula underestimates large rate changes. | Open: formula limits recorded; listen-through checks intelligibility. |
+| CL-004 | Claude Code (Sonnet, Mac review) | Reported usage as `unavailable` without trying `get_usage`. | Corrected; rule recorded in the usage-measurement memory. |
+| CL-005 | Claude Code (Sonnet, Windows) | Self-reported: over-broad rate-literal test, wrong test expectation for a clipped unit, a patch-script quoting error, a too-small zero count in a join test, and a re-measure into a new derived folder without being asked. | Fixed in tests or process; no thresholds changed. |
+| CL-006 | Claude Code (Opus session) | Asserted without evidence that Codex "tends to make more mistakes"; this register is lopsided because only ChatGPT/Codex were required to log. Also read the logging rule too narrowly. | Corrected 2026-11-08 after the owner's challenge; scope widened above. |
 
 ## Explicit exclusions: do not assign blame without evidence
 
