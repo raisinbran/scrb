@@ -210,6 +210,17 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Correction / prevention:** Not fixed here (no code change without approval). Options: open the file with `FileShare.Read`, or print the origin to stdout/a side file. The viewport errors are unattributed: the Live screen may not have been open, or UI Automation may not expose the pane (Chromium accessibility). Not determined. **Follow-up correction (same day):** the Live screen exposes no `Live transcript` element in its "Ready to record" state (UIA tree: Document, Main, nav buttons, Recording controls, Start, status text, no transcript group), so the 757 errors before Record were expected and not evidence that UIA cannot reach the pane; my report implied a possible UIA problem without that check. Also the Meeting Scribe window was behind other windows, so its web content tree was nearly empty (13 elements) until the window was brought forward (50 elements, Chromium document exposed). Whether the pane is reachable once recording is not yet tested.
 - **Owner approval:** No rerun without new approval.
 
+### A-049 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - validation run 2 played no audio (variable name clash)
+- **Status / attribution:** Confirmed agent mistake in my run-orchestration script (kept in the session scratchpad, not in Git).
+- **What failed:** PowerShell variable names are case-insensitive. I set `$a` to the assembly folder and later `$A = [AutomationElement]`, so `$a` became the AutomationElement type and `play-sources.ps1` failed at once (`ReadAllBytes`, path `...\System.Windows.Automation.AutomationElement\microphone.wav`). My script pressed Record anyway and waited on clock steps instead of checking that the playback process was alive, so the app recorded about 320 s of silence while the scripted scrolls ran. I only noticed at the end. The dry run had used a different variable and could not catch it.
+- **Impact:** The planned ~15 min validation run produced no speech, no rows and no scrolling or virtualization evidence; about 9 min of owner-visible run time, no audio played, no gate effect. A rerun needs owner approval (repeat of an inconclusive test).
+- **Evidence:** `observer-validation-2\playback-stderr.txt`, `actions.log` (play-sources started 19:06:39Z, process exited before the first scroll step), `raw.jsonl`.
+- **Correction / prevention:** Use distinct names; abort before pressing Record if the playback process exits or its log folder does not appear within seconds of the ready file. Not rerun.
+- **Owner approval:** Required for any rerun.
+
+### A-050 - 2026-11-09 - Claude Code (Sonnet 5.5) / Windows Desktop - commit message heredoc failed
+- **Status / attribution:** Confirmed, minor. My first `git commit -F -` with a PowerShell here-string treated the message as a pathspec and committed nothing, and the following `git push` published the unchanged `c0eb03c` as the new branch. Fixed by committing from a message file (`5f1522c`). No effect on content.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
