@@ -24,9 +24,15 @@ Status: **DRAFT.** A list of what the real run uses and must check before it sta
 ## Pre-run checklist
 
 1. Fresh app profile, so no old rows are on screen. A first sample with visible words makes the run INCONCLUSIVE (validation-4 and -5 each had 70 visible words in the first sample).
-2. First video frame check as above.
+2. Pre-run setup check (before Record): the recorder is started and the overlay window is placed over the area the video will capture. This only sets up the capture; it cannot show that the video contains the overlay, because no frame exists yet. The first overlay-bearing video frame is checked after capture (see Post-capture checks below).
 3. Frame capture and the resource sampler running as backup.
 4. Default playback device `Speakers (2- Realtek(R) Audio)`, volume 10 as in the practice run (`play-sources.ps1` refuses anything not Realtek).
 5. `CABLE Output` chosen explicitly as the microphone in the app.
 6. Native candidate pinned and `launch-candidate.ps1` check-only hashes match.
 7. Row labels: You maps to the microphone track; Meeting, Speaker ? and Speaker N map to the meeting track. Any other label with words makes the run INCONCLUSIVE. Retained validation-3, -4 and -5 only ever showed You and Meeting; Speaker N has not been seen in real data.
+
+## Post-capture checks (manual; none is scripted)
+
+1. First overlay-bearing video frame: after the run, extract frames with the decoder tool until the overlay is readable, and compare that frame's overlay reading with the overlay start tick in `actions.log` (the first-frame check above). A video that starts before the overlay has leading frames without it; look further in. A video that lacks the overlay for a stretch (validation-3) must be reported, not assumed.
+2. At least 10 frames with readable overlay, including scrolling, are compared with the observer samples (the validation draft's frame check).
+

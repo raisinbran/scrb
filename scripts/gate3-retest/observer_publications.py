@@ -55,31 +55,83 @@ def observation_u(previous_begin, current_end):
 
 
 def walk_rows(elements, labels):
-    """Group a document-ordered element list into rows: label, time text, then paragraph elements.
+    """Group a document-ordered element list into rows: label, time text, then the row's word elements.
 
-    Returns (rows, unmapped). A row whose label is not recognised is returned in `unmapped`, never dropped silently.
+    A label is a row header only in header context: the next non-empty element is a time stamp. The same word
+    ("You", "Meeting", "Speaker 2") anywhere else in a row is an ordinary transcript word. A header whose label
+    is not recognised opens a row in `unmapped`, never dropped silently. Matching is case-sensitive, as in the app.
+    Returns (rows, unmapped).
     """
-    rows, unmapped, current, previous = [], [], None, None
-    for element in elements:
-        name = (element.get("name") or "").strip()
-        track = track_for_label(name, labels)
-        if track is not None:
-            current = {"label": name, "track": track, "time": None, "paragraphs": [], "label_element": element}
-            rows.append(current)
-        elif (TIME_TEXT.match(name) and (current is None or current["time"] is not None) and previous is not None
-              and not TIME_TEXT.match((previous.get("name") or "").strip())):
-            # A time stamp that opens a new row: the element just before it was the (unmapped) label.
-            if current is not None and current["paragraphs"] and current["paragraphs"][-1] is previous:
-                current["paragraphs"].pop()
-            current = {"label": previous.get("name", "").strip(), "track": None, "time": name, "paragraphs": [],
-                       "label_element": previous}
-            unmapped.append(current)
-        elif current is not None and current["time"] is None and TIME_TEXT.match(name):
-            current["time"] = name
-        elif current is not None and name and current["time"] is not None:
+    names = [(element.get("name") or "").strip() for element in elements]
+    rows, unmapped, current, header_time = [], [], None, set()
+    nonempty = [i for i, n in enumerate(names) if n]
+    follower = {nonempty[k]: nonempty[k + 1] for k in range(len(nonempty) - 1)}
+    for index, element in enumerate(elements):
+        name = names[index]
+        if not name or index in header_time:
+            continue
+        after = follower.get(index)
+        if after is not None and not TIME_TEXT.match(name) and TIME_TEXT.match(names[after]):
+            track = track_for_label(name, labels)
+            current = {"label": name, "track": track, "time": names[after], "paragraphs": [], "label_element": element,
+                       "time_element": elements[after]}
+            (rows if track is not None else unmapped).append(current)
+            header_time.add(after)
+        elif current is not None:
             current["paragraphs"].append(element)
-        previous = element
     return rows, unmapped
+
+
+def unattributed_elements(sample, labels):
+    """Conservation check: nonblank Text elements inside the transcript viewport that belong to no recognised row.
+
+    A recognised row's label, time stamp and word elements are attributed. Everything else (UI chrome, text before
+    the first row header, text of an unmapped-label row) is returned as [(name, bounds)], in document order.
+    """
+    viewport = sample.get("viewport")
+    rows = walk_rows(sample.get("elements", []), labels)[0]
+    claimed = set()
+    for row in rows:
+        claimed.update(id(e) for e in [row["label_element"], row["time_element"]] + row["paragraphs"])
+    return [((e.get("name") or "").strip(), e.get("bounds")) for e in sample.get("elements", [])
+            if (e.get("name") or "").strip() and "Text" in (e.get("role") or "Text") and id(e) not in claimed
+            and inside(e.get("bounds"), viewport)]
+
+
+# The only chrome text found inside the transcript viewport on validations 3, 4 and 5 (TranscriptView.tsx empty state).
+KNOWN_CHROME_TEXT = ("Text appears here once people start talking.",)
+
+
+def unattributed_summary(samples, labels, examples=5):
+    """Report-only totals of unattributed_elements over all samples (not a scoring gate).
+
+    PROPOSED rule, not applied: exclude exactly KNOWN_CHROME_TEXT; any other unattributed nonblank Text element
+    inside the viewport would make the run INCONCLUSIVE (proposed_rule_would_be_inconclusive).
+    """
+    total, per_sample_max, with_any, first, texts = 0, 0, 0, [], {}
+    unexpected_total, unexpected_max, unexpected_first = 0, 0, []
+    for number, s in enumerate(samples):
+        found = unattributed_elements(s, labels)
+        total += len(found)
+        per_sample_max = max(per_sample_max, len(found))
+        with_any += 1 if found else 0
+        other = [text for text, _ in found if text not in KNOWN_CHROME_TEXT]
+        unexpected_total += len(other)
+        unexpected_max = max(unexpected_max, len(other))
+        for text in other:
+            if len(unexpected_first) < examples and text not in {f["text"] for f in unexpected_first}:
+                unexpected_first.append({"sample": number, "text": text})
+        for text, _ in found:
+            texts[text] = texts.get(text, 0) + 1
+            if text not in {f["text"] for f in first} and len(first) < examples:
+                first.append({"sample": number, "text": text})
+    top = sorted(texts.items(), key=lambda kv: (-kv[1], kv[0]))[:10]
+    return {"total": total, "per_sample_max": per_sample_max, "samples_with_any": with_any,
+            "distinct_texts": len(texts), "examples": first, "most_frequent": [{"text": t, "count": c} for t, c in top],
+            "known_chrome_text": list(KNOWN_CHROME_TEXT), "outside_known_chrome_total": unexpected_total,
+            "outside_known_chrome_per_sample_max": unexpected_max, "outside_known_chrome_examples": unexpected_first,
+            "proposed_rule_would_be_inconclusive": unexpected_total > 0,
+            "role": "report only; not a scoring gate and not part of result_status"}
 
 
 def split_rows(elements, labels):
@@ -269,6 +321,7 @@ def build_publications(header, samples, labels, harness_origin_qpc, expected_fre
               "result_status": result_status,
               "first_sample_visible_words_before_dedup": first_sample_visible,
               "validation_pass": bool(result_status == "OK"),
+              "unattributed_text_elements": unattributed_summary(samples, labels),
               "unmapped_label_row_count": len(unmapped), "unmapped_labels": unmapped_counts,
               "unmapped_label_rows": unmapped[:20],
               "u_limit_role": "reporting threshold only; u_pass and the statistics below never block scoring or validation_pass",
