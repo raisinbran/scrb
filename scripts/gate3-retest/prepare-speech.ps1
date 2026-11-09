@@ -1,9 +1,15 @@
 param(
   [Parameter(Mandatory=$true)][string]$OutputDirectory,
+  [ValidateSet('DiagnosticProbes','ConstructedUnits')][string]$Method='DiagnosticProbes',
   [switch]$Probe,
   [string]$PythonExecutable = 'C:\Users\bchen\Documents\ChatGPT\srcb\tools\python\python.exe'
 )
 $ErrorActionPreference = 'Stop'
+if ($Method -eq 'ConstructedUnits') {
+  & (Join-Path $PSScriptRoot 'render-constructed-units.ps1') -OutputDirectory $OutputDirectory
+  return
+}
+if (-not $Probe) { throw 'Legacy encodings are diagnostic probes only. Full sources require -Method ConstructedUnits.' }
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Output already exists; no automatic repeat.' }
 if (-not (Test-Path -LiteralPath $PythonExecutable)) { throw 'Python executable unavailable; no synthesis started.' }
 Add-Type -AssemblyName System.Speech
@@ -63,20 +69,3 @@ if ($LASTEXITCODE -ne 0) { throw "No bookmark encoding passed completely; retain
 $selected = (Get-Content -LiteralPath $selectionFile -Raw | ConvertFrom-Json).selected_encoding
 Write-Output "Selected encoding $selected (preference A, C, B; both voices must pass)."
 if ($Probe) { Write-Output 'Probe only complete; no full source renders.'; return }
-
-$results=@()
-foreach ($spec in $specs) {
-  $index=0
-  foreach ($kind in @('long','short')) {
-    foreach ($text in $spec[$kind]) {
-      $name = '{0}-{1}-{2:D2}' -f $spec.track,$kind,$index
-      $file = Join-Path $OutputDirectory ($name+'.wav')
-      $result = Invoke-SourceRender -Voice $spec.voice -Text $text -File $file -Encoding $selected
-      if (-not $result.passed) { throw "Incomplete engine bookmarks for $name or unvalidated timing; retain $file.bookmarks.tsv, per-word timelines and $file.timing.json. No retry." }
-      $results += @{id=$name;track=$spec.track;kind=$kind;voice=$spec.voice;file=$name+'.wav';text=$text;marks=@($result.marks);encoding=$selected;timing_basis=$result.timing_basis;timing_file=$name+'.wav.timing.json'}
-      $index++
-    }
-  }
-}
-$results | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'engine-marks.json') -Encoding UTF8
-Write-Output 'Rendered invented sources only; no playback or capture. Eligibility and coverage review remain pending.'

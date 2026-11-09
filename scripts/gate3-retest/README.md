@@ -1,5 +1,43 @@
 # Windows Gate 3 diagnostic preparation
 
+## Current owner-approved method: ConstructedUnits
+
+This section supersedes the earlier A/B/C full-render instructions, which remain below as incident history. The owner approved the decision method on November 8 with the independent corrections supplied in the task. The decision file's earlier recommendation status is historical. The separate `docs/gates/gate-3-windows-v3-timing-amendment-proposed.md` needs review; Protocol v3 itself is unchanged. The manifest stays **NOT_FROZEN**. No audio, synthesis, recording, playback, application build or processing of owner unit WAVs ran during this source-only implementation. Tests use in-memory synthetic bursts only.
+
+Each long utterance is exactly one prefix unit containing all words except its last, plus one final-word unit. A one-word utterance has only its final unit. `speech-specs.ps1` keeps the original texts and voices and adds ordered unit IDs/roles. `UnitRenderer.cs` renders plain SSML once per unit, with no bookmarks, events or AudioPosition access. It returns actual WAV sample count and whole-file SHA-256. `-Method ConstructedUnits` dispatches and returns before any legacy renderer, probe, Python bookmark helper or engine timing input is accessed. Legacy A/B/C runs require `-Probe` and are diagnostic-only. The constructed metadata loader rejects engine-timing fields and values.
+
+`measure-units.py` writes to a fresh derived folder. It measures primary 5 ms RMS edges at max(128, 3% of the unit peak RMS), and secondary edges at PCM16 amplitude 184. It rejects silence, clipped edges, invalid crop padding and threshold spread over 25 ms. Crop padding is 20 ms before onset and 30 ms after offset. All measurements retain the original WAV hash, manifest hash and measurement script/helper versions. No scale factor is used.
+
+`assemble-sources.py` consumes only `units-manifest.json` and the measurements. Its default inserted join is 40 ms (960 source samples at 24 kHz). Effective near-silence is trailing crop plus inserted zeros plus leading crop, converted to **seconds**, and must be strictly below **280 ms**. Evidence: candidate `553dd9080f452f8a54ccff5cd5fea8d6937438ae`, `packages/transcription/src/whisper.ts`, **line 144**, passes `-vsd 300`. This is the 300 ms silence split, minus a 20 ms margin; `SETTLE_MS` is not used. Source 24 kHz and live-engine 16 kHz sample counts are never compared directly. Default effective join is 30+40+20 = 90 ms.
+
+Placement and coverage assertions include all speech spans and their gaps, including the whole 170–245 s window, cross-track overlap and short-unit mix. The 130–170 wpm track check counts reference words over the sum of constructed acoustic utterance spans, including within-utterance joins but excluding between-utterance placement gaps. A prefix span is a phrase, not a claim of prefix-internal word timings. Annotations expose `reference_words` for lexical matching and `reference_spans` for known timing spans.
+
+`verify-joined.py` is an **arithmetic/consistency check**, in code and output. It checks exact-zero inserted silence, exact join counts, partition/overlap arithmetic and SHA-256 of each copied cropped segment. Its window energy scan is same-method consistency, not independent acoustic ground truth. It writes `joined-verification.json` in a fresh derived-output folder and records the script version. The assembler runs the same checks and refuses annotations unless both tracks pass. Waveform spot-check, second-threshold spread and listen-through remain required. Annotations and verification outputs remain **UNFROZEN** until verification and owner checks pass; no automatic freeze is implemented.
+
+Primary timing is `acoustic_end`, the final-word energy offset. `crop_end_bound` is the start of inserted silence after the cropped final word and is a secondary sensitivity bound only. It is never a detector endpoint. Exact joined sample indices, acoustic-end threshold spread, 5 ms resolution and uncertainty (offset spread plus 5 ms) are recorded. The retest score is not comparable with the original frozen 73/77 score. That score and rule remain unchanged.
+
+Layer C caveat: at the same candidate, `livePcmEngine.ts` **line 11** sets `MAX_SPEECH_MS = 4000`; processing spans can be split. One reference utterance may generate several diagnostic trace events. Do not assume a one-to-one mapping or localize an ambiguous chain.
+
+### Owner command after independent source review
+
+Open **Start → Windows PowerShell → Open**, **Windows PowerShell 5.1, not Administrator**. The output folder must not exist. The command renders unit WAVs only; it does not run probes, measurement, assembly, verification, playback or recording.
+
+```powershell
+powershell.exe -NoProfile -File "C:\Users\bchen\Documents\GitHub\scrb\scripts\gate3-retest\prepare-speech.ps1" -Method ConstructedUnits -OutputDirectory "C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\renders-units-20261109"
+```
+
+### Stop rule
+
+render fails, a unit is clipped or acoustically invalid, more than 10% of a track's units are unclear or choppy in the listen-through, or any change to rendering or source content would be needed -> STOP, preserve everything, no rerender, no fallback to engine marks or scale factors, new owner approval needed. A measurement, assembly or verification CODE defect -> fix with synthetic tests and rerun offline on the same preserved unit WAVs, writing to a NEW derived-output folder, keeping the earlier failure outputs and recording the corrected script version; never loosen a measurement threshold to manufacture a pass.
+
+### Incident updates (proposed, historical entries below retained)
+
+A-019 closes as **engine marks unusable as a WAV timebase; cause not established; dropped**. This is a timing-harness outcome, not an application defect. A-013 through A-022 remain intact below.
+
+**A-023:** The former C path would have cropped Zira word files at the incorrect 164 ms engine endpoint, truncating speech; validation caught this before concatenation, so no joined source was affected. It also displayed complete counts with an “Incomplete engine bookmarks” failure message. ConstructedUnits now bypasses that path entirely. Earlier output is preserved, not relabelled as an application failure.
+
+**Proposed A-024:** The first source-only PowerShell spec checker grouped hashtables directly and falsely reported invalid prefix construction. Converting the records to PSCustomObject before grouping corrected the checker; all prefix/final spec assertions and C# compilations passed in Windows PowerShell 5.1. Both checker files are retained outside Git. A trailing blank line was caught and fixed before commit. A handoff helper initially used the Windows default text encoding and failed to read UTF-8 prose; explicit UTF-8 corrected that helper before it changed files. No render or evidence was affected.
+
 Candidate: `553dd9080f452f8a54ccff5cd5fea8d6937438ae`.
 Protocol: `docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md`
 at `6297862` on origin/main. The owner's November 8 assignment establishes approval despite the source's stale draft header.

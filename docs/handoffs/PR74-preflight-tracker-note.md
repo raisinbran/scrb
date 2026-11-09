@@ -101,3 +101,17 @@ Proposed row (not entered in agents tracker):
 | Date PT    | Agent / model / effort            | Task                     | Start / end observation PT | 5h remaining | Weekly remaining | Retries / status                                                               | Notes                                                                                                                       |
 | ---------- | --------------------------------- | ------------------------ | -------------------------- | ------------ | ---------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-08 | Codex Desktop / gpt-6.1-sol / low | PR74 bookmark source fix | 18:42:12 / 18:50:23 PST    | 68% -> 61%   | 95% -> 94%       | corrected deterministic verification attempts only; pending independent review | Same resets Nov 8 19:15:48 PST / Nov 15 16:43:52 PST; overlap unknown; account-wide decrease 7/1 pp, not isolated task cost |
+
+## ConstructedUnits source implementation
+
+Owner corrections 1–9 are implemented: one prefix plus final unit; mark-free early dispatch and rejection of legacy timing; crop_end_bound sensitivity only; effective joins below 280 ms using candidate whisper.ts line 144; arithmetic/consistency verification; UNFROZEN annotations; 4000 ms trace-span caveat; exact revised stop rule; separate proposed section-1 timing amendment with section-2 caveats in both directions and Freeze Manifest item 3 provenance. Protocol v3 unchanged. Actual unit rendering, processing, independent review, waveform review and listening remain pending.
+
+A-013–A-022 preserved. A-019 dropped as unusable engine timebase, cause unestablished. A-023 documents the never-assembled mark-crop truncation risk and misleading incomplete-count message. Proposed A-024 records the false hashtable-grouping check, a corrected blank line and a UTF-8 read failure in the handoff helper. No physical evidence affected.
+
+Checks: 29 in-memory synthetic tests PASS; Python syntax PASS; explicit Windows PowerShell 5.1 parses scripts, compiles both classes and checks prefix/final specs without rendering. Dedicated linters/comment checker unavailable. No synthesis, owner-WAV processing, application build, recording or playback ran.
+
+Proposed tracker row, not entered in agents tracker:
+
+| Date PT    | Agent/model/effort                | Task                          | Start/end observation PT | 5h left     | Week left  | Status                      | Notes                                                                                                                           |
+| ---------- | --------------------------------- | ----------------------------- | ------------------------ | ----------- | ---------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-08 | Codex Desktop / gpt-6.1-sol / low | PR74 ConstructedUnits sources | 19:48:02 / 20:00:00 PST  | 100% -> 91% | 93% -> 91% | checks pass; review pending | account-wide 9/2 pp; same windows, overlap unknown; corrected deterministic checker only; final publication observation in chat |

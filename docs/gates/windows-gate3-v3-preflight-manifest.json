@@ -93,6 +93,32 @@
         "next_start_as_endpoint": false,
         "timing": "independent acoustic energy end; waveform review required"
       }
+    },
+    "method": "ConstructedUnits",
+    "constructed_units": {
+      "status": "NOT_RUN; UNFROZEN",
+      "prefix": "all words except last, one synthesis",
+      "final": "one final word; only unit for one-word utterance",
+      "source_rate_hz": 24000,
+      "crop_lead_ms": 20,
+      "crop_trail_ms": 30,
+      "inserted_join_ms": 40,
+      "vad_silence_ms": 300,
+      "join_margin_ms": 20,
+      "effective_join_limit_s_exclusive": 0.28,
+      "vad_source": "553dd9080f452f8a54ccff5cd5fea8d6937438ae:packages/transcription/src/whisper.ts:144",
+      "frame_resolution_ms": 5,
+      "primary_threshold": "max(128 PCM16, 3% unit peak RMS)",
+      "secondary_threshold_pcm16": 184,
+      "max_threshold_spread_ms": 25,
+      "wpm_bounds": [130, 170],
+      "wpm_scope": "track words / summed acoustic utterance spans, excluding between-utterance placement gaps",
+      "timing_basis": "constructed-sample-offset+unit-energy",
+      "primary_bound": "acoustic_end",
+      "secondary_sensitivity_bound": "crop_end_bound",
+      "uncertainty": "offset threshold spread plus 5 ms frame resolution",
+      "verification": "arithmetic/consistency only; not independent acoustic ground truth",
+      "owner_waveform_and_listen_review": "pending"
     }
   },
   "confirm_items": [
@@ -256,7 +282,9 @@
     "ordered_occurrence_alignment": "NOT_IMPLEMENTED",
     "independent_utterance_identity": "REQUIRES_ADJUDICATED_INPUT",
     "event_chain_and_counterfactual_localization": "NOT_IMPLEMENTED; always INCONCLUSIVE",
-    "full_analysis_ready": false
+    "full_analysis_ready": false,
+    "constructed_tests": "29 tests PASS; synthetic arrays only; no WAV processing or synthesis",
+    "layer_c": "INCONCLUSIVE unless unambiguous event chain; candidate processing spans limited to 4000 ms; no one-to-one reference/event assumption"
   },
   "retention": {
     "private_evidence_directory": "gate3-v3-preflight-20261108 outside Git; exact owner-local path in chat",
@@ -269,17 +297,23 @@
   "artifact_sha256": {
     "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
     "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
-    "scripts/gate3-retest/assemble-sources.py": "b93924df6c0643d280721be9253bbcced686da2c01e45ef6f266fcac06508c2c",
+    "scripts/gate3-retest/assemble-sources.py": "e56b19fb1c88f31757513049977a03dfada0d858e57662e28c78a08a4b8f80fa",
     "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
     "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
+    "scripts/gate3-retest/constructed_units.py": "257fa98f28683eda204942afdc43528d780a6d621e4e3cc1f776c6a06c1451c2",
+    "scripts/gate3-retest/measure-units.py": "02549c136f5ec38c9af9321c9d5a5b1548fe71cea8abbbb1e18c6ec2162beda2",
     "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-    "scripts/gate3-retest/prepare-speech.ps1": "8542141f48b6030362c2a7c2b9ec5f83da8ee147e086d80b9275e0dcac059856",
-    "scripts/gate3-retest/README.md": "b28ebc8aefb382f3c57857627fbe887a9ad81526763831ebe29ce338bae592ec",
-    "scripts/gate3-retest/speech-specs.ps1": "8c244db7c3af8fadef0c6e64c3739df76d7ec446398a153ca3132100879c9298",
+    "scripts/gate3-retest/prepare-speech.ps1": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
+    "scripts/gate3-retest/README.md": "32c15f9b0bffdfb055555695e2aeaabdead56a6e4a8a1002462d92ad91f561ef",
+    "scripts/gate3-retest/render-constructed-units.ps1": "88b1321cdaf3df1a3ef783a33736843eebac95561136bc344cf786da72a48098",
+    "scripts/gate3-retest/speech-specs.ps1": "60e283a5ac7278fbf3238a68a104321f8f71f13f5b90c0d18f5f9b9e45805f70",
     "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
     "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
     "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
-    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d"
+    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d",
+    "scripts/gate3-retest/test_units.py": "42bff51731af4f721c140dd3093c45d246ca24961d417ee53f216dc496661a86",
+    "scripts/gate3-retest/UnitRenderer.cs": "ea4927fc00b2d01259024ae989e3b89ff50df932be14c7a2c6d870a32d093d6f",
+    "scripts/gate3-retest/verify-joined.py": "0c3ac184f344e85ddf4c243b3b1f9ee82b59c1c783e2804e599894cfef665994"
   },
   "recorded_archive_audit": {
     "status": "FROZEN_AS_PREVIOUSLY_RECORDED; audit script unchanged and not rerun",
@@ -340,5 +374,20 @@
     "scripts/gate3-retest/README.md": "cc4cdf4ddd34a6da5c7daa0bee72198cdde0f03558a103e7d2081d68835563df",
     "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
     "scripts/gate3-retest/test_sources.py": "0c2d42f3e0ba321c0e9a1f78f8397eb49035d6b3d98e129baa8081ad800c89ce"
+  },
+  "bookmark_probe_artifact_sha256": {
+    "scripts/gate3-retest/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+    "scripts/gate3-retest/analyze-bounds.py": "cbba486816431597edbeace069c88f1e261447ce7769e71252034de66838fad4",
+    "scripts/gate3-retest/assemble-sources.py": "b93924df6c0643d280721be9253bbcced686da2c01e45ef6f266fcac06508c2c",
+    "scripts/gate3-retest/audit-archive.py": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+    "scripts/gate3-retest/bookmark-timing.py": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
+    "scripts/gate3-retest/observe-live.ps1": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+    "scripts/gate3-retest/prepare-speech.ps1": "8542141f48b6030362c2a7c2b9ec5f83da8ee147e086d80b9275e0dcac059856",
+    "scripts/gate3-retest/README.md": "b28ebc8aefb382f3c57857627fbe887a9ad81526763831ebe29ce338bae592ec",
+    "scripts/gate3-retest/speech-specs.ps1": "8c244db7c3af8fadef0c6e64c3739df76d7ec446398a153ca3132100879c9298",
+    "scripts/gate3-retest/SpeechRenderer.cs": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
+    "scripts/gate3-retest/test_analysis.py": "db2e3eac43fff12d49fc196d149cd6881faab0e9bddd1a5902880d7d1e99261e",
+    "scripts/gate3-retest/test_bookmarks.py": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
+    "scripts/gate3-retest/test_sources.py": "a965e937323ab9f55a22475d07fc7650b0304b073d26772aea719ac929b17f7d"
   }
 }
