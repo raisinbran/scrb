@@ -1,6 +1,6 @@
 # Gate 3 Windows: owner approval sheet (2026-11-09 PT)
 
-Status: **nothing here is approved.** This sheet lists what the owner is asked to approve before the preflight manifest (`windows-gate3-v3-preflight-manifest.json`, status `NOT_FROZEN - ready for independent audit and owner approval`) is frozen. No independent audit of the manifest has been done yet. Quotes are from the named documents; the approval is yours in writing, item by item. Code SHA `01bd9c12142cb7e316c3b5399c779d60ee7e8544`; documents pinned at `5ed536554c2398684410512b46c34a592032e611`.
+Status: **nothing here is approved.** This sheet lists what the owner is asked to approve before the preflight manifest (`windows-gate3-v3-preflight-manifest.json`, status `NOT_FROZEN - ready for independent audit and owner approval`) is frozen. No independent audit of the manifest has been done yet (ChatGPT's first audit is being closed in this revision). Quotes are from the named documents; the approval is yours in writing, item by item. Code SHA `1ecd301b5c2c73ac1850a72926d06463f6f981d2` (scoring code unchanged since `01bd9c12142cb7e316c3b5399c779d60ee7e8544`; later commits added only the run-time binding tools); documents pinned at `d13e9d34f7d5f48a7aa00730c5058e3b75034438`. Before any run, `verify-against-manifest.py` must pass from a clean checkout of that pin and print this manifest's SHA-256, which you name in your approval.
 
 | # | You are asked to approve | In plain words | Risk of approving |
 |---|---|---|---|
