@@ -83,8 +83,12 @@ for track in ('microphone', 'meeting'):
         probes = timing.attach_source_spread(probes, annotations['utterances'])
         prepared, _ = timing.prepare_units(probes, mapping, valid, all_anchors=anchors)
         overlap = {u['id']: timing.capture_event_overlap(u, mapping) for u in prepared}
-        report[track]['gap_overlap_inconclusive'] = {k: v for k, v in overlap.items() if v}
-        report[track]['still_scoreable'] = len(prepared)-len(report[track]['gap_overlap_inconclusive'])
+        overlapping = {k: v for k, v in overlap.items() if v}
+        checks = {u['id']: timing.verify_word_capture(u, continuous, mapping) for u in prepared if overlap[u['id']]}
+        report[track]['gap_overlap_inconclusive'] = {k: dict(reason=overlapping[k], check=checks[k][1]) for k in overlapping if checks[k][0] is True}   # rule 8
+        report[track]['gap_overlap_uncredited_rule6'] = {k: dict(reason=overlapping[k], check=checks[k][1], verified=checks[k][0])
+                                                         for k in overlapping if checks[k][0] is not True}
+        report[track]['still_scoreable'] = len(prepared)-len(overlapping)
         report[track]['drift_extra_units'] = sum(1 for u in prepared if u['drift_extra_uncertainty_s'] > 0)
     except ValueError as error:
         report[track]['placement_error'] = str(error)

@@ -12,7 +12,11 @@ import sys
 def analyze_unit(unit):
     """Keep every eligible unit and reject pre-speech publication credit."""
     outcome = unit["outcome"]
-    assert outcome in {"MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE"}
+    assert outcome in {"MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE", "CAPTURE-LIMITED"}
+    if outcome == "CAPTURE-LIMITED":
+        # v3a rule 6: a scored word whose presence or endpoint the preserved recording cannot support is uncredited in both bounds and
+        # stays in the denominator. A capture limitation, not an app-output failure: summarize_track keeps it out of FAILURE OBSERVED.
+        return {"id": unit["id"], "conservative": math.inf, "best": math.inf, "outcome": outcome}
     if outcome == "TIMING-INCONCLUSIVE":
         # Proposed, owner approval pending (protocol v3 section 6 and v3a rule 5 are silent on a published unit whose timing is
         # unsupported). Not a demonstrated late publication: no credit in the conservative bound, the best case may still credit it, so
@@ -52,8 +56,8 @@ def summarize_track(units):
     verdict = "PASS" if bounds["conservative"]["pass"] else "FAIL" if not bounds["best"]["pass"] else "INCONCLUSIVE"
     window_rows = [(unit, row) for unit, row in zip([u for u in units if u["eligible"]], rows)
                    if unit["start"] < 245 and unit["last_word_end"] > 170]
-    recurrence = "FAILURE OBSERVED" if any(row["outcome"] == "UNIDENTIFIED" or row["best"] > 6 for _, row in window_rows) else (
-        "INDETERMINATE" if any(row.get("straddle") or row["outcome"] in {"BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE"} for _, row in window_rows) else "NOT OBSERVED")
+    recurrence = "FAILURE OBSERVED" if any(row["outcome"] == "UNIDENTIFIED" or (row["best"] > 6 and row["outcome"] != "CAPTURE-LIMITED") for _, row in window_rows) else (
+        "INDETERMINATE" if any(row.get("straddle") or row["outcome"] in {"BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE", "CAPTURE-LIMITED"} for _, row in window_rows) else "NOT OBSERVED")
     return {"bounds": bounds, "latency": verdict, "recurrence": recurrence,
             "diagnosis": "INCONCLUSIVE; automatic event-chain localization not implemented",
             "units": rows}
@@ -287,7 +291,7 @@ def analyze_v3a_track(units, evidence, track):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, attach_source_spread, bind_unit_fields, step_bounds, require, lead_marker_anchor,
                              apply_template_step_condition, excluded_anchors, track_anchor_gate, unexplained_brackets,
-                             unexplained_intervals, capture_event_overlap, unit_timing_gap, source_schedule, finite, digest)
+                             unexplained_intervals, capture_event_overlap, verify_word_capture, unit_timing_gap, source_schedule, finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
     clocks = None
@@ -370,15 +374,26 @@ def analyze_v3a_track(units, evidence, track):
             else:
                 supported.append(unit)
         prepared, steps = prepare_units(supported, mapping, valid, all_anchors=anchors)
+        limited = {}
         for unit in prepared:   # a finite interval across a recorded gap is not proof the word was captured (v3a rule 6)
             reason = capture_event_overlap(unit, mapping) if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES else None
             if reason:
-                gaps[unit['id']] = reason
-        prepared = [u for u in prepared if u['id'] not in gaps]
+                verified, evidence = verify_word_capture(unit, continuous, mapping)
+                if verified is True:    # presence and endpoint verified from the decoded recording: timing-INCONCLUSIVE (rule 8)
+                    gaps[unit['id']] = reason+'; '+evidence
+                else:                   # not verified or not checkable: uncredited in both bounds (rule 6)
+                    limited[unit['id']] = {'reason': reason, 'capture_check': 'not checkable' if verified is None else 'not verified',
+                                           'evidence': evidence}
+        prepared = [u for u in prepared if u['id'] not in gaps and u['id'] not in limited]
         by_id = {u['id']: u for u in prepared}
-        timing_inconclusive = []
+        timing_inconclusive, capture_limited = [], []
         for unit in units:
-            if unit['id'] in gaps:
+            if unit['id'] in limited:
+                capture_limited.append({'id': unit['id'], **limited[unit['id']],
+                                        'classification': 'capture/measurement limitation, not an app-output failure'})
+                by_id[unit['id']] = {**unit, 'outcome': 'CAPTURE-LIMITED', 'identity_confirmed': False, 'endpoints': [],
+                                     'capture_limited_reason': limited[unit['id']]['reason']}
+            elif unit['id'] in gaps:
                 credited = unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES
                 timing_inconclusive.append({'id': unit['id'], 'reason': gaps[unit['id']], 'was_credited_outcome': bool(credited)})
                 by_id[unit['id']] = ({**unit, 'outcome': 'TIMING-INCONCLUSIVE', 'identity_confirmed': False, 'endpoints': [],
@@ -408,7 +423,7 @@ def analyze_v3a_track(units, evidence, track):
                     require(point['observed']-point['u'] >= start_high,
                             'PRE-SPEECH or uncertain speech presence across last-word start interval')
         return {**summarize_track(everything), 'mode': 'v3a', 'anchor_exclusions': [{'id': i, 'reason': r} for i, r in exclusions],
-                'valid_anchors': len(valid), 'long_anchors_total': len(anchors), 'timing_inconclusive_units': timing_inconclusive,
+                'valid_anchors': len(valid), 'long_anchors_total': len(anchors), 'timing_inconclusive_units': timing_inconclusive, 'capture_limited_units': capture_limited,
                 'unexplained_brackets': [[q['id'], r['id']] for q, r in brackets], 'unexplained_intervals': intervals, 'denominator': denominator,
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
                 'evidence_hashes': evidence_hashes, 'conversion_identity': conversion, 'harness_derivation': harness_derivation,

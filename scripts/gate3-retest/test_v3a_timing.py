@@ -323,24 +323,27 @@ class TestScoringGuards(unittest.TestCase):
                 return bounds.analyze_v3a_track(units, evidence, 'microphone')
 
     def test_crossing_gap_near_six_seconds_keeps_denominator(self):
-        # Every unit's scored word overlaps the 140 s capture gap, so none is timed (proposed policy, owner approval pending):
-        # no credit in the conservative bound, the best case may credit them, the denominator stays 20, and Layer A is not a FAIL.
+        # Every unit's scored word overlaps the 140 s capture gap and no decoded samples exist to verify it (v3a rule 6, proposed,
+        # owner approval pending): uncredited in both bounds, the denominator stays 20, reported as a capture limitation.
         result = self.score([unit(), unit()]+[unit(endpoints=[{'observed': 142, 'u': .01}]) for _ in range(18)])
-        self.assertEqual(result['latency'], 'INCONCLUSIVE')
         self.assertEqual(result['denominator'], 20)
-        self.assertEqual(len(result['timing_inconclusive_units']), 20)
+        self.assertEqual(len(result['capture_limited_units']), 20)
+        self.assertEqual({u['capture_check'] for u in result['capture_limited_units']}, {'not checkable'})
+        self.assertEqual(result['timing_inconclusive_units'], [])
         self.assertEqual(result['bounds']['conservative']['within6'], 0)
-        self.assertEqual(result['bounds']['best']['within6'], 20)
+        self.assertEqual(result['bounds']['best']['within6'], 0)
+        self.assertEqual(result['latency'], 'FAIL')
+        self.assertNotEqual(result['recurrence'], 'FAILURE OBSERVED')
         self.assertEqual(result['clocks']['original_timestamped']['latency'], 'INCONCLUSIVE')
 
     def test_last_word_start_interval_prevents_false_presence(self):
         result = self.score([unit(continuous_last_word_start_s=140,
                                   endpoints=[{'observed': 140.15, 'u': .01}])])
-        # The word's last-word start interval reaches across the 140 s gap, so the unit is timing-INCONCLUSIVE and the observation
-        # at 140.15 s earns no presence credit (before: the PRE-SPEECH assertion fired; that path now needs a non-gap unit).
-        self.assertEqual(result['latency'], 'INCONCLUSIVE')
-        self.assertEqual([u['id'] for u in result['timing_inconclusive_units']], ['0'])
+        # The word's last-word start interval reaches across the 140 s gap and cannot be verified, so the unit is uncredited in both
+        # bounds (rule 6) and the observation at 140.15 s earns no presence credit.
+        self.assertEqual([u['id'] for u in result['capture_limited_units']], ['0'])
         self.assertEqual(result['bounds']['conservative']['within6'], 0)
+        self.assertEqual(result['bounds']['best']['within6'], 0)
         self.assertEqual(result['denominator'], 1)
 
     def test_gap_never_grants_setup_or_exclusion(self):
