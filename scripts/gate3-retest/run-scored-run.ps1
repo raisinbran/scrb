@@ -31,6 +31,9 @@ $recordFile = "$dirEv\run-record.txt"
 function Tick { [Diagnostics.Stopwatch]::GetTimestamp() }
 function Act($msg) { "{0}`t{1}`t{2}" -f (Tick), [DateTime]::UtcNow.ToString('o'), $msg | Add-Content $logFile -Encoding utf8 }
 function Rec($msg) { "{0}`t{1}" -f [DateTime]::UtcNow.ToString('o'), $msg | Add-Content $recordFile -Encoding utf8 }
+function Cleanup { foreach ($proc in @($script:procFrames, $script:procRes, $script:procOverlay, $script:procObs, $script:procPlay)) { if ($proc) { try { Stop-Process -Id $proc.Id -Force } catch { } } } }
+# Any terminating error (every ABORT below ends in a throw) stops helpers and ends run-record.txt with exactly one final line: "run INVALID: <reason>". Only a run that reaches the last line ends with "run finished".
+trap { Cleanup; Rec "run INVALID: $($_.Exception.Message)"; break }
 function Verify($stage) {
     $outFile = "$dirEv\verifier-$stage.txt"
     Rec "verifier $stage starting"
@@ -48,6 +51,21 @@ Rec "approved manifest SHA-256 (owner-approved value passed to the verifier) $Ap
 Rec "python $((Get-Command $Python).Source) $(& $Python --version 2>&1)"
 Rec "checkout $dirRepo HEAD $(git -C $dirRepo rev-parse HEAD)"
 Verify 'before-capture'
+# Bind $AppPid to the pinned candidate before anything is captured (Win32_Process needs no administrator)
+$candExe = [IO.Path]::GetFullPath("$PreflightDir\candidate-553dd90\node_modules\electron\dist\electron.exe")
+$candSha = 'c579acaab64b1c456bda1693cdf1a2ec7e4de7738b0e2d1b6349d60e8087143c'   # manifest native_candidate.built_artifacts, node_modules/electron/dist/electron.exe
+$expProfile = [IO.Path]::GetFullPath("$((Split-Path $dirEv -Parent))\$((Split-Path $dirEv -Leaf))-app\profile")   # launch-candidate.ps1 -RunFolder '<run name>-app' makes <RunFolder>\profile
+$wp = Get-CimInstance Win32_Process -Filter "ProcessId=$appPid"
+if (-not $wp -or -not $wp.ExecutablePath) { throw "app PID ${appPid}: process or executable path not readable" }
+Rec "app PID $appPid executable $($wp.ExecutablePath); command line $($wp.CommandLine)"
+if ([IO.Path]::GetFullPath($wp.ExecutablePath) -ne $candExe) { Act 'ABORT: app PID executable is not the pinned candidate electron.exe'; throw "app PID $appPid runs $($wp.ExecutablePath), not $candExe" }
+$exeSha = (Get-FileHash $wp.ExecutablePath -Algorithm SHA256).Hash.ToLower()
+if ($exeSha -ne $candSha) { Act 'ABORT: app PID executable SHA-256 differs from the pin'; throw "app PID executable SHA-256 $exeSha, pinned $candSha" }
+if ($wp.CommandLine.IndexOf("--user-data-dir=$expProfile", [StringComparison]::OrdinalIgnoreCase) -lt 0) { Act 'ABORT: app PID command line lacks the run profile'; throw "app PID command line has no --user-data-dir=$expProfile" }
+if ($wp.CommandLine -match '--type=') { Act 'ABORT: app PID is a child process, not the main process'; throw "app PID $appPid is an Electron child process" }
+$mains = @(Get-CimInstance Win32_Process | ? { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $candExe) -and $_.CommandLine -notmatch '--type=' })   # one candidate tree = one main process (children carry --type=)
+if ($mains.Count -ne 1 -or $mains[0].ProcessId -ne $appPid) { Act 'ABORT: not exactly one candidate process tree'; throw "candidate main processes: $((@($mains | % ProcessId)) -join ',') (expected only $appPid)" }
+Rec "app PID $appPid bound: pinned executable, SHA-256 $exeSha, run profile $expProfile, one candidate main process"
 
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type @"
@@ -77,7 +95,6 @@ function SnipTimer { $sp = @(Get-Process | ? { $_.ProcessName -match 'Snipping|S
     ($out -join ',') }
 $script:lastSnip = 0
 function Level($name) { $pb = FindApp $name; if ($null -eq $pb) { return -1 }; try { $pb.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern).Current.Value } catch { -2 } }
-function Cleanup { foreach ($proc in @($script:procFrames, $script:procRes, $script:procOverlay, $script:procObs)) { if ($proc) { try { Stop-Process -Id $proc.Id -Force } catch { } } } }
 
 $hwnd = (Get-Process -Id $appPid).MainWindowHandle; [void][N]::ShowWindow($hwnd, 9); [void][N]::SetForegroundWindow($hwnd); Start-Sleep 1
 Act 'orchestrator start'
@@ -93,6 +110,7 @@ Act 'Snipping Tool recording Start invoked'; Start-Sleep 6
 # 2 observer BEFORE Record
 $obsArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$dirScr\observe-live-v3.ps1`" -AppProcessId $appPid -OutputFile `"$dirEv\raw.jsonl`" -Seconds $ObserverSeconds -ViewportName `"Live transcript`" -WordBounds -SkipWhitespaceElements"
 $script:procObs = Start-Process powershell.exe -ArgumentList $obsArgs -RedirectStandardOutput "$dirEv\observer-stdout.txt" -RedirectStandardError "$dirEv\observer-stderr.txt" -WindowStyle Hidden -PassThru
+$null = $script:procObs.Handle   # keeps the exit code readable after exit
 Act "observer started pid $($script:procObs.Id)"
 $originQpc = $null
 for ($i = 0; $i -lt 50 -and -not $originQpc; $i++) { Start-Sleep -Milliseconds 200
@@ -110,6 +128,7 @@ Start-Sleep 6; Act 'pre-record baseline done'
 # 5 playback waiter; PROVE READY before Record
 $playArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$dirScr\play-sources.ps1`" -MicrophoneWav `"$dirAsm\microphone.wav`" -MeetingWav `"$dirAsm\meeting.wav`" -ExpectedMicrophoneSha256 $micSha -ExpectedMeetingSha256 $meetSha -OutFolder `"$dirEv\playback-log`" -RecordingReadyFile `"$dirEv\recording-ready.txt`" -Play -OwnerApprovedLongTest"
 $procPlay = Start-Process powershell.exe -ArgumentList $playArgs -RedirectStandardOutput "$dirEv\playback-stdout.txt" -RedirectStandardError "$dirEv\playback-stderr.txt" -WindowStyle Hidden -PassThru
+$null = $procPlay.Handle   # keeps the exit code readable after exit
 Act "play-sources started pid $($procPlay.Id)"
 $playLog = "$dirEv\playback-log\play-sources-log.jsonl"; $ready = $false
 for ($i = 0; $i -lt 100; $i++) { Start-Sleep -Milliseconds 200
@@ -121,6 +140,11 @@ Act 'playback ready proof: process alive, log has devices and files lines, waiti
 [void][N]::SetForegroundWindow($hwnd)
 if (-not (PressApp 'Start')) { Act 'ABORT: app Start not found'; Cleanup; [void](SnipPress 'StopButton'); throw 'no Start' }
 $t0 = Tick; Act 'RECORD pressed (Start invoked)'
+# The app's Stop control exists only while recording (probe-1 UIA dumps: ready state has Start, recording state has Pause and Stop). Wait for it, at most 5 s, before the ready file releases the playback.
+$stopSeen = $false
+for ($i = 0; $i -lt 25 -and -not $stopSeen; $i++) { if ($null -ne (FindApp 'Stop')) { $stopSeen = $true } else { Start-Sleep -Milliseconds 200 } }
+if (-not $stopSeen) { Act 'ABORT: app Stop control not seen within 5 s of Record; recording not confirmed, ready file not written'; [void](SnipPress 'StopButton'); throw 'recording not confirmed (no app Stop control within 5 s)' }
+Act "app Stop control seen $([int](((Tick) - $t0) * 1000 / $freqHz)) ms after Record (recording confirmed)"
 Set-Content "$dirEv\recording-ready.txt" ([DateTime]::UtcNow.ToString('o')) -Encoding ascii; Act 'ready file written'
 $played = $false
 for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 200
@@ -134,14 +158,19 @@ for ($i = 0; $i -lt 40; $i++) { Start-Sleep -Milliseconds 250; $m = Level 'Mic l
 Act "level meters within 10 s of Record: mic max $maxMic, meeting max $maxMeet"
 # 7 no scripted scrolling; wait for the recording length, logging the Snipping Tool timer
 # RecordSeconds is the recording length (as in validation-5): playback is stopped there, so a 420 s run cuts about the last second of the 420 s sources (the scored interval ends at 380 s)
-while (((Tick) - $t0) / $freqHz -lt $RecordSeconds) { Start-Sleep -Milliseconds 100; if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
+$playMarginSeconds = 5   # sources are exactly 420.0 s and start about 0.3 s after Record, so a healthy playback ends at or after RecordSeconds; an exit earlier than 5 s before it is a failure
+while (((Tick) - $t0) / $freqHz -lt $RecordSeconds) { Start-Sleep -Milliseconds 100
+    if ($procPlay.HasExited -and ((Tick) - $t0) / $freqHz -lt $RecordSeconds - $playMarginSeconds) { Act "ABORT: playback process exited early (exit code $($procPlay.ExitCode))"; [void](PressApp 'Stop'); [void](SnipPress 'StopButton'); throw "playback exited early (exit code $($procPlay.ExitCode)) at $([int](((Tick) - $t0) / $freqHz)) s of $RecordSeconds s" }
+    if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
 # 8 stop playback, Stop, drain
 if ($procPlay.HasExited) { Act "playback process had already ended (exit code $($procPlay.ExitCode)) at record length $RecordSeconds s" } else { Act "recording length $RecordSeconds s reached: stopping playback process"; try { Stop-Process -Id $procPlay.Id -Force } catch { }; Act 'playback process stopped' }
 [void][N]::SetForegroundWindow($hwnd)
-if (-not (PressApp 'Stop')) { Act 'FAILED: app Stop not found' } else { Act 'STOP pressed (Stop invoked)' }
+if (-not (PressApp 'Stop')) { Act 'ABORT: app Stop not found at the end of the recording'; [void](SnipPress 'StopButton'); throw 'app Stop not found at the end of the recording' } else { Act 'STOP pressed (Stop invoked)' }
 Start-Sleep $DrainSeconds; Act "drain $DrainSeconds s done"; Act ('snipping timer text before Stop: ' + (SnipTimer))
-if (SnipPress 'StopButton') { Act 'Snipping Tool recording Stop invoked' } else { Act 'FAILED: Snipping Tool Stop not found' }
+if (SnipPress 'StopButton') { Act 'Snipping Tool recording Stop invoked' } else { Act 'ABORT: Snipping Tool Stop not found'; throw 'Snipping Tool Stop not found' }
 Start-Sleep 3
+if ($script:procObs.HasExited) { $xt = $script:procObs.ExitTime.ToUniversalTime().ToString('o'); Act "ABORT: observer exited before the end of the drain (exit code $($script:procObs.ExitCode), at $xt)"; throw "observer exited before the end of the drain (exit code $($script:procObs.ExitCode), at $xt)" }
+foreach ($h in @(@('frame capture', $script:procFrames), @('resource sampler', $script:procRes))) { if ($h[1].HasExited) { Act "WARNING: $($h[0]) exited early (supplementary; not a validity condition)" } }
 Cleanup; Act 'observer, overlay, frame capture, sampler stopped'
 Verify 'after-capture'
-Rec 'run finished; scoring must run the verifier again immediately before scoring'
+Rec 'run finished'
