@@ -347,6 +347,55 @@ def load_long_anchors(recording, source, rate, searches, annotations_path, sourc
     return {'anchors': result, 'utterances': utterances, 'annotations_sha256': annotation_sha}
 
 
+STEP_EVENT_MIN_S = .005   # a gap/overlap smaller than this adds at most 5 ms to the 2.4 ms worst step-free anchor error (D4 calibration) - below the 13 ms floor
+STEP_MARGIN_S = .020      # one envelope frame (20 ms) beyond the anchor's own uncertainty on each side of the 3.02 s template
+
+
+def step_events(mapping):
+    """Continuous-axis times (s) where the chunk timestamps show a gap, overlap or audited overrun of at least STEP_EVENT_MIN_S.
+
+    Only chunk boundaries are visible here. A step that does not coincide with a chunk-timestamp event is not."""
+    rate = mapping['rate']
+    events = []
+    for row in mapping['chunks']:
+        if max(row['gap_before_samples'], row['overlap_before_samples']) >= STEP_EVENT_MIN_S*rate:
+            events.append(row['continuous_start_sample']/rate)
+        if row['decoded_overrun_samples'] >= STEP_EVENT_MIN_S*rate:
+            events.append(row['continuous_end_sample']/rate)
+    return events
+
+
+def apply_template_step_condition(anchors, mapping):
+    """Mark each bounded-correlation anchor 'template_step_free' True/False (with a reason) from what the scorer can see.
+
+    The calibrated 13-17 ms uncertainty holds only for a template with no timing step inside it. An anchor is NOT step-free when
+    (1) a chunk-timestamp event (gap/overlap/overrun) lies inside its template support plus margin, or
+    (2) it sits next to a detected step (offset change over the combined uncertainty) that no chunk-timestamp event lies
+        between the two supports to explain, because that step could then be inside either template.
+    Not enforced: a step smaller than the combined uncertainty is not detectable; a step with no chunk-timestamp event and an
+    offset change near the detection limit (about two combined uncertainties) can still leave an anchor 1-2 uncertainties off."""
+    events = step_events(mapping)
+    verdict = {a['id']: None for a in anchors}
+
+    def margin(anchor):
+        return anchor['uncertainty_s']+STEP_MARGIN_S
+    for anchor in anchors:
+        if anchor.get('method') == 'bounded-long-correlation':
+            low, high = anchor['recording_start_s']-margin(anchor), anchor['recording_end_s']+margin(anchor)
+            if any(low <= e <= high for e in events):
+                verdict[anchor['id']] = 'chunk-timestamp gap/overlap inside the template support'
+    for before, after in zip(anchors, anchors[1:]):
+        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+            continue
+        low, high = before['recording_end_s']+margin(before), after['recording_start_s']-margin(after)
+        if any(low < e < high for e in events):
+            continue
+        for anchor in (before, after):
+            verdict[anchor['id']] = verdict[anchor['id']] or 'adjacent offset change not located by a chunk-timestamp event between the supports'
+    return [{**a, 'template_step_free': verdict[a['id']] is None, 'template_step_reason': verdict[a['id']]}
+            if a.get('method') == 'bounded-long-correlation' else a for a in anchors]
+
+
 def step_bounds(anchors, units):
     """Bound changes between adjacent long anchors; never correct their offsets.
 
@@ -364,6 +413,8 @@ def step_bounds(anchors, units):
                      or (anchor.get('unique') is True and len(anchor.get('methods', [])) == 3
                          and all(m.get('unique') is True for m in anchor['methods']))),
                 'Unvalidated long anchor')
+        require(anchor.get('template_step_free') is not False,
+                'Long anchor template not established step-free: %s' % anchor.get('template_step_reason'))
         require(all(finite(anchor[k]) for k in ('source_start_s', 'source_end_s', 'recording_start_s',
                                                'recording_end_s', 'offset_s', 'uncertainty_s'))
                 and anchor['uncertainty_s'] >= 0, 'Unsupported anchor uncertainty')

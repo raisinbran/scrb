@@ -235,6 +235,34 @@ def bind_endpoints(units, doc, track):
     return bound, report
 
 
+def bind_matcher_output(units, path, track, publication):
+    """Every credited outcome, identity confirmation and endpoint-to-unit assignment must equal the occurrence-matcher output file.
+
+    The file's SHA-256 is recorded in the result. A hand-edited unit list is rejected. This does not prove the file itself came
+    from the matcher run: that needs the scorer to regenerate the rows (proposal in docs/handoffs/2026-11-09-d6-matcher-binding.md)."""
+    doc = json.loads(Path(path).read_text(encoding='utf-8-sig'))
+    if doc.get('status') != 'OFFLINE_ALIGNMENT_ONLY' or doc.get('track') != track or doc.get('clock_basis') != 'recording':
+        raise ValueError('Matcher output file has the wrong status, track or clock basis')
+    if doc.get('recording_sha256') != publication.get('recording_sha256'):
+        raise ValueError('Matcher output file is for a different recording than the converted publication file')
+    rows = {}
+    for row in doc['units']:
+        if row['id'] in rows:
+            raise ValueError('Matcher output file has a duplicated unit id')
+        rows[row['id']] = row
+    for unit in units:
+        if not (unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES):
+            continue
+        row = rows.get(unit['id'])
+        ids = [p.get('publication_id') for p in unit.get('endpoints') or []]
+        if (row is None or row.get('outcome') != unit['outcome'] or row.get('identity_confirmed') is not True
+                or unit.get('identity_confirmed') is not True
+                or ids != [p.get('publication_id') for p in row.get('endpoints') or []]):
+            raise ValueError('Credited unit %s differs from the occurrence-matcher output file (outcome, identity or endpoint assignment)'
+                             % unit['id'])
+    return file_sha256(path)
+
+
 def bind_harness_markers(evidence, events, source, rate, track):
     """Derive both harness marker positions and require the supplied ones to match them (D3)."""
     import harness_provenance as hp
@@ -253,7 +281,7 @@ def analyze_v3a_track(units, evidence, track):
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, attach_source_spread, bind_unit_fields, step_bounds, require, lead_marker_anchor,
-                             finite, digest)
+                             apply_template_step_condition, finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
     clocks = None
@@ -296,19 +324,25 @@ def analyze_v3a_track(units, evidence, track):
                 'Missing or duplicated scored units; frozen denominator mismatch')
         require(all(type(u['eligible']) is bool and u['eligible'] == frozen_units[u['id']]['eligible']
                     for u in units), 'Eligibility differs from bound frozen source inventory')
+        anchors = apply_template_step_condition(anchors, mapping)   # D4: the calibrated uncertainty needs a step-free template
+        not_free = [a['id']+': '+str(a.get('template_step_reason')) for a in anchors
+                    if a.get('method') == 'bounded-long-correlation' and a.get('template_step_free') is not True]
+        require(not not_free, 'Long anchor template not established step-free (%d): %s' % (len(not_free), '; '.join(not_free[:3])))
         steps = step_bounds(anchors, [])
         require(clocks['valid'], 'Invalid v3a marker/gap evidence; step diagnostics do not waive it')
         # Bind scored endpoints to the converted publication file; the label alone proves nothing.
-        for key in ('publication_file', 'observer_raw', 'harness_log'):
+        for key in ('publication_file', 'observer_raw', 'harness_log', 'matcher_output'):
             require(isinstance(evidence.get(key), (str, Path)), 'Missing %s path for endpoint binding' % key)
         publication = json.loads(Path(evidence['publication_file']).read_text(encoding='utf-8-sig'))
         header, events = read_observer_header(evidence['observer_raw']), read_events(evidence['harness_log'])
         conversion = verify_conversion_document(publication, mapping, track, header, events)
         regenerate_converted(publication, mapping, track, evidence['observer_raw'], header, events)
         units, binding_failures = bind_endpoints(units, publication, track)
+        matcher_output_sha256 = bind_matcher_output(units, evidence['matcher_output'], track, publication)
         evidence_hashes = {'observer_raw_sha256': file_sha256(evidence['observer_raw']),
                            'harness_log_sha256': file_sha256(evidence['harness_log']),
-                           'publication_file_sha256': file_sha256(evidence['publication_file'])}
+                           'publication_file_sha256': file_sha256(evidence['publication_file']),
+                           'matcher_output_sha256': matcher_output_sha256}
         scored_u = [point['u'] for unit in units if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES
                     for point in unit.get('endpoints') or []]
         observer_u_summary = {'scored_endpoints': len(scored_u), 'scored_endpoints_over_250ms': sum(u > 0.25 for u in scored_u),

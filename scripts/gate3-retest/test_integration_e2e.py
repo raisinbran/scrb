@@ -199,7 +199,7 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
         header_out, events_out = dict(header), harness_events()
         if file_tamper:
             file_tamper(written, header_out, events_out, scored)
-        evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out, samples))
+        evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out, samples, matcher_rows=rows, track=track))
         published = hashlib.sha256(Path(evidence['publication_file']).read_bytes()).hexdigest()
         if evidence_tamper:
             evidence_tamper(evidence)
@@ -481,7 +481,7 @@ class NoClockNoPass(unittest.TestCase):
         result = pipeline(units=clean)[0]
         self.assertEqual(result['latency'], 'PASS', result.get('error'))
         self.assertEqual(result['endpoint_binding_failures'], [])
-        for key in ('observer_raw_sha256', 'harness_log_sha256', 'publication_file_sha256'):
+        for key in ('observer_raw_sha256', 'harness_log_sha256', 'publication_file_sha256', 'matcher_output_sha256'):
             self.assertRegex(result['evidence_hashes'][key], '^[0-9a-f]{64}$')
         self.assertEqual(result['evidence_hashes']['publication_file_sha256'], result['_publication_sha256'])
         self.assertEqual(result['conversion_identity']['origin_ns'], ORIGIN_NS)
@@ -516,6 +516,31 @@ class NoClockNoPass(unittest.TestCase):
                 self.assertEqual([f['id'] for f in result['endpoint_binding_failures']], [target])
                 self.assertNotEqual(result['latency'], 'PASS')
         self.assertEqual(pipeline(units=clean, file_tamper=within_tolerance)[0]['latency'], 'PASS')
+
+    def test_hand_edited_unit_assignments_that_differ_from_the_matcher_output_are_rejected(self):
+        """A credited outcome or endpoint assignment must equal the matcher output file whose SHA-256 the result records."""
+        clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
+
+        def swapped_endpoints(scored):
+            first, second = scored[3], scored[5]
+            self.assertNotEqual(first['endpoints'][0]['publication_id'], second['endpoints'][0]['publication_id'])
+            first['endpoints'], second['endpoints'] = list(second['endpoints']), list(first['endpoints'])
+
+        def upgraded_outcome(scored):
+            scored[4]['outcome'] = 'BOUNDED' if scored[4]['outcome'] != 'BOUNDED' else 'MATCHED'
+
+        def forged_identity(scored):
+            scored[2]['identity_confirmed'] = True
+            scored[2]['outcome'] = 'MATCHED'
+            scored[2]['endpoints'] = [dict(scored[3]['endpoints'][0])]
+
+        for tamper in (swapped_endpoints, upgraded_outcome, forged_identity):
+            with self.subTest(tamper=tamper.__name__):
+                result = pipeline(units=clean, scored_tamper=tamper)[0]
+                self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
+                self.assertIn('occurrence-matcher output', result['error'])
+        genuine = pipeline(units=clean)[0]
+        self.assertEqual(genuine['latency'], 'PASS', genuine.get('error'))
 
     def test_slow_observation_is_scored_with_its_measured_u_not_capped_or_refused(self):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
@@ -592,7 +617,7 @@ class NoClockNoPass(unittest.TestCase):
 
     def test_missing_binding_paths_never_pass(self):
         clean = [u for u in build_units() if u[6] in ('lead', 'rep')]
-        for key in ('publication_file', 'observer_raw', 'harness_log'):
+        for key in ('publication_file', 'observer_raw', 'harness_log', 'matcher_output'):
             with self.subTest(key=key):
                 result = pipeline(units=clean, drop_key=key)[0]
                 self.assertEqual((result['latency'], result['bounds']), ('INCONCLUSIVE', None))
