@@ -66,7 +66,19 @@ def without_regeneration(bounds_module):
     """For timing tests whose endpoints are invented directly: skip only the regeneration from raw samples.
 
     The end-to-end tests run the real regeneration; the other binding checks still run here."""
-    return patch.object(bounds_module, 'regenerate_converted', return_value=None)
+    from contextlib import ExitStack
+
+    class Both:
+        def __enter__(self):
+            self.stack = ExitStack()
+            self.stack.enter_context(patch.object(bounds_module, 'regenerate_converted', return_value=None))
+            self.stack.enter_context(patch.object(bounds_module, 'bind_harness_markers', side_effect=lambda e, *a: (
+                e.get('harness', [11, 391]), e.get('harness_u', (0, 0)), {'patched': 'invented timing test'})))
+            return self
+
+        def __exit__(self, *exc):
+            return self.stack.__exit__(*exc)
+    return Both()
 
 
 def sourced(unit):

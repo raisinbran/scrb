@@ -112,21 +112,29 @@ CONVERSION_U = 0.002
 CONVERSION_BASIS = "invented fixture: assumed counter agreement within 2 ms"
 
 
-def source_pcm(marker_at=1.0, hz=880):
-    """Invented source audio: silence with the 880 Hz three-pulse lead marker (200 ms pulses, 500 ms apart)."""
+def source_pcm(marker_at=1.0, hz=880, trail_at=381.0):
+    """Invented source audio: silence with the three-pulse lead marker (200 ms pulses, 500 ms apart) and a trail marker."""
     import array
-    samples = array.array('h', [0]) * (12 * SOURCE_RATE)
-    for pulse in range(3):
-        first = round((marker_at + 0.5 * pulse) * SOURCE_RATE)
-        for i in range(round(0.2 * SOURCE_RATE)):
-            samples[first + i] = round(12000 * math.sin(2 * math.pi * hz * i / SOURCE_RATE))
+    samples = array.array('h', [0]) * (400 * SOURCE_RATE)
+    for start in (marker_at, trail_at):
+        for pulse in range(3):
+            first = round((start + 0.5 * pulse) * SOURCE_RATE)
+            for i in range(round(0.2 * SOURCE_RATE)):
+                samples[first + i] = round(12000 * math.sin(2 * math.pi * hz * i / SOURCE_RATE))
     return samples, SOURCE_RATE
 
 
+# Playback start bracket: waveOutRestart was called between these two QPC readings (midpoint 5001.0 s, half-width 0.5 ms).
+BRACKET = (H0 + FREQ - 5000, H0 + FREQ + 5000)
+HARNESS_MARKERS = [5002.0, 5382.0]       # midpoint + the source markers at 1.0 s and 381.0 s
+HARNESS_U = [0.0055, 0.0055]             # half bracket 0.0005 + detector step 0.005
+
+
 def harness_events():
+    start = {"stamp": {"qpc_ticks": H0 + FREQ + 10000}, "data": {"before": {"qpc_ticks": BRACKET[0]}, "after": {"qpc_ticks": BRACKET[1]}}}
     return [{"event": "devices", "stamp": {"qpc_ticks": H0 + FREQ // 10, "utc": "x"},
              "data": {"stopwatch_frequency": FREQ}},
-            {"event": "microphone_start", "stamp": {"qpc_ticks": H0 + FREQ}, "data": {}}]
+            {"event": "microphone_start", **copy.deepcopy(start)}, {"event": "system_start", **copy.deepcopy(start)}]
 
 
 def records():
@@ -152,7 +160,7 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
              supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None,
-             gap=None, hide=(), stale=False, track='microphone', labeler=None, stale_words=None, per_word=False, end_spread=0.0, scored_tamper=None):
+             gap=None, hide=(), stale=False, track='microphone', labeler=None, stale_words=None, per_word=False, end_spread=0.0, scored_tamper=None, evidence_tamper=None):
     units = units or build_units()
     header, samples = observer_lines(units, quarantine, gap, hide, stale, labeler, stale_words, per_word)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
@@ -181,7 +189,7 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
     inventory = {'anchors': [dict(a) for a in ANCHORS], 'utterances': [{'id': u[0], 'eligible': True, 'reference_words': u[1], 'start': u[2], 'last_word_start': u[3], 'acoustic_end': u[4], 'earliest_acoustic_end_s': u[4]-end_spread, 'latest_acoustic_end_s': u[4]+end_spread} for u in units],
                  'annotations_sha256': 'd' * 64}
     evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json', 'decoder': 'decoder', 'source': 's.wav',
-                'harness': [11, 391], 'long_anchors': [{}], 'source_annotations': 'a.json'}
+                'harness': list(HARNESS_MARKERS), 'harness_u': list(HARNESS_U), 'long_anchors': [{}], 'source_annotations': 'a.json'}
     if lead:
         evidence['lead_marker'] = True
         if supplied_marker is not None:
@@ -193,6 +201,8 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
             file_tamper(written, header_out, events_out, scored)
         evidence.update(binding_fixture.write_evidence(directory, written, header_out, events_out, samples))
         published = hashlib.sha256(Path(evidence['publication_file']).read_bytes()).hexdigest()
+        if evidence_tamper:
+            evidence_tamper(evidence)
         evidence.pop(drop_key, None)
         with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
              patch.object(timing, 'load_views', return_value=([], [], mapping)), \
@@ -315,6 +325,47 @@ class EndToEnd(unittest.TestCase):
 
     def test_untampered_run_reports_no_unit_field_failures(self):
         self.assertEqual(self.result['unit_field_binding_failures'], [])
+
+    def test_harness_markers_are_derived_from_the_playback_log_and_the_source(self):
+        derivation = self.result['harness_derivation']
+        self.assertEqual(derivation['start_bracket_ticks'], list(BRACKET))
+        self.assertAlmostEqual(derivation['bracket_half_width_s'], .0005)
+        self.assertAlmostEqual(derivation['midpoint_s'], 5001.0)
+        for got, want in zip(derivation['harness'], HARNESS_MARKERS):
+            self.assertAlmostEqual(got, want, places=6)
+        self.assertIn('output-start latency', derivation['limitation'])
+
+    def test_independently_edited_harness_markers_are_rejected_as_unbound(self):
+        # Moving a marker by 0.2 s would also trip the 100 ms rule; moving both equally would keep the disagreement
+        # at zero and slip past it. Both must be refused because neither equals the value derived from the log.
+        edits = {'lead': lambda e: e.update(harness=[HARNESS_MARKERS[0]+.2, HARNESS_MARKERS[1]]),
+                 'trail': lambda e: e.update(harness=[HARNESS_MARKERS[0], HARNESS_MARKERS[1]-.2]),
+                 'both equally (disagreement unchanged)': lambda e: e.update(harness=[HARNESS_MARKERS[0]+5, HARNESS_MARKERS[1]+5]),
+                 'tiny edit': lambda e: e.update(harness=[HARNESS_MARKERS[0]+1e-6, HARNESS_MARKERS[1]])}
+        for name, edit in edits.items():
+            with self.subTest(edit=name):
+                result = pipeline(evidence_tamper=edit)[0]
+                self.assertEqual(result['latency'], 'INCONCLUSIVE')
+                self.assertIn('differs from the one derived', result['error'])
+
+    def test_harness_uncertainty_must_cover_the_bracket_and_the_source_detection(self):
+        for name, edit, text in (('zero', lambda e: e.update(harness_u=[0, 0]), 'below the start bracket'),
+                                 ('bracket only', lambda e: e.update(harness_u=[.0005, .0005]), 'below the start bracket'),
+                                 ('missing', lambda e: e.pop('harness_u'), 'uncertainty is missing')):
+            with self.subTest(case=name):
+                result = pipeline(evidence_tamper=edit)[0]
+                self.assertEqual(result['latency'], 'INCONCLUSIVE')
+                self.assertIn(text, result['error'])
+        larger = pipeline(evidence_tamper=lambda e: e.update(harness_u=[.01, .01]))[0]
+        self.assertNotIn('error', larger)
+
+    def test_edited_playback_log_bracket_is_not_accepted(self):
+        def widen(written, header, events, scored):
+            for event in events:
+                if event['event'] == 'microphone_start':
+                    event['data']['before']['qpc_ticks'] -= 10_000_000
+        result = pipeline(file_tamper=widen)[0]
+        self.assertEqual(result['latency'], 'INCONCLUSIVE')
 
     def test_lead_marker_anchors_the_unit_before_the_first_long_anchor(self):
         low, high = self.spans['microphone-000']

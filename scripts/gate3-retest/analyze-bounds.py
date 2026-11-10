@@ -235,6 +235,14 @@ def bind_endpoints(units, doc, track):
     return bound, report
 
 
+def bind_harness_markers(evidence, events, source, rate, track):
+    """Derive both harness marker positions and require the supplied ones to match them (D3)."""
+    import harness_provenance as hp
+    derived = hp.derive_harness_markers(events, track, source, rate)
+    harness, harness_u = hp.verify_harness_evidence(evidence, derived)
+    return harness, harness_u, derived
+
+
 def analyze_v3a_track(units, evidence, track):
     """Fail closed on unsupported evidence; reuse Layer A's opposite-end pairing.
 
@@ -254,13 +262,16 @@ def analyze_v3a_track(units, evidence, track):
     try:
         require(isinstance(evidence, dict), 'Missing v3a evidence')
         require(evidence['publication_basis'] == 'timestamped-capture', 'Unsupported publication clock')
-        views = load_views(evidence['chunks'], evidence['decoder'], track)
-        continuous, _, mapping = views
-        clocks = analyze_v3a(evidence['chunks'], evidence['decoder'], track,
-                              evidence['harness'], evidence.get('harness_u', (0, 0)), views=views)
+        # The harness marker times come from the playback log and the frozen source, never from a typed input.
+        require(isinstance(evidence.get('harness_log'), (str, Path)), 'Missing harness_log path for the harness markers')
         source_sha = digest(evidence['source'])
         source, rate = pcm16(evidence['source'])
         require(digest(evidence['source']) == source_sha, 'Source changed during matching')
+        harness, harness_u, harness_derivation = bind_harness_markers(evidence, read_events(evidence['harness_log']),
+                                                                      source, rate, track)
+        views = load_views(evidence['chunks'], evidence['decoder'], track)
+        continuous, _, mapping = views
+        clocks = analyze_v3a(evidence['chunks'], evidence['decoder'], track, harness, harness_u, views=views)
         inventory = load_long_anchors(continuous, source, rate, evidence['long_anchors'],
                                     evidence['source_annotations'], source_sha,
                                     method=evidence.get('long_matcher', 'bounded-correlation'),
@@ -326,7 +337,7 @@ def analyze_v3a_track(units, evidence, track):
                             'PRE-SPEECH or uncertain speech presence across last-word start interval')
         return {**summarize_track(prepared), 'mode': 'v3a', 'denominator': denominator,
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
-                'evidence_hashes': evidence_hashes, 'conversion_identity': conversion,
+                'evidence_hashes': evidence_hashes, 'conversion_identity': conversion, 'harness_derivation': harness_derivation,
                 'endpoint_binding_failures': binding_failures, 'unit_field_binding_failures': field_failures,
                 'observer_u_summary': observer_u_summary,
                 'source_sha256': source_sha, 'source_annotations_sha256': inventory['annotations_sha256'],
