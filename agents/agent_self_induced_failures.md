@@ -438,3 +438,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** the figures in `gate-3-windows-orchestrator-rehearsal-1-20261110.md` (first-overlay check).
 - **Correction / prevention:** compute tick arithmetic with the tool, not by hand; report the formula and the numbers.
 - **Owner approval:** not required.
+
+### A-074 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent tooling slip, caught within the task.
+- **What failed:** I appended the usage row with .NET `WriteAllText` and a relative path from a PowerShell session whose location was the scrb-scoring-fixes worktree; .NET resolved it against the process directory, so the row landed in the primary scrb checkout's `agents/agent_task_allocation.md` (a different branch) and the worktree file was unchanged. `git diff` in the worktree showed nothing, which exposed it.
+- **Agent-controlled cause:** relative path passed to a .NET file API instead of an absolute or PowerShell-resolved path.
+- **Impact:** one uncommitted line in the primary checkout, reverted with `git checkout --` (the file was clean before); nothing committed or pushed from it; a few minutes of redo.
+- **Evidence:** `git status` in the primary checkout showed ` M agents/agent_task_allocation.md` before the revert.
+- **Correction / prevention:** use absolute paths with .NET file APIs; check `git diff` in the intended worktree before committing.
+- **Owner approval:** not required.
