@@ -50,5 +50,70 @@ class TestTemplateStepFree(unittest.TestCase):
         self.assertTrue(all(a['template_step_free'] for a in marked))
 
 
+def split(anchors):
+    marked = timing.apply_template_step_condition(anchors, mapping())
+    excluded = {i for i, _ in timing.excluded_anchors(marked)}
+    return marked, [a for a in marked if a['id'] not in excluded], excluded
+
+
+class TestPerAnchorExclusion(unittest.TestCase):
+    """One failed anchor excludes only itself; track-level failures stay track-level."""
+    def eight(self):
+        # 40 s spacing; 'spans' has the 210 ms gap at 140 s inside its template and the step really happened there
+        names = [('a', 20, 0), ('b', 60, 0), ('c', 100, 0), ('spans', 138, 0), ('e', 176, .21), ('f', 216, .21),
+                 ('g', 256, .21), ('h', 296, .21)]
+        return [anchor(n, b, o) for n, b, o in names]
+
+    def gap(self, valid, marked, onset, last_end):
+        brackets = timing.unexplained_brackets(valid, mapping())
+        return timing.unit_timing_gap(onset, last_end, marked, valid, brackets)
+
+    def test_a_one_excluded_anchor_loses_only_the_units_that_depend_on_it(self):
+        marked, valid, excluded = split(self.eight())
+        self.assertEqual(excluded, {'spans'})
+        timing.track_anchor_gate(marked, valid)
+        self.assertIsNone(self.gap(valid, marked, 45, 50))      # between valid a/b and c: scored
+        self.assertIsNone(self.gap(valid, marked, 230, 236))    # far from the gap: scored
+        self.assertIsNone(self.gap(valid, marked, 70, 75))
+        self.assertIn('within 30 s', self.gap(valid, marked, 139, 141))   # across the dropout: nearest valid anchors 38 s and 36 s away
+        self.assertIn('within 30 s', self.gap(valid, marked, 125, 130))   # next valid anchor after it is 46 s away
+        # the excluded anchor gets no calibrated uncertainty and the step bounds refuse it
+        self.assertFalse(next(a for a in marked if a['id'] == 'spans')['template_step_free'])
+        with self.assertRaisesRegex(ValueError, 'not established step-free'):
+            timing.step_bounds(marked, [])
+        timing.step_bounds(valid, [])   # the valid anchors alone still bound the located step
+
+    def test_b_unexplained_offset_change_without_a_timestamp_event_still_fails_closed(self):
+        a, b, c = anchor('a', 20, 0.0), anchor('b', 60, .08), anchor('c', 100, .08)
+        marked, valid, excluded = split([a, b, c])
+        self.assertEqual(excluded, {'a', 'b'})                  # both neighbours of the unlocated step lose the calibrated value
+        # Anchors that were nevertheless kept (for example the step is below what excludes an anchor) are bracketed:
+        kept = [{**a, 'template_step_free': True}, {**b, 'template_step_free': True}, {**c, 'template_step_free': True}]
+        brackets = timing.unexplained_brackets(kept, mapping())
+        self.assertEqual([(q['id'], r['id']) for q, r in brackets], [('a', 'b')])
+        self.assertIn('unexplained offset change', timing.unit_timing_gap(30, 40, kept, kept, brackets))
+        self.assertIsNone(timing.unit_timing_gap(70, 80, kept, kept, brackets))    # after the change, between b and c
+        # a step located by the 140 s chunk gap is explained and is not a bracket
+        located = [anchor('a', 100, 0.0), anchor('b', 150, .21)]
+        self.assertEqual(timing.unexplained_brackets(located, mapping()), [])
+
+    def test_c_too_few_valid_anchors_ends_the_track(self):
+        anchors = self.eight()
+        for dropped in (['spans'], ['spans', 'e']):
+            marked = [{**a, 'template_step_free': a['id'] not in dropped} for a in anchors]
+            valid = [a for a in marked if a['template_step_free']]
+            timing.track_anchor_gate(marked, valid)             # 7 and 6 of 8 remain: allowed
+        marked = [{**a, 'template_step_free': a['id'] not in ('spans', 'e', 'f')} for a in anchors]
+        with self.assertRaisesRegex(ValueError, r'Too few valid long anchors remain \(5 of 8\)'):
+            timing.track_anchor_gate(marked, [a for a in marked if a['template_step_free']])
+        four = anchors[:4]
+        marked = [{**a, 'template_step_free': a['id'] != 'b'} for a in four]
+        with self.assertRaisesRegex(ValueError, r'Too few valid long anchors remain \(3 of 4\)'):
+            timing.track_anchor_gate(marked, [a for a in marked if a['template_step_free']])
+        unvalidated = [{**a, 'validated': i < 3} for i, a in enumerate(anchors)]
+        with self.assertRaisesRegex(ValueError, 'Unvalidated long anchors are the majority'):
+            timing.track_anchor_gate(unvalidated, [a for a in unvalidated if a['validated']])
+
+
 if __name__ == '__main__':
     unittest.main()

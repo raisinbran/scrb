@@ -334,6 +334,14 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Step-free condition enforced from the chunk-timestamp gap map and detected steps, failing closed, with its blind spots listed; matcher output hash bound and compared; energy-rule results recorded as sensitivity evidence only. Read the code path before stating that a rule is enforced. Renumber at merge if another branch used A-063.
 - **Owner approval:** Not required (offline).
 
+### A-064 — 2026-11-09 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent (design of my own earlier rule).
+- **What failed:** The step-free rule I added in the previous task (A-063) turned one failed anchor into a whole-track timing INCONCLUSIVE. On the practice meeting track one real 210 ms dropout (inside the template of meeting-024) would have wasted a 30-minute scored run. I stated it as an enforced "fail closed" without checking whether any document required a track-wide failure; none does (code-only, inherited from `step_bounds`). While fixing it, my first track gate (minimum 4 valid anchors) and the new 30 s distance rule broke three existing synthetic-fixture tests, caught by running them before commit; and two inline helper scripts failed on quoting/path handling (no effect on the product).
+- **Impact:** None on a score (no scored run). It would have cost a scored run.
+- **Evidence:** `v3a_timing.py` (`excluded_anchors`, `track_anchor_gate`, `unexplained_brackets`, `unit_timing_gap`); `test_template_step_free.py` (`TestPerAnchorExclusion`); `docs/gates/gate-3-windows-d4-correlation-calibration-proposed.md` section 5.
+- **Correction / prevention:** Per-anchor exclusion with unit-level INCONCLUSIVE for timing; track-level failure kept only for marker disagreement, no lead or trail anchor, unvalidated majority and too few valid anchors. Constants (30 s, 75%, 4) await owner approval. Before calling a rule required or fail-closed, grep the protocol and amendment text for it. Two legacy fixtures were adjusted (anchor moved within 30 s; unexplained-bracket check patched in the step-widening arithmetic test).
+- **Owner approval:** Required for the proposed constants before a scored run; not required for the offline code.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.

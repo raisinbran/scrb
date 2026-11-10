@@ -17,7 +17,7 @@ Tool: `scripts/gate3-retest/calibrate-long-correlation.py` (tests: `test_calibra
 | not validated (rejected by the uniqueness rules) | 23 | | | up to 197 ms |
 
 By track (validated): microphone median 1.5 ms, meeting 1.2 ms. By position (60 s bins) the step-free p95 is 2.0-2.2 ms everywhere. The reported `uncertainty_s` is 13.1 ms median, 17.1 ms p95. Error never exceeded it for step-free templates (478 of 478, about 5x margin). At +40 dB noise (3 seeds): step-free max 2.2 ms (239 units), but 5 validated anchors with a step inside their template were wrong by 5 to 163 ms.
-Of the 12 scenarios, 11 had at least one unvalidated anchor (step inside the template). Under the current rule one unvalidated anchor makes the track INCONCLUSIVE.
+Of the 12 scenarios, 11 had at least one unvalidated anchor (step inside the template). Under the first version of the rule one unvalidated anchor made the track INCONCLUSIVE; section 5 (2026-11-09 follow-up) replaces that with per-anchor exclusion.
 
 ## 2. Real practice recording (independent of correlation)
 Marker tones detected in the continuous views and in the source; the two correlation anchors nearest each marker compared with the marker-derived offset (marker detection step 5 ms, so +/-10 ms with the source detection):
@@ -32,7 +32,7 @@ Agreement is to the marker's resolution; it cannot show errors below about 5-10 
 4. Exact-PCM matching remains unusable (0 of 12). No other matching method is proposed.
 
 ## 4. What is and is not enforced (added 2026-11-09)
-Enforced, failing closed (an anchor that fails makes the track's timing INCONCLUSIVE, because every anchor must be validated and complete):
+Enforced, failing closed (an anchor that fails loses the calibrated uncertainty and is excluded; what that does to units and to the track is section 5):
 - A bounded-correlation anchor keeps the calibrated 13-17 ms uncertainty only if its template support, widened by its own uncertainty plus one 20 ms envelope frame on each side, contains no chunk-timestamp gap, overlap or audited overrun of 5 ms or more. (Smaller events add at most 5 ms to the 2.4 ms worst step-free error, below the 13 ms floor.)
 - A detected step (offset change over the two anchors' combined uncertainty) must be explained by such a chunk-timestamp event lying between the two supports (margins excluded). An unexplained step makes BOTH adjacent anchors fail, because the step could be inside either template.
 
@@ -46,6 +46,24 @@ Retained practice recording, both tracks (offline; real chunk timestamps; chunk-
 | Track | Long anchors | Validated | Unvalidated | Excluded by the new condition | Timing verdict under the rule |
 |---|---|---|---|---|---|
 | microphone | 39 | 39 | 0 | 0 | BOUNDED possible |
-| meeting | 45 | 45 | 0 | 1 (meeting-024, template 141.6-144.6 s contains the 210 ms gap) | INCONCLUSIVE |
+| meeting | 45 | 45 | 0 | 1 (meeting-024, template 141.6-144.6 s contains the 210 ms gap) | INCONCLUSIVE under the first version; see section 5 |
 | both | 84 | 84 | 0 | 1 | |
-Unvalidated is 0 here, but in the 12 simulated scenarios (planted steps, measured noise) 11 had at least one unvalidated anchor, so a scored run with steps inside templates can still be INCONCLUSIVE from the uniqueness rule alone. One excluded anchor ends a track's timing verdict, so a scored run gives a timing verdict only when no template sits across a dropout; this practice recording gave one of two.
+Unvalidated is 0 here, but in the 12 simulated scenarios (planted steps, measured noise) 11 had at least one unvalidated anchor, so a scored run with steps inside templates can still be INCONCLUSIVE from the uniqueness rule alone. Under the first version one excluded anchor ended a track's timing verdict (superseded by section 5). 
+
+## 5. Per-anchor exclusion (owner follow-up, 2026-11-09; proposed, not approved)
+Source of the whole-track rule: code only. It was inherited from `step_bounds` (commit 069ee04: every adjacent pair must be validated or the call raises) and I carried it over in the step-free condition. Neither the v3 protocol nor the v3a amendment says it: rules 3, 5, 6 and 7 are unit-level (an unlogged interior step makes the AFFECTED units INCONCLUSIVE; a finite interval is not proof of capture; steps persist and only bracketing units are widened).
+
+Rule now in code (`v3a_timing.py`; no bound or threshold changed):
+- An anchor that is unvalidated, or whose template is not established step-free, is excluded individually and never gets the calibrated uncertainty. Its neighbours are re-paired across it, so a dropout inside one template no longer fails the neighbours that its own step explains (stage 2 of the condition runs on the survivors of stage 1).
+- Units are placed from the valid anchors on each side plus the gap map, as before. The step across the excluded anchor is in the bracket's step uncertainty, so every unit's interval still covers it.
+- A unit is INCONCLUSIVE for timing (never credited in either bound, kept in the denominator) when it depended on an excluded anchor: with every anchor it had one within `MAX_ANCHOR_DISTANCE_S` = 30 s on each side (anchor end to the unit's last-word end before; anchor start to the unit's onset after), and without the excluded ones it no longer does; or when its span crosses two valid anchors, at least one bounded-correlation, whose offsets differ by more than their combined uncertainty with no timestamp event between them. A unit already farther than 30 s from every anchor keeps the earlier handling (neither stricter nor looser), and exact-PCM anchors keep the earlier step widening.
+- Track-level INCONCLUSIVE stays for: a gap-map or marker disagreement (unchanged), no usable lead or trail anchor (a valid anchor within 30 s of the first long anchor's start or the last one's end), more than half of the long anchors unvalidated, and fewer than `max(4, ceil(0.75 x long anchors))` valid long anchors when any anchor was excluded.
+
+Why 30 s: practice anchor spacing is median 5.7 s, maximum 8.1 s (microphone) and median 5.3 s, maximum 6.3 s (meeting). The practice drift is about 0.55 ms/s, so 30 s drifts 16.5 ms, the size of the calibrated 13-17 ms uncertainty; a unit farther than that from any valid anchor would lean on drift alone. The largest gap step uncertainty on the practice recording is about 244 ms (210 ms gap plus the combined anchor uncertainty). The distance, the 75% share and the minimum of 4 are my proposals for owner approval.
+
+Practice recording, rerun offline (anchors from the retained joined audio, the real gap maps; units from the frozen annotations, placement support only, no scored run):
+| Track | Long anchors | Valid | Excluded | Units | Timing-scoreable | INCONCLUSIVE for timing | Track gate |
+|---|---|---|---|---|---|---|---|
+| microphone | 39 | 39 | 0 | 65 | 65 | 0 | pass |
+| meeting | 45 | 44 | 1 (meeting-024) | 75 | 75 | 0 | pass |
+Neighbours of meeting-024 (valid anchors on both sides, spacing at most 6.3 s) keep every meeting unit within 30 s; units across the dropout are placed with the gap step added to their uncertainty. Not shown by this rerun: outcomes, endpoints and latency (those need a scored run).

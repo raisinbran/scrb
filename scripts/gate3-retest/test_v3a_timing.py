@@ -36,8 +36,9 @@ def mapping(gap=.210, rate=1000):
 
 
 def anchors(change=0):
-    return [{'id': 'before', 'source_start_s': 98, 'source_end_s': 100,
-             'recording_start_s': 98, 'recording_end_s': 100, 'offset_s': 0,
+    # 'before' sits within the 30 s maximum anchor distance of the units placed at 139-140 s.
+    return [{'id': 'before', 'source_start_s': 118, 'source_end_s': 120,
+             'recording_start_s': 118, 'recording_end_s': 120, 'offset_s': 0,
              'uncertainty_s': .001, 'method': 'unique-exact-long-PCM', 'validated': True},
             {'id': 'after', 'source_start_s': 150-change, 'source_end_s': 152-change,
              'recording_start_s': 150, 'recording_end_s': 152, 'offset_s': change,
