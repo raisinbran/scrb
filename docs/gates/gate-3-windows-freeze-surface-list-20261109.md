@@ -31,6 +31,12 @@ Status: **DRAFT.** A list of what the real run uses and must check before it sta
 6. Native candidate pinned and `launch-candidate.ps1` check-only hashes match.
 7. Row labels: You maps to the microphone track; Meeting, Speaker ? and Speaker N map to the meeting track. Any other label with words makes the run INCONCLUSIVE. Retained validation-3, -4 and -5 only ever showed You and Meeting; Speaker N has not been seen in real data.
 
+## Scoring-time procedure: occurrence-matcher binding (D6)
+1. Run the pinned `occurrence_matcher` once, directly from the frozen annotation and the converted publication file (`occurrence_matcher.align_occurrences(annotation, converted words, track, clock_basis='recording')`), and write its `OFFLINE_ALIGNMENT_ONLY` output file. Do not hand-edit the unit list the scorer reads.
+2. Immediately record, in the run record: SHA-256 of the frozen annotation, of the converted publication file and of the matcher output; the exact command line; and the matcher script's own SHA-256 and the Python version.
+3. Before scoring, verify all of those hashes again. The scorer (`analyze-bounds.py`) additionally requires the matcher output's track, clock basis and recording SHA-256 to match and every credited unit to equal its matcher row.
+4. **Limit, stated plainly:** this detects any change made after step 2. It is **not protection against coordinated edits made before the evidence is sealed** (for example editing the annotation, the converted file and the matcher output together before hashing), and the scorer does not regenerate the matcher output itself.
+
 ## Post-capture checks (manual; none is scripted)
 
 1. First overlay-bearing video frame: after the run, extract frames with the decoder tool until the overlay is readable, and compare that frame's overlay reading with the overlay start tick in `actions.log` (the first-frame check above). A video that starts before the overlay has leading frames without it; look further in. A video that lacks the overlay for a stretch (validation-3) must be reported, not assumed.

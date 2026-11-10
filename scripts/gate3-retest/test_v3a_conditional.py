@@ -55,6 +55,7 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
                      patch.object(timing, 'digest', return_value='a'*64), \
                      patch.object(timing, 'load_long_anchors', return_value=report), \
                      patch.object(timing, 'apply_template_step_condition', side_effect=lambda a, m: [{**x, 'template_step_free': True, 'template_step_reason': None} for x in a]),                      patch.object(timing, 'unexplained_brackets', return_value=[]), \
+                     patch.object(timing, 'unexplained_intervals', return_value=[]), \
                      binding_fixture.without_regeneration(bounds):
                     # This test covers the step-widening arithmetic. The step-free template condition would fail this
                     # unexplained synthetic step closed; it has its own tests in test_template_step_free.py.

@@ -97,22 +97,16 @@ class TestPerAnchorExclusion(unittest.TestCase):
         located = [anchor('a', 100, 0.0), anchor('b', 150, .21)]
         self.assertEqual(timing.unexplained_brackets(located, mapping()), [])
 
-    def test_c_too_few_valid_anchors_ends_the_track(self):
+    def test_c_no_count_gate_only_the_absence_of_any_valid_long_anchor_ends_the_track(self):
         anchors = self.eight()
-        for dropped in (['spans'], ['spans', 'e']):
+        for dropped in (['spans'], ['spans', 'e', 'f', 'g'], ['a', 'b', 'c', 'spans', 'e', 'f', 'g']):
             marked = [{**a, 'template_step_free': a['id'] not in dropped} for a in anchors]
-            valid = [a for a in marked if a['template_step_free']]
-            timing.track_anchor_gate(marked, valid)             # 7 and 6 of 8 remain: allowed
-        marked = [{**a, 'template_step_free': a['id'] not in ('spans', 'e', 'f')} for a in anchors]
-        with self.assertRaisesRegex(ValueError, r'Too few valid long anchors remain \(5 of 8\)'):
-            timing.track_anchor_gate(marked, [a for a in marked if a['template_step_free']])
-        four = anchors[:4]
-        marked = [{**a, 'template_step_free': a['id'] != 'b'} for a in four]
-        with self.assertRaisesRegex(ValueError, r'Too few valid long anchors remain \(3 of 4\)'):
-            timing.track_anchor_gate(marked, [a for a in marked if a['template_step_free']])
-        unvalidated = [{**a, 'validated': i < 3} for i, a in enumerate(anchors)]
-        with self.assertRaisesRegex(ValueError, 'Unvalidated long anchors are the majority'):
-            timing.track_anchor_gate(unvalidated, [a for a in unvalidated if a['validated']])
+            timing.track_anchor_gate(marked, [a for a in marked if a['template_step_free']])   # no share or minimum count
+        marked = [{**a, 'template_step_free': False} for a in anchors]
+        with self.assertRaisesRegex(ValueError, 'No valid long anchor remains'):
+            timing.track_anchor_gate(marked, [])
+        unvalidated = [{**a, 'validated': i < 3} for i, a in enumerate(anchors)]   # five of eight unvalidated: units, not the track
+        timing.track_anchor_gate(unvalidated, [a for a in unvalidated if a['validated']])
 
 
 if __name__ == '__main__':
