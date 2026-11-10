@@ -301,6 +301,8 @@ The 2 ms conversion allowance is a conservative numerical allowance for converti
 (Stopwatch ticks and capture timestamps); it is not measured device timestamp accuracy and not a bound on
 playback or capture delay.
 
+**Harness markers are derived, not typed (D3).** The scorer derives both marker times from the harness log (QPC frequency and the ticks before and after `waveOutRestart`, midpoint) plus the lead and trail marker offsets detected in the frozen source WAV (`harness_provenance.py`). The supplied `harness` must equal them (1e-9 s) and `harness_u` must be at least half the bracket width plus the detector step; otherwise the track is INCONCLUSIVE. On the practice log this reproduces 6788.7203898 and 7168.7203898 exactly. The log brackets the call to `waveOutRestart`, not the moment sound left the device: the unmeasured output-start latency of the route remains a limitation.
+
 Add a `v3a_evidence` object with a separate entry for each track:
 
 ```json
