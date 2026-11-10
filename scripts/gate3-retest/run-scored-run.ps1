@@ -9,6 +9,7 @@ param(
     [Parameter(Mandatory = $true)][int]$AppPid,
     [Parameter(Mandatory = $true)][string]$EvidenceDir,          # must not exist
     [Parameter(Mandatory = $true)][string]$ManifestPath,         # the owner-approved manifest
+    [Parameter(Mandatory = $true)][string]$ApprovedManifestSha256, # the SHA-256 the owner approved (CRLF normalized to LF, as the verifier computes it)
     [Parameter(Mandatory = $true)][int]$ObserverSeconds,         # observer lifetime: lead-in + recording + drain, chosen in the run authorization
     [int]$RecordSeconds = 420,                                   # protocol v3 recording_seconds
     [int]$DrainSeconds = 30,                                     # as in validation-5
@@ -33,14 +34,18 @@ function Rec($msg) { "{0}`t{1}" -f [DateTime]::UtcNow.ToString('o'), $msg | Add-
 function Verify($stage) {
     $outFile = "$dirEv\verifier-$stage.txt"
     Rec "verifier $stage starting"
-    $out = & $Python -I "$dirScr\verify-against-manifest.py" --manifest $ManifestPath --checkout $dirRepo 2>&1
+    $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'   # Windows PowerShell 5.1 turns native stderr text into a terminating error under 'Stop'
+    $out = & $Python -I "$dirScr\verify-against-manifest.py" --manifest $ManifestPath --approved-manifest-sha256 $ApprovedManifestSha256 --checkout $dirRepo 2>&1
     $code = $LASTEXITCODE
+    $ErrorActionPreference = $saved
     $out | Out-File $outFile -Encoding utf8
     Rec "verifier $stage exit code $code; output $outFile; output SHA-256 $((Get-FileHash $outFile -Algorithm SHA256).Hash.ToLower())"
     if ($code -ne 0) { Act "ABORT: verifier $stage exit $code"; throw "verifier $stage failed (exit $code); see $outFile" }
 }
 Rec "orchestrator $PSCommandPath SHA-256 $((Get-FileHash $PSCommandPath -Algorithm SHA256).Hash.ToLower())"
-Rec "manifest $ManifestPath SHA-256 $((Get-FileHash $ManifestPath -Algorithm SHA256).Hash.ToLower())"
+Rec "manifest $ManifestPath raw-file SHA-256 $((Get-FileHash $ManifestPath -Algorithm SHA256).Hash.ToLower()) (information only; the verifier compares the CRLF-normalized hash)"
+Rec "approved manifest SHA-256 (owner-approved value passed to the verifier) $ApprovedManifestSha256"
+Rec "python $((Get-Command $Python).Source) $(& $Python --version 2>&1)"
 Rec "checkout $dirRepo HEAD $(git -C $dirRepo rev-parse HEAD)"
 Verify 'before-capture'
 
@@ -128,9 +133,10 @@ $maxMic = 0; $maxMeet = 0
 for ($i = 0; $i -lt 40; $i++) { Start-Sleep -Milliseconds 250; $m = Level 'Mic level'; $mm = Level 'Meeting level'; if ($m -gt $maxMic) { $maxMic = $m }; if ($mm -gt $maxMeet) { $maxMeet = $mm } }
 Act "level meters within 10 s of Record: mic max $maxMic, meeting max $maxMeet"
 # 7 no scripted scrolling; wait for the recording length, logging the Snipping Tool timer
-while (((Tick) - $t0) / $freqHz -lt $RecordSeconds) { Start-Sleep -Milliseconds 100; if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
-# 8 stop playback, Stop, drain
-Act "recording length $RecordSeconds s reached: stopping playback process"; try { Stop-Process -Id $procPlay.Id -Force } catch { }; Act 'playback process stopped'
+# the sources are 420 s long: wait for playback to finish (as in the practice run), never less than RecordSeconds, and give up on a stuck playback after RecordSeconds + DrainSeconds
+while ((((Tick) - $t0) / $freqHz -lt $RecordSeconds) -or (-not $procPlay.HasExited -and ((Tick) - $t0) / $freqHz -lt ($RecordSeconds + $DrainSeconds))) { Start-Sleep -Milliseconds 100; if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
+# 8 Stop, drain
+if ($procPlay.HasExited) { Act "playback process ended by itself (exit code $($procPlay.ExitCode)) at $([Math]::Round(((Tick) - $t0) / $freqHz, 1)) s after Record" } else { Act 'playback still running after RecordSeconds + DrainSeconds: stopping it'; try { Stop-Process -Id $procPlay.Id -Force } catch { }; Act 'playback process stopped' }
 [void][N]::SetForegroundWindow($hwnd)
 if (-not (PressApp 'Stop')) { Act 'FAILED: app Stop not found' } else { Act 'STOP pressed (Stop invoked)' }
 Start-Sleep $DrainSeconds; Act "drain $DrainSeconds s done"; Act ('snipping timer text before Stop: ' + (SnipTimer))
