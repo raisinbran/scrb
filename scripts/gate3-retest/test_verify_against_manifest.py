@@ -15,6 +15,8 @@ VERIFIER = os.path.join(HERE, 'verify-against-manifest.py')
 REPO = subprocess.run(['git', '-C', HERE, 'rev-parse', '--show-toplevel'], capture_output=True, check=True).stdout.decode().strip()
 REAL_MANIFEST = os.path.join(REPO, 'docs', 'gates', 'windows-gate3-v3-preflight-manifest.json')
 SCRIPT_DIR = 'scripts/gate3-retest'
+CRLF = bytes([13, 10])
+LF = bytes([10])
 
 
 def run_git(cwd, *args):
@@ -25,9 +27,16 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def verify(manifest, checkout):
-    proc = subprocess.run([sys.executable, '-I', VERIFIER, '--manifest', manifest, '--checkout', checkout],
-                          capture_output=True)
+def lf_sha(path):
+    with open(path, 'rb') as handle:
+        return sha(handle.read().replace(CRLF, LF))
+
+
+def verify(manifest, checkout, approved=None, omit_approved=False):
+    command = [sys.executable, '-I', VERIFIER, '--manifest', manifest, '--checkout', checkout]
+    if not omit_approved:
+        command += ['--approved-manifest-sha256', approved if approved is not None else lf_sha(manifest)]
+    proc = subprocess.run(command, capture_output=True)
     return proc.returncode, proc.stdout.decode('utf-8', 'replace')
 
 
@@ -86,20 +95,47 @@ class SyntheticRepo(unittest.TestCase):
 
     def write_manifest(self, manifest):
         path = os.path.join(self.tmp, 'manifest-%d.json' % len(os.listdir(self.tmp)))
-        with open(path, 'w', encoding='utf-8') as handle:
-            json.dump(manifest, handle)
+        with open(path, 'w', encoding='utf-8', newline=chr(10)) as handle:
+            json.dump(manifest, handle, indent=2)
         return path
 
     def manifest_sha(self):
-        with open(self.manifest_path, 'rb') as handle:
-            return sha(handle.read())
+        return lf_sha(self.manifest_path)
 
     def test_passes_when_everything_matches(self):
         code, out = verify(self.manifest_path, self.repo)
         self.assertEqual(code, 0, out)
         self.assertIn('RESULT: PASS', out)
-        self.assertIn('manifest SHA-256: ' + self.manifest_sha(), out)
+        self.assertIn('manifest SHA-256 (CRLF normalized to LF): ' + self.manifest_sha(), out)
         self.assertIn('checkout HEAD: ' + self.pin, out)
+
+    def test_one_wrong_character_in_the_approved_hash_fails(self):
+        good = self.manifest_sha()
+        bad = good[:-1] + ('0' if good[-1] != '0' else '1')
+        code, out = verify(self.manifest_path, self.repo, approved=bad)
+        self.assertEqual(code, 1, out)
+        self.assertIn('differs from the approved value', out)
+
+    def test_crlf_copy_of_the_manifest_passes_with_the_same_approved_hash(self):
+        with open(self.manifest_path, 'rb') as handle:
+            data = handle.read()
+        crlf_path = self.manifest_path + '.crlf.json'
+        with open(crlf_path, 'wb') as handle:
+            handle.write(data.replace(LF, CRLF))
+        self.assertNotEqual(sha(data.replace(LF, CRLF)), self.manifest_sha())
+        code, out = verify(crlf_path, self.repo, approved=self.manifest_sha())
+        self.assertEqual(code, 0, out)
+
+    def test_missing_approved_hash_parameter_fails(self):
+        code, out = verify(self.manifest_path, self.repo, omit_approved=True)
+        self.assertEqual(code, 2, out)
+
+    def test_changed_manifest_content_fails_against_the_old_approved_hash(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest['status'] = 'FROZEN'
+        code, out = verify(self.write_manifest(manifest), self.repo, approved=self.manifest_sha())
+        self.assertEqual(code, 1, out)
+        self.assertIn('differs from the approved value', out)
 
     def test_tampered_tool_in_working_tree_fails(self):
         with open(os.path.join(self.repo, SCRIPT_DIR, 'scorer.py'), 'wb') as handle:
@@ -189,8 +225,8 @@ class RealManifest(unittest.TestCase):
         manifest = copy.deepcopy(self.manifest)
         mutate(manifest)
         path = os.path.join(self.tmp, 'variant-%d.json' % len(os.listdir(self.tmp)))
-        with open(path, 'w', encoding='utf-8') as handle:
-            json.dump(manifest, handle)
+        with open(path, 'w', encoding='utf-8', newline=chr(10)) as handle:
+            json.dump(manifest, handle, indent=2)
         return path
 
     def test_passes_on_the_real_manifest(self):

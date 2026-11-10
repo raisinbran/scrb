@@ -5,10 +5,12 @@ Run before capture and again before scoring, from the clean checkout at the mani
 commit. Exit 0 only if everything matches; any mismatch, missing entry, missing file, unlisted
 script or dirty tree exits 1 (bad usage or unreadable manifest exits 2).
 
-  python verify-against-manifest.py --manifest <approved manifest.json> [--checkout <root>]
+  python verify-against-manifest.py --manifest <approved manifest.json> --approved-manifest-sha256 <64 hex> [--checkout <root>]
 
 Tracked files are hashed from `git show <commit>:<path>` bytes; private files from their raw bytes.
-The manifest is not part of the pin, so it is passed in and its own SHA-256 is printed.
+The manifest is not part of the pin, so it is passed in. Its SHA-256 is computed over the file bytes with CRLF
+replaced by LF (this equals the bytes `git show` prints for the committed file, so a Windows checkout that converts
+line endings cannot change the value) and must equal the owner-approved value given on the command line.
 """
 import argparse
 import datetime
@@ -116,7 +118,7 @@ def resolve_raw(entry, bases):
     return os.path.join(bases[base], path)
 
 
-def verify(manifest_path, checkout):
+def verify(manifest_path, checkout, approved_sha):
     report = Report()
     try:
         with open(manifest_path, 'rb') as handle:
@@ -130,7 +132,14 @@ def verify(manifest_path, checkout):
     pin = pins.get('doc_pin_commit', '')
     print('verify-against-manifest started (UTC): ' + started)
     print('manifest path: ' + os.path.abspath(manifest_path))
-    print('manifest SHA-256: ' + sha256_bytes(manifest_bytes))
+    manifest_sha = sha256_bytes(lf(manifest_bytes))
+    print('manifest SHA-256 (CRLF normalized to LF): ' + manifest_sha)
+    print('manifest SHA-256 (raw file bytes, information only): ' + sha256_bytes(manifest_bytes))
+    print('approved manifest SHA-256: ' + approved_sha)
+    if manifest_sha != approved_sha.strip().lower():
+        report.fail('manifest SHA-256 %s differs from the approved value %s' % (manifest_sha, approved_sha))
+    else:
+        report.ok()
     print('manifest status: %s' % manifest.get('status'))
     print('pinned doc commit: %s; final code SHA: %s' % (pin, pins.get('final_code_sha')))
 
@@ -259,9 +268,10 @@ def finish(report, manifest_bytes):
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--manifest', required=True)
+    parser.add_argument('--approved-manifest-sha256', required=True, help='the owner-approved SHA-256 of the manifest (LF-normalized)')
     parser.add_argument('--checkout', default=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     args = parser.parse_args(argv)
-    return verify(args.manifest, args.checkout)
+    return verify(args.manifest, args.checkout, args.approved_manifest_sha256)
 
 
 if __name__ == '__main__':
