@@ -275,6 +275,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - The earlier ~165 s microphone-text gap was traced to muffled/unintelligible input on the saved track; a transcription/software failure was not demonstrated.
 - Interrupted one-hour processing, the Windows FFmpeg/awk build issue, and historic four-hour live failures have not been shown to be **agent-induced** from the evidence reviewed here. Do not count them as self-induced without a documented cause.
 
+### A-058 - 2026-11-10 - Claude Code (Sonnet 5.5) / Windows Desktop - allowance-proposal drafting: wasted search, wrong first method, blindness exposure
+- **Status / attribution:** Confirmed; agent.
+- **What failed:** (1) Searched four sibling repo copies and issued a whole-filesystem `find /` before the owner stopped it ("STOP WASTING CREDITS"); the work was for this repo only. (2) First sample-count method (Ogg granule positions) reported zero mismatches and did not reproduce the audited chunk 32, so it was discarded and the count rerun with the retained ffmpeg. (3) Tailing `agents/agent_task_allocation.md` displayed the scored-run-2 usage row, exposing the provisional meeting-track outcome and microphone INCONCLUSIVE during a drafting task that required blindness to outcomes.
+- **Agent-controlled cause:** Did not read the project path from the instructions before searching; chose a method without checking it against the known audited value first; tailed a file known to contain outcome summaries.
+- **Impact:** A few minutes and a modest slice of the 5-hour allowance. No latency, recurrence or per-unit result was seen; the exposure is disclosed in the proposal (section 1).
+- **Evidence:** `docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md` sections 1 and 2.
+- **Correction / prevention:** Validate any new measurement against a known value first; avoid reading usage and register tails in blind tasks (use targeted greps of the needed row only).
+- **Owner approval:** Not required.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
