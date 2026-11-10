@@ -399,11 +399,13 @@ def apply_template_step_condition(anchors, mapping):
             if a.get('method') == 'bounded-long-correlation' else a for a in anchors]
 
 
+# PROPOSED, OWNER APPROVAL PENDING: the three constants below are proposals for independent review and owner approval at the v3a
+# sign-off. They are not frozen and were not tuned against the practice recording.
 # Per-anchor exclusion (owner follow-up 2026-11-09). v3a amendment rules 3 and 7 make an unlocated step a UNIT-level INCONCLUSIVE
 # ("the affected units are INCONCLUSIVE"); nothing in a document makes one failed anchor end the whole track.
-MAX_ANCHOR_DISTANCE_S = 30.0   # 30 s of the practice drift (about 0.55 ms/s) is 16.5 ms, the size of the calibrated 13-17 ms uncertainty
-MIN_VALID_FRACTION = .75       # fewer valid long anchors than this share of all long anchors ends the track's timing
-MIN_VALID_ANCHORS = 4
+MAX_ANCHOR_DISTANCE_S = 30.0   # proposed, owner approval pending: 30 s of the practice drift (about 0.55 ms/s) is 16.5 ms, the size of the calibrated 13-17 ms uncertainty
+MIN_VALID_FRACTION = .75       # proposed, owner approval pending: fewer valid long anchors than this share of all long anchors ends the track's timing
+MIN_VALID_ANCHORS = 4          # proposed, owner approval pending
 
 
 def excluded_anchors(anchors):
