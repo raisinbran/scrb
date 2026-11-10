@@ -368,6 +368,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Placeable timing-excluded units get the rule 6 check first (unverified -> CAPTURE-LIMITED, verified -> rule 8); events at or after the measured end are skipped, no tolerance; local renamed `capture_evidence`; debug lines removed; checks now run one at a time. Constants stay proposed, owner approval pending.
 - **Owner approval:** Required for rule 6, rule 8, the 30 s reach and the drift allowance before a scored run.
 
+### A-068 — 2026-11-10 — ChatGPT (GPT-6) / Chat (GitHub-connected audit)
+- **Status / attribution:** Confirmed; ChatGPT's own independent-audit error, not a repository or scoring defect.
+- **What failed:** I reported P1-1 against the Windows Gate 3 preflight manifest at branch head `2cda260`, claiming `docs/handoffs/gate3-occurrence-matcher.md` had SHA-256 `74e3201bdf5e070f722c9e9810e3b886667c44062f47265701ca7d8bce4e1ddb` instead of its manifest-pinned `22a5fd80862a1c5fd0457baff59b5cc8d65ef15a67cab5f39df7474b7c245f31`. The latter is correct. I treated a hash of re-encoded content returned by a GitHub file reader as the hash of raw Git blob bytes.
+- **Agent-controlled cause:** I did not verify the byte representation before asserting a mismatch. The handoff file contains mixed UTF-8 and Windows-1252 bytes (including raw `0x96`); a connector's text conversion changes these bytes. The rendered/re-encoded copy has 23,860 bytes, while reconstituting the 23,844 original bytes reproduces the manifest SHA-256 exactly. The blob's Git object ID `17b71da7733604b4788120450a78779313e3ec69` is identical at `5ed5365`, `2cda260`, and the integration-2 branch head.
+- **Impact:** One false P1 audit finding, unnecessary owner and reviewer attention, and misleading advice to change a correct hash. No recording, scoring, freeze, merge, or manifest correction resulted. ChatGPT quota/owner-time cost was not independently measured.
+- **Evidence:** Preflight manifest `docs/gates/windows-gate3-v3-preflight-manifest.json` lines 220–223 at `2cda260`; Git blob `17b71da7733604b4788120450a78779313e3ec69`; re-fetch, invalid UTF-8 decode of raw blob at byte `0x96`, and reversible reconstruction matching the full 64-character pinned SHA-256. Owner correction on 2026-11-10.
+- **Correction / prevention:** Withdraw P1-1 explicitly. For future hash audits, compute SHA-256 directly over `git show PIN:path` or `git cat-file blob <object-id>` bytes using a byte-preserving verifier; do not hash rendered text, normalized content, or a connector's UTF-8 conversion. P1-2 and P1-3 are distinct accepted findings under separate correction. No further review round or run is requested.
+- **Owner approval:** No approval needed to document this incident. Existing Gate 3 proposal approvals and scored-run authorization remain pending.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
