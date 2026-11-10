@@ -30,7 +30,7 @@ SOURCES = {
     "utterances.eligible": "v3 timing amendment, section 2 and Revision 2026-11-09 (spread policy: onset spread <= 25 ms, offset spread <= 100 ms; no output-driven denominator change); r3 listen-through sign-off; joined-file verification. MECHANICAL PART ONLY, see decisions D1 and D2",
     "searches": "v3a amendment, section 4 rule 3 and 7 and scorer README: every non-short utterance in inventory order, ids only",
     "utterances.start/last_word_start/acoustic_end/earliest_acoustic_end_s/latest_acoustic_end_s/reference_words": "v3 timing amendment, section 1 and Revision 2026-11-09 (earliest = earlier offset - 5 ms, latest = later offset + 5 ms); copied unchanged from the assembly annotations",
-    "scored_unit_fields": "scorer glue (v3a_timing.source_schedule): source_start_s = start, source_last_word_start_s = last_word_start, source_last_word_end_s = acoustic_end (the nominal primary endpoint, v3 amendment section 1)",
+    "scored_unit_fields": "scorer glue (v3a_timing.source_schedule): source_start_s = start, source_last_word_start_s = last_word_start, source_last_word_end_s = acoustic_end (the nominal primary endpoint, v3 amendment section 1); the annotation spread fields (earliest/latest acoustic end, threshold spreads) are copied unchanged and the scorer glue (v3a_timing.attach_source_spread) takes them from the frozen annotation (D6)",
     "markers_in_source": "v3 amendment marker check as carried by v3a amendment section 4 rule 1; detected in the frozen source by marker_clock.detect_marker windows (0,10) and (380,390)",
 }
 
@@ -92,7 +92,8 @@ def build_track(track, assembly, measurements, signoff_ok, log_hashes):
         if not signoff_ok:
             reasons.append("listen-through sign-off file missing")
         row = {k: unit[k] for k in ("id", "track", "source", "short", "reference_words", "start", "last_word_start", "acoustic_end",
-                                    "earliest_acoustic_end_s", "latest_acoustic_end_s", "acoustic_end_spread_s") if k in unit}
+                                    "earliest_acoustic_end_s", "latest_acoustic_end_s", "acoustic_end_spread_s", "threshold_spread_s",
+                                    "final_onset_threshold_spread_s") if k in unit}
         row.update(source_start_sample=start, source_end_sample=end, eligible=not reasons, eligibility_failures=reasons,
                    measured_units=checks, source_start_s=unit["start"], source_last_word_start_s=unit["last_word_start"],
                    source_last_word_end_s=unit["acoustic_end"])

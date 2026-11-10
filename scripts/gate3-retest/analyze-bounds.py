@@ -244,7 +244,7 @@ def analyze_v3a_track(units, evidence, track):
     desired publication result.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, step_bounds, require, lead_marker_anchor,
+    from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, attach_source_spread, step_bounds, require, lead_marker_anchor,
                              finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
@@ -303,7 +303,10 @@ def analyze_v3a_track(units, evidence, track):
         observer_u_summary = {'scored_endpoints': len(scored_u), 'scored_endpoints_over_250ms': sum(u > 0.25 for u in scored_u),
                               'scored_endpoint_u_max_s': max(scored_u, default=None),
                               'note': 'Reporting only (250 ms is a reporting threshold); counts endpoints of credited scored units.'}
+        units = attach_source_spread(units, inventory['utterances'])
         prepared, steps = prepare_units(units, mapping, anchors)
+        for unit in prepared:
+            require(unit['source_spread']['present'] or unit['speech_time_basis'] != 'source', 'Source acoustic end spread missing')
         for unit in prepared:
             require(type(unit['eligible']) is bool, 'Invalid eligibility')
             if unit['outcome'] == 'SETUP-AFFECTED':

@@ -152,7 +152,7 @@ ANCHORS = [long_anchor('first', 30, 0.0), long_anchor('second', 98, 0.0),
 
 def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_present=True, tamper=None,
              supplied_marker=None, conversion_u=CONVERSION_U, source=None, file_tamper=None, drop_key=None,
-             gap=None, hide=(), stale=False, track='microphone', labeler=None, stale_words=None, per_word=False):
+             gap=None, hide=(), stale=False, track='microphone', labeler=None, stale_words=None, per_word=False, end_spread=0.0):
     units = units or build_units()
     header, samples = observer_lines(units, quarantine, gap, hide, stale, labeler, stale_words, per_word)
     publications, report = op.build_publications(header, samples, op.DEFAULT_LABELS, H0, FREQ)
@@ -176,7 +176,7 @@ def pipeline(units=None, quarantine=True, lead=True, clock_valid=True, evidence_
     continuous_check = {'valid': clock_valid, 'lead': {'position': 1.0, 'uncertainty_s': 0.002}}
     clock = {'valid': clock_valid, 'gap_map': mapping, 'sample_continuous': continuous_check,
              'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE'}}
-    inventory = {'anchors': [dict(a) for a in ANCHORS], 'utterances': [{'id': u[0], 'eligible': True} for u in units],
+    inventory = {'anchors': [dict(a) for a in ANCHORS], 'utterances': [{'id': u[0], 'eligible': True, 'earliest_acoustic_end_s': u[4]-end_spread, 'latest_acoustic_end_s': u[4]+end_spread} for u in units],
                  'annotations_sha256': 'd' * 64}
     evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json', 'decoder': 'decoder', 'source': 's.wav',
                 'harness': [11, 391], 'long_anchors': [{}], 'source_annotations': 'a.json'}
@@ -266,6 +266,16 @@ class EndToEnd(unittest.TestCase):
     def test_dirty_run_does_not_pass(self):
         self.assertNotEqual(self.result['latency'], 'PASS')
         self.assertFalse(self.result['bounds']['conservative']['pass'])
+
+    def test_frozen_annotation_end_spread_reaches_the_scored_bounds(self):
+        # D6: the scorer used one nominal endpoint; the annotation's earliest/latest end must widen both bounds.
+        wide, _, _, _ = pipeline(end_spread=.075)
+        before, after = self.units, by_id(wide)
+        credited = [i for i in before if all(math.isfinite(x[i].get(k, math.inf)) for x in (before, after) for k in ('conservative', 'best'))]
+        self.assertTrue(credited)
+        for unit_id in credited:
+            self.assertAlmostEqual(after[unit_id]['conservative']-before[unit_id]['conservative'], .075, places=6)
+            self.assertAlmostEqual(before[unit_id]['best']-after[unit_id]['best'], .075, places=6)
 
     def test_lead_marker_anchors_the_unit_before_the_first_long_anchor(self):
         low, high = self.spans['microphone-000']
