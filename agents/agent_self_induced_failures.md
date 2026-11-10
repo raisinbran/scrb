@@ -411,3 +411,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** parse check output before commit 528fae3; fix `${appPid}:`.
 - **Correction / prevention:** parse every edited .ps1 before committing; run `git worktree list` first.
 - **Owner approval:** not required.
+
+### A-071 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent-authored runbook defects found in the rehearsal.
+- **What failed:** (1) Runbook step 9 (playback dry run) omits `-OutFolder`, which play-sources.ps1 requires even for a dry run; the command as written throws "-OutFolder is required". (2) Runbook step 18 names the decoder ffmpeg.exe for the first-video-frame check, but that build has no image or rawvideo muxer and cannot extract frames. (3) I did not test either command when writing the runbook. (4) Minor: I created and then removed an empty scratch folder inside the rehearsal evidence folder (no evidence touched).
+- **Agent-controlled cause:** runbook commands written without running them.
+- **Impact:** none on the rehearsal run itself (workaround: throwaway -OutFolder); the first-video-frame check could not be done with existing tools.
+- **Evidence:** rehearsal-1 session, 2026-11-10 11:20 to 11:44 PT.
+- **Correction / prevention:** fix both steps in the runbook only after owner direction (pinned file); run every runbook command once before handing it over.
+- **Owner approval:** a runbook change touches the pin and needs the owner.
