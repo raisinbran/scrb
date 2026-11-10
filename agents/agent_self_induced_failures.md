@@ -240,6 +240,15 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Correction / prevention:** start every validation from a fresh app launch and profile, or confirm the pane is empty before starting the observer, and run the publications report right after the run, not only the interval script. Not repeated automatically; owner approval needed for another test.
 
 
+### A-055 - 2026-11-10 - Freeze process / Claude Code (Sonnet 5.5) - approved manifest had no scorer-format frozen inventory
+- **Status / attribution:** Confirmed process gap; no individual blamed beyond the evidence. The owner-approved manifest listed only the UNFROZEN assembly annotations (`eligible: null`, pending audit) and the pinned `make-draft-annotations.py`, whose output is `frozen=false` with open decisions D1 to D7. The scorer needs a `frozen: true` inventory with a defined eligibility rule, and no signed eligibility rule existed. The scoring brief assumed a frozen inventory and a signed D1 definition.
+- **Effect:** scoring of scored-run-2 stopped twice before any step ran (owner decisions needed); about 15 minutes of agent time and two owner decisions. Inventory was then generated from the pinned tool and flagged on a copy (Deviations 1 and 2 in the scored-run-2 result handoff).
+- **Correction / prevention:** before the next freeze, list every scorer input (frozen inventory file, eligibility rule, marker source) in the manifest with its approval.
+
+### A-056 - 2026-11-10 - Planner (owner-side brief) - false claim of an owner-signed D1 eligibility definition
+- **Status / attribution:** Confirmed planner error, corrected by the planner the same day. The brief said the sign-off (SHA-256 5a8fb52b...) contained a signed D1 definition of eligible; the file holds only the listen-through statement. Found by Claude Code at step 0 by reading the file and the tool; no result was affected because scoring had not started.
+- **Effect:** one extra stop and about 5 minutes of delay. **Correction:** the planner withdrew the premise and authorized Protocol section 2 plus the listen-through as the rule.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
