@@ -1,587 +1,1653 @@
 {
-  "schema": "SRCB-W-G3-V3-preparation-2-r3-draft",
-  "status": "NOT_FROZEN",
-  "draft": true,
-  "supersedes": "Earlier draft schema SRCB-W-G3-V3-preparation-1 (BLOCKED_INCOMPLETE). Full history is in git.",
+  "schema": "SRCB-W-G3-V3-preparation-3-final",
+  "status": "NOT_FROZEN - ready for independent audit and owner approval",
+  "frozen": false,
   "recording_authorized": false,
   "freeze_authorized": false,
-  "owner_ratification_2026_11_08": {
-    "scope": "diagnostic retest only; approval of existing criteria, not permission to change a criterion after seeing latency results",
-    "speaking_rate_wpm_band": [
-      130,
-      170
+  "scored_run_authorized": false,
+  "owner_approval_in_writing": "PENDING (the manifest stays not frozen until the owner approves in writing)",
+  "independent_audit": "PENDING (no agent other than the author has audited this manifest)",
+  "supersedes": "SRCB-W-G3-V3-preparation-2-r3-draft; full history is in git",
+  "pins": {
+    "final_code_sha": "01bd9c12142cb7e316c3b5399c779d60ee7e8544",
+    "final_code_sha_note": "Last commit that changed any scoring, matcher, observer or test code. No code changed after it.",
+    "doc_pin_commit": "5ed536554c2398684410512b46c34a592032e611",
+    "doc_pin_note": "Every git-tracked text hash below is of `git show 5ed536554c2398684410512b46c34a592032e611:<path>`. Files in this manifest, the owner approval sheet and later commits are not part of the pin; the manifest cannot hash itself. Between the code SHA and the pin only docs changed (the freeze-surface list).",
+    "branch": "rosmont/windows-gate3-integration-2-20261109",
+    "native_candidate_commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
+    "native_candidate_commit_note": "Git commit id, not a content digest"
+  },
+  "hashing_method": {
+    "rule": "Every digest is a full 64-character SHA-256 of content bytes. A git object id is never a digest.",
+    "procedure": "From a clean checkout of the pin in a new empty directory (git clone --no-checkout, then git checkout PIN; git status empty). Git-tracked text files: SHA-256 of the bytes printed by `git show PIN:path` (LF as stored, independent of working-tree line endings). WAV files, binaries and other private evidence: SHA-256 of the raw file bytes. Native candidate package-lock.json: `git show 553dd9080f452f8a54ccff5cd5fea8d6937438ae:package-lock.json`.",
+    "private_bases": {
+      "preflight": "C:\\Users\\bchen\\Documents\\ChatGPT\\srcb\\gate3-v3-preflight-20261108 (outside Git)",
+      "candidate-553dd90": "C:\\Users\\bchen\\Documents\\ChatGPT\\srcb\\gate3-v3-preflight-20261108\\candidate-553dd90 (outside Git)",
+      "r3-derived-1": "preflight\\renders-units-20261109-r3-derived-1"
+    },
+    "verified_by": "an independent script that recomputes each hash with git cat-file and raw reads; counts are in the task report"
+  },
+  "rules": {
+    "recording_seconds": 420,
+    "scored_interval_seconds": [
+      20,
+      380
     ],
-    "short_fraction_band": [
-      0.35,
-      0.45
+    "failure_window_seconds": [
+      170,
+      245
     ],
-    "rates": {
-      "microphone": "default",
-      "meeting": "+30%"
+    "median_limit_seconds": 3,
+    "within_six_required_fraction": 0.95,
+    "historical_result": "73/77 unchanged under original frozen detector-end rule",
+    "spread_policy": "onset spread <= 25 ms, offset spread <= 100 ms; owner-approved 2026-11-08; 100 ms is maximum permitted ambiguity, not an accuracy claim",
+    "owner_ratification_2026_11_08": {
+      "scope": "diagnostic retest only; approval of existing criteria, not permission to change a criterion after seeing latency results",
+      "speaking_rate_wpm_band": [
+        130,
+        170
+      ],
+      "short_fraction_band": [
+        0.35,
+        0.45
+      ],
+      "rates": {
+        "microphone": "default",
+        "meeting": "+30%"
+      }
     }
   },
-  "pending_note": "A value of PENDING, null or owner-stated below is not verified by this draft.",
-  "group_1_authority_and_rules": {
-    "protocol": {
-      "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
-      "origin_main": "62978626adf02201a0eb2e4b4270a299e74634db",
-      "sha256_recorded_in_prior_draft": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4",
-      "recheck_on_this_branch": "PENDING",
-      "sha256_recorded_in_prior_draft_method": "carried_from_prior_draft"
+  "proposed_constants_and_rules": {
+    "status_of_all": "proposed, owner approval pending",
+    "long_anchor_reach_s": {
+      "value": 30,
+      "status": "proposed, owner approval pending",
+      "where": "v3a_timing.MAX_ANCHOR_DISTANCE_S; D4 document"
     },
-    "amendment_note": "The amendment hash changes with any further edit; refresh at freeze.",
-    "rules": {
-      "recording_seconds": 420,
-      "scored_interval_seconds": [
-        20,
-        380
-      ],
-      "failure_window_seconds": [
-        170,
-        245
-      ],
-      "median_limit_seconds": 3,
-      "within_six_required_fraction": 0.95,
-      "historical_result": "73/77 unchanged under original frozen detector-end rule",
-      "spread_policy": "onset spread <= 25 ms, offset spread <= 100 ms; owner-approved 2026-11-08 before r3; 100 ms is maximum permitted ambiguity, not an accuracy claim"
+    "drift_allowance_s_per_s": {
+      "value": 0.0006,
+      "status": "proposed, owner approval pending",
+      "basis": "empirical engineering allowance from the practice recording (largest measured 0.000548 s/s), not a proven bound; never retuned after scored-run results"
     },
-    "git_text": [
-      {
-        "path": "AGENTS.md",
-        "sha256": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "dev-plan/Meeting Scribe - V1 Requirements v1.2.md",
-        "sha256": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "dev-plan/Meeting Scribe - Development Plan (v2.0).md",
-        "sha256": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "dev-plan/Meeting Scribe - Development Process.md",
-        "sha256": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "dev-plan/Meeting Scribe - UI Specification.md",
-        "sha256": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "docs/gates/evidence-retention-policy.md",
-        "sha256": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "docs/gates/gate-3-windows-word-timing-decision-20261108.md",
-        "sha256": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md",
-        "sha256": "902a4e72b7f06e3f5a1fb44b5bb562942062ebb892bced114fe5876cd8f0f481",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      }
-    ]
+    "rule_8_credit_treatment": {
+      "status": "proposed, owner approval pending",
+      "text": "TIMING-INCONCLUSIVE unit: no credit in the conservative bound, may be credited in the best-case bound, so Layer A is INCONCLUSIVE rather than FAIL when the verdict depends on it. See v3a amendment rule 8."
+    },
+    "rule_6_capture_check": {
+      "status": "proposed, owner approval pending",
+      "text": "A scored word overlapping a recorded gap, overlap or overrun is verified from the decoded recording (5 ms frames on both sides of each event before the measured end, and the acoustic end inside the supported interval); otherwise CAPTURE-LIMITED: uncredited in both bounds, in the denominator, counts toward INDETERMINATE, never FAILURE OBSERVED. See v3a amendment rule 6."
+    },
+    "amendment_sections": {
+      "status": "proposed, owner approval pending",
+      "items": [
+        "4 (rules 1-8)",
+        "4a placement over a range, endpoint binding, 2 ms conversion allowance",
+        "4b 250 ms is a reporting threshold",
+        "rule 6",
+        "rule 8",
+        "lead-marker treatment (rule 7 proposal for review)"
+      ]
+    }
   },
-  "group_2_candidate_tools_models": {
-    "candidate_branch": "rosmont/gate3-upstream-diagnostics-20261107",
-    "root_package_lock_sha256_recorded_in_prior_draft": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
-    "clean_tree_verified": false,
-    "canonical_build_executed": false,
-    "binary_hashes": "PENDING",
-    "native_capture_helper_sha256": "PENDING",
-    "external_tool_hashes": "PENDING",
-    "speech_model_sha256_and_config": "PENDING",
-    "vad_source": "553dd9080f452f8a54ccff5cd5fea8d6937438ae:packages/transcription/src/whisper.ts:144 (-vsd 300)",
-    "tts_voices_in_unit_sidecars": [
-      "Microsoft David Desktop",
-      "Microsoft Zira Desktop"
+  "known_limitations": [
+    "Output-start latency is unmeasured.",
+    "Steps below the combined anchor uncertainty are undetectable.",
+    "Route bias (VB-CABLE, loopback) is not simulated.",
+    "A timing-excluded unit that cannot be placed at all stays timing-INCONCLUSIVE without a capture check.",
+    "Classification categories are heuristic.",
+    "Matcher-output binding does not detect coordinated edits made before sealing."
+  ],
+  "run_requirements": {
+    "shell": "normal PowerShell, not Administrator",
+    "playback_device": "Realtek speakers (not Bluetooth); play-sources.ps1 refuses anything else",
+    "speaker_volume": "volume 10 as in the practice run",
+    "app_profile": "fresh",
+    "microphone": "CABLE Output chosen explicitly in the app",
+    "first_video_frame_manual_check": true,
+    "scripted_scroll_bursts": "none unless the protocol says so",
+    "duration": "up to 30 minutes in total",
+    "authorization": "separate owner authorization required; approving this manifest does not authorize a recording or scored run"
+  },
+  "d6_run_procedure_step": {
+    "text": [
+      "Run the pinned occurrence_matcher once, directly from the frozen annotation and the converted publication file, and write its OFFLINE_ALIGNMENT_ONLY output file.",
+      "Immediately record the SHA-256 of the frozen annotation, the converted publication file and the matcher output, the exact command line, and the matcher script SHA-256 and Python version.",
+      "Verify all of those hashes again before scoring."
     ],
-    "unit_script_version_sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
-    "unit_renderer_version_sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
-    "candidate_commit_git_id": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
-    "candidate_commit_note": "Git commit id, not a content digest",
-    "root_package_lock_sha256_method": "carried_from_prior_draft"
+    "limit": "This detects any change made after sealing. It is not protection against edits made before sealing (for example editing annotation, converted file and matcher output together before hashing); the scorer does not regenerate the matcher output.",
+    "document": "docs/gates/gate-3-windows-freeze-surface-list-20261109.md"
   },
-  "group_3_sources": {
-    "method": "ConstructedUnits",
-    "sample_rate_hz": 24000,
-    "status": "UNFROZEN",
-    "render_folder_name": "renders-units-20261109-r3",
-    "derived_folder_name": "renders-units-20261109-r3-derived-1",
-    "rates": {
-      "microphone": "default",
-      "meeting": "+30%"
+  "documents": [
+    {
+      "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
+      "sha256": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "Protocol v3"
     },
-    "joined_wav_sha256": {
-      "microphone.wav": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4",
-      "meeting.wav": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7"
+    {
+      "path": "docs/gates/gate-3-windows-v3a-clock-amendment-proposed.md",
+      "sha256": "8987853fabaa3c11c407a513b3634c0c66eada322298bf494294db5e99e049bc",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a amendment: sections 4, 4a, 4b, rules 6 and 8 (PROPOSED, owner approval pending)"
     },
-    "joined_wav_bytes": {
-      "microphone.wav": 20160044,
-      "meeting.wav": 20160044
+    {
+      "path": "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md",
+      "sha256": "e22a4e91512ab709e004f91ec4bc678920a2c77cbda1de2ec6d7236f4a1703a7",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3 timing amendment (proposed)"
     },
-    "units_manifest_sha256": "f7741b4ee4cfd35794a6dd79bea78358e989e6dad21e2658f1ca778c1091f444",
-    "unit_count": 52,
-    "units": {
-      "meeting-utt00-u0.wav": {
-        "wav_sha256": "364415bfa9f27001924c8453f007245e8569be5b04dc3a9e85d2eff9ec9b027e",
-        "sidecar_sha256": "65b7ef71ea4bfdd5f53c0c486c3f484adf7003c38c92e78cfd4746887cd3bf90"
+    {
+      "path": "docs/gates/gate-3-windows-word-timing-decision-20261108.md",
+      "sha256": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "word timing decision"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-d4-correlation-calibration-proposed.md",
+      "sha256": "e737e0a987d83559809f01200b7979c2247b5c03f25ac466d356e1a0c6fe9998",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D4 calibration document (proposal; 30 s reach and 0.0006 s/s drift allowance)"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-d2-energy-rule-sensitivity-20261109.md",
+      "sha256": "d4848a1712881a664977d90f655b11aba9992eada911695728e5e8f1e9c98c66",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D2 acoustic-end sensitivity document"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-d2-capture-equivalence-draft.md",
+      "sha256": "27cd8eac63949aa336e60b1619c795f8ed6deff481bcd13a6bb1c9a5d97f0269",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D2 capture-equivalence draft"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-d2-practice-run-results-20261109.md",
+      "sha256": "a4837455972e4ab152ac56c87702ecb820cefbabf5633fc34c64034906936b78",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D2 practice run results"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-d2-practice-run-checklist-draft.md",
+      "sha256": "2d0b3d605e0978c6d97f119f602c995f2fc293b55f0bfe8ca33e07a353aa453b",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D2 practice run checklist"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-live-observer-plan-and-validation-draft.md",
+      "sha256": "a48fd8e9dbe9d5c2d52a0570febc98c6b7509a860668f0a88fc46fbd0ba43183",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "observer validation record (live observer plan and validation)"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-freeze-surface-list-20261109.md",
+      "sha256": "5e0fd4b0e00cf47cfd5fb5322ffd0c1633b59af2a1d7c3cda6196de16f860010",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "freeze-surface list, D6 run-procedure step, run requirements, known limitations"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-r3-listen-through-signoff-20261108.md",
+      "sha256": "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "owner listen-through sign-off (r3 sources)"
+    },
+    {
+      "path": "docs/gates/evidence-retention-policy.md",
+      "sha256": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "evidence retention policy"
+    },
+    {
+      "path": "docs/handoffs/2026-11-09-validation3-classification-provenance.md",
+      "sha256": "808f304e749e6a99973e15b47c38aa6e333f36764b9233d9440c02ca45276614",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "classification provenance note (hashes only)"
+    },
+    {
+      "path": "docs/handoffs/gate3-occurrence-matcher.md",
+      "sha256": "22a5fd80862a1c5fd0457baff59b5cc8d65ef15a67cab5f39df7474b7c245f31",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "occurrence matcher note"
+    },
+    {
+      "path": "docs/handoffs/gate3-v3a-timing-20261109.md",
+      "sha256": "6e70e9067436ffb45b7720b84e11f28e25ad77afe7b865be84afc7bebd81e8e5",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a timing handoff"
+    },
+    {
+      "path": "docs/handoffs/gate3-v3a-conditional-fixes-20261109.md",
+      "sha256": "dd4ccfefe14eba2d234df5b6a92c6f2c62ac812749d27cbd6fa805b6b577c798",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a conditional fixes handoff"
+    },
+    {
+      "path": "docs/handoffs/gate3-v3a-noisy-step-20261109.md",
+      "sha256": "fdf56eee0ef4a812f9b79a20bf8ac95cf7e7c15d13ab1bbc04a03315c6023643",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a noisy step handoff"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "project rules"
+    },
+    {
+      "path": "dev-plan/Meeting Scribe - V1 Requirements v1.2.md",
+      "sha256": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "requirements"
+    },
+    {
+      "path": "dev-plan/Meeting Scribe - Development Plan (v2.0).md",
+      "sha256": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "plan"
+    },
+    {
+      "path": "dev-plan/Meeting Scribe - Development Process.md",
+      "sha256": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "process"
+    },
+    {
+      "path": "dev-plan/Meeting Scribe - UI Specification.md",
+      "sha256": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "UI specification"
+    }
+  ],
+  "scripts_and_tests": [
+    {
+      "path": "scripts/gate3-retest/.gitignore",
+      "sha256": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/README.md",
+      "sha256": "a94f948e0eb350159c0c52b18aa962e7582e77b1ad07fe79e11c8cd68ada3d6f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/SpeechRenderer.cs",
+      "sha256": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/UnitRenderer.cs",
+      "sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/analyze-bounds.py",
+      "sha256": "c4de778d05d0f222c63669004be9ecf6cd4c6fc10c385487df9afbd274cba57a",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "scorer (v3 and v3a), endpoint binding, regeneration check"
+    },
+    {
+      "path": "scripts/gate3-retest/assemble-sources.py",
+      "sha256": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "source assembly"
+    },
+    {
+      "path": "scripts/gate3-retest/audit-archive.py",
+      "sha256": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "archive audit"
+    },
+    {
+      "path": "scripts/gate3-retest/audited_decode_spans.json",
+      "sha256": "d4e81b13bd49c73774cacd9c5b993fa504ae52118896d850eec8e5b7b7b9160f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "audited decode spans"
+    },
+    {
+      "path": "scripts/gate3-retest/binding_fixture.py",
+      "sha256": "51d4da28ad4333eccf639ec046bbb186da4f8db7e1d79916fdd1a5f4270f5b7f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/bookmark-timing.py",
+      "sha256": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "bookmark timing"
+    },
+    {
+      "path": "scripts/gate3-retest/calibrate-long-correlation.py",
+      "sha256": "1203d903243a630f636dbe436ee3e7529dc0339762dcdbf58d7516c75d6bb283",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D4 calibration tool"
+    },
+    {
+      "path": "scripts/gate3-retest/check_matcher_regressions.py",
+      "sha256": "a6480f7c20d92fac8e67ed5304c10fa70fb8f515cb07c35218437065a47f0382",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "matcher regression check"
+    },
+    {
+      "path": "scripts/gate3-retest/classify-unidentified.py",
+      "sha256": "4d821bba46765b9a4f64be558196673bb3376ab12e727381a998b3a5729bacb4",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "UNIDENTIFIED classifier (heuristic)"
+    },
+    {
+      "path": "scripts/gate3-retest/clock-overlay.ps1",
+      "sha256": "3c8104b6ad74d895984ee1311c675c2a8743c8257178f7450fc5748ebf40f890",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "clock overlay"
+    },
+    {
+      "path": "scripts/gate3-retest/constructed_units.py",
+      "sha256": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "constructed units"
+    },
+    {
+      "path": "scripts/gate3-retest/detect-v3a-steps.py",
+      "sha256": "cad687eb5b7aae2427bbff2020fc2e522415b390fffcc0a2927657f00057ca30",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a step detector"
+    },
+    {
+      "path": "scripts/gate3-retest/energy-end-sensitivity.py",
+      "sha256": "88e6d1b075a0063c26e9ab638e9196f75fc17ffb86d853715131aa98c359c723",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "D2 sensitivity tool"
+    },
+    {
+      "path": "scripts/gate3-retest/harness_provenance.py",
+      "sha256": "05e1cdea082231a75c4746370ea72cd673b192d5f6a16476fe6732b72b44f55d",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "harness-log provenance"
+    },
+    {
+      "path": "scripts/gate3-retest/launch-candidate.ps1",
+      "sha256": "f9f4648707e7cb4b4a861890e243924342dc7630aaa16f1fd04b80678e1bdfbb",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "check-only/launch of the pinned candidate"
+    },
+    {
+      "path": "scripts/gate3-retest/list-audio-endpoints.ps1",
+      "sha256": "90f022ebc6e7a0199574ed1b4e8b51c5bf3020a650b8a5ef9c4edd5fb5da6094",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "audio endpoint listing"
+    },
+    {
+      "path": "scripts/gate3-retest/long_correlation.py",
+      "sha256": "23ade0b3d805da6b4ade5f38648ab58441d4b416971964acf7d1fe5a449add6d",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "bounded long-correlation anchor"
+    },
+    {
+      "path": "scripts/gate3-retest/make-draft-annotations.py",
+      "sha256": "eaea8dd2b12c36690f07e6304e25b1ecc1c98865e0d218a1f9d1dfb009a4b4f7",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "annotation tool"
+    },
+    {
+      "path": "scripts/gate3-retest/marker_clock.py",
+      "sha256": "b1b91d789285ea1b0179ce651a4d303281c1e52a991f711a4cf0d6c2772b8351",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "marker clock"
+    },
+    {
+      "path": "scripts/gate3-retest/measure-units.py",
+      "sha256": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "unit measurement"
+    },
+    {
+      "path": "scripts/gate3-retest/observe-live-v2.ps1",
+      "sha256": "43203a586304aad6f2b0a48aac6d31582f9e3114785c3075374d80ff76312e41",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "live observer (earlier)"
+    },
+    {
+      "path": "scripts/gate3-retest/observe-live-v3.ps1",
+      "sha256": "450937b72e84c6fa220a37b6f795cd90a7f0e2ea69a8ca73fa36e2383bb9b8e3",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "live observer (current)"
+    },
+    {
+      "path": "scripts/gate3-retest/observe-live.ps1",
+      "sha256": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "live observer (first)"
+    },
+    {
+      "path": "scripts/gate3-retest/observer_publications.py",
+      "sha256": "2a9d9fafd0d1347acd5feaab488b095029c2b38a5b1c82a61a0375b3a82952e6",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "raw observer file to publication file and report"
+    },
+    {
+      "path": "scripts/gate3-retest/observer_session_map.py",
+      "sha256": "2f37bbac658078e331d8993b1d1850d3491a0031e3f8e5cefd352686d94b137e",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "observer time to session time"
+    },
+    {
+      "path": "scripts/gate3-retest/occurrence_matcher.py",
+      "sha256": "43a52b7671fdcfd4a3974baac83301c5e015fd5159bbd7a3129f80016b4218e5",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "occurrence matcher"
+    },
+    {
+      "path": "scripts/gate3-retest/play-sources.ps1",
+      "sha256": "5b2da634adc613c9e960b4a06b668a334344a6cfd6251007123ca49f37fda366",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "harness playback"
+    },
+    {
+      "path": "scripts/gate3-retest/practice-timing-report.py",
+      "sha256": "96fa8109e73691a5bd5a25f558fab8416a36a3bc03292fe62a79bf43f742cf39",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "practice timing report"
+    },
+    {
+      "path": "scripts/gate3-retest/practice_step_fixture.json",
+      "sha256": "56bded757cffe89dfa8b18a692fddd985b45ab686146658674f374cc954bbb9c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "practice recording fixture (external files by hash)"
+    },
+    {
+      "path": "scripts/gate3-retest/prepare-speech.ps1",
+      "sha256": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/render-constructed-units.ps1",
+      "sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/speech-specs.ps1",
+      "sha256": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "support file"
+    },
+    {
+      "path": "scripts/gate3-retest/spotcheck-energy-ends.py",
+      "sha256": "9a909c98335e09b805e98bdfa4abef44989a7407ca55a1cc2177621a995d646e",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "spot-check tool"
+    },
+    {
+      "path": "scripts/gate3-retest/test_analysis.py",
+      "sha256": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_bookmarks.py",
+      "sha256": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_calibrate_long_correlation.py",
+      "sha256": "6168359b37e98ed986d20d1dfd7d11b217bafe26cf752fe7bf10e884d2401f7e",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_classify_unidentified.py",
+      "sha256": "af079a31ddabdedab59564e6a23ff9500b3d7a4c42d0556e3c3ae376c8baf7fb",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_cli.py",
+      "sha256": "6ad4ce7771a1d7ade9e4e69202382ec27c5a8e55163419561e253f3f8fdde896",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_clock_enforcement.py",
+      "sha256": "a6f94f337e0ed8d40a18aea001a4322dbfe349eda5c6fe5eabca76e7c0293b76",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_harness_provenance.py",
+      "sha256": "41a4740d75f05c061bfdf4988e45fef61bccdc422892750cc1fd190b85646bd6",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_integration_e2e.py",
+      "sha256": "0c3244c09bbd2a6a2ef9e7b2c9a33b87db00b519dab520c20ca403781e76bf41",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_lead_and_session_map.py",
+      "sha256": "63788b222f2125f0c3d5b96729cad07878d212ebe4d3e90e4d8da4904f59feb5",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_long_correlation.py",
+      "sha256": "54fa4e5882b1215814b7249181005585d8802096a1a7613edaa4d9a2123abcab",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_make_draft_annotations.py",
+      "sha256": "6447d51e7265dd08bef566bdab53a3524ea5a9730c0720d76bb740e38cc7f83c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_marker_clock.py",
+      "sha256": "20e06a25587ce94b3ac807e76b41a9aff173c4a74eed8790a251e72804eebea0",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_observer_publications.py",
+      "sha256": "ed1270d6855f28cca5bb6769dd6b739d24286d4ebe8669008f9eb8f25e8604c5",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_occurrence_matcher.py",
+      "sha256": "2f1359ef669f1a0955fc94b3911e57b2b5cf3033f11ff48fad164b63158ddd4c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_play_sources.py",
+      "sha256": "95228668957b485fbbf1e33f158882ba463e4df588f5ef2cda322a460e421c6d",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_practice_marker_clock.py",
+      "sha256": "a432f8c5d5a5fca96835b69fc18f929cbce80d581bd4dff8f6e515793b6dd685",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_review_fixes.py",
+      "sha256": "d3030f07b2e912926df30f2f5f73a9c47d13a91eb999f6fe187f223e80472c95",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_source_spread.py",
+      "sha256": "5f60800352005707386f19e9f7d9c31b688c762dd489d6a0f8ae0ebf4f49f38d",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_sources.py",
+      "sha256": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_template_step_free.py",
+      "sha256": "11c2a664149e1582d5544b6cffe6c6a9749cc62dd172b52b3ddec0330366663c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_timing_coverage.py",
+      "sha256": "46e3e54af10cd2d48d0001b161a104ac41c98644d87dbdd0c7f8196c6da3f8b2",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_units.py",
+      "sha256": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_v3a_conditional.py",
+      "sha256": "438e02c1d98d874bd2cd635b7445c104f1453265c614a7d1c0607633a53ae2ab",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/test_v3a_timing.py",
+      "sha256": "555f4f2ce5690690126487654cc93c160ab4941c60eeb8cc52219c762e184a86",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "test"
+    },
+    {
+      "path": "scripts/gate3-retest/v3a_timing.py",
+      "sha256": "6dcb926aaaed24304240a3a2c32af07d817bf18a3629b78d83d8d5d2ad267bfe",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "v3a timing: gap map, anchors, placement, rule 6 capture check, rule 8"
+    },
+    {
+      "path": "scripts/gate3-retest/validation-run-tools/frame-capture.ps1",
+      "sha256": "19f7bd7a1a2ab6b59d1c590547afc73a331b0c689b3efcdcc806dc08275e8fa4",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "validation-run collection tool (per-run script, hard-coded paths)"
+    },
+    {
+      "path": "scripts/gate3-retest/validation-run-tools/resource-sampler.ps1",
+      "sha256": "2510d816bb3cfc0d64e24c7a22d152143d6aea0b2883241960ef6453307ee9eb",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "validation-run collection tool (per-run script, hard-coded paths)"
+    },
+    {
+      "path": "scripts/gate3-retest/validation-run-tools/run-validation3.ps1",
+      "sha256": "d2d3ea3fbf7911450ecc81c738ef38b56c9cdf70434ca12fef81b3b3f37efcb5",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "validation-run collection tool (per-run script, hard-coded paths)"
+    },
+    {
+      "path": "scripts/gate3-retest/validation-run-tools/run-validation4.ps1",
+      "sha256": "30839ec8b7838b7bb3d0f94aaa87418b03e0f25ddf2e98d95dadae45bd7ae6f4",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "validation-run collection tool (per-run script, hard-coded paths)"
+    },
+    {
+      "path": "scripts/gate3-retest/validation-run-tools/run-validation5.ps1",
+      "sha256": "50ac5b588b5164e8c25fd06527c71c52303a21c2a4acf7ad09afcea2abce8a18",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "validation-run collection tool (per-run script, hard-coded paths)"
+    },
+    {
+      "path": "scripts/gate3-retest/verify-joined.py",
+      "sha256": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "joined-source verification"
+    }
+  ],
+  "native_candidate": {
+    "commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
+    "clean_tree_verified": "git -C candidate status --porcelain empty and HEAD equals the commit, checked 2026-11-09 PT",
+    "built_artifacts": [
+      {
+        "path": "apps/desktop/dist-electron/main.cjs",
+        "base": "candidate-553dd90",
+        "sha256": "b9ae7eaea0eaab9fba17b347ea5f7802a94c95cffcc8dcfe06b65378692214e3",
+        "method": "raw-file-bytes",
+        "bytes": 338699
       },
-      "meeting-utt00-u1.wav": {
-        "wav_sha256": "5cf869fdad0bab9af0e0f804db532376df597b3eae8a4d7c537d6b97e1eda4ef",
-        "sidecar_sha256": "9e93432559c2b5832c608672bb8e525130292c4c02334d8ce0405f1c09265fd9"
+      {
+        "path": "apps/desktop/dist-electron/preload.cjs",
+        "base": "candidate-553dd90",
+        "sha256": "b6d1f56197c977f79b9ac9fbcc09996285ed66f7c4808073d316dc295b600df8",
+        "method": "raw-file-bytes",
+        "bytes": 12262
       },
-      "meeting-utt01-u0.wav": {
-        "wav_sha256": "ea58c7d1d1fee83827f1e0c6198533a4518d4c8e51a8cb0e61f6310b0acaf4b6",
-        "sidecar_sha256": "16ad03e12743f40e68783904e950f74cf9b24584e6255f5418eaa7752c94b4b3"
+      {
+        "path": "apps/desktop/dist-electron/liveWorkerEntry.mjs",
+        "base": "candidate-553dd90",
+        "sha256": "87b56e33de7160d710edb355317bdc07ecc32cb2dd68de7990d59d95727d778c",
+        "method": "raw-file-bytes",
+        "bytes": 26834
       },
-      "meeting-utt01-u1.wav": {
-        "wav_sha256": "e7d45f893564f5a52c43348db6e69c998596b1e66907419c38be70f4131ed213",
-        "sidecar_sha256": "832509cb0b7f2f6641dc73950522233aa0ef2a2e53c4eb26afcfe32d6fc428ee"
+      {
+        "path": "apps/desktop/dist/index.html",
+        "base": "candidate-553dd90",
+        "sha256": "2b74977df596389966dbb97f90bdeb8f728ab24bf84027607f7c9eac8bc9c3d8",
+        "method": "raw-file-bytes",
+        "bytes": 633
       },
-      "meeting-utt02-u0.wav": {
-        "wav_sha256": "0dd6a7975063dae8aad4d4dee3fcfacb91f62a8209e9be824242cde1f3bdd84a",
-        "sidecar_sha256": "1dc6f7d1f0ce613bafa6d58d340215edcda8aa1a22887eb4e53a2fe5608724cb"
+      {
+        "path": "native/windows-capture/build/bin/scrb-capture.exe",
+        "base": "candidate-553dd90",
+        "sha256": "4c49811a3d2a3a3cb08b457113daa0fe2c72d23a18b5dff2157279f32823e292",
+        "method": "raw-file-bytes",
+        "bytes": 662528
       },
-      "meeting-utt02-u1.wav": {
-        "wav_sha256": "3c911562b3f4f66a489d351a6e8fe76f592cb94120dd3fb8eff46a34359653a1",
-        "sidecar_sha256": "5f78f7cd657501eeb339bd55b17cafe5a5705bac61353dfbdc74e403d45bb584"
+      {
+        "path": "node_modules/electron/dist/electron.exe",
+        "base": "candidate-553dd90",
+        "sha256": "c579acaab64b1c456bda1693cdf1a2ec7e4de7738b0e2d1b6349d60e8087143c",
+        "method": "raw-file-bytes",
+        "bytes": 249798656
+      }
+    ],
+    "package_lock": {
+      "path": "package-lock.json",
+      "sha256": "587193c34739dc1676a89d6d2ce46b08415192228736902bda379679d9d9922c",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "553dd9080f452f8a54ccff5cd5fea8d6937438ae"
+    },
+    "config": {
+      "live-config.json": "ac4c719def84647f3b857c346507041f7995a144713da96ea17464c6020531e0",
+      "final-config.json": "ac4c719def84647f3b857c346507041f7995a144713da96ea17464c6020531e0",
+      "method": "raw-file-bytes",
+      "base": "gate3-reference-e85-20261103"
+    },
+    "tools_and_models_from_live_config": [
+      {
+        "name": "ffmpeg",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/gate3-integrated-evidence/decoder/ffmpeg.exe",
+        "sha256": "e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030",
+        "method": "raw-file-bytes",
+        "bytes": 3712512
       },
-      "meeting-utt03-u0.wav": {
-        "wav_sha256": "b73b7d6170318369f598fccb3cdf99bb0e271e27a6bbce689c283ab1def4f4d6",
-        "sidecar_sha256": "5083c4db4a4ac00d1866a58561a2155fba7583ca37f341c50806093a611b5c90"
+      {
+        "name": "ffprobe",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/gate3-integrated-evidence/decoder/ffprobe.exe",
+        "sha256": "513f4f5071c162eb9e2084008a9345b67a47067ea12a2c1ae75ecd489d369506",
+        "method": "raw-file-bytes",
+        "bytes": 3518464
       },
-      "meeting-utt04-u0.wav": {
-        "wav_sha256": "9eb920cbabd39d46a9ab71bb022e4f5cfb794af52e007f009c5232f9e42327eb",
-        "sidecar_sha256": "5ff0b688dfb021919bb8995d63e54458cbf541098eb4feede4f169cddf3afb9f"
+      {
+        "name": "whisperCli",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/repo/phase0/upstream/whisper.cpp/build-acceptance/bin/Release/whisper-cli.exe",
+        "sha256": "125471af516032eedc185d8ac6f2c66782c4d36018ca75af5dbab74e2ad241b4",
+        "method": "raw-file-bytes",
+        "bytes": 490496
       },
-      "meeting-utt05-u0.wav": {
-        "wav_sha256": "f05714c1847ffc00d55d792f87c3c8304d39b295ee9aa14b768a73f616231859",
-        "sidecar_sha256": "26b0b8ac5f55770e56c0f9e4fbcc06f9d694f6ce05797527fa57e82c9473f842"
+      {
+        "name": "sherpaSidecar",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/windows-final-tools/sherpa/scrb-sherpa.exe",
+        "sha256": "ad3c1580ec51004394478b3df422cdf9cfa3cc6a9f33556a580460e1480148c5",
+        "method": "raw-file-bytes",
+        "bytes": 44544
       },
-      "meeting-utt06-u0.wav": {
-        "wav_sha256": "8fecbb36bd0c5b778bb863f9459ad5d60d5811c2f55595bbc4560b400129b62f",
-        "sidecar_sha256": "40f0058e6d828de553ca8e6870800618bf7363052c8a3c32d5164e2f6189bfd0"
+      {
+        "name": "whisperServer",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/repo/phase0/upstream/whisper.cpp/build-acceptance/bin/Release/whisper-server.exe",
+        "sha256": "7fe3496ddd264a2b6cd78bb31c9a8d115b11f5f8e167805bfe49fdc2c7378f92",
+        "method": "raw-file-bytes",
+        "bytes": 728576
       },
-      "meeting-utt07-u0.wav": {
-        "wav_sha256": "87fc1f4692a28af50d5abea569b48dfc9188141f8dd7aaffb767bdd38b0d68e8",
-        "sidecar_sha256": "5b72efddabffe8957f35dd073bf4d366078a00788b9e65b95a45a7e0120c05e9"
+      {
+        "name": "whisperVad",
+        "kind": "tool",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/repo/phase0/upstream/whisper.cpp/build-acceptance/bin/Release/whisper-vad-speech-segments.exe",
+        "sha256": "b681ef879d0178be09cd94f87e5808c263a939cb78dbee7f37923f3442ee9b36",
+        "method": "raw-file-bytes",
+        "bytes": 376320
       },
-      "meeting-utt08-u0.wav": {
-        "wav_sha256": "215e56ce2f8520b8dd967032beb6b4dac693cddb220f936465cc2d4bf085d764",
-        "sidecar_sha256": "12207dcf83459fb11d4f5f8215c9f6de6bc4d2d1f65b9b2472b19709007e41f6"
+      {
+        "name": "speechFinal",
+        "kind": "model",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/repo/phase0/models/whisper/ggml-large-v3-turbo-q5_0.bin",
+        "sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+        "method": "raw-file-bytes",
+        "bytes": 574041195
       },
-      "meeting-utt09-u0.wav": {
-        "wav_sha256": "7486310330fd9e4a75e3956a3c2ca70143976b4a89bfdd1b36c3841ebe5e8762",
-        "sidecar_sha256": "cd529e9ae84502be74107e3a452ea4add285cd9b565f4ddb3e28b7892ee2f17e"
+      {
+        "name": "vad",
+        "kind": "model",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/repo/phase0/models/whisper/ggml-silero-v6.2.0.bin",
+        "sha256": "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987",
+        "method": "raw-file-bytes",
+        "bytes": 885098
       },
-      "meeting-utt10-u0.wav": {
-        "wav_sha256": "7f1adf51c086324dd21fd9a18f4864ee6b30cd7da92165c22b74baec4faee11d",
-        "sidecar_sha256": "83c9ed2e040986ea68a547bd81e829f20e9b6046a1cd86803206a6c492feaef8"
+      {
+        "name": "segmentation",
+        "kind": "model",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/windows-final-tools/sherpa/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx",
+        "sha256": "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
+        "method": "raw-file-bytes",
+        "bytes": 1540506
       },
-      "meeting-utt11-u0.wav": {
-        "wav_sha256": "7b3912cbfe1f0d7a779bd4ba2347b8abd008b1daa80414f17256fb564ab2d3da",
-        "sidecar_sha256": "286ccfdaf5d4fffcc5d2b7e6e0870343d42dc17ab9bc0ce45c0f3cdece376546"
+      {
+        "name": "embedding",
+        "kind": "model",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/windows-final-tools/sherpa/embedding.onnx",
+        "sha256": "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        "method": "raw-file-bytes",
+        "bytes": 39593761
       },
-      "meeting-utt12-u0.wav": {
-        "wav_sha256": "f25ee821ddee8048d5cedcb19f6fb8b60a8d9b9bafed224059a290240396c518",
-        "sidecar_sha256": "3e323f1c5317e99f101bba9b0463c061be0fb48b200c394212f3ac6fd75294c5"
+      {
+        "name": "speechLive",
+        "kind": "model",
+        "path": "C:/Users/bchen/Documents/ChatGPT/srcb/gate3-profile-private-20261102/models/ggml-base.en-q5_1.bin",
+        "sha256": "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f",
+        "method": "raw-file-bytes",
+        "bytes": 59721011
+      }
+    ],
+    "whisper_settings": {
+      "threads": 6,
+      "useGpu": false,
+      "audioContext": 768,
+      "language": "en"
+    },
+    "vad_source": "553dd9080f452f8a54ccff5cd5fea8d6937438ae:packages/transcription/src/whisper.ts:144 (-vsd 300)",
+    "build": "built before this task; build logs are retained in the preflight folder; the build was not re-run here",
+    "check_only_script": "scripts/gate3-retest/launch-candidate.ps1 verifies the commit, a clean tree and these hashes"
+  },
+  "private_evidence": {
+    "source_wavs": [
+      {
+        "path": "assembly/microphone.wav",
+        "base": "r3-derived-1",
+        "sha256": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4",
+        "method": "raw-file-bytes",
+        "bytes": 20160044,
+        "role": "microphone source WAV (frozen source, hashed at freeze)"
       },
-      "meeting-utt13-u0.wav": {
-        "wav_sha256": "08f67fa9ab474f3c1eb3a418163022ffc62baefc3657f6e4914c3f4e96379ae2",
-        "sidecar_sha256": "e19ae8cc16236a2df99e5c6c0aed48b7c9ddf3328070cb4ed7c458276ee75dac"
+      {
+        "path": "assembly/meeting.wav",
+        "base": "r3-derived-1",
+        "sha256": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7",
+        "method": "raw-file-bytes",
+        "bytes": 20160044,
+        "role": "meeting source WAV (frozen source, hashed at freeze)"
+      }
+    ],
+    "annotations": [
+      {
+        "path": "assembly/microphone-annotations.json",
+        "base": "r3-derived-1",
+        "sha256": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d",
+        "method": "raw-file-bytes",
+        "bytes": 114941,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt14-u0.wav": {
-        "wav_sha256": "2f0c8e051bb86ee7fe4ad4e6eb33865296d3250ff5696066b5b2cf6bcf4a7b09",
-        "sidecar_sha256": "159a7beb0c9650f7f09628d3e8b45308cc4aca1d503b9adf50c470f661ccb051"
+      {
+        "path": "assembly/meeting-annotations.json",
+        "base": "r3-derived-1",
+        "sha256": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a",
+        "method": "raw-file-bytes",
+        "bytes": 133561,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt15-u0.wav": {
-        "wav_sha256": "23fe40607d9134b7a635e0154de2dfd355f586b34f59b5bba673e6a110a7649b",
-        "sidecar_sha256": "6cca0db51f0e8953c2d3a1fd880e6f3ade56ec9a819aac140bded8ddb9dda475"
+      {
+        "path": "assembly/microphone-joined-manifest.json",
+        "base": "r3-derived-1",
+        "sha256": "3bfcdd75776cdfd02002780a8c06eead1eef9ad25dadcbbf2171cb8e622fc3a3",
+        "method": "raw-file-bytes",
+        "bytes": 31243,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt16-u0.wav": {
-        "wav_sha256": "e295819bcbce8238ae8e92695265f5e562073cac1851870f33581fee99f7ba3b",
-        "sidecar_sha256": "5f6fe7776cf740b35c1a4f2fa12b95fa8ac686c951043f6ab1503c9f311b04c4"
+      {
+        "path": "assembly/meeting-joined-manifest.json",
+        "base": "r3-derived-1",
+        "sha256": "26fce53711a50bea29ad883eba65c7778daa7eeb5f26152cd41d4149c675f0dd",
+        "method": "raw-file-bytes",
+        "bytes": 35444,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt17-u0.wav": {
-        "wav_sha256": "0a824e9d5830cb060c56eb27f8accb4cff398bb51a651b731de2fc841b2922e8",
-        "sidecar_sha256": "6a38498550eb384983a5d042095995c0d9cedc312353d87962b7ccbc0d31f39a"
+      {
+        "path": "assembly/microphone-joined-verification.json",
+        "base": "r3-derived-1",
+        "sha256": "a931abc2e6ae518b1d44d67ffa86f5e2e6199f802a63b917726282a2a0390ef5",
+        "method": "raw-file-bytes",
+        "bytes": 252,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt18-u0.wav": {
-        "wav_sha256": "7d791d364b27bcc25cbe6a448a8320f07ecc3f90c1875bbe64d25344d71b8ef3",
-        "sidecar_sha256": "58e14891412d52ad29b1f07c245e2cf36017c66f786b2babed54f1af7a66aead"
+      {
+        "path": "assembly/meeting-joined-verification.json",
+        "base": "r3-derived-1",
+        "sha256": "a8a34dc277dd71e8456bb5a6c38c8a4fb670a8f2d1104fc12e12e3d47e331508",
+        "method": "raw-file-bytes",
+        "bytes": 253,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
       },
-      "meeting-utt19-u0.wav": {
-        "wav_sha256": "3f9440d046a87017bfecc07570b18f3cf1089b126663beed2f9b0abaee68fc81",
-        "sidecar_sha256": "f050a4f9fc8003fe13029780735030376dfbab49233ea48050a2b4b2c6c5e6da"
+      {
+        "path": "assembly/source-audit.json",
+        "base": "r3-derived-1",
+        "sha256": "1ee8f6c431295935bdaf224ee52e131930196c6fa712e10be43c313a19c5149f",
+        "method": "raw-file-bytes",
+        "bytes": 1436,
+        "role": "annotation / joined record (hashed now; frozen only when the owner approves)"
+      }
+    ],
+    "quality_evidence": [
+      {
+        "path": "measurements.json",
+        "base": "r3-derived-1",
+        "sha256": "256fd80e150f9324025d4ee577fde064d6276e8dfd09f7fe0d1f1bdf0ed86468",
+        "method": "raw-file-bytes",
+        "bytes": 34504
       },
-      "meeting-utt20-u0.wav": {
-        "wav_sha256": "af516eab596c8ebcfa08bc367cdcaaa4709e12b4a5ef4c9c84d88254e17438c4",
-        "sidecar_sha256": "5635c96a46fd79676a94fc2aa4ef2117f86ca262f1936a9c59b7cf17857bbdf3"
+      {
+        "path": "spotcheck/spotcheck-units.json",
+        "base": "r3-derived-1",
+        "sha256": "4e1da2839b6d4259cbbf75e04780cbd4c52f8c1da50e6e09604f42c80fc1ff69",
+        "method": "raw-file-bytes",
+        "bytes": 9477
       },
-      "meeting-utt21-u0.wav": {
-        "wav_sha256": "a44058f159e6a7bafc4391b427be943ea3e489a9bc360677f67e6d38cc757a24",
-        "sidecar_sha256": "1bb872f6b4e0d1d370e216b3fbaad6eac740758c8e528f3d19acf9469c073044"
+      {
+        "path": "spotcheck/index-microphone.csv",
+        "base": "r3-derived-1",
+        "sha256": "d1bd0a420f968e73647cdf0b54e5c0a552cd259a02ab92fb12dcc1cdc9329dca",
+        "method": "raw-file-bytes",
+        "bytes": 11673
       },
-      "meeting-utt22-u0.wav": {
-        "wav_sha256": "3e350c3d3c361012048575c63131e574b877df3ec69ec9dcd73234c1aea59d8d",
-        "sidecar_sha256": "7ee130e0fcc350878af3a81dcb5b4a49d95336a2c6ddaf773f6c9059dc2c6f7a"
+      {
+        "path": "spotcheck/index-meeting.csv",
+        "base": "r3-derived-1",
+        "sha256": "288837a486460bc07f906c0cd578ea0ce9ad77caad3b1aca8d5db812494709ba",
+        "method": "raw-file-bytes",
+        "bytes": 13397
       },
-      "microphone-utt00-u0.wav": {
-        "wav_sha256": "8134bd8532dcd8de7b3438ddedefe8ab2301492dbfe6ea20cfaab74cd54fa630",
-        "sidecar_sha256": "27ffff8ebd8a76a40be6bdfa00887e4ecf20d48b2cf0bead39419608a291662e"
-      },
-      "microphone-utt00-u1.wav": {
-        "wav_sha256": "1263296522b9cda47c0f5125ec6ebc2a096964e30852fea4e97961a02c3bfa4b",
-        "sidecar_sha256": "852c18c04dcc75581d29e83a9f17b4e9a1c7128d799dcb261d84cbd968e4b729"
-      },
-      "microphone-utt01-u0.wav": {
-        "wav_sha256": "bac7945eefc7247dd391bfc3af47d4bffa271a32e0dd93e501b3e871fed3b05f",
-        "sidecar_sha256": "866e90372bb2b4fe10a9ab71fadface564b48ab786cef3f44198cff6c8ea0d3b"
-      },
-      "microphone-utt01-u1.wav": {
-        "wav_sha256": "dc95131bb4e3da2c78b7259c132d0bcfb1e1602ea46a06038ecb7c0dea99c3cc",
-        "sidecar_sha256": "96c64bd39de09b7dc263601f8b87e69dd52966ee539b2f8de5aed362d93b06ab"
-      },
-      "microphone-utt02-u0.wav": {
-        "wav_sha256": "aa438a030c37aa89cf5a59f8c08ebe32811cb85b36f4f30899519261408d5fa5",
-        "sidecar_sha256": "24e948b07f7de8a3e7413294d91875ffd357ad40070f0e92c70945653c3f9f5d"
-      },
-      "microphone-utt02-u1.wav": {
-        "wav_sha256": "e9485ba2b6c255ce9aec87007ab9d6c87d88fcf72113d2d647917fa05b049eb7",
-        "sidecar_sha256": "c34188709eafc510681df164d44f09c09bb231d382d8211192f2444f0ae29bbd"
-      },
-      "microphone-utt03-u0.wav": {
-        "wav_sha256": "e8794f0913ff767072b14d7b3a1483fc6a444697905947ffe7a340d6e3994e5e",
-        "sidecar_sha256": "f1f8779c3484f5ba07329e59fc433db773ef7f2262e081006f98d2d3891ea29d"
-      },
-      "microphone-utt04-u0.wav": {
-        "wav_sha256": "330e2132032ce08b5c3523722625f5683336a3ce598419e21476d971456de6eb",
-        "sidecar_sha256": "ae9beb9e855be2e3eae042ecfaba5ae829d30a374a8e757ce26471f6b5e6dac5"
-      },
-      "microphone-utt05-u0.wav": {
-        "wav_sha256": "bc27e907ed51f5b1f020187544a54045906d91daab95a26be95014af04116108",
-        "sidecar_sha256": "9b91dad2418876e18904d58dd223990b8ee68a8ca54a74e0e9ae98d272987051"
-      },
-      "microphone-utt06-u0.wav": {
-        "wav_sha256": "bb643cc6a91ecc722965fcc3bdb98707ce7599d8972efe3b0f89749e6593cb59",
-        "sidecar_sha256": "5fc3265622027a2e4612c1f6bc51cff58dfb10330e4c60ec85ef55780853f32e"
-      },
-      "microphone-utt07-u0.wav": {
-        "wav_sha256": "44a29b5cfceab4e9166d4cc68ab3b46816b08e4a3e8aac8ee91f5cb6b8aa6eb6",
-        "sidecar_sha256": "6e45bfc562927a3206782c67a1d883a582242c6a1b4f1efe36116add420f7916"
-      },
-      "microphone-utt08-u0.wav": {
-        "wav_sha256": "a3a5df7a066279e7629884ca0f5ee209907377fd649ff1d1e03a9390707f79b4",
-        "sidecar_sha256": "62694efe32d6148c65331cdc2d0f9ee0e79e97153fb6841e11cdba1b786ece47"
-      },
-      "microphone-utt09-u0.wav": {
-        "wav_sha256": "6298f5513f5e888d6f7b869ad08d06213933e88d45fcc91c6d48265ca86c24d2",
-        "sidecar_sha256": "7d36b29799c76935200caa1d9575b67228b2b689ca4d0cae486f54b946c99259"
-      },
-      "microphone-utt10-u0.wav": {
-        "wav_sha256": "6412570aa5144af936f85d76dc5c1e4fd5bc321b564abac38bd9eceda4574a90",
-        "sidecar_sha256": "9480073fae9edfce1392e23e86118eebe1cae4a6d9bea9bd48f11b5f205b0a28"
-      },
-      "microphone-utt11-u0.wav": {
-        "wav_sha256": "cc993a2115de2436d74e96e8e709cdfbb62dc97039cc2c8da918f5ccbe95efda",
-        "sidecar_sha256": "9dd27fa1caa023f0f72aeb24989bdf4bd7bd0b569a0521af6dfa3e9428b6512b"
-      },
-      "microphone-utt12-u0.wav": {
-        "wav_sha256": "6975d0f13fbe51d994632acab08347648b902c26f711b7ffc69f77a1c24ee14c",
-        "sidecar_sha256": "1d86eb76490a22b06bff96c31b89a367a99c34a5d16b811a75c4ef26d02252d5"
-      },
-      "microphone-utt13-u0.wav": {
-        "wav_sha256": "ca709ce1eb072d1bc98978abe786211b1ce66a44fd4e5a10d50f09a5673d88b6",
-        "sidecar_sha256": "856dfe561cb17e6b0f15c94567529c9c91258e4ad7854cbcef83793e9ca92e70"
-      },
-      "microphone-utt14-u0.wav": {
-        "wav_sha256": "1f0b4b03d9eb85086c994d9725409da5f4d62d27e14e368d98720cedeb8a172a",
-        "sidecar_sha256": "d94ef5dd5d6d3179625a90ab537bfa546a8380d27af4eb10bc80c75c832a274b"
-      },
-      "microphone-utt15-u0.wav": {
-        "wav_sha256": "f8497e6a3d8f8850cc8f44b6ce450399ddf43b74d6e606c11f0b0a71f0215c4a",
-        "sidecar_sha256": "22618a93538f6b3762e62e8a5887656263dd04c46b0f100f63389d9821486657"
-      },
-      "microphone-utt16-u0.wav": {
-        "wav_sha256": "9c931b08a90e644ff689f09a4b4715c01251b8dfdca08f84da547e99eb12eed4",
-        "sidecar_sha256": "ac0dfa1438841b960c200d17c54e7eb20356e0ff1aac29e11b5572e2812102a4"
-      },
-      "microphone-utt17-u0.wav": {
-        "wav_sha256": "7c15c23870687c9a592b4251b4e9453e043b03e94db985e099e73a8d766c9dd2",
-        "sidecar_sha256": "03428835ee7e888c457dbf037d47cede607816a352e9abb42d0a131660cf9acf"
-      },
-      "microphone-utt18-u0.wav": {
-        "wav_sha256": "3bd1e9230cd5b0a5c73979f015f4ee1baabc19e20bc9c28f8674e5db013808a8",
-        "sidecar_sha256": "118bb5debf6b5c537bc4ecf3c0e92b5af770781f007366eaf3e50d12346c19f1"
-      },
-      "microphone-utt19-u0.wav": {
-        "wav_sha256": "61b977a7edf1a5a77084ee55f85230bcf32cf0662af3667c0f1ea7d349b96c93",
-        "sidecar_sha256": "2fb934a6e9b87feca997af5aed28781ebec379e6b0e4bfde8260c423f320f37c"
-      },
-      "microphone-utt20-u0.wav": {
-        "wav_sha256": "59efa3a3fd052fcd3497e00a4371a2d7568aabf6b45e3834fb21618ad8e3723f",
-        "sidecar_sha256": "36321afa3c430b3b9bd98f6584ce56281b71a3655f9eeaf8b1c586c7b48aef9a"
-      },
-      "microphone-utt21-u0.wav": {
-        "wav_sha256": "597c06b6745917c6ed39b5c86497b3eb5bc06682c8237f0089d2f6129a896ae8",
-        "sidecar_sha256": "40096eb193d916dcd55d22af53586b5669d6e15f5f0d0b5d4da0fbb64d9181e8"
-      },
-      "microphone-utt22-u0.wav": {
-        "wav_sha256": "a4e8a10311335e550fe081e245c3365ec1d7cf27f1cc7df95426ed07ab93738d",
-        "sidecar_sha256": "8f5ac8d67879d46fe1b7dd256f6adec143b6ee226d175642352c01c3bf7b350b"
+      {
+        "path": "spotcheck/listen-checklist.md",
+        "base": "r3-derived-1",
+        "sha256": "601da8b8e9cd3bd8c05049c7bee8f59b929791c2e1e256bea357778e6199c1f8",
+        "method": "raw-file-bytes",
+        "bytes": 2747
+      }
+    ],
+    "unit_wavs_r3": {
+      "base": "preflight/renders-units-20261109-r3",
+      "method": "raw-file-bytes",
+      "units_manifest_sha256": "f7741b4ee4cfd35794a6dd79bea78358e989e6dad21e2658f1ca778c1091f444",
+      "count": 52,
+      "units": {
+        "meeting-utt00-u0.wav": {
+          "wav_sha256": "364415bfa9f27001924c8453f007245e8569be5b04dc3a9e85d2eff9ec9b027e",
+          "sidecar_sha256": "65b7ef71ea4bfdd5f53c0c486c3f484adf7003c38c92e78cfd4746887cd3bf90"
+        },
+        "meeting-utt00-u1.wav": {
+          "wav_sha256": "5cf869fdad0bab9af0e0f804db532376df597b3eae8a4d7c537d6b97e1eda4ef",
+          "sidecar_sha256": "9e93432559c2b5832c608672bb8e525130292c4c02334d8ce0405f1c09265fd9"
+        },
+        "meeting-utt01-u0.wav": {
+          "wav_sha256": "ea58c7d1d1fee83827f1e0c6198533a4518d4c8e51a8cb0e61f6310b0acaf4b6",
+          "sidecar_sha256": "16ad03e12743f40e68783904e950f74cf9b24584e6255f5418eaa7752c94b4b3"
+        },
+        "meeting-utt01-u1.wav": {
+          "wav_sha256": "e7d45f893564f5a52c43348db6e69c998596b1e66907419c38be70f4131ed213",
+          "sidecar_sha256": "832509cb0b7f2f6641dc73950522233aa0ef2a2e53c4eb26afcfe32d6fc428ee"
+        },
+        "meeting-utt02-u0.wav": {
+          "wav_sha256": "0dd6a7975063dae8aad4d4dee3fcfacb91f62a8209e9be824242cde1f3bdd84a",
+          "sidecar_sha256": "1dc6f7d1f0ce613bafa6d58d340215edcda8aa1a22887eb4e53a2fe5608724cb"
+        },
+        "meeting-utt02-u1.wav": {
+          "wav_sha256": "3c911562b3f4f66a489d351a6e8fe76f592cb94120dd3fb8eff46a34359653a1",
+          "sidecar_sha256": "5f78f7cd657501eeb339bd55b17cafe5a5705bac61353dfbdc74e403d45bb584"
+        },
+        "meeting-utt03-u0.wav": {
+          "wav_sha256": "b73b7d6170318369f598fccb3cdf99bb0e271e27a6bbce689c283ab1def4f4d6",
+          "sidecar_sha256": "5083c4db4a4ac00d1866a58561a2155fba7583ca37f341c50806093a611b5c90"
+        },
+        "meeting-utt04-u0.wav": {
+          "wav_sha256": "9eb920cbabd39d46a9ab71bb022e4f5cfb794af52e007f009c5232f9e42327eb",
+          "sidecar_sha256": "5ff0b688dfb021919bb8995d63e54458cbf541098eb4feede4f169cddf3afb9f"
+        },
+        "meeting-utt05-u0.wav": {
+          "wav_sha256": "f05714c1847ffc00d55d792f87c3c8304d39b295ee9aa14b768a73f616231859",
+          "sidecar_sha256": "26b0b8ac5f55770e56c0f9e4fbcc06f9d694f6ce05797527fa57e82c9473f842"
+        },
+        "meeting-utt06-u0.wav": {
+          "wav_sha256": "8fecbb36bd0c5b778bb863f9459ad5d60d5811c2f55595bbc4560b400129b62f",
+          "sidecar_sha256": "40f0058e6d828de553ca8e6870800618bf7363052c8a3c32d5164e2f6189bfd0"
+        },
+        "meeting-utt07-u0.wav": {
+          "wav_sha256": "87fc1f4692a28af50d5abea569b48dfc9188141f8dd7aaffb767bdd38b0d68e8",
+          "sidecar_sha256": "5b72efddabffe8957f35dd073bf4d366078a00788b9e65b95a45a7e0120c05e9"
+        },
+        "meeting-utt08-u0.wav": {
+          "wav_sha256": "215e56ce2f8520b8dd967032beb6b4dac693cddb220f936465cc2d4bf085d764",
+          "sidecar_sha256": "12207dcf83459fb11d4f5f8215c9f6de6bc4d2d1f65b9b2472b19709007e41f6"
+        },
+        "meeting-utt09-u0.wav": {
+          "wav_sha256": "7486310330fd9e4a75e3956a3c2ca70143976b4a89bfdd1b36c3841ebe5e8762",
+          "sidecar_sha256": "cd529e9ae84502be74107e3a452ea4add285cd9b565f4ddb3e28b7892ee2f17e"
+        },
+        "meeting-utt10-u0.wav": {
+          "wav_sha256": "7f1adf51c086324dd21fd9a18f4864ee6b30cd7da92165c22b74baec4faee11d",
+          "sidecar_sha256": "83c9ed2e040986ea68a547bd81e829f20e9b6046a1cd86803206a6c492feaef8"
+        },
+        "meeting-utt11-u0.wav": {
+          "wav_sha256": "7b3912cbfe1f0d7a779bd4ba2347b8abd008b1daa80414f17256fb564ab2d3da",
+          "sidecar_sha256": "286ccfdaf5d4fffcc5d2b7e6e0870343d42dc17ab9bc0ce45c0f3cdece376546"
+        },
+        "meeting-utt12-u0.wav": {
+          "wav_sha256": "f25ee821ddee8048d5cedcb19f6fb8b60a8d9b9bafed224059a290240396c518",
+          "sidecar_sha256": "3e323f1c5317e99f101bba9b0463c061be0fb48b200c394212f3ac6fd75294c5"
+        },
+        "meeting-utt13-u0.wav": {
+          "wav_sha256": "08f67fa9ab474f3c1eb3a418163022ffc62baefc3657f6e4914c3f4e96379ae2",
+          "sidecar_sha256": "e19ae8cc16236a2df99e5c6c0aed48b7c9ddf3328070cb4ed7c458276ee75dac"
+        },
+        "meeting-utt14-u0.wav": {
+          "wav_sha256": "2f0c8e051bb86ee7fe4ad4e6eb33865296d3250ff5696066b5b2cf6bcf4a7b09",
+          "sidecar_sha256": "159a7beb0c9650f7f09628d3e8b45308cc4aca1d503b9adf50c470f661ccb051"
+        },
+        "meeting-utt15-u0.wav": {
+          "wav_sha256": "23fe40607d9134b7a635e0154de2dfd355f586b34f59b5bba673e6a110a7649b",
+          "sidecar_sha256": "6cca0db51f0e8953c2d3a1fd880e6f3ade56ec9a819aac140bded8ddb9dda475"
+        },
+        "meeting-utt16-u0.wav": {
+          "wav_sha256": "e295819bcbce8238ae8e92695265f5e562073cac1851870f33581fee99f7ba3b",
+          "sidecar_sha256": "5f6fe7776cf740b35c1a4f2fa12b95fa8ac686c951043f6ab1503c9f311b04c4"
+        },
+        "meeting-utt17-u0.wav": {
+          "wav_sha256": "0a824e9d5830cb060c56eb27f8accb4cff398bb51a651b731de2fc841b2922e8",
+          "sidecar_sha256": "6a38498550eb384983a5d042095995c0d9cedc312353d87962b7ccbc0d31f39a"
+        },
+        "meeting-utt18-u0.wav": {
+          "wav_sha256": "7d791d364b27bcc25cbe6a448a8320f07ecc3f90c1875bbe64d25344d71b8ef3",
+          "sidecar_sha256": "58e14891412d52ad29b1f07c245e2cf36017c66f786b2babed54f1af7a66aead"
+        },
+        "meeting-utt19-u0.wav": {
+          "wav_sha256": "3f9440d046a87017bfecc07570b18f3cf1089b126663beed2f9b0abaee68fc81",
+          "sidecar_sha256": "f050a4f9fc8003fe13029780735030376dfbab49233ea48050a2b4b2c6c5e6da"
+        },
+        "meeting-utt20-u0.wav": {
+          "wav_sha256": "af516eab596c8ebcfa08bc367cdcaaa4709e12b4a5ef4c9c84d88254e17438c4",
+          "sidecar_sha256": "5635c96a46fd79676a94fc2aa4ef2117f86ca262f1936a9c59b7cf17857bbdf3"
+        },
+        "meeting-utt21-u0.wav": {
+          "wav_sha256": "a44058f159e6a7bafc4391b427be943ea3e489a9bc360677f67e6d38cc757a24",
+          "sidecar_sha256": "1bb872f6b4e0d1d370e216b3fbaad6eac740758c8e528f3d19acf9469c073044"
+        },
+        "meeting-utt22-u0.wav": {
+          "wav_sha256": "3e350c3d3c361012048575c63131e574b877df3ec69ec9dcd73234c1aea59d8d",
+          "sidecar_sha256": "7ee130e0fcc350878af3a81dcb5b4a49d95336a2c6ddaf773f6c9059dc2c6f7a"
+        },
+        "microphone-utt00-u0.wav": {
+          "wav_sha256": "8134bd8532dcd8de7b3438ddedefe8ab2301492dbfe6ea20cfaab74cd54fa630",
+          "sidecar_sha256": "27ffff8ebd8a76a40be6bdfa00887e4ecf20d48b2cf0bead39419608a291662e"
+        },
+        "microphone-utt00-u1.wav": {
+          "wav_sha256": "1263296522b9cda47c0f5125ec6ebc2a096964e30852fea4e97961a02c3bfa4b",
+          "sidecar_sha256": "852c18c04dcc75581d29e83a9f17b4e9a1c7128d799dcb261d84cbd968e4b729"
+        },
+        "microphone-utt01-u0.wav": {
+          "wav_sha256": "bac7945eefc7247dd391bfc3af47d4bffa271a32e0dd93e501b3e871fed3b05f",
+          "sidecar_sha256": "866e90372bb2b4fe10a9ab71fadface564b48ab786cef3f44198cff6c8ea0d3b"
+        },
+        "microphone-utt01-u1.wav": {
+          "wav_sha256": "dc95131bb4e3da2c78b7259c132d0bcfb1e1602ea46a06038ecb7c0dea99c3cc",
+          "sidecar_sha256": "96c64bd39de09b7dc263601f8b87e69dd52966ee539b2f8de5aed362d93b06ab"
+        },
+        "microphone-utt02-u0.wav": {
+          "wav_sha256": "aa438a030c37aa89cf5a59f8c08ebe32811cb85b36f4f30899519261408d5fa5",
+          "sidecar_sha256": "24e948b07f7de8a3e7413294d91875ffd357ad40070f0e92c70945653c3f9f5d"
+        },
+        "microphone-utt02-u1.wav": {
+          "wav_sha256": "e9485ba2b6c255ce9aec87007ab9d6c87d88fcf72113d2d647917fa05b049eb7",
+          "sidecar_sha256": "c34188709eafc510681df164d44f09c09bb231d382d8211192f2444f0ae29bbd"
+        },
+        "microphone-utt03-u0.wav": {
+          "wav_sha256": "e8794f0913ff767072b14d7b3a1483fc6a444697905947ffe7a340d6e3994e5e",
+          "sidecar_sha256": "f1f8779c3484f5ba07329e59fc433db773ef7f2262e081006f98d2d3891ea29d"
+        },
+        "microphone-utt04-u0.wav": {
+          "wav_sha256": "330e2132032ce08b5c3523722625f5683336a3ce598419e21476d971456de6eb",
+          "sidecar_sha256": "ae9beb9e855be2e3eae042ecfaba5ae829d30a374a8e757ce26471f6b5e6dac5"
+        },
+        "microphone-utt05-u0.wav": {
+          "wav_sha256": "bc27e907ed51f5b1f020187544a54045906d91daab95a26be95014af04116108",
+          "sidecar_sha256": "9b91dad2418876e18904d58dd223990b8ee68a8ca54a74e0e9ae98d272987051"
+        },
+        "microphone-utt06-u0.wav": {
+          "wav_sha256": "bb643cc6a91ecc722965fcc3bdb98707ce7599d8972efe3b0f89749e6593cb59",
+          "sidecar_sha256": "5fc3265622027a2e4612c1f6bc51cff58dfb10330e4c60ec85ef55780853f32e"
+        },
+        "microphone-utt07-u0.wav": {
+          "wav_sha256": "44a29b5cfceab4e9166d4cc68ab3b46816b08e4a3e8aac8ee91f5cb6b8aa6eb6",
+          "sidecar_sha256": "6e45bfc562927a3206782c67a1d883a582242c6a1b4f1efe36116add420f7916"
+        },
+        "microphone-utt08-u0.wav": {
+          "wav_sha256": "a3a5df7a066279e7629884ca0f5ee209907377fd649ff1d1e03a9390707f79b4",
+          "sidecar_sha256": "62694efe32d6148c65331cdc2d0f9ee0e79e97153fb6841e11cdba1b786ece47"
+        },
+        "microphone-utt09-u0.wav": {
+          "wav_sha256": "6298f5513f5e888d6f7b869ad08d06213933e88d45fcc91c6d48265ca86c24d2",
+          "sidecar_sha256": "7d36b29799c76935200caa1d9575b67228b2b689ca4d0cae486f54b946c99259"
+        },
+        "microphone-utt10-u0.wav": {
+          "wav_sha256": "6412570aa5144af936f85d76dc5c1e4fd5bc321b564abac38bd9eceda4574a90",
+          "sidecar_sha256": "9480073fae9edfce1392e23e86118eebe1cae4a6d9bea9bd48f11b5f205b0a28"
+        },
+        "microphone-utt11-u0.wav": {
+          "wav_sha256": "cc993a2115de2436d74e96e8e709cdfbb62dc97039cc2c8da918f5ccbe95efda",
+          "sidecar_sha256": "9dd27fa1caa023f0f72aeb24989bdf4bd7bd0b569a0521af6dfa3e9428b6512b"
+        },
+        "microphone-utt12-u0.wav": {
+          "wav_sha256": "6975d0f13fbe51d994632acab08347648b902c26f711b7ffc69f77a1c24ee14c",
+          "sidecar_sha256": "1d86eb76490a22b06bff96c31b89a367a99c34a5d16b811a75c4ef26d02252d5"
+        },
+        "microphone-utt13-u0.wav": {
+          "wav_sha256": "ca709ce1eb072d1bc98978abe786211b1ce66a44fd4e5a10d50f09a5673d88b6",
+          "sidecar_sha256": "856dfe561cb17e6b0f15c94567529c9c91258e4ad7854cbcef83793e9ca92e70"
+        },
+        "microphone-utt14-u0.wav": {
+          "wav_sha256": "1f0b4b03d9eb85086c994d9725409da5f4d62d27e14e368d98720cedeb8a172a",
+          "sidecar_sha256": "d94ef5dd5d6d3179625a90ab537bfa546a8380d27af4eb10bc80c75c832a274b"
+        },
+        "microphone-utt15-u0.wav": {
+          "wav_sha256": "f8497e6a3d8f8850cc8f44b6ce450399ddf43b74d6e606c11f0b0a71f0215c4a",
+          "sidecar_sha256": "22618a93538f6b3762e62e8a5887656263dd04c46b0f100f63389d9821486657"
+        },
+        "microphone-utt16-u0.wav": {
+          "wav_sha256": "9c931b08a90e644ff689f09a4b4715c01251b8dfdca08f84da547e99eb12eed4",
+          "sidecar_sha256": "ac0dfa1438841b960c200d17c54e7eb20356e0ff1aac29e11b5572e2812102a4"
+        },
+        "microphone-utt17-u0.wav": {
+          "wav_sha256": "7c15c23870687c9a592b4251b4e9453e043b03e94db985e099e73a8d766c9dd2",
+          "sidecar_sha256": "03428835ee7e888c457dbf037d47cede607816a352e9abb42d0a131660cf9acf"
+        },
+        "microphone-utt18-u0.wav": {
+          "wav_sha256": "3bd1e9230cd5b0a5c73979f015f4ee1baabc19e20bc9c28f8674e5db013808a8",
+          "sidecar_sha256": "118bb5debf6b5c537bc4ecf3c0e92b5af770781f007366eaf3e50d12346c19f1"
+        },
+        "microphone-utt19-u0.wav": {
+          "wav_sha256": "61b977a7edf1a5a77084ee55f85230bcf32cf0662af3667c0f1ea7d349b96c93",
+          "sidecar_sha256": "2fb934a6e9b87feca997af5aed28781ebec379e6b0e4bfde8260c423f320f37c"
+        },
+        "microphone-utt20-u0.wav": {
+          "wav_sha256": "59efa3a3fd052fcd3497e00a4371a2d7568aabf6b45e3834fb21618ad8e3723f",
+          "sidecar_sha256": "36321afa3c430b3b9bd98f6584ce56281b71a3655f9eeaf8b1c586c7b48aef9a"
+        },
+        "microphone-utt21-u0.wav": {
+          "wav_sha256": "597c06b6745917c6ed39b5c86497b3eb5bc06682c8237f0089d2f6129a896ae8",
+          "sidecar_sha256": "40096eb193d916dcd55d22af53586b5669d6e15f5f0d0b5d4da0fbb64d9181e8"
+        },
+        "microphone-utt22-u0.wav": {
+          "wav_sha256": "a4e8a10311335e550fe081e245c3365ec1d7cf27f1cc7df95426ed07ab93738d",
+          "sidecar_sha256": "8f5ac8d67879d46fe1b7dd256f6adec143b6ee226d175642352c01c3bf7b350b"
+        }
       }
     },
-    "hash_method": "raw-file-bytes (applies to every digest in this group)"
+    "retention": "NONE deleted; per docs/gates/evidence-retention-policy.md keep audio and diagnostics until the owner passes the gate and authorizes cleanup",
+    "wavs_committed_to_git": false
   },
-  "group_4_annotations": {
-    "status": "UNFROZEN",
-    "sha256": {
-      "microphone-annotations.json": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d",
-      "meeting-annotations.json": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a",
-      "microphone-joined-manifest.json": "3bfcdd75776cdfd02002780a8c06eead1eef9ad25dadcbbf2171cb8e622fc3a3",
-      "meeting-joined-manifest.json": "26fce53711a50bea29ad883eba65c7778daa7eeb5f26152cd41d4149c675f0dd",
-      "microphone-joined-verification.json": "a931abc2e6ae518b1d44d67ffa86f5e2e6199f802a63b917726282a2a0390ef5",
-      "meeting-joined-verification.json": "a8a34dc277dd71e8456bb5a6c38c8a4fb670a8f2d1104fc12e12e3d47e331508",
-      "source-audit.json": "1ee8f6c431295935bdaf224ee52e131930196c6fa712e10be43c313a19c5149f"
+  "source_and_annotations_status": "Hashed now. The annotations are called frozen only when the owner approves this manifest in writing; no freeze has happened.",
+  "observer_validation_record": {
+    "document": "docs/gates/gate-3-windows-live-observer-plan-and-validation-draft.md",
+    "run": "validation-5 (v3 observer, whitespace skip, Snipping Tool video, overlay, sampler, 180 s)",
+    "evidence": [
+      {
+        "path": "observer-validation-5/raw.jsonl",
+        "base": "preflight",
+        "sha256": "f8cb15aa65409f4993e6b3e7e9e66c6672d7a23eaa2a7193d66f3320009440a3",
+        "method": "raw-file-bytes",
+        "bytes": 27550144,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/actions.log",
+        "base": "preflight",
+        "sha256": "22f9464d4befdbe5fd6758b72d15dacd8a5101f2ad0156dabe8282bdf75a81b3",
+        "method": "raw-file-bytes",
+        "bytes": 2651,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/resources.csv",
+        "base": "preflight",
+        "sha256": "48f415d2e3ea9cf3c04ee4e26637afa45662a1387c700fb72c102863955376ba",
+        "method": "raw-file-bytes",
+        "bytes": 2463,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/tool-hashes.txt",
+        "base": "preflight",
+        "sha256": "fdba1190eb864064fdd9e6f821c904d7617c0a5d3b328db5480dd107e02e7b70",
+        "method": "raw-file-bytes",
+        "bytes": 373,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/screen-recording.mp4",
+        "base": "preflight",
+        "sha256": "1ef0c6cb248e890160c1ad9d69ac55ae606ea33a238a607d2befeb15897e6426",
+        "method": "raw-file-bytes",
+        "bytes": 371522458,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/observer-stdout.txt",
+        "base": "preflight",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "method": "raw-file-bytes",
+        "bytes": 0,
+        "role": "observer validation-5"
+      },
+      {
+        "path": "observer-validation-5/observer-stderr.txt",
+        "base": "preflight",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "method": "raw-file-bytes",
+        "bytes": 0,
+        "role": "observer validation-5"
+      }
+    ],
+    "resource_overhead": {
+      "source": "resources.csv",
+      "samples": 44,
+      "observer_working_set_max_mb": 191.2,
+      "electron_working_set_max_mb": 1039.6,
+      "observer_cpu_seconds_over_run": 77.59
     },
-    "hash_method": "raw-file-bytes (applies to every digest in this group)"
+    "result_summary": "large-tree u p99 296 ms, max 372 ms; the 250 ms goal was not met; 250 ms is a reporting threshold under proposal 4b (agents/agent_task_allocation.md row for validation-5)",
+    "status": "record of what was measured; the observer is not approved by it"
   },
-  "group_5_quality_evidence": {
-    "measurement": {
-      "file_sha256": "256fd80e150f9324025d4ee577fde064d6276e8dfd09f7fe0d1f1bdf0ed86468",
-      "result": "52/52 units accepted; max onset spread 15 ms; max offset spread 75 ms",
-      "hash_method": "raw-file-bytes"
-    },
-    "joined_verification": {
-      "sha256": {
-        "microphone": "0be8b999899716a81a17931c00c674a75cd039a320e996076e7ab66d7a4bf98d",
-        "meeting": "6f2ffc44a5b16bbb611f3f8a64e695965ecae780ea0893bc6c47d2181ca13aa2"
-      },
-      "result": "PASS both tracks (arithmetic/consistency only, not independent acoustic ground truth)",
-      "hash_method": "raw-file-bytes"
-    },
-    "assembled_results": {
-      "microphone": {
-        "utterances": 65,
-        "shorts": 26,
-        "shorts_in_170_245_window": 8,
-        "wpm": 142.83
-      },
-      "meeting": {
-        "utterances": 75,
-        "shorts": 30,
-        "shorts_in_170_245_window": 8,
-        "wpm": 164.26
-      },
-      "simultaneous_speech_seconds": 223.72
-    },
-    "waveform_spot_check": {
-      "units_checked": 12,
-      "sha256": {
-        "spotcheck-units.json": "4e1da2839b6d4259cbbf75e04780cbd4c52f8c1da50e6e09604f42c80fc1ff69",
-        "index-microphone.csv": "d1bd0a420f968e73647cdf0b54e5c0a552cd259a02ab92fb12dcc1cdc9329dca",
-        "index-meeting.csv": "288837a486460bc07f906c0cd578ea0ce9ad77caad3b1aca8d5db812494709ba",
-        "listen-checklist.md": "601da8b8e9cd3bd8c05049c7bee8f59b929791c2e1e256bea357778e6199c1f8"
-      },
-      "result": "no crop edge touches speech energy; no clipping; none suspect. Near-limit: Record. speech span 0.320 s vs 0.3 s minimum",
-      "hash_method": "raw-file-bytes"
-    },
-    "owner_listen_through": {
-      "date": "2026-11-08",
-      "approved_for_saving": "2026-11-09",
-      "status": "OWNER_SIGNED_OFF_RECORDED_IN_REPO",
-      "evidence_file": "docs/gates/gate-3-windows-r3-listen-through-signoff-20261108.md",
-      "evidence_file_sha256": "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87",
-      "note": "Covers r3 constructed sources only; manifest remains NOT_FROZEN.",
-      "hash_method": "git-show-blob-bytes",
-      "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-    },
-    "independent_review": "PENDING",
-    "known_concerns": [
-      "Meeting pace 164.26 wpm far above its 147 wpm projection (A-026)",
-      "Constructed speech may change prosody, VAD segmentation and recognition behavior",
-      "Microphone max acoustic-end spread 85 ms"
-    ]
-  },
-  "group_6_scoring_scripts": {
-    "tests": "PENDING",
-    "matcher_and_marker_code": "NOT_WRITTEN; assigned to Codex",
-    "git_text": [
+  "d4_calibration": {
+    "document": "docs/gates/gate-3-windows-d4-correlation-calibration-proposed.md",
+    "tool": "scripts/gate3-retest/calibrate-long-correlation.py",
+    "evidence": [
       {
-        "path": "scripts/gate3-retest/analyze-bounds.py",
-        "sha256": "2cda869cafcb77546a59a7f79d961927a329bab78dba82049a9d9252964dc631",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+        "path": "calibration-long-correlation-20261109/calibration.json",
+        "base": "preflight",
+        "sha256": "4f9a039ec648b692ac86548a364ac5818652c420b078b3b91118141366bb81ff",
+        "method": "raw-file-bytes",
+        "bytes": 241971,
+        "role": "D4 calibration, measured noise (6 seeds x 2 tracks)"
       },
       {
-        "path": "scripts/gate3-retest/assemble-sources.py",
-        "sha256": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/constructed_units.py",
-        "sha256": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/measure-units.py",
-        "sha256": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/verify-joined.py",
-        "sha256": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/audit-archive.py",
-        "sha256": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/bookmark-timing.py",
-        "sha256": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/speech-specs.ps1",
-        "sha256": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/UnitRenderer.cs",
-        "sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/SpeechRenderer.cs",
-        "sha256": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/render-constructed-units.ps1",
-        "sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/prepare-speech.ps1",
-        "sha256": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/observe-live.ps1",
-        "sha256": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/README.md",
-        "sha256": "231685f72e4c3bf5c3fd87e11cd3b54a7df0a103a880d4d8c09fe78fc23839cd",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/test_analysis.py",
-        "sha256": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/test_bookmarks.py",
-        "sha256": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/test_cli.py",
-        "sha256": "26c40d41b42ecfaef8ebe5bfc0787244284a3813bb93443952dc3405ce158c6f",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/test_sources.py",
-        "sha256": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
-      },
-      {
-        "path": "scripts/gate3-retest/test_units.py",
-        "sha256": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135",
-        "method": "git-show-blob-bytes",
-        "git_commit_id": "cb26f9c04b58db1143c24554b1fe8d277e288cac"
+        "path": "calibration-long-correlation-noise40db-20261109/calibration.json",
+        "base": "preflight",
+        "sha256": "ee6782548c818f9cc8111827df9f695c6e2d9fa64334948eef80de07512e4ddb",
+        "method": "raw-file-bytes",
+        "bytes": 117247,
+        "role": "D4 sensitivity, 40 dB noise (3 seeds x 2 tracks)"
       }
     ]
   },
-  "group_7_runtime_environment": {
-    "windows_build": "PENDING",
-    "powershell_version": "PENDING",
-    "python_version": "PENDING",
-    "node_version": "PENDING",
-    "dell_gpu_validated": "PENDING",
-    "capture_device_and_format": "PENDING",
-    "background_app_state": "PENDING",
-    "whisper_binary_and_model": "PENDING",
-    "observer_overhead": "PENDING"
+  "d2_sensitivity": {
+    "document": "docs/gates/gate-3-windows-d2-energy-rule-sensitivity-20261109.md",
+    "tool": "scripts/gate3-retest/energy-end-sensitivity.py",
+    "evidence": [
+      {
+        "path": "energy-end-sensitivity-20261109.json",
+        "base": "preflight",
+        "sha256": "78f1d1025a33f77d88ff8936c1ad0f3069a46fda21a3a736165e1b10d9cb09dd",
+        "method": "raw-file-bytes",
+        "bytes": 40217,
+        "role": "D2 per-utterance sensitivity rows"
+      }
+    ],
+    "status": "sensitivity evidence only; no threshold changed"
   },
-  "group_8_retention": {
-    "private_evidence_directory": "gate3-v3-preflight-20261108 (outside Git; owner-local path provided in chat)",
-    "deletion": "NONE; per docs/gates/evidence-retention-policy.md keep audio and diagnostics until the owner passes the gate and authorizes cleanup",
-    "wavs_committed_to_git": false,
-    "auto_retry": false
+  "classification_provenance": {
+    "note": "docs/handoffs/2026-11-09-validation3-classification-provenance.md",
+    "output": {
+      "path": "observer-validation-3/classification-20261109/validation3-unidentified-classification.json",
+      "base": "preflight",
+      "sha256": "c1f648b578ef9bf56999cea104c1f3d1da9356acccb6b1abdf7d136bdbd40939",
+      "method": "raw-file-bytes",
+      "data_in_git": false
+    },
+    "tool": {
+      "path": "scripts/gate3-retest/classify-unidentified.py",
+      "sha256": "4d821bba46765b9a4f64be558196673bb3376ab12e727381a998b3a5729bacb4",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "classifier"
+    },
+    "tool_added_in_commit": "6d7d242dad8768cf19d55a99e17b21c3ee6e27eb",
+    "inputs": [
+      {
+        "path": "observer-validation-3/raw.jsonl",
+        "base": "preflight",
+        "sha256": "26324897638767143942a949607ac6fb5fcccda33d41cec1302c831abcb83d96",
+        "method": "raw-file-bytes",
+        "bytes": 17179710
+      },
+      {
+        "path": "observer-validation-3/regenerated-corrected-parser-20261109/timestamped-microphone.json",
+        "base": "preflight",
+        "sha256": "8b0b91f70bf812331f5b1a047038a3c98d2189250368b65207634567b4a6f71a",
+        "method": "raw-file-bytes",
+        "bytes": 110996
+      },
+      {
+        "path": "observer-validation-3/regenerated-corrected-parser-20261109/timestamped-meeting.json",
+        "base": "preflight",
+        "sha256": "fd5588060ad91bc90c59d3c133e98c295378f29152201b588f31e518b8eebf4b",
+        "method": "raw-file-bytes",
+        "bytes": 128220
+      },
+      {
+        "path": "observer-validation-3/draft-annotations-20261109/microphone-source-annotations-DRAFT.json",
+        "base": "preflight",
+        "sha256": "b3886c8ca21b652eebefe757db4a42a24af3b1da96fa56e0645862dbb983de18",
+        "method": "raw-file-bytes",
+        "bytes": 62760
+      },
+      {
+        "path": "observer-validation-3/draft-annotations-20261109/meeting-source-annotations-DRAFT.json",
+        "base": "preflight",
+        "sha256": "b5f7c2c69ed257ef99d3bf956bc6eb72346dd8349c982ec82fd1ee4019d83cee",
+        "method": "raw-file-bytes",
+        "bytes": 71095
+      },
+      {
+        "path": "observer-validation-3/actions.log",
+        "base": "preflight",
+        "sha256": "ae7ab9e0c549f117f83d970c6cb130a9524d5e69bd9ca9ecb3cd5679811f1727",
+        "method": "raw-file-bytes",
+        "bytes": 2086
+      }
+    ],
+    "categories_are_heuristic": true
   },
-  "prior_history": "The retired draft state (stopped measurement, 30 ms offset-spread rejection, r2 at 127.93 wpm) is preserved in git history and in the decision and amendment documents.",
-  "hashing_methods": {
-    "rule": "Every digest is a SHA-256 of content bytes. A Git object id (commit or blob id) is never a content digest and never goes in a sha256 field. Record method, commit and file name beside each digest.",
-    "git_tracked_text": "SHA-256 of the bytes printed by `git show COMMIT:path` at the pinned full commit id. LF content as stored in Git, independent of working-tree line endings.",
-    "wavs_and_private_binaries": "SHA-256 of the raw file bytes (for example Get-FileHash -Algorithm SHA256). Not committed to Git.",
-    "carried_from_prior_draft": "Digests copied from the earlier draft whose method was not recorded; recompute with one of the two methods above before freeze.",
-    "pinned_commit_for_git_text_in_this_draft": "cb26f9c04b58db1143c24554b1fe8d277e288cac",
-    "repin_note": "Files changed after the pinned commit (the amendment, the D2 draft, this README, play-sources.ps1, test_play_sources.py and this manifest) must be re-pinned at the freeze commit."
-  },
-  "group_9_d2_capture_equivalence": {
-    "status": "DRAFT",
-    "path": "docs/gates/gate-3-windows-d2-capture-equivalence-draft.md",
+  "capture_equivalence": {
+    "document": "docs/gates/gate-3-windows-d2-capture-equivalence-draft.md",
+    "results_document": "docs/gates/gate-3-windows-d2-practice-run-results-20261109.md",
     "owner_approval": "microphone track via VB-CABLE (CABLE Input / CABLE Output), system track via the existing endpoint-loopback route; conditional on measured isolation and capture equivalence; no acceptance threshold changed",
-    "hash": "PENDING: pin at the freeze commit",
-    "pending_fields": "see the draft section 4",
+    "observations_not_accepted": [
+      "O-1 common clock drift: source markers arrive about 200 ms later at 381 s than at 1 s on both tracks (microphone +205 ms, meeting +200 ms; about 0.53 ms per second); cause undetermined (playback clock versus capture clock).",
+      "O-2 the microphone track is 40 ms behind the meeting track at the start and 45 ms behind at the end; not explained.",
+      "O-3 gain differences against the source: system track about +2.1 dB, microphone track about -0.4 dB; the 2.5 dB route difference is UNEXPLAINED; effect on detection untested.",
+      "O-4 speaker volume: one run cannot show how the Windows speaker volume changes the recording; the real run must use volume 10.",
+      "Capture gaps in the practice recording: microphone 25 recorded (139 chunks), meeting 1 (91 chunks); not individually checked against source pauses."
+    ],
+    "what_it_limits": "A clean result shows the app timing through this particular route (cable microphone, endpoint loopback) at volume 10; it does not show latency on a real microphone and speakers or at other volumes.",
     "playback_script": {
       "path": "scripts/gate3-retest/play-sources.ps1",
-      "status": "written, not run for playback; hash pinned at freeze"
+      "sha256": "5b2da634adc613c9e960b4a06b668a334344a6cfd6251007123ca49f37fda366",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "5ed536554c2398684410512b46c34a592032e611",
+      "role": "harness playback; written and run once for the practice run"
+    },
+    "practice_evidence_hashes": [
+      {
+        "track": "microphone",
+        "item": "source",
+        "path": "renders-units-20261109-r3-derived-1/assembly/microphone.wav",
+        "sha256_in_fixture": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4",
+        "sha256_recomputed": "1163ac30b91b1fd55bc5dae9eb870bad05c6f4bdd1dddce44002265aadeb80d4",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "annotations",
+        "path": "renders-units-20261109-r3-derived-1/assembly/microphone-annotations.json",
+        "sha256_in_fixture": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d",
+        "sha256_recomputed": "ff67b9fb2cca619671949d45dfc60e76e9cf44313dc3f1f6640ed647c5ff3b2d",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "continuous",
+        "path": "practice-d2-codex-timeline-comparison-20261109/microphone-concatenated.wav",
+        "sha256_in_fixture": "8e3362d1b715be880fca1cf394499ea3a805060b8c140e6f5f62d549953c2d6c",
+        "sha256_recomputed": "8e3362d1b715be880fca1cf394499ea3a805060b8c140e6f5f62d549953c2d6c",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "clock",
+        "path": "practice-d2-codex-timeline-comparison-20261109/microphone-concat-clock.json",
+        "sha256_in_fixture": "90de85380ecf0b23056d76227ca3bdeed54843dc8691ce11c71e60942d373342",
+        "sha256_recomputed": "90de85380ecf0b23056d76227ca3bdeed54843dc8691ce11c71e60942d373342",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "meeting",
+        "item": "source",
+        "path": "renders-units-20261109-r3-derived-1/assembly/meeting.wav",
+        "sha256_in_fixture": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7",
+        "sha256_recomputed": "3353007a875395eb1d3a59a47c32fd1e19271304041406d833faae6f697deab7",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "meeting",
+        "item": "annotations",
+        "path": "renders-units-20261109-r3-derived-1/assembly/meeting-annotations.json",
+        "sha256_in_fixture": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a",
+        "sha256_recomputed": "75e49cdce59d3d48da6e7b338381d7d842f41b83697487a24272480b45ae3c5a",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "meeting",
+        "item": "continuous",
+        "path": "practice-d2-codex-timeline-comparison-20261109/meeting-concatenated.wav",
+        "sha256_in_fixture": "7d2e9e90ef50a19b572e17758696b42a65f4a77ba1c712f9060958fe72c1a587",
+        "sha256_recomputed": "7d2e9e90ef50a19b572e17758696b42a65f4a77ba1c712f9060958fe72c1a587",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "meeting",
+        "item": "clock",
+        "path": "practice-d2-codex-timeline-comparison-20261109/meeting-concat-clock.json",
+        "sha256_in_fixture": "4f6f69ce8774caa61f92148e6ebc9e88bef9a818fe7052a6eddd19079b49fdde",
+        "sha256_recomputed": "4f6f69ce8774caa61f92148e6ebc9e88bef9a818fe7052a6eddd19079b49fdde",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "raw_metadata",
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/microphone/chunks.json",
+        "sha256_in_fixture": "c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290",
+        "sha256_recomputed": "c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "raw_decoder",
+        "path": "../gate3-integrated-evidence/decoder/ffmpeg.exe",
+        "sha256_in_fixture": "e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030",
+        "sha256_recomputed": "e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "microphone",
+        "item": "raw_marker_context",
+        "path": "practice-d2-codex-marker-audit-20261109/audit-summary.json",
+        "sha256_in_fixture": "93da64f8b2ae2b19350dddfb1efea69cd594200ecbe5a0e32b9d49750c2ab920",
+        "sha256_recomputed": "93da64f8b2ae2b19350dddfb1efea69cd594200ecbe5a0e32b9d49750c2ab920",
+        "method": "raw-file-bytes"
+      },
+      {
+        "track": "meeting",
+        "item": "raw_metadata",
+        "path": "practice-d2/app-run/library/meetings/2026-11-09 Meeting/audio/meeting/chunks.json",
+        "sha256_recomputed": "20a5ad7d4ac741f0fdfb5ace8b1bd007b11e1d0d51a421bd87cb79fdc812d176",
+        "method": "raw-file-bytes"
+      },
+      {
+        "path": "practice-d2/endpoints-practice.txt",
+        "base": "preflight",
+        "sha256": "ad4a1586f59e5ade23f35384e650aa5edeea1a9762548a9c4041b8cbaaf5139c",
+        "method": "raw-file-bytes",
+        "bytes": 6982,
+        "role": "practice run record"
+      },
+      {
+        "path": "practice-d2/recording-ready.txt",
+        "base": "preflight",
+        "sha256": "9011acca962f0e132fb45fe71aac695815a147394dcb49ba95b4cfb5c1e295a0",
+        "method": "raw-file-bytes",
+        "bytes": 30,
+        "role": "practice run record"
+      },
+      {
+        "path": "practice-d2/analysis/result.json",
+        "base": "preflight",
+        "sha256": "6df2b0f0bbe219ad5bff8c3575ec053ea51d6c88adff4a7348907c35b7f859b9",
+        "method": "raw-file-bytes",
+        "bytes": 2504,
+        "role": "practice run record"
+      }
+    ]
+  },
+  "practice_timing_report": {
+    "command": "python practice-timing-report.py  (cwd scripts/gate3-retest, SCRB_V3A_PRACTICE_ROOT set); run at code SHA 01bd9c12142cb7e316c3b5399c779d60ee7e8544, 2026-11-09 PT",
+    "microphone": {
+      "long_anchors": 39,
+      "valid_anchors": 39,
+      "excluded_anchors": 0,
+      "units": 65,
+      "timing_inconclusive_units": 0,
+      "uncredited_under_rule_6": 1,
+      "uncredited_ids": [
+        "microphone-019 (gap/overlap at 141.714 s)"
+      ],
+      "still_scoreable": 64,
+      "drift_rate_max_s_per_s": 0.00047126908914867587,
+      "drift_pairs": 209,
+      "anchor_spacing_max_s": 8.107
+    },
+    "meeting": {
+      "long_anchors": 45,
+      "valid_anchors": 44,
+      "excluded_anchors": 1,
+      "excluded_ids": [
+        "meeting-024 (chunk-timestamp gap/overlap inside the template support)"
+      ],
+      "units": 75,
+      "timing_inconclusive_units": 0,
+      "uncredited_under_rule_6": 0,
+      "still_scoreable": 75,
+      "drift_rate_max_s_per_s": 0.0005478227890266886,
+      "drift_pairs": 260,
+      "anchor_spacing_max_s": 6.3115,
+      "units_with_drift_extra_uncertainty": 2
+    },
+    "note": "Offline analysis of the practice recording; not a scored run."
+  },
+  "test_results": {
+    "run_at": "2026-11-09 PT, code SHA 01bd9c12142cb7e316c3b5399c779d60ee7e8544, from the clean checkout of the pin (python) and the working tree at the same content (npm)",
+    "python": {
+      "command": "cd <checkout>/scripts/gate3-retest && python -m unittest discover -s . -p \"test_*.py\" -v",
+      "note": "the embedded Python runs in isolated mode, so plain `python -m unittest test_x` cannot import siblings; `discover -s .` inserts the directory",
+      "environment": {
+        "SCRB_V3A_PRACTICE_ROOT": "C:/Users/bchen/Documents/ChatGPT/srcb/gate3-v3-preflight-20261108",
+        "SCRB_MATCHER_DIR": "<checkout>/scripts/gate3-retest"
+      },
+      "ran": 328,
+      "passed": 328,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "result": "OK",
+      "python_version": "3.13.0"
+    },
+    "powershell_parse": {
+      "method": "[System.Management.Automation.Language.Parser]::ParseFile on every tracked *.ps1 in the clean checkout",
+      "files": 30,
+      "files_with_errors": 0
+    },
+    "npm_run_check": {
+      "command": "npm run check",
+      "test_files_passed": 52,
+      "test_files_skipped": 6,
+      "tests_passed": 819,
+      "tests_skipped": 63,
+      "tests_failed": 0,
+      "exit_code": 0,
+      "boundary_check": "SKIPPED by its own rule: \"not a ui/ or backend/ branch\" on rosmont/windows-gate3-integration-2-20261109",
+      "note": "a first run in parallel with the Python suite had one EBUSY failure on a temp sqlite file in packages/storage; the rerun alone passed. Logged as an incident."
     }
   },
-  "group_10_v3a_clock_amendment": {
-    "status": "PROPOSED, NOT_FROZEN",
-    "path": "docs/gates/gate-3-windows-v3a-clock-amendment-proposed.md",
-    "amendment_text_hash": "PENDING: pin at the freeze commit",
-    "gap_map_reader_hash": "PENDING: script not written",
-    "v3a_scoring_script_hash": "PENDING: script not written",
-    "owner_approval_of_v3a": "PENDING",
-    "independent_code_review": "PENDING"
+  "runtime_environment": {
+    "machine": "Dell Precision 7760, Intel Xeon W-11855M, Intel UHD Graphics and NVIDIA RTX A3000 Laptop GPU",
+    "windows": "Microsoft Windows 11 Pro for Workstations 10.0.26300 (build 26300)",
+    "powershell_windows": "5.1.26100.9711 (powershell.exe; the observer targets Windows PowerShell 5.1)",
+    "python": "3.13.0 (embedded, isolated mode)",
+    "node": "v26.13.0",
+    "gpu_note": "The pinned live-config.json sets whisper.useGpu false, so no GPU validation applies to the speech models; speech runs on CPU (threads 6).",
+    "capture_device_and_format": "practice run: default playback Speakers (2- Realtek(R) Audio) 48000 Hz 32-bit 2 ch; default recording CABLE Output 48000 Hz 24-bit 2 ch; capture Opus 48 kHz mono 5 s chunks (practice-d2/endpoints-practice.txt hashed above)",
+    "background_app_state": "cannot exist yet: it is read on the day of the real run; the real run records it",
+    "whisper_binary_and_model": "see native_candidate.tools_and_models_from_live_config (whisper-cli.exe, whisper-server.exe, ggml-large-v3-turbo-q5_0.bin, ggml-base.en-q5_1.bin, ggml-silero-v6.2.0.bin)",
+    "observer_overhead": "measured once in validation-5 (see observer_validation_record.resource_overhead); not measured on the real run"
+  },
+  "inventory_counts": {
+    "documents": 23,
+    "scripts_and_tests": 68,
+    "candidate_built_artifacts": 6,
+    "tools_and_models": 11
   }
 }
