@@ -67,3 +67,21 @@ def without_regeneration(bounds_module):
 
     The end-to-end tests run the real regeneration; the other binding checks still run here."""
     return patch.object(bounds_module, 'regenerate_converted', return_value=None)
+
+
+def sourced(unit):
+    """A test unit that carries explicit source endpoints and reference words (a real run requires them)."""
+    end = unit.get('source_last_word_end_s', unit.get('continuous_last_word_end_s', unit.get('last_word_end', 1)))
+    return {'reference_words': ['x'], 'source_start_s': unit.get('continuous_start_s', unit.get('start', 0)),
+            'source_last_word_start_s': unit.get('continuous_last_word_start_s', unit.get('last_word_start', 0)),
+            'source_last_word_end_s': end, **unit, 'earliest_acoustic_end_s': end, 'latest_acoustic_end_s': end,
+            'last_word_end': end}
+
+
+def frozen_entry(unit):
+    """The frozen annotation entry that exactly matches a test unit's identity and timing fields."""
+    entry = {'id': unit['id'], 'eligible': unit['eligible']}
+    for key, options in timing.BOUND_UNIT_FIELDS:
+        if key in unit and key != 'last_word_end':
+            entry[options[0]] = unit[key]
+    return entry

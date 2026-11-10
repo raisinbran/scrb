@@ -475,6 +475,58 @@ def source_spread(unit, end_time, basis):
             'present': True}
 
 
+# (scored-unit key, frozen-annotation keys in order of preference). Every one of these affects unit identity or timing.
+BOUND_UNIT_FIELDS = (
+    ('reference_words', ('reference_words',)), ('start', ('start',)), ('last_word_start', ('last_word_start',)),
+    ('acoustic_end', ('acoustic_end',)), ('earliest_acoustic_end_s', ('earliest_acoustic_end_s',)),
+    ('latest_acoustic_end_s', ('latest_acoustic_end_s',)), ('last_word_end', ('latest_acoustic_end_s',)),
+    ('source_start_s', ('source_start_s', 'start')), ('source_last_word_start_s', ('source_last_word_start_s', 'last_word_start')),
+    ('source_last_word_end_s', ('source_last_word_end_s', 'acoustic_end')),
+    ('source_earliest_acoustic_end_s', ('earliest_acoustic_end_s',)), ('source_latest_acoustic_end_s', ('latest_acoustic_end_s',)),
+    ('source_threshold_spread_s', ('threshold_spread_s',)), ('source_final_onset_threshold_spread_s', ('final_onset_threshold_spread_s',)),
+    ('source_start_sample', ('source_start_sample',)), ('source_end_sample', ('source_end_sample',)), ('short', ('short',)))
+REQUIRED_UNIT_FIELDS = ('reference_words', 'source_start_s', 'source_last_word_start_s', 'source_last_word_end_s')
+
+
+def _same_value(a, b):
+    if isinstance(a, bool) or isinstance(b, bool):
+        return type(a) is type(b) and a == b
+    if finite(a) and finite(b):
+        return abs(a-b) <= 1e-12
+    return a == b
+
+
+def bind_unit_fields(units, utterances):
+    """Every supplied identity/timing field must equal the frozen annotation's value.
+
+    A unit with any difference (or a missing required field, or an annotation that lacks a supplied field)
+    is never credited: its fields are reset to the frozen values, it becomes UNIDENTIFIED, and it is reported.
+    """
+    by_id = {u['id']: u for u in utterances}
+    bound, report = [], []
+    for unit in units:
+        entry = by_id.get(unit['id'])
+        problems, frozen = [], {}
+        if entry is None:
+            problems.append('no frozen annotation entry')
+        else:
+            for key, options in BOUND_UNIT_FIELDS:
+                source_key = next((o for o in options if o in entry), None)
+                if source_key is not None:
+                    frozen[key] = entry[source_key]
+                if key in unit and (source_key is None or not _same_value(unit[key], entry[source_key])):
+                    problems.append('%s differs from the frozen annotation' % key)
+                elif key not in unit and key in REQUIRED_UNIT_FIELDS:
+                    problems.append('required field %s is missing' % key)
+        if problems:
+            unit = {**unit, **frozen, 'binding_failure': '; '.join(problems)}
+            report.append({'id': unit['id'], 'unit_field_binding_failure': unit['binding_failure']})
+            if unit.get('eligible'):
+                unit = {**unit, 'outcome': 'UNIDENTIFIED', 'identity_confirmed': False, 'endpoints': []}
+        bound.append(unit)
+    return bound, report
+
+
 def attach_source_spread(units, utterances):
     """Give each scored unit the spread of its FROZEN annotation entry (single source of truth).
 

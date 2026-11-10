@@ -32,6 +32,7 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
                           source_last_word_end_s=5, outcome='UNIDENTIFIED'),
                      unit(id='after', source_start_s=10, source_last_word_start_s=10.01,
                           source_last_word_end_s=14, endpoints=[{'observed':10.06+change, 'u':0}])]
+            units = [binding_fixture.sourced(u) for u in units]
             gapmap = mapping(gap=0)
             prepared, _ = timing.prepare_units(units, gapmap, anchors)
             right = prepared[1]
@@ -40,7 +41,7 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
             self.assertLessEqual(right['last_word_start_interval_s'][0], 10.01)
             self.assertGreaterEqual(right['last_word_start_interval_s'][1], 10.01)
             self.assertAlmostEqual(right['earliest_acoustic_end_s'], 14+change-.001)
-            report = {'anchors':anchors, 'utterances':[{'id':u['id'], 'eligible':True, 'earliest_acoustic_end_s':u['source_last_word_end_s'], 'latest_acoustic_end_s':u['source_last_word_end_s']} for u in units],
+            report = {'anchors':anchors, 'utterances':[binding_fixture.frozen_entry(u) for u in units],
                       'annotations_sha256':'d'*64}
             gapmap = binding_fixture.enrich(gapmap)
             with tempfile.TemporaryDirectory() as directory:
