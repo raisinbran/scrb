@@ -133,10 +133,10 @@ $maxMic = 0; $maxMeet = 0
 for ($i = 0; $i -lt 40; $i++) { Start-Sleep -Milliseconds 250; $m = Level 'Mic level'; $mm = Level 'Meeting level'; if ($m -gt $maxMic) { $maxMic = $m }; if ($mm -gt $maxMeet) { $maxMeet = $mm } }
 Act "level meters within 10 s of Record: mic max $maxMic, meeting max $maxMeet"
 # 7 no scripted scrolling; wait for the recording length, logging the Snipping Tool timer
-# the sources are 420 s long: wait for playback to finish (as in the practice run), never less than RecordSeconds, and give up on a stuck playback after RecordSeconds + DrainSeconds
-while ((((Tick) - $t0) / $freqHz -lt $RecordSeconds) -or (-not $procPlay.HasExited -and ((Tick) - $t0) / $freqHz -lt ($RecordSeconds + $DrainSeconds))) { Start-Sleep -Milliseconds 100; if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
-# 8 Stop, drain
-if ($procPlay.HasExited) { Act "playback process ended by itself (exit code $($procPlay.ExitCode)) at $([Math]::Round(((Tick) - $t0) / $freqHz, 1)) s after Record" } else { Act 'playback still running after RecordSeconds + DrainSeconds: stopping it'; try { Stop-Process -Id $procPlay.Id -Force } catch { }; Act 'playback process stopped' }
+# RecordSeconds is the recording length (as in validation-5): playback is stopped there, so a 420 s run cuts about the last second of the 420 s sources (the scored interval ends at 380 s)
+while (((Tick) - $t0) / $freqHz -lt $RecordSeconds) { Start-Sleep -Milliseconds 100; if (((Tick) - $script:lastSnip) / $freqHz -gt 20) { $script:lastSnip = Tick; Act ('snipping timer text: ' + (SnipTimer)) } }
+# 8 stop playback, Stop, drain
+if ($procPlay.HasExited) { Act "playback process had already ended (exit code $($procPlay.ExitCode)) at record length $RecordSeconds s" } else { Act "recording length $RecordSeconds s reached: stopping playback process"; try { Stop-Process -Id $procPlay.Id -Force } catch { }; Act 'playback process stopped' }
 [void][N]::SetForegroundWindow($hwnd)
 if (-not (PressApp 'Stop')) { Act 'FAILED: app Stop not found' } else { Act 'STOP pressed (Stop invoked)' }
 Start-Sleep $DrainSeconds; Act "drain $DrainSeconds s done"; Act ('snipping timer text before Stop: ' + (SnipTimer))
