@@ -390,13 +390,13 @@ def analyze_v3a_track(units, evidence, track):
         for unit in prepared+excluded_placed:   # a finite interval across a recorded gap is not proof the word was captured (v3a rule 6)
             reason = capture_event_overlap(unit, mapping) if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES else None
             if reason:
-                verified, evidence = verify_word_capture(unit, continuous, mapping)
+                verified, capture_evidence = verify_word_capture(unit, continuous, mapping)
                 if verified is True:    # presence and endpoint verified from the decoded recording: timing-INCONCLUSIVE (rule 8)
-                    gaps[unit['id']] = gaps.get(unit['id'], '')+('; ' if unit['id'] in gaps else '')+reason+'; '+evidence
+                    gaps[unit['id']] = gaps.get(unit['id'], '')+('; ' if unit['id'] in gaps else '')+reason+'; '+capture_evidence
                 else:                   # not verified or not checkable: uncredited in both bounds (rule 6)
                     gaps.pop(unit['id'], None)
                     limited[unit['id']] = {'reason': reason, 'capture_check': 'not checkable' if verified is None else 'not verified',
-                                           'evidence': evidence}
+                                           'evidence': capture_evidence}
         prepared = [u for u in prepared if u['id'] not in gaps and u['id'] not in limited]
         by_id = {u['id']: u for u in prepared}
         timing_inconclusive, capture_limited = [], []
