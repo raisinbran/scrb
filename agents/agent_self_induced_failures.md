@@ -320,6 +320,13 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Spread now comes from the frozen annotation (`attach_source_spread`), both bounds, fail closed for source-timed units. Classifier rules were rerun on the same raw data until each label matched the row text. Still open: classifier has no repo test.
 - **Owner approval:** Not required (offline).
 
+### A-062 - 2026-11-09 - Wrong claim that the unit spreads cover an independent energy rule (D2 handoff) - Claude Code (Sonnet 5.5)
+- **Status / attribution:** Confirmed, mine. In the paused handoff I wrote that the annotations' earliest/latest end values "already cover the 10 ms/10% rule except by up to 5 ms on one clip". I had compared the energy ends with the amendment's 100 ms limit, not with each unit's own spread, and I had not tabulated per-unit misses.
+- **Impact:** None on a score. It would have led the owner to accept a D2 tolerance rule that the retained spot-check does not satisfy.
+- **Evidence:** `spotcheck-energy-ends.py` now prints the per-unit result of the proposed rule: 10 ms/10% passes 0 of 12 (energy end earlier than the annotated end by 10-100 ms, outside spreads of 10-25 ms by up to 95 ms), 20 ms/1% passes 5 of 12, the measurement's own 5 ms/3% rule 12 of 12 (not independent).
+- **Correction / prevention:** Handoff sentence corrected in place; the proposal is stated with these counts. Compute the stated rule per unit before describing coverage.
+- **Owner approval:** Not required (offline).
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.

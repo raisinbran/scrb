@@ -11,6 +11,7 @@ freezes. A dry run may set the flag on a COPY (see the dry-run script), never he
 import argparse
 import hashlib
 import json
+import re
 import sys
 import wave
 from pathlib import Path
@@ -20,6 +21,13 @@ sys.path.insert(0, str(HERE))
 
 ONSET_SPREAD_LIMIT_S = 0.025   # v3 timing amendment, revision 2026-11-09 (spread policy)
 OFFSET_SPREAD_LIMIT_S = 0.100  # same revision
+# D1 provenance. The recorded hash is the git blob bytes (LF) of the sign-off file at commit cb26f9c04b58 (preflight manifest,
+# owner_listen_through.evidence_file_sha256); a Windows checkout may hold CRLF, so the content is hashed with CRLF folded to LF.
+SIGNOFF_SHA256 = "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87"
+# Units the sign-off excludes from the listen-through, by id. The audit and the sign-off text record none. If the sign-off ever
+# names exclusions, this list must name the same units, or the script refuses to run.
+SIGNOFF_EXCLUDED_UNIT_IDS = ()
+EXCLUSION_WORDS = re.compile(r"exclu|except|omit|skipp|not (?:heard|listened|included|reviewed|checked)|unheard|ineligible|remov", re.I)
 MARKER_HZ = {"microphone": 880, "meeting": 1320}  # marker_clock.analyze_v3a; v3 amendment unchanged marker check
 
 SOURCES = {
@@ -47,6 +55,23 @@ DECISIONS = [
 
 def sha256_file(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def bind_signoff(path):
+    """The sign-off must be the recorded content (hash), and any exclusion it states must be listed here, none unlisted."""
+    raw = Path(path).read_bytes()
+    folded = raw.replace(b"\r\n", b"\n")
+    got = hashlib.sha256(folded).hexdigest()
+    if got != SIGNOFF_SHA256:
+        raise SystemExit("sign-off content hash %s differs from the recorded %s" % (got, SIGNOFF_SHA256))
+    # Only the owner's quoted text and the scope line are examined for exclusion language.
+    lines = [line for line in folded.decode("utf-8").splitlines() if line.startswith(">") or line.startswith("Scope:")]
+    stated = [line for line in lines if EXCLUSION_WORDS.search(line)]
+    if stated and not SIGNOFF_EXCLUDED_UNIT_IDS:
+        raise SystemExit("the sign-off text mentions exclusions that this script does not list: %r" % stated)
+    return {"signoff_content_sha256": got, "signoff_raw_file_sha256": hashlib.sha256(raw).hexdigest(),
+            "recorded_sha256": SIGNOFF_SHA256, "hash_method": "git-blob-bytes (CRLF folded to LF)",
+            "stated_exclusions": stated, "listed_excluded_unit_ids": list(SIGNOFF_EXCLUDED_UNIT_IDS)}
 
 
 def load(path):
@@ -91,6 +116,8 @@ def build_track(track, assembly, measurements, signoff_ok, log_hashes):
             reasons.append("joined-file verification not passed")
         if not signoff_ok:
             reasons.append("listen-through sign-off file missing")
+        if unit["id"] in SIGNOFF_EXCLUDED_UNIT_IDS:
+            reasons.append("excluded by the listen-through sign-off")
         row = {k: unit[k] for k in ("id", "track", "source", "short", "reference_words", "start", "last_word_start", "acoustic_end",
                                     "earliest_acoustic_end_s", "latest_acoustic_end_s", "acoustic_end_spread_s", "threshold_spread_s",
                                     "final_onset_threshold_spread_s") if k in unit}
@@ -129,12 +156,14 @@ def main():
             event = json.loads(line)
             if event.get("event") == "files":
                 log = {"microphone": event["data"].get("microphone_sha256"), "meeting": event["data"].get("meeting_sha256")}
+    binding = bind_signoff(args.signoff)
     args.out.mkdir(parents=True, exist_ok=True)
     for track in ("microphone", "meeting"):
         document = build_track(track, args.assembly, measurements, args.signoff.is_file(), log)
         document["inputs"] = {"annotations_sha256": sha256_file(args.assembly / (track + "-annotations.json")),
                               "joined_manifest_sha256": sha256_file(args.assembly / (track + "-joined-manifest.json")),
-                              "measurements_sha256": sha256_file(args.measurements), "signoff_sha256": sha256_file(args.signoff)}
+                              "measurements_sha256": sha256_file(args.measurements), "signoff_sha256": binding["signoff_content_sha256"],
+                              "signoff_binding": binding}
         document["markers_in_source"] = source_markers(track, args.assembly)
         target = args.out / (track + "-source-annotations-DRAFT.json")
         with target.open("x", encoding="utf-8") as stream:

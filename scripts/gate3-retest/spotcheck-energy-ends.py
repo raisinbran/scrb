@@ -16,7 +16,7 @@ def end_energy(s,R,lo,hi,frame_s,rel):
     peak=max(r); lvl=max(128,peak*rel)
     act=[k for k,v in enumerate(r) if v>=lvl]
     return (i0+(act[-1]+1)*n)/R
-out=[]
+out=[]; passes=[]
 for k in range(10,len(rows),11):
     tr,u,s,R=rows[k]
     lo=u['last_word_start']-0.05; hi=u['crop_end_bound']
@@ -24,7 +24,14 @@ for k in range(10,len(rows),11):
     e_b=end_energy(s,R,lo,hi,0.010,0.10)   # independent: 10 ms frames, 10% of peak (-20 dB)
     e_c=end_energy(s,R,lo,hi,0.020,0.01)   # 20 ms frames, 1% of peak (-40 dB)
     out.append((k,u['id'],u['short'],round(u['acoustic_end'],3),round(u['reference_spans'][-1]['end'],3),round(e_a-u['acoustic_end'],3),round(e_b-u['acoustic_end'],3),round(e_c-u['acoustic_end'],3),u['reference_words'][-1]))
+    # D2 proposed pass rule (NOT frozen): the energy end lies within the unit's own [earliest, latest] acoustic-end spread, spread <= 0.100 s
+    spread = u['latest_acoustic_end_s']-u['earliest_acoustic_end_s']
+    passes.append((u['id'], round(spread,3), [bool(u['earliest_acoustic_end_s']-1e-9 <= e <= u['latest_acoustic_end_s']+1e-9 and spread <= 0.100+1e-9) for e in (e_a,e_b,e_c)],
+                   [round(max(0.0, u['earliest_acoustic_end_s']-e, e-u['latest_acoustic_end_s']),3) for e in (e_a,e_b,e_c)]))
 for o in out: print(*o)
+print('D2 proposed pass rule (unit, spread s, pass A/B/C, miss outside spread s A/B/C):')
+for q in passes: print(*q)
+for j,name in enumerate('ABC'): print('rule',name,'passes',sum(q[2][j] for q in passes),'of',len(passes))
 print('n',len(out))
 for t,v in shorts.items(): print(t,'shorts strictly inside 170-245:',len(v),v)
 for j in (5,6,7):
