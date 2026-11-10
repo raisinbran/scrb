@@ -11,8 +11,8 @@
   "pins": {
     "final_code_sha": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
     "final_code_sha_note": "Last commit that changed any code. Since 01bd9c12142cb7e316c3b5399c779d60ee7e8544 only the run-time binding tools and their test were added or changed (run-scored-run.ps1, verify-against-manifest.py, test_verify_against_manifest.py). No scoring, correlation, matcher, observer or harness file changed (git diff verified).",
-    "doc_pin_commit": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
-    "doc_pin_note": "Every git-tracked text hash below is of `git show 76768d5c44e3f267db9892db1d1aa1b1c99e7431:<path>`. Files in this manifest, the owner approval sheet and later commits are not part of the pin; the manifest cannot hash itself, so the verifier prints the manifest's own SHA-256. The final code SHA and the pin are the same commit: the last code commit (the orchestrator and the orchestrator-pin tests) also carries the runbook update, and nothing pinned changed after it.",
+    "doc_pin_commit": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
+    "doc_pin_note": "Every git-tracked text hash below is of `git show 8426e1cee61c1172a1b1eafeab881942d05a50e7:<path>`. Files in this manifest, the owner approval sheet and later commits are not part of the pin; the manifest cannot hash itself, so the verifier prints the manifest's own SHA-256. The final code SHA is 76768d5c44e3f267db9892db1d1aa1b1c99e7431 (unchanged); the documents pin is the later commit 8426e1cee61c1172a1b1eafeab881942d05a50e7, which changed only documents (runbook, freeze-surface list) and added the rehearsal-1 record; `git diff 76768d5..8426e1c` shows no script, test or code change.",
     "branch": "rosmont/windows-gate3-integration-2-20261109",
     "native_candidate_commit": "553dd9080f452f8a54ccff5cd5fea8d6937438ae",
     "native_candidate_commit_note": "Git commit id, not a content digest"
@@ -104,8 +104,8 @@
     "playback_device": "Realtek speakers (not Bluetooth); play-sources.ps1 refuses anything else",
     "speaker_volume": "volume 10 as in the practice run",
     "app_profile": "fresh",
-    "microphone": "CABLE Output chosen explicitly in the app",
-    "first_video_frame_manual_check": true,
+    "microphone": "CABLE Output chosen explicitly in the app: the selector must read exactly \"CABLE Output (VB-Audio Virtual Cable)\", read before the orchestrator starts and again in the last look (runbook steps 11 and 13) with two screenshots kept; \"System default (CABLE Output ...)\", which rehearsal-1 showed, is not accepted for the scored run",
+    "first_video_frame_manual_check": "manual and unscored, by the owner in a Windows media app: first overlay-bearing frame (video time, overlay reading, advance at about 10 s), compared by the agent with the value computed from actions.log; the pinned decoder is audio-only, so no frame extraction",
     "scripted_scroll_bursts": "none unless the protocol says so",
     "duration": "up to 30 minutes in total",
     "authorization": "separate owner authorization required; approving this manifest does not authorize a recording or scored run",
@@ -125,169 +125,176 @@
       "path": "docs/handoffs/SRCB_Windows_Gate3_Diagnostic_Retest_Protocol_v3_Reviewed.md",
       "sha256": "f7560bf5fd0a034ca6f37137be1d0c373942bec6c24c1109cb411e93b8651bf4",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "Protocol v3"
     },
     {
       "path": "docs/gates/gate-3-windows-v3a-clock-amendment-proposed.md",
       "sha256": "8987853fabaa3c11c407a513b3634c0c66eada322298bf494294db5e99e049bc",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a amendment: sections 4, 4a, 4b, rules 6 and 8 (PROPOSED, owner approval pending)"
     },
     {
       "path": "docs/gates/gate-3-windows-v3-timing-amendment-proposed.md",
       "sha256": "e22a4e91512ab709e004f91ec4bc678920a2c77cbda1de2ec6d7236f4a1703a7",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3 timing amendment (proposed)"
     },
     {
       "path": "docs/gates/gate-3-windows-word-timing-decision-20261108.md",
       "sha256": "2dc23e5191a15607653b268a480144da89ec05e766b670ced7d77a742b520280",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "word timing decision"
     },
     {
       "path": "docs/gates/gate-3-windows-d4-correlation-calibration-proposed.md",
       "sha256": "b0e9e553f087167eab7fcd5808d0e3ab6d7ed03de5c44d0e5007364a7a04abb6",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D4 calibration document (proposal; 30 s reach and 0.0006 s/s drift allowance)"
     },
     {
       "path": "docs/gates/gate-3-windows-d2-energy-rule-sensitivity-20261109.md",
       "sha256": "d4848a1712881a664977d90f655b11aba9992eada911695728e5e8f1e9c98c66",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D2 acoustic-end sensitivity document"
     },
     {
       "path": "docs/gates/gate-3-windows-d2-capture-equivalence-draft.md",
       "sha256": "27cd8eac63949aa336e60b1619c795f8ed6deff481bcd13a6bb1c9a5d97f0269",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D2 capture-equivalence draft"
     },
     {
       "path": "docs/gates/gate-3-windows-d2-practice-run-results-20261109.md",
       "sha256": "a4837455972e4ab152ac56c87702ecb820cefbabf5633fc34c64034906936b78",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D2 practice run results"
     },
     {
       "path": "docs/gates/gate-3-windows-d2-practice-run-checklist-draft.md",
       "sha256": "2d0b3d605e0978c6d97f119f602c995f2fc293b55f0bfe8ca33e07a353aa453b",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D2 practice run checklist"
     },
     {
       "path": "docs/gates/gate-3-windows-live-observer-plan-and-validation-draft.md",
       "sha256": "a48fd8e9dbe9d5c2d52a0570febc98c6b7509a860668f0a88fc46fbd0ba43183",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "observer validation record (live observer plan and validation)"
     },
     {
       "path": "docs/gates/gate-3-windows-freeze-surface-list-20261109.md",
-      "sha256": "6d1911afe118c40ea618b62d986165fe967722e443074e545250f435e820d5f9",
+      "sha256": "23bc638277a7e9df61d56c2eb75bf07eab8adcfe9528fa96903fb4849360d9cb",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "freeze-surface list, D6 run-procedure step, run requirements, known limitations"
     },
     {
       "path": "docs/gates/gate-3-windows-r3-listen-through-signoff-20261108.md",
       "sha256": "5a8fb52b928b18a2a0f70c632122763159cec5c4ae18b70ce997418bbf747e87",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "owner listen-through sign-off (r3 sources)"
     },
     {
       "path": "docs/gates/evidence-retention-policy.md",
       "sha256": "36a2ff0349e11c81d62df498039d21af7bc2c8b9344eaf20e77baa2a722a4eb8",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "evidence retention policy"
     },
     {
       "path": "docs/handoffs/2026-11-09-validation3-classification-provenance.md",
       "sha256": "808f304e749e6a99973e15b47c38aa6e333f36764b9233d9440c02ca45276614",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "classification provenance note (hashes only)"
     },
     {
       "path": "docs/handoffs/gate3-occurrence-matcher.md",
       "sha256": "22a5fd80862a1c5fd0457baff59b5cc8d65ef15a67cab5f39df7474b7c245f31",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "occurrence matcher note"
     },
     {
       "path": "docs/handoffs/gate3-v3a-timing-20261109.md",
       "sha256": "6e70e9067436ffb45b7720b84e11f28e25ad77afe7b865be84afc7bebd81e8e5",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a timing handoff"
     },
     {
       "path": "docs/handoffs/gate3-v3a-conditional-fixes-20261109.md",
       "sha256": "dd4ccfefe14eba2d234df5b6a92c6f2c62ac812749d27cbd6fa805b6b577c798",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a conditional fixes handoff"
     },
     {
       "path": "docs/handoffs/gate3-v3a-noisy-step-20261109.md",
       "sha256": "fdf56eee0ef4a812f9b79a20bf8ac95cf7e7c15d13ab1bbc04a03315c6023643",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a noisy step handoff"
     },
     {
       "path": "AGENTS.md",
       "sha256": "76d2bb7ca0eff1ee70155c5c2aaeaa14c8cb05cc741b25838b826b0fe6b8438a",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "project rules"
     },
     {
       "path": "dev-plan/Meeting Scribe - V1 Requirements v1.2.md",
       "sha256": "7437ea2797901c5018795f168adcf7a1ca76db58eef9140fd41febe416c92641",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "requirements"
     },
     {
       "path": "dev-plan/Meeting Scribe - Development Plan (v2.0).md",
       "sha256": "21c66963811e604d685df9ec3e5769073d33b53af6270d9e02fb096837cc0d51",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "plan"
     },
     {
       "path": "dev-plan/Meeting Scribe - Development Process.md",
       "sha256": "bef1bdae0de22896e43d1541b5aedd9cc230c61581372c7004c20564fdef2b7f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "process"
     },
     {
       "path": "dev-plan/Meeting Scribe - UI Specification.md",
       "sha256": "88b851fec7817509357a96ef988afb629275e0d9eb8c899c94d9f4805bbbe220",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "UI specification"
     },
     {
       "path": "docs/gates/gate-3-windows-scored-run-runbook-20261110.md",
-      "sha256": "21b4595de8903450ef4c6704708452042bf885dc1fa0ed7cf2c33e563142632f",
+      "sha256": "d06d3a2050cd1893e5b15da6be279a9326fd6bd998dcc9153e6f219694ffa285",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "owner runbook for the scored run and rehearsal (DRAFT; authorizes nothing)"
+    },
+    {
+      "path": "docs/gates/gate-3-windows-orchestrator-rehearsal-1-20261110.md",
+      "sha256": "7a7dcd8829c371ebc85ebab03aa2a162d269bd639139485476579e0135082676",
+      "method": "git-show-blob-bytes",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
+      "role": "rehearsal-1 evidence record (not scored): outcome, findings, legacy-marker analysis, first-overlay check"
     }
   ],
   "scripts_and_tests": [
@@ -295,497 +302,497 @@
       "path": "scripts/gate3-retest/.gitignore",
       "sha256": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/README.md",
       "sha256": "a94f948e0eb350159c0c52b18aa962e7582e77b1ad07fe79e11c8cd68ada3d6f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/SpeechRenderer.cs",
       "sha256": "2fca2fdfedbd1cf038bb7e7d45538d53473e0fe98e7602cba9539305887d0e8c",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/UnitRenderer.cs",
       "sha256": "f5857564d3214ae8d2e764f29430c851aa340a2b8b741231e5a4651c6a3d1481",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/analyze-bounds.py",
       "sha256": "c4de778d05d0f222c63669004be9ecf6cd4c6fc10c385487df9afbd274cba57a",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "scorer (v3 and v3a), endpoint binding, regeneration check"
     },
     {
       "path": "scripts/gate3-retest/assemble-sources.py",
       "sha256": "a015ea2a530962878d57ea77c590dc62c625430506a3f892869dc26794bf445a",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "source assembly"
     },
     {
       "path": "scripts/gate3-retest/audit-archive.py",
       "sha256": "76c2d095404811ac1f1aaa0dcc9c9322d0c938d0b8604bb188dc51e2adb55026",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "archive audit"
     },
     {
       "path": "scripts/gate3-retest/audited_decode_spans.json",
       "sha256": "d4e81b13bd49c73774cacd9c5b993fa504ae52118896d850eec8e5b7b7b9160f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "audited decode spans"
     },
     {
       "path": "scripts/gate3-retest/binding_fixture.py",
       "sha256": "51d4da28ad4333eccf639ec046bbb186da4f8db7e1d79916fdd1a5f4270f5b7f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/bookmark-timing.py",
       "sha256": "051a3a54c69b27b687fc164c0bb11a2ffa872bd90650f63e9427d2ad45bb3bab",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "bookmark timing"
     },
     {
       "path": "scripts/gate3-retest/calibrate-long-correlation.py",
       "sha256": "1203d903243a630f636dbe436ee3e7529dc0339762dcdbf58d7516c75d6bb283",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D4 calibration tool"
     },
     {
       "path": "scripts/gate3-retest/check_matcher_regressions.py",
       "sha256": "a6480f7c20d92fac8e67ed5304c10fa70fb8f515cb07c35218437065a47f0382",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "matcher regression check"
     },
     {
       "path": "scripts/gate3-retest/classify-unidentified.py",
       "sha256": "4d821bba46765b9a4f64be558196673bb3376ab12e727381a998b3a5729bacb4",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "UNIDENTIFIED classifier (heuristic)"
     },
     {
       "path": "scripts/gate3-retest/clock-overlay.ps1",
       "sha256": "3c8104b6ad74d895984ee1311c675c2a8743c8257178f7450fc5748ebf40f890",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "clock overlay"
     },
     {
       "path": "scripts/gate3-retest/constructed_units.py",
       "sha256": "21fd843beb7e754a6d35df278447010ba607ee646d44861ad5324a5fec55b50f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "constructed units"
     },
     {
       "path": "scripts/gate3-retest/detect-v3a-steps.py",
       "sha256": "cad687eb5b7aae2427bbff2020fc2e522415b390fffcc0a2927657f00057ca30",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a step detector"
     },
     {
       "path": "scripts/gate3-retest/energy-end-sensitivity.py",
       "sha256": "88e6d1b075a0063c26e9ab638e9196f75fc17ffb86d853715131aa98c359c723",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "D2 sensitivity tool"
     },
     {
       "path": "scripts/gate3-retest/harness_provenance.py",
       "sha256": "05e1cdea082231a75c4746370ea72cd673b192d5f6a16476fe6732b72b44f55d",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "harness-log provenance"
     },
     {
       "path": "scripts/gate3-retest/launch-candidate.ps1",
       "sha256": "f9f4648707e7cb4b4a861890e243924342dc7630aaa16f1fd04b80678e1bdfbb",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "check-only/launch of the pinned candidate"
     },
     {
       "path": "scripts/gate3-retest/list-audio-endpoints.ps1",
       "sha256": "90f022ebc6e7a0199574ed1b4e8b51c5bf3020a650b8a5ef9c4edd5fb5da6094",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "audio endpoint listing"
     },
     {
       "path": "scripts/gate3-retest/long_correlation.py",
       "sha256": "23ade0b3d805da6b4ade5f38648ab58441d4b416971964acf7d1fe5a449add6d",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "bounded long-correlation anchor"
     },
     {
       "path": "scripts/gate3-retest/make-draft-annotations.py",
       "sha256": "eaea8dd2b12c36690f07e6304e25b1ecc1c98865e0d218a1f9d1dfb009a4b4f7",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "annotation tool"
     },
     {
       "path": "scripts/gate3-retest/marker_clock.py",
       "sha256": "b1b91d789285ea1b0179ce651a4d303281c1e52a991f711a4cf0d6c2772b8351",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "marker clock"
     },
     {
       "path": "scripts/gate3-retest/measure-units.py",
       "sha256": "c8e0d05cd0b78950a2ec4fef22c9c8989e33bebbd439b8bb3ddd1b7d0bf77229",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "unit measurement"
     },
     {
       "path": "scripts/gate3-retest/observe-live-v2.ps1",
       "sha256": "43203a586304aad6f2b0a48aac6d31582f9e3114785c3075374d80ff76312e41",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "live observer (earlier)"
     },
     {
       "path": "scripts/gate3-retest/observe-live-v3.ps1",
       "sha256": "450937b72e84c6fa220a37b6f795cd90a7f0e2ea69a8ca73fa36e2383bb9b8e3",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "live observer (current)"
     },
     {
       "path": "scripts/gate3-retest/observe-live.ps1",
       "sha256": "f4849df528c1357bc013322a0d47f6187e9401d66f2029d139d674a14128f25d",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "live observer (first)"
     },
     {
       "path": "scripts/gate3-retest/observer_publications.py",
       "sha256": "2a9d9fafd0d1347acd5feaab488b095029c2b38a5b1c82a61a0375b3a82952e6",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "raw observer file to publication file and report"
     },
     {
       "path": "scripts/gate3-retest/observer_session_map.py",
       "sha256": "2f37bbac658078e331d8993b1d1850d3491a0031e3f8e5cefd352686d94b137e",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "observer time to session time"
     },
     {
       "path": "scripts/gate3-retest/occurrence_matcher.py",
       "sha256": "43a52b7671fdcfd4a3974baac83301c5e015fd5159bbd7a3129f80016b4218e5",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "occurrence matcher"
     },
     {
       "path": "scripts/gate3-retest/play-sources.ps1",
       "sha256": "5b2da634adc613c9e960b4a06b668a334344a6cfd6251007123ca49f37fda366",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "harness playback"
     },
     {
       "path": "scripts/gate3-retest/practice-timing-report.py",
       "sha256": "96fa8109e73691a5bd5a25f558fab8416a36a3bc03292fe62a79bf43f742cf39",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "practice timing report"
     },
     {
       "path": "scripts/gate3-retest/practice_step_fixture.json",
       "sha256": "56bded757cffe89dfa8b18a692fddd985b45ab686146658674f374cc954bbb9c",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "practice recording fixture (external files by hash)"
     },
     {
       "path": "scripts/gate3-retest/prepare-speech.ps1",
       "sha256": "1160f522604723cd8a2fd434fd4167a698be028e7f643af7be83a4127bf7eda8",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/render-constructed-units.ps1",
       "sha256": "4f1a6d7a5b353ff5f0775d9a350174b1304f1a494d4f9ec1512eb4df7bafbc91",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/run-scored-run.ps1",
       "sha256": "ba73f08ac63f091343bdfb23e56ac248494f3b8ed6ff84514ca4f26285b98c8a",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "scored-run orchestrator (run-time binding); parse-checked only, not run"
     },
     {
       "path": "scripts/gate3-retest/speech-specs.ps1",
       "sha256": "88c42201218a5348c04a89179ce0c745adfb6b40197a0c1f2b825c65683261a9",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "support file"
     },
     {
       "path": "scripts/gate3-retest/spotcheck-energy-ends.py",
       "sha256": "9a909c98335e09b805e98bdfa4abef44989a7407ca55a1cc2177621a995d646e",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "spot-check tool"
     },
     {
       "path": "scripts/gate3-retest/test_analysis.py",
       "sha256": "6007242968fa505af3e72d5f8a2cc93d28a2edc37d285706ff5a6649ccb0db98",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_bookmarks.py",
       "sha256": "032ff90af30a353e8caa2225fd33a193c1697e58c75d35334f0d27ae9f882c39",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_calibrate_long_correlation.py",
       "sha256": "6168359b37e98ed986d20d1dfd7d11b217bafe26cf752fe7bf10e884d2401f7e",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_classify_unidentified.py",
       "sha256": "af079a31ddabdedab59564e6a23ff9500b3d7a4c42d0556e3c3ae376c8baf7fb",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_cli.py",
       "sha256": "6ad4ce7771a1d7ade9e4e69202382ec27c5a8e55163419561e253f3f8fdde896",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_clock_enforcement.py",
       "sha256": "a6f94f337e0ed8d40a18aea001a4322dbfe349eda5c6fe5eabca76e7c0293b76",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_harness_provenance.py",
       "sha256": "41a4740d75f05c061bfdf4988e45fef61bccdc422892750cc1fd190b85646bd6",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_integration_e2e.py",
       "sha256": "0c3244c09bbd2a6a2ef9e7b2c9a33b87db00b519dab520c20ca403781e76bf41",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_lead_and_session_map.py",
       "sha256": "63788b222f2125f0c3d5b96729cad07878d212ebe4d3e90e4d8da4904f59feb5",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_long_correlation.py",
       "sha256": "54fa4e5882b1215814b7249181005585d8802096a1a7613edaa4d9a2123abcab",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_make_draft_annotations.py",
       "sha256": "6447d51e7265dd08bef566bdab53a3524ea5a9730c0720d76bb740e38cc7f83c",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_marker_clock.py",
       "sha256": "20e06a25587ce94b3ac807e76b41a9aff173c4a74eed8790a251e72804eebea0",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_observer_publications.py",
       "sha256": "ed1270d6855f28cca5bb6769dd6b739d24286d4ebe8669008f9eb8f25e8604c5",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_occurrence_matcher.py",
       "sha256": "2f1359ef669f1a0955fc94b3911e57b2b5cf3033f11ff48fad164b63158ddd4c",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_play_sources.py",
       "sha256": "95228668957b485fbbf1e33f158882ba463e4df588f5ef2cda322a460e421c6d",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_practice_marker_clock.py",
       "sha256": "a432f8c5d5a5fca96835b69fc18f929cbce80d581bd4dff8f6e515793b6dd685",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_review_fixes.py",
       "sha256": "d3030f07b2e912926df30f2f5f73a9c47d13a91eb999f6fe187f223e80472c95",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_source_spread.py",
       "sha256": "5f60800352005707386f19e9f7d9c31b688c762dd489d6a0f8ae0ebf4f49f38d",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_sources.py",
       "sha256": "f0ecb2355cda0dffb5d73d47fe2003ec715a54c6d9ab6d98d3608a7de3451e88",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_template_step_free.py",
       "sha256": "11c2a664149e1582d5544b6cffe6c6a9749cc62dd172b52b3ddec0330366663c",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_timing_coverage.py",
       "sha256": "46e3e54af10cd2d48d0001b161a104ac41c98644d87dbdd0c7f8196c6da3f8b2",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_units.py",
       "sha256": "7ab6821750193b11c001ce6da1ae2f7434c99ef9b3869f1a7de24287cf359135",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_v3a_conditional.py",
       "sha256": "438e02c1d98d874bd2cd635b7445c104f1453265c614a7d1c0607633a53ae2ab",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_v3a_timing.py",
       "sha256": "555f4f2ce5690690126487654cc93c160ab4941c60eeb8cc52219c762e184a86",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "test"
     },
     {
       "path": "scripts/gate3-retest/test_verify_against_manifest.py",
       "sha256": "90e7c5f38bac07a3d9aa9f4339538141c722678c99a4462c38ecc2a70310bd75",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "verifier tests"
     },
     {
       "path": "scripts/gate3-retest/v3a_timing.py",
       "sha256": "6dcb926aaaed24304240a3a2c32af07d817bf18a3629b78d83d8d5d2ad267bfe",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "v3a timing: gap map, anchors, placement, rule 6 capture check, rule 8"
     },
     {
       "path": "scripts/gate3-retest/validation-run-tools/frame-capture.ps1",
       "sha256": "19f7bd7a1a2ab6b59d1c590547afc73a331b0c689b3efcdcc806dc08275e8fa4",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "validation-run collection tool (per-run script, hard-coded paths)"
     },
     {
       "path": "scripts/gate3-retest/validation-run-tools/resource-sampler.ps1",
       "sha256": "2510d816bb3cfc0d64e24c7a22d152143d6aea0b2883241960ef6453307ee9eb",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "validation-run collection tool (per-run script, hard-coded paths)"
     },
     {
       "path": "scripts/gate3-retest/validation-run-tools/run-validation3.ps1",
       "sha256": "d2d3ea3fbf7911450ecc81c738ef38b56c9cdf70434ca12fef81b3b3f37efcb5",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "validation-run collection tool (per-run script, hard-coded paths)"
     },
     {
       "path": "scripts/gate3-retest/validation-run-tools/run-validation4.ps1",
       "sha256": "30839ec8b7838b7bb3d0f94aaa87418b03e0f25ddf2e98d95dadae45bd7ae6f4",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "validation-run collection tool (per-run script, hard-coded paths)"
     },
     {
       "path": "scripts/gate3-retest/validation-run-tools/run-validation5.ps1",
       "sha256": "50ac5b588b5164e8c25fd06527c71c52303a21c2a4acf7ad09afcea2abce8a18",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "validation-run collection tool (per-run script, hard-coded paths)"
     },
     {
       "path": "scripts/gate3-retest/verify-against-manifest.py",
       "sha256": "8839462c30683f31ee0f693987937bd627402b455d5da7eba19acf992668fd79",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "manifest verifier (run before capture and before scoring)"
     },
     {
       "path": "scripts/gate3-retest/verify-joined.py",
       "sha256": "94ecdce9f3fd1147f4aa4f8ec7528e92eab3d244883e8528e2bc08b89414478f",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "joined-source verification"
     }
   ],
@@ -1403,7 +1410,7 @@
       "path": "scripts/gate3-retest/classify-unidentified.py",
       "sha256": "4d821bba46765b9a4f64be558196673bb3376ab12e727381a998b3a5729bacb4",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "classifier"
     },
     "tool_added_in_commit": "6d7d242dad8768cf19d55a99e17b21c3ee6e27eb",
@@ -1469,7 +1476,7 @@
       "path": "scripts/gate3-retest/play-sources.ps1",
       "sha256": "5b2da634adc613c9e960b4a06b668a334344a6cfd6251007123ca49f37fda366",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "role": "harness playback; written and run once for the practice run"
     },
     "practice_evidence_hashes": [
@@ -1630,7 +1637,7 @@
     "note": "Offline analysis of the practice recording; not a scored run."
   },
   "test_results": {
-    "run_at": "2026-11-10 PT (about 10:45 to 10:55: python, parse, npm), code SHA 76768d5c44e3f267db9892db1d1aa1b1c99e7431. Python run from the branch worktree at that code content (the 22 verifier and orchestrator-pin tests clone the pin and read this manifest, which is not in the pin); npm from the same worktree.",
+    "run_at": "2026-11-10 PT (about 11:56 to 12:05: python 11:56-12:00, parse, npm 12:03-12:05), code SHA 76768d5c44e3f267db9892db1d1aa1b1c99e7431 (unchanged), documents pin 8426e1cee61c1172a1b1eafeab881942d05a50e7. Python run from the branch worktree (the verifier and orchestrator-pin tests clone the pin and read this manifest, which is not in the pin); PowerShell parse on the clean checkout of the documents pin; npm from the same worktree.",
     "python": {
       "command": "cd <checkout>/scripts/gate3-retest && python -m unittest discover -s . -p \"test_*.py\" -v",
       "note": "the embedded Python runs in isolated mode, so plain `python -m unittest test_x` cannot import siblings; `discover -s .` inserts the directory; 350 = the earlier 328 plus 22 verifier and orchestrator-pin tests (14 synthetic-repo, 4 on the real manifest, 4 static orchestrator checks).",
@@ -1647,7 +1654,7 @@
       "python_version": "3.13.0"
     },
     "powershell_parse": {
-      "method": "[System.Management.Automation.Language.Parser]::ParseFile on every tracked *.ps1 in the clean checkout of the pin",
+      "method": "[System.Management.Automation.Language.Parser]::ParseFile on every tracked *.ps1 in the clean checkout of the documents pin",
       "files": 31,
       "files_with_errors": 0
     },
@@ -1660,7 +1667,7 @@
       "tests_failed": 0,
       "exit_code": 0,
       "boundary_check": "SKIPPED by its own rule: \"not a ui/ or backend/ branch\" on rosmont/windows-gate3-integration-2-20261109",
-      "note": "second run of the day: exit 0, 52 test files and 819 tests passed, 63 skipped, none failed; the boundary step was skipped by its own rule."
+      "note": "same counts as the earlier run; the boundary step was skipped by its own rule."
     }
   },
   "runtime_environment": {
@@ -1676,7 +1683,7 @@
     "observer_overhead": "measured once in validation-5 (see observer_validation_record.resource_overhead); not measured on the real run"
   },
   "inventory_counts": {
-    "documents": 24,
+    "documents": 25,
     "scripts_and_tests": 71,
     "candidate_built_artifacts": 6,
     "tools_and_models": 11
@@ -1687,20 +1694,20 @@
       "path": "scripts/gate3-retest/run-scored-run.ps1",
       "sha256": "ba73f08ac63f091343bdfb23e56ac248494f3b8ed6ff84514ca4f26285b98c8a",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431"
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7"
     },
     "playback_script": {
       "path": "scripts/gate3-retest/play-sources.ps1",
       "sha256": "5b2da634adc613c9e960b4a06b668a334344a6cfd6251007123ca49f37fda366",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431",
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7",
       "note": "byte-identical to the unpinned copy tools-d2-v2/play-sources.ps1 used in the practice and validation runs"
     },
     "verifier": {
       "path": "scripts/gate3-retest/verify-against-manifest.py",
       "sha256": "8839462c30683f31ee0f693987937bd627402b455d5da7eba19acf992668fd79",
       "method": "git-show-blob-bytes",
-      "git_commit_id": "76768d5c44e3f267db9892db1d1aa1b1c99e7431"
+      "git_commit_id": "8426e1cee61c1172a1b1eafeab881942d05a50e7"
     },
     "backup_scripts": [
       "scripts/gate3-retest/observe-live-v3.ps1",
@@ -1711,7 +1718,7 @@
       "scripts/gate3-retest/list-audio-endpoints.ps1"
     ],
     "verifier_runs": "Before capture and again before scoring, from the clean checkout at the pin; abort on any mismatch. The run record holds the verifier output, the manifest SHA-256, the orchestrator SHA-256 and the verification times (run-scored-run.ps1 writes run-record.txt for the first two runs; the before-scoring run is added by hand).",
-    "limits": "run-scored-run.ps1 has been parse-checked, and its PID-binding block and abort trap were exercised offline on a stand-in process; it has never run end to end, and its UI, Snipping Tool, playback, observer and Stop paths first run in the rehearsal. The verifier cannot see which scripts a process actually launches; it checks that every tracked script under scripts/gate3-retest is pinned and that the tree is clean at the pin.",
+    "limits": "run-scored-run.ps1 has been parse-checked, and its PID-binding block and abort trap were exercised offline on a stand-in process; it ran end to end once, in the 60 s rehearsal-1 (run finished, verifier PASS before and after capture; see the rehearsal-1 record); its abort paths were not exercised. The verifier cannot see which scripts a process actually launches; it checks that every tracked script under scripts/gate3-retest is pinned and that the tree is clean at the pin.",
     "approved_hash": "verify-against-manifest.py requires --approved-manifest-sha256 (orchestrator: -ApprovedManifestSha256). It hashes the manifest after normalizing CRLF to LF, which equals the committed blob bytes, and exits non-zero on any difference. The orchestrator passes it on both runs and records it in run-record.txt.",
     "runbook": "docs/gates/gate-3-windows-scored-run-runbook-20261110.md"
   },
