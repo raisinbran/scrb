@@ -155,6 +155,28 @@ class TestRule6CaptureCheck(unittest.TestCase):
     EXCURSION = {140: -.08}
 
 
+class TestExcursionWithRecordedGap(unittest.TestCase):
+    def test_gap_inside_an_excursion_template_leaves_crossing_words_capture_limited_and_layer_a_fails(self):
+        # a200's template holds a 6 ms logged gap and its offset is -80 ms, returning to 0 either side: its units are timing-excluded,
+        # but the two words crossing the gap at 200.000 s must still get the rule 6 check (here: no decoded samples) before rule 8.
+        anchors = [anc('a%d' % b, b, -.08 if b == 200 else 0.0) for b in range(100, 301, 20)]
+        fillers = [mk('f%d' % b, b+3, b+4, b+5) for b in (105, 125, 145, 165, 245, 265, 285)]
+        crossing = [mk('cross0', 196, 198.5, 200.4), mk('cross1', 195, 198, 200.5)]
+        units = [own(a) for a in anchors]+fillers+crossing
+        self.assertEqual(len(units), 20)
+        result = score(units, anchors, gap=.006)
+        self.assertNotIn('error', result)
+        self.assertEqual({u['id'] for u in result['capture_limited_units']}, {'cross0', 'cross1'})
+        rows = {u['id']: u for u in result['units']}
+        for name in ('cross0', 'cross1'):
+            self.assertEqual((rows[name]['outcome'], rows[name]['best']), ('CAPTURE-LIMITED', float('inf')))
+        self.assertNotIn('cross0', {u['id'] for u in result['timing_inconclusive_units']})
+        self.assertEqual(result['denominator'], 20)
+        self.assertFalse(result['bounds']['best']['pass'])      # 18 of 20 can be credited at best: below 95%
+        self.assertEqual(result['latency'], 'FAIL')
+        self.assertNotEqual(result['recurrence'], 'FAILURE OBSERVED')
+
+
 class TestUnexplainedDisagreementIntervals(unittest.TestCase):
     EXCURSION = {140: -.08}
 

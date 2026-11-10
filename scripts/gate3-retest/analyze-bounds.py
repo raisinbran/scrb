@@ -375,13 +375,26 @@ def analyze_v3a_track(units, evidence, track):
                 supported.append(unit)
         prepared, steps = prepare_units(supported, mapping, valid, all_anchors=anchors)
         limited = {}
-        for unit in prepared:   # a finite interval across a recorded gap is not proof the word was captured (v3a rule 6)
+        excluded_placed = []
+        candidates = [u for u in units if u['id'] in gaps and u['eligible'] and u['outcome'] in CREDITED_OUTCOMES]
+        if candidates:   # timing-excluded units that can still be placed get the rule 6 check before rule 8
+            for batch in [candidates]+([[c] for c in candidates] if len(candidates) > 1 else []):
+                try:    # placed together with the supported units: the edge-anchor coverage check needs the full set
+                    names = {u['id'] for u in batch}
+                    placed = [u for u in prepare_units(supported+batch, mapping, valid, all_anchors=anchors)[0] if u['id'] in names]
+                except ValueError:
+                    continue    # not placeable: stays timing-INCONCLUSIVE
+                excluded_placed += placed
+                if batch is candidates:
+                    break
+        for unit in prepared+excluded_placed:   # a finite interval across a recorded gap is not proof the word was captured (v3a rule 6)
             reason = capture_event_overlap(unit, mapping) if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES else None
             if reason:
                 verified, evidence = verify_word_capture(unit, continuous, mapping)
                 if verified is True:    # presence and endpoint verified from the decoded recording: timing-INCONCLUSIVE (rule 8)
-                    gaps[unit['id']] = reason+'; '+evidence
+                    gaps[unit['id']] = gaps.get(unit['id'], '')+('; ' if unit['id'] in gaps else '')+reason+'; '+evidence
                 else:                   # not verified or not checkable: uncredited in both bounds (rule 6)
+                    gaps.pop(unit['id'], None)
                     limited[unit['id']] = {'reason': reason, 'capture_check': 'not checkable' if verified is None else 'not verified',
                                            'evidence': evidence}
         prepared = [u for u in prepared if u['id'] not in gaps and u['id'] not in limited]

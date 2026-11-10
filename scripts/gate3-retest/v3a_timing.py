@@ -571,8 +571,8 @@ def verify_word_capture(unit, samples, mapping):
         return False, 'measured acoustic end %s is outside the supported end interval [%.3f, %.3f]' % (
             ['%.3f' % e for e in ends], end_low, end_high)
     for t in (e for e in step_events(mapping) if low <= e <= high):
-        if t > max(ends)+frame/rate:
-            continue   # the event lies after the measured end of the word
+        if t >= max(ends):
+            continue   # the event is at or after the measured end of the word (rule 6 checks events before the end)
         index = round(t*rate)
         if index-frame < 0 or index+frame > len(samples) or not all(rms(index-frame) >= x and rms(index) >= x for x in thresholds):
             return False, 'no energy above both levels on both sides of the capture event at %.3f s' % t
