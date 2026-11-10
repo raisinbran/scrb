@@ -313,6 +313,13 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** An internal apostrophe (straight or curly) is part of one token on both sides; symbol-only elements are skipped (they stay in the converted file); a display of two or more tokens (hyphen, `3.5`) still raises, now naming the id and text. Not seen in real data (validations 3 to 5). Offline tests only.
 - **Owner approval:** Not required (offline).
 
+### A-061 - 2026-11-09 - Scorer ignored the annotation's acoustic-end spread (Codex code); my first classifier passes mislabelled units - Claude Code (Sonnet 5.5)
+- **Status / attribution:** (1) Defect in Codex-written `v3a_timing.prepare_units`: it used one nominal endpoint plus the anchor uncertainty and dropped the annotation's earliest/latest end. I reported it as D6 only after the dry run, not when I reviewed the file earlier. (2) My own first versions of `classify-unidentified.py` mislabelled units (row windows too wide, rows of neighbouring units counted); corrected before any figure was reported.
+- **Impact:** None on a scored result (no scored run). A real run would have had bounds up to the source spread (5-85 ms) too narrow.
+- **Evidence:** New regression fails on a2e8658 (microphone-005 end interval [50.349, 50.351] there, [50.344, 50.356] now; end-to-end test 0.0 != 0.075).
+- **Correction / prevention:** Spread now comes from the frozen annotation (`attach_source_spread`), both bounds, fail closed for source-timed units. Classifier rules were rerun on the same raw data until each label matched the row text. Still open: classifier has no repo test.
+- **Owner approval:** Not required (offline).
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.

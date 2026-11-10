@@ -40,7 +40,7 @@ class TestPersistentPrefixAndGapBounds(unittest.TestCase):
             self.assertLessEqual(right['last_word_start_interval_s'][0], 10.01)
             self.assertGreaterEqual(right['last_word_start_interval_s'][1], 10.01)
             self.assertAlmostEqual(right['earliest_acoustic_end_s'], 14+change-.001)
-            report = {'anchors':anchors, 'utterances':[{'id':u['id'], 'eligible':True} for u in units],
+            report = {'anchors':anchors, 'utterances':[{'id':u['id'], 'eligible':True, 'earliest_acoustic_end_s':u['source_last_word_end_s'], 'latest_acoustic_end_s':u['source_last_word_end_s']} for u in units],
                       'annotations_sha256':'d'*64}
             gapmap = binding_fixture.enrich(gapmap)
             with tempfile.TemporaryDirectory() as directory:

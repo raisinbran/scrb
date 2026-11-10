@@ -453,6 +453,55 @@ def anchor_source_start(anchor):
     return anchor.get('source_utterance_start_s', anchor['source_start_s'])
 
 
+def source_spread(unit, end_time, basis):
+    """The source annotation's own timing spread, so the scored interval is never narrower than the annotation.
+
+    End: [source_earliest_acoustic_end_s, source_latest_acoustic_end_s] (source time, the same frame as
+    source_last_word_end_s; the unprefixed names in the output are the PLACED recording-time values) must bracket the nominal end (policy: earlier offset - 5 ms,
+    later offset + 5 ms). Onset spreads (utterance onset and final-word onset threshold spread) widen the start
+    intervals by the full spread each way; absent means 0. A unit that carries no end spread is reported with
+    `present` False and zero spread; the scorer (analyze_v3a_track) refuses such a unit, so a real run cannot use it.
+    Legacy reference-schedule units carry no source annotation and have no spread.
+    """
+    none = {'end_low': 0.0, 'end_high': 0.0, 'onset': 0.0, 'last_word_start': 0.0, 'present': False}
+    if basis != 'source' or unit.get('source_earliest_acoustic_end_s') is None or unit.get('source_latest_acoustic_end_s') is None:
+        return none
+    low, high = unit['source_earliest_acoustic_end_s'], unit['source_latest_acoustic_end_s']
+    require(finite(low) and finite(high) and low <= end_time + 1e-9 and end_time <= high + 1e-9,
+            'Source acoustic end spread does not bracket the nominal end')
+    onset, word = unit.get('source_threshold_spread_s', 0.0), unit.get('source_final_onset_threshold_spread_s', 0.0)
+    require(finite(onset) and finite(word) and onset >= 0 and word >= 0, 'Unsupported source onset spread')
+    return {'end_low': max(0.0, end_time-low), 'end_high': max(0.0, high-end_time), 'onset': onset, 'last_word_start': word,
+            'present': True}
+
+
+def attach_source_spread(units, utterances):
+    """Give each scored unit the spread of its FROZEN annotation entry (single source of truth).
+
+    A unit that already carries source spread values must agree with the annotation; a unit with no
+    annotation entry, or an annotation without an end spread, is refused so the interval is never narrower
+    than the frozen annotation.
+    """
+    by_id = {u['id']: u for u in utterances}
+    result = []
+    for unit in units:
+        if 'source_last_word_end_s' not in unit:
+            result.append(unit)  # legacy reference-schedule unit: no source annotation, no spread (never a real run)
+            continue
+        entry = by_id.get(unit['id'])
+        require(entry is not None, 'Scored unit has no frozen annotation entry')
+        require(finite(entry.get('earliest_acoustic_end_s')) and finite(entry.get('latest_acoustic_end_s')),
+                'Frozen annotation lacks the acoustic end spread')
+        carried = {'source_earliest_acoustic_end_s': entry['earliest_acoustic_end_s'],
+                   'source_latest_acoustic_end_s': entry['latest_acoustic_end_s'],
+                   'source_threshold_spread_s': entry.get('threshold_spread_s', 0.0),
+                   'source_final_onset_threshold_spread_s': entry.get('final_onset_threshold_spread_s', 0.0)}
+        for key, value in carried.items():
+            require(key not in unit or abs(unit[key]-value) <= 1e-12, 'Scored unit spread disagrees with the frozen annotation')
+        result.append({**unit, **carried})
+    return result
+
+
 def prepare_units(units, mapping, anchors):
     """Carry local offsets forward; only unresolved between-anchor steps widen."""
     steps = step_bounds(anchors, [])
@@ -460,6 +509,7 @@ def prepare_units(units, mapping, anchors):
     nominal_units = []
     for unit in units:
         (a, b, c), basis = source_schedule(unit, next(x for x in anchors if x['method'] != 'lead-marker'))
+        spread = source_spread(unit, c, basis)
         preceding = [anchor for anchor in anchors if anchor_source_start(anchor) <= a]
         require(preceding, 'No preceding long anchor for source utterance')
         anchor = preceding[-1]
@@ -467,7 +517,7 @@ def prepare_units(units, mapping, anchors):
         nominal_units.append({**unit, 'continuous_start_s': shifted[0],
             'continuous_last_word_start_s': shifted[1], 'continuous_last_word_end_s': shifted[2],
             'source_start_s': a, 'source_last_word_start_s': b, 'source_last_word_end_s': c,
-            'speech_time_basis': basis, 'timing_anchor_id': anchor['id'],
+            'speech_time_basis': basis, 'source_spread': spread, 'timing_anchor_id': anchor['id'],
             'timing_anchor_offset_s': anchor['offset_s'], 'timing_anchor_uncertainty_s': anchor['uncertainty_s']})
     step_bounds(anchors, nominal_units)
     result = []
@@ -481,15 +531,19 @@ def prepare_units(units, mapping, anchors):
         start_step_u = bracket_uncertainty(unit['source_last_word_start_s'])
         onset_step_u = bracket_uncertainty(unit['source_start_s'])
         anchor_u = unit['timing_anchor_uncertainty_s']
-        def interval(time, uncertainty):
-            require(0 <= time-uncertainty <= time+uncertainty <= mapping['decoded_samples']/mapping['rate'],
+        def interval_spread(time, spread, uncertainty):
+            width = spread+uncertainty
+            require(0 <= time-width <= time+width <= mapping['decoded_samples']/mapping['rate'],
                     'Speech uncertainty outside preserved continuous samples')
             # The upper acoustic bound can cross a chunk boundary even when its
             # nominal point does not. Include any intervening unassigned gap.
-            return placement_range(time-uncertainty, time+uncertainty, mapping)
-        end = interval(c, anchor_u+end_step_u)
-        word_start = interval(b, anchor_u+start_step_u)
-        onset = interval(a, anchor_u+onset_step_u)
+            return placement_range(time-width, time+width, mapping)
+        # The source's own timing spread is widened by the anchor and step uncertainty, in both directions: the
+        # conservative bound then uses the earliest end and the best-case bound the latest (analyze-bounds).
+        sp = unit['source_spread']
+        end = placement_range(c-sp['end_low']-anchor_u-end_step_u, c+sp['end_high']+anchor_u+end_step_u, mapping)
+        word_start = interval_spread(b, sp['last_word_start'], anchor_u+start_step_u)
+        onset = interval_spread(a, sp['onset'], anchor_u+onset_step_u)
         result.append({**unit, 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
                        'last_word_end': c, 'earliest_acoustic_end_s': end[0],
                        'latest_acoustic_end_s': end[1],
