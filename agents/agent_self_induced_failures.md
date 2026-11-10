@@ -456,3 +456,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** the two readings in this session (muted=True, then muted=False after the fix).
 - **Correction / prevention:** verify a hand-written COM interface against the documented method order or a known state before relying on it for a stop decision.
 - **Owner approval:** not required.
+
+### A-076 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — scored-run-1 orchestrator launched from a hidden background process aborted at once; not noticed for 12 minutes
+- **Status / attribution:** Confirmed; agent launch error, no application or protocol fault.
+- **What failed:** I started `run-scored-run.ps1` through `Start-Process powershell.exe -WindowStyle Hidden` from the PowerShell 7 tool shell, with output redirected to a scratchpad file. Windows PowerShell 5.1 did not find `Get-FileHash` (the inherited PSModulePath lists the PowerShell 7 module folders first), so the orchestrator threw at its first hash step and wrote `run INVALID: The term 'Get-FileHash' is not recognized` to `scored-run-1\run-record.txt` at 21:01:03 UTC (13:01:03 PT), one second after it started. Earlier foreground `powershell.exe` calls from the same shell had worked, so I did not test the launch method first. I then waited on a notification for about 12 minutes instead of checking the output file within the first minute.
+- **Agent-controlled cause:** an untested launch method for the single authorized run; no early check that the run had actually started.
+- **Impact:** scored-run-1 is marked INVALID before capture (no Snipping Tool recording, no playback, no audio, no actions.log, nothing scored); the authorization allows one run and no repeat, so I stopped. About 12 minutes of owner-away time lost; the evidence folder name scored-run-1 and the profile scored-run-1-app are now used.
+- **Evidence:** `scored-run-1\run-record.txt` (one line); the scratchpad output file `orch-out.txt`.
+- **Correction / prevention:** launch the orchestrator the way the runbook shows (a Windows PowerShell window), or with a cleared PSModulePath, and confirm `actions.log` appears within 30 s; do not wait on a long run without an early liveness check.
+- **Owner approval:** not required.
