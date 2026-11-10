@@ -350,6 +350,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Proposed credit rule (best-case credits, conservative does not), interval memory, gap-overlap rule, measured drift bound, count gates removed, scoring-path regressions; edited tests listed with the coverage that changed. When a test must be edited to fit a change, say what it covered before and add an end-to-end replacement. Constants remain proposed, owner approval pending.
 - **Owner approval:** Required for the credit rule, the 30 s reach and the drift bound before a scored run.
 
+### A-066 — 2026-11-09 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent (A-065 follow-up defects found by ChatGPT's final review of 9cb5dab, plus my own test-authoring slips).
+- **What failed:** (1) `_template_event_ids()`/`_unexplained_pairs()` treated any chunk-timestamp event in an anchor's template as explaining the anchor's offset change, whatever its size, so an -80 ms excursion at an anchor that also held a 5 ms logged gap vanished. (2) I replaced rule 6's "uncredited in both bounds" for gap-overlap units with a best-case credit (TIMING-INCONCLUSIVE) without a recording check. (3) A step in the D4 document had a Python dict printed into it ("75{'drift': ...}hare", a `% s` swallowed by a format call in a heredoc). (4) While writing the regressions: wrong anchor offsets in one test and a missed `gap` argument in `score()`; caught by the first run, before commit.
+- **Agent-controlled cause:** Existence-of-event test instead of a size comparison; a departure from the amendment text I had labelled but should have asked about; unreviewed generated doc text.
+- **Impact:** None on a score (no scored run). (1) would have credited units inside a real excursion; (2) would have turned an unverified capture limitation into best-case credit.
+- **Evidence:** `v3a_timing.py` (`step_event_sizes`, `_explained`, `_unexplained_pairs`, `verify_word_capture`), `analyze-bounds.py` (CAPTURE-LIMITED), `test_timing_coverage.py`, `test_v3a_timing.py` (two tests changed from best-case credit to uncredited), D4 document line 62.
+- **Correction / prevention:** Events explain a change only up to measured size plus both anchor uncertainties; rule 6 restored with a decoded-recording check (verified -> rule 8, else CAPTURE-LIMITED, uncredited in both bounds, kept out of FAILURE OBSERVED); regressions for each branch; document line restored and `grep "{'"` over docs found no other corruption. Constants stay proposed, owner approval pending.
+- **Owner approval:** Required for the rule 6 check, the credit rules, the 30 s reach and the drift allowance before a scored run.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.

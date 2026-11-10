@@ -3,6 +3,7 @@
 TIMING-INCONCLUSIVE semantics, the unexplained-offset-disagreement intervals found before exclusion, scored words that overlap a
 recorded capture gap, the extra drift uncertainty for a farther anchor, and the lead marker. The anchor constants and the
 TIMING-INCONCLUSIVE credit rule are proposed, owner approval pending."""
+import array
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -40,17 +41,24 @@ def own(anchor, **changes):
     return mk(anchor['id'], begin, begin+3.5, begin+4, **changes)
 
 
-def score(units, anchor_list, split_s=200):
+def speech(start, end, rate=1000, total_s=400, amplitude=3000):
+    """Decoded continuous samples: silence with one constant-level burst of speech-like energy from start to end (s)."""
+    samples = array.array('h', [0])*(total_s*rate)
+    samples[round(start*rate):round(end*rate)] = array.array('h', [amplitude])*(round(end*rate)-round(start*rate))
+    return samples
+
+
+def score(units, anchor_list, split_s=200, gap=.210, samples=None):
     inventory = {'anchors': anchor_list, 'utterances': [binding_fixture.frozen_entry({**u, 'eligible': True}) for u in units],
                  'annotations_sha256': 'd'*64}
-    m = binding_fixture.enrich(timing.gap_map(split_records(split_s), 'microphone', 1000, 'c'*64))
+    m = binding_fixture.enrich(timing.gap_map(split_records(split_s, gap=gap), 'microphone', 1000, 'c'*64))
     with tempfile.TemporaryDirectory() as directory:
         bound_units, files = binding_fixture.bind_units(directory, m, units)
         clock = {'valid': True, 'gap_map': m, 'original_timestamped': {'valid': False, 'latency': 'INCONCLUSIVE'}}
         evidence = {'publication_basis': 'timestamped-capture', 'chunks': 'chunks.json', 'decoder': 'decoder', 'source': 'source.wav',
                     'harness': [11, 391], 'long_anchors': [{}, {}], 'source_annotations': 'annotations.json', **files}
         with patch.object(marker_clock, 'analyze_v3a', return_value=clock), \
-             patch.object(timing, 'load_views', return_value=([], [], m)), \
+             patch.object(timing, 'load_views', return_value=([] if samples is None else samples, [], m)), \
              patch.object(timing, 'pcm16', return_value=([], 1000)), \
              patch.object(timing, 'load_long_anchors', return_value=inventory), \
              patch.object(timing, 'digest', return_value='c'*64), \
@@ -75,7 +83,7 @@ class TestTimingInconclusiveSemantics(unittest.TestCase):
 
     def test_clean_failure_window_unit_marked_timing_inconclusive_is_not_failure_observed(self):
         units, anchors = self.fixture([0])
-        result = score(units, anchors)
+        result = score(units, anchors, samples=speech(198.4, 200.4))
         self.assertNotIn('error', result)
         inconclusive = {u['id']: u['reason'] for u in result['timing_inconclusive_units']}
         self.assertIn('overlaps a recorded capture gap', inconclusive['gap0'])
@@ -86,7 +94,7 @@ class TestTimingInconclusiveSemantics(unittest.TestCase):
 
     def test_layer_a_that_depends_on_timing_inconclusive_units_is_inconclusive_not_fail(self):
         units, anchors = self.fixture([0, 1])
-        result = score(units, anchors)
+        result = score(units, anchors, samples=speech(198.4, 200.4))
         self.assertEqual(len(result['timing_inconclusive_units']), 2)
         n = len(units)
         self.assertEqual(result['bounds']['conservative']['within6'], n-2)     # no credit in the conservative bound
@@ -98,9 +106,53 @@ class TestTimingInconclusiveSemantics(unittest.TestCase):
         units, anchors = self.fixture([0], late=[0])
         # the late unit sits in the failure window (170-245 s) and is more than 6 s late even in the best case
         units = [u if u['id'] != 'late0' else mk('late0', 201, 202, 203, latency=8.0) for u in units]
-        result = score(units, anchors)
+        result = score(units, anchors, samples=speech(198.4, 200.4))
         self.assertEqual({u['id'] for u in result['timing_inconclusive_units']}, {'gap0'})
         self.assertEqual(result['recurrence'], 'FAILURE OBSERVED')
+
+
+class TestRule6CaptureCheck(unittest.TestCase):
+    """v3a rule 6: a scored word over a recorded gap is uncredited in both bounds unless the decoded recording verifies it."""
+    def run_case(self, samples):
+        anchors = spaced()
+        units = [own(a) for a in anchors]+[mk('word', 196, 198.5, 200.4)]
+        return score(units, anchors, samples=samples)
+
+    def test_verified_word_stays_timing_inconclusive_with_best_case_credit(self):
+        result = self.run_case(speech(198.4, 200.4))
+        row = {u['id']: u for u in result['units']}['word']
+        self.assertEqual((row['outcome'], row['conservative'], row['best']), ('TIMING-INCONCLUSIVE', float('inf'), float('-inf')))
+        self.assertEqual(result['capture_limited_units'], [])
+        self.assertIn('present on both sides', result['timing_inconclusive_units'][0]['reason'])
+
+    def test_word_not_verified_is_uncredited_in_both_bounds_and_is_not_an_app_failure(self):
+        result = self.run_case(speech(198.4, 199.9))     # no energy after the gap: the end is not supported
+        row = {u['id']: u for u in result['units']}['word']
+        self.assertEqual((row['outcome'], row['conservative'], row['best']), ('CAPTURE-LIMITED', float('inf'), float('inf')))
+        self.assertEqual(result['timing_inconclusive_units'], [])
+        self.assertEqual(result['capture_limited_units'][0]['capture_check'], 'not verified')
+        self.assertIn('not an app-output failure', result['capture_limited_units'][0]['classification'])
+        self.assertNotEqual(result['recurrence'], 'FAILURE OBSERVED')   # a word in the failure window, but a capture limitation
+        self.assertEqual(result['denominator'], len(result['units']))   # stays in the denominator
+
+    def test_word_energy_missing_on_one_side_of_the_gap_is_not_verified(self):
+        samples = speech(198.4, 200.4)
+        samples[199990:200010] = array.array('h', [0])*20          # silence straddling the capture event
+        row = {u['id']: u for u in self.run_case(samples)['units']}['word']
+        self.assertEqual(row['outcome'], 'CAPTURE-LIMITED')
+
+    def test_no_decoded_samples_is_not_checkable_and_uncredited(self):
+        result = self.run_case(None)
+        self.assertEqual(result['capture_limited_units'][0]['capture_check'], 'not checkable')
+        self.assertEqual({u['id']: u for u in result['units']}['word']['outcome'], 'CAPTURE-LIMITED')
+
+    def test_unsupported_timing_without_a_gap_overlap_keeps_rule_8(self):
+        anchors = spaced(self.EXCURSION, step=10)
+        inside = mk('inside', 140, 140.5, 141.5)
+        result = score([own(a) for a in anchors]+[inside], anchors, samples=None)
+        self.assertEqual({u['id']: u for u in result['units']}['inside']['outcome'], 'TIMING-INCONCLUSIVE')
+        self.assertEqual(result['capture_limited_units'], [])
+    EXCURSION = {140: -.08}
 
 
 class TestUnexplainedDisagreementIntervals(unittest.TestCase):
@@ -123,6 +175,26 @@ class TestUnexplainedDisagreementIntervals(unittest.TestCase):
         marked = timing.apply_template_step_condition(anchors, binding_fixture.enrich(timing.gap_map(split_records(200), 'microphone', 1000, 'c'*64)))
         valid = [a for a in marked if a['template_step_free']]
         self.assertIsNone(timing.unit_timing_gap(140, 141.5, marked, valid, timing.unexplained_brackets(valid, {'chunks': [], 'rate': 1000})))
+
+    def test_small_logged_gap_in_a_template_does_not_explain_a_large_excursion(self):
+        # a200's template holds a 6 ms logged gap, but its offset is -80 ms and the neighbours return to 0: 6 ms plus both
+        # anchor uncertainties cannot account for 80 ms, so the interval stays unexplained and its units are not credited.
+        anchors = [anc('a%d' % b, b, -.08 if b == 200 else 0.0) for b in range(100, 301, 20)]
+        inside, before, after = mk('inside', 210, 210.5, 211.5), mk('before', 125, 126, 127), mk('after', 265, 266, 267)
+        result = score([own(a) for a in anchors]+[inside, before, after], anchors, gap=.006)
+        self.assertNotIn('error', result)
+        by = {u['id']: u['reason'] for u in result['timing_inconclusive_units']}
+        self.assertIn('unexplained offset change', by['inside'])
+        self.assertNotIn('before', by)
+        self.assertNotIn('after', by)
+        self.assertEqual(len(result['unexplained_intervals']), 1)
+        rows = {u['id']: u['outcome'] for u in result['units']}
+        self.assertEqual((rows['before'], rows['after'], rows['inside']), ('MATCHED', 'MATCHED', 'TIMING-INCONCLUSIVE'))
+
+    def test_a_logged_gap_as_large_as_the_offset_change_still_explains_it(self):
+        anchors = [anc('a%d' % b, b, .21 if b >= 200 else 0.0) for b in range(100, 301, 20)]
+        result = score([own(a) for a in anchors]+[mk('inside', 210, 210.5, 211.5)], anchors)
+        self.assertEqual(result['unexplained_intervals'], [])
 
     def test_persistent_unexplained_step_restores_the_policy_end_to_end(self):
         # coverage lost when test_v3a_conditional patched out unexplained_brackets: an unlogged step through the real analysis
@@ -163,7 +235,7 @@ class TestCaptureGapOverlap(unittest.TestCase):
     def test_word_overlapping_a_recorded_gap_is_inconclusive_but_one_clear_of_it_is_not(self):
         anchors = spaced()
         straddle, clear = mk('straddle', 196, 198.5, 200.4), mk('clear', 190, 191, 192)
-        result = score([own(a) for a in anchors]+[straddle, clear], anchors)
+        result = score([own(a) for a in anchors]+[straddle, clear], anchors, samples=speech(198.4, 200.4))
         by = {u['id']: u['reason'] for u in result['timing_inconclusive_units']}
         self.assertEqual(set(by), {'straddle'})
         self.assertIn('200.000 s', by['straddle'])

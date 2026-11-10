@@ -351,18 +351,31 @@ STEP_EVENT_MIN_S = .005   # a gap/overlap smaller than this adds at most 5 ms to
 STEP_MARGIN_S = .020      # one envelope frame (20 ms) beyond the anchor's own uncertainty on each side of the 3.02 s template
 
 
-def step_events(mapping):
-    """Continuous-axis times (s) where the chunk timestamps show a gap, overlap or audited overrun of at least STEP_EVENT_MIN_S.
+def step_event_sizes(mapping):
+    """(continuous-axis time s, measured size s) of each chunk-timestamp gap, overlap or audited overrun of at least STEP_EVENT_MIN_S.
 
     Only chunk boundaries are visible here. A step that does not coincide with a chunk-timestamp event is not."""
     rate = mapping['rate']
     events = []
     for row in mapping['chunks']:
-        if max(row['gap_before_samples'], row['overlap_before_samples']) >= STEP_EVENT_MIN_S*rate:
-            events.append(row['continuous_start_sample']/rate)
+        size = max(row['gap_before_samples'], row['overlap_before_samples'])
+        if size >= STEP_EVENT_MIN_S*rate:
+            events.append((row['continuous_start_sample']/rate, size/rate))
         if row['decoded_overrun_samples'] >= STEP_EVENT_MIN_S*rate:
-            events.append(row['continuous_end_sample']/rate)
+            events.append((row['continuous_end_sample']/rate, row['decoded_overrun_samples']/rate))
     return events
+
+
+def step_events(mapping):
+    """Continuous-axis times (s) of the events in step_event_sizes."""
+    return [t for t, _ in step_event_sizes(mapping)]
+
+
+def _explained(sized, low, high, before, after):
+    """True when the events between the two supports can account for the offset change: their measured sizes plus both anchor
+    uncertainties reach it. An event that is too small leaves the change unexplained."""
+    discrepancy = abs(after['offset_s']-before['offset_s'])
+    return sum(size for t, size in sized if low < t < high)+before['uncertainty_s']+after['uncertainty_s'] >= discrepancy
 
 
 def _template_event_ids(anchors, events):
@@ -377,19 +390,29 @@ def _template_event_ids(anchors, events):
     return out
 
 
-def _unexplained_pairs(anchors, events, by_event):
-    """Consecutive survivors of the event check whose offset change exceeds the combined uncertainty with no event between.
+def _unexplained_pairs(anchors, sized, by_event):
+    """Pairs whose offset change exceeds the combined uncertainty and that the events between them cannot account for (_explained).
 
-    An anchor already excluded for a dropout in its template lies between its neighbours and is what explains their offset change."""
+    Checked for consecutive anchors and for consecutive survivors of the event check (an excluded anchor lies between its
+    neighbours). The template of an excluded anchor counts as part of the span of any pair it belongs to, so its events are
+    available to explain a change, but only up to their measured size: a small logged gap does not explain a large excursion."""
+    pairs, seen = [], set()
     survivors = [a for a in anchors if a['id'] not in by_event]
-    pairs = []
-    for before, after in zip(survivors, survivors[1:]):
-        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
-            continue
-        low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
-        high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
-        if not any(low < e < high for e in events):
-            pairs.append((before, after))
+    for sequence in (anchors, survivors):
+        for before, after in zip(sequence, sequence[1:]):
+            if (before['id'], after['id']) in seen:
+                continue
+            seen.add((before['id'], after['id']))
+            if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+                continue
+            low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
+            high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
+            if before['id'] in by_event:
+                low = before['recording_start_s']-before['uncertainty_s']-STEP_MARGIN_S
+            if after['id'] in by_event:
+                high = after['recording_end_s']+after['uncertainty_s']+STEP_MARGIN_S
+            if not _explained(sized, low, high, before, after):
+                pairs.append((before, after))
     return pairs
 
 
@@ -398,15 +421,15 @@ def apply_template_step_condition(anchors, mapping):
 
     The calibrated 13-17 ms uncertainty holds only for a template with no timing step inside it. An anchor is NOT step-free when
     (1) a chunk-timestamp event (gap/overlap/overrun) lies inside its template support plus margin, or
-    (2) it sits next to a detected step (offset change over the combined uncertainty) that no chunk-timestamp event lies
-        between the two supports to explain, because that step could then be inside either template.
+    (2) it sits next to a detected step (offset change over the combined uncertainty) that the chunk-timestamp events between the two
+        supports (measured size plus both uncertainties) cannot account for, because that step could then be inside either template.
     Not enforced: a step smaller than the combined uncertainty is not detectable. This is a blind spot, not a bound: an unlogged
     offset change below the combined anchor uncertainty can pass the pairwise check unseen, and the roughly 34 ms residual quoted in
     the D4 document only illustrates its size; it is not a proven worst case for undetected errors."""
     events = step_events(mapping)
     by_event = _template_event_ids(anchors, events)
     verdict = {a['id']: by_event.get(a['id']) for a in anchors}
-    for before, after in _unexplained_pairs(anchors, events, by_event):
+    for before, after in _unexplained_pairs(anchors, step_event_sizes(mapping), by_event):
         for anchor in (before, after):
             verdict[anchor['id']] = verdict[anchor['id']] or 'adjacent offset change not located by a chunk-timestamp event between the supports'
     return [{**a, 'template_step_free': verdict[a['id']] is None, 'template_step_reason': verdict[a['id']]}
@@ -420,7 +443,7 @@ def unexplained_intervals(anchors, mapping):
     units inside it credit again. Each interval spans both templates of a disagreeing pair; overlapping ones are merged."""
     events = step_events(mapping)
     spans = sorted((b['source_start_s'], a['source_end_s'], [b['id'], a['id']])
-                   for b, a in _unexplained_pairs(anchors, events, _template_event_ids(anchors, events))
+                   for b, a in _unexplained_pairs(anchors, step_event_sizes(mapping), _template_event_ids(anchors, events))
                    if 'bounded-long-correlation' in (b.get('method'), a.get('method')))
     merged = []
     for low, high, ids in spans:
@@ -461,7 +484,7 @@ def track_anchor_gate(anchors, valid):
 def unexplained_brackets(valid, mapping):
     """Consecutive valid anchors, at least one of them a bounded-correlation anchor, whose offset differs by more than the combined
     uncertainty with no chunk-timestamp event between. (Exact-PCM anchors keep the earlier handling: the step is widened, not refused.)"""
-    events = step_events(mapping)
+    sized = step_event_sizes(mapping)
     out = []
     for before, after in zip(valid, valid[1:]):
         if 'bounded-long-correlation' not in (before.get('method'), after.get('method')):
@@ -470,7 +493,7 @@ def unexplained_brackets(valid, mapping):
             continue
         low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
         high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
-        if not any(low < e < high for e in events):
+        if not _explained(sized, low, high, before, after):
             out.append((before, after))
     return out
 
@@ -514,6 +537,47 @@ def capture_event_overlap(unit, mapping):
     low, high = unit['word_continuous_interval_s']
     hits = [e for e in step_events(mapping) if low <= e <= high]
     return 'scored word interval overlaps a recorded capture gap/overlap/overrun at %.3f s' % hits[0] if hits else None
+
+
+def verify_word_capture(unit, samples, mapping):
+    """Whether the decoded preserved recording supports the scored word's presence and endpoint around a recorded capture event.
+
+    Returns (True|False|None, evidence). None = not checkable (no decoded samples for the word interval). Uses the same two-threshold
+    energy rule as the acoustic end (5 ms frames; level max(128, 3% of the loudest frame) and 184), applied to the word interval:
+    (1) at each gap/overlap/overrun inside the interval that lies before the measured end, the 5 ms frames on both sides are above
+    both levels (the word is present on both sides); (2) the last active frame under each level ends inside the unit's earliest-to-
+    latest acoustic end interval and not at the edge of the window (the end is supported). Proposed, owner approval pending."""
+    rate = mapping['rate']
+    frame = round(.005*rate)
+    low, high = unit['word_continuous_interval_s']
+    end_low, end_high = unit['end_continuous_interval_s']
+    first, last = int(low*rate), int(high*rate)+1
+    if frame < 1 or first < 0 or last > len(samples) or last-first < 2*frame:
+        return None, 'not checkable: the word interval is outside the decoded samples'
+    def rms(start):
+        part = samples[start:start+frame]
+        return math.sqrt(sum(v*v for v in part)/len(part))
+    levels = [rms(first+k*frame) for k in range((last-first)//frame)]
+    thresholds = (max(128, max(levels)*0.03), 184)
+    ends = []
+    for level in thresholds:
+        active = [k for k, v in enumerate(levels) if v >= level]
+        if not active:
+            return False, 'no energy above %.0f in the word interval' % level
+        if active[-1] == len(levels)-1:
+            return False, 'energy reaches the edge of the word interval at level %.0f; the end is not supported' % level
+        ends.append((first+(active[-1]+1)*frame)/rate)
+    if not all(end_low <= e <= end_high for e in ends):
+        return False, 'measured acoustic end %s is outside the supported end interval [%.3f, %.3f]' % (
+            ['%.3f' % e for e in ends], end_low, end_high)
+    for t in (e for e in step_events(mapping) if low <= e <= high):
+        if t > max(ends)+frame/rate:
+            continue   # the event lies after the measured end of the word
+        index = round(t*rate)
+        if index-frame < 0 or index+frame > len(samples) or not all(rms(index-frame) >= x and rms(index) >= x for x in thresholds):
+            return False, 'no energy above both levels on both sides of the capture event at %.3f s' % t
+    return True, 'word energy present on both sides of the capture event(s); acoustic end %s within [%.3f, %.3f]' % (
+        ['%.3f' % e for e in ends], end_low, end_high)
 
 
 def step_bounds(anchors, units):
@@ -774,7 +838,8 @@ def prepare_units(units, mapping, anchors, all_anchors=None):
         onset = interval_spread(a, sp['onset'], anchor_u+onset_step_u)
         word_low = b-(sp['last_word_start']+anchor_u+start_step_u)
         word_high = c+sp['end_high']+anchor_u+end_step_u
-        result.append({**unit, 'word_continuous_interval_s': [word_low, word_high], 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
+        result.append({**unit, 'word_continuous_interval_s': [word_low, word_high],
+                       'end_continuous_interval_s': [c-sp['end_low']-anchor_u-end_step_u, word_high], 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
                        'last_word_end': c, 'earliest_acoustic_end_s': end[0],
                        'latest_acoustic_end_s': end[1],
                        'last_word_start_interval_s': word_start, 'speech_start_interval_s': onset,
