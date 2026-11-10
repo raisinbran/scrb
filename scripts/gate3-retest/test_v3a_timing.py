@@ -302,9 +302,9 @@ class TestSteps(unittest.TestCase):
 
 class TestScoringGuards(unittest.TestCase):
     def score(self, units, inventory=None, duplicate=False):
-        units = [{**u, 'id': str(i) if not duplicate else 'same'} for i, u in enumerate(units)]
+        units = [binding_fixture.sourced({**u, 'id': str(i) if not duplicate else 'same'}) for i, u in enumerate(units)]
         if inventory is None:
-            inventory = [{'id': u['id'], 'eligible': True} for u in units]
+            inventory = [binding_fixture.frozen_entry({**u, 'eligible': True}) for u in units]
         inventory_report = {'anchors': anchors(), 'utterances': inventory, 'annotations_sha256': 'd'*64}
         m = binding_fixture.enrich(mapping())
         with tempfile.TemporaryDirectory() as directory:

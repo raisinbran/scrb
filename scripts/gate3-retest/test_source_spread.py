@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 import v3a_timing as timing
-from test_v3a_timing import mapping
+from test_v3a_timing import mapping, anchors as step_anchors
 
 spec = importlib.util.spec_from_file_location('bounds_spread', Path(__file__).with_name('analyze-bounds.py'))
 bounds = importlib.util.module_from_spec(spec)
@@ -78,6 +78,50 @@ class SourceSpread(unittest.TestCase):
         source = Path(__file__).with_name('analyze-bounds.py').read_text(encoding='utf-8')
         self.assertIn("attach_source_spread(units, inventory['utterances'])", source)
         self.assertIn("Source acoustic end spread missing", source)
+
+
+class SpreadDrivesBothBoundsThroughEveryUncertainty(unittest.TestCase):
+    """Earliest end drives the conservative bound, latest end the best-case bound, through gap, step and anchor uncertainty."""
+
+    def prepare_crossing(self, early, late):
+        # The 210 ms capture gap sits at 140 s; the end 140.1 s lies inside the step region between the two anchors.
+        annotation = {'id': 'u', 'start': 139.0, 'last_word_start': 139.9, 'acoustic_end': 140.1,
+                      'earliest_acoustic_end_s': 140.1-early, 'latest_acoustic_end_s': 140.1+late}
+        units = timing.attach_source_spread([scored(annotation, endpoints=[{'observed': 146.15, 'u': .01}])], [annotation])
+        prepared, steps = timing.prepare_units(units, mapping(), step_anchors(.08))
+        return prepared[0], steps
+
+    def test_each_uncertainty_is_present_and_only_the_matching_side_moves(self):
+        base, steps = self.prepare_crossing(0, 0)
+        self.assertTrue(steps)
+        self.assertGreater(base['speech_end_step_uncertainty_s'], 0)           # step
+        self.assertGreater(base['latest_acoustic_end_s']-base['earliest_acoustic_end_s'], .21)  # gap + step + anchor
+        early = self.prepare_crossing(.05, 0)[0]
+        late = self.prepare_crossing(0, .05)[0]
+        self.assertAlmostEqual(early['latest_acoustic_end_s'], base['latest_acoustic_end_s'])
+        self.assertAlmostEqual(early['earliest_acoustic_end_s'], base['earliest_acoustic_end_s']-.05)
+        self.assertAlmostEqual(late['earliest_acoustic_end_s'], base['earliest_acoustic_end_s'])
+        self.assertAlmostEqual(late['latest_acoustic_end_s'], base['latest_acoustic_end_s']+.05)
+
+    def test_conservative_uses_the_earliest_end_and_best_case_the_latest(self):
+        base = bounds.analyze_unit(self.prepare_crossing(0, 0)[0])
+        early = bounds.analyze_unit(self.prepare_crossing(.05, 0)[0])
+        late = bounds.analyze_unit(self.prepare_crossing(0, .05)[0])
+        self.assertAlmostEqual(early['conservative']-base['conservative'], .05)
+        self.assertAlmostEqual(early['best'], base['best'])
+        self.assertAlmostEqual(base['best']-late['best'], .05)
+        self.assertAlmostEqual(late['conservative'], base['conservative'])
+
+    def test_the_bounds_equal_the_endpoint_minus_the_placed_interval_edges(self):
+        unit, _ = self.prepare_crossing(.02, .03)
+        row = bounds.analyze_unit(unit)
+        self.assertAlmostEqual(row['conservative'], 146.15-unit['earliest_acoustic_end_s'])
+        self.assertAlmostEqual(row['best'], 146.15-.01-unit['latest_acoustic_end_s'])
+        expected_low, expected_high = timing.placement_range(
+            140.1-.02-unit['timing_anchor_uncertainty_s']-unit['speech_end_step_uncertainty_s'],
+            140.1+.03+unit['timing_anchor_uncertainty_s']+unit['speech_end_step_uncertainty_s'], mapping())
+        self.assertAlmostEqual(unit['earliest_acoustic_end_s'], expected_low)
+        self.assertAlmostEqual(unit['latest_acoustic_end_s'], expected_high)
 
 
 if __name__ == '__main__':
