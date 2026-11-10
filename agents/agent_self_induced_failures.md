@@ -384,3 +384,12 @@ Use the next unused `A-` identifier when adding a confirmed incident; never reus
 ```
 
 Keep the register updated as incidents are found. It does **not** authorize any retry, merge, gate approval, or evidence deletion.
+
+### A-068 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent tooling.
+- **What failed:** (1) The commit "docs: D4 table and text ... freeze-surface list gains run-time binding section" (4d41ae1) contained only the D4 change: my Python edit of the freeze-surface list raised a unicode-escape SyntaxError (a Windows path with `\U` inside a normal string) and I ran `git commit` after it without checking, so the message overstated the commit. (2) I began reading files in the session's default worktree, which is not the branch under review (the branch lives in the scrb-scoring-fixes worktree), before noticing. (3) The first `npm run check` failed once with an EPERM temp-folder rename in packages/storage (Windows file lock; unrelated to changed files).
+- **Agent-controlled cause:** (1) chained commit after an unchecked failing step; (2) did not check `git worktree list` first; (3) environmental, same family as the earlier EBUSY.
+- **Impact:** No wrong content shipped: the freeze-surface edit was redone in d13e9d3, the pin; the misleading message stays in history. A few minutes lost; one npm rerun.
+- **Evidence:** commits 4d41ae1 and d13e9d3; npm rerun exit 0 (52 files, 819 tests passed).
+- **Correction / prevention:** use `&&` after editing scripts and check the diff before committing; confirm the worktree for the branch first.
+- **Owner approval:** not required.
