@@ -359,6 +359,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Events explain a change only up to measured size plus both anchor uncertainties; rule 6 restored with a decoded-recording check (verified -> rule 8, else CAPTURE-LIMITED, uncredited in both bounds, kept out of FAILURE OBSERVED); regressions for each branch; document line restored and `grep "{'"` over docs found no other corruption. Constants stay proposed, owner approval pending.
 - **Owner approval:** Required for the rule 6 check, the credit rules, the 30 s reach and the drift allowance before a scored run.
 
+### A-067 — 2026-11-09 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent (follow-up to A-066, found by ChatGPT's confirmation of 0520f01, plus two slips of mine in the fix and the preflight task).
+- **What failed:** (1) My A-066 rule 6 check ran only on units that survived the timing exclusion, so a word crossing a recorded gap during an excursion could still get best-case credit unverified. (2) `verify_word_capture` checked events up to one frame after the measured end. (3) A local variable `evidence` shadowed the function parameter of the same name in `analyze-bounds.py`. (4) While fixing (1) I left a debug `import sys` inside the function, which made `sys` local and raised UnboundLocalError (caught before commit). (5) I ran `npm run check` in parallel with the Python suite; one storage test failed with EBUSY on a temp file and passed on a rerun alone.
+- **Agent-controlled cause:** Rule 6 applied after the exclusion step instead of before rule 8; a tolerance not in the rule text; a careless local name; debug code in the scoring function; parallel runs sharing the machine.
+- **Impact:** None on a score (no scored run). (1) could have credited unverified words; (5) cost one extra `npm run check` (about 40 s).
+- **Evidence:** commits b97fac0 and 01bd9c1; `test_timing_coverage.py::TestExcursionWithRecordedGap`, `test_v3a_timing.py::TestWordCaptureEventBoundary`.
+- **Correction / prevention:** Placeable timing-excluded units get the rule 6 check first (unverified -> CAPTURE-LIMITED, verified -> rule 8); events at or after the measured end are skipped, no tolerance; local renamed `capture_evidence`; debug lines removed; checks now run one at a time. Constants stay proposed, owner approval pending.
+- **Owner approval:** Required for rule 6, rule 8, the 30 s reach and the drift allowance before a scored run.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
