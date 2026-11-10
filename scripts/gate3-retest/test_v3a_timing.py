@@ -387,5 +387,24 @@ class TestScoringGuards(unittest.TestCase):
             {'position': 381.210, 'uncertainty_s': .005}, (11, 391))['valid'])
 
 
+class TestWordCaptureEventBoundary(unittest.TestCase):
+    """Rule 6 checks capture events before the measured acoustic end; an event at or after it is not checked (no tolerance)."""
+    def run_check(self, event, silence=None):
+        samples = array.array('h', [0])*400000
+        samples[198400:200000] = array.array('h', [3000])*1600      # the word ends exactly at 200.000 s
+        if silence:
+            samples[silence[0]:silence[1]] = array.array('h', [0])*(silence[1]-silence[0])
+        unit = {'word_continuous_interval_s': [198.4, 200.2], 'end_continuous_interval_s': [199.9, 200.2]}
+        with patch.object(timing, 'step_events', return_value=[event]):
+            return timing.verify_word_capture(unit, samples, {'rate': 1000})
+
+    def test_event_exactly_at_the_measured_end_is_not_checked(self):
+        self.assertIs(self.run_check(200.0)[0], True)
+
+    def test_event_just_before_the_measured_end_is_checked(self):
+        self.assertIs(self.run_check(199.995)[0], True)
+        self.assertIs(self.run_check(199.995, silence=(199990, 199995))[0], False)
+
+
 if __name__ == '__main__':
     unittest.main()
