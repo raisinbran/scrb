@@ -402,3 +402,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** commits 9ad8714 and e27b274; 346 Python tests OK.
 - **Correction / prevention:** write files with the Write/Edit tools instead of inline Python with Windows paths; stop on a failed step before committing; check the diff stat before every commit.
 - **Owner approval:** not required.
+
+### A-070 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent tooling.
+- **What failed:** In the first draft of the run-scored-run.ps1 edit, a message string contained `$appPid:`, which PowerShell reads as a scope-qualified variable; the parse check failed. Caught by the parse check before any commit. Also read the wrong worktree first (the default one lacks the script) before running `git worktree list`.
+- **Agent-controlled cause:** string interpolation not checked while writing; worktree not confirmed first (same as A-068 item 2).
+- **Impact:** None shipped; a few minutes.
+- **Evidence:** parse check output before commit 528fae3; fix `${appPid}:`.
+- **Correction / prevention:** parse every edited .ps1 before committing; run `git worktree list` first.
+- **Owner approval:** not required.
