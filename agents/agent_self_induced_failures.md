@@ -420,3 +420,21 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** rehearsal-1 session, 2026-11-10 11:20 to 11:44 PT.
 - **Correction / prevention:** fix both steps in the runbook only after owner direction (pinned file); run every runbook command once before handing it over.
 - **Owner approval:** a runbook change touches the pin and needs the owner.
+
+### A-072 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent tooling (repeat of the A-070 prevention step).
+- **What failed:** The session started in the default worktree (branch rosmont/windows-gate3-observer-validation-20261109), ran git status and git log there, and only then found with `git branch --contains` and `git worktree list` that the pinned work lives in the scrb-scoring-fixes worktree. A-070 said to run `git worktree list` first.
+- **Agent-controlled cause:** the stated prevention was not applied at session start.
+- **Impact:** none shipped; a few minutes and some tool output.
+- **Evidence:** first four tool calls of the session.
+- **Correction / prevention:** all edits, commits and tests ran in the scrb-scoring-fixes worktree; first command of a pinned-branch task is `git worktree list`.
+- **Owner approval:** not required.
+
+### A-073 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent analysis slip, caught before it was written into any document.
+- **What failed:** In the first pass over rehearsal-1's `actions.log` I computed the overlay's first reading as 2.449 s instead of 0.245 s (2,449,110 ticks divided by 10 million is 0.245 s, not 2.449 s), which made the owner's "about 2 s into the video" look consistent when it was not.
+- **Agent-controlled cause:** mental division by the wrong power of ten.
+- **Impact:** none; corrected before writing; the rehearsal record states the correct figures.
+- **Evidence:** the figures in `gate-3-windows-orchestrator-rehearsal-1-20261110.md` (first-overlay check).
+- **Correction / prevention:** compute tick arithmetic with the tool, not by hand; report the formula and the numbers.
+- **Owner approval:** not required.
