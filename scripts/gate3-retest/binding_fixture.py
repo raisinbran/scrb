@@ -37,10 +37,17 @@ def converted_document(mapping, words, track='microphone', e=0.002):
     return {**doc, 'words': words}, header
 
 
-def write_evidence(root, doc, header, events, samples=None):
+def matcher_document(doc, rows, track='microphone'):
+    """The occurrence matcher's output file layout (occurrence_matcher.main) around the given rows."""
+    return {'status': 'OFFLINE_ALIGNMENT_ONLY', 'clock_basis': 'recording', 'input_clock_basis': 'harness',
+            'recording_sha256': doc.get('recording_sha256'), 'track': track, 'units': rows}
+
+
+def write_evidence(root, doc, header, events, samples=None, matcher_rows=None, track='microphone'):
     root = Path(root)
     paths = {'publication_file': root / 'converted.json', 'observer_raw': root / 'observer.jsonl',
-             'harness_log': root / 'harness.jsonl'}
+             'harness_log': root / 'harness.jsonl', 'matcher_output': root / 'matcher.json'}
+    paths['matcher_output'].write_text(json.dumps(matcher_document(doc, matcher_rows or [], track)), encoding='utf-8')
     paths['publication_file'].write_text(json.dumps(doc), encoding='utf-8')
     lines = [header] + (samples if samples is not None else [{'type': 'sample'}])
     paths['observer_raw'].write_text(''.join(json.dumps(x) + '\n' for x in lines), encoding='utf-8')
@@ -59,7 +66,8 @@ def bind_units(root, mapping, units, track='microphone'):
             points.append({**point, 'publication_id': identifier})
         bound.append({**unit, 'endpoints': points} if points else unit)
     doc, header = converted_document(mapping, words, track)
-    return bound, write_evidence(root, doc, header, harness_events())
+    rows = [{'id': u['id'], 'outcome': u['outcome'], 'identity_confirmed': True, 'endpoints': u.get('endpoints') or []} for u in bound]
+    return bound, write_evidence(root, doc, header, harness_events(), matcher_rows=rows, track=track)
 
 
 def without_regeneration(bounds_module):

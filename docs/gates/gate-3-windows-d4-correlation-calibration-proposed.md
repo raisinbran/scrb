@@ -27,6 +27,25 @@ Agreement is to the marker's resolution; it cannot show errors below about 5-10 
 
 ## 3. Proposal (not approved)
 1. For a validated anchor whose template contains no step, the evidence supports the existing reported uncertainty (13-17 ms) as covering the **method** error with margin: observed maximum 2.4 ms in 478 simulated and 4 real-marker comparisons. No change to the formula is proposed.
-2. A step or gap **inside** a 3 s template can leave a validated anchor wrong by up to the step (54 ms at measured noise, 163 ms at higher noise). This is **not bounded** by the reported uncertainty. The evidence does not support a bound for such anchors, so a track in which any anchor is unvalidated, or in which a planted-like step sits inside a template, stays **INCONCLUSIVE** (the current rule). Do not relax it.
+2. A step or gap **inside** a 3 s template can leave a validated anchor wrong by up to the step (54 ms at measured noise, 163 ms at higher noise). This is **not bounded** by the reported uncertainty. CORRECTION (2026-11-09, review of a35c4bd): an earlier version of this document said such a track "stays INCONCLUSIVE (the current rule)". That was false: `long_correlation.py` only checks that three correlation peaks are unique, and `v3a_timing.py` accepted any such anchor with the calibrated uncertainty. The condition below is now enforced (`v3a_timing.apply_template_step_condition`, called by `analyze_v3a_track`; regressions in `test_template_step_free.py`).
 3. Not covered by any of this: route-dependent bias (VB-CABLE, loopback enhancements, device processing), room acoustics, real encoder build differences, non-white noise, and real dropouts of other shapes. These cannot be simulated here; the real-data check only shows the practice route agreed with the markers to 0-6 ms.
 4. Exact-PCM matching remains unusable (0 of 12). No other matching method is proposed.
+
+## 4. What is and is not enforced (added 2026-11-09)
+Enforced, failing closed (an anchor that fails makes the track's timing INCONCLUSIVE, because every anchor must be validated and complete):
+- A bounded-correlation anchor keeps the calibrated 13-17 ms uncertainty only if its template support, widened by its own uncertainty plus one 20 ms envelope frame on each side, contains no chunk-timestamp gap, overlap or audited overrun of 5 ms or more. (Smaller events add at most 5 ms to the 2.4 ms worst step-free error, below the 13 ms floor.)
+- A detected step (offset change over the two anchors' combined uncertainty) must be explained by such a chunk-timestamp event lying between the two supports (margins excluded). An unexplained step makes BOTH adjacent anchors fail, because the step could be inside either template.
+
+Not enforced / not visible:
+- The simulation writes no chunk timestamps, so its planted steps are **not visible in a gap map by construction**. The 3 (measured noise) and 5 (+40 dB) validated anchors that had a step inside their template were all caught only by the second rule (offset disagreement with a neighbour, no event to explain it). The same rule also fails 115 of 478 and 64 of 239 clean validated anchors that sit next to a planted step. Whether real dropouts of those shapes appear in the gap map is shown only by the practice recording (below), not by the simulation.
+- A step smaller than the combined uncertainty (about 26-34 ms) is not detectable at all. A step up to roughly twice that, with no chunk-timestamp event, can leave an anchor off by about one combined uncertainty (up to about 34 ms against a reported 13-17 ms) and still pass. The planted steps (51-104 ms) are above this region; real ones may not be.
+- A step that does not coincide with a chunk boundary: the gap map is then invalid (audited decoded-versus-timestamp counts must reconcile) and the whole track is already INCONCLUSIVE.
+- Route bias and the other items in section 3.3.
+
+Retained practice recording, both tracks (offline; real chunk timestamps; chunk-gap events of at least 5 ms: microphone at 141.7 s and 441.6 s, meeting at 141.7 s):
+| Track | Long anchors | Validated | Unvalidated | Excluded by the new condition | Timing verdict under the rule |
+|---|---|---|---|---|---|
+| microphone | 39 | 39 | 0 | 0 | BOUNDED possible |
+| meeting | 45 | 45 | 0 | 1 (meeting-024, template 141.6-144.6 s contains the 210 ms gap) | INCONCLUSIVE |
+| both | 84 | 84 | 0 | 1 | |
+Unvalidated is 0 here, but in the 12 simulated scenarios (planted steps, measured noise) 11 had at least one unvalidated anchor, so a scored run with steps inside templates can still be INCONCLUSIVE from the uniqueness rule alone. One excluded anchor ends a track's timing verdict, so a scored run gives a timing verdict only when no template sits across a dropout; this practice recording gave one of two.

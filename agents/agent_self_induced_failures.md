@@ -327,6 +327,13 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Handoff sentence corrected in place; the proposal is stated with these counts. Compute the stated rule per unit before describing coverage.
 - **Owner approval:** Not required (offline).
 
+### A-063 - 2026-11-09 - D4 document claimed an enforcement that did not exist; D6 binding gap; D2 tolerance overreach - Claude Code (Sonnet 5.5)
+- **Status / attribution:** Confirmed, mine, found by ChatGPT's review of a35c4bd (and by me while closing it). (1) The D4 calibration document said a track with a step inside a template "stays INCONCLUSIVE (the current rule)". `long_correlation.py` only checks that three correlation peaks are unique and `v3a_timing.py` gave any such anchor the calibrated uncertainty; nothing enforced it. I had not read the acceptance path before writing the sentence. (2) The D6 endpoint binding I added checked endpoint values against the converted file but not that outcome, identity or assignment came from the matcher. (3) The paused handoff proposed an energy-rule tolerance and called re-measurements "independent"; both were extrapolation from 12 clips. Smaller slips while fixing these, all caught before commit: a draft provenance note had a garbled short commit hash I had typed (removed, full SHA kept), a draft sentence about which utterances drive rule C was unverified (removed), and one new test assumed the gap event sat at the wrong time (test fixed, not the code).
+- **Impact:** None on a score (no scored run). A real run would have credited anchors with a template across a dropout (errors of 54-163 ms in simulation against a reported 13-17 ms), and a hand-edited unit list.
+- **Evidence:** `test_template_step_free.py`; `test_hand_edited_unit_assignments_that_differ_from_the_matcher_output_are_rejected`; `docs/gates/gate-3-windows-d4-correlation-calibration-proposed.md` section 4; `docs/handoffs/2026-11-09-d6-matcher-binding.md`; `docs/gates/gate-3-windows-d2-energy-rule-sensitivity-20261109.md`.
+- **Correction / prevention:** Step-free condition enforced from the chunk-timestamp gap map and detected steps, failing closed, with its blind spots listed; matcher output hash bound and compared; energy-rule results recorded as sensitivity evidence only. Read the code path before stating that a rule is enforced. Renumber at merge if another branch used A-063.
+- **Owner approval:** Not required (offline).
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
