@@ -42,3 +42,17 @@ Status: **DRAFT.** A list of what the real run uses and must check before it sta
 1. First overlay-bearing video frame: after the run, extract frames with the decoder tool until the overlay is readable, and compare that frame's overlay reading with the overlay start tick in `actions.log` (the first-frame check above). A video that starts before the overlay has leading frames without it; look further in. A video that lacks the overlay for a stretch (validation-3) must be reported, not assumed.
 2. At least 10 frames with readable overlay, including scrolling, are compared with the observer samples (the validation draft's frame check).
 
+## Run requirements (as agreed; the real run still needs its own written owner authorization)
+
+- Normal PowerShell, not Administrator. Realtek speakers as the default playback device (not Bluetooth), volume 10 as in the practice run, fresh app profile, `CABLE Output` chosen explicitly as the microphone, first-video-frame manual check afterwards.
+- No scripted scroll bursts unless the protocol says so.
+- Up to 30 minutes in total including setup and cleanup; a run expected to exceed 20 minutes needs the owner's explicit approval before it starts (AGENTS.md). The real run is a separate authorization and is not part of approving the manifest.
+
+## Known limitations (stated plainly)
+
+- Output-start latency is unmeasured.
+- Steps below the combined anchor uncertainty are undetectable.
+- Route bias (VB-CABLE, loopback) is not simulated.
+- A timing-excluded unit that cannot be placed at all stays timing-INCONCLUSIVE without a capture check.
+- Classification categories are heuristic.
+- Matcher-output binding does not detect coordinated edits made before sealing.
