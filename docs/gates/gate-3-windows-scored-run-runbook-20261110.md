@@ -69,7 +69,7 @@ Fixed folders (all outside Git):
 7. **T+8. Endpoint listing.** Window A, folder `scrb-run-pin`, administrator: no. Paste the printed file content to the agent afterwards.
 
    ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\bchen\Documents\GitHub\scrb-run-pin\scripts\gate3-retest\list-audio-endpoints.ps1' -OutFile 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\approved-manifest\endpoints-<run name>.txt'
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\bchen\Documents\GitHub\scrb-run-pin\scripts\gate3-retest\list-audio-endpoints.ps1' -OutFile 'C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\endpoints-<run name>.txt'
    ```
 
 8. **T+9. Check the app build (launches nothing).** Window A, folder `scrb-run-pin`, administrator: no.
