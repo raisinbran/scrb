@@ -155,7 +155,7 @@ class TestNoisyLongCorrelation(unittest.TestCase):
         self.assertIsNone(result['bounds'])
         self.assertEqual(result['denominator'], 1)
         self.assertEqual(result['steps'], [])
-        self.assertIn('Unvalidated', result['error'])
+        self.assertIn('No valid long anchor remains', result['error'])
 
     def test_retained_settings_are_exact_and_boundary_peak_is_rejected(self):
         settings = correlation.SETTINGS

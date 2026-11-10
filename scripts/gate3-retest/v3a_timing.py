@@ -365,6 +365,34 @@ def step_events(mapping):
     return events
 
 
+def _template_event_ids(anchors, events):
+    """Bounded-correlation anchors with a chunk-timestamp event inside the template support plus margin, with the reason."""
+    out = {}
+    for anchor in anchors:
+        if anchor.get('method') == 'bounded-long-correlation':
+            margin = anchor['uncertainty_s']+STEP_MARGIN_S
+            low, high = anchor['recording_start_s']-margin, anchor['recording_end_s']+margin
+            if any(low <= e <= high for e in events):
+                out[anchor['id']] = 'chunk-timestamp gap/overlap inside the template support'
+    return out
+
+
+def _unexplained_pairs(anchors, events, by_event):
+    """Consecutive survivors of the event check whose offset change exceeds the combined uncertainty with no event between.
+
+    An anchor already excluded for a dropout in its template lies between its neighbours and is what explains their offset change."""
+    survivors = [a for a in anchors if a['id'] not in by_event]
+    pairs = []
+    for before, after in zip(survivors, survivors[1:]):
+        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+            continue
+        low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
+        high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
+        if not any(low < e < high for e in events):
+            pairs.append((before, after))
+    return pairs
+
+
 def apply_template_step_condition(anchors, mapping):
     """Mark each bounded-correlation anchor 'template_step_free' True/False (with a reason) from what the scorer can see.
 
@@ -372,40 +400,44 @@ def apply_template_step_condition(anchors, mapping):
     (1) a chunk-timestamp event (gap/overlap/overrun) lies inside its template support plus margin, or
     (2) it sits next to a detected step (offset change over the combined uncertainty) that no chunk-timestamp event lies
         between the two supports to explain, because that step could then be inside either template.
-    Not enforced: a step smaller than the combined uncertainty is not detectable; a step with no chunk-timestamp event and an
-    offset change near the detection limit (about two combined uncertainties) can still leave an anchor 1-2 uncertainties off."""
+    Not enforced: a step smaller than the combined uncertainty is not detectable. This is a blind spot, not a bound: an unlogged
+    offset change below the combined anchor uncertainty can pass the pairwise check unseen, and the roughly 34 ms residual quoted in
+    the D4 document only illustrates its size; it is not a proven worst case for undetected errors."""
     events = step_events(mapping)
-    verdict = {a['id']: None for a in anchors}
-
-    def margin(anchor):
-        return anchor['uncertainty_s']+STEP_MARGIN_S
-    for anchor in anchors:
-        if anchor.get('method') == 'bounded-long-correlation':
-            low, high = anchor['recording_start_s']-margin(anchor), anchor['recording_end_s']+margin(anchor)
-            if any(low <= e <= high for e in events):
-                verdict[anchor['id']] = 'chunk-timestamp gap/overlap inside the template support'
-    # Pairs are consecutive anchors that survived the first check: an anchor already excluded for a dropout in its template lies
-    # between its neighbours and is what explains their offset change.
-    survivors = [a for a in anchors if verdict[a['id']] is None]
-    for before, after in zip(survivors, survivors[1:]):
-        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
-            continue
-        low, high = before['recording_end_s']+margin(before), after['recording_start_s']-margin(after)
-        if any(low < e < high for e in events):
-            continue
+    by_event = _template_event_ids(anchors, events)
+    verdict = {a['id']: by_event.get(a['id']) for a in anchors}
+    for before, after in _unexplained_pairs(anchors, events, by_event):
         for anchor in (before, after):
             verdict[anchor['id']] = verdict[anchor['id']] or 'adjacent offset change not located by a chunk-timestamp event between the supports'
     return [{**a, 'template_step_free': verdict[a['id']] is None, 'template_step_reason': verdict[a['id']]}
             if a.get('method') == 'bounded-long-correlation' else a for a in anchors]
 
 
-# PROPOSED, OWNER APPROVAL PENDING: the three constants below are proposals for independent review and owner approval at the v3a
+def unexplained_intervals(anchors, mapping):
+    """Source-time intervals of offset disagreements that no chunk-timestamp event explains, found BEFORE any exclusion.
+
+    Excluding the anchors around an excursion (offsets 0, 0, -80 ms, 0, 0) would otherwise let the agreeing survivors give the
+    units inside it credit again. Each interval spans both templates of a disagreeing pair; overlapping ones are merged."""
+    events = step_events(mapping)
+    spans = sorted((b['source_start_s'], a['source_end_s'], [b['id'], a['id']])
+                   for b, a in _unexplained_pairs(anchors, events, _template_event_ids(anchors, events))
+                   if 'bounded-long-correlation' in (b.get('method'), a.get('method')))
+    merged = []
+    for low, high, ids in spans:
+        if merged and low <= merged[-1]['high']:
+            merged[-1]['high'] = max(merged[-1]['high'], high)
+            merged[-1]['anchors'] += [x for x in ids if x not in merged[-1]['anchors']]
+        else:
+            merged.append({'low': low, 'high': high, 'anchors': list(ids)})
+    return merged
+
+
+# PROPOSED, OWNER APPROVAL PENDING: the two constants below are proposals for independent review and owner approval at the v3a
 # sign-off. They are not frozen and were not tuned against the practice recording.
 # Per-anchor exclusion (owner follow-up 2026-11-09). v3a amendment rules 3 and 7 make an unlocated step a UNIT-level INCONCLUSIVE
 # ("the affected units are INCONCLUSIVE"); nothing in a document makes one failed anchor end the whole track.
-MAX_ANCHOR_DISTANCE_S = 30.0   # proposed, owner approval pending: 30 s of the practice drift (about 0.55 ms/s) is 16.5 ms, the size of the calibrated 13-17 ms uncertainty
-MIN_VALID_FRACTION = .75       # proposed, owner approval pending: fewer valid long anchors than this share of all long anchors ends the track's timing
-MIN_VALID_ANCHORS = 4          # proposed, owner approval pending
+MAX_ANCHOR_DISTANCE_S = 30.0   # proposed, owner approval pending: a COVERAGE limit, not proof that the error stays bounded out to 30 s
+DRIFT_RATE_BOUND_S_PER_S = 0.0006   # proposed, owner approval pending: conservative maximum measured on the practice recording (practice-timing-report.py)
 
 
 def excluded_anchors(anchors):
@@ -420,18 +452,10 @@ def excluded_anchors(anchors):
 
 
 def track_anchor_gate(anchors, valid):
-    """Track-level conditions that still end timing for the whole track (fail closed)."""
+    """Track-level condition left for anchors: some long anchor exists and some valid one remains. Everything else is per unit."""
     longs = [a for a in anchors if a.get('method') != 'lead-marker']
     require(longs, 'No long anchors')
-    unvalidated = sum(a.get('validated') is not True for a in longs)
-    require(unvalidated*2 <= len(longs), 'Unvalidated long anchors are the majority')
-    valid_longs = [a for a in valid if a.get('method') != 'lead-marker']
-    require(len(valid_longs) == len(longs) or len(valid_longs) >= max(MIN_VALID_ANCHORS, math.ceil(MIN_VALID_FRACTION*len(longs))),
-            'Too few valid long anchors remain (%d of %d)' % (len(valid_longs), len(longs)))
-    require(any(a['source_start_s'] <= longs[0]['source_start_s']+MAX_ANCHOR_DISTANCE_S for a in valid),
-            'No usable lead anchor')
-    require(any(a['source_end_s'] >= longs[-1]['source_end_s']-MAX_ANCHOR_DISTANCE_S for a in valid_longs),
-            'No usable trail anchor')
+    require([a for a in valid if a.get('method') != 'lead-marker'], 'No valid long anchor remains')
 
 
 def unexplained_brackets(valid, mapping):
@@ -451,28 +475,45 @@ def unexplained_brackets(valid, mapping):
     return out
 
 
-def unit_timing_gap(onset, last_end, anchors, valid, brackets):
-    """Why a unit (source times) loses its timing only because anchors were excluded, else None.
+def unit_timing_gap(onset, last_end, anchors, valid, brackets, intervals=()):
+    """Why a unit (source times) loses its timing because anchors were excluded or an offset change is unexplained, else None.
 
-    A unit that a valid anchor within MAX_ANCHOR_DISTANCE_S served on each side before the exclusion, and no longer does, is
-    INCONCLUSIVE; so is a unit whose span crosses an unexplained offset change between valid anchors. A unit that was already farther
-    than that from every anchor keeps the earlier handling (prepare_units), so nothing becomes looser or newly stricter than before."""
+    INCONCLUSIVE when: no valid anchor remains on one side although one existed; or a valid anchor that served it within
+    MAX_ANCHOR_DISTANCE_S (proposed coverage limit) no longer does; or its span overlaps an unexplained offset disagreement found
+    before exclusion (`intervals`) or crosses two valid anchors that disagree without a timestamp event (`brackets`).
+    A unit already farther than that from every anchor keeps the earlier handling (prepare_units)."""
     def sides(pool):
         return [a for a in pool if anchor_source_start(a) <= onset], [a for a in pool if a['source_start_s'] > last_end]
     all_before, all_after = sides(anchors)
     if not (all_before and all_after):
         return None    # no anchor on one side even with every anchor: structural, left to prepare_units (unchanged behaviour)
+    for interval in intervals:
+        if onset < interval['high'] and last_end > interval['low']:
+            return 'unexplained offset change between %s (found before exclusion)' % ' / '.join(interval['anchors'])
     before, after = sides(valid)
+    if not (before and after):
+        return 'no valid anchor on one side after exclusions'
     served_before = last_end-all_before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
     served_after = all_after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
-    kept_before = bool(before) and last_end-before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
-    kept_after = bool(after) and after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
+    kept_before = last_end-before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
+    kept_after = after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
     if (served_before and not kept_before) or (served_after and not kept_after):
         return 'no valid anchor within %g s on one side after exclusions' % MAX_ANCHOR_DISTANCE_S
     for q, r in brackets:
         if last_end > q['source_end_s'] and onset < r['source_start_s']:
             return 'unexplained offset change between valid anchors %s and %s' % (q['id'], r['id'])
     return None
+
+
+def capture_event_overlap(unit, mapping):
+    """Why the scored word cannot be timed because it overlaps a recorded capture gap, overlap or overrun, else None.
+
+    A finite interval across a gap is not proof that the word was captured (v3a rule 6). Proposed, owner approval pending: the word
+    interval is the last word's earliest placed start to its latest placed end on the continuous axis, with the same 5 ms event
+    threshold as the step events."""
+    low, high = unit['word_continuous_interval_s']
+    hits = [e for e in step_events(mapping) if low <= e <= high]
+    return 'scored word interval overlaps a recorded capture gap/overlap/overrun at %.3f s' % hits[0] if hits else None
 
 
 def step_bounds(anchors, units):
@@ -684,7 +725,7 @@ def attach_source_spread(units, utterances):
     return result
 
 
-def prepare_units(units, mapping, anchors):
+def prepare_units(units, mapping, anchors, all_anchors=None):
     """Carry local offsets forward; only unresolved between-anchor steps widen."""
     steps = step_bounds(anchors, [])
     by_anchor = {a['id']: a for a in anchors}
@@ -695,12 +736,17 @@ def prepare_units(units, mapping, anchors):
         preceding = [anchor for anchor in anchors if anchor_source_start(anchor) <= a]
         require(preceding, 'No preceding long anchor for source utterance')
         anchor = preceding[-1]
+        # An anchor farther than the original neighbour (after an exclusion) adds drift over the extra distance to the calibrated value.
+        original = [x for x in (all_anchors or anchors) if anchor_source_start(x) <= a][-1]
+        extra_u = (DRIFT_RATE_BOUND_S_PER_S*max(0.0, original['source_end_s']-anchor['source_end_s'])
+                   if original['id'] != anchor['id'] else 0.0)
         shifted = [t+anchor['offset_s'] for t in (a, b, c)]
         nominal_units.append({**unit, 'continuous_start_s': shifted[0],
             'continuous_last_word_start_s': shifted[1], 'continuous_last_word_end_s': shifted[2],
             'source_start_s': a, 'source_last_word_start_s': b, 'source_last_word_end_s': c,
             'speech_time_basis': basis, 'source_spread': spread, 'timing_anchor_id': anchor['id'],
-            'timing_anchor_offset_s': anchor['offset_s'], 'timing_anchor_uncertainty_s': anchor['uncertainty_s']})
+            'timing_anchor_offset_s': anchor['offset_s'], 'timing_anchor_uncertainty_s': anchor['uncertainty_s']+extra_u,
+            'drift_extra_uncertainty_s': extra_u})
     step_bounds(anchors, nominal_units)
     result = []
     for unit in nominal_units:
@@ -726,7 +772,9 @@ def prepare_units(units, mapping, anchors):
         end = placement_range(c-sp['end_low']-anchor_u-end_step_u, c+sp['end_high']+anchor_u+end_step_u, mapping)
         word_start = interval_spread(b, sp['last_word_start'], anchor_u+start_step_u)
         onset = interval_spread(a, sp['onset'], anchor_u+onset_step_u)
-        result.append({**unit, 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
+        word_low = b-(sp['last_word_start']+anchor_u+start_step_u)
+        word_high = c+sp['end_high']+anchor_u+end_step_u
+        result.append({**unit, 'word_continuous_interval_s': [word_low, word_high], 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
                        'last_word_end': c, 'earliest_acoustic_end_s': end[0],
                        'latest_acoustic_end_s': end[1],
                        'last_word_start_interval_s': word_start, 'speech_start_interval_s': onset,

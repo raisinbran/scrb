@@ -13,8 +13,11 @@ def analyze_unit(unit):
     """Keep every eligible unit and reject pre-speech publication credit."""
     outcome = unit["outcome"]
     assert outcome in {"MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE"}
-    if outcome == "TIMING-INCONCLUSIVE":   # no calibrated timing for this unit: uncredited in both bounds, stays in the denominator
-        return {"id": unit["id"], "conservative": math.inf, "best": math.inf, "outcome": outcome}
+    if outcome == "TIMING-INCONCLUSIVE":
+        # Proposed, owner approval pending (protocol v3 section 6 and v3a rule 5 are silent on a published unit whose timing is
+        # unsupported). Not a demonstrated late publication: no credit in the conservative bound, the best case may still credit it, so
+        # Layer A cannot FAIL on it and Layer B cannot read it as late; a verdict that depends on it stays INCONCLUSIVE/INDETERMINATE.
+        return {"id": unit["id"], "conservative": math.inf, "best": -math.inf, "outcome": outcome}
     if outcome == "UNIDENTIFIED":
         return {"id": unit["id"], "conservative": math.inf, "best": math.inf, "outcome": outcome}
     if outcome == "SETUP-AFFECTED":
@@ -284,7 +287,7 @@ def analyze_v3a_track(units, evidence, track):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, attach_source_spread, bind_unit_fields, step_bounds, require, lead_marker_anchor,
                              apply_template_step_condition, excluded_anchors, track_anchor_gate, unexplained_brackets,
-                             unit_timing_gap, source_schedule, finite, digest)
+                             unexplained_intervals, capture_event_overlap, unit_timing_gap, source_schedule, finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
     clocks = None
@@ -335,6 +338,7 @@ def analyze_v3a_track(units, evidence, track):
         track_anchor_gate(anchors, valid)
         steps = step_bounds(valid, [])
         brackets = unexplained_brackets(valid, mapping)
+        intervals = unexplained_intervals(anchors, mapping)   # found before exclusion, so excluding the odd anchor cannot hide them
         require(clocks['valid'], 'Invalid v3a marker/gap evidence; step diagnostics do not waive it')
         # Bind scored endpoints to the converted publication file; the label alone proves nothing.
         for key in ('publication_file', 'observer_raw', 'harness_log', 'matcher_output'):
@@ -360,12 +364,17 @@ def analyze_v3a_track(units, evidence, track):
         supported, gaps = [], {}
         for unit in units:
             (onset, _, last_end), _ = source_schedule(unit, first_long)
-            reason = unit_timing_gap(onset, last_end, anchors, valid, brackets)
+            reason = unit_timing_gap(onset, last_end, anchors, valid, brackets, intervals)
             if reason:
                 gaps[unit['id']] = reason
             else:
                 supported.append(unit)
-        prepared, steps = prepare_units(supported, mapping, valid)
+        prepared, steps = prepare_units(supported, mapping, valid, all_anchors=anchors)
+        for unit in prepared:   # a finite interval across a recorded gap is not proof the word was captured (v3a rule 6)
+            reason = capture_event_overlap(unit, mapping) if unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES else None
+            if reason:
+                gaps[unit['id']] = reason
+        prepared = [u for u in prepared if u['id'] not in gaps]
         by_id = {u['id']: u for u in prepared}
         timing_inconclusive = []
         for unit in units:
@@ -400,7 +409,7 @@ def analyze_v3a_track(units, evidence, track):
                             'PRE-SPEECH or uncertain speech presence across last-word start interval')
         return {**summarize_track(everything), 'mode': 'v3a', 'anchor_exclusions': [{'id': i, 'reason': r} for i, r in exclusions],
                 'valid_anchors': len(valid), 'long_anchors_total': len(anchors), 'timing_inconclusive_units': timing_inconclusive,
-                'unexplained_brackets': [[q['id'], r['id']] for q, r in brackets], 'denominator': denominator,
+                'unexplained_brackets': [[q['id'], r['id']] for q, r in brackets], 'unexplained_intervals': intervals, 'denominator': denominator,
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
                 'evidence_hashes': evidence_hashes, 'conversion_identity': conversion, 'harness_derivation': harness_derivation,
                 'endpoint_binding_failures': binding_failures, 'unit_field_binding_failures': field_failures,
