@@ -18,3 +18,10 @@ Branch `rosmont/windows-gate3-integration-2-20261109`. Offline only; nothing sco
 2. Check shorts strictly inside 170-245 s per track.
 3. Add a test for `classify-unidentified.py`.
 4. Request independent review.
+
+## D2 spot-check done (resumed, 19:30-19:40 PT)
+- Rule: every 11th unit of the combined 140-unit list (microphone 0-64, then meeting 0-74), starting at index 10 -> 12 clips (microphone-010/021/032/043/054, meeting-000/011/022/033/044/055/066); 4 short, 8 long. Script: `scripts/gate3-retest/spotcheck-energy-ends.py` (offline, joined source WAV).
+- Finding: the r3 pack has NO TTS word-boundary marks by design (`constructed_units.reject_engine_timing` forbids them); word ends come from the energy measurement of the rendered unit plus the constructed sample offset. So "TTS mark vs energy end" cannot be compared; I compared the annotated acoustic_end to independent re-measurements in the joined source WAV: same rule (5 ms frames, 3% of peak) differs 0.000 s on all 12 (consistency only); 10 ms frames at 10% of peak ends earlier by 0.020-0.100 s (mean 0.042, max 0.100); 20 ms frames at 1% of peak differs -0.000 to +0.030 s (mean 0.011, max 0.030). Largest differences are on short units (Approved., Save.: 0.095-0.100 s), where a decaying tail sits under the 10% level.
+- Proposed (NOT frozen) tolerance: an independent energy rule at a stated threshold should agree with acoustic_end within the unit's own earliest/latest spread (<= 0.100 s offset, matching the amendment limit); the existing earliest/latest values (5-100 ms) already cover the 10 ms/10% rule except by up to 5 ms on one clip. Owner/ChatGPT to decide whether a marks-based check is required at all (D2).
+- Shorts strictly inside 170-245 s: microphone 8 (025,027,029,031,034,036,038,040), meeting 8 (030,032,034,037,039,041,044,046). Requirement of at least 8 per track is met, with no margin.
+- Still open: test for `classify-unidentified.py`; independent review of matcher change, make-draft-annotations, classify-unidentified, D6 change.
