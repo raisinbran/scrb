@@ -384,7 +384,10 @@ def apply_template_step_condition(anchors, mapping):
             low, high = anchor['recording_start_s']-margin(anchor), anchor['recording_end_s']+margin(anchor)
             if any(low <= e <= high for e in events):
                 verdict[anchor['id']] = 'chunk-timestamp gap/overlap inside the template support'
-    for before, after in zip(anchors, anchors[1:]):
+    # Pairs are consecutive anchors that survived the first check: an anchor already excluded for a dropout in its template lies
+    # between its neighbours and is what explains their offset change.
+    survivors = [a for a in anchors if verdict[a['id']] is None]
+    for before, after in zip(survivors, survivors[1:]):
         if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
             continue
         low, high = before['recording_end_s']+margin(before), after['recording_start_s']-margin(after)
@@ -394,6 +397,80 @@ def apply_template_step_condition(anchors, mapping):
             verdict[anchor['id']] = verdict[anchor['id']] or 'adjacent offset change not located by a chunk-timestamp event between the supports'
     return [{**a, 'template_step_free': verdict[a['id']] is None, 'template_step_reason': verdict[a['id']]}
             if a.get('method') == 'bounded-long-correlation' else a for a in anchors]
+
+
+# Per-anchor exclusion (owner follow-up 2026-11-09). v3a amendment rules 3 and 7 make an unlocated step a UNIT-level INCONCLUSIVE
+# ("the affected units are INCONCLUSIVE"); nothing in a document makes one failed anchor end the whole track.
+MAX_ANCHOR_DISTANCE_S = 30.0   # 30 s of the practice drift (about 0.55 ms/s) is 16.5 ms, the size of the calibrated 13-17 ms uncertainty
+MIN_VALID_FRACTION = .75       # fewer valid long anchors than this share of all long anchors ends the track's timing
+MIN_VALID_ANCHORS = 4
+
+
+def excluded_anchors(anchors):
+    """(id, reason) of each anchor that gets no calibrated uncertainty: not validated, or template not established step-free."""
+    out = []
+    for a in anchors:
+        if a.get('validated') is not True:
+            out.append((a['id'], 'not validated'))
+        elif a.get('method') == 'bounded-long-correlation' and a.get('template_step_free') is not True:
+            out.append((a['id'], a.get('template_step_reason') or 'template step-free condition not evaluated'))
+    return out
+
+
+def track_anchor_gate(anchors, valid):
+    """Track-level conditions that still end timing for the whole track (fail closed)."""
+    longs = [a for a in anchors if a.get('method') != 'lead-marker']
+    require(longs, 'No long anchors')
+    unvalidated = sum(a.get('validated') is not True for a in longs)
+    require(unvalidated*2 <= len(longs), 'Unvalidated long anchors are the majority')
+    valid_longs = [a for a in valid if a.get('method') != 'lead-marker']
+    require(len(valid_longs) == len(longs) or len(valid_longs) >= max(MIN_VALID_ANCHORS, math.ceil(MIN_VALID_FRACTION*len(longs))),
+            'Too few valid long anchors remain (%d of %d)' % (len(valid_longs), len(longs)))
+    require(any(a['source_start_s'] <= longs[0]['source_start_s']+MAX_ANCHOR_DISTANCE_S for a in valid),
+            'No usable lead anchor')
+    require(any(a['source_end_s'] >= longs[-1]['source_end_s']-MAX_ANCHOR_DISTANCE_S for a in valid_longs),
+            'No usable trail anchor')
+
+
+def unexplained_brackets(valid, mapping):
+    """Consecutive valid anchors, at least one of them a bounded-correlation anchor, whose offset differs by more than the combined
+    uncertainty with no chunk-timestamp event between. (Exact-PCM anchors keep the earlier handling: the step is widened, not refused.)"""
+    events = step_events(mapping)
+    out = []
+    for before, after in zip(valid, valid[1:]):
+        if 'bounded-long-correlation' not in (before.get('method'), after.get('method')):
+            continue
+        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+            continue
+        low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
+        high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
+        if not any(low < e < high for e in events):
+            out.append((before, after))
+    return out
+
+
+def unit_timing_gap(onset, last_end, anchors, valid, brackets):
+    """Why a unit (source times) loses its timing only because anchors were excluded, else None.
+
+    A unit that a valid anchor within MAX_ANCHOR_DISTANCE_S served on each side before the exclusion, and no longer does, is
+    INCONCLUSIVE; so is a unit whose span crosses an unexplained offset change between valid anchors. A unit that was already farther
+    than that from every anchor keeps the earlier handling (prepare_units), so nothing becomes looser or newly stricter than before."""
+    def sides(pool):
+        return [a for a in pool if anchor_source_start(a) <= onset], [a for a in pool if a['source_start_s'] > last_end]
+    all_before, all_after = sides(anchors)
+    if not (all_before and all_after):
+        return None    # no anchor on one side even with every anchor: structural, left to prepare_units (unchanged behaviour)
+    before, after = sides(valid)
+    served_before = last_end-all_before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
+    served_after = all_after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
+    kept_before = bool(before) and last_end-before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
+    kept_after = bool(after) and after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
+    if (served_before and not kept_before) or (served_after and not kept_after):
+        return 'no valid anchor within %g s on one side after exclusions' % MAX_ANCHOR_DISTANCE_S
+    for q, r in brackets:
+        if last_end > q['source_end_s'] and onset < r['source_start_s']:
+            return 'unexplained offset change between valid anchors %s and %s' % (q['id'], r['id'])
+    return None
 
 
 def step_bounds(anchors, units):

@@ -12,7 +12,9 @@ import sys
 def analyze_unit(unit):
     """Keep every eligible unit and reject pre-speech publication credit."""
     outcome = unit["outcome"]
-    assert outcome in {"MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED"}
+    assert outcome in {"MATCHED", "MATCHED-SUBSTITUTED", "UNIDENTIFIED", "BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE"}
+    if outcome == "TIMING-INCONCLUSIVE":   # no calibrated timing for this unit: uncredited in both bounds, stays in the denominator
+        return {"id": unit["id"], "conservative": math.inf, "best": math.inf, "outcome": outcome}
     if outcome == "UNIDENTIFIED":
         return {"id": unit["id"], "conservative": math.inf, "best": math.inf, "outcome": outcome}
     if outcome == "SETUP-AFFECTED":
@@ -48,7 +50,7 @@ def summarize_track(units):
     window_rows = [(unit, row) for unit, row in zip([u for u in units if u["eligible"]], rows)
                    if unit["start"] < 245 and unit["last_word_end"] > 170]
     recurrence = "FAILURE OBSERVED" if any(row["outcome"] == "UNIDENTIFIED" or row["best"] > 6 for _, row in window_rows) else (
-        "INDETERMINATE" if any(row.get("straddle") or row["outcome"] in {"BOUNDED", "SETUP-AFFECTED"} for _, row in window_rows) else "NOT OBSERVED")
+        "INDETERMINATE" if any(row.get("straddle") or row["outcome"] in {"BOUNDED", "SETUP-AFFECTED", "TIMING-INCONCLUSIVE"} for _, row in window_rows) else "NOT OBSERVED")
     return {"bounds": bounds, "latency": verdict, "recurrence": recurrence,
             "diagnosis": "INCONCLUSIVE; automatic event-chain localization not implemented",
             "units": rows}
@@ -281,7 +283,8 @@ def analyze_v3a_track(units, evidence, track):
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from v3a_timing import (load_views, pcm16, load_long_anchors, prepare_units, attach_source_spread, bind_unit_fields, step_bounds, require, lead_marker_anchor,
-                             apply_template_step_condition, finite, digest)
+                             apply_template_step_condition, excluded_anchors, track_anchor_gate, unexplained_brackets,
+                             unit_timing_gap, source_schedule, finite, digest)
     from marker_clock import analyze_v3a
     denominator = sum(bool(unit['eligible']) for unit in units)
     clocks = None
@@ -325,10 +328,13 @@ def analyze_v3a_track(units, evidence, track):
         require(all(type(u['eligible']) is bool and u['eligible'] == frozen_units[u['id']]['eligible']
                     for u in units), 'Eligibility differs from bound frozen source inventory')
         anchors = apply_template_step_condition(anchors, mapping)   # D4: the calibrated uncertainty needs a step-free template
-        not_free = [a['id']+': '+str(a.get('template_step_reason')) for a in anchors
-                    if a.get('method') == 'bounded-long-correlation' and a.get('template_step_free') is not True]
-        require(not not_free, 'Long anchor template not established step-free (%d): %s' % (len(not_free), '; '.join(not_free[:3])))
-        steps = step_bounds(anchors, [])
+        # An anchor that fails the step-free condition (or is unvalidated) is excluded on its own and never gets the calibrated
+        # uncertainty; only the units that depend on it become timing-INCONCLUSIVE. Track-level conditions: track_anchor_gate.
+        exclusions = excluded_anchors(anchors)
+        valid = [a for a in anchors if a['id'] not in {i for i, _ in exclusions}]
+        track_anchor_gate(anchors, valid)
+        steps = step_bounds(valid, [])
+        brackets = unexplained_brackets(valid, mapping)
         require(clocks['valid'], 'Invalid v3a marker/gap evidence; step diagnostics do not waive it')
         # Bind scored endpoints to the converted publication file; the label alone proves nothing.
         for key in ('publication_file', 'observer_raw', 'harness_log', 'matcher_output'):
@@ -350,7 +356,30 @@ def analyze_v3a_track(units, evidence, track):
                               'note': 'Reporting only (250 ms is a reporting threshold); counts endpoints of credited scored units.'}
         units, field_failures = bind_unit_fields(units, inventory['utterances'])
         units = attach_source_spread(units, inventory['utterances'])
-        prepared, steps = prepare_units(units, mapping, anchors)
+        first_long = next(x for x in valid if x['method'] != 'lead-marker')
+        supported, gaps = [], {}
+        for unit in units:
+            (onset, _, last_end), _ = source_schedule(unit, first_long)
+            reason = unit_timing_gap(onset, last_end, anchors, valid, brackets)
+            if reason:
+                gaps[unit['id']] = reason
+            else:
+                supported.append(unit)
+        prepared, steps = prepare_units(supported, mapping, valid)
+        by_id = {u['id']: u for u in prepared}
+        timing_inconclusive = []
+        for unit in units:
+            if unit['id'] in gaps:
+                credited = unit['eligible'] and unit['outcome'] in CREDITED_OUTCOMES
+                timing_inconclusive.append({'id': unit['id'], 'reason': gaps[unit['id']], 'was_credited_outcome': bool(credited)})
+                by_id[unit['id']] = ({**unit, 'outcome': 'TIMING-INCONCLUSIVE', 'identity_confirmed': False, 'endpoints': [],
+                                      'timing_inconclusive_reason': gaps[unit['id']]} if credited else unit)
+        everything = [by_id[u['id']] for u in units]
+        for unit in everything:   # units left out of placement still need their setup evidence checked
+            if unit['id'] in gaps and unit['outcome'] == 'SETUP-AFFECTED':
+                failure = unit.get('independent_harness_failure', {})
+                require(failure.get('independently_confirmed') is True and digest(failure['path']) == failure['sha256'],
+                        'No independent harness-failure evidence; gaps grant no setup credit')
         for unit in prepared:
             require(unit['source_spread']['present'] or unit['speech_time_basis'] != 'source', 'Source acoustic end spread missing')
         for unit in prepared:
@@ -369,7 +398,9 @@ def analyze_v3a_track(units, evidence, track):
                             'Invalid publication interval')
                     require(point['observed']-point['u'] >= start_high,
                             'PRE-SPEECH or uncertain speech presence across last-word start interval')
-        return {**summarize_track(prepared), 'mode': 'v3a', 'denominator': denominator,
+        return {**summarize_track(everything), 'mode': 'v3a', 'anchor_exclusions': [{'id': i, 'reason': r} for i, r in exclusions],
+                'valid_anchors': len(valid), 'long_anchors_total': len(anchors), 'timing_inconclusive_units': timing_inconclusive,
+                'unexplained_brackets': [[q['id'], r['id']] for q, r in brackets], 'denominator': denominator,
                 'clocks': clocks, 'gap_map': mapping, 'long_anchors': anchors, 'steps': steps,
                 'evidence_hashes': evidence_hashes, 'conversion_identity': conversion, 'harness_derivation': harness_derivation,
                 'endpoint_binding_failures': binding_failures, 'unit_field_binding_failures': field_failures,
