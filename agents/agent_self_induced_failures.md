@@ -393,3 +393,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** commits 4d41ae1 and d13e9d3; npm rerun exit 0 (52 files, 819 tests passed).
 - **Correction / prevention:** use `&&` after editing scripts and check the diff before committing; confirm the worktree for the branch first.
 - **Owner approval:** not required.
+
+### A-069 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop
+- **Status / attribution:** Confirmed; agent tooling.
+- **What failed:** (1) The same chained-after-failure mistake as A-068 happened again: a Python edit with a Windows path in a normal string raised a unicode-escape SyntaxError, I used `;` before `git commit`, and the commit 9ad8714 contained the runbook without its endpoint-path fix and without the freeze-list change (redone in e27b274, the pin). (2) Earlier in the task my test edits wrote backslash escapes that the shell layer altered, which produced a broken test file (SyntaxError) and a test manifest without newlines; fixed before any commit. (3) I first made the orchestrator wait for the playback to end, which would have made the 60 s rehearsal run 420 s; reverted to validation-5's stop at RecordSeconds before the pin.
+- **Agent-controlled cause:** (1) did not apply the A-068 prevention (`&&`, check output); (2) escape handling not checked before writing; (3) changed behaviour without checking the rehearsal case.
+- **Impact:** No wrong content in the pin; misleading commit message on 9ad8714 stays in history. Several minutes lost.
+- **Evidence:** commits 9ad8714 and e27b274; 346 Python tests OK.
+- **Correction / prevention:** write files with the Write/Edit tools instead of inline Python with Windows paths; stop on a failed step before committing; check the diff stat before every commit.
+- **Owner approval:** not required.
