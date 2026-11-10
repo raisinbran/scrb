@@ -263,5 +263,36 @@ class RealManifest(unittest.TestCase):
         self.assertIn('not clean', out)
 
 
+class OrchestratorPins(unittest.TestCase):
+    """Static checks of run-scored-run.ps1 against the manifest (the PowerShell itself is not run here)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(REAL_MANIFEST, 'rb') as handle:
+            cls.manifest = json.loads(handle.read())
+        with open(os.path.join(HERE, 'run-scored-run.ps1'), 'rb') as handle:
+            cls.script = handle.read().decode('utf-8')
+
+    def electron_entry(self):
+        entries = [e for e in self.manifest['native_candidate']['built_artifacts'] if e['path'] == 'node_modules/electron/dist/electron.exe']
+        self.assertEqual(len(entries), 1)
+        return entries[0]
+
+    def test_manifest_pins_the_candidate_electron_executable(self):
+        self.assertRegex(self.electron_entry()['sha256'], '^[0-9a-f]{64}$')
+
+    def test_orchestrator_executable_hash_equals_the_manifest(self):
+        self.assertIn("$candSha = '" + self.electron_entry()['sha256'] + "'", self.script)
+
+    def test_orchestrator_candidate_folder_matches_the_manifest_commit(self):
+        self.assertIn('candidate-' + self.manifest['native_candidate']['commit'][:7] + '\\node_modules\\electron\\dist\\electron.exe', self.script)
+
+    def test_run_record_final_lines(self):
+        self.assertEqual(self.script.count("Rec 'run finished'"), 1)
+        self.assertTrue(self.script.rstrip().endswith("Rec 'run finished'"))
+        self.assertIn('Rec "run INVALID: ', self.script)
+        self.assertNotIn('FAILED:', self.script)
+
+
 if __name__ == '__main__':
     unittest.main()
