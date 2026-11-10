@@ -447,3 +447,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** `git status` in the primary checkout showed ` M agents/agent_task_allocation.md` before the revert.
 - **Correction / prevention:** use absolute paths with .NET file APIs; check `git diff` in the intended worktree before committing.
 - **Owner approval:** not required.
+
+### A-075 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — false "speakers muted" reading stopped the authorized run for about 25 minutes
+- **Status / attribution:** Confirmed; agent tooling error.
+- **What failed:** I read the speaker mute state with a hand-written COM interface for IAudioEndpointVolume that had one extra method slot (`j`) before SetMute, so GetMute called a wrong vtable slot and returned `muted=True`. I treated that as a failed precondition and stopped the scored run, asked the owner to authorize unmuting, and reported the speakers as muted. After the owner's reply I fixed the interface (slot order checked against the documented method order) and re-read: volume 10%, muted=False. The speakers were never muted.
+- **Agent-controlled cause:** an unverified interface definition; I did not cross-check the single odd reading (for example with a second method or the mixer) before stopping.
+- **Impact:** the run started about 25 minutes later than it could have; the owner was asked a question that was not needed; nothing recorded or changed (no mute change was made).
+- **Evidence:** the two readings in this session (muted=True, then muted=False after the fix).
+- **Correction / prevention:** verify a hand-written COM interface against the documented method order or a known state before relying on it for a stop decision.
+- **Owner approval:** not required.
