@@ -84,6 +84,13 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       window.scribeBridge!.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
     );
     await page.reload();
+    // The app shows its window at ready-to-show, and macOS moves and clamps a window when it first
+    // shows it, so a resize made before then is lost.
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()),
+      )
+      .toBe(true);
     for (const zoom of [2, 1]) {
       const window = await app.evaluate(({ BrowserWindow }, factor) => {
         const win = BrowserWindow.getAllWindows()[0]!;

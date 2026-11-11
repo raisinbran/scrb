@@ -10,8 +10,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Library } from '@scrb/storage';
+import { openTestLibrary } from '@scrb/storage/test-library';
 import type { FinalTranscript } from '@scrb/transcription';
 import {
   createFinalPassRunner,
@@ -69,7 +70,8 @@ function hashTree(dir: string): Record<string, string> {
   return hashes;
 }
 
-describe('final pass after Stop', () => {
+// Each pass makes many durable writes; Windows CI runs took up to 5.5 s.
+describe('final pass after Stop', { timeout: 15_000 }, () => {
   it('passes enabled vocabulary to the pass as a hint', async () => {
     library.vocabulary.remember({ term: 'Rosmont' });
     library.vocabulary.update(library.vocabulary.remember({ term: 'Quillon' }).id, {
@@ -89,10 +91,11 @@ describe('final pass after Stop', () => {
 
   beforeEach(async () => {
     root = mkdtempSync(join(tmpdir(), 'scrb-final-'));
-    library = await Library.open({ root: join(root, 'library') });
+    library = await openTestLibrary({ root: join(root, 'library') });
+    // Vitest runs this only when the hook finished, so after a timed-out open it does not close
+    // the previous test's library again.
+    return () => library.close();
   });
-
-  afterEach(() => library.close());
 
   const sealedMeeting = async (title = 'Sync'): Promise<{ id: string; audio: string }> => {
     const { id } = await library.createMeeting({ title, status: 'finalPassRunning' });

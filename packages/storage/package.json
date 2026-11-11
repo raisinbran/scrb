@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22.12.0" },
-  "exports": { ".": "./src/index.ts" },
+  "exports": { ".": "./src/index.ts", "./test-library": "./src/test-library.ts" },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"

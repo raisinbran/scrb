@@ -2,8 +2,9 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
+import { openTestLibrary } from '@scrb/storage/test-library';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 
@@ -14,11 +15,12 @@ describe('createMeetingHandlers', () => {
   let handlers: CallHandlers;
 
   beforeEach(async () => {
-    library = await Library.open({ root: mkdtempSync(join(tmpdir(), 'scrb-meetings-')) });
+    library = await openTestLibrary({ root: mkdtempSync(join(tmpdir(), 'scrb-meetings-')) });
     handlers = createMeetingHandlers(library);
+    // Vitest runs this only when the hook finished, so after a timed-out open it does not close
+    // the previous test's library again.
+    return () => library.close();
   });
-
-  afterEach(() => library.close());
 
   const call = (
     name:
@@ -261,7 +263,7 @@ describe('createMeetingHandlers', () => {
       expect(await library.readTranscript(unrelatedId)).toEqual(unrelated);
       expect(library.vocabulary.list()).toEqual(terms);
       expect(library.voiceProfiles.list()).toEqual([profile]);
-    });
+    }, 15_000);
 
     it.each(['status', 'revision'] as const)('refuses split after %s changes', async (change) => {
       const meetingId = await seed();

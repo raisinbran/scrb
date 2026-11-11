@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library, type TranscriptFile } from '@scrb/storage';
+import { openTestLibrary } from '@scrb/storage/test-library';
 import {
   APPROVED_EMBEDDING_SHA256,
   APPROVED_PROFILE_MODEL,
@@ -78,11 +79,13 @@ describe('verified profile recognition', () => {
   let root: string;
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'scrb-p4a-'));
-    library = await Library.open({ root: join(root, 'library') });
+    library = await openTestLibrary({ root: join(root, 'library') });
+    // Vitest runs this only when the hook finished, so after a timed-out open it does not close
+    // the previous test's library again.
+    return () => library.close();
   });
-  afterEach(async () => {
+  afterEach(() => {
     vi.restoreAllMocks();
-    await library.close();
   });
   const profile = (overrides = {}) =>
     library.voiceProfiles.create({
