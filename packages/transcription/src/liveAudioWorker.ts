@@ -626,6 +626,9 @@ export class LiveAudioWorker {
         });
       } else throw new Error('Unexpected live reply');
     } catch {
+      // Optional speaker metadata must not restart the worker delivering transcript words.
+      if (raw && typeof raw === 'object' && (raw as Record<string, unknown>).type === 'attribution')
+        return;
       this.fail(run);
     }
   }
