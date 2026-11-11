@@ -262,7 +262,9 @@ def placement_range(low_s, high_s, mapping):
     # Both readings stay possible: the continuous view (no displacement) and the timestamped view, whose
     # signed displacement is cumulative gaps minus overlaps and audited overruns. A negative displacement
     # (overlap or overrun) places the word EARLIER than the continuous time; a gap places it later.
-    low = min(min(0, r['timestamp_displacement_samples']) for r in rows)
+    # Where the audited excess sits inside its own chunk is unknown, so units in that chunk may already be
+    # displaced by all of it; later chunks carry it in the displacement. Only the lower bound moves.
+    low = min(min(0, r['timestamp_displacement_samples']-r['decoded_overrun_samples']) for r in rows)
     high = max(max(r['cumulative_gap_samples'], r['timestamp_displacement_samples']) for r in rows)
     return [low_s+low/rate, high_s+high/rate]
 
