@@ -103,6 +103,7 @@
 .toolbar,
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
   align-items: flex-end;
   margin-bottom: var(--space-3);
@@ -413,7 +414,7 @@
 
 .panel {
   flex: 1;
-  min-height: 0;
+  min-height: 200px;
   overflow-y: auto;
 }
 

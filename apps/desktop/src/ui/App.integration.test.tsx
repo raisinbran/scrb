@@ -63,6 +63,19 @@ describe('screens working together on the mock', () => {
     vi.useRealTimers();
   });
 
+  it('preserves editor focus through incoming live text', async () => {
+    await renderApp();
+    await startRecording();
+    fireEvent.doubleClick(firstWord(), { detail: 2 });
+    await advance(0);
+    const editor = screen.getByLabelText('Correct text');
+    editor.focus();
+    fireEvent.change(editor, { target: { value: 'Invented correction' } });
+    await advance(3000);
+    expect(document.activeElement).toBe(editor);
+    expect((editor as HTMLInputElement).value).toBe('Invented correction');
+  });
+
   it('shows a Live correction in Recordings and Vocabulary, also after the final pass', async () => {
     await renderApp();
     await startRecording();

@@ -1,11 +1,52 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { BackendData } from '../lib/use-backend-data.ts';
 import styles from './Screen.module.css';
 
+/**
+ * Restore the heading when a screen opens with nothing focused, or when the focused control is
+ * removed. Focus the user left on the body, for example by clicking blank space, stays there.
+ */
+export function useFocusFallback() {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const lastFocused = useRef<Element | null>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    const track = (event: FocusEvent) => {
+      lastFocused.current = event.target as Element;
+    };
+    // Chromium also fires focusout when a focused element is removed, so release the element only
+    // if it is still in the page after the current task's script has finished.
+    // A programmatic blur followed by removal in the same task cannot be told apart from
+    // removal-caused blur, so it falls back to the heading.
+    const release = (event: FocusEvent) => {
+      const target = event.target as Element;
+      queueMicrotask(() => {
+        if (target.isConnected && lastFocused.current === target) lastFocused.current = null;
+      });
+    };
+    document.addEventListener('focusin', track);
+    document.addEventListener('focusout', release);
+    return () => {
+      document.removeEventListener('focusin', track);
+      document.removeEventListener('focusout', release);
+    };
+  }, []);
+  useEffect(() => {
+    const lost =
+      !opened.current || (lastFocused.current !== null && !lastFocused.current.isConnected);
+    opened.current = true;
+    if (lost && document.activeElement === document.body) heading.current?.focus();
+  });
+  return heading;
+}
+
 export function Screen({ title, children }: { title: string; children: ReactNode }) {
+  const heading = useFocusFallback();
   return (
     <div className={styles.screen}>
-      <h1 className={styles.title}>{title}</h1>
+      <h1 ref={heading} className={styles.title} tabIndex={-1}>
+        {title}
+      </h1>
       {children}
     </div>
   );
