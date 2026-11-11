@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/scrb-core", "crates/scrb-protocol"]
+members = ["crates/scrb-core", "crates/scrb-protocol", "crates/scrb-transcript"]
 resolver = "3"
 
 [workspace.package]
