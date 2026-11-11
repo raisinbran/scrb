@@ -64,11 +64,15 @@ export async function readLiveSetup(
       speechLive: speech,
       vad: vadModel,
       speechFinal: '',
-      segmentation: '',
-      embedding: '',
+      segmentation: typeof models?.segmentation === 'string' ? models.segmentation : '',
+      embedding: typeof models?.embedding === 'string' ? models.embedding : '',
     };
     const setup: LiveSetup = {
-      tools: toolsIn('', { whisperServer: server, whisperVad: vadTool }),
+      tools: toolsIn('', {
+        whisperServer: server,
+        whisperVad: vadTool,
+        ...(typeof tools?.sherpaSidecar === 'string' ? { sherpaSidecar: tools.sherpaSidecar } : {}),
+      }),
       models: modelPaths,
       workerArgs: [workerEntry],
     };

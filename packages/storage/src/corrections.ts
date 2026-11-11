@@ -398,6 +398,23 @@ export function reassignSpeaker(
   });
 }
 
+/** Promotion changes only a model-owned placeholder label; user edits keep their own history. */
+function promoteLiveSpeakers(existing: Speaker[], incoming: Speaker[]): Speaker[] {
+  return existing.map((s) => {
+    const next = incoming.find((n) => n.id === s.id);
+    return next &&
+      /-live-[1-9][0-9]{0,8}$/.test(s.id) &&
+      s.label === 'Speaker ?' &&
+      !s.userNamed &&
+      s.name === null &&
+      s.profileId === null &&
+      s.mergedInto === null &&
+      /^Speaker [1-9][0-9]{0,8}$/.test(next.label)
+      ? { ...s, label: next.label }
+      : s;
+  });
+}
+
 /** Adds new model text. Live segments arrive per track, so order is restored here. */
 export function appendSegments(
   transcript: TranscriptFile,
@@ -408,7 +425,10 @@ export function appendSegments(
   return {
     ...transcript,
     segments: sortSegments([...transcript.segments, ...segments]),
-    speakers: [...transcript.speakers, ...speakers.filter((s) => !known.has(s.id))],
+    speakers: [
+      ...promoteLiveSpeakers(transcript.speakers, speakers),
+      ...speakers.filter((s) => !known.has(s.id)),
+    ],
   };
 }
 
@@ -797,7 +817,10 @@ export function replaceLiveSegments(
   const allIncoming = { segments: incoming.segments, speakers: [] };
   try {
     const next = mergeModel(transcript, kept, replaced, allIncoming);
-    return { ...next, speakers: [...transcript.speakers, ...speakers] };
+    return {
+      ...next,
+      speakers: [...promoteLiveSpeakers(transcript.speakers, incoming.speakers ?? []), ...speakers],
+    };
   } catch (error) {
     if (error instanceof CorrectionConflictError) return transcript;
     throw error;

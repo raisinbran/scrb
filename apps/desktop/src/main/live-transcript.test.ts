@@ -319,3 +319,87 @@ it('rejects live words after final transcription', async () => {
   await sink.stop();
   expect((await library.readTranscript(id)).segments.map((s) => s.pass)).toEqual(['final']);
 });
+
+it('atomically splits attributed words, promotes model labels, publishes replacements and preserves owner names', async () => {
+  const { library, id } = await setup();
+  const emit = vi.fn();
+  const original = { ...segment(), track: 'meeting' as const };
+  const save = async (input: TimedLiveSegment) => {
+    const sink = new LiveTranscriptSink(library, id, emit);
+    sink.offer(input);
+    await sink.stop();
+    return library.readTranscript(id);
+  };
+  const initial = await save(original);
+  const attributed = {
+    ...original,
+    wordSpeakers: [
+      { id: 'session-1-live-1', label: 'Speaker ?' },
+      { id: 'session-1-live-2', label: 'Speaker ?' },
+    ],
+  };
+  const split = await save(attributed);
+  expect(split.segments.map((s) => s.speakerId)).toEqual(['session-1-live-1', 'session-1-live-2']);
+  expect(split.segments.flatMap((s) => s.words)).toEqual(initial.segments[0]!.words);
+  const promoted = await save({
+    ...attributed,
+    wordSpeakers: attributed.wordSpeakers.map((s, i) => ({ ...s, label: `Speaker ${i + 1}` })),
+  });
+  expect(promoted.speakers.filter((s) => s.id.includes('-live-')).map((s) => s.label)).toEqual([
+    'Speaker 1',
+    'Speaker 2',
+  ]);
+  expect(emit.mock.calls.filter(([name]) => name === 'transcriptChanged').at(-1)![1]).toMatchObject(
+    {
+      revision: promoted.revision,
+      change: { kind: 'replace' },
+      speakers: expect.arrayContaining([expect.objectContaining({ label: 'Speaker 1' })]),
+    },
+  );
+  await library.renameSpeaker(id, 'session-1-live-1', 'Owner name');
+  const renamed = await save({
+    ...attributed,
+    wordSpeakers: attributed.wordSpeakers.map((s) => ({ ...s, label: 'Speaker 9' })),
+  });
+  expect(renamed.speakers.find((s) => s.id === 'session-1-live-1')!.name).toBe('Owner name');
+});
+
+it('preserves a frozen correction and history when attribution splits the parent segment', async () => {
+  const { library, id } = await setup();
+  const input = { ...segment(), track: 'meeting' as const };
+  let sink = new LiveTranscriptSink(library, id, vi.fn());
+  sink.offer(input);
+  await sink.stop();
+  const initial = await library.readTranscript(id);
+  const frozen = initial.segments[0]!.words[0]!.id;
+  await library.applyCorrection(id, { wordIds: [frozen], replacement: 'owner edit' });
+  const corrected = await library.readTranscript(id);
+  sink = new LiveTranscriptSink(library, id, vi.fn());
+  sink.offer({
+    ...input,
+    wordSpeakers: [
+      { id: 'session-1-live-1', label: 'Speaker 1' },
+      { id: 'session-1-live-2', label: 'Speaker 2' },
+    ],
+  });
+  await sink.stop();
+  const after = await library.readTranscript(id);
+  expect(after.corrections).toEqual(corrected.corrections);
+  expect(after.undoStack).toEqual(corrected.undoStack);
+  expect(after.redoStack).toEqual(corrected.redoStack);
+  await library.undo(id);
+  expect(
+    resolveDisplay(await library.readTranscript(id)).flatMap((s) => s.tokens.map((t) => t.text)),
+  ).toEqual(['hello', 'world']);
+  await library.redo(id);
+  expect(
+    resolveDisplay(await library.readTranscript(id)).flatMap((s) => s.tokens.map((t) => t.text)),
+  ).toEqual(['owner edit', 'world']);
+  expect(resolveDisplay(after).flatMap((s) => s.tokens.map((t) => t.text))).toEqual([
+    'owner edit',
+    'world',
+  ]);
+  expect(after.segments.flatMap((s) => s.words).map((w) => w.id)).toEqual(
+    initial.segments[0]!.words.map((w) => w.id),
+  );
+});
