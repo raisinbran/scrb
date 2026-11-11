@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
@@ -133,6 +133,18 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    it('focuses the heading after deleting a term', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      const remove = await screen.findByRole('button', { name: 'Delete Kestrel API' });
+      remove.focus();
+      fireEvent.click(remove);
+      const confirm = screen.getByRole('button', { name: 'Delete term' });
+      confirm.focus();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(screen.queryByText('Kestrel API')).toBeNull());
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' }));
+    });
+
     it('shows the empty state', async () => {
       backend.setTerms([]);
       renderScreen(backend, <VocabularyScreen />);
