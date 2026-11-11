@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BackendEvents } from '@scrb/contracts';
-import { Library } from '@scrb/storage';
+import { openTestLibrary } from '@scrb/storage/test-library';
 import { ImportCoordinator } from './imports.ts';
 import type { ImportResult } from '@scrb/app-core';
 import { PlaybackMedia } from './playback-media.ts';
@@ -18,7 +18,7 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'scrb-playback-deletion-'));
   let date = new Date('2026-01-01T00:00:00Z');
-  const library = await Library.open({ root, now: () => date });
+  const library = await openTestLibrary({ root, now: () => date });
   const events: BackendEvents['playbackPosition'][] = [];
   let emitFailure: 'throw' | 'reject' | undefined;
   const playback = new PlaybackMedia(

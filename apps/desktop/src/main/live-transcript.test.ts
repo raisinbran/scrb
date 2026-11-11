@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Library, resolveDisplay } from '@scrb/storage';
+import { openTestLibrary } from '@scrb/storage/test-library';
 import type { TimedLiveSegment } from '@scrb/transcription';
 import { LiveTranscriptSink } from './live-transcript.ts';
 
@@ -16,7 +17,7 @@ afterEach(async () => {
 async function setup() {
   const root = await mkdtemp(join(tmpdir(), 'scrb-bridge-'));
   roots.push(root);
-  const library = await Library.open({ root });
+  const library = await openTestLibrary({ root });
   libraries.push(library);
   const meeting = await library.createMeeting({ title: 'Invented speech', date: '2026-11-01' });
   return { library, id: meeting.id };

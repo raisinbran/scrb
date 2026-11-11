@@ -14,6 +14,7 @@ import { emptyTranscript, TRANSCRIPT_FORMAT } from '../src/formats/transcript.ts
 import { upgradeDocument } from '../src/formats/versioned.ts';
 import { meetingFolderName } from '../src/layout.ts';
 import { Library } from '../src/library.ts';
+import { openTestLibrary } from '../src/test-library.ts';
 import { resolveDisplay } from '../src/corrections.ts';
 import { tempDir, words } from './helpers.ts';
 
@@ -48,7 +49,7 @@ const summaryV1 = {
 
 async function libraryWithMeeting(): Promise<{ library: Library; id: string; root: string }> {
   const root = await tempDir();
-  const library = await Library.open({ root });
+  const library = await openTestLibrary({ root });
   const { id } = await library.createMeeting({ title: 'Sync', date: '2026-10-28' });
   return { library, id, root };
 }

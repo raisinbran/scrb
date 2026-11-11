@@ -356,8 +356,11 @@ describe('isolated live audio supervisor with invented processes', () => {
           worker.offer(f);
           f.samples.fill(999); // offer must own its copy, not borrow recording buffers.
           await Promise.resolve();
-          await vi.waitFor(() =>
-            expect(events.at(-1)).toMatchObject({ type: 'lag', queuedFrames: 0 }),
+          // Each frame makes a round trip through a real worker process, which a busy runner
+          // can hold past the 1 s default.
+          await vi.waitFor(
+            () => expect(events.at(-1)).toMatchObject({ type: 'lag', queuedFrames: 0 }),
+            { timeout: 10_000 },
           );
           if (track === 'mic' && i === 4) expect(events.at(-1)).toMatchObject({ lagMs: 300 });
         }

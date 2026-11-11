@@ -6,6 +6,7 @@ import { MeetingNotFoundError, StaleRevisionError } from '../src/errors.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
 import { Library, readLibraryLocation, writeLibraryLocation } from '../src/library.ts';
 import { Logger } from '../src/logs.ts';
+import { openTestLibrary } from '../src/test-library.ts';
 import { foldText } from '../src/search.ts';
 import { segment, speaker, tempDir, words } from './helpers.ts';
 
@@ -34,7 +35,7 @@ describe('crash during save', () => {
     'a crash at %s keeps the last saved transcript with its corrections',
     async (step) => {
       const root = await tempDir();
-      const library = await Library.open({ root });
+      const library = await openTestLibrary({ root });
       const { id, ids } = await seeded(library);
       const saved = await library.applyCorrection(id, {
         wordIds: ids.slice(3, 5),
@@ -64,7 +65,7 @@ describe('crash during save', () => {
 describe('corrections through the library', () => {
   it('survive restarts and a final pass, 100%', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, { wordIds: ids.slice(3, 5), replacement: 'John Smythe' });
     await library.close();
@@ -87,7 +88,7 @@ describe('corrections through the library', () => {
 
   it('keeps undo of a cross-segment correction through final pass and reopening', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const meeting = await library.createMeeting({ title: 'Synthetic two segments' });
     const a = words('ask jon', 0);
     const b = words('smith today', 1000);
@@ -116,7 +117,7 @@ describe('corrections through the library', () => {
   });
 
   it('a correction made while the final pass runs is kept', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const { id, ids } = await seeded(library);
     const edit = library.applyCorrection(id, { wordIds: ids.slice(0, 1), replacement: 'We' });
     const final = library.applyFinalPass(id, {
@@ -129,7 +130,7 @@ describe('corrections through the library', () => {
   });
 
   it('refuses a whole-file save from a stale copy', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const { id, ids } = await seeded(library);
     const stale = await library.readTranscript(id);
     await library.applyCorrection(id, { wordIds: ids.slice(0, 1), replacement: 'We' });
@@ -141,7 +142,7 @@ describe('corrections through the library', () => {
   });
 
   it('Remember correction feeds the vocabulary and follows undo and redo', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, {
       wordIds: ids.slice(3, 5),
@@ -165,7 +166,7 @@ describe('corrections through the library', () => {
 
 describe('vocabulary crash repair', () => {
   it('keeps no readable copy of a deleted term', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const term = library.vocabulary.remember({ term: 'Secret Project' });
     library.vocabulary.delete(term.id);
     expect(JSON.stringify(library.settings.all()).toLowerCase()).not.toContain('secret');
@@ -174,7 +175,7 @@ describe('vocabulary crash repair', () => {
 
   it('reconciles a missing link once and respects a deleted term', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, {
       wordIds: ids.slice(3, 5),
@@ -198,7 +199,7 @@ describe('vocabulary crash repair', () => {
 
   it('leaves a deliberately disabled term disabled during reconciliation', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id, ids } = await seeded(library);
     await library.applyCorrection(id, {
       wordIds: ids.slice(3, 5),
@@ -218,7 +219,7 @@ describe('vocabulary crash repair', () => {
 describe('index stays secondary', () => {
   it('never writes transcript text into the index', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id, ids } = await seeded(library, 'Sync', 'zebrafish quartermaster tangerine');
     await library.applyCorrection(id, {
       wordIds: ids.slice(0, 1),
@@ -233,7 +234,7 @@ describe('index stays secondary', () => {
 
   it('rebuilds a lost index from the folders', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id } = await seeded(library, 'Keep me');
     await library.close();
     await rm(path.join(root, 'index.sqlite'));
@@ -246,7 +247,7 @@ describe('index stays secondary', () => {
 
   it('repairs disagreements and keeps what it cannot read', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id } = await seeded(library, 'One');
     const { id: gone } = await seeded(library, 'Two');
     const meetingFile = library.meetingPaths(id).meta;
@@ -275,7 +276,7 @@ describe('index stays secondary', () => {
 
   it('follows a folder the user renamed, and survives moving the library', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id } = await seeded(library, 'Old name');
     const folder = library.meetingPaths(id).folder;
     await library.close();
@@ -291,7 +292,7 @@ describe('index stays secondary', () => {
 
   it('an interrupted import leaves nothing; an interrupted recording is kept and reported', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const importing = await library.createMeeting({
       title: 'Upload',
       source: 'imported',
@@ -315,7 +316,7 @@ describe('index stays secondary', () => {
 
   it('reports a final pass the app quit during, and keeps a failure reason', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const running = await library.createMeeting({ title: 'Long', status: 'finalPassRunning' });
     const failed = await library.createMeeting({ title: 'Failed', status: 'ready' });
     await library.updateMeeting(failed.id, {
@@ -334,7 +335,7 @@ describe('index stays secondary', () => {
 describe('delete', () => {
   it('removes folder, index entries, cache and links, and confirms it', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id, ids } = await seeded(library, 'Secret plans');
     const { id: other } = await seeded(library, 'Other');
     await library.applyCorrection(id, {
@@ -371,7 +372,7 @@ describe('delete', () => {
   it.each(['undo', 'redo'] as const)(
     'never recreates deleted meeting vocabulary through %s',
     async (direction) => {
-      const library = await Library.open({ root: await tempDir() });
+      const library = await openTestLibrary({ root: await tempDir() });
       const { id, ids } = await seeded(library);
       await library.applyCorrection(id, {
         wordIds: ids.slice(3, 5),
@@ -399,7 +400,7 @@ describe('delete', () => {
 
   it('deleting a voice profile zeroes its data on disk', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const marker = new Float32Array([1234.5678, 8765.4321, 1111.2222]);
     const profile = library.voiceProfiles.create({ modelId: 'm', embedding: marker });
     const needle = Buffer.from(marker.buffer);
@@ -413,7 +414,7 @@ describe('delete', () => {
     'reports failure when the folder cannot go, keeps the meeting, and a retry finishes',
     async () => {
       const root = await tempDir();
-      const library = await Library.open({ root });
+      const library = await openTestLibrary({ root });
       const { id } = await seeded(library);
       const meetings = path.join(root, 'meetings');
       await chmod(meetings, 0o555);
@@ -433,7 +434,7 @@ describe('delete', () => {
 
   itPosix('reports a cache file that would not go, and the next open sweeps it', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id } = await seeded(library);
     const cache = path.join(root, 'cache', id);
     await mkdir(cache);
@@ -452,7 +453,7 @@ describe('delete', () => {
 
   it('does not report an abandoned journal temporary file as a retained meeting copy', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id } = await seeded(library);
     await writeFile(path.join(root, 'index.sqlite.upgrade-state.json.tmp'), 'incomplete');
     expect(await library.deleteMeeting(id)).toEqual({ meetingId: id, ok: true, remaining: [] });
@@ -461,7 +462,7 @@ describe('delete', () => {
 
   it('does not verify a delete while an upgrade snapshot may retain the meeting', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id } = await seeded(library);
     const backup = path.join(root, 'index.sqlite.upgrade-synthetic');
     await writeFile(backup, await readFile(path.join(root, 'index.sqlite')));
@@ -482,7 +483,7 @@ describe('delete', () => {
 
   it('reports a copy of the meeting left in the library', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id } = await seeded(library);
     const copy = path.join(root, 'meetings', 'Copy of meeting');
     await mkdir(copy);
@@ -495,7 +496,7 @@ describe('delete', () => {
 
   it('a crash mid-delete is finished on the next open, not resurrected', async () => {
     const root = await tempDir();
-    let library = await Library.open({ root });
+    let library = await openTestLibrary({ root });
     const { id } = await seeded(library);
     const folder = library.meetingPaths(id).folder;
     await library.close();
@@ -509,7 +510,7 @@ describe('delete', () => {
   });
 
   it('rejects an index row that points outside the library', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const { id } = await seeded(library);
     const db = (
       library as unknown as { db: { prepare(sql: string): { run(...a: string[]): void } } }
@@ -520,7 +521,7 @@ describe('delete', () => {
   });
 
   it('refuses an unknown meeting', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     await expect(library.deleteMeeting('nope')).rejects.toBeInstanceOf(MeetingNotFoundError);
     await library.close();
   });
@@ -528,7 +529,7 @@ describe('delete', () => {
 
 describe('profile change undo', () => {
   it('restores a merged pair and its embeddings, but never undoes a permanent delete', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const store = library.voiceProfiles;
     const first = store.create({
       name: 'Invented one',
@@ -567,7 +568,7 @@ describe('auto-delete', () => {
     t: number;
   }): Promise<{ library: Library; old: string; young: string; root: string }> {
     const root = await tempDir();
-    const library = await Library.open({ root, now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root, now: () => new Date(clock.t) });
     const { id: old } = await seeded(library, 'Old');
     await writeFile(path.join(library.meetingPaths(old).audioMeeting, 'chunk.opus'), 'audio');
     clock.t += 20 * DAY;
@@ -635,7 +636,7 @@ describe('auto-delete', () => {
     ['1y', 365],
   ] as const)('%s fires at the boundary and not a moment before', async (period, days) => {
     const clock = { t: start };
-    const library = await Library.open({ root: await tempDir(), now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root: await tempDir(), now: () => new Date(clock.t) });
     await seeded(library);
     library.settings.setAutoDelete({ period, scope: 'meeting' });
     clock.t = start + days * DAY - 1;
@@ -647,7 +648,7 @@ describe('auto-delete', () => {
 
   it('counts from when an import arrived, not the old date on the file', async () => {
     const clock = { t: start };
-    const library = await Library.open({ root: await tempDir(), now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root: await tempDir(), now: () => new Date(clock.t) });
     await library.createMeeting({ title: 'Old file', date: '2019-05-05', source: 'imported' });
     library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
     expect(library.previewAutoDelete()).toEqual([]);
@@ -656,7 +657,7 @@ describe('auto-delete', () => {
 
   it('waits while recording and never touches unfinished meetings', async () => {
     const clock = { t: start };
-    const library = await Library.open({ root: await tempDir(), now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root: await tempDir(), now: () => new Date(clock.t) });
     const { id } = await seeded(library);
     const recording = await library.createMeeting({ title: 'Live', status: 'recording' });
     library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
@@ -673,7 +674,7 @@ describe('auto-delete', () => {
 
   it('runs on start and on its timer, and stops', async () => {
     const clock = { t: start };
-    const library = await Library.open({ root: await tempDir(), now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root: await tempDir(), now: () => new Date(clock.t) });
     await seeded(library);
     library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
     clock.t += 31 * DAY;
@@ -688,7 +689,7 @@ describe('auto-delete', () => {
 
   itPosix('a failed audio delete is reported and retried', async () => {
     const clock = { t: start };
-    const library = await Library.open({ root: await tempDir(), now: () => new Date(clock.t) });
+    const library = await openTestLibrary({ root: await tempDir(), now: () => new Date(clock.t) });
     const { id } = await seeded(library);
     const files = library.meetingPaths(id);
     await writeFile(path.join(files.audioMeeting, 'chunk.opus'), 'audio');
@@ -706,7 +707,7 @@ describe('auto-delete', () => {
 
 describe('search', () => {
   it('finds titles, dates and transcript text, with a playable time', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const a = await seeded(library, 'Budget review', 'nothing of note here', '2026-03-01');
     const b = await seeded(library, 'Standup', 'the budget slipped again today', '2026-04-02');
     await seeded(library, 'Lunch', 'sandwiches', '2026-05-03');
@@ -724,7 +725,7 @@ describe('search', () => {
   });
 
   it('searches corrected text, ignores case and accents, and crosses segments', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     const { id, ids } = await seeded(library, 'Sync', 'we met jon smith at the cafe');
     await library.applyCorrection(id, { wordIds: ids.slice(2, 4), replacement: 'Zoë Müller' });
     await library.appendSegments(id, [segment('s2', 'a', words('at noon', 100_000))]);
@@ -738,7 +739,7 @@ describe('search', () => {
   });
 
   it('treats wildcards as plain text, filters by date, skips damaged files', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     await seeded(library, '100% done', 'hello', '2026-01-01');
     const b = await seeded(library, 'Plain', 'hello', '2026-06-01');
     expect((await library.search('%')).results.map((r) => r.meeting.title)).toEqual(['100% done']);
@@ -752,7 +753,7 @@ describe('search', () => {
   });
 
   it('stops when cancelled, and leaves unfinished imports out', async () => {
-    const library = await Library.open({ root: await tempDir() });
+    const library = await openTestLibrary({ root: await tempDir() });
     await seeded(library, 'One', 'hello');
     const { id } = await library.createMeeting({
       title: 'hello',
@@ -794,7 +795,7 @@ describe('logs', () => {
 
   it('library activity leaks nothing into the logs', async () => {
     const root = await tempDir();
-    const library = await Library.open({ root });
+    const library = await openTestLibrary({ root });
     const { id, ids } = await seeded(
       library,
       'Confidential merger',
