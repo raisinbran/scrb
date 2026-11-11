@@ -1,0 +1,199 @@
+// @vitest-environment node
+import { describe, expect, it, vi } from 'vitest';
+import { emptyTranscript, type Library, type TranscriptFile } from '@scrb/storage';
+import { StaleRevisionError } from '@scrb/storage';
+import { SummaryCoordinator, type RunSummary } from './summaries.ts';
+
+function example() {
+  const transcript: TranscriptFile = emptyTranscript('invented-meeting');
+  transcript.revision = 7;
+  transcript.speakers = [
+    {
+      id: 'one',
+      label: 'Speaker One',
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+    },
+  ];
+  transcript.segments = [
+    {
+      id: 'seg-one',
+      speakerId: 'one',
+      track: 'meeting',
+      pass: 'final',
+      words: [{ id: 'word-one', text: 'Invented', startMs: 1000, endMs: 1500 }],
+    },
+  ];
+  const emit = vi.fn();
+  const save = vi.fn(async () => undefined);
+  const library = {
+    getMeeting: vi.fn(async () => ({ status: 'ready' })),
+    readTranscript: vi.fn(async () => transcript),
+    saveGeneratedSummary: save,
+  } as unknown as Library;
+  const run = vi.fn(async ({ progress }: Parameters<RunSummary>[0]) => {
+    progress(1, 2);
+    return {
+      schemaVersion: 1 as const,
+      sourceHash: 'invented-hash',
+      model: 'invented-model',
+      body: { length: 'brief' as const, paragraphs: ['Invented summary'] },
+      actions: [],
+      decisions: [],
+      impacts: [],
+      openQuestions: [],
+      warnings: [],
+    };
+  });
+  const recordingBusy = vi.fn(() => false);
+  const coordinator = new SummaryCoordinator(library, run, emit, recordingBusy);
+  return { library, emit, save, run, coordinator, recordingBusy };
+}
+
+describe('summary job coordination', () => {
+  it('refuses a different ready meeting while another meeting is recording', async () => {
+    const f = example();
+    f.recordingBusy.mockReturnValue(true);
+    await expect(
+      f.coordinator.handlers.generateSummary!({
+        meetingId: 'other-ready-meeting',
+        length: 'brief',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(f.library.getMeeting).not.toHaveBeenCalled();
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.save).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalled();
+  });
+
+  it('refuses if recording starts while checking the target meeting', async () => {
+    const f = example();
+    vi.mocked(f.library.getMeeting).mockImplementationOnce(async () => {
+      f.recordingBusy.mockReturnValue(true);
+      return { status: 'ready' } as Awaited<ReturnType<Library['getMeeting']>>;
+    });
+    await expect(
+      f.coordinator.handlers.generateSummary!({
+        meetingId: 'other-ready-meeting',
+        length: 'brief',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalled();
+  });
+
+  it('saves only a generated summary tied to the read transcript revision', async () => {
+    const f = example();
+    await f.coordinator.handlers.generateSummary!({
+      meetingId: 'invented-meeting',
+      length: 'brief',
+    });
+    await vi.waitFor(() =>
+      expect(f.emit).toHaveBeenCalledWith('summaryProgress', {
+        meetingId: 'invented-meeting',
+        stage: 'done',
+        fraction: 1,
+      }),
+    );
+    expect(f.save).toHaveBeenCalledWith(
+      'invented-meeting',
+      expect.objectContaining({
+        brief: { sections: [expect.objectContaining({ text: 'Invented summary' })] },
+      }),
+      7,
+    );
+    expect(f.run.mock.calls[0]?.[0].transcript.lines).toEqual([
+      {
+        startSec: 1,
+        speaker: 'Speaker One',
+        text: 'Invented',
+      },
+    ]);
+    await f.coordinator.shutdown();
+  });
+
+  it('fails safely when a transcript is revised during generation', async () => {
+    const f = example();
+    f.save.mockRejectedValueOnce(new StaleRevisionError(7, 8));
+    await f.coordinator.handlers.generateSummary!({
+      meetingId: 'invented-meeting',
+      length: 'full',
+    });
+    await vi.waitFor(() =>
+      expect(f.emit).toHaveBeenCalledWith('summaryProgress', {
+        meetingId: 'invented-meeting',
+        stage: 'failed',
+        fraction: 0,
+        message: 'Transcript changed while generating. Retry the summary.',
+      }),
+    );
+    await f.coordinator.shutdown();
+  });
+
+  it('cancels active summary generation before recording begins', async () => {
+    const f = example();
+    f.run.mockImplementationOnce(async ({ signal }) => {
+      await new Promise<never>((_resolve, reject) => {
+        if (signal.aborted) reject(new Error('cancelled'));
+        else signal.addEventListener('abort', () => reject(new Error('cancelled')), { once: true });
+      });
+      throw new Error('unreachable');
+    });
+    await f.coordinator.handlers.generateSummary!({
+      meetingId: 'invented-meeting',
+      length: 'brief',
+    });
+    await vi.waitFor(() => expect(f.run).toHaveBeenCalledOnce());
+    await f.coordinator.stopForRecording();
+    expect(f.run.mock.calls[0]?.[0].signal.aborted).toBe(true);
+    expect(f.save).not.toHaveBeenCalled();
+    expect(f.emit).not.toHaveBeenCalledWith(
+      'summaryProgress',
+      expect.objectContaining({
+        stage: 'done',
+      }),
+    );
+    expect(f.emit).toHaveBeenLastCalledWith(
+      'summaryProgress',
+      expect.objectContaining({
+        stage: 'failed',
+        message: 'Recording took priority. Retry the summary.',
+      }),
+    );
+  });
+
+  it('refuses overlapping generation instead of running two large models', async () => {
+    const f = example();
+    let finish!: () => void;
+    f.run.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      return {
+        schemaVersion: 1,
+        sourceHash: 'invented',
+        model: 'invented',
+        body: { length: 'brief', paragraphs: ['Invented'] },
+        actions: [],
+        decisions: [],
+        impacts: [],
+        openQuestions: [],
+        warnings: [],
+      };
+    });
+    await f.coordinator.handlers.generateSummary!({
+      meetingId: 'invented-meeting',
+      length: 'brief',
+    });
+    await expect(
+      f.coordinator.handlers.generateSummary!({
+        meetingId: 'invented-meeting',
+        length: 'brief',
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    finish();
+    await f.coordinator.shutdown();
+  });
+});

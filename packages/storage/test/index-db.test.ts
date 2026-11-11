@@ -165,6 +165,27 @@ describe('index migrations', () => {
     expect(await readdir(root)).toEqual(['index.sqlite']);
   });
 
+  it('preserves an invalid recovery journal and the live index for manual review', async () => {
+    const root = await tempDir();
+    const file = path.join(root, 'index.sqlite');
+    const original = new DatabaseSync(file);
+    migrate(original, MIGRATIONS, 5);
+    original.prepare('INSERT INTO settings VALUES (?, ?)').run('theme', '"dark"');
+    original.close();
+    const before = await readFile(file);
+    const journalPath = `${file}.upgrade-state.json`;
+    const corruptJournal = '{"attemptId":';
+    await writeFile(journalPath, corruptJournal);
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+    expect(await readFile(file)).toEqual(before);
+    expect(await readFile(journalPath, 'utf8')).toBe(corruptJournal);
+    await expect(openIndex(file)).rejects.toMatchObject({
+      code: 'INDEX_RECOVERY_REQUIRED',
+    });
+  });
+
   it('preserves an unowned partial index rather than guessing it is disposable', async () => {
     const file = path.join(await tempDir(), 'index.sqlite');
     const old = new DatabaseSync(file);
@@ -481,6 +502,56 @@ describe('settings', () => {
 });
 
 describe('vocabulary', () => {
+  it('keeps shared misheard text until its last owning correction is forgotten', async () => {
+    const { db } = await openIndex(':memory:');
+    try {
+      const vocabulary = new VocabularyStore(db, now);
+      const first = vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm1', correctionId: 'c1' },
+      });
+      vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm2', correctionId: 'c2' },
+      });
+      vocabulary.forgetCorrection('c1', 'invented ack me');
+      expect(vocabulary.get(first.id)).toMatchObject({
+        misheard: ['invented ack me'],
+        contexts: [{ meetingId: 'm2', correctionId: 'c2' }],
+      });
+      vocabulary.forgetCorrection('c2', 'invented ack me');
+      expect(vocabulary.get(first.id)).toBeNull();
+    } finally {
+      db.close();
+    }
+  });
+
+  it('preserves manually contributed misheard text after both corrections are undone', async () => {
+    const { db } = await openIndex(':memory:');
+    try {
+      const vocabulary = new VocabularyStore(db, now);
+      const term = vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm1', correctionId: 'c1' },
+      });
+      vocabulary.remember({
+        term: 'Invented Acme',
+        misheard: ['invented ack me'],
+        context: { meetingId: 'm2', correctionId: 'c2' },
+      });
+      vocabulary.remember({ term: 'Invented Acme', misheard: ['invented ack me'] });
+      vocabulary.forgetCorrection('c1', '');
+      vocabulary.forgetCorrection('c2', '');
+      expect(vocabulary.get(term.id)?.misheard).toEqual(['invented ack me']);
+      expect(vocabulary.get(term.id)?.contexts).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
   it('adds, merges, edits, disables and deletes', async () => {
     const { db } = await openIndex(':memory:');
     const vocabulary = new VocabularyStore(db, now);

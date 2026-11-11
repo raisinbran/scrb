@@ -13,3 +13,4 @@ coverage/
 *.onnx
 *.bin
 phase0/artifacts/capture/macos/long4h*
+apps/desktop/e2e/pdf-printer-test-bundle.cjs

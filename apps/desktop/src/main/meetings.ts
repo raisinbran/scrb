@@ -47,6 +47,7 @@ import {
   type TranscriptFile,
 } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
+import type { SummaryCoordinator } from './summaries.ts';
 
 const NS_PER_MS = 1e6;
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
@@ -277,6 +278,7 @@ export function createMeetingHandlers(
   emit?: Emit,
   openPath?: (path: string) => Promise<string>,
   finalPasses: FinalPassQueue | null = null,
+  summaries: SummaryCoordinator | null = null,
 ): CallHandlers {
   const retrying = new Set<string>();
   return {
@@ -541,6 +543,33 @@ export function createMeetingHandlers(
         throw error;
       }
     },
+    splitSpeaker: async (request) => {
+      const { meetingId, range, newLabel } = request as {
+        meetingId: string;
+        range: WordRange;
+        newLabel: string;
+      };
+      await requireMeeting(library, meetingId);
+      const before = await library.readTranscript(meetingId);
+      try {
+        const { transcript: after, speakerId } = await library.splitSpeaker(
+          meetingId,
+          selectedWordIds(before, range),
+          newLabel,
+        );
+        publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
+        return { speakerId };
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) {
+          throw new ContractError({
+            code: 'conflict',
+            message: 'The selected words or speaker changed. Select them again.',
+          });
+        }
+        throw error;
+      }
+    },
     deleteProfile: async (request) => {
       const { profileId } = request as { profileId: string };
       if (!library.voiceProfiles.get(profileId)) {
@@ -615,22 +644,23 @@ export function createMeetingHandlers(
     searchMeetings: async (request) => {
       const { query, filter } = request as { query: string; filter?: MeetingFilter };
       // Storage UTC-date prefiltering would discard meetings on a local midnight boundary.
-      const found = await library.search(query, { hitsPerMeeting: 5 });
-      return found.results
-        .filter((result) => matchesMeetingFilter(toListItem(result.meeting), filter))
-        .map((result) => ({
-          meeting: toListItem(result.meeting),
-          matches: [
-            ...(result.matchedIn.includes('title or date')
-              ? [{ segmentId: null, startMs: null, snippet: null }]
-              : []),
-            ...result.hits.map((hit) => ({
-              segmentId: hit.segmentId,
-              startMs: hit.startMs,
-              snippet: hit.snippet,
-            })),
-          ],
-        }));
+      const found = await library.search(query, {
+        hitsPerMeeting: 5,
+        includeRow: (row) => matchesMeetingFilter(toListItem(row), filter),
+      });
+      return found.results.map((result) => ({
+        meeting: toListItem(result.meeting),
+        matches: [
+          ...(result.matchedIn.includes('title or date')
+            ? [{ segmentId: null, startMs: null, snippet: null }]
+            : []),
+          ...result.hits.map((hit) => ({
+            segmentId: hit.segmentId,
+            startMs: hit.startMs,
+            snippet: hit.snippet,
+          })),
+        ],
+      }));
     },
     openMeetingFolder: async (request) => {
       const { meetingId, folder } = request as {
@@ -687,7 +717,11 @@ export function createMeetingHandlers(
     getSummary: async (request) => {
       const { meetingId } = request as { meetingId: string };
       await requireMeeting(library, meetingId);
-      return toSummaryDoc(meetingId, await library.readSummary(meetingId));
+      return toSummaryDoc(
+        meetingId,
+        await library.readSummary(meetingId),
+        summaries?.isGenerating(meetingId) ?? false,
+      );
     },
     updateSummaryItem: async (request) => {
       const { meetingId, update } = request as {

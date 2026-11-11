@@ -26,7 +26,8 @@ async function run(name, source, act) {
   createInterface({ input: worker.stdout }).on('line', (line) => {
     const message = JSON.parse(line);
     if (message.type === 'ack') acks.get(message.id)?.(message);
-    else if (message.event !== 'health') events.push({ at: performance.now() - startedAt, ...message });
+    else if (message.event !== 'health')
+      events.push({ at: performance.now() - startedAt, ...message });
   });
   let id = 0;
   const send = (fields) =>
@@ -35,7 +36,13 @@ async function run(name, source, act) {
       acks.set(`c${id}`, resolve);
       worker.stdin.write(`${JSON.stringify({ id: `c${id}`, ...fields })}\n`);
     });
-  const open = { name: 'open', sessionId: 's', outputDir: work, source: source(player), mic: 'default' };
+  const open = {
+    name: 'open',
+    sessionId: 's',
+    outputDir: work,
+    source: source(player),
+    mic: 'default',
+  };
   console.log(name, 'open', JSON.stringify(await send(open)));
   await send({ name: 'start' });
   startedAt = performance.now();
@@ -45,10 +52,18 @@ async function run(name, source, act) {
   await sleep(300);
   const sealed = await sealAudio(join(work, 'audio'), async () => false);
   console.log(name, 'outcome', sealed.outcome, 'timeline ms', ms(sealed.endNs));
-  for (const event of events) console.log(' event', Math.round(event.at), event.event, event.track ?? '', event.message ?? '');
+  for (const event of events)
+    console.log(
+      ' event',
+      Math.round(event.at),
+      event.event,
+      event.track ?? '',
+      event.message ?? '',
+    );
   if (stoppedAt !== undefined) console.log(' stopped at', Math.round(stoppedAt));
   for (const gap of sealed.gaps)
-    if (gap.endNs - gap.startNs > 1e6) console.log(' gap', gap.kind, gap.track, ms(gap.startNs), ms(gap.endNs - gap.startNs));
+    if (gap.endNs - gap.startNs > 1e6)
+      console.log(' gap', gap.kind, gap.track, ms(gap.startNs), ms(gap.endNs - gap.startNs));
   for (const [track, value] of Object.entries(sealed.tracks)) {
     const audio = value.chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
     console.log(' ', track, 'chunks', value.chunks.length, 'audio ms', ms(audio));
@@ -77,11 +92,15 @@ const quiet = async (send, player) => {
   player.kill();
   await sleep(25_000);
 };
-await run('reopen-fails', (player) => [player.pid], async (send) => {
-  await sleep(3000);
-  await send({ name: 'selectMic', mic: 'no-such-device' });
-  await sleep(11_000);
-});
+await run(
+  'reopen-fails',
+  (player) => [player.pid],
+  async (send) => {
+    await sleep(3000);
+    await send({ name: 'selectMic', mic: 'no-such-device' });
+    await sleep(11_000);
+  },
+);
 await run('sound-ends-followed', (player) => [player.pid], quiet);
 await run('sound-ends-whole', () => [], quiet);
 process.exit(0);

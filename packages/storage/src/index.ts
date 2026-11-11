@@ -33,3 +33,5 @@ export type { TermInput, VocabularyContextRef, VocabularyTerm } from './db/vocab
 export { VoiceProfileStore } from './db/voice-profiles.ts';
 export type { VoiceProfile } from './db/voice-profiles.ts';
 export { INDEX_VERSION } from './db/migrations.ts';
+
+export { atomicWriteFile } from './atomic.ts';
