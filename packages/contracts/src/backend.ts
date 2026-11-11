@@ -57,6 +57,7 @@ import type {
   SummaryLength,
   SummaryProgress,
   TermId,
+  TrackKind,
   TranscriptChanged,
   TranscriptPage,
   TranscriptionLag,
@@ -128,6 +129,19 @@ export interface BackendCalls {
   seekAudio: { request: { meetingId: MeetingId; positionMs: number }; response: void };
   /** @addition */
   pauseAudio: { request: { meetingId: MeetingId }; response: void };
+  /**
+   * @addition
+   * Short-lived `scribe-media:` URLs for at most one sealed chunk per track at or after
+   * `positionMs`, during the playback `seekAudio` started. Never a file path. `nextPositionMs` is
+   * the next playable boundary, skipping gaps; null when no more saved audio follows.
+   */
+  getPlaybackMedia: {
+    request: { meetingId: MeetingId; positionMs: number };
+    response: {
+      chunks: Array<{ track: TrackKind; startMs: number; endMs: number; url: string }>;
+      nextPositionMs: number | null;
+    };
+  };
 
   // Speakers
   /** @addition */
@@ -331,6 +345,7 @@ const CALL_TABLE: Record<CallName, true> = {
   redo: true,
   seekAudio: true,
   pauseAudio: true,
+  getPlaybackMedia: true,
   listProfiles: true,
   getProfileUndoState: true,
   undoProfileChange: true,

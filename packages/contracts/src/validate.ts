@@ -275,6 +275,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   redo: meeting,
   seekAudio: shape({ meetingId: id, positionMs: ms }),
   pauseAudio: meeting,
+  getPlaybackMedia: shape({ meetingId: id, positionMs: ms }),
 
   listProfiles: nothing,
   getProfileUndoState: nothing,

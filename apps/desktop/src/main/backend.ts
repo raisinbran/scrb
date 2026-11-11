@@ -1,7 +1,10 @@
-import { app, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
 import path from 'node:path';
 import {
+  createConfiguredImportRunner,
   createFinalPassRunner,
+  startProfileMatching,
+  LargeModelGate,
   createSettingsHandlers,
   FinalPassQueue,
   resumeFinalPasses,
@@ -12,11 +15,16 @@ import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
-import { createMeetingHandlers } from './meetings.ts';
+import { createMeetingHandlers, publishEdit } from './meetings.ts';
+import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
+import { readLiveSetup } from './live-feed.ts';
+import { ImportCoordinator } from './imports.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
+  /** Null when no library opened, so there is no audio to serve. */
+  playback: PlaybackMedia | null;
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
@@ -31,7 +39,9 @@ export async function openBackend(
   try {
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
+    const playback = new PlaybackMedia(library, emit);
     const settings = createSettingsHandlers(library.settings, root);
+    const modelGate = new LargeModelGate();
     library.setMeetingChangedListener((meeting) =>
       emit('meetingChanged', {
         id: meeting.id,
@@ -50,10 +60,26 @@ export async function openBackend(
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig))
+        ? new FinalPassQueue(
+            library,
+            createFinalPassRunner(finalPassConfig),
+            modelGate,
+            undefined,
+            (before, after) => publishEdit(before, after, emit),
+          )
         : null;
+    // Live inference stays opt-in and disabled in packaged builds.
+    const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
+    const livePlatform = process.platform === 'darwin' || process.platform === 'win32';
+    const liveSetup =
+      livePlatform && helper && liveConfig
+        ? await readLiveSetup(liveConfig, path.join(__dirname, 'liveWorkerEntry.mjs'))
+        : null;
+    if (liveConfig && !liveSetup && livePlatform)
+      library.logger.log('error', 'live-config-unavailable', {});
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
+    let imports: ImportCoordinator | null = null;
     const recording = helper
       ? new RecordingController(
           library,
@@ -69,10 +95,62 @@ export async function openBackend(
             const region = app.getLocaleCountryCode() || null;
             return needsPrivacyBanner(settings.getSettings().location, rules, region);
           },
+          liveSetup,
+          async () => {
+            await imports?.stopForRecording();
+          },
         )
       : null;
-    const stopRetention = library.startAutoDeleteSchedule();
+    imports = finalPassConfig
+      ? new ImportCoordinator({
+          library,
+          chooseFile: async () => {
+            const picked = await dialog.showOpenDialog({
+              properties: ['openFile'],
+              filters: [
+                {
+                  name: 'Audio files',
+                  extensions: ['wav', 'mp3', 'm4a', 'flac', 'opus', 'ogg'],
+                },
+              ],
+            });
+            return picked.canceled ? null : (picked.filePaths[0] ?? null);
+          },
+          run: createConfiguredImportRunner(finalPassConfig),
+          startMatching: (store) => {
+            const match = startProfileMatching(store);
+            return async (...args) => {
+              const edit = await match(...args);
+              if (edit) {
+                try {
+                  publishEdit(edit.before, edit.after, emit);
+                } catch {
+                  store.logger.log('warn', 'profile-matching-notification-failed', {});
+                }
+              }
+              return edit;
+            };
+          },
+          beforeDelete: (meetingId) => playback.revokeMeeting(meetingId),
+          recordingBusy: () => recording?.isBusy() ?? false,
+          privacyBanner: async () => {
+            const rules = await privacyJurisdictions(library.paths.root);
+            return needsPrivacyBanner(
+              settings.getSettings().location,
+              rules,
+              app.getLocaleCountryCode() || null,
+            );
+          },
+          emit,
+          modelGate,
+        })
+      : null;
+    if (imports) await imports.recoverInterrupted();
+    const stopRetention = library.startAutoDeleteSchedule(undefined, (meetingId) =>
+      playback.revokeMeeting(meetingId),
+    );
     return {
+      playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
         getAppInfo: async () => ({
@@ -85,12 +163,14 @@ export async function openBackend(
         }),
         // An empty list is explicit until redistribution licenses are verified.
         getLicenses: async () => [],
-        // Real import jobs are not wired into the main process yet.
-        listImports: async () => [],
+        listImports: async () => imports?.list() ?? [],
+        ...imports?.handlers,
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        ...createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ...playback.wrap(
+          createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ),
         ...recording?.handlers,
       },
       warning: library.retainedIndexSnapshot
@@ -99,7 +179,9 @@ export async function openBackend(
           ? null
           : 'The index needs review; all original files were preserved.',
       close: async () => {
+        playback.stop();
         stopRetention();
+        await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
         await recording?.shutdown();
@@ -115,6 +197,7 @@ export async function openBackend(
         folder: await readLibraryLocation(app.getPath('userData'), fallback),
       },
       handlers: {},
+      playback: null,
       warning:
         code === 'INDEX_SPACE'
           ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'

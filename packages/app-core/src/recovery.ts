@@ -196,11 +196,39 @@ function readLogLines<T>(path: string): T[] {
 }
 
 interface SessionEvent {
-  event: 'open' | 'restart' | 'pause' | 'resume' | 'pauseFailed';
+  event: 'open' | 'restart' | 'pause' | 'resume' | 'pauseFailed' | 'stop';
   wholeComputer?: boolean;
   followApp?: string;
   atNs: number;
   seq: number;
+}
+
+/** Only a complete final log line proves that the user explicitly stopped recording. */
+function terminalStopNs(audioDir: string): number | null {
+  const path = join(audioDir, 'session.log');
+  if (!existsSync(path)) return null;
+  const content = readFileSync(path, 'utf8');
+  if (!content.endsWith('\n')) return null;
+  const start = content.lastIndexOf('\n', content.length - 2) + 1;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content.slice(start, -1));
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const record = parsed as Record<string, unknown>;
+  if (
+    record['event'] !== 'stop' ||
+    typeof record['commandId'] !== 'string' ||
+    !record['commandId'].trim() ||
+    !Number.isSafeInteger(record['atNs']) ||
+    (record['atNs'] as number) < 0 ||
+    !Number.isSafeInteger(record['seq']) ||
+    (record['seq'] as number) <= 0
+  )
+    return null;
+  return record['atNs'] as number;
 }
 
 /** Paused spans the session log confirms. A pause with no resume runs to the end of the meeting. */
@@ -385,13 +413,16 @@ export async function sealAudio(
   });
   const present = sealed.flatMap(([track, value]) => (value ? [[track, value] as const] : []));
   const restarts = restartTimes(audioDir);
-  // The meeting ran at least until the last restart, even if no audio was saved after it.
-  const endNs = Math.max(0, ...present.map(([, value]) => value.endNs), ...restarts);
-  // A track with no audio cannot show how the recording ended, so it does not decide.
-  const withAudio = present.filter(([, value]) => value.chunks.length > 0);
+  const stopNs = terminalStopNs(audioDir);
+  const endNs = Math.max(0, ...present.map(([, value]) => value.endNs), ...restarts, stopNs ?? 0);
+  // Existing sealed outcomes cannot be upgraded by a later log entry.
+  const alreadySealed =
+    !logsPresent &&
+    present.length > 0 &&
+    present.every(([track]) => existsSync(join(audioDir, track, 'chunks.json')));
   const stopped =
-    withAudio.length > 0 &&
-    withAudio.every(([, value]) => value.chunks.at(-1)?.closeReason === 'stop');
+    present.length > 0 &&
+    (alreadySealed ? present.every(([, value]) => value.endedBy === 'stop') : stopNs !== null);
   const paused = pausedSpans(audioDir, endNs);
 
   const wholeComputer = readLogLines<SessionEvent>(join(audioDir, 'session.log')).some(
@@ -402,7 +433,11 @@ export async function sealAudio(
   const gaps: AudioSpan[] = paused.map((span) => ({ kind: 'paused', track: 'both', ...span }));
   for (const [track, value] of present) {
     const found = trackGaps(track, value.chunks, paused, restarts);
-    if (value.chunks.length === 0 || (value.endNs < endNs - MIN_GAP_NS && !stopped)) {
+    const permissionLost = value.chunks.at(-1)?.closeReason === 'permission';
+    if (
+      value.chunks.length === 0 ||
+      (value.endNs < endNs - MIN_GAP_NS && (!stopped || permissionLost))
+    ) {
       found.push({ kind: 'audioMissing', track, startNs: value.endNs, endNs });
     }
     if (track === 'meeting' && wholeComputer) {
@@ -412,7 +447,9 @@ export async function sealAudio(
         const streamFailed = value.chunks.some(
           (chunk) => chunk.startNs === gap.endNs && KNOWN_LOSS_REASONS.has(chunk.openReason),
         );
-        if (gap.kind === 'audioMissing' && !workerDown && !streamFailed) {
+        const knownPermissionLoss =
+          permissionLost && gap.startNs === value.endNs && gap.endNs === endNs;
+        if (gap.kind === 'audioMissing' && !workerDown && !streamFailed && !knownPermissionLoss) {
           gap.kind = 'possiblyMissing';
         }
       }

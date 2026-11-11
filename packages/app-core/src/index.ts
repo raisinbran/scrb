@@ -6,3 +6,7 @@ export * from './recovery.ts';
 export * from './final-pass.ts';
 export * from './privacy.ts';
 export * from './vocabulary-hints.ts';
+
+export * from './large-model-gate.ts';
+
+export * from './profile-matching.ts';

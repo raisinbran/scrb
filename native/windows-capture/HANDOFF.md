@@ -1,5 +1,26 @@
 # Windows capture adapter: handoff
 
+## Phase 3 live PCM integration
+
+The optional Windows feed is implemented on
+`rosmont/phase3-windows-native-feed-20261101`. Launch the helper with
+`--live-pipe \\.\pipe\NAME` after the application creates a byte-mode named-pipe
+server. Decode the stream with `PcmFrameDecoder` and offer each frame to one new
+`LiveAudioWorker` for that helper process. A helper restart requires a new pipe,
+decoder and worker because native sequences and generations restart.
+
+The pipe is live-only. EOF, broken pipe, backpressure and worker failure must
+close the decoder/worker without stopping the helper or durable writer. Stop
+the native input first, let the helper flush its converter tail and boundary,
+then close the worker independently. The helper never waits for the reader.
+
+Windows verification uses `LivePcmTests.exe` plus
+`scripts/live_worker_acceptance.mjs`. The acceptance script starts the real PR
+#23 supervisor and dispatcher with an invented local timed-word model host. It
+does not establish Whisper/VAD model quality because approved Windows model
+executables are absent. No macOS implementation, UI or shared interface changes
+belong in this branch.
+
 Branch `windows-capture`, cut from 3fc9931.  State and results: `README.md`.
 
 Remaining for this phase: nothing on this PC.  Still needed elsewhere:

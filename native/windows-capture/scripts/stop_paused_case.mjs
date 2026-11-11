@@ -42,12 +42,22 @@ async function round(n, player) {
   await sleep(1500);
   const cutoff = (await send('p', { name: 'pause' })).atNs;
   await sleep(1000);
-  const stopped = (await send('x', { name: 'stop' })).atNs;
+  const explicitStop = n < rounds;
+  const ack = explicitStop ? await send('x', { name: 'stop' }) : null;
+  if (!explicitStop) worker.stdin.end();
   await exited;
 
   let leaks = 0;
-  if (stopped - cutoff < 900e6) {
-    console.log(n, 'stop ack took the pause time', stopped - cutoff);
+  if (explicitStop && !ack?.ok) leaks += 1;
+  const log = readFileSync(join(out, 'audio', 'session.log'), 'utf8');
+  const lastEvent = JSON.parse(log.slice(log.lastIndexOf('\n', log.length - 2) + 1, -1));
+  const marked = log.endsWith('\n') && lastEvent.event === 'stop' && lastEvent.commandId === 'x';
+  if (marked !== explicitStop || (marked && lastEvent.atNs !== ack?.atNs)) {
+    console.log(n, 'explicit Stop marker mismatch', lastEvent);
+    leaks += 1;
+  }
+  if (explicitStop && ack.atNs - cutoff < 900e6) {
+    console.log(n, 'stop ack took the pause time', ack.atNs - cutoff);
     leaks += 1;
   }
   for (const track of ['meeting', 'microphone']) {
@@ -80,6 +90,7 @@ let leaks = 0;
 try {
   await sleep(500);
   for (let n = 0; n < rounds; n += 1) leaks += await round(n, player);
+  leaks += await round(rounds, player);  // stdin EOF is not an explicit Stop
 } finally {
   spawnSync('taskkill', ['/PID', String(player.pid), '/T', '/F'], { stdio: 'ignore' });
   if (!wasMuted) execFileSync(mute, ['off']);
