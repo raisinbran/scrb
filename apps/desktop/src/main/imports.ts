@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
+  startProfileMatching,
   vocabularyHint,
   type LargeModelGate,
   type ImportResult,
@@ -25,6 +26,7 @@ type RunImport = (input: {
   meetingDir: string;
   signal: AbortSignal;
   vocabularyHint?: string;
+  onEmbeddingModel?: (path: string) => void;
   onProgress: (progress: Progress<ImportPhase>) => void;
 }) => Promise<ImportResult>;
 
@@ -35,8 +37,10 @@ export interface ImportDependencies {
   recordingBusy(): boolean;
   privacyBanner(): Promise<boolean>;
   emit: Emit;
+  beforeDelete?: (meetingId: string) => void;
   removeStaging?: ((folder: string) => Promise<void>) | undefined;
   modelGate?: LargeModelGate;
+  startMatching?: typeof startProfileMatching;
 }
 
 const IMPORT_STAGE_NAME =
@@ -169,6 +173,14 @@ export class ImportCoordinator {
       payload: unknown;
     } | null = null;
     let cleanupIncomplete = false;
+    let coreCommitted = false;
+    let modelPath: string | undefined;
+    let matching: ReturnType<typeof startProfileMatching> | undefined;
+    try {
+      matching = (this.deps.startMatching ?? startProfileMatching)(library);
+    } catch {
+      library.logger.log('warn', 'profile-matching-skipped', { reason: 'snapshot-failed' });
+    }
     try {
       await mkdir(stageRoot, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
@@ -178,6 +190,9 @@ export class ImportCoordinator {
           meetingDir: staging,
           signal: abort.signal,
           vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
+          onEmbeddingModel: (path) => {
+            modelPath = path;
+          },
           onProgress: (progress) => {
             state.stage = STAGES[progress.phase];
             state.fraction = Math.max(0, Math.min(1, progress.fraction));
@@ -210,10 +225,20 @@ export class ImportCoordinator {
       await library.applyFinalPass(meetingId, toModelReplacement(result.transcript));
       if (abort.signal.aborted) throw new Error('cancelled');
       await library.updateMeeting(meetingId, { status: 'ready' });
+      coreCommitted = true;
       terminal = { event: 'importFinished', payload: { importId: state.importId, meetingId } };
+      if (matching) {
+        try {
+          await matching(meetingId, result.transcript, modelPath, abort.signal);
+        } catch {
+          library.logger.log('warn', 'profile-matching-skipped', { reason: 'optional-failure' });
+        }
+      }
     } catch (error) {
+      if (coreCommitted) throw error;
       if (meetingId !== null) {
         try {
+          this.deps.beforeDelete?.(meetingId);
           const report = await library.discardImport(meetingId);
           if (!report.ok) {
             cleanupIncomplete = true;

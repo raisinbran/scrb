@@ -13,10 +13,16 @@ import { unit } from '../src/speakers.js';
 const at = (score: number): number[] => [score, Math.sqrt(1 - score * score)];
 
 const profile = (over: Partial<VoiceProfile> = {}): VoiceProfile => ({
-  id: 'p1', name: 'Ada', embedding: [1, 0], segments: 20, ...over,
+  id: 'p1',
+  name: 'Ada',
+  embedding: [1, 0],
+  segments: 20,
+  ...over,
 });
 const voice = (score: number, speakerId = 's1'): MeetingVoice => ({
-  speakerId, embedding: at(score), segments: 10,
+  speakerId,
+  embedding: at(score),
+  segments: 10,
 });
 
 describe('matchVoices', () => {
@@ -73,9 +79,29 @@ describe('profileChanges', () => {
 describe('growProfile', () => {
   it('weights by segments and stays unit length', () => {
     const grown = growProfile(profile({ segments: 30 }), {
-      speakerId: 's', embedding: [0, 1], segments: 10,
+      speakerId: 's',
+      embedding: [0, 1],
+      segments: 10,
     });
     expect(grown.embedding).toEqual(unit([0.75, 0.25]));
     expect(Math.hypot(...grown.embedding)).toBeCloseTo(1);
   });
+});
+
+// Characterization: equal scores preserve input order; any larger score wins.
+describe('claim ordering', () => {
+  it.each([
+    [0.8, 0.8, 'first'],
+    [0.8, 0.8 + Number.EPSILON, 'second'],
+    [0.8 + Number.EPSILON, 0.8, 'first'],
+  ] as const)('orders claims at %s and %s', (first, second, winner) => {
+    const matches = matchVoices([voice(first, 'first'), voice(second, 'second')], [profile()]);
+    expect(matches.get(winner)?.kind).toBe('auto');
+    expect(matches.get(winner === 'first' ? 'second' : 'first')?.kind).toBe('suggest');
+  });
+});
+
+it('keeps the first equally scoring profile', () => {
+  const matches = matchVoices([voice(0.8)], [profile({ id: 'first' }), profile({ id: 'second' })]);
+  expect(matches.get('s1')).toMatchObject({ kind: 'auto', profileId: 'first' });
 });

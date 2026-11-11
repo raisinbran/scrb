@@ -1,0 +1,11 @@
+Matcher under test: current worktree matcher
+
+test_broad_provenance_cannot_confirm_repeats (test_review_fixes.TestReviewFixes.test_broad_provenance_cannot_confirm_repeats)
+Reject exact credit from source spans shared by both repeated occurrences. ... ok
+test_clock_boundary (test_occurrence_matcher.TestOccurrenceMatcher.test_clock_boundary)
+Bound publication overlapping the last-word start through clock uncertainty. ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK

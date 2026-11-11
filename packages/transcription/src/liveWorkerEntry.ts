@@ -4,6 +4,14 @@ import { pcmToWav } from './audio.js';
 import { LivePcmEngine } from './livePcmEngine.js';
 import { PcmFrameDecoder } from './livePcmProtocol.js';
 import { requestLiveWords, type VadSpan } from './whisper.js';
+import { openLiveTrace, type TraceFields } from './liveTrace.js';
+
+const trace = openLiveTrace(
+  process.env['SCRB_LIVE_TRACE_DIR'],
+  process.env['SCRB_LIVE_TRACE_SESSION'] ?? '',
+  'worker',
+  Number(process.env['SCRB_LIVE_TRACE_RUN'] ?? 0),
+);
 
 /** PCM travels on stdin; only bounded transcript/control metadata travels on Node IPC. */
 const send = (message: object): void => {
@@ -23,6 +31,8 @@ function stop(): void {
   stopped = true;
   abort.abort();
   engine?.close();
+  trace?.record('run_stop', { reason: 'stopped' });
+  void trace?.close();
   process.stdin.destroy();
   process.disconnect?.();
 }
@@ -57,14 +67,25 @@ process.on('message', (raw: unknown) => {
       },
       (segment) => send({ type: 'segment', segment }),
       (gap) => send({ type: 'skipped', gap }),
+      trace,
     );
     decoder = new PcmFrameDecoder((frame) => {
       if (busy) throw new Error('Live input credit exceeded');
       busy = true;
+      const context: TraceFields = {
+        track: frame.track,
+        sequence: frame.sequence,
+        generation: frame.generation,
+        startNs: frame.startNs,
+        endNs: frame.startNs + frame.samples.length * 62_500,
+        more: frame.more === true,
+      };
+      trace?.record('frame_start', context);
       process.stdin.pause();
       void engine!
         .push(frame)
         .then(() => {
+          trace?.record('frame_end', context);
           if (!stopped) {
             busy = false;
             if (Date.now() - statsAtMs >= STATS_EVERY_MS) {
@@ -81,6 +102,7 @@ process.on('message', (raw: unknown) => {
           }
         })
         .catch(() => {
+          trace?.record('run_failed', { ...context, reason: 'failed' });
           send({ type: 'failed' });
           stop();
         });

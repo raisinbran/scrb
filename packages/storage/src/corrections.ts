@@ -269,6 +269,22 @@ function replaceSpeakers(
   return pushHistory({ ...transcript, speakers }, label, { speakers: patches });
 }
 
+export function assignSpeakerProfiles(
+  transcript: TranscriptFile,
+  assignments: { speakerId: string; profileId: string; name: string }[],
+): TranscriptFile {
+  return replaceSpeakers(
+    transcript,
+    'Recognize speakers',
+    assignments.map((assignment) => ({
+      ...findSpeaker(transcript, assignment.speakerId),
+      profileId: assignment.profileId,
+      name: assignment.name,
+      userNamed: false,
+    })),
+  );
+}
+
 export function renameSpeaker(
   transcript: TranscriptFile,
   speakerId: string,

@@ -19,7 +19,7 @@ const GRANT_GRACE_MS = 30_000;
 const MEDIA_PATH = /^\/([0-9a-f]{64})\/(microphone|meeting)\/(\d{6,}\.opus)$/;
 const RANGE = /^bytes=(\d+)-(\d*)$/;
 
-type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
+type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void | Promise<void>;
 type LibraryAccess = Pick<Library, 'getMeeting' | 'meetingPaths'>;
 
 interface Session {
@@ -63,9 +63,7 @@ export class PlaybackMedia {
         this.media(request as { meetingId: string; positionMs: number }),
       ...(remove && {
         deleteMeeting: async (request) => {
-          if (this.session?.meetingId === (request as { meetingId: string }).meetingId) {
-            this.stop();
-          }
+          this.revokeMeeting((request as { meetingId: string }).meetingId);
           return remove(request);
         },
       }),
@@ -141,16 +139,27 @@ export class PlaybackMedia {
     });
   }
 
-  private pause(meetingId: string): void {
+  private pause(meetingId: string): void | Promise<void> {
     this.turn += 1;
     const session = this.session?.meetingId === meetingId ? this.session : null;
     const positionMs = session ? this.position(session) : 0;
     if (session) this.stop();
-    this.emit('playbackPosition', {
+    return this.emit('playbackPosition', {
       meetingId,
       positionMs: Math.round(positionMs),
       isPlaying: false,
     });
+  }
+
+  /** Stops this meeting in the renderer as well as revoking its media grants. */
+  revokeMeeting(meetingId: string): void {
+    if (this.session?.meetingId !== meetingId) return;
+    try {
+      // pause revokes synchronously; renderer notification must never prevent deletion.
+      void Promise.resolve(this.pause(meetingId)).catch(() => {});
+    } catch {
+      this.stop();
+    }
   }
 
   /** Revokes every URL at once. Safe when nothing plays. */
