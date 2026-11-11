@@ -362,7 +362,6 @@ describe('LiveScreen', () => {
       await startMeeting();
       const seek = vi.spyOn(backend, 'call');
       const word = words()[2] as HTMLElement;
-      clickWord(word);
       fireEvent.mouseDown(word, { detail: 2 });
       fireEvent.mouseUp(word, { detail: 2 });
       fireEvent.doubleClick(word, { detail: 2 });
@@ -396,6 +395,20 @@ describe('LiveScreen', () => {
       expect(selected()).toEqual(expected);
       expect(input.isConnected).toBe(true);
       expect(input.value).toBe('typed while recording');
+    });
+
+    it('keeps a mouse selection and the scroll position through 60 seconds of text', async () => {
+      await startMeeting();
+      const [first, second] = words() as [HTMLElement, HTMLElement];
+      const expected = [first.textContent, second.textContent];
+      dragAcross(first, second);
+      const view = transcript();
+      view.scrollTop = 40;
+
+      await advance(60_000);
+
+      expect(selected()).toEqual(expected);
+      expect(view.scrollTop).toBe(40);
     });
 
     it('applies a correction, then undoes and redoes it', async () => {
