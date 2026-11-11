@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "basis": "Retained D2 native Opus decode/span audit; timestamped legacy view clips to declared end, sample-continuous view retains every decoded sample. No generic count tolerance.",
+  "overruns": [
+    {
+      "track": "microphone",
+      "metadata_sha256": "c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290",
+      "source_sha256": "86198be2632f2435a0044ee702401601a9d1e5af520916186b738a6d8d9f4571",
+      "seq": 32,
+      "rate": 48000,
+      "declared_samples": 47520,
+      "decoded_samples": 47688,
+      "overrun_samples": 168,
+      "audit_reference": "practice-d2-codex-timeline-comparison-20261109/timeline-comparison.json microphone chunks[32]"
+    },
+    {
+      "track": "microphone",
+      "metadata_sha256": "fa595b9d5e75ccf04b6424c4e7fc423d1cca15c06652ec58a75ca16d525a2bd1",
+      "source_sha256": "418e75c4c1f60fa28d7e197955eae1042d9ecf6d4251fa7eafc8b3be3a80f41a",
+      "seq": 47,
+      "rate": 48000,
+      "declared_samples": 239040,
+      "decoded_samples": 239688,
+      "overrun_samples": 648,
+      "audit_reference": "docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md (approved at 08e9478); scored-run-2 microphone chunks.json seq 47"
+    }
+  ]
+}

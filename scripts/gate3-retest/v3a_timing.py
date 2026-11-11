@@ -1,0 +1,852 @@
+"""Offline Protocol v3a evidence views, finite timing intervals and long anchors.
+
+No resampling, affine fitting, sample deletion or capture changes occur here.
+The bounded long-correlation path reuses the interior audit criteria unchanged.
+Ambiguous anchors are unsupported; exact PCM matching remains explicitly available.
+"""
+import array
+import hashlib
+import json
+import math
+from pathlib import Path
+import struct
+import subprocess
+import sys
+import wave
+
+
+def finite(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def pcm16(path):
+    with wave.open(str(path), 'rb') as stream:
+        require(stream.getsampwidth() == 2 and stream.getnchannels() == 1
+                and stream.getcomptype() == 'NONE', 'Expected mono PCM16')
+        rate = stream.getframerate()
+        samples = array.array('h', stream.readframes(stream.getnframes()))
+    if sys.byteorder != 'little':
+        samples.byteswap()
+    return samples, rate
+
+
+def opus_tags(raw):
+    """Read laced Ogg packets, rejecting duplicate tags rather than overwriting."""
+    cursor = 0
+    packet = bytearray()
+    found = None
+    while cursor < len(raw):
+        require(raw[cursor:cursor+4] == b'OggS', 'Invalid Ogg page')
+        require(cursor+27 <= len(raw), 'Truncated Ogg header')
+        count = raw[cursor+26]
+        sizes = raw[cursor+27:cursor+27+count]
+        require(len(sizes) == count, 'Truncated Ogg lacing')
+        cursor += 27+count
+        for size in sizes:
+            require(cursor+size <= len(raw), 'Truncated Ogg packet')
+            packet.extend(raw[cursor:cursor+size])
+            cursor += size
+            if size < 255:
+                if packet.startswith(b'OpusTags'):
+                    require(found is None, 'Duplicated OpusTags record')
+                    data = bytes(packet)
+                    offset = 8
+                    def number():
+                        nonlocal offset
+                        require(offset+4 <= len(data), 'Truncated OpusTags number')
+                        result = struct.unpack_from('<I', data, offset)[0]
+                        offset += 4
+                        return result
+                    def field():
+                        nonlocal offset
+                        length = number()
+                        require(offset+length <= len(data), 'Truncated OpusTags field')
+                        result = data[offset:offset+length]
+                        offset += length
+                        return result
+                    field()
+                    found = {}
+                    for _ in range(number()):
+                        key, sep, value = field().decode('utf-8').partition('=')
+                        require(sep and key not in found, 'Missing or duplicated timestamp/tag record')
+                        found[key] = value
+                packet.clear()
+    require(not packet and found is not None, 'Missing or incomplete OpusTags')
+    return found
+
+
+def capture_clock_fields(records, track, metadata_sha256):
+    """Carry preserved clock evidence; do not integrate observer publications."""
+    sessions = {r.get('session_id') for r in records if r.get('session_id') is not None}
+    complete = all(r.get('device_stamp_ns') is not None and r.get('session_id') is not None for r in records)
+    origins = {r['device_stamp_ns']-r['start_ns'] for r in records if r.get('device_stamp_ns') is not None}
+    origin = next(iter(origins)) if complete and len(origins) == 1 and len(sessions) == 1 else None
+    session = next(iter(sessions)) if len(sessions) == 1 else None
+    identity = {'track': track, 'session_id': session, 'chunks_metadata_sha256': metadata_sha256,
+                'ordered_source_sha256': [r['source_sha256'] for r in records]}
+    identity['sha256'] = hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return {'schema_version': 1, 'session_id': session, 'session_origin_ns': origin,
+            'origin_status': 'RECONSTRUCTED_CONSTANT' if origin is not None else 'UNAVAILABLE_OR_INCONSISTENT',
+            'origin_method': 'SCRB_DEVICE_STAMP_NS minus embedded START_NS; constant across every chunk; not a retained start ACK',
+            'origin_evidence_chunks': len(records) if origin is not None else 0,
+            'qpc_basis': {'capture_clock': 'QueryPerformanceCounter-derived monotonic nanoseconds',
+                          'capture_units': 'ns', 'nanoseconds_per_second': 1000000000,
+                          'raw_qpc_frequency_hz': None, 'observer_clock': 'Stopwatch.GetTimestamp',
+                          'observer_frequency_hz': None, 'observer_integration': 'NOT_IMPLEMENTED'},
+            'track_identity': identity, 'observer_to_scorer_integration': 'NOT_IMPLEMENTED'}
+
+
+def audited_overrun(record, track, rate, metadata_sha256, declared):
+    policy = json.loads(Path(__file__).with_name('audited_decode_spans.json').read_text(encoding='utf-8-sig'))
+    for row in policy['overruns']:
+        if (row['track'] == track and row['rate'] == rate and row['metadata_sha256'] == metadata_sha256
+                and row['source_sha256'] == record['source_sha256'] and row['seq'] == record['seq']
+                and row['declared_samples'] == declared and row['decoded_samples'] == record['decoded_samples']):
+            return row['overrun_samples']
+    return 0
+
+
+def gap_map(records, track, rate, metadata_sha256):
+    """Validate a complete ordered inventory, retaining each source identity.
+
+    start_ns is embedded START_NS; metadata_start_ns/end_ns are the independent
+    chunk index. Counts are decoded frames at the native rate, never declared
+    duration substituted for decoded frames.
+    """
+    require(track in ('microphone', 'meeting') and isinstance(rate, int) and rate > 0,
+            'Invalid track/rate')
+    require(bool(records), 'Missing chunk records')
+    continuous = 0
+    previous_end = 0
+    previous_start = -1
+    cumulative_gaps = 0
+    cumulative_overruns = 0
+    seen = set()
+    rows = []
+    for seq, record in enumerate(records):
+        source = record['source_sha256']
+        require(isinstance(source, str) and len(source) == 64
+                and all(c in '0123456789abcdef' for c in source), 'Missing source identity')
+        require(source not in seen and record['seq'] == seq, 'Missing or duplicated chunk record')
+        seen.add(source)
+        for key in ('start_ns', 'metadata_start_ns', 'metadata_end_ns', 'decoded_samples'):
+            require(type(record[key]) is int and record[key] >= 0, 'Invalid timestamp/sample-count record')
+        require(record['start_ns'] == record['metadata_start_ns'], 'Inconsistent embedded timestamp')
+        start = round(record['start_ns']*rate/1e9)
+        end = round(record['metadata_end_ns']*rate/1e9)
+        count = record['decoded_samples']
+        overrun = audited_overrun(record, track, rate, metadata_sha256, end-start)
+        require(count > 0 and end > start and count-(end-start) == overrun,
+                'Inconsistent timestamp/sample-count record outside audited span allowance')
+        require(start > previous_start, 'Reordered or duplicated embedded timestamps')
+        gap = max(0, start-previous_end)
+        overlap = max(0, previous_end-start)
+        cumulative_gaps += gap
+        cumulative_overruns += overrun
+        rows.append({**record, 'continuous_start_sample': continuous,
+                     'continuous_end_sample': continuous+count,
+                     'timestamped_start_sample': start, 'timestamped_end_sample': end,
+                     'gap_before_samples': gap, 'overlap_before_samples': overlap,
+                     'decoded_overrun_samples': overrun, 'cumulative_overrun_samples': cumulative_overruns,
+                     'timestamp_displacement_samples': start-continuous,
+                     'cumulative_gap_samples': cumulative_gaps})
+        continuous += count
+        previous_end = max(previous_end, end)
+        previous_start = start
+    return {'schema_version': 2, 'valid': True, 'track': track, 'rate': rate, 'metadata_sha256': metadata_sha256,
+            'chunks': rows, 'decoded_samples': continuous, 'timestamped_samples': previous_end,
+            'clock_context': capture_clock_fields(records, track, metadata_sha256),
+            'audited_overrun_samples': cumulative_overruns,
+            'timestamped_view_policy': 'original audit declared windows; overrun clipped and overlaps last-chunk-wins only in legacy view',
+            'definition': 'Gaps are union intervals with no assigned samples; overlaps remain explicit and never subtract gaps. Continuous samples are never trimmed.'}
+
+
+def load_views(metadata_path, decoder, track):
+    """Decode original Opus chunks once, without resampling or writing audio."""
+    metadata_path = Path(metadata_path)
+    metadata_bytes = metadata_path.read_bytes()
+    metadata_sha = hashlib.sha256(metadata_bytes).hexdigest()
+    meta = json.loads(metadata_bytes.decode('utf-8-sig'))
+    records, blocks = [], []
+    rate = None
+    inventory = meta['chunks']
+    require(inventory and len({row['file'] for row in inventory}) == len(inventory),
+            'Missing or duplicated chunk file record')
+    actual = {p.name for p in metadata_path.parent.glob('*.opus')}
+    require(actual == {row['file'] for row in inventory}, 'Missing/unindexed chunk record')
+    for row in inventory:
+        path = (metadata_path.parent/row['file']).resolve()
+        require(path.parent == metadata_path.parent.resolve(), 'Chunk path escaped track directory')
+        raw = path.read_bytes()
+        tags = opus_tags(raw)
+        chunk_rate = int(tags['RATE'])
+        if rate is None:
+            rate = chunk_rate
+        require(chunk_rate == rate and int(tags['SEQUENCE']) == row['seq'], 'Inconsistent chunk rate/sequence')
+        require(tags.get('TRACK', track) == track, 'Embedded track identity mismatch')
+        require(not records or tags.get('SESSION') == records[0].get('session_id'), 'Embedded session identity mismatch')
+        decoded = subprocess.run([str(decoder), '-nostdin', '-v', 'error', '-protocol_whitelist',
+                                  'file,pipe', '-i', str(path), '-map', '0:a:0', '-f', 'wav',
+                                  '-acodec', 'pcm_s16le', '-'], capture_output=True, check=True).stdout
+        # A pipe WAV can declare an unknown frame count; wave reads the actual bytes.
+        import io
+        with wave.open(io.BytesIO(decoded), 'rb') as stream:
+            require(stream.getnchannels() == 1 and stream.getframerate() == rate
+                    and stream.getsampwidth() == 2, 'Decoder changed native format')
+            block = array.array('h', stream.readframes(stream.getnframes()))
+        if sys.byteorder != 'little':
+            block.byteswap()
+        require(hashlib.sha256(path.read_bytes()).hexdigest() == hashlib.sha256(raw).hexdigest(),
+                'Source changed during decode')
+        blocks.append(block)
+        records.append({'seq': row['seq'], 'source_file': row['file'],
+                        'source_sha256': hashlib.sha256(raw).hexdigest(),
+                        'start_ns': int(tags['START_NS']), 'metadata_start_ns': row['startNs'],
+                        'metadata_end_ns': row['endNs'], 'decoded_samples': len(block),
+                        'session_id': tags.get('SESSION'), 'embedded_track': tags.get('TRACK'),
+                        'device_stamp_ns': int(tags['SCRB_DEVICE_STAMP_NS']) if 'SCRB_DEVICE_STAMP_NS' in tags else None,
+                        'wall_utc': tags.get('SCRB_WALL_UTC')})
+    require(digest(metadata_path) == metadata_sha, 'Chunk inventory changed during decode')
+    try:
+        mapping = gap_map(records, track, rate, metadata_sha)
+        require(round(meta['endNs']*rate/1e9) == mapping['timestamped_samples'], 'Inconsistent final timestamp')
+    except (ValueError, KeyError, TypeError) as error:
+        # Preserve the original audit adapter only as separately labelled legacy
+        # evidence. Its declared-end clipping never enters a v3a timing interval.
+        total = round(meta['endNs']*rate/1e9)
+        require(total >= 0, 'Invalid legacy recording extent')
+        legacy = array.array('h', [0])*total
+        continuous = array.array('h')
+        for record, block in zip(records, blocks):
+            continuous.extend(block)
+            start = round(record['metadata_start_ns']*rate/1e9)
+            end = min(start+len(block), round(record['metadata_end_ns']*rate/1e9), total)
+            require(0 <= start <= end <= total, 'Invalid legacy timestamp placement')
+            legacy[start:end] = block[:end-start]
+        return continuous, legacy, {'valid': False, 'track': track, 'rate': rate,
+             'metadata_sha256': metadata_sha, 'chunks': records, 'error': str(error),
+             'original_view_basis': 'original-v3 legacy adapter: timestamp placement and declared-end clipping',
+             'timestamped_capture_view': 'INCONCLUSIVE: no validated all-sample placement',
+             'clock_context': capture_clock_fields(records, track, metadata_sha)}
+    continuous = array.array('h')
+    timestamped = array.array('h', [0])*mapping['timestamped_samples']
+    for record, block in zip(mapping['chunks'], blocks):
+        continuous.extend(block)
+        a, b = record['timestamped_start_sample'], record['timestamped_end_sample']
+        timestamped[a:b] = block[:b-a]
+    return continuous, timestamped, mapping
+
+
+def placement_range(low_s, high_s, mapping):
+    """Timestamped placements possible for a continuous range [low_s, high_s].
+
+    Overlaps make the signed displacement non-monotonic, so every chunk that intersects the whole
+    range is examined, not only the chunks at its two ends. At a boundary the following sample
+    belongs after the gap.
+    """
+    require(finite(low_s) and finite(high_s) and 0 <= low_s <= high_s <= mapping['decoded_samples']/mapping['rate'],
+            'Unsupported continuous placement')
+    rate = mapping['rate']
+    first, last = low_s*rate, high_s*rate
+    rows = [r for r in mapping['chunks']
+            if r['continuous_start_sample'] <= last and r['continuous_end_sample'] > first] or [mapping['chunks'][-1]]
+    # Both readings stay possible: the continuous view (no displacement) and the timestamped view, whose
+    # signed displacement is cumulative gaps minus overlaps and audited overruns. A negative displacement
+    # (overlap or overrun) places the word EARLIER than the continuous time; a gap places it later.
+    # Where the audited excess sits inside its own chunk is unknown, so units in that chunk may already be
+    # displaced by all of it; later chunks carry it in the displacement. Only the lower bound moves.
+    low = min(min(0, r['timestamp_displacement_samples']-r['decoded_overrun_samples']) for r in rows)
+    high = max(max(r['cumulative_gap_samples'], r['timestamp_displacement_samples']) for r in rows)
+    return [low_s+low/rate, high_s+high/rate]
+
+
+def placement_interval(seconds, mapping):
+    return placement_range(seconds, seconds, mapping)
+
+
+def match_long(recording, source, rate, anchor):
+    """Validate a unique, nonflat, >=1 s long-utterance exact PCM match.
+
+    This narrow validated matcher rejects route/noise differences. Feasibility
+    correlation peaks have no approved calibration and cannot enter scoring.
+    """
+    require(anchor.get('short') is False, 'Short-word matching is forbidden')
+    keys = ('source_start_sample', 'source_end_sample', 'search_start_sample', 'search_end_sample')
+    require(all(type(anchor[k]) is int for k in keys), 'Invalid long-anchor sample bounds')
+    a, b, left, right = (anchor[k] for k in keys)
+    require(0 <= a < b <= len(source) and b-a >= rate, 'Unsupported long utterance')
+    require(0 <= left < right <= len(recording), 'Unbounded long-anchor search')
+    template = source[a:b]
+    require(len(set(template)) > 1, 'Flat long anchor')
+    # Byte search is exhaustive; only sample-aligned occurrences count.
+    haystack = recording[left:right].tobytes()
+    needle = template.tobytes()
+    positions = []
+    cursor = 0
+    while True:
+        found = haystack.find(needle, cursor)
+        if found < 0:
+            break
+        if found % recording.itemsize == 0:
+            positions.append(left+found//recording.itemsize)
+        cursor = found+1
+    require(len(positions) == 1, 'Long anchor missing or ambiguous; timing INCONCLUSIVE')
+    start = positions[0]/rate
+    return {'id': anchor['id'], 'source_start_s': a/rate, 'source_end_s': b/rate,
+            'recording_start_s': start, 'recording_end_s': start+(b-a)/rate,
+            'offset_s': start-a/rate, 'uncertainty_s': 1/rate,
+            'method': 'unique-exact-long-PCM', 'validated': True}
+
+
+def load_long_anchors(recording, source, rate, searches, annotations_path, source_sha256,
+                      *, method='exact', recording_rate=None, search_offset_s=None):
+    """Match the complete frozen long inventory, preventing selective bracketing."""
+    annotation_bytes = Path(annotations_path).read_bytes()
+    annotation_sha = hashlib.sha256(annotation_bytes).hexdigest()
+    annotations = json.loads(annotation_bytes.decode('utf-8-sig'))
+    require(annotations.get('frozen') is True and annotations.get('sample_rate') == rate
+            and annotations.get('source_sha256') == source_sha256, 'Unbound source annotations')
+    utterances = annotations['utterances']
+    require(utterances and len({u['id'] for u in utterances}) == len(utterances),
+            'Missing or duplicated source utterance')
+    previous_end = 0
+    for unit in utterances:
+        require(type(unit['short']) is bool and type(unit.get('eligible')) is bool
+                and type(unit['source_start_sample']) is int
+                and type(unit['source_end_sample']) is int
+                and previous_end <= unit['source_start_sample'] < unit['source_end_sample'] <= len(source),
+                'Invalid/overlapping source utterance inventory')
+        previous_end = unit['source_end_sample']
+    longs = [u for u in utterances if not u['short']]
+    require(len(searches) == len(longs) and [a['id'] for a in searches] == [u['id'] for u in longs],
+            'Missing, duplicated or reordered long anchors; immediate brackets unavailable')
+    result = []
+    recording_rate = rate if recording_rate is None else recording_rate
+    require(method in ('exact', 'bounded-correlation'), 'Unknown long matcher')
+    for unit, search in zip(longs, searches):
+        if method == 'bounded-correlation':
+            from long_correlation import match_long_correlation
+            expected = search.get('expected_recording_s')
+            if expected is None:
+                require(finite(search_offset_s), 'Missing constant long-anchor search offset')
+                expected = unit['source_start_sample']/rate+.1+search_offset_s
+            result.append(match_long_correlation(recording, recording_rate, source, rate, unit, expected))
+        else:
+            require(recording_rate == rate, 'Exact PCM matching requires equal native rates')
+            result.append(match_long(recording, source, rate,
+                {**unit, 'search_start_sample': search['search_start_sample'],
+                 'search_end_sample': search['search_end_sample']}))
+    require(digest(annotations_path) == annotation_sha, 'Source annotations changed during matching')
+    return {'anchors': result, 'utterances': utterances, 'annotations_sha256': annotation_sha}
+
+
+STEP_EVENT_MIN_S = .005   # a gap/overlap smaller than this adds at most 5 ms to the 2.4 ms worst step-free anchor error (D4 calibration) - below the 13 ms floor
+STEP_MARGIN_S = .020      # one envelope frame (20 ms) beyond the anchor's own uncertainty on each side of the 3.02 s template
+
+
+def step_event_sizes(mapping):
+    """(continuous-axis time s, measured size s) of each chunk-timestamp gap, overlap or audited overrun of at least STEP_EVENT_MIN_S.
+
+    Only chunk boundaries are visible here. A step that does not coincide with a chunk-timestamp event is not."""
+    rate = mapping['rate']
+    events = []
+    for row in mapping['chunks']:
+        size = max(row['gap_before_samples'], row['overlap_before_samples'])
+        if size >= STEP_EVENT_MIN_S*rate:
+            events.append((row['continuous_start_sample']/rate, size/rate))
+        if row['decoded_overrun_samples'] >= STEP_EVENT_MIN_S*rate:
+            events.append((row['continuous_end_sample']/rate, row['decoded_overrun_samples']/rate))
+    return events
+
+
+def step_events(mapping):
+    """Continuous-axis times (s) of the events in step_event_sizes."""
+    return [t for t, _ in step_event_sizes(mapping)]
+
+
+def _explained(sized, low, high, before, after):
+    """True when the events between the two supports can account for the offset change: their measured sizes plus both anchor
+    uncertainties reach it. An event that is too small leaves the change unexplained."""
+    discrepancy = abs(after['offset_s']-before['offset_s'])
+    return sum(size for t, size in sized if low < t < high)+before['uncertainty_s']+after['uncertainty_s'] >= discrepancy
+
+
+def _template_event_ids(anchors, events):
+    """Bounded-correlation anchors with a chunk-timestamp event inside the template support plus margin, with the reason."""
+    out = {}
+    for anchor in anchors:
+        if anchor.get('method') == 'bounded-long-correlation':
+            margin = anchor['uncertainty_s']+STEP_MARGIN_S
+            low, high = anchor['recording_start_s']-margin, anchor['recording_end_s']+margin
+            if any(low <= e <= high for e in events):
+                out[anchor['id']] = 'chunk-timestamp gap/overlap inside the template support'
+    return out
+
+
+def _unexplained_pairs(anchors, sized, by_event):
+    """Pairs whose offset change exceeds the combined uncertainty and that the events between them cannot account for (_explained).
+
+    Checked for consecutive anchors and for consecutive survivors of the event check (an excluded anchor lies between its
+    neighbours). The template of an excluded anchor counts as part of the span of any pair it belongs to, so its events are
+    available to explain a change, but only up to their measured size: a small logged gap does not explain a large excursion."""
+    pairs, seen = [], set()
+    survivors = [a for a in anchors if a['id'] not in by_event]
+    for sequence in (anchors, survivors):
+        for before, after in zip(sequence, sequence[1:]):
+            if (before['id'], after['id']) in seen:
+                continue
+            seen.add((before['id'], after['id']))
+            if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+                continue
+            low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
+            high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
+            if before['id'] in by_event:
+                low = before['recording_start_s']-before['uncertainty_s']-STEP_MARGIN_S
+            if after['id'] in by_event:
+                high = after['recording_end_s']+after['uncertainty_s']+STEP_MARGIN_S
+            if not _explained(sized, low, high, before, after):
+                pairs.append((before, after))
+    return pairs
+
+
+def apply_template_step_condition(anchors, mapping):
+    """Mark each bounded-correlation anchor 'template_step_free' True/False (with a reason) from what the scorer can see.
+
+    The calibrated 13-17 ms uncertainty holds only for a template with no timing step inside it. An anchor is NOT step-free when
+    (1) a chunk-timestamp event (gap/overlap/overrun) lies inside its template support plus margin, or
+    (2) it sits next to a detected step (offset change over the combined uncertainty) that the chunk-timestamp events between the two
+        supports (measured size plus both uncertainties) cannot account for, because that step could then be inside either template.
+    Not enforced: a step smaller than the combined uncertainty is not detectable. This is a blind spot, not a bound: an unlogged
+    offset change below the combined anchor uncertainty can pass the pairwise check unseen, and the roughly 34 ms residual quoted in
+    the D4 document only illustrates its size; it is not a proven worst case for undetected errors."""
+    events = step_events(mapping)
+    by_event = _template_event_ids(anchors, events)
+    verdict = {a['id']: by_event.get(a['id']) for a in anchors}
+    for before, after in _unexplained_pairs(anchors, step_event_sizes(mapping), by_event):
+        for anchor in (before, after):
+            verdict[anchor['id']] = verdict[anchor['id']] or 'adjacent offset change not located by a chunk-timestamp event between the supports'
+    return [{**a, 'template_step_free': verdict[a['id']] is None, 'template_step_reason': verdict[a['id']]}
+            if a.get('method') == 'bounded-long-correlation' else a for a in anchors]
+
+
+def unexplained_intervals(anchors, mapping):
+    """Source-time intervals of offset disagreements that no chunk-timestamp event explains, found BEFORE any exclusion.
+
+    Excluding the anchors around an excursion (offsets 0, 0, -80 ms, 0, 0) would otherwise let the agreeing survivors give the
+    units inside it credit again. Each interval spans both templates of a disagreeing pair; overlapping ones are merged."""
+    events = step_events(mapping)
+    spans = sorted((b['source_start_s'], a['source_end_s'], [b['id'], a['id']])
+                   for b, a in _unexplained_pairs(anchors, step_event_sizes(mapping), _template_event_ids(anchors, events))
+                   if 'bounded-long-correlation' in (b.get('method'), a.get('method')))
+    merged = []
+    for low, high, ids in spans:
+        if merged and low <= merged[-1]['high']:
+            merged[-1]['high'] = max(merged[-1]['high'], high)
+            merged[-1]['anchors'] += [x for x in ids if x not in merged[-1]['anchors']]
+        else:
+            merged.append({'low': low, 'high': high, 'anchors': list(ids)})
+    return merged
+
+
+# PROPOSED, OWNER APPROVAL PENDING: the two constants below are proposals for independent review and owner approval at the v3a
+# sign-off. They are not frozen and were not tuned against the practice recording.
+# Per-anchor exclusion (owner follow-up 2026-11-09). v3a amendment rules 3 and 7 make an unlocated step a UNIT-level INCONCLUSIVE
+# ("the affected units are INCONCLUSIVE"); nothing in a document makes one failed anchor end the whole track.
+MAX_ANCHOR_DISTANCE_S = 30.0   # proposed, owner approval pending: a COVERAGE limit, not proof that the error stays bounded out to 30 s
+DRIFT_RATE_BOUND_S_PER_S = 0.0006   # proposed, owner approval pending: conservative maximum measured on the practice recording (practice-timing-report.py)
+
+
+def excluded_anchors(anchors):
+    """(id, reason) of each anchor that gets no calibrated uncertainty: not validated, or template not established step-free."""
+    out = []
+    for a in anchors:
+        if a.get('validated') is not True:
+            out.append((a['id'], 'not validated'))
+        elif a.get('method') == 'bounded-long-correlation' and a.get('template_step_free') is not True:
+            out.append((a['id'], a.get('template_step_reason') or 'template step-free condition not evaluated'))
+    return out
+
+
+def track_anchor_gate(anchors, valid):
+    """Track-level condition left for anchors: some long anchor exists and some valid one remains. Everything else is per unit."""
+    longs = [a for a in anchors if a.get('method') != 'lead-marker']
+    require(longs, 'No long anchors')
+    require([a for a in valid if a.get('method') != 'lead-marker'], 'No valid long anchor remains')
+
+
+def unexplained_brackets(valid, mapping):
+    """Consecutive valid anchors, at least one of them a bounded-correlation anchor, whose offset differs by more than the combined
+    uncertainty with no chunk-timestamp event between. (Exact-PCM anchors keep the earlier handling: the step is widened, not refused.)"""
+    sized = step_event_sizes(mapping)
+    out = []
+    for before, after in zip(valid, valid[1:]):
+        if 'bounded-long-correlation' not in (before.get('method'), after.get('method')):
+            continue
+        if abs(after['offset_s']-before['offset_s']) <= before['uncertainty_s']+after['uncertainty_s']:
+            continue
+        low = before['recording_end_s']+before['uncertainty_s']+STEP_MARGIN_S
+        high = after['recording_start_s']-after['uncertainty_s']-STEP_MARGIN_S
+        if not _explained(sized, low, high, before, after):
+            out.append((before, after))
+    return out
+
+
+def unit_timing_gap(onset, last_end, anchors, valid, brackets, intervals=()):
+    """Why a unit (source times) loses its timing because anchors were excluded or an offset change is unexplained, else None.
+
+    INCONCLUSIVE when: no valid anchor remains on one side although one existed; or a valid anchor that served it within
+    MAX_ANCHOR_DISTANCE_S (proposed coverage limit) no longer does; or its span overlaps an unexplained offset disagreement found
+    before exclusion (`intervals`) or crosses two valid anchors that disagree without a timestamp event (`brackets`).
+    A unit already farther than that from every anchor keeps the earlier handling (prepare_units)."""
+    def sides(pool):
+        return [a for a in pool if anchor_source_start(a) <= onset], [a for a in pool if a['source_start_s'] > last_end]
+    all_before, all_after = sides(anchors)
+    if not (all_before and all_after):
+        return None    # no anchor on one side even with every anchor: structural, left to prepare_units (unchanged behaviour)
+    for interval in intervals:
+        if onset < interval['high'] and last_end > interval['low']:
+            return 'unexplained offset change between %s (found before exclusion)' % ' / '.join(interval['anchors'])
+    before, after = sides(valid)
+    if not (before and after):
+        return 'no valid anchor on one side after exclusions'
+    served_before = last_end-all_before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
+    served_after = all_after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
+    kept_before = last_end-before[-1]['source_end_s'] <= MAX_ANCHOR_DISTANCE_S
+    kept_after = after[0]['source_start_s']-onset <= MAX_ANCHOR_DISTANCE_S
+    if (served_before and not kept_before) or (served_after and not kept_after):
+        return 'no valid anchor within %g s on one side after exclusions' % MAX_ANCHOR_DISTANCE_S
+    for q, r in brackets:
+        if last_end > q['source_end_s'] and onset < r['source_start_s']:
+            return 'unexplained offset change between valid anchors %s and %s' % (q['id'], r['id'])
+    return None
+
+
+def capture_event_overlap(unit, mapping):
+    """Why the scored word cannot be timed because it overlaps a recorded capture gap, overlap or overrun, else None.
+
+    A finite interval across a gap is not proof that the word was captured (v3a rule 6). Proposed, owner approval pending: the word
+    interval is the last word's earliest placed start to its latest placed end on the continuous axis, with the same 5 ms event
+    threshold as the step events."""
+    low, high = unit['word_continuous_interval_s']
+    hits = [e for e in step_events(mapping) if low <= e <= high]
+    return 'scored word interval overlaps a recorded capture gap/overlap/overrun at %.3f s' % hits[0] if hits else None
+
+
+def verify_word_capture(unit, samples, mapping):
+    """Whether the decoded preserved recording supports the scored word's presence and endpoint around a recorded capture event.
+
+    Returns (True|False|None, evidence). None = not checkable (no decoded samples for the word interval). Uses the same two-threshold
+    energy rule as the acoustic end (5 ms frames; level max(128, 3% of the loudest frame) and 184), applied to the word interval:
+    (1) at each gap/overlap/overrun inside the interval that lies before the measured end, the 5 ms frames on both sides are above
+    both levels (the word is present on both sides); (2) the last active frame under each level ends inside the unit's earliest-to-
+    latest acoustic end interval and not at the edge of the window (the end is supported). Proposed, owner approval pending."""
+    rate = mapping['rate']
+    frame = round(.005*rate)
+    low, high = unit['word_continuous_interval_s']
+    end_low, end_high = unit['end_continuous_interval_s']
+    first, last = int(low*rate), int(high*rate)+1
+    if frame < 1 or first < 0 or last > len(samples) or last-first < 2*frame:
+        return None, 'not checkable: the word interval is outside the decoded samples'
+    def rms(start):
+        part = samples[start:start+frame]
+        return math.sqrt(sum(v*v for v in part)/len(part))
+    levels = [rms(first+k*frame) for k in range((last-first)//frame)]
+    thresholds = (max(128, max(levels)*0.03), 184)
+    ends = []
+    for level in thresholds:
+        active = [k for k, v in enumerate(levels) if v >= level]
+        if not active:
+            return False, 'no energy above %.0f in the word interval' % level
+        if active[-1] == len(levels)-1:
+            return False, 'energy reaches the edge of the word interval at level %.0f; the end is not supported' % level
+        ends.append((first+(active[-1]+1)*frame)/rate)
+    if not all(end_low <= e <= end_high for e in ends):
+        return False, 'measured acoustic end %s is outside the supported end interval [%.3f, %.3f]' % (
+            ['%.3f' % e for e in ends], end_low, end_high)
+    for t in (e for e in step_events(mapping) if low <= e <= high):
+        if t >= max(ends):
+            continue   # the event is at or after the measured end of the word (rule 6 checks events before the end)
+        index = round(t*rate)
+        if index-frame < 0 or index+frame > len(samples) or not all(rms(index-frame) >= x and rms(index) >= x for x in thresholds):
+            return False, 'no energy above both levels on both sides of the capture event at %.3f s' % t
+    return True, 'word energy present on both sides of the capture event(s); acoustic end %s within [%.3f, %.3f]' % (
+        ['%.3f' % e for e in ends], end_low, end_high)
+
+
+def step_bounds(anchors, units):
+    """Bound changes between adjacent long anchors; never correct their offsets.
+
+    A change may lie anywhere between supports. Widen all potentially affected
+    units, including crossing units, through the right bracketing anchor. Each
+    adjacent pair bounds its own region; missing coverage fails closed.
+    """
+    require(len(anchors) >= 2, 'Missing bracketing long anchors')
+    require(len({a['id'] for a in anchors}) == len(anchors), 'Duplicated long anchor')
+    for anchor in anchors:
+        require(anchor.get('method') != 'lead-marker' or (anchor is anchors[0] and anchor.get('validated') is True),
+                'Lead marker may only be the first, validated anchor')
+        require(anchor.get('validated') is True and anchor.get('method') in ('unique-exact-long-PCM', 'bounded-long-correlation', 'lead-marker')
+                and (anchor['method'] != 'bounded-long-correlation'
+                     or (anchor.get('unique') is True and len(anchor.get('methods', [])) == 3
+                         and all(m.get('unique') is True for m in anchor['methods']))),
+                'Unvalidated long anchor')
+        require(anchor.get('template_step_free') is not False,
+                'Long anchor template not established step-free: %s' % anchor.get('template_step_reason'))
+        require(all(finite(anchor[k]) for k in ('source_start_s', 'source_end_s', 'recording_start_s',
+                                               'recording_end_s', 'offset_s', 'uncertainty_s'))
+                and anchor['uncertainty_s'] >= 0, 'Unsupported anchor uncertainty')
+    steps = []
+    for before, after in zip(anchors, anchors[1:]):
+        require(before['recording_end_s'] <= after['recording_start_s']
+                and before['source_end_s'] <= after['source_start_s'], 'Overlapping/unordered long anchors')
+        change = after['offset_s']-before['offset_s']
+        combined = before['uncertainty_s']+after['uncertainty_s']
+        if abs(change) > combined:
+            steps.append({'location_interval_s': [before['recording_end_s']-before['uncertainty_s'],
+                                                 after['recording_start_s']+after['uncertainty_s']],
+                          'until_s': after['recording_end_s']+after['uncertainty_s'], 'signed_change_s': change,
+                          'magnitude_interval_s': [change-combined, change+combined],
+                          'combined_anchor_uncertainty_s': combined,
+                          'symmetric_uncertainty_s': abs(change)+combined,
+                          'anchors': [before['id'], after['id']]})
+    coverage_start = anchors[0]['recording_start_s']
+    coverage_end = anchors[-1]['recording_end_s']
+    if units:
+        # Full-unit continuous placements are independent adjudications already
+        # required by the scorer. They provide coverage, never extrapolated
+        # source timing. Step locations still use only measured template support.
+        by_id = {unit['id']: unit for unit in units}
+        require(len(by_id) == len(units), 'Duplicated independently timed unit')
+        first_long = next(a for a in anchors if a['method'] != 'lead-marker')
+        for anchor, edge in ((first_long, 'start'), (anchors[-1], 'end')):
+            if anchor['method'] != 'bounded-long-correlation':
+                continue
+            require(anchor['id'] in by_id, 'Missing full-unit timing for edge long anchor')
+            boundary = by_id[anchor['id']]
+            first, last_start, last = (boundary[k] for k in ('continuous_start_s',
+                                      'continuous_last_word_start_s', 'continuous_last_word_end_s'))
+            require(all(finite(v) for v in (first, last_start, last))
+                    and first <= last_start <= last, 'Invalid independent full-unit timing')
+            require(first <= anchor['recording_start_s']-anchor['uncertainty_s']
+                    and anchor['recording_end_s']+anchor['uncertainty_s'] <= last,
+                    'Measured template support outside independently timed full unit')
+            if edge == 'start' and anchors[0]['method'] != 'lead-marker':
+                coverage_start = first
+            else:
+                coverage_end = last
+    for unit in units:
+        require(coverage_start <= unit['continuous_start_s']
+                and unit['continuous_last_word_end_s'] <= coverage_end,
+                'Unit has no bracketing long-anchor coverage')
+    return steps
+
+
+def source_schedule(unit, first_anchor):
+    """Explicit source endpoints, or the previous fixed first-anchor schedule."""
+    keys = ('source_start_s', 'source_last_word_start_s', 'source_last_word_end_s')
+    if any(k in unit for k in keys):
+        require(all(k in unit for k in keys), 'Incomplete source speech endpoints')
+        values = [unit[k] for k in keys]
+        basis = 'source'
+    else:
+        baseline = unit.get('reference_schedule_offset_s', first_anchor['offset_s'])
+        require(finite(baseline), 'Unsupported reference-schedule offset')
+        values = [unit[k]-baseline for k in ('continuous_start_s', 'continuous_last_word_start_s', 'continuous_last_word_end_s')]
+        basis = 'legacy-first-anchor-reference-schedule'
+    require(all(finite(v) for v in values) and values[0] <= values[1] <= values[2], 'Unsupported source speech placement')
+    return values, basis
+
+
+def lead_marker_anchor(continuous_check, source_start_s, source_uncertainty_s, span_s=1.2):
+    """Proposal: the lead marker as first anchor, so units before the first long anchor are placed.
+
+    Offset = recorded continuous position minus the marker's source time, uncertainty = the marker's
+    measured detection uncertainty plus the uncertainty of the same detector on the frozen source file
+    (source_start_s must be derived from that file, never typed). Used only when no long anchor precedes a unit. The span is the
+    existing three 200 ms pulses at 500 ms spacing (1.2 s).
+    """
+    require(isinstance(continuous_check, dict) and continuous_check.get('valid') is True,
+            'Lead marker needs a valid continuous marker check')
+    lead = continuous_check['lead']
+    require(all(finite(v) for v in (lead['position'], lead['uncertainty_s'], source_start_s, source_uncertainty_s, span_s))
+            and lead['uncertainty_s'] >= 0 and source_uncertainty_s >= 0 and span_s > 0, 'Unsupported lead marker')
+    return {'id': 'lead-marker', 'source_start_s': source_start_s, 'source_end_s': source_start_s+span_s,
+            'recording_start_s': lead['position'], 'recording_end_s': lead['position']+span_s,
+            'offset_s': lead['position']-source_start_s,
+            'uncertainty_s': lead['uncertainty_s']+source_uncertainty_s, 'source_uncertainty_s': source_uncertainty_s,
+            'method': 'lead-marker', 'validated': True}
+
+
+def anchor_source_start(anchor):
+    return anchor.get('source_utterance_start_s', anchor['source_start_s'])
+
+
+def source_spread(unit, end_time, basis):
+    """The source annotation's own timing spread, so the scored interval is never narrower than the annotation.
+
+    End: [source_earliest_acoustic_end_s, source_latest_acoustic_end_s] (source time, the same frame as
+    source_last_word_end_s; the unprefixed names in the output are the PLACED recording-time values) must bracket the nominal end (policy: earlier offset - 5 ms,
+    later offset + 5 ms). Onset spreads (utterance onset and final-word onset threshold spread) widen the start
+    intervals by the full spread each way; absent means 0. A unit that carries no end spread is reported with
+    `present` False and zero spread; the scorer (analyze_v3a_track) refuses such a unit, so a real run cannot use it.
+    Legacy reference-schedule units carry no source annotation and have no spread.
+    """
+    none = {'end_low': 0.0, 'end_high': 0.0, 'onset': 0.0, 'last_word_start': 0.0, 'present': False}
+    if basis != 'source' or unit.get('source_earliest_acoustic_end_s') is None or unit.get('source_latest_acoustic_end_s') is None:
+        return none
+    low, high = unit['source_earliest_acoustic_end_s'], unit['source_latest_acoustic_end_s']
+    require(finite(low) and finite(high) and low <= end_time + 1e-9 and end_time <= high + 1e-9,
+            'Source acoustic end spread does not bracket the nominal end')
+    onset, word = unit.get('source_threshold_spread_s', 0.0), unit.get('source_final_onset_threshold_spread_s', 0.0)
+    require(finite(onset) and finite(word) and onset >= 0 and word >= 0, 'Unsupported source onset spread')
+    return {'end_low': max(0.0, end_time-low), 'end_high': max(0.0, high-end_time), 'onset': onset, 'last_word_start': word,
+            'present': True}
+
+
+# (scored-unit key, frozen-annotation keys in order of preference). Every one of these affects unit identity or timing.
+BOUND_UNIT_FIELDS = (
+    ('reference_words', ('reference_words',)), ('start', ('start',)), ('last_word_start', ('last_word_start',)),
+    ('acoustic_end', ('acoustic_end',)), ('earliest_acoustic_end_s', ('earliest_acoustic_end_s',)),
+    ('latest_acoustic_end_s', ('latest_acoustic_end_s',)), ('last_word_end', ('latest_acoustic_end_s',)),
+    ('source_start_s', ('source_start_s', 'start')), ('source_last_word_start_s', ('source_last_word_start_s', 'last_word_start')),
+    ('source_last_word_end_s', ('source_last_word_end_s', 'acoustic_end')),
+    ('source_earliest_acoustic_end_s', ('earliest_acoustic_end_s',)), ('source_latest_acoustic_end_s', ('latest_acoustic_end_s',)),
+    ('source_threshold_spread_s', ('threshold_spread_s',)), ('source_final_onset_threshold_spread_s', ('final_onset_threshold_spread_s',)),
+    ('source_start_sample', ('source_start_sample',)), ('source_end_sample', ('source_end_sample',)), ('short', ('short',)))
+REQUIRED_UNIT_FIELDS = ('reference_words', 'source_start_s', 'source_last_word_start_s', 'source_last_word_end_s')
+
+
+def _same_value(a, b):
+    if isinstance(a, bool) or isinstance(b, bool):
+        return type(a) is type(b) and a == b
+    if finite(a) and finite(b):
+        return abs(a-b) <= 1e-12
+    return a == b
+
+
+def bind_unit_fields(units, utterances):
+    """Every supplied identity/timing field must equal the frozen annotation's value.
+
+    A unit with any difference (or a missing required field, or an annotation that lacks a supplied field)
+    is never credited: its fields are reset to the frozen values, it becomes UNIDENTIFIED, and it is reported.
+    """
+    by_id = {u['id']: u for u in utterances}
+    bound, report = [], []
+    for unit in units:
+        entry = by_id.get(unit['id'])
+        problems, frozen = [], {}
+        if entry is None:
+            problems.append('no frozen annotation entry')
+        else:
+            for key, options in BOUND_UNIT_FIELDS:
+                source_key = next((o for o in options if o in entry), None)
+                if source_key is not None:
+                    frozen[key] = entry[source_key]
+                if key in unit and (source_key is None or not _same_value(unit[key], entry[source_key])):
+                    problems.append('%s differs from the frozen annotation' % key)
+                elif key not in unit and key in REQUIRED_UNIT_FIELDS:
+                    problems.append('required field %s is missing' % key)
+        if problems:
+            unit = {**unit, **frozen, 'binding_failure': '; '.join(problems)}
+            report.append({'id': unit['id'], 'unit_field_binding_failure': unit['binding_failure']})
+            if unit.get('eligible'):
+                unit = {**unit, 'outcome': 'UNIDENTIFIED', 'identity_confirmed': False, 'endpoints': []}
+        bound.append(unit)
+    return bound, report
+
+
+def attach_source_spread(units, utterances):
+    """Give each scored unit the spread of its FROZEN annotation entry (single source of truth).
+
+    A unit that already carries source spread values must agree with the annotation; a unit with no
+    annotation entry, or an annotation without an end spread, is refused so the interval is never narrower
+    than the frozen annotation.
+    """
+    by_id = {u['id']: u for u in utterances}
+    result = []
+    for unit in units:
+        if 'source_last_word_end_s' not in unit:
+            result.append(unit)  # legacy reference-schedule unit: no source annotation, no spread (never a real run)
+            continue
+        entry = by_id.get(unit['id'])
+        require(entry is not None, 'Scored unit has no frozen annotation entry')
+        require(finite(entry.get('earliest_acoustic_end_s')) and finite(entry.get('latest_acoustic_end_s')),
+                'Frozen annotation lacks the acoustic end spread')
+        carried = {'source_earliest_acoustic_end_s': entry['earliest_acoustic_end_s'],
+                   'source_latest_acoustic_end_s': entry['latest_acoustic_end_s'],
+                   'source_threshold_spread_s': entry.get('threshold_spread_s', 0.0),
+                   'source_final_onset_threshold_spread_s': entry.get('final_onset_threshold_spread_s', 0.0)}
+        for key, value in carried.items():
+            require(key not in unit or abs(unit[key]-value) <= 1e-12, 'Scored unit spread disagrees with the frozen annotation')
+        result.append({**unit, **carried})
+    return result
+
+
+def prepare_units(units, mapping, anchors, all_anchors=None):
+    """Carry local offsets forward; only unresolved between-anchor steps widen."""
+    steps = step_bounds(anchors, [])
+    by_anchor = {a['id']: a for a in anchors}
+    nominal_units = []
+    for unit in units:
+        (a, b, c), basis = source_schedule(unit, next(x for x in anchors if x['method'] != 'lead-marker'))
+        spread = source_spread(unit, c, basis)
+        preceding = [anchor for anchor in anchors if anchor_source_start(anchor) <= a]
+        require(preceding, 'No preceding long anchor for source utterance')
+        anchor = preceding[-1]
+        # An anchor farther than the original neighbour (after an exclusion) adds drift over the extra distance to the calibrated value.
+        original = [x for x in (all_anchors or anchors) if anchor_source_start(x) <= a][-1]
+        extra_u = (DRIFT_RATE_BOUND_S_PER_S*max(0.0, original['source_end_s']-anchor['source_end_s'])
+                   if original['id'] != anchor['id'] else 0.0)
+        shifted = [t+anchor['offset_s'] for t in (a, b, c)]
+        nominal_units.append({**unit, 'continuous_start_s': shifted[0],
+            'continuous_last_word_start_s': shifted[1], 'continuous_last_word_end_s': shifted[2],
+            'source_start_s': a, 'source_last_word_start_s': b, 'source_last_word_end_s': c,
+            'speech_time_basis': basis, 'source_spread': spread, 'timing_anchor_id': anchor['id'],
+            'timing_anchor_offset_s': anchor['offset_s'], 'timing_anchor_uncertainty_s': anchor['uncertainty_s']+extra_u,
+            'drift_extra_uncertainty_s': extra_u})
+    step_bounds(anchors, nominal_units)
+    result = []
+    for unit in nominal_units:
+        a, b, c = (unit[k] for k in ('continuous_start_s', 'continuous_last_word_start_s', 'continuous_last_word_end_s'))
+        def bracket_uncertainty(source_time):
+            return sum(step['symmetric_uncertainty_s'] for step in steps
+                       if by_anchor[step['anchors'][0]]['source_end_s'] < source_time
+                       < by_anchor[step['anchors'][1]]['source_start_s'])
+        end_step_u = bracket_uncertainty(unit['source_last_word_end_s'])
+        start_step_u = bracket_uncertainty(unit['source_last_word_start_s'])
+        onset_step_u = bracket_uncertainty(unit['source_start_s'])
+        anchor_u = unit['timing_anchor_uncertainty_s']
+        def interval_spread(time, spread, uncertainty):
+            width = spread+uncertainty
+            require(0 <= time-width <= time+width <= mapping['decoded_samples']/mapping['rate'],
+                    'Speech uncertainty outside preserved continuous samples')
+            # The upper acoustic bound can cross a chunk boundary even when its
+            # nominal point does not. Include any intervening unassigned gap.
+            return placement_range(time-width, time+width, mapping)
+        # The source's own timing spread is widened by the anchor and step uncertainty, in both directions: the
+        # conservative bound then uses the earliest end and the best-case bound the latest (analyze-bounds).
+        sp = unit['source_spread']
+        end = placement_range(c-sp['end_low']-anchor_u-end_step_u, c+sp['end_high']+anchor_u+end_step_u, mapping)
+        word_start = interval_spread(b, sp['last_word_start'], anchor_u+start_step_u)
+        onset = interval_spread(a, sp['onset'], anchor_u+onset_step_u)
+        word_low = b-(sp['last_word_start']+anchor_u+start_step_u)
+        word_high = c+sp['end_high']+anchor_u+end_step_u
+        result.append({**unit, 'word_continuous_interval_s': [word_low, word_high],
+                       'end_continuous_interval_s': [c-sp['end_low']-anchor_u-end_step_u, word_high], 'eligible': unit['eligible'], 'start': a, 'last_word_start': b,
+                       'last_word_end': c, 'earliest_acoustic_end_s': end[0],
+                       'latest_acoustic_end_s': end[1],
+                       'last_word_start_interval_s': word_start, 'speech_start_interval_s': onset,
+                       'speech_end_step_uncertainty_s': end_step_u,
+                       'last_word_start_step_uncertainty_s': start_step_u,
+                       'speech_start_step_uncertainty_s': onset_step_u,
+                       'step_uncertainty_s': max(end_step_u, start_step_u, onset_step_u)})
+    return result, steps
