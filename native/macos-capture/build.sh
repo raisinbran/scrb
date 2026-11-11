@@ -13,6 +13,7 @@ if [[ ! -f build/opus/libopus.a ]]; then
   "$tools/cmake" --build build/opus >/dev/null
 fi
 clang -O2 -c src/rt.c -I"$opus/include" -o build/rt.o
+clang -O2 -c src/LiveRing.c -o build/live-ring.o
 swiftc -O ${SWIFT_FLAGS:-} -import-objc-header src/rt.h -Xcc "-I$opus/include" src/main.swift src/Capture.swift src/Chunks.swift \
-  src/Resample.swift src/Permission.swift src/Devices.swift src/MicProbe.swift build/rt.o build/opus/libopus.a \
+  src/Resample.swift src/LiveFeed.swift src/Permission.swift src/Devices.swift src/MicProbe.swift build/rt.o build/live-ring.o build/opus/libopus.a \
   -framework CoreAudio -framework AudioToolbox -framework AVFoundation -framework IOKit -o "${OUT:-build/scrb-capture}"

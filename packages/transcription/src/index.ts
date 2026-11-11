@@ -10,3 +10,6 @@ export * from './profiles.js';
 export * from './finalPass.js';
 export * from './importFile.js';
 export * from './livePass.js';
+export * from './livePcmProtocol.js';
+export * from './livePcmEngine.js';
+export * from './liveAudioWorker.js';

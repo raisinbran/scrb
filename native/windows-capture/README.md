@@ -19,6 +19,18 @@ build\bin\PipelineTests.exe ..\..\phase0\artifacts\capture\devices\sleep-wake-ti
 The helper links the dynamic C runtime (`/MD`) to match the libopus build; a
 shipped build must bundle it or move both to `/MT`.
 
+`--live-pipe \\.\pipe\NAME` enables the optional Phase 3 binary PCM feed. The
+helper opens that app-owned named pipe for overlapped writes. Without the flag,
+capture follows the existing durable path. A stalled or broken reader disables
+or drops only live output; Stop never waits for the live reader.
+
+The feed uses wire version 1 from
+`docs/plans/task-17-native-pcm-feed-proposal.md`. Each track has its own sequence
+and generation. A 31-tap low-pass converter runs on the exporter thread and
+adds 15 input samples of delay. The first timestamp includes that delay. Later
+timestamps advance by exactly 62,500 ns per emitted 16 kHz sample. A boundary
+flushes the converter tail before closing its generation.
+
 ## Protocol
 
 The protocol matches the Mac helper and `CaptureAck` in

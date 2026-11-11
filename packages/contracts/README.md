@@ -15,6 +15,7 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 | `pickAudioFile`                                             | A sandboxed renderer cannot open a file dialog. Returns an opaque token, so the renderer never passes a path |
 | `getTranscript`                                             | Paged loading for stored transcripts; `transcriptChanged` only carries changes                               |
 | `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                            |
+| `getPlaybackMedia`                                          | A sandboxed renderer needs a narrow, expiring audio URL; owner decision on PR 39, 2026-11-02                 |
 | `listProfiles`                                              | The Speakers screen has nothing to show without it                                                           |
 | `splitSpeaker`                                              | V1 Requirements list split; the table does not                                                               |
 | `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                          |

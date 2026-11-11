@@ -15,6 +15,7 @@ import { readPages, sealAudio, type TrackName } from './recovery.ts';
 
 const dead = async () => false;
 const SECOND = 1_000_000_000;
+const stopEvent = (atNs: number) => ({ event: 'stop', commandId: 'stop-1', atNs, seq: 4 });
 
 function flipped(data: Buffer, at: number): Buffer {
   const copy = Buffer.from(data);
@@ -176,6 +177,102 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it('keeps a clean Stop after Pause', async () => {
+    for (const track of ['meeting', 'microphone'] as const) {
+      put(track, '000000.opus', chunk(0, 0, 2, 'start'));
+      logLine(track, [{ file: '000000.opus', closeReason: 'pause' }]);
+    }
+    events([{ event: 'pause', atNs: 2 * SECOND, seq: 3 }, stopEvent(5 * SECOND)]);
+    const before = ['meeting', 'microphone'].map((track) =>
+      readFileSync(join(audio, track, '000000.opus')),
+    );
+
+    const first = await sealAudio(audio, dead);
+    const again = await sealAudio(audio, dead);
+
+    expect(first.outcome).toBe('ready');
+    expect(first.endNs).toBe(5 * SECOND);
+    expect(first.tracks.microphone?.endedBy).toBe('stop');
+    expect(first.tracks.meeting?.endedBy).toBe('stop');
+    expect(first.gaps).toEqual([
+      { kind: 'paused', track: 'both', startNs: 2 * SECOND, endNs: 5 * SECOND },
+    ]);
+    expect(again).toEqual(first);
+    for (const [index, track] of ['meeting', 'microphone'].entries()) {
+      expect(readFileSync(join(audio, track, '000000.opus'))).toEqual(before[index]);
+    }
+  });
+
+  it('stops immediately after Resume', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    logLine('microphone', [{ file: '000000.opus', closeReason: 'stop' }]);
+    logLine('meeting', [{ file: '000000.opus', closeReason: 'pause' }]);
+    events([
+      { event: 'pause', atNs: 2 * SECOND, seq: 2 },
+      { event: 'resume', atNs: 3 * SECOND, seq: 3 },
+      stopEvent(3 * SECOND + 10_000_000),
+    ]);
+
+    const result = await sealAudio(audio, dead);
+    expect(result.outcome).toBe('ready');
+    expect(result.endNs).toBe(3 * SECOND + 10_000_000);
+    expect(result.gaps).toEqual([
+      { kind: 'paused', track: 'both', startNs: 2 * SECOND, endNs: 3 * SECOND },
+    ]);
+  });
+
+  it('preserves permission loss through Stop', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 3, 'start'));
+    put('meeting', '000000.opus', chunk(0, 0, 1, 'start'));
+    logLine('microphone', [{ file: '000000.opus', closeReason: 'stop' }]);
+    logLine('meeting', [{ file: '000000.opus', closeReason: 'permission' }]);
+    events([{ event: 'open', wholeComputer: true, seq: 1 }, stopEvent(3 * SECOND)]);
+
+    const result = await sealAudio(audio, dead);
+    expect(result.outcome).toBe('ready');
+    expect(result.gaps).toEqual([
+      { kind: 'audioMissing', track: 'meeting', startNs: SECOND, endNs: 3 * SECOND },
+    ]);
+  });
+
+  it('rejects invalid terminal Stop records', async () => {
+    const valid = JSON.stringify(stopEvent(2 * SECOND)) + '\n';
+    const invalid = [
+      valid.slice(0, -1),
+      valid + '{invalid}\n',
+      valid + JSON.stringify({ event: 'resume', atNs: 2 * SECOND, seq: 5 }) + '\n',
+      JSON.stringify({ ...stopEvent(2 * SECOND), commandId: '' }) + '\n',
+      JSON.stringify({ ...stopEvent(2 * SECOND), seq: 0 }) + '\n',
+      JSON.stringify(stopEvent(Number.MAX_SAFE_INTEGER + 1)) + '\n',
+    ];
+    for (const text of invalid) {
+      const folder = mkdtempSync(join(tmpdir(), 'scrb-invalid-stop-'));
+      try {
+        mkdirSync(join(folder, 'microphone'));
+        writeFileSync(join(folder, 'microphone', '000000.opus'), chunk(0, 0, 2, 'start'));
+        writeFileSync(join(folder, 'session.log'), text);
+        const result = await sealAudio(folder, dead);
+        expect(result.outcome).toBe('recovered');
+        expect(result.tracks.microphone?.endedBy).toBe('crash');
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('keeps an earlier crash seal unchanged', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    const first = await sealAudio(audio, dead);
+    events([stopEvent(3 * SECOND)]);
+
+    const again = await sealAudio(audio, dead);
+
+    expect(first.outcome).toBe('recovered');
+    expect(again.outcome).toBe('recovered');
+    expect(again.tracks.microphone?.endedBy).toBe('crash');
+  });
+
   it('marks the shorter track missing up to the end of the longer one', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 4, 'start'));
     put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
@@ -254,6 +351,7 @@ describe('sealAudio', () => {
   it('calls a clean stop ready when one track has no audio, and marks that track missing', async () => {
     put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
     logLine('microphone', [{ file: '000000.opus', closeReason: 'stop' }]);
+    events([stopEvent(2 * SECOND)]);
     mkdirSync(join(audio, 'meeting'));
     const { outcome, gaps } = await sealAudio(audio, dead);
     expect(outcome).toBe('ready');
@@ -265,8 +363,9 @@ describe('sealAudio', () => {
   it('does not call a silent whole-computer track lost', async () => {
     put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
     mkdirSync(join(audio, 'meeting'));
-    events([{ event: 'open', wholeComputer: true, seq: 1 }]);
-    const { gaps } = await sealAudio(audio, dead);
+    events([{ event: 'open', wholeComputer: true, seq: 1 }, stopEvent(2 * SECOND)]);
+    const { outcome, gaps } = await sealAudio(audio, dead);
+    expect(outcome).toBe('ready');
     expect(gaps).toEqual([
       { kind: 'possiblyMissing', track: 'meeting', startNs: 0, endNs: 2 * SECOND },
     ]);
@@ -488,6 +587,7 @@ describe('sealAudio', () => {
       put(track, '000000.opus', chunk(0, 0, 2, 'start'));
       logLine(track, [{ file: '000000.opus', closeReason: 'stop' }]);
     }
+    events([stopEvent(2 * SECOND)]);
     writeFileSync(join(audio, 'writer.lock'), '');
     const { outcome, tracks } = await sealAudio(audio, dead);
     expect(outcome).toBe('ready');
