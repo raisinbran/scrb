@@ -937,9 +937,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
-    const run = this.runAutoDeleteOnce();
+    const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
     void run
       .finally(() => {
@@ -949,7 +949,9 @@ export class Library {
     return run;
   }
 
-  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
+  private async runAutoDeleteOnce(
+    beforeDelete?: (meetingId: string) => void,
+  ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };
@@ -957,6 +959,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
+        beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -971,12 +974,15 @@ export class Library {
   }
 
   /** Runs now and then on a timer. Returns a stop function. */
-  startAutoDeleteSchedule(intervalMs = 6 * 3_600_000): () => void {
+  startAutoDeleteSchedule(
+    intervalMs = 6 * 3_600_000,
+    beforeDelete?: (meetingId: string) => void,
+  ): () => void {
     let running = false;
     const tick = (): void => {
       if (running) return;
       running = true;
-      this.scheduledDeletion = this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete(beforeDelete)
         .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));
