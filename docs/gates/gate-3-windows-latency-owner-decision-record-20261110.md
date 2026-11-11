@@ -43,7 +43,9 @@ The meeting-track result is identical under both pins (subtree hash `adc8c930139
 - Reopen the criterion if field use or later tests show late or missing output around 3 minutes into a session, or if a later scored run falls below 95% on either track.
 - Open a separate low-priority task to investigate the 106 s capture event.
 
-## 6. Owner decision (EMPTY; nothing is signed)
+## 6. Owner decision (signed in chat on 2026-11-10, commit dcf4333)
+
+2026-11-10: heading corrected after signing; no other change.
 
 - [x] Accept risk and mark the Windows live-latency criterion accepted: owner decision, recorded from the owner's chat message
 - [ ] Do not accept: ______________________
