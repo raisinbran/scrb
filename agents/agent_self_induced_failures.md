@@ -492,3 +492,10 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** `scoring-log.md` steps SENS1 to SENS4 (exit 1, outputs MISSING) and the `-rerun` steps (exit 0).
 - **Correction / prevention:** Print the edited helper and stop on the first non-zero exit before running dependent steps.
 - **Owner approval:** Not required.
+
+### A-080 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — new filter helper written with an unescaped backslash in its docstring
+- **Status / attribution:** Confirmed; agent. Minor.
+- **What failed:** `filter_converted.py` had a Windows path with `\c` in a normal (non-raw) docstring; Python printed a SyntaxWarning on every run. I only compile-checked helpers for syntax errors in the earlier session and did not run this one with warnings visible before the step.
+- **Impact:** None; the warning is a docstring escape and the helper's output, hashes and the classifier run are unaffected. Noted in the log.
+- **Correction / prevention:** Write helper docstrings as raw strings or avoid paths in them.
+- **Owner approval:** Not required.
