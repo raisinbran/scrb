@@ -602,3 +602,68 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Correction / prevention:** From Nov 9: a stopping rule (no further review round unless it finds a concrete false-PASS or false-FAIL path), forced APPROVE/REJECT with required edits only for concrete defects, and usage recorded at task start and end. Open work: root-cause investigation is not started and needs an owner-approved scope and stop rule (PR #67 diagnostics are a prerequisite).
 - **Remaining risk:** Thin Windows microphone margin (62/65) and the unexplained 185.83 s unit remain; reopen conditions are in the signed decision record.
 - **Owner approval:** Required to merge this entry.
+
+### A-257 — Historical evidence proposal reconciliation
+
+Source: local `option-a-evidence-20261111/unblock-usage-row-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+for agents/agent_self_induced_failures.md (uncommitted): guessed glob/source filenames caused several read-only lookup errors; corrected by actual file inventory. First direct native build invocation failed126 because script was not executable; bash invocation passed. First decoder build hit sandbox network restriction; owner-approved escalation passed. No product defect inferred and no long-test repeat. Source evidence: turn tool results and retained build logs; exact task credit impact unavailable. No harmful mutation or private recording access.
+
+### A-258 — Historical evidence proposal reconciliation
+
+Source: local `option-a-evidence-20261111/usage-row-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+(uncommitted): initial worktree creation denied by read-only .git sandbox; authorized escalation succeeded. Two guessed source filenames and an application-support directory did not exist; corrected by inspecting actual config/source. No application fault inferred; no test reruns. Evidence in tool transcript. No exact credit impact available.
+
+### A-259 — Historical evidence proposal reconciliation
+
+Source: local `pr58-abort-evidence-20261110/incident-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted incident-register proposal (ID to allocate): prior Codex change 715b4cb serialized profile assignment and deletion but omitted AbortSignal-aware waiting on the new shared lock. A queued optional match could therefore make ImportCoordinator.stopForRecording wait for a full deletion scan/save, delaying RecordingController.start despite abort. Narrow independent re-review identified this concrete defect; deterministic regression on 715b4cb returns "still waiting" before the deletion gate releases. Corrected at 331c700: only queued callers reject immediately on abort; their retained queue node checks abort before executing; started persistence remains owned by the shared lock until it finishes. Regression also strengthens an existing delayed-save case by aborting once persistence has started and verifying it does not settle early. Old-code mutation failed as expected; restored fix passed 39 profile tests and 165 affected tests. No test or CI reruns driven by EPERM, no EPERM observed. Attribution: prior agent-introduced responsiveness regression and missing cancellation coverage; no recording loss observed or claimed. Remaining risk: independent follow-up review pending. CI outcome appended after completion; raw logs retained locally. No new task-specific setup mistakes identified.
+
+Final outcome: run 42973395826 on 331c700b78dee2c0124ecef78bf49fb79c49ccb6 passed macOS and Windows on first attempt, including smoke. No claim of independent approval or owner merge permission.
+
+### A-260 — Historical evidence proposal reconciliation
+
+Source: local `pr64-owner-6e7d197-evidence/incident-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted incident-register proposal: initial worktree creation denied .git metadata write by sandbox; authorized escalation succeeded once. Several exploratory source lookups used wrong filename case/path and failed without mutations; corrected through actual source inspection. Effect: minor setup time, no product/build failures or test reruns. Evidence: current task tool output. No remaining build risk identified from these lookup errors.
+
+Follow-up correction: prior preparation handoff unnecessarily left executable UI checks to owner without checking computer-control access. Existing Electron proved accessible and all four checks executed. Bundle-ID app selection was ambiguous; full known running app path resolved it with no launch. Earlier final wall-clock end was manually stated rather than verified; use artifact timestamps for authoritative preparation end.
+
+### A-261 — Historical evidence proposal reconciliation
+
+Source: local `pr67-main-integration-evidence-20261110/incident-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted proposal for agents/agent_self_induced_failures.md (allocate ID on authorized logging branch): #67 integration verification ran a loopback-server test in the restricted local sandbox. It reported listen EPERM on 127.0.0.1 and the dispatcher integration case timed out at 30 seconds. Affected suite: 53 passed, 1 failed, 1 unhandled error. Attribution: sandbox/test-environment failure, not established product failure; launching known loopback coverage in the restricted sandbox repeated an environment limitation, but the owner explicitly authorized CI fallback. No local rerun, no test/config changes. Correction: preserve local evidence and use exact-head hosted macOS/Windows CI as authority. Remaining risk: hosted outcome pending when proposal drafted. Evidence: srcb-pr67-affected.log; merge 328bcc4. No other identifiable task-specific agent failure observed; no repository incident changes committed.
+
+Final correction evidence: CI 42967815445 on 328bcc479d25cf1490602003b3b1d2739669328d passed on macOS and Windows, first attempt, including smoke. Local loopback failure was not reproduced on hosted CI. No rerun or product/config workaround applied.
+
+### A-262 — Historical evidence proposal reconciliation
+
+Source: local `review-defect-fixes-evidence-20261110/incident-proposals.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted proposal for agents/agent_self_induced_failures.md; ID to allocate:
+#58 race-regression fixture initially returned an obsolete pre-assignment transcript even AFTER the gated write completed. This produced one false failure against the correct shared-lock implementation. Corrected fixture: stale scan snapshot is returned only while the assignment write is blocked; once persisted, the real transcript is read. After correction the profile suite passed 38/38. Old-code mutation then failed BOTH requested race regressions; removing imports.ts's matching call separately failed the successful-import regression. Both temporary mutations were restored in finally blocks. Final broader affected suites passed 164/164. No product defect was inferred from the initial fixture error. Evidence: pr58-fix-tests-initial.log, pr58-fix-tests.log, pr58-race-old-code.log, pr58-import-mutation.log, pr58-fix-affected-final.log. Remaining risk: final independent follow-up review is pending; no merge authorized. One initial read looked for #67-only files in the main checkout and found no files; corrected to the proper worktree, no mutation or test impact. No other identifiable task-specific agent error observed. No local EPERM, broad rerun, or CI rerun performed.
+
+Final CI: #67 d5025f2 run 42971588691 and #58 715b4cb run 42971679222 both passed macOS/Windows, first attempt, including smoke. No local EPERM occurred; no environment-driven reruns.
+
+### A-263 — Historical evidence proposal reconciliation
+
+Source: local `stage2-evidence-20261110/incident-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted incident-register proposal (ID to allocate): Stage 2 local verification launched in restricted sandbox. Summary-worker localhost listen was denied with EPERM; smoke produced eight Electron launch failures; local check also had helper assertions and one timeout whose causal attribution is unresolved. Author/setup error: failed to account for native test sandbox needs before launch. No rerun performed per repository rule; report raw counts separately from hosted CI. Evidence: srcb-stage2-check.log, srcb-stage2-smoke.log. Correction: preserve evidence and use hosted CI for independent platform results; future native verification should select appropriate permissions before first run. Remaining risk: local failures beyond explicit EPERM have not been diagnosed. Fetch also needed escalation because shared .git is read-only in sandbox; corrected without branch mutation.
+
+### A-264 — Historical evidence proposal reconciliation
+
+Source: local `stage3-evidence-20261110/incident-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
+
+Uncommitted incident-register proposal; ID to allocate: Stage 3 initial import-cleanup regression test invoked coordinator.shutdown before the import reached create/cleanup, yielding two false failures. Corrected by awaiting importFailed terminal notification before shutdown; affected suite then passed 59/59. Initial typecheck caught incomplete MeetingMeta mock and numeric Array.push callback return after Emit return-type change; corrected with real meeting metadata and void callback. One check was unnecessarily launched before those two compiler errors were fixed, repeating a failed typecheck. No environment-only rerun after the final check. Local sandbox EPERM and smoke Electron launch failures retained separately; hosted CI is platform authority. Tool discovery also mistakenly read a binary wrapper as text and attempted --help on an approval wrapper; no approval or write executed. Evidence: Stage 3 local logs. Attribution: agent test/setup/command mistakes, not application failures. Correction: final affected tests passed; await final CI. Remaining risk: local helper assertions remain undiagnosed.
+
+### A-265 — 2026-11-11 housekeeping setup and lookup errors
+
+Confirmed agent setup/lookup mistakes: attempted two worktree creations before accounting for read-only shared Git metadata; several guessed lookup paths were absent. Corrected by authorized metadata escalation and actual inventories. No application failures or tests resulted; small setup overhead, exact quota impact unavailable. Evidence retained in task tool output. Remaining risk: none identified from these setup errors.
+
+Housekeeping setup follow-up: focused storage invocation loaded all workspace configs and failed before tests because the reused dependency tree lacks @vitejs/plugin-react. Agent selected an incomplete test setup. No assertion failed, no rerun performed; hosted CI pending. A documentation helper also stopped on an incorrect header-line assertion before any writes; corrected by locating the actual table header.
+
+A later whitespace-check command used the evidence parent directory rather than its worktree and reported not-a-repository; corrected checks against both committed diffs passed. No tracked mutation resulted from the failed command. The approval wrapper initially lacked state-directory write access; authorized escalation produced both approval hashes without publishing.
