@@ -22,7 +22,7 @@ fn create_meeting_names_folder_with_safe_title() {
         (&"x".repeat(70), &format!("2026-11-12 {}", "x".repeat(60))),
     ];
     let folder = TempFolder::new("names");
-    let mut library = Library::open(folder.path()).unwrap();
+    let mut library = Library::open(folder.path(), NOW).unwrap();
 
     for (n, (title, expected)) in cases.into_iter().enumerate() {
         let made = library.create_meeting(&recording(n as u8, title)).unwrap();
@@ -40,7 +40,7 @@ fn create_meeting_names_folder_with_safe_title() {
 #[test]
 fn create_meeting_numbers_folder_when_name_taken() {
     let folder = TempFolder::new("taken");
-    let mut library = Library::open(folder.path()).unwrap();
+    let mut library = Library::open(folder.path(), NOW).unwrap();
 
     let first = library
         .create_meeting(&recording(1, "Weekly sync"))
@@ -58,7 +58,7 @@ fn create_meeting_numbers_folder_when_name_taken() {
 #[test]
 fn create_meeting_refuses_date_without_leading_day() {
     let folder = TempFolder::new("bad-date");
-    let mut library = Library::open(folder.path()).unwrap();
+    let mut library = Library::open(folder.path(), NOW).unwrap();
 
     for date in ["2026/11/12T09:30:00Z", "../../x", "../.-..-..", ""] {
         let mut meeting = recording(1, "Weekly sync");
@@ -79,7 +79,7 @@ fn create_meeting_refuses_date_without_leading_day() {
 #[test]
 fn create_meeting_writes_version_1_meeting_json() {
     let folder = TempFolder::new("layout");
-    let mut library = Library::open(folder.path()).unwrap();
+    let mut library = Library::open(folder.path(), NOW).unwrap();
 
     let made = library
         .create_meeting(&recording(1, "Weekly sync"))

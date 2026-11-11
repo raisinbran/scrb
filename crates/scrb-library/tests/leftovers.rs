@@ -2,7 +2,7 @@ mod common;
 
 use std::fs;
 
-use common::{TempFolder, recording};
+use common::{NOW, TempFolder, recording};
 use scrb_library::Library;
 
 /// A crash during a safe write leaves its temporary file beside the old file. Opening the
@@ -11,7 +11,7 @@ use scrb_library::Library;
 #[test]
 fn library_open_removes_only_crash_temp_files() {
     let folder = TempFolder::new("temp-files");
-    let mut library = Library::open(folder.path()).unwrap();
+    let mut library = Library::open(folder.path(), NOW).unwrap();
     let meeting = library
         .create_meeting(&recording(1, "Weekly sync"))
         .unwrap();
@@ -24,7 +24,7 @@ fn library_open_removes_only_crash_temp_files() {
     let users_file = meeting.join("notes.tmp-draft.txt");
     fs::write(&users_file, "my notes").unwrap();
 
-    let _library = Library::open(folder.path()).unwrap();
+    let _library = Library::open(folder.path(), NOW).unwrap();
 
     assert!(!cut_off.exists());
     assert!(!root_temp.exists());
@@ -48,7 +48,7 @@ fn library_open_removes_only_empty_meeting_folders() {
     fs::create_dir_all(audio.parent().unwrap()).unwrap();
     fs::write(&audio, b"OggS").unwrap();
 
-    let _library = Library::open(folder.path()).unwrap();
+    let _library = Library::open(folder.path(), NOW).unwrap();
 
     assert!(!empty.exists());
     assert_eq!(fs::read(&audio).unwrap(), b"OggS");
@@ -65,7 +65,7 @@ fn library_open_skips_leftovers_it_cannot_remove() {
     let folder = TempFolder::new("stuck-leftover");
     // The first open makes `scrb.lock` and `meetings/`, so the second makes no file in the
     // read-only library folder.
-    drop(Library::open(folder.path()).unwrap());
+    drop(Library::open(folder.path(), NOW).unwrap());
     let meeting = folder.path().join("meetings/2026-11-12 Weekly sync");
     fs::create_dir(&meeting).unwrap();
     fs::write(folder.path().join("library.json.tmp-0123456789abcdef"), "{").unwrap();
@@ -73,7 +73,7 @@ fn library_open_skips_leftovers_it_cannot_remove() {
     fs::set_permissions(folder.path(), fs::Permissions::from_mode(0o555)).unwrap();
     fs::set_permissions(&meeting, fs::Permissions::from_mode(0o555)).unwrap();
 
-    let opened = Library::open(folder.path());
+    let opened = Library::open(folder.path(), NOW);
     // Restored before the assertion, so the folders can be removed even when it fails.
     fs::set_permissions(folder.path(), fs::Permissions::from_mode(0o755)).unwrap();
     fs::set_permissions(&meeting, fs::Permissions::from_mode(0o755)).unwrap();
