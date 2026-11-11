@@ -1,6 +1,9 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pcmToWav } from './audio.js';
+import { MeetingDiarizer } from './meetingDiarizer.js';
+import { SherpaWorker } from './sherpa.js';
+import type { ToolPaths, ModelPaths } from './config.js';
 import { LivePcmEngine } from './livePcmEngine.js';
 import { PcmFrameDecoder } from './livePcmProtocol.js';
 import { requestLiveWords, type VadSpan } from './whisper.js';
@@ -53,6 +56,12 @@ process.on('message', (raw: unknown) => {
     Number(message.port) < 65536
   ) {
     const dir = message.workDir;
+    const diarizer = new MeetingDiarizer(
+      (signal) =>
+        SherpaWorker.start(message.tools as ToolPaths, message.models as ModelPaths, 4, signal),
+      (segment) => send({ type: 'attribution', segment }),
+      trace,
+    );
     engine = new LivePcmEngine(
       {
         detect: async (track, samples) => {
@@ -68,6 +77,7 @@ process.on('message', (raw: unknown) => {
       (segment) => send({ type: 'segment', segment }),
       (gap) => send({ type: 'skipped', gap }),
       trace,
+      diarizer,
     );
     decoder = new PcmFrameDecoder((frame) => {
       if (busy) throw new Error('Live input credit exceeded');

@@ -57,6 +57,22 @@ export class LiveTranscriptSink {
       segment.words.length > 256
     )
       return;
+    if (
+      segment.wordSpeakers &&
+      (segment.track !== 'meeting' ||
+        segment.wordSpeakers.length !== segment.words.length ||
+        segment.wordSpeakers.some(
+          (s) =>
+            !s ||
+            typeof s.id !== 'string' ||
+            s.id.length > 256 ||
+            !(s.id === 'meeting'
+              ? s.label === 'Meeting'
+              : /-live-[1-9][0-9]{0,8}$/.test(s.id) &&
+                /^(Speaker \?|Speaker [1-9][0-9]{0,8})$/.test(s.label)),
+        ))
+    )
+      return;
     let end = 0;
     for (const word of segment.words) {
       if (
@@ -70,7 +86,13 @@ export class LiveTranscriptSink {
         return;
       end = word.endMs;
     }
-    const copy = { ...segment, words: segment.words.map((w) => ({ ...w })) };
+    const copy = {
+      ...segment,
+      words: segment.words.map((w) => ({ ...w })),
+      ...(segment.wordSpeakers
+        ? { wordSpeakers: segment.wordSpeakers.map((s) => ({ ...s })) }
+        : {}),
+    };
     const queued = this.pending.findIndex((s) => s.id === segment.id);
     if (queued >= 0) this.pending.splice(queued, 1);
     this.pending.push(copy);
@@ -115,14 +137,32 @@ export class LiveTranscriptSink {
           };
         }),
       };
-      const speaker: Speaker = {
-        id: segment.speakerId,
-        label: input.track === 'mic' ? 'You' : 'Meeting',
-        name: null,
-        profileId: null,
-        userNamed: false,
-        mergedInto: null,
-      };
+      const segments: Segment[] = [];
+      const speakers: Speaker[] = [];
+      for (const [index, word] of segment.words.entries()) {
+        const attribution = input.track === 'meeting' ? input.wordSpeakers?.[index] : undefined;
+        const id = attribution?.id ?? segment.speakerId;
+        let group = segments.at(-1);
+        if (!group || group.speakerId !== id) {
+          group = {
+            ...segment,
+            id: segments.length ? `${input.id}-part-${index}` : input.id,
+            speakerId: id,
+            words: [],
+          };
+          segments.push(group);
+        }
+        group.words.push(word);
+        if (!speakers.some((s) => s.id === id))
+          speakers.push({
+            id,
+            label: attribution?.label ?? (input.track === 'mic' ? 'You' : 'Meeting'),
+            name: null,
+            profileId: null,
+            userNamed: false,
+            mergedInto: null,
+          });
+      }
       for (let attempt = 0; attempt < 3; attempt++) {
         const before = await this.library.readTranscript(this.meetingId);
         const owned = before.segments.filter(
@@ -139,7 +179,18 @@ export class LiveTranscriptSink {
         const words = owned.flatMap((s) => s.words).sort((a, b) => a.startMs - b.startMs);
         if (
           owned.length &&
-          owned.every((s) => s.speakerId === segment.speakerId) &&
+          owned.length === segments.length &&
+          owned.every((s, i) => s.speakerId === segments[i]!.speakerId) &&
+          speakers.every((s) =>
+            before.speakers.some(
+              (old) =>
+                old.id === s.id &&
+                (old.label === s.label ||
+                  old.userNamed ||
+                  old.profileId !== null ||
+                  old.mergedInto !== null),
+            ),
+          ) &&
           words.length === segment.words.length &&
           words.every((w, i) => {
             const next = segment.words[i]!;
@@ -157,13 +208,13 @@ export class LiveTranscriptSink {
             ? await this.library.replaceLiveSegments(
                 this.meetingId,
                 owned.map((s) => s.id),
-                { segments: [segment], speakers: [speaker] },
+                { segments, speakers },
                 before.revision,
               )
             : await this.library.appendSegments(
                 this.meetingId,
-                [segment],
-                [speaker],
+                segments,
+                speakers,
                 before.revision,
               );
           if (saved.revision === before.revision) {

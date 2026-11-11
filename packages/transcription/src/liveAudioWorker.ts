@@ -86,6 +86,7 @@ interface Run {
   lastSegmentAtMs?: number;
   stats?: Record<string, number>;
   statsAtMs?: number;
+  segments?: Map<string, TimedLiveSegment>;
   pending: Map<TrackKind, { startNs: number; endNs: number }>;
   worker?: WorkerProcess;
   models?: LiveModelHost;
@@ -415,7 +416,13 @@ export class LiveAudioWorker {
         () => this.fail(run),
         () => this.fail(run),
       );
-      worker.send({ type: 'init', workDir: run.workDir, port: models.port });
+      worker.send({
+        type: 'init',
+        workDir: run.workDir,
+        port: models.port,
+        tools: this.options.tools,
+        models: this.options.models,
+      });
     } catch {
       this.fail(run);
     }
@@ -492,12 +499,27 @@ export class LiveAudioWorker {
           .finally(() => {
             delete run.vad;
           });
-      } else if (message.type === 'segment' && run.frame) {
+      } else if (message.type === 'attribution' || (message.type === 'segment' && run.frame)) {
         const segment = message.segment as TimedLiveSegment;
+        const original =
+          message.type === 'attribution' ? run.segments?.get(segment?.id) : undefined;
+        if (
+          message.type === 'attribution' &&
+          (!original ||
+            original.generation !== segment.generation ||
+            segment.generation !== this.accepted.get('meeting')?.generation ||
+            this.accepted.get('meeting')?.boundary ||
+            original.track !== segment.track ||
+            original.sequence !== segment.sequence ||
+            original.startMs !== segment.startMs ||
+            original.endMs !== segment.endMs ||
+            JSON.stringify(original.words) !== JSON.stringify(segment.words))
+        )
+          return;
         if (
           !segment ||
-          segment.track !== run.frame.track ||
-          segment.sequence !== run.frame.sequence ||
+          (!original &&
+            (segment.track !== run.frame!.track || segment.sequence !== run.frame!.sequence)) ||
           typeof segment.id !== 'string' ||
           segment.id.length > 128 ||
           segment.provisional !== true ||
@@ -510,7 +532,7 @@ export class LiveAudioWorker {
           !Number.isFinite(segment.endMs) ||
           segment.startMs < 0 ||
           segment.endMs < segment.startMs ||
-          segment.endMs > pcmEndNs(run.frame) / 1e6
+          (!original && segment.endMs > pcmEndNs(run.frame!) / 1e6)
         )
           throw new Error('Invalid live segment');
         let end = segment.startMs;
@@ -529,9 +551,29 @@ export class LiveAudioWorker {
             throw new Error('Invalid live word');
           end = word.endMs;
         }
+        if (
+          segment.wordSpeakers !== undefined &&
+          (!Array.isArray(segment.wordSpeakers) ||
+            segment.track !== 'meeting' ||
+            segment.wordSpeakers.length !== segment.words.length ||
+            segment.wordSpeakers.some(
+              (s) =>
+                !s ||
+                !/^(meeting|live-[1-9][0-9]{0,8})$/.test(s.id) ||
+                !(s.id === 'meeting'
+                  ? s.label === 'Meeting'
+                  : /^(Speaker \?|Speaker [1-9][0-9]{0,8})$/.test(s.label)),
+            ))
+        )
+          throw new Error('Invalid live attribution');
+        if (!original) {
+          run.segments ??= new Map();
+          run.segments.set(segment.id, segment);
+          if (run.segments.size > 64) run.segments.delete(run.segments.keys().next().value!);
+        }
         run.lastSegmentAtMs = Date.now();
         this.trace?.record('segment_received', {
-          ...this.traceFrame(run.frame),
+          ...(run.frame ? this.traceFrame(run.frame) : {}),
           segmentKey: segment.id,
           wordCount: segment.words.length,
         });
@@ -550,6 +592,14 @@ export class LiveAudioWorker {
               endMs: w.endMs,
               confidence: w.confidence,
             })),
+            ...(segment.wordSpeakers
+              ? {
+                  wordSpeakers: segment.wordSpeakers.map((s) => ({
+                    id: s.id === 'meeting' ? s.id : `${this.namespace}-${run.id}-${s.id}`,
+                    label: s.label,
+                  })),
+                }
+              : {}),
             speakerId: segment.track === 'mic' ? 'you' : 'meeting',
             speakerLabel: segment.track === 'mic' ? 'You' : 'Meeting',
             provisional: true,
@@ -576,6 +626,9 @@ export class LiveAudioWorker {
         });
       } else throw new Error('Unexpected live reply');
     } catch {
+      // Optional speaker metadata must not restart the worker delivering transcript words.
+      if (raw && typeof raw === 'object' && (raw as Record<string, unknown>).type === 'attribution')
+        return;
       this.fail(run);
     }
   }
