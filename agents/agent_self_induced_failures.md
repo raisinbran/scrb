@@ -532,3 +532,10 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Impact:** None; the warning is a docstring escape and the helper's output, hashes and the classifier run are unaffected. Noted in the log.
 - **Correction / prevention:** Write helper docstrings as raw strings or avoid paths in them.
 - **Owner approval:** Not required.
+
+### A-086 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — PR #78 body said everything else was independently reviewed
+- **Status / attribution:** Confirmed; agent. Caught by my own re-read about a minute after creation.
+- **What failed:** the first PR body ended with "everything else was independently reviewed before merge into this branch", but the scored-run-2 scoring results and the microphone rescore handoff sections are still pending independent review.
+- **Impact:** None known; the body was corrected with `gh pr edit` before any reviewer was asked to act on it.
+- **Correction / prevention:** State review status per part, from the usage table, when writing a PR body.
+- **Owner approval:** Not required.
