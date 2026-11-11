@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   createConfiguredImportRunner,
   createFinalPassRunner,
+  startProfileMatching,
   LargeModelGate,
   createSettingsHandlers,
   FinalPassQueue,
@@ -14,7 +15,7 @@ import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import type { SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
-import { createMeetingHandlers } from './meetings.ts';
+import { createMeetingHandlers, publishEdit } from './meetings.ts';
 import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { readLiveSetup } from './live-feed.ts';
@@ -59,7 +60,13 @@ export async function openBackend(
     const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
-        ? new FinalPassQueue(library, createFinalPassRunner(finalPassConfig), modelGate)
+        ? new FinalPassQueue(
+            library,
+            createFinalPassRunner(finalPassConfig),
+            modelGate,
+            undefined,
+            (before, after) => publishEdit(before, after, emit),
+          )
         : null;
     // Live inference stays opt-in and disabled in packaged builds.
     const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
@@ -110,6 +117,20 @@ export async function openBackend(
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
           run: createConfiguredImportRunner(finalPassConfig),
+          startMatching: (store) => {
+            const match = startProfileMatching(store);
+            return async (...args) => {
+              const edit = await match(...args);
+              if (edit) {
+                try {
+                  publishEdit(edit.before, edit.after, emit);
+                } catch {
+                  store.logger.log('warn', 'profile-matching-notification-failed', {});
+                }
+              }
+              return edit;
+            };
+          },
           beforeDelete: (meetingId) => playback.revokeMeeting(meetingId),
           recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner: async () => {
