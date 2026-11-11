@@ -35,6 +35,14 @@ async function inspectLayout(page: Page, label: string) {
   }
 }
 
+async function expectPanelHeight(page: Page, selector: string, minimum: number) {
+  const height = await page
+    .locator(selector)
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().height);
+  expect(height, selector).toBeGreaterThanOrEqual(minimum);
+}
+
 async function reachByKeyboard(page: Page, target: Locator) {
   for (let step = 0; step < 80; step++) {
     await page.keyboard.press('Tab');
@@ -110,6 +118,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await trigger('start');
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
       await inspectLayout(page, `${zoom}-live-recording`);
+      await expectPanelHeight(page, 'section[aria-label="Transcript"]', 200);
       await trigger('lagging');
       await inspectLayout(page, `${zoom}-live-lag`);
       await page.locator('[data-word-id]').first().dblclick();
@@ -129,6 +138,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await page.getByRole('button', { name: /Weekly project sync/ }).click();
       await expect(page.getByRole('heading', { name: /Weekly project sync/ })).toBeFocused();
       await inspectLayout(page, `${zoom}-detail`);
+      await expectPanelHeight(page, '[role="tabpanel"]', 200);
       await page.getByRole('button', { name: 'Edit details', exact: true }).click();
       const title = page.getByLabel('Title', { exact: true });
       await title.fill(

@@ -2,11 +2,26 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import type { BackendData } from '../lib/use-backend-data.ts';
 import styles from './Screen.module.css';
 
-/** Restore a heading only when a commit leaves focus on the document body. */
+/**
+ * Restore the heading when a screen opens with nothing focused, or when the focused control is
+ * removed. Focus the user left on the body, for example by clicking blank space, stays there.
+ */
 export function useFocusFallback() {
   const heading = useRef<HTMLHeadingElement>(null);
+  const lastFocused = useRef<Element | null>(null);
+  const opened = useRef(false);
   useEffect(() => {
-    if (document.activeElement === document.body) heading.current?.focus();
+    const track = (event: FocusEvent) => {
+      lastFocused.current = event.target as Element;
+    };
+    document.addEventListener('focusin', track);
+    return () => document.removeEventListener('focusin', track);
+  }, []);
+  useEffect(() => {
+    const lost =
+      !opened.current || (lastFocused.current !== null && !lastFocused.current.isConnected);
+    opened.current = true;
+    if (lost && document.activeElement === document.body) heading.current?.focus();
   });
   return heading;
 }
