@@ -15,6 +15,7 @@ import {
   toModelReplacement,
 } from '@scrb/app-core';
 import type { FinalTranscript } from '@scrb/transcription';
+import * as documents from '../../../../packages/storage/src/formats/versioned.ts';
 import { ImportCoordinator } from './imports.ts';
 import { createMeetingHandlers, publishEdit } from './meetings.ts';
 import { dispatchCall } from './dispatch.ts';
@@ -235,6 +236,172 @@ describe('verified profile recognition', () => {
     });
     await apply(start(), id);
     expect(await library.readTranscript(id)).toEqual(before);
+  });
+
+  it('deletion waits for an assignment that passed its check but has not saved', async () => {
+    const p = profile();
+    const id = await seed();
+    const before = await library.readTranscript(id);
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const save = documents.saveDocument;
+    let assignmentPersisted = false;
+    vi.spyOn(documents, 'saveDocument').mockImplementation(async (...args) => {
+      const doc = args[1] as TranscriptFile;
+      if (doc.speakers?.some((s) => s.profileId === p.id)) {
+        entered();
+        await gate;
+      }
+      await save(...args);
+      assignmentPersisted = true;
+    });
+    const assignment = library.assignSpeakerProfiles(
+      id,
+      [{ speaker: before.speakers[0]!, profile: p }],
+      before.revision,
+      new AbortController().signal,
+    );
+    await waiting;
+    // Make the old scan deterministic: it sees the persisted pre-assignment snapshot.
+    const read = library.readTranscript.bind(library);
+    vi.spyOn(library, 'readTranscript').mockImplementation((meetingId) =>
+      assignmentPersisted ? read(meetingId) : Promise.resolve(before),
+    );
+    const deletion = library.deleteVoiceProfile(p.id);
+    await Promise.race([deletion, new Promise<void>((resolve) => setImmediate(resolve))]);
+    release();
+    await Promise.all([assignment, deletion]);
+    vi.mocked(library.readTranscript).mockRestore();
+    const saved = await library.readTranscript(id);
+    expect(library.voiceProfiles.get(p.id)).toBeNull();
+    expect(saved.speakers.every((s) => s.profileId !== p.id)).toBe(true);
+    expect(JSON.stringify([...saved.undoStack, ...saved.redoStack])).not.toContain(p.id);
+  });
+
+  it('rejects an assignment started after the deletion scan but before profile removal', async () => {
+    const p = profile();
+    const first = await seed();
+    const second = await seed();
+    const initial = await library.readTranscript(first);
+    await library.assignSpeakerProfiles(
+      first,
+      [{ speaker: initial.speakers[0]!, profile: p }],
+      initial.revision,
+      new AbortController().signal,
+    );
+    const before = await library.readTranscript(second);
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const save = documents.saveDocument;
+    vi.spyOn(documents, 'saveDocument').mockImplementation(async (...args) => {
+      const doc = args[1] as TranscriptFile;
+      if (doc.meetingId === first && doc.speakers?.every((s) => s.profileId !== p.id)) {
+        entered();
+        await gate;
+      }
+      return save(...args);
+    });
+    const deletion = library.deleteVoiceProfile(p.id);
+    await waiting;
+    let assignmentStarted = false;
+    const load = documents.loadDocument;
+    vi.spyOn(documents, 'loadDocument').mockImplementation((...args) => {
+      if (args[1] === library.meetingPaths(second).transcript) assignmentStarted = true;
+      return load(...args);
+    });
+    const assignment = library.assignSpeakerProfiles(
+      second,
+      [{ speaker: before.speakers[0]!, profile: p }],
+      before.revision,
+      new AbortController().signal,
+    );
+    // The old implementation completes this assignment while unlink's write is delayed.
+    const outcome = assignment.then(
+      () => 'saved',
+      () => 'rejected',
+    );
+    // Drain only the queued lock callback; no wall-clock delay or filesystem timing assumption.
+    await Promise.resolve();
+    await Promise.resolve();
+    if (assignmentStarted) await outcome;
+    release();
+    await deletion;
+    expect(await outcome).toBe('rejected');
+    expect(library.voiceProfiles.get(p.id)).toBeNull();
+    const saved = await library.readTranscript(second);
+    expect(saved.speakers.every((s) => s.profileId !== p.id)).toBe(true);
+    expect(JSON.stringify([...saved.undoStack, ...saved.redoStack])).not.toContain(p.id);
+  });
+
+  it('completed import persists automatic profile assignment, Undo and transcript notification', async () => {
+    const p = profile();
+    const source = join(root, 'eligible.wav');
+    await writeFile(source, 'invented');
+    const emit = vi.fn();
+    let finished!: () => void;
+    const done = new Promise<void>((resolve) => {
+      finished = resolve;
+    });
+    const controller = new ImportCoordinator({
+      library,
+      chooseFile: async () => source,
+      recordingBusy: () => false,
+      privacyBanner: async () => false,
+      emit: (name, payload) => {
+        emit(name, payload);
+        if (name === 'importFinished') finished();
+      },
+      startMatching: (store) => {
+        const match = startProfileMatching(store, async () => APPROVED_EMBEDDING_SHA256);
+        return async (...args) => {
+          const edit = await match(...args);
+          if (edit) publishEdit(edit.before, edit.after, emit);
+          return edit;
+        };
+      },
+      run: async ({ meetingDir, onEmbeddingModel }) => {
+        await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
+        await writeFile(join(meetingDir, 'audio', 'meeting', 'chunks.json'), '{"version":1}');
+        onEmbeddingModel?.('compatible-model');
+        return {
+          meetingDir,
+          sourceName: 'eligible.wav',
+          fileDate: new Date(),
+          durationMs: 2000,
+          truncated: false,
+          chunks: [],
+          transcript: transcript(),
+        };
+      },
+    });
+    const picked = (await controller.handlers.pickAudioFile!(undefined)) as { fileToken: string };
+    await controller.handlers.importAudioFile!({
+      fileToken: picked.fileToken,
+      buildVoiceProfiles: false,
+    });
+    await done;
+    await controller.shutdown();
+    const id = library.listMeetings()[0]!.id;
+    expect((await library.getMeeting(id)).status).toBe('ready');
+    const saved = await library.readTranscript(id);
+    expect(saved.speakers[0]?.profileId).toBe(p.id);
+    expect(saved.speakers[0]?.name).toBe(p.name);
+    expect(saved.undoStack).toHaveLength(1);
+    expect(emit.mock.calls.filter(([name]) => name === 'transcriptChanged')).toHaveLength(1);
+    expect((await library.undo(id)).speakers[0]?.profileId).toBeNull();
+    expect((await library.redo(id)).speakers[0]?.profileId).toBe(p.id);
   });
 
   it('excludes profiles added after processing starts', async () => {

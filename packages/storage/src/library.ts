@@ -461,6 +461,13 @@ export class Library {
   async deleteVoiceProfile(
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
+    return this.withLock('voice-profile-assignments', () => this.unlinkVoiceProfile(profileId));
+  }
+
+  /** Share the assignment lock through scan, unlink and removal so no new link escapes the scan. */
+  private async unlinkVoiceProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
     const affected: { meetingId: string; before: TranscriptFile }[] = [];
     const linkedMeetings = new Set(this.voiceProfiles.get(profileId)?.meetingIds ?? []);
     for (const row of this.listMeetings()) {
@@ -551,50 +558,52 @@ export class Library {
         ...profile,
         meetingIds: [...profile.meetingIds].sort(),
       });
-    return this.changeTranscript(
-      meetingId,
-      async (current) => {
-        if ((await this.getMeeting(meetingId)).status !== 'ready') {
-          throw new CorrectionConflictError('Meeting is not complete');
-        }
-        for (const { speaker } of assignments) {
-          const latest = current.speakers.find((s) => s.id === speaker.id);
-          if (
-            !latest ||
-            latest.userNamed ||
-            latest.mergedInto !== null ||
-            JSON.stringify(latest) !== JSON.stringify(speaker)
-          ) {
-            throw new CorrectionConflictError('Speaker changed');
+    return this.withLock('voice-profile-assignments', () =>
+      this.changeTranscript(
+        meetingId,
+        async (current) => {
+          if ((await this.getMeeting(meetingId)).status !== 'ready') {
+            throw new CorrectionConflictError('Meeting is not complete');
           }
-        }
-        if (assignments.length === 0) return current;
-        return corrections.assignSpeakerProfiles(
-          current,
-          assignments.map(({ speaker, profile }) => {
-            if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
-            return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
-          }),
-        );
-      },
-      {
-        userEdit: true,
-        expectedRevision,
-        beforeSave: () => {
-          signal.throwIfAborted();
-          for (const { profile } of assignments) {
-            const latest = this.voiceProfiles.get(profile.id);
+          for (const { speaker } of assignments) {
+            const latest = current.speakers.find((s) => s.id === speaker.id);
             if (
               !latest ||
-              profile.name === null ||
-              profile.meetingIds.includes(meetingId) ||
-              snapshot(latest) !== snapshot(profile)
+              latest.userNamed ||
+              latest.mergedInto !== null ||
+              JSON.stringify(latest) !== JSON.stringify(speaker)
             ) {
-              throw new CorrectionConflictError('Profile changed');
+              throw new CorrectionConflictError('Speaker changed');
             }
           }
+          if (assignments.length === 0) return current;
+          return corrections.assignSpeakerProfiles(
+            current,
+            assignments.map(({ speaker, profile }) => {
+              if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
+              return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
+            }),
+          );
         },
-      },
+        {
+          userEdit: true,
+          expectedRevision,
+          beforeSave: () => {
+            signal.throwIfAborted();
+            for (const { profile } of assignments) {
+              const latest = this.voiceProfiles.get(profile.id);
+              if (
+                !latest ||
+                profile.name === null ||
+                profile.meetingIds.includes(meetingId) ||
+                snapshot(latest) !== snapshot(profile)
+              ) {
+                throw new CorrectionConflictError('Profile changed');
+              }
+            }
+          },
+        },
+      ),
     );
   }
 
