@@ -269,6 +269,22 @@ function replaceSpeakers(
   return pushHistory({ ...transcript, speakers }, label, { speakers: patches });
 }
 
+export function assignSpeakerProfiles(
+  transcript: TranscriptFile,
+  assignments: { speakerId: string; profileId: string; name: string }[],
+): TranscriptFile {
+  return replaceSpeakers(
+    transcript,
+    'Recognize speakers',
+    assignments.map((assignment) => ({
+      ...findSpeaker(transcript, assignment.speakerId),
+      profileId: assignment.profileId,
+      name: assignment.name,
+      userNamed: false,
+    })),
+  );
+}
+
 export function renameSpeaker(
   transcript: TranscriptFile,
   speakerId: string,
@@ -302,7 +318,66 @@ export function mergeSpeakers(
   return replaceSpeakers(transcript, 'Merge speakers', [{ ...from, mergedInto: intoId }]);
 }
 
-/** Moves a span to another speaker. Splitting a speaker is a series of these. */
+export function splitSpeaker(
+  transcript: TranscriptFile,
+  wordIds: string[],
+  newLabel: string,
+): TranscriptFile {
+  const span = selectSpan(transcript, wordIds);
+  const effective = new Set(
+    span.map(({ word, segment }) => {
+      const override = overrideFor(transcript.speakerOverrides, segment.track, midpoint(word));
+      return resolveSpeakerId(transcript, override?.speakerId ?? segment.speakerId);
+    }),
+  );
+  if (effective.size !== 1) {
+    throw new CorrectionConflictError('Select words from one speaker.');
+  }
+  const first = span[0] as PlacedWord;
+  const last = span.at(-1) as PlacedWord;
+  const startMs = first.word.startMs;
+  const endMs = last.word.endMs;
+  const selectedIds = new Set(span.map(({ word }) => word.id));
+  // A timestamp override must change exactly the selected words under midpoint display rules.
+  const changesDifferentWords = trackWords(transcript.segments, first.segment.track).some(
+    ({ word }) => {
+      const at = midpoint(word);
+      return selectedIds.has(word.id) !== (at >= startMs && at <= endMs);
+    },
+  );
+  if (changesDifferentWords) {
+    throw new CorrectionConflictError('The selected words overlap other speech.');
+  }
+  const speaker: Speaker = {
+    id: randomUUID(),
+    label: newLabel,
+    name: newLabel,
+    profileId: null,
+    userNamed: true,
+    mergedInto: null,
+  };
+  const override: SpeakerOverride = {
+    id: randomUUID(),
+    track: first.segment.track,
+    startMs: first.word.startMs,
+    endMs: last.word.endMs,
+    speakerId: speaker.id,
+  };
+  return pushHistory(
+    {
+      ...transcript,
+      speakers: [...transcript.speakers, speaker],
+      speakerOverrides: [...transcript.speakerOverrides, override],
+    },
+    'Split speaker',
+    {
+      speakers: [{ id: speaker.id, before: null, after: speaker }],
+      overrides: [{ id: override.id, before: null, after: override }],
+    },
+  );
+}
+
+/** Moves a span to an existing speaker. */
 export function reassignSpeaker(
   transcript: TranscriptFile,
   wordIds: string[],

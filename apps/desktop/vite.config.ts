@@ -6,6 +6,7 @@ const CONTENT_SECURITY_POLICY = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
+  'media-src scribe-media:',
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
