@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BackendEvents } from '@scrb/contracts';
 import { Library } from '@scrb/storage';
+import { ImportCoordinator } from './imports.ts';
+import type { ImportResult } from '@scrb/app-core';
 import { PlaybackMedia } from './playback-media.ts';
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -18,9 +20,14 @@ async function fixture() {
   let date = new Date('2026-01-01T00:00:00Z');
   const library = await Library.open({ root, now: () => date });
   const events: BackendEvents['playbackPosition'][] = [];
+  let emitFailure: 'throw' | 'reject' | undefined;
   const playback = new PlaybackMedia(
     library,
-    (_name, payload) => events.push(payload as BackendEvents['playbackPosition']),
+    (_name, payload) => {
+      if (emitFailure === 'throw') throw new Error('private renderer details');
+      if (emitFailure === 'reject') return Promise.reject(new Error('private renderer details'));
+      events.push(payload as BackendEvents['playbackPosition']);
+    },
     () => 1000,
   );
   let stopSchedule: (() => void) | undefined;
@@ -69,6 +76,9 @@ async function fixture() {
   };
   return {
     library,
+    failEmit: (mode: 'throw' | 'reject') => {
+      emitFailure = mode;
+    },
     playback,
     old,
     young,
@@ -83,6 +93,94 @@ async function fixture() {
 }
 
 describe('playback revocation before deletion', () => {
+  describe.each(['throw', 'reject'] as const)('when emit can %s', (mode) => {
+    const revoked = async (f: Awaited<ReturnType<typeof fixture>>, url: string) => {
+      expect((await f.get(url)).status).toBe(404);
+      await expect(
+        f.handlers.getPlaybackMedia!({ meetingId: f.old, positionMs: 1000 }),
+      ).rejects.toMatchObject({ code: 'conflict' });
+    };
+
+    it('still calls the real explicit remove', async () => {
+      const f = await fixture();
+      const url = await f.play(f.old);
+      f.failEmit(mode);
+      const remove = vi.spyOn(f.library, 'deleteMeeting');
+      await expect(f.handlers.deleteMeeting!({ meetingId: f.old })).resolves.toMatchObject({
+        ok: true,
+      });
+      expect(remove).toHaveBeenCalledWith(f.old);
+      await expect(f.library.getMeeting(f.old)).rejects.toThrow();
+      await revoked(f, url);
+    });
+
+    it.each(['audio', 'meeting'] as const)('still deletes through %s retention', async (scope) => {
+      const f = await fixture();
+      const url = await f.play(f.old);
+      f.failEmit(mode);
+      f.library.settings.setAutoDelete({ period: '30d', scope });
+      const remove = vi.spyOn(f.library, scope === 'audio' ? 'deleteAudio' : 'deleteMeeting');
+      expect((await f.library.runAutoDelete((id) => f.playback.revokeMeeting(id))).results).toEqual(
+        [{ meetingId: f.old, ok: true, remaining: [] }],
+      );
+      expect(remove).toHaveBeenCalled();
+      if (scope === 'audio')
+        expect((await f.library.getMeeting(f.old)).audioDeletedAt).not.toBeNull();
+      else await expect(f.library.getMeeting(f.old)).rejects.toThrow();
+      await revoked(f, url);
+    });
+
+    it('still discards through import cleanup', async () => {
+      const f = await fixture();
+      const url = await f.play(f.old);
+      f.failEmit(mode);
+      const selected = join(f.library.paths.cache, 'invented.wav');
+      await writeFile(selected, 'invented');
+      vi.spyOn(f.library, 'createMeeting').mockResolvedValue(await f.library.getMeeting(f.old));
+      vi.spyOn(f.library, 'applyFinalPass').mockRejectedValue(new Error('invented import failure'));
+      const discard = vi.spyOn(f.library, 'discardImport');
+      let finished!: () => void;
+      const terminal = new Promise<void>((resolve) => {
+        finished = resolve;
+      });
+      const coordinator = new ImportCoordinator({
+        library: f.library,
+        chooseFile: async () => selected,
+        run: async ({ meetingDir }) => {
+          await mkdir(join(meetingDir, 'audio', 'meeting'), { recursive: true });
+          return {
+            fileDate: new Date(),
+            durationMs: 1000,
+            transcript: {
+              words: [],
+              turns: [],
+              speakers: [],
+              spans: [],
+            },
+          } as unknown as ImportResult;
+        },
+        recordingBusy: () => false,
+        privacyBanner: async () => false,
+        emit: (name) => {
+          if (name === 'importFailed') finished();
+        },
+        beforeDelete: (id) => f.playback.revokeMeeting(id),
+      });
+      const picked = (await coordinator.handlers.pickAudioFile!(undefined)) as {
+        fileToken: string;
+      };
+      await coordinator.handlers.importAudioFile!({
+        fileToken: picked.fileToken,
+        buildVoiceProfiles: false,
+      });
+      await terminal;
+      await coordinator.shutdown();
+      expect(discard).toHaveBeenCalledWith(f.old);
+      await expect(f.library.getMeeting(f.old)).rejects.toThrow();
+      await revoked(f, url);
+    });
+  });
+
   it.each([
     ['audio', 'once'],
     ['meeting', 'once'],
