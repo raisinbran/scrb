@@ -539,3 +539,10 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Impact:** None known; the body was corrected with `gh pr edit` before any reviewer was asked to act on it.
 - **Correction / prevention:** State review status per part, from the usage table, when writing a PR body.
 - **Owner approval:** Not required.
+
+### A-087 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — draft banner left in the signed decision record
+- **Status / attribution:** Confirmed; agent. Found by the independent reviewer (Codex).
+- **What failed:** when asked to fix the section 6 heading I changed only that heading and did not search the file for other sentences saying it was unsigned; line 3 still read "DRAFT ... Nothing here is approved or signed".
+- **Impact:** None on the decision; the signed record contradicted itself for about 25 minutes on the PR branch (PR #78 CI was running, nobody had merged).
+- **Correction / prevention:** banner replaced in the next commit. When fixing status wording, search the whole file for draft/unsigned/pending terms.
+- **Owner approval:** Not required.
