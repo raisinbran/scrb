@@ -35,6 +35,7 @@ export interface ImportDependencies {
   recordingBusy(): boolean;
   privacyBanner(): Promise<boolean>;
   emit: Emit;
+  beforeDelete?: (meetingId: string) => void;
   removeStaging?: ((folder: string) => Promise<void>) | undefined;
   modelGate?: LargeModelGate;
 }
@@ -214,6 +215,7 @@ export class ImportCoordinator {
     } catch (error) {
       if (meetingId !== null) {
         try {
+          this.deps.beforeDelete?.(meetingId);
           const report = await library.discardImport(meetingId);
           if (!report.ok) {
             cleanupIncomplete = true;
