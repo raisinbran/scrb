@@ -87,3 +87,16 @@ Nothing further is authorized. Owner decisions pending: D1, D2; whether to propo
 **Context from existing outputs.** Neighbours' conservative latencies (3 before, 3 after), all MATCHED: `029`: 2.71, 1.84, 2.75 s | 2.89, 2.17, 3.80 s (the 3.80 s is `microphone-032`). `050`: 1.16, 1.23, 1.77 s | 1.27, 1.21, 1.28 s. So both units sit among normal-latency neighbours. Observer within a few seconds of the expected time: `029` yes, a 10-publication row (`microphone|03:02|*`) first observed 2.47 s after the acoustic end, and the matcher kept its position 9 as the single candidate, but the displayed word differs from the source word, so it is not credited; `050` essentially no: the only publication within +8 s is one from a later row (`04:55`) at +3.82 s, no candidate. Matcher: no single-word substitution recorded for either (`MATCHED-SUBSTITUTED` needs at least 3 reference words; `029` has 1; `050` has 0.00 other-word agreement and "endpoint deleted in the optimal alignment"). Microphone window 170-245 s: 18 units (8 short): 17 MATCHED, 1 UNIDENTIFIED (`029`); the slowest MATCHED unit there is `microphone-025` at 4.566 s conservative.
 
 **Reading.** Layer B FAILURE OBSERVED in the microphone rests on `microphone-029`, one short single-word unit whose row appeared on time but showed a different word. The classifier labels it a recognition difference (class c), not a late publication. That label is a heuristic; the verdict stays as the tools reported it.
+
+---
+
+## Independent replication by Codex (2026-11-10)
+
+Codex (GPT-6, Windows) repeated the microphone rescore and the combined analysis in a separate clean clone, writing only into its own folder (`independent-replication-codex`, outside Git). **It is a replication of the SAME recording, so it does not add a second run.** Counts, hashes and verdicts only; no transcript text. No Gate 3 claim is made.
+
+- **Verifier** before and after, at `78c9acb` with manifest `b0a00b68...123d`: 289 checks, 0 mismatches.
+- **Hashes reproduced** against the mic-rescore log: helper, conversion, matcher, combined-input and analysis hashes all match; the microphone gap map matches the mic-rescore log (chunk 47 the only difference, +648 samples).
+- **Canonical meeting subtree hash** `adc8c93013990d32875b64e919cbe2321f5af214efbab0e0c2fea281f682cd76`: matches.
+- **Numbers reproduced:** meeting and microphone headline numbers and Layer B, as recorded in the sections above.
+- **First attempt stopped** at the microphone gap-map hash because Codex compared it with the first-attempt log under the old pin; the continuation used the mic-rescore log and reproduced everything (register A-088; planner side A-089).
+- **Limits:** the classifier was not re-run.

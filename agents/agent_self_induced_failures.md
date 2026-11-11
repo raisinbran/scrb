@@ -546,3 +546,19 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Impact:** None on the decision; the signed record contradicted itself for about 25 minutes on the PR branch (PR #78 CI was running, nobody had merged).
 - **Correction / prevention:** banner replaced in the next commit. When fixing status wording, search the whole file for draft/unsigned/pending terms.
 - **Owner approval:** Not required.
+
+### A-088 — 2026-11-10 — Codex / Windows Desktop — independent replication stopped by comparing against the wrong log
+- **Status / attribution:** Confirmed agent error (Codex), with an ambiguous planner instruction as a contributing cause (see A-089).
+- **What failed:** Codex stopped the first independent replication after comparing the regenerated microphone gap map at approved commit `78c9acb` against the superseded first-scoring log under the old pin, instead of the mic-rescore log. It treated a known historical-pin difference as an unreproducible current step.
+- **Impact:** One stopped step and an incomplete first replication, an owner correction and a continuation turn. No wrong result; no evidence or application state changed.
+- **Evidence:** Codex AGENT-ERROR.md and CONTINUATION-REPORT.md in the private evidence folder (not copied to Git).
+- **Correction / prevention:** Continued from the approved pin using the mic-rescore reference hashes. Bind each comparison to its effective approved pin and amended plan before interpreting a mismatch.
+- **Remaining risk:** None for the results; not an application defect.
+- **Owner approval:** Not required.
+
+### A-089 — 2026-11-10 — Planner — unequal-exposure error comparison and an ambiguous log instruction
+- **Status / attribution:** Confirmed planner error, partly contributing to A-088.
+- **What failed:** (1) The planner argued about relative model quality from raw error counts across agents with unequal exposure, which is sampling bias. (2) The replication brief was ambiguous about which log governs the microphone steps.
+- **Impact:** The second point contributed to A-088 (one stopped step, no wrong result). The first caused no action.
+- **Correction / prevention:** Compare agents only on rates over comparable work; name the governing log, pin and amendment in every replication brief.
+- **Owner approval:** Not required.
