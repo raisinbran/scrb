@@ -183,6 +183,11 @@ export function analyzeLiveTrace(
     unknown:
       malformed ||
       missingWorkers.length > 0 ||
+      records.some((r) => r.stage === 'run_failed') ||
+      expected.some(
+        (r) =>
+          !observations.some((o) => o.session === r.session && o.workerRun === (r.workerRun ?? 0)),
+      ) ||
       !streams.length ||
       !observations.length ||
       streams.some((s) => !s.complete) ||

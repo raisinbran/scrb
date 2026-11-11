@@ -301,3 +301,30 @@ it('keeps slow-model/backlog skip/defer/output decisions identical and measures 
   );
   expect(microseconds).toBeLessThan(100);
 });
+
+it.each(['failed', 'no processing', 'failed after processing'] as const)(
+  'reports UNKNOWN when a healthy run accompanies a run with %s',
+  async (mode) => {
+    const supervisor = recorder('supervisor');
+    const healthy = recorder();
+    const other = recorder('worker', { workerRun: 1 });
+    supervisor.trace.record('run_start', { workerRun: 0 });
+    supervisor.trace.record('run_start', { workerRun: 1 });
+    healthy.trace.record('vad_start', { workerRun: 0, evaluation: 1 });
+    healthy.trace.record('vad_end', { workerRun: 0, evaluation: 1, spanCount: 0 });
+    other.trace.record('frame_start', { workerRun: 1, sequence: 0 });
+    if (mode === 'failed after processing') {
+      other.trace.record('vad_start', { workerRun: 1, evaluation: 1 });
+      other.trace.record('vad_end', { workerRun: 1, evaluation: 1, spanCount: 0 });
+    }
+    if (mode !== 'no processing') other.trace.record('run_failed', { workerRun: 1 });
+    await Promise.all([supervisor.trace.close(), healthy.trace.close(), other.trace.close()]);
+    const analysis = analyzeLiveTrace([...supervisor.rows(), ...healthy.rows(), ...other.rows()]);
+    expect(analysis.streams.every((s) => s.complete && s.dropped === 0)).toBe(true);
+    expect(analysis.missingWorkers).toEqual([]);
+    expect(analysis.observations).toContainEqual(
+      expect.objectContaining({ workerRun: 0, diagnosis: 'EMPTY_VAD_RESULT' }),
+    );
+    expect(analysis.unknown).toBe(true);
+  },
+);
