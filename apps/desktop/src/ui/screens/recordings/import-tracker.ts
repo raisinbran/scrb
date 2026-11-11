@@ -13,7 +13,12 @@ export type ImportEntry = {
   importId: ImportId;
   fileName: string;
   /** Null for an import this UI did not start, such as one still running after a reload. */
-  source: { file: PickedAudioFile; buildVoiceProfiles: boolean } | null;
+  source: {
+    file: PickedAudioFile;
+    buildVoiceProfiles: boolean;
+    privacyBannerRequired: boolean;
+  } | null;
+  privacyDismissed: boolean;
 } & (
   | { state: 'running'; stage: ImportStage; fraction: number; cancelling: boolean }
   | { state: 'finished'; meetingId: MeetingId }
@@ -55,12 +60,12 @@ export class ImportTracker {
   readonly getEntries = () => this.entries;
 
   async start(file: PickedAudioFile, buildVoiceProfiles: boolean): Promise<void> {
-    const { importId } = await this.backend.call('importAudioFile', {
+    const { importId, privacyBannerRequired } = await this.backend.call('importAudioFile', {
       fileToken: file.fileToken,
       buildVoiceProfiles,
     });
     // Events can arrive before this response, so the entry may already exist.
-    const source = { file, buildVoiceProfiles };
+    const source = { file, buildVoiceProfiles, privacyBannerRequired };
     if (this.entries.some((entry) => entry.importId === importId)) {
       this.update(importId, (entry) => ({ ...entry, source }));
       return;
@@ -71,6 +76,7 @@ export class ImportTracker {
         importId,
         fileName: file.fileName,
         source,
+        privacyDismissed: false,
         state: 'running',
         stage: 'queued',
         fraction: 0,
@@ -97,12 +103,17 @@ export class ImportTracker {
     this.publish(this.entries.filter((entry) => entry.importId !== importId));
   }
 
+  dismissPrivacy(importId: ImportId): void {
+    this.update(importId, (entry) => ({ ...entry, privacyDismissed: true }));
+  }
+
   private apply(importId: ImportId, patch: Patch): void {
     const existing = this.entries.find((entry) => entry.importId === importId);
     const base = {
       importId,
       fileName: patch.fileName ?? existing?.fileName ?? '',
       source: existing?.source ?? null,
+      privacyDismissed: existing?.privacyDismissed ?? false,
     };
     const next: ImportEntry =
       patch.state === 'running'

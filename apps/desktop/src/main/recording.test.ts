@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import type { FinalPassQueue } from '@scrb/app-core';
 import { RecordingController, recoverInterrupted } from './recording.ts';
+import type { LiveSetup } from './live-feed.ts';
+import { ImportCoordinator } from './imports.ts';
 
 // These tests exercise the Electron controller without launching a recording helper or using audio.
 const fake = vi.hoisted(() => ({
@@ -16,10 +18,14 @@ const fake = vi.hoisted(() => ({
     state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
   workerEvents: [] as ((event: unknown) => void)[],
+  adapterArgs: [] as { args: string[]; hasLiveDescriptor: boolean }[],
+  prepareWindowsPipes: vi.fn(),
+  windowsLaunches: 0,
 }));
 
 vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
-vi.mock('@scrb/app-core', () => ({
+vi.mock('@scrb/app-core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@scrb/app-core')>()),
   sealAudio: fake.sealAudio,
   RecordingSession: class {
     constructor(
@@ -54,11 +60,31 @@ vi.mock('@scrb/app-core', () => ({
     }
   },
 }));
+vi.mock('./live-feed.ts', () => ({
+  LiveCaptureSession: class {
+    async prepareWindowsPipes(): Promise<void> {
+      fake.prepareWindowsPipes();
+    }
+    startWindowsHelper(): string[] {
+      return ['--live-pipe', `invented-pipe-${++fake.windowsLaunches}`];
+    }
+    startHelper(): undefined {
+      return undefined;
+    }
+    async stop(): Promise<void> {
+      return undefined;
+    }
+  },
+}));
 vi.mock('@scrb/capture', () => ({
   ProcessAdapter: class {
+    constructor(_helper: string, args: string[] = [], live?: unknown) {
+      fake.adapterArgs.push({ args, hasLiveDescriptor: live !== undefined });
+    }
     onEvent(listener: (event: unknown) => void): void {
       fake.workerEvents.push(listener);
     }
+    onExit = vi.fn();
   },
 }));
 vi.mock('./sources.ts', () => ({
@@ -93,6 +119,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   fake.sessions.length = 0;
   fake.workerEvents.length = 0;
+  fake.adapterArgs.length = 0;
+  fake.windowsLaunches = 0;
   fake.resolveSources.mockResolvedValue({
     source: 'wholeComputer',
     mic: 'default',
@@ -209,6 +237,90 @@ describe('A meeting track that hears nothing', () => {
 });
 
 describe('Start while the previous recording is finishing', () => {
+  it('blocks imports until preemption completes', async () => {
+    const library = libraryStub();
+    let release!: () => void;
+    const cleanup = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const controller = new RecordingController(
+      library as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+      null,
+      undefined,
+      null,
+      () => cleanup,
+    );
+    const run = vi.fn();
+    const imports = new ImportCoordinator({
+      library: library as unknown as Library,
+      chooseFile: async () => null,
+      run,
+      recordingBusy: () => controller.isBusy(),
+      privacyBanner: async () => false,
+      emit: vi.fn(),
+    });
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: NS_PER_MS });
+    const start = controller.handlers.startRecording!({});
+    try {
+      expect(controller.isBusy()).toBe(true);
+      await expect(
+        imports.handlers.importAudioFile!({ fileToken: 'unused', buildVoiceProfiles: false }),
+      ).rejects.toMatchObject({ code: 'conflict' });
+      await expect(controller.handlers.startRecording!({})).rejects.toMatchObject({
+        code: 'conflict',
+      });
+      expect(fake.resolveSources).not.toHaveBeenCalled();
+      expect(library.createMeeting).not.toHaveBeenCalled();
+      expect(fake.adapterArgs).toEqual([]);
+      expect(run).not.toHaveBeenCalled();
+      release();
+      await expect(start).resolves.toEqual({ meetingId: 'meeting-1' });
+      expect(fake.adapterArgs).toHaveLength(1);
+    } finally {
+      release();
+      await start;
+      await controller.shutdown();
+      await imports.shutdown();
+    }
+    expect(controller.isBusy()).toBe(false);
+  });
+
+  it('releases Start after preemption fails', async () => {
+    const library = libraryStub();
+    const preempt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('cleanup failed'))
+      .mockResolvedValue(undefined);
+    const controller = new RecordingController(
+      library as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }), save: vi.fn() },
+      null,
+      undefined,
+      null,
+      preempt,
+    );
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: NS_PER_MS });
+    await expect(controller.handlers.startRecording!({})).rejects.toThrow('cleanup failed');
+    expect(controller.isBusy()).toBe(false);
+    expect(library.createMeeting).not.toHaveBeenCalled();
+    expect(fake.adapterArgs).toEqual([]);
+    expect(await controller.handlers.getRecordingSnapshot!(undefined)).toMatchObject({
+      state: { status: 'idle' },
+    });
+    try {
+      await expect(controller.handlers.startRecording!({})).resolves.toEqual({
+        meetingId: 'meeting-1',
+      });
+    } finally {
+      await controller.shutdown();
+    }
+  });
+
   it('refuses Start after onEnded clears the session but before Stop finishes sealing', async () => {
     const library = libraryStub();
     const sealing = completion();
@@ -383,6 +495,34 @@ describe('Start while the previous recording is finishing', () => {
         { kind: 'audioMissing', track: 'meeting' },
         { kind: 'audioMissing', track: 'meeting' },
       ],
+    });
+    await controller.shutdown();
+  });
+});
+
+describe('Windows desktop live helper launch', () => {
+  it.skipIf(process.platform !== 'win32')('uses a fresh pipe for helper restart', async () => {
+    fake.sealAudio.mockResolvedValue({ outcome: 'ready', endNs: 0 });
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'capture-helper',
+      vi.fn(),
+      { read: () => ({ meetingAppId: 'wholeComputer', micDeviceId: null }), save: vi.fn() },
+      null,
+      async () => false,
+      {} as LiveSetup,
+    );
+
+    await controller.handlers.startRecording!({});
+    expect(fake.prepareWindowsPipes).toHaveBeenCalledOnce();
+    expect(fake.adapterArgs[0]).toEqual({
+      args: ['--live-pipe', 'invented-pipe-1'],
+      hasLiveDescriptor: false,
+    });
+    fake.sessions[0]!.launchWorker();
+    expect(fake.adapterArgs[1]).toEqual({
+      args: ['--live-pipe', 'invented-pipe-2'],
+      hasLiveDescriptor: false,
     });
     await controller.shutdown();
   });

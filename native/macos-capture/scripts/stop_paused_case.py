@@ -36,13 +36,30 @@ for n in range(rounds):
     time.sleep(1.5)
     cutoff = send("p", name="pause")["atNs"]
     time.sleep(1.0)
-    send("x", name="stop")
+    stopped = send("x", name="stop")
     worker.wait()
+    log = open(os.path.join(out, "audio", "session.log"), "rb").read()
+    last = json.loads(log[:-1].split(b"\n")[-1]) if log.endswith(b"\n") else {}
+    if not stopped.get("ok") or last.get("event") != "stop" or last.get("commandId") != "x" or last.get("atNs") != stopped.get("atNs"):
+        leaks += 1
     for track in ("meeting", "microphone"):
         lines = [json.loads(l) for l in open(os.path.join(out, "audio", track, "chunks.log"))]
         past = [(l["file"], round((l["endNs"] - cutoff) / 1e6, 1)) for l in lines if l["endNs"] > cutoff]
         print(n, track, "chunks", len(lines), "past cutoff (file, ms)", past, flush=True)
         leaks += len(past) + max(len(lines) - 1, 0)
+# Closing stdin after Pause must finalize chunks without claiming a user Stop.
+worker = subprocess.Popen([helper], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+out = os.path.join(work, "eof")
+send("o", name="open", sessionId="s", outputDir=out, source=[player.pid], mic="default")
+send("s", name="start")
+time.sleep(0.3)
+send("p", name="pause")
+worker.stdin.close()
+worker.wait()
+log = open(os.path.join(out, "audio", "session.log"), "rb").read()
+last = json.loads(log[:-1].split(b"\n")[-1]) if log.endswith(b"\n") else {}
+if last.get("event") == "stop":
+    leaks += 1
 player.kill()
 print("PASS" if leaks == 0 else "FAIL: %d leaks" % leaks)
 sys.exit(1 if leaks else 0)

@@ -164,6 +164,14 @@ public:
     virtual uint64_t FirstSeq() const { return 0; }
 };
 
+class LivePcmSink {
+public:
+    virtual ~LivePcmSink() = default;
+    virtual bool Offer(uint8_t track, int64_t startNs, uint32_t inputRate, uint32_t generation,
+                       const int16_t* samples, uint32_t count) noexcept = 0;
+    virtual bool Boundary(uint8_t track, int64_t atNs, uint32_t generation) noexcept = 0;
+};
+
 using EventFn = std::function<void(const std::string& name, const JsonObject& fields)>;
 
 }  // namespace scrb
