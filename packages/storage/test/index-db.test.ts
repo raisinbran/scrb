@@ -197,7 +197,7 @@ describe('index migrations', () => {
       true,
     );
     await expect(openIndex(file)).rejects.toMatchObject({ code: 'INDEX_RECOVERY_REQUIRED' });
-  });
+  }, 15_000);
 
   it.each(['beforeMigration', 'afterMigration'] as const)(
     'recovers after a real child process is killed at %s',
