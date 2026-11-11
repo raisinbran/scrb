@@ -142,7 +142,9 @@ describe('screens', () => {
       confirm.focus();
       fireEvent.click(confirm);
       await waitFor(() => expect(screen.queryByText('Kestrel API')).toBeNull());
-      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' }));
+      const heading = screen.getByRole('heading', { name: 'Vocabulary' });
+      // The screen moves focus in an effect, which can run after the term is gone.
+      await waitFor(() => expect(document.activeElement).toBe(heading));
     });
 
     it('shows the empty state', async () => {
