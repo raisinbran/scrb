@@ -148,7 +148,7 @@ The live speech worker reading saved chunks through a bounded queue, provisional
 
 **Gate 3 status by platform (2026-11-10):**
 
-- **macOS:** Gate 3 passed earlier (owner-approved; see `docs/gates/gate-3-macos.md`).
+- **macOS:** Gate 3 passed earlier (owner-approved; recorded in `docs/handoffs/SRCB_Project_Handover_2026-11-08.md`).
 - **Windows, live-latency criterion (median 3 s or less, 95% within 6 s, per track): ACCEPTED BY OWNER DECISION on 2026-11-10**, per the signed record `docs/gates/gate-3-windows-latency-owner-decision-record-20261110.md`. This is a risk-acceptance decision, not a measured protocol pass. It does not reverse the 2026-11-07 result (73 of 77), covers no other Gate 3 criterion, and does not mean the live path is fixed. The record's reopen conditions apply.
 - Gate 3 is recorded per platform, and V1 still needs both platforms recorded. The remaining Windows Gate 3 criteria are not changed by this note.
 
