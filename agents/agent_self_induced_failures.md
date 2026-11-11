@@ -257,6 +257,22 @@ Per-session detail for Claude Code also lives in `agents/claude-session-failures
 - **Correction / prevention:** start every validation from a fresh app launch and profile, or confirm the pane is empty before starting the observer, and run the publications report right after the run, not only the interval script. Not repeated automatically; owner approval needed for another test.
 
 
+> Renumbering note (merge of the observer-validation branch, 2026-11-10): the entries below were A-055 to A-059 on that branch; they became A-081 to A-085 here because A-055 to A-059 were already used on the integration-2 lineage. `docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md` (a pinned document, not edited) still cites the old numbers A-058 and A-059; read them as A-084 and A-085.
+
+### A-081 - 2026-11-10 - Freeze process / Claude Code (Sonnet 5.5) - approved manifest had no scorer-format frozen inventory
+- **Status / attribution:** Confirmed process gap; no individual blamed beyond the evidence. The owner-approved manifest listed only the UNFROZEN assembly annotations (`eligible: null`, pending audit) and the pinned `make-draft-annotations.py`, whose output is `frozen=false` with open decisions D1 to D7. The scorer needs a `frozen: true` inventory with a defined eligibility rule, and no signed eligibility rule existed. The scoring brief assumed a frozen inventory and a signed D1 definition.
+- **Effect:** scoring of scored-run-2 stopped twice before any step ran (owner decisions needed); about 15 minutes of agent time and two owner decisions. Inventory was then generated from the pinned tool and flagged on a copy (Deviations 1 and 2 in the scored-run-2 result handoff).
+- **Correction / prevention:** before the next freeze, list every scorer input (frozen inventory file, eligibility rule, marker source) in the manifest with its approval.
+
+### A-082 - 2026-11-10 - Planner (owner-side brief) - false claim of an owner-signed D1 eligibility definition
+- **Status / attribution:** Confirmed planner error, corrected by the planner the same day. The brief said the sign-off (SHA-256 5a8fb52b...) contained a signed D1 definition of eligible; the file holds only the listen-through statement. Found by Claude Code at step 0 by reading the file and the tool; no result was affected because scoring had not started.
+- **Effect:** one extra stop and about 5 minutes of delay. **Correction:** the planner withdrew the premise and authorized Protocol section 2 plus the listen-through as the rule.
+
+### A-083 - 2026-11-10 - Claude Code (Sonnet 5.5) / Windows Desktop - known-class gaps reached the scored run; minor scoring-session errors
+- **Status / attribution:** Confirmed process gaps plus minor agent errors. (a) Hyphenated published word: `occurrence_matcher.py` aborts on a publication that is not one word position. The validation-3 dry run hit this and filtered such words in a dry-run-only script (`dry3.py` line 17), but the limitation was not carried into the real-run procedure or manifest; the dry run found it and it should have been caught there as a required step. Rehearsal-1 should not be expected to catch it unless its text had such a word (not verified). (b) Microphone chunk 47 (+648 samples, 13.5 ms): rehearsal-1 was only 60 s (about 12 microphone chunks) and could not expose a mid-run overrun; the pinned allowance is bound to the practice recording's chunk 32 and there is no general rule, a known risk that was not closed before the scored run. Neither rehearsal-1 nor the dry run could have caught chunk 47. (c) Agent errors in this session: a wrong plan hash fragment (fixed before hashing); one verifier invocation via `cmd /c` that ran nothing (retry logged); a wrong prediction that the affected unit would be UNIDENTIFIED (all 75 MATCHED).
+- **Effect:** the microphone track is INCONCLUSIVE and the run gives no combined Gate 3 verdict; two owner-decision stops and about 1 hour of agent time. No data was lost.
+- **Correction / prevention:** carry matcher limitations from dry runs into the manifest; define a general, pre-approved chunk-count tolerance rule or test a recording of at least full length before the scored run.
+
 ## Additional previously reported ChatGPT errors — provenance to verify
 
 These were acknowledged in prior SRCB conversations but have not been cross-checked against their complete original transcripts in this backfill. They remain visible as **provisional**, not independently established application or process outcomes.
@@ -367,6 +383,23 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Evidence:** commits b97fac0 and 01bd9c1; `test_timing_coverage.py::TestExcursionWithRecordedGap`, `test_v3a_timing.py::TestWordCaptureEventBoundary`.
 - **Correction / prevention:** Placeable timing-excluded units get the rule 6 check first (unverified -> CAPTURE-LIMITED, verified -> rule 8); events at or after the measured end are skipped, no tolerance; local renamed `capture_evidence`; debug lines removed; checks now run one at a time. Constants stay proposed, owner approval pending.
 - **Owner approval:** Required for rule 6, rule 8, the 30 s reach and the drift allowance before a scored run.
+### A-084 - 2026-11-10 - Claude Code (Sonnet 5.5) / Windows Desktop - allowance-proposal drafting: wasted search, wrong first method, blindness exposure
+- **Status / attribution:** Confirmed; agent.
+- **What failed:** (1) Searched four sibling repo copies and issued a whole-filesystem `find /` before the owner stopped it ("STOP WASTING CREDITS"); the work was for this repo only. (2) First sample-count method (Ogg granule positions) reported zero mismatches and did not reproduce the audited chunk 32, so it was discarded and the count rerun with the retained ffmpeg. (3) Tailing `agents/agent_task_allocation.md` displayed the scored-run-2 usage row, exposing the provisional meeting-track outcome and microphone INCONCLUSIVE during a drafting task that required blindness to outcomes.
+- **Agent-controlled cause:** Did not read the project path from the instructions before searching; chose a method without checking it against the known audited value first; tailed a file known to contain outcome summaries.
+- **Impact:** A few minutes and a modest slice of the 5-hour allowance. No latency, recurrence or per-unit result was seen; the exposure is disclosed in the proposal (section 1).
+- **Evidence:** `docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md` sections 1 and 2.
+- **Correction / prevention:** Validate any new measurement against a known value first; avoid reading usage and register tails in blind tasks (use targeted greps of the needed row only).
+- **Owner approval:** Not required.
+
+### A-085 - 2026-11-10 - Claude Code (Sonnet 5.5) / Windows Desktop - allowance proposal paired latency bounds the wrong way
+- **Status / attribution:** Confirmed; agent (caught by independent review).
+- **What failed:** The first draft of the sample-count allowance proposal said an overrun leaves the conservative latency unchanged and lowers best-case latency by up to 13.5 ms. The code (`analyze-bounds.py:29-30`) computes conservative latency from `earliest_acoustic_end_s` (the lower placement bound) and best-case from `latest_acoustic_end_s`, so the reverse holds: conservative latency can rise by up to 13.5 ms and best-case is unchanged.
+- **Agent-controlled cause:** Reasoned about which bound feeds which latency instead of reading the pairing in code before writing the arithmetic.
+- **Impact:** A wrong favourable-direction claim in a proposal; caught before any approval, pin or rescore. No result affected.
+- **Evidence:** earlier commit b3c5f42 of `docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md`; corrected in the rewrite (section 5).
+- **Correction / prevention:** Confirm the endpoint pairing in the consuming code before stating any directional claim; proposal now cites `analyze-bounds.py:29-30`.
+- **Owner approval:** Not required.
 
 ## Entry template for next agent
 
