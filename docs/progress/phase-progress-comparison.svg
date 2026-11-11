@@ -1,74 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="922" viewBox="0 0 1200 922" role="img" aria-labelledby="chart-title chart-desc">
-<title id="chart-title">SRCB phase progress grouped bar chart, five snapshots through November 9, 2026</title>
-<desc id="chart-desc">Five dated series compare formal gate approval and qualitative readiness estimates. Gates zero through two are approved. Phase 3 remains 70 percent estimated as of November 9 while Windows Gate 3 is open. Phases four through eight are not numerically assessed; their blank bars are not measurements of no development.</desc>
-<rect width="1200" height="922" fill="#ffffff"/>
-<text x="34" y="41" font-size="25" font-family="Arial,sans-serif" font-weight="700" fill="#0f172a">SRCB — phase progress over time</text>
-<text x="34" y="68" font-size="14" font-family="Arial,sans-serif" fill="#475569">Five snapshots · 100% means owner-approved gate · Other percentages are estimates · N/A means unassessed</text>
-<rect x="34" y="93" width="17" height="13" rx="2" fill="#64748b"/>
-<text x="60" y="105" font-size="14" font-family="Arial,sans-serif" fill="#334155">Oct 31, 2026 · 11:23 PM PDT</text>
-<rect x="620" y="93" width="17" height="13" rx="2" fill="#0f766e"/>
-<text x="646" y="105" font-size="14" font-family="Arial,sans-serif" fill="#334155">Nov 1, 2026 · 3:23 AM PST</text>
-<rect x="34" y="123" width="17" height="13" rx="2" fill="#b45309"/>
-<text x="60" y="135" font-size="14" font-family="Arial,sans-serif" fill="#334155">Nov 1, 2026 · 9:17 PM PST</text>
-<rect x="620" y="123" width="17" height="13" rx="2" fill="#2563eb"/>
-<text x="646" y="135" font-size="14" font-family="Arial,sans-serif" fill="#334155">Nov 3, 2026 · 6:24 PM PST</text>
-<rect x="34" y="153" width="17" height="13" rx="2" fill="#7c3aed"/>
-<text x="60" y="165" font-size="14" font-family="Arial,sans-serif" fill="#334155">Nov 9, 2026 · 2:52 PM PST  (latest)</text>
-<line x1="328" y1="208" x2="328" y2="806" stroke="#e2e8f0" stroke-width="1.6"/>
-<text x="328" y="202" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#64748b">0%</text>
-<line x1="488" y1="208" x2="488" y2="806" stroke="#e2e8f0" stroke-width="1"/>
-<text x="488" y="202" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#64748b">25%</text>
-<line x1="648" y1="208" x2="648" y2="806" stroke="#e2e8f0" stroke-width="1"/>
-<text x="648" y="202" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#64748b">50%</text>
-<line x1="808" y1="208" x2="808" y2="806" stroke="#e2e8f0" stroke-width="1"/>
-<text x="808" y="202" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#64748b">75%</text>
-<line x1="968" y1="208" x2="968" y2="806" stroke="#e2e8f0" stroke-width="1"/>
-<text x="968" y="202" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#64748b">100%</text>
-<rect x="22" y="222" width="1145" height="62" fill="#f8fafc"/>
-<text x="34" y="256" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">0 · Feasibility</text>
-<rect x="328" y="230" width="640.0" height="9" rx="2" fill="#64748b"/>
-<rect x="328" y="241" width="640.0" height="9" rx="2" fill="#0f766e"/>
-<rect x="328" y="252" width="640.0" height="9" rx="2" fill="#b45309"/>
-<rect x="328" y="263" width="640.0" height="9" rx="2" fill="#2563eb"/>
-<rect x="328" y="274" width="640.0" height="9" rx="2" fill="#7c3aed"/>
-<text x="989" y="256" font-size="13" font-family="Arial,sans-serif" fill="#0f766e" font-weight="700">Gate approved</text>
-<text x="34" y="321" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">1 · Foundation</text>
-<rect x="328" y="295" width="640.0" height="9" rx="2" fill="#64748b"/>
-<rect x="328" y="306" width="640.0" height="9" rx="2" fill="#0f766e"/>
-<rect x="328" y="317" width="640.0" height="9" rx="2" fill="#b45309"/>
-<rect x="328" y="328" width="640.0" height="9" rx="2" fill="#2563eb"/>
-<rect x="328" y="339" width="640.0" height="9" rx="2" fill="#7c3aed"/>
-<text x="989" y="321" font-size="13" font-family="Arial,sans-serif" fill="#0f766e" font-weight="700">Gate approved</text>
-<rect x="22" y="352" width="1145" height="62" fill="#f8fafc"/>
-<text x="34" y="386" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">2 · Recording</text>
-<rect x="328" y="360" width="416.0" height="9" rx="2" fill="#64748b"/>
-<rect x="328" y="371" width="640.0" height="9" rx="2" fill="#0f766e"/>
-<rect x="328" y="382" width="640.0" height="9" rx="2" fill="#b45309"/>
-<rect x="328" y="393" width="640.0" height="9" rx="2" fill="#2563eb"/>
-<rect x="328" y="404" width="640.0" height="9" rx="2" fill="#7c3aed"/>
-<text x="989" y="386" font-size="13" font-family="Arial,sans-serif" fill="#0f766e" font-weight="700">Gate approved</text>
-<text x="34" y="451" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">3 · Transcription</text>
-<rect x="328" y="447" width="224.0" height="9" rx="2" fill="#b45309"/>
-<text x="560.0" y="456" font-size="12" font-family="Arial,sans-serif" font-weight="700" fill="#b45309">35%</text>
-<rect x="328" y="458" width="448.0" height="9" rx="2" fill="#2563eb"/>
-<text x="784.0" y="467" font-size="12" font-family="Arial,sans-serif" font-weight="700" fill="#2563eb">70%</text>
-<rect x="328" y="469" width="448.0" height="9" rx="2" fill="#7c3aed"/>
-<text x="784.0" y="478" font-size="12" font-family="Arial,sans-serif" font-weight="700" fill="#7c3aed">70%</text>
-<rect x="22" y="482" width="1145" height="62" fill="#f8fafc"/>
-<text x="34" y="516" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">4 · Speakers</text>
-<text x="345" y="517" font-size="14" font-family="Arial,sans-serif" fill="#64748b" font-style="italic">N/A — no gate-readiness estimate; work may already exist</text>
-<text x="34" y="581" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">5 · Corrections</text>
-<text x="345" y="582" font-size="14" font-family="Arial,sans-serif" fill="#64748b" font-style="italic">N/A — no gate-readiness estimate; work may already exist</text>
-<rect x="22" y="612" width="1145" height="62" fill="#f8fafc"/>
-<text x="34" y="646" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">6 · Summaries</text>
-<text x="345" y="647" font-size="14" font-family="Arial,sans-serif" fill="#64748b" font-style="italic">N/A — no gate-readiness estimate; work may already exist</text>
-<text x="34" y="711" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">7 · Library / Export</text>
-<text x="345" y="712" font-size="14" font-family="Arial,sans-serif" fill="#64748b" font-style="italic">N/A — no gate-readiness estimate; work may already exist</text>
-<rect x="22" y="742" width="1145" height="62" fill="#f8fafc"/>
-<text x="34" y="776" font-size="16" font-family="Arial,sans-serif" font-weight="600" fill="#1e293b">8 · Packaging</text>
-<text x="345" y="777" font-size="14" font-family="Arial,sans-serif" fill="#64748b" font-style="italic">N/A — no gate-readiness estimate; work may already exist</text>
-<line x1="32" y1="832" x2="1170" y2="832" stroke="#cbd5e1" stroke-width="1"/>
-<text x="34" y="854" font-size="13" font-family="Arial,sans-serif" fill="#475569">Current: 3 of 9 fully approved gates. Mac Gate 3 approved; Windows Gate 3 remains open.</text>
-<text x="34" y="873" font-size="13" font-family="Arial,sans-serif" fill="#475569">The 70% Phase 3 estimate is retained from Nov 3; further diagnostic activity has not yet produced a new gate approval.</text>
-<text x="34" y="895" font-size="12" font-family="Arial,sans-serif" fill="#64748b">Source: phase-progress-history.csv · Times in Pacific Time; older labels are approximate snapshots, not audited API fetch times.</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="1000" viewBox="0 0 1260 1000" role="img" aria-labelledby="title desc"><title id="title">SRCB phase progress bar chart: six historical snapshots through November 11, 2026</title><desc id="desc">Six dated colored bar series compare approved gates and estimated readiness. Phases zero through two are approved. Phase three reaches 80 percent subjective readiness at November 11, but Windows Gate 3 is not fully approved. Phases four through eight remain numerically unassessed even though features are under development.</desc><rect width="1260" height="1000" fill="#ffffff"/>
+<text x="32" y="41" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#0f172a">SRCB — phase progress bar chart</text>
+<text x="32" y="67" font-family="Arial,sans-serif" font-size="14" fill="#475569">Six historical snapshots · Bars represent owner-approved gates or subjective gate readiness, not completed code</text>
+<rect x="34" y="94" width="17" height="12" rx="2" fill="#64748b"/><text x="60" y="106" font-family="Arial,sans-serif" font-size="14" fill="#334155">Oct 31, 2026 · 11:23 PM PDT</text>
+<rect x="660" y="94" width="17" height="12" rx="2" fill="#0f766e"/><text x="686" y="106" font-family="Arial,sans-serif" font-size="14" fill="#334155">Nov 1, 2026 · 3:23 AM PST</text>
+<rect x="34" y="123" width="17" height="12" rx="2" fill="#b45309"/><text x="60" y="135" font-family="Arial,sans-serif" font-size="14" fill="#334155">Nov 1, 2026 · 9:17 PM PST</text>
+<rect x="660" y="123" width="17" height="12" rx="2" fill="#2563eb"/><text x="686" y="135" font-family="Arial,sans-serif" font-size="14" fill="#334155">Nov 3, 2026 · 6:24 PM PST</text>
+<rect x="34" y="152" width="17" height="12" rx="2" fill="#7c3aed"/><text x="60" y="164" font-family="Arial,sans-serif" font-size="14" fill="#334155">Nov 9, 2026 · 2:52 PM PST</text>
+<rect x="660" y="152" width="17" height="12" rx="2" fill="#dc2626"/><text x="686" y="164" font-family="Arial,sans-serif" font-size="14" fill="#334155">Nov 11, 2026 · 1:12 PM PST · latest</text>
+<line x1="325" x2="325" y1="236" y2="861" stroke="#e2e8f0"/><text x="325" y="230" font-family="Arial,sans-serif" text-anchor="middle" font-size="12" fill="#64748b">0%</text>
+<line x1="492.5" x2="492.5" y1="236" y2="861" stroke="#e2e8f0"/><text x="492.5" y="230" font-family="Arial,sans-serif" text-anchor="middle" font-size="12" fill="#64748b">25%</text>
+<line x1="660" x2="660" y1="236" y2="861" stroke="#e2e8f0"/><text x="660" y="230" font-family="Arial,sans-serif" text-anchor="middle" font-size="12" fill="#64748b">50%</text>
+<line x1="827.5" x2="827.5" y1="236" y2="861" stroke="#e2e8f0"/><text x="827.5" y="230" font-family="Arial,sans-serif" text-anchor="middle" font-size="12" fill="#64748b">75%</text>
+<line x1="995" x2="995" y1="236" y2="861" stroke="#e2e8f0"/><text x="995" y="230" font-family="Arial,sans-serif" text-anchor="middle" font-size="12" fill="#64748b">100%</text>
+<rect x="21" y="255" width="1215" height="62" fill="#f8fafc"/>
+<text x="33" y="290" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">0 · Feasibility</text>
+<rect x="325" y="263" width="670.00" height="8" rx="2" fill="#64748b"/>
+<rect x="325" y="273" width="670.00" height="8" rx="2" fill="#0f766e"/>
+<rect x="325" y="283" width="670.00" height="8" rx="2" fill="#b45309"/>
+<rect x="325" y="293" width="670.00" height="8" rx="2" fill="#2563eb"/>
+<rect x="325" y="303" width="670.00" height="8" rx="2" fill="#7c3aed"/>
+<rect x="325" y="313" width="670.00" height="8" rx="2" fill="#dc2626"/>
+<text x="1013" y="289" font-family="Arial,sans-serif" font-size="14" fill="#15803d">Approved</text>
+<text x="33" y="356" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">1 · Foundation</text>
+<rect x="325" y="329" width="670.00" height="8" rx="2" fill="#64748b"/>
+<rect x="325" y="339" width="670.00" height="8" rx="2" fill="#0f766e"/>
+<rect x="325" y="349" width="670.00" height="8" rx="2" fill="#b45309"/>
+<rect x="325" y="359" width="670.00" height="8" rx="2" fill="#2563eb"/>
+<rect x="325" y="369" width="670.00" height="8" rx="2" fill="#7c3aed"/>
+<rect x="325" y="379" width="670.00" height="8" rx="2" fill="#dc2626"/>
+<text x="1013" y="355" font-family="Arial,sans-serif" font-size="14" fill="#15803d">Approved</text>
+<rect x="21" y="387" width="1215" height="62" fill="#f8fafc"/>
+<text x="33" y="422" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">2 · Recording</text>
+<rect x="325" y="395" width="435.50" height="8" rx="2" fill="#64748b"/>
+<rect x="325" y="405" width="670.00" height="8" rx="2" fill="#0f766e"/>
+<rect x="325" y="415" width="670.00" height="8" rx="2" fill="#b45309"/>
+<rect x="325" y="425" width="670.00" height="8" rx="2" fill="#2563eb"/>
+<rect x="325" y="435" width="670.00" height="8" rx="2" fill="#7c3aed"/>
+<rect x="325" y="445" width="670.00" height="8" rx="2" fill="#dc2626"/>
+<text x="1013" y="421" font-family="Arial,sans-serif" font-size="14" fill="#15803d">Approved</text>
+<text x="33" y="488" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">3 · Transcription</text>
+<rect x="325" y="481" width="234.50" height="8" rx="2" fill="#b45309"/>
+<text x="567.5" y="489" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309">35%</text>
+<rect x="325" y="491" width="469.00" height="8" rx="2" fill="#2563eb"/>
+<text x="802.0" y="499" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#2563eb">70%</text>
+<rect x="325" y="501" width="469.00" height="8" rx="2" fill="#7c3aed"/>
+<text x="802.0" y="509" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#7c3aed">70%</text>
+<rect x="325" y="511" width="536.00" height="8" rx="2" fill="#dc2626"/>
+<text x="869.0" y="519" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#dc2626">80%</text>
+<rect x="21" y="519" width="1215" height="62" fill="#f8fafc"/>
+<text x="33" y="554" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">4 · Speakers</text>
+<text x="343" y="554" font-family="Arial,sans-serif" font-size="13" font-style="italic" fill="#64748b">N/A — gate readiness unassessed; code development may exist</text>
+<text x="33" y="620" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">5 · Corrections</text>
+<text x="343" y="620" font-family="Arial,sans-serif" font-size="13" font-style="italic" fill="#64748b">N/A — gate readiness unassessed; code development may exist</text>
+<rect x="21" y="651" width="1215" height="62" fill="#f8fafc"/>
+<text x="33" y="686" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">6 · Summaries</text>
+<text x="343" y="686" font-family="Arial,sans-serif" font-size="13" font-style="italic" fill="#64748b">N/A — gate readiness unassessed; code development may exist</text>
+<text x="33" y="752" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">7 · Library / Export</text>
+<text x="343" y="752" font-family="Arial,sans-serif" font-size="13" font-style="italic" fill="#64748b">N/A — gate readiness unassessed; code development may exist</text>
+<rect x="21" y="783" width="1215" height="62" fill="#f8fafc"/>
+<text x="33" y="818" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">8 · Packaging</text>
+<text x="343" y="818" font-family="Arial,sans-serif" font-size="13" font-style="italic" fill="#64748b">N/A — gate readiness unassessed; code development may exist</text>
+<line x1="33" x2="1227" y1="875" y2="875" stroke="#cbd5e1"/><text x="33" y="902" font-family="Arial,sans-serif" font-size="14" fill="#334155">Latest: 3/9 fully approved gates. Phase 3 = 80% subjective readiness (+10 points since Nov 9).</text>
+<text x="33" y="923" font-family="Arial,sans-serif" font-size="13" fill="#475569">Mac Gate 3 approved; Windows latency accepted by owner Nov 10, but other Windows Gate 3 criteria are open.</text>
+<text x="33" y="946" font-family="Arial,sans-serif" font-size="12" fill="#64748b">Unassessed phases have no measured percentage. Existing Phases 4/5 implementation is documented separately.</text>
+<text x="33" y="968" font-family="Arial,sans-serif" font-size="12" fill="#64748b">Source: phase-progress-history.csv · America/Los_Angeles · Prior snapshot dates are approximate.</text></svg>
