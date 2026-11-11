@@ -143,11 +143,18 @@ void app.whenReady().then(async () => {
       for (const window of BrowserWindow.getAllWindows()) window.webContents.reload();
     },
     onStopped: () => {
-      void dialog.showMessageBox({
-        type: 'error',
+      const box = {
+        type: 'error' as const,
         message: 'The recorder keeps stopping.',
         detail: `The details are in ${stderrLogPath}.`,
-      });
+      };
+      // On macOS a box with no visible parent window stops main answering calls until it closes.
+      // A sheet on a visible window does not. Elsewhere a box with no parent blocks nothing.
+      const parent =
+        process.platform === 'darwin'
+          ? BrowserWindow.getAllWindows().find((window) => window.isVisible())
+          : undefined;
+      void (parent ? dialog.showMessageBox(parent, box) : dialog.showMessageBox(box));
     },
   });
   const backend = await openBackend(sendToWindows);
