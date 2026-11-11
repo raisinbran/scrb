@@ -94,6 +94,30 @@ describe('isolated live audio supervisor with invented processes', () => {
     return worker;
   };
 
+  it('forwards bounded run-scoped merges, rejecting stale, duplicate and out-of-order metadata after ACK', async () => {
+    const events: LiveAudioEvent[] = [];
+    const code = fakeWorker()[1]!.replace(
+      "process.send({type:'ack',track,sequence,bufferedStartNs:endNs});",
+      `process.send({type:'ack',track,sequence,bufferedStartNs:endNs});
+       for(const [generation,order] of [[1,1],[0,2],[0,2],[0,1],[0,3]])
+         process.send({type:'speakerMerge',merge:{from:'live-1',into:'live-2',generation,order,label:'Speaker 1'}});`,
+    );
+    const worker = await start(events, { workerArgs: ['-e', code] });
+    worker.offer(frame(0, 'meeting'));
+    await vi.waitFor(() => expect(events.filter((e) => e.type === 'speakerMerge')).toHaveLength(1));
+    const merges = events.flatMap((e) => (e.type === 'speakerMerge' ? [e.merge] : []));
+    expect(merges.map((m) => m.order)).toEqual([3]);
+    expect(merges[0]!.from).toBe(`${merges[0]!.workerRun}-live-1`);
+    await worker.close();
+    const more: LiveAudioEvent[] = [];
+    const separate = await start(more, { workerArgs: ['-e', code] });
+    separate.offer(frame(0, 'meeting'));
+    await vi.waitFor(() => expect(more.filter((e) => e.type === 'speakerMerge')).toHaveLength(1));
+    expect(more.flatMap((e) => (e.type === 'speakerMerge' ? [e.merge.workerRun] : []))[0]).not.toBe(
+      merges[0]!.workerRun,
+    );
+  });
+
   it('forwards validated attribution after ACK with stable namespaced speaker identities', async () => {
     const events: LiveAudioEvent[] = [];
     const code = fakeWorker()[1]!.replace(

@@ -28,6 +28,7 @@ export class MeetingDiarizer {
   private model: SpeakerModel | undefined;
   private abort = new AbortController();
   private allocated = 0;
+  private mergeOrder = 0;
   private dimensions = 0;
   private readonly clusters = new LiveClusterer();
   private spans: Span[] = [];
@@ -37,6 +38,13 @@ export class MeetingDiarizer {
     private readonly start: (signal: AbortSignal) => Promise<SpeakerModel>,
     private readonly update: (segment: TimedLiveSegment) => void,
     private readonly trace?: LiveTrace,
+    private readonly merge?: (request: {
+      from: string;
+      into: string;
+      generation: number;
+      order: number;
+      label: string;
+    }) => void,
   ) {}
 
   push(frame: LivePcmFrame): void {
@@ -152,8 +160,7 @@ export class MeetingDiarizer {
         fresh.push({ startMs: item.startMs, endMs: item.endMs, speakerId });
       }
       this.countedMs = endMs;
-      // Historical merge/relabel is a later slice; resolve only the retained window.
-      this.clusters.mergeConverged();
+      const merges = this.clusters.mergeConverged();
       this.spans = fresh;
       this.trace?.record('speaker_end', {
         ...context,
@@ -167,6 +174,13 @@ export class MeetingDiarizer {
         }
         this.update(this.attribute(segment));
       }
+      for (const m of merges)
+        this.merge?.({
+          ...m,
+          generation: this.generation,
+          order: ++this.mergeOrder,
+          label: this.clusters.label(m.into),
+        });
     } catch {
       this.trace?.record('speaker_error', { ...context, reason: 'failed' });
       if (current()) {

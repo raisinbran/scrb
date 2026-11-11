@@ -28,6 +28,8 @@ export interface Speaker {
   userNamed: boolean;
   /** Set when this speaker now counts as another one. Follow it to find the shown speaker. */
   mergedInto: string | null;
+  /** Backend-only provenance; absent aliases are conservatively user-owned. */
+  modelMerge?: { workerRun: string; generation: number; order: number };
 }
 
 /** A span with no audio: `paused` by the user, or `gap` for lost audio. */
