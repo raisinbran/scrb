@@ -2,14 +2,49 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { CaptureAck, CaptureAdapter, CaptureCommand, CaptureEvent } from './index.ts';
 
+export interface LivePipe {
+  onData(bytes: Buffer): void;
+  onEnd(): void;
+  onError(): void;
+}
+
 /** Runs a platform capture helper and speaks its one-JSON-object-per-line protocol. */
 export class ProcessAdapter implements CaptureAdapter {
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly waiting = new Map<string, ((ack: CaptureAck) => void)[]>();
   private eventListener: (event: CaptureEvent) => void = () => undefined;
 
-  constructor(helperPath: string, args: string[] = []) {
-    this.child = spawn(helperPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+  constructor(helperPath: string, args: string[] = [], live?: LivePipe) {
+    const env = { ...process.env };
+    // Only an opted-in macOS helper gets a live-audio descriptor.
+    delete env.SCRB_LIVE_FD;
+    if (live) env.SCRB_LIVE_FD = '3';
+    this.child = spawn(helperPath, args, {
+      stdio: live ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
+      env,
+    });
+    if (live) {
+      const stream = this.child.stdio[3];
+      const report = (kind: 'end' | 'error') => {
+        try {
+          if (kind === 'end') live.onEnd();
+          else live.onError();
+        } catch {
+          // Live consumers must never affect the durable helper.
+        }
+      };
+      if (stream) {
+        stream.on('data', (bytes: Buffer) => {
+          try {
+            live.onData(bytes);
+          } catch {
+            report('error');
+          }
+        });
+        stream.once('end', () => report('end'));
+        stream.once('error', () => report('error'));
+      } else report('error');
+    }
     this.child.on('error', () => undefined);
     this.child.stdin.on('error', () => undefined);
     createInterface({ input: this.child.stdout }).on('line', (line) => this.receive(line));
