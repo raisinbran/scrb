@@ -38,6 +38,7 @@ export async function openBackend(
   try {
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
+    const playback = new PlaybackMedia(library, emit);
     const settings = createSettingsHandlers(library.settings, root);
     const modelGate = new LargeModelGate();
     library.setMeetingChangedListener((meeting) =>
@@ -109,6 +110,7 @@ export async function openBackend(
             return picked.canceled ? null : (picked.filePaths[0] ?? null);
           },
           run: createConfiguredImportRunner(finalPassConfig),
+          beforeDelete: (meetingId) => playback.revokeMeeting(meetingId),
           recordingBusy: () => recording?.isBusy() ?? false,
           privacyBanner: async () => {
             const rules = await privacyJurisdictions(library.paths.root);
@@ -123,8 +125,9 @@ export async function openBackend(
         })
       : null;
     if (imports) await imports.recoverInterrupted();
-    const stopRetention = library.startAutoDeleteSchedule();
-    const playback = new PlaybackMedia(library, emit);
+    const stopRetention = library.startAutoDeleteSchedule(undefined, (meetingId) =>
+      playback.revokeMeeting(meetingId),
+    );
     return {
       playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,

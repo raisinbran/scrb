@@ -63,9 +63,7 @@ export class PlaybackMedia {
         this.media(request as { meetingId: string; positionMs: number }),
       ...(remove && {
         deleteMeeting: async (request) => {
-          if (this.session?.meetingId === (request as { meetingId: string }).meetingId) {
-            this.stop();
-          }
+          this.revokeMeeting((request as { meetingId: string }).meetingId);
           return remove(request);
         },
       }),
@@ -151,6 +149,11 @@ export class PlaybackMedia {
       positionMs: Math.round(positionMs),
       isPlaying: false,
     });
+  }
+
+  /** Stops this meeting in the renderer as well as revoking its media grants. */
+  revokeMeeting(meetingId: string): void {
+    if (this.session?.meetingId === meetingId) this.pause(meetingId);
   }
 
   /** Revokes every URL at once. Safe when nothing plays. */
