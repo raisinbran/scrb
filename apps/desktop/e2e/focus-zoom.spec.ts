@@ -95,10 +95,22 @@ test('keeps minimum-window controls usable at real zoom', async () => {
           zoom: win.webContents.getZoomFactor(),
         };
       }, zoom);
-      await page.waitForFunction(({ width, factor }) => Math.abs(innerWidth - width / factor) < 1, {
-        width: window.contentWidth,
-        factor: zoom,
-      });
+      console.log('window requested', JSON.stringify(window));
+      await page
+        .waitForFunction(({ width, factor }) => Math.abs(innerWidth - width / factor) < 1, {
+          width: window.contentWidth,
+          factor: zoom,
+        })
+        .catch(async (error: unknown) => {
+          const seen = await page
+            .evaluate(() => [innerWidth, innerHeight])
+            .catch(() => 'unreadable');
+          throw new Error(
+            `Viewport never reached ${window.contentWidth / zoom} CSS px wide at ${zoom * 100}%; ` +
+              `window ${JSON.stringify(window)}, viewport now ${JSON.stringify(seen)}`,
+            { cause: error },
+          );
+        });
       const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
       console.log('window', JSON.stringify({ ...window, viewport }));
       // Runner work areas can clamp height; bounds are screen-space DIP, not CSS pixels.
