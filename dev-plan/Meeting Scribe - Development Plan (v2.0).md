@@ -228,7 +228,7 @@ Every phase adds automated tests; gates also need hands-on runs on both machines
 - **Unit:** correction precedence, frozen spans, vocabulary rules, the summary schema, file-format upgrades.
 - **Integration:** chunk writing and recovery, queue behavior, index-versus-folder consistency, delete and auto-delete.
 - **Fault injection:** worker crash, app kill, disk full, permission revoked, device unplugged, sleep/wake, pause during a device change.
-- **Long run:** a 4-hour recording on each machine before Gates 2 and 3, and one 8-hour recording on each machine before Gate 8 (owner decision, 2026-10-30).
+- **Long run:** a 4-hour recording on each machine before Gates 2 and 3, and one 8-hour recording on each machine before Gate 8 (owner decision, 2026-10-30). Proposed 2026-11-01 revision, pending owner approval: the Gate 8 run also serves as T19; the Gate 3 run logs memory over time, includes a worker kill during audible capture, and includes the final pass after Stop.
 - **Hardware:** built-in mic, USB headset, Bluetooth headset, docking station; Teams, Zoom and a browser meeting on each OS.
 
 **Evaluation data**
