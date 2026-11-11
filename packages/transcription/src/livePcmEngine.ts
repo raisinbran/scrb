@@ -1,3 +1,4 @@
+import type { MeetingDiarizer } from './meetingDiarizer.js';
 import type { LiveSegment } from './livePass.js';
 import { LIVE_PCM_RATE, pcmEndNs, validPcmFrame, type LivePcmFrame } from './livePcmProtocol.js';
 import type { TrackKind } from './types.js';
@@ -16,6 +17,8 @@ const NS_PER_SAMPLE = 62_500;
 export interface TimedLiveSegment extends LiveSegment {
   sequence: number;
   words: WhisperWord[];
+  generation?: number;
+  wordSpeakers?: { id: string; label: string }[];
 }
 
 export interface LivePcmModels {
@@ -77,6 +80,7 @@ export class LivePcmEngine {
     private readonly emit: (segment: TimedLiveSegment) => void,
     private readonly skip: (gap: LiveSkip) => void,
     private readonly trace?: LiveTrace,
+    private readonly diarizer?: MeetingDiarizer,
   ) {}
 
   async push(frame: LivePcmFrame): Promise<void> {
@@ -140,6 +144,7 @@ export class LivePcmEngine {
       };
       this.tracks.set(frame.track, state);
     }
+    this.diarizer?.push(frame);
     state.sequence = frame.sequence;
     state.more = frame.more === true;
     state.endNs = pcmEndNs(frame);
@@ -170,6 +175,7 @@ export class LivePcmEngine {
   close(): void {
     this.trace?.record('engine_stop', { reason: 'stopped' });
     this.closed = true;
+    this.diarizer?.close();
     this.tracks.clear();
   }
 
@@ -385,7 +391,7 @@ export class LivePcmEngine {
           wordCount: absolute.length,
           segmentKey: `live-${track}-${state.sequence}-${consumed}`,
         });
-        this.emit({
+        const output: TimedLiveSegment = {
           id: `live-${track}-${state.sequence}-${consumed}`,
           track,
           sequence: state.sequence,
@@ -396,7 +402,9 @@ export class LivePcmEngine {
           speakerId: track === 'mic' ? 'you' : 'meeting',
           speakerLabel: track === 'mic' ? 'You' : 'Meeting',
           provisional: true,
-        });
+          generation: state.generation,
+        };
+        this.emit(this.diarizer?.attribute(output) ?? output);
       }
       consumed = endMs;
       if (endMs < span.endMs) break;

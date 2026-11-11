@@ -603,6 +603,13 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Remaining risk:** Thin Windows microphone margin (62/65) and the unexplained 185.83 s unit remain; reopen conditions are in the signed decision record.
 - **Owner approval:** Required to merge this entry.
 
+### A-104 — 2026-11-11 — Codex / Mac — slice 1 inspection and test-harness mistakes
+- **Attribution:** Confirmed agent errors during `rosmont/live-diarization-slice1-20261111`; no production-data failure.
+- **Observed effects:** An initial Git read ran in the parent evidence directory instead of the checkout. Reading an executable with `cat` produced excessive binary output. The first replay script lived under transcription's TypeScript configuration while importing desktop/storage `.ts` modules and used an unnarrowed generic event payload, producing type errors. The first silent replay passed assertions but failed cleanup by closing the library twice. A new supervisor assertion incorrectly assumed run numbering began at 1 (it begins at 0). A new history assertion initially compared nonexistent `history` properties instead of `undoStack`/`redoStack`.
+- **Correction:** Used the verified checkout and bounded source reads; moved the replay to desktop scripts and included it in desktop typechecking, narrowed the event payload; guarded cleanup; derived the expected namespace from the emitted segment; checked the actual history stacks. Preserved first-run evidence separately, with a successful corrected replay and targeted checks.
+- **Evidence:** Private local `live-diarization-slice1-evidence-20261111` evidence and task check logs; public test/source corrections are on this branch. Replay repeated once only after the cleanup fix; supervisor test repeated once after its assertion fix. Shared quota impact is not separately attributable.
+- **Remaining risk:** Integrated contention and native Windows validation are untested; full sandbox check limitations are documented in the slice handoff. Independent code review and owner merge decision remain pending.
+
 ### A-257 — Historical evidence proposal reconciliation
 
 Source: local `option-a-evidence-20261111/unblock-usage-row-proposal.txt` (retained, not uploaded). Attribution and outcome below are the original agent report, not a new independent audit.
