@@ -40,3 +40,13 @@ it('moves focus to the heading when the focused control is removed', () => {
   rerender(withButton(false, 'After'));
   expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Example' }));
 });
+
+it('keeps focus on the body when a control the user left is later removed', async () => {
+  const { rerender } = render(withButton(true, 'Before'));
+  const button = screen.getByRole('button');
+  act(() => button.focus());
+  act(() => button.blur());
+  await Promise.resolve();
+  rerender(withButton(false, 'After'));
+  expect(document.activeElement).toBe(document.body);
+});
