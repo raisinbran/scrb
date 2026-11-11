@@ -41,4 +41,7 @@ jobs:
       - run: npm test
       - run: npm run check:boundaries
       - run: npm run build
+      # The smoke test starts target/debug/scrb-core. rustup reads the version from rust-toolchain.toml.
+      - run: rustup toolchain install
+      - run: cargo build -p scrb-core --locked
       - run: npm run test:smoke
