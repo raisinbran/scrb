@@ -18,7 +18,12 @@ import {
 import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore } from './db/voice-profiles.ts';
-import { MeetingNotFoundError, StaleRevisionError, StorageError } from './errors.ts';
+import {
+  CorrectionConflictError,
+  MeetingNotFoundError,
+  StaleRevisionError,
+  StorageError,
+} from './errors.ts';
 import {
   MEETING_FORMAT,
   type MeetingMeta,
@@ -348,7 +353,7 @@ export class Library {
 
   private async changeTranscript(
     meetingId: string,
-    change: (current: TranscriptFile) => TranscriptFile,
+    change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
     options: { userEdit: boolean; expectedRevision?: number; write?: AtomicWriteOptions },
   ): Promise<TranscriptFile> {
     return this.withLock(meetingId, async () => {
@@ -359,7 +364,7 @@ export class Library {
       if (expectedRevision !== undefined && expectedRevision !== current.revision) {
         throw new StaleRevisionError(expectedRevision, current.revision);
       }
-      const changed = change(current);
+      const changed = await change(current);
       if (changed === current) return current;
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
       if (options.userEdit) await this.flagSummaryOutdated(meetingId);
@@ -401,11 +406,12 @@ export class Library {
     meetingId: string,
     segments: Segment[],
     speakers: Speaker[] = [],
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.appendSegments(current, segments, speakers),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
     );
   }
 
@@ -413,11 +419,12 @@ export class Library {
     meetingId: string,
     segmentIds: string[],
     incoming: ModelReplacement,
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.replaceLiveSegments(current, segmentIds, incoming),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
     );
   }
 
@@ -533,6 +540,26 @@ export class Library {
 
   mergeSpeakers(meetingId: string, fromId: string, intoId: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
+  }
+
+  splitSpeaker(
+    meetingId: string,
+    wordIds: string[],
+    newLabel: string,
+    expectedRevision: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        if ((await this.getMeeting(meetingId)).status !== 'ready') {
+          throw new CorrectionConflictError(
+            'Wait for the final transcript before splitting a speaker.',
+          );
+        }
+        return corrections.splitSpeaker(current, wordIds, newLabel);
+      },
+      { userEdit: true, expectedRevision },
+    );
   }
 
   reassignSpeaker(
@@ -910,9 +937,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
-    const run = this.runAutoDeleteOnce();
+    const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
     void run
       .finally(() => {
@@ -922,7 +949,9 @@ export class Library {
     return run;
   }
 
-  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
+  private async runAutoDeleteOnce(
+    beforeDelete?: (meetingId: string) => void,
+  ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };
@@ -930,6 +959,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
+        beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -944,12 +974,15 @@ export class Library {
   }
 
   /** Runs now and then on a timer. Returns a stop function. */
-  startAutoDeleteSchedule(intervalMs = 6 * 3_600_000): () => void {
+  startAutoDeleteSchedule(
+    intervalMs = 6 * 3_600_000,
+    beforeDelete?: (meetingId: string) => void,
+  ): () => void {
     let running = false;
     const tick = (): void => {
       if (running) return;
       running = true;
-      this.scheduledDeletion = this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete(beforeDelete)
         .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));

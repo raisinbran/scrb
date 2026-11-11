@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MeetingId } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { PlaybackEngine } from '../../lib/playback-engine.ts';
 
 export interface Playback {
   positionMs: number;
@@ -12,15 +13,18 @@ export interface Playback {
   setPosition(positionMs: number): void;
 }
 
-/** Audio plays in the backend; this mirrors its position for every tab of one meeting. */
+/** The backend keeps the clock; this mirrors its position for every tab of one meeting. */
 export function usePlayback(meetingId: MeetingId): Playback {
   const backend = useBackend();
   const [positionMs, setPositionMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const playing = useRef(false);
+  const engine = useRef<PlaybackEngine | null>(null);
 
   useEffect(() => {
+    const audio = new PlaybackEngine(backend, meetingId, setError);
+    engine.current = audio;
     const off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
       setPositionMs(position.positionMs);
@@ -29,6 +33,7 @@ export function usePlayback(meetingId: MeetingId): Playback {
     });
     return () => {
       off();
+      audio.dispose();
       if (playing.current) void backend.call('pauseAudio', { meetingId }).catch(() => undefined);
     };
   }, [backend, meetingId]);
@@ -41,9 +46,9 @@ export function usePlayback(meetingId: MeetingId): Playback {
     (target: number) => {
       setError(null);
       setPositionMs(target);
-      backend.call('seekAudio', { meetingId, positionMs: Math.round(target) }).catch(report);
+      engine.current?.seek(Math.round(target)).catch(report);
     },
-    [backend, meetingId, report],
+    [report],
   );
 
   const pause = useCallback(() => {

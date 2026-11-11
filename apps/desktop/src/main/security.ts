@@ -1,6 +1,7 @@
 import { net, protocol, session, type WebContents } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { MEDIA_SCHEME } from './playback-media.ts';
 
 export const APP_SCHEME = 'scribe';
 export const APP_ORIGIN = `${APP_SCHEME}://app`;
@@ -9,6 +10,8 @@ export const APP_ORIGIN = `${APP_SCHEME}://app`;
 export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
     { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+    // Audio elements only: `stream` allows Range playback, and fetch stays unsupported.
+    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, stream: true } },
   ]);
 }
 
@@ -24,6 +27,11 @@ export function serveRenderer(rootDir: string): void {
     }
     return net.fetch(pathToFileURL(resolved).toString());
   });
+}
+
+/** Serves granted audio. Kept apart from the renderer scheme, which never dispatches media. */
+export function serveMedia(handler: (request: Request) => Promise<Response>): void {
+  protocol.handle(MEDIA_SCHEME, handler);
 }
 
 /** The app is offline and never asks the web layer for anything; native workers capture audio. */
