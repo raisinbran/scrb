@@ -36,7 +36,8 @@ pub enum Origin {
     Imported,
 }
 
-/// The status names the screens show. This crate never writes `deleting`.
+/// The status names the screens show. The screens also show `deleting`, which is never written
+/// to `meeting.json`, because the `.deleting-<id>` folder name holds that state on disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MeetingStatus {

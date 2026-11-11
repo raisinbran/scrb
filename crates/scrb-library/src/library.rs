@@ -1,17 +1,18 @@
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use scrb_transcript::Transcript;
 use serde_json::{Map, Value};
 
 use crate::database::open_databases;
+use crate::delete::finish_deletes;
 use crate::folder::create_meeting_folder;
 use crate::index::add_to_index;
 use crate::os;
 use crate::safe_write::{remove_temp_files, write_file_safely};
-use crate::{LibraryError, MeetingFile, NewMeeting};
+use crate::{LibraryError, MeetingFile, MeetingId, NewMeeting};
 
 pub(crate) const MEETINGS_FOLDER: &str = "meetings";
 pub(crate) const MEETING_FILE: &str = "meeting.json";
@@ -32,15 +33,16 @@ impl Library {
     /// Opens the library at `root`, making its folders and databases on first use.
     ///
     /// It takes the library lock first, then removes what a crash left behind, which is temporary
-    /// files of safe writes and meeting folders a create left empty, then opens the databases.
-    /// It does not rebuild the index, so call [`Library::rebuild_index`] next. `now` names any
-    /// damaged database it sets aside.
+    /// files of safe writes and meeting folders a create left empty, then opens the databases and
+    /// finishes each delete a crash stopped. It does not rebuild the index, so call
+    /// [`Library::rebuild_index`] next. `now` names any damaged database it sets aside.
     pub fn open(root: &Path, now: &str) -> Result<Self, LibraryError> {
         fs::create_dir_all(root)?;
         let lock = take_lock(root)?;
         fs::create_dir_all(root.join(MEETINGS_FOLDER))?;
         remove_leftovers(root)?;
         let (connection, damaged_files) = open_databases(root, now)?;
+        finish_deletes(&connection, root)?;
         Ok(Self {
             root: root.to_owned(),
             connection,
@@ -76,6 +78,49 @@ impl Library {
         Ok(folder)
     }
 
+    /// Replaces the meeting's `transcript.json` with a safe write and updates its index row.
+    /// When `meeting.json` cannot be read, the row keeps its old values until the next rebuild.
+    pub fn save_transcript(
+        &mut self,
+        id: &MeetingId,
+        transcript: &Transcript,
+    ) -> Result<(), LibraryError> {
+        let name = self.folder_name(id)?;
+        let meetings = self.root.join(MEETINGS_FOLDER);
+        let meeting_file = read_own_meeting_file(&meetings.join(&name), id)?;
+        let bytes = serde_json::to_vec_pretty(transcript)?;
+        write_file_safely(&meetings.join(&name).join(TRANSCRIPT_FILE), &bytes)?;
+        if meeting_file.is_some() {
+            add_to_index(&self.connection, &meetings, &name)?;
+        }
+        Ok(())
+    }
+
+    /// The meeting's folder name from the index.
+    ///
+    /// Fails with `NotFound` when the row is gone, so a job that ends after a delete cannot bring
+    /// the folder back, and with `UnsafeFolder` when the name could lead out of `meetings/`.
+    pub(crate) fn folder_name(&self, id: &MeetingId) -> Result<String, LibraryError> {
+        let name: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT folder FROM idx.meetings WHERE id = ?1",
+                [id.as_str()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let name = name.ok_or_else(|| LibraryError::NotFound(id.clone()))?;
+        let mut parts = Path::new(&name).components();
+        let is_plain = matches!(parts.next(), Some(Component::Normal(_)))
+            && parts.next().is_none()
+            && !name.starts_with('.');
+        if is_plain {
+            Ok(name)
+        } else {
+            Err(LibraryError::UnsafeFolder(name))
+        }
+    }
+
     /// The saved settings, each a JSON value under its `AppSettings` field name.
     pub fn settings(&self) -> Result<Map<String, Value>, LibraryError> {
         let mut statement = self
@@ -103,6 +148,25 @@ impl Library {
         }
         transaction.commit()?;
         Ok(())
+    }
+}
+
+/// The `meeting.json` in `folder`, or `None` when it cannot be read.
+///
+/// Fails with `NotFound` when it names another meeting, as after a change outside the app, so a
+/// save or delete never reaches that meeting's files. An unreadable file does not stop the
+/// caller, since the rebuild keeps that folder's index row.
+pub(crate) fn read_own_meeting_file(
+    folder: &Path,
+    id: &MeetingId,
+) -> Result<Option<MeetingFile>, LibraryError> {
+    let Ok(bytes) = fs::read(folder.join(MEETING_FILE)) else {
+        return Ok(None);
+    };
+    match serde_json::from_slice::<MeetingFile>(&bytes) {
+        Ok(file) if file.id != *id => Err(LibraryError::NotFound(id.clone())),
+        Ok(file) => Ok(Some(file)),
+        Err(_) => Ok(None),
     }
 }
 
