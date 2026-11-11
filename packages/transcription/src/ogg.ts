@@ -24,6 +24,26 @@ function firstPageSize(head: Buffer): number {
   return size;
 }
 
+/** Reads the actual encoder pre-skip from a finished imported Ogg chunk. */
+export async function readOpusPreSkip(path: string): Promise<number> {
+  const file = await open(path, 'r');
+  try {
+    const head = Buffer.alloc(4096);
+    const { bytesRead } = await file.read(head, 0, head.length, 0);
+    if (bytesRead < 38 || head.toString('ascii', 0, 4) !== 'OggS') {
+      throw new Error('not an Ogg Opus file');
+    }
+    const size = firstPageSize(head);
+    const payload = 27 + head[26]!;
+    if (size > bytesRead || head.toString('ascii', payload, payload + 8) !== 'OpusHead') {
+      throw new Error('missing Opus header');
+    }
+    return head.readUInt16LE(payload + 10);
+  } finally {
+    await file.close();
+  }
+}
+
 /**
  * Sets an Ogg Opus file's pre-skip to zero.  The chunks of one encode are a
  * continuous stream, but the segment muxer stamps every file with the encoder's

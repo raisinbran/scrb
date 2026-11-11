@@ -1,0 +1,55 @@
+SRCB Phase 3 Windows native PCM feed verification
+Date: 2026-11-01 America/Los_Angeles
+Branch: rosmont/phase3-windows-native-feed-20261101
+Base: PR #23 d8633ed5bebb75c32e09eeb1498999313f60dc0a
+Approved plan: PR #20 20129b809b8569b00635b8d4549d08b54614805b
+
+Build
+  cmd.exe /c build.cmd
+  PASS: PipelineTests.exe, LivePcmTests.exe, scrb-capture.exe and
+  ChunkVerify.exe compiled with the existing VS 2022 procedure.
+
+Existing native pipeline regression
+  build\bin\PipelineTests.exe ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+  PASS: 0 failures. F11 replay measured raw offset 1690 ms and detected
+  missing 1690 ms.
+
+Focused live-feed regression
+  build\bin\LivePcmTests.exe
+  PASS: 0 failures.
+  48 kHz / 60 seconds: 960005 output samples, 601 PCM frames,
+  boundary end 61000625000 ns from a 1-second anchor.
+  44.1 kHz / 60 seconds: 960006 output samples, 601 PCM frames,
+  boundary end 61000715136 ns from a 1-second anchor.
+  The difference is the 15-input-sample FIR delay and flushed tail.
+  1 kHz RMS 8464.4; 12 kHz RMS 9.2; stop-band/pass-band ratio 0.0011.
+  Stalled injected consumer: Stop returned in 0 ms; all 480000 durable
+  samples were written while 999 live entries were refused.
+  Healthy named pipe: Stop returned and drained the tail plus boundary in 1 ms.
+  Stalled named pipe: Stop returned in 0 ms; exporter cancellation and cleanup
+  completed in 76 ms on the final rerun (77 ms on the preceding run).
+  Broken pipe disabled live output only. Drop-before-boundary, 2048-sample
+  splitting, exact timestamps and independent transition generations passed.
+  Final transition regression also checked boundary timestamps, resumed PCM
+  ordering and no live offer after Stop.
+
+Production-ring to real-worker acceptance
+  build\bin\LivePcmTests.exe --write-60 48000 ..\..\out\native-live-48.bin
+  build\bin\LivePcmTests.exe --write-60 44100 ..\..\out\native-live-441.bin
+  Both generators exited 0. They use the production fixed-capacity ring,
+  converter, framing and Stop drain.
+
+  node native/windows-capture/scripts/live_worker_acceptance.mjs out/native-live-48.bin 48kHz
+  PASS: 602 total frames, 601 PCM, 1 boundary, 0 refused, 16 segments,
+  0 skipped, 0 unexpected gaps, 0 failed.
+
+  node native/windows-capture/scripts/live_worker_acceptance.mjs out/native-live-441.bin 44.1kHz
+  PASS: 602 total frames, 601 PCM, 1 boundary, 0 refused, 16 segments,
+  0 skipped, 0 unexpected gaps, 0 failed.
+
+The acceptance uses PR #23's production LiveAudioWorker supervisor and compiled
+dispatcher. Its local HTTP model host returns invented timed words. Approved
+Windows Whisper/VAD executables and models were not present at the known project
+paths, so this proves native framing, worker acceptance, lifecycle and timing;
+it does not prove Whisper/VAD recognition quality. No private recording or real
+audio capture was used.

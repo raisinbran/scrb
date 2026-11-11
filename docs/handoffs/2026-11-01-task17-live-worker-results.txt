@@ -1,0 +1,163 @@
+Task 17 worker-only verification, 2026-11-01 America/Los_Angeles
+Base: 7a081ca885ecdb611d83728fea189ea777f2d89b
+All inputs invented; no real capture or model inference.
+
+COMMAND: npm run check
+
+> meeting-scribe@0.1.0 check
+> npm run typecheck && npm run lint && npm test && npm run check:boundaries
+
+
+> meeting-scribe@0.1.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @scrb/desktop@0.1.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @scrb/app-core@0.1.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @scrb/capture@0.1.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @scrb/contracts@0.1.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @scrb/export@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @scrb/storage@0.1.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @scrb/summary@0.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @scrb/transcription@0.1.0 typecheck
+> tsc --noEmit
+
+
+> meeting-scribe@0.1.0 lint
+> eslint .
+
+
+> meeting-scribe@0.1.0 test
+> vitest run
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.5 C:/Users/bchen/Documents/ChatGPT/srcb/repo
+
+(node:38700) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39788) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6000) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19172) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  51 passed | 6 skipped (57)
+      Tests  828 passed | 63 skipped (891)
+   Start at  03:57:02
+   Duration  34.35s (environment 54%, tests 31%, import 12%, transform 4%)
+
+Environment  |desktop| jsdom was created 21 times · 125.47s total, 68% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+
+> meeting-scribe@0.1.0 check:boundaries
+> node scripts/check-boundaries.mjs
+
+Boundary check skipped on rosmont/phase3-live-worker-20261101: not a ui/ or backend/ branch.
+
+COMMAND: npm exec vitest run -- packages/transcription/test/live-pcm.test.ts packages/transcription/test/live-audio-worker.test.ts packages/transcription/test/live-audio-cleanup.test.ts packages/transcription/test/worker.test.ts packages/transcription/test/parsing.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.5 C:/Users/bchen/Documents/ChatGPT/srcb/repo
+
+
+ Test Files  5 passed (5)
+      Tests  43 passed (43)
+   Start at  03:55:19
+   Duration  5.63s (tests 88%, transform 7%, import 4%, worker 1%)
+
+
+COMMAND: npm run test:smoke
+Environment: ELECTRON_OVERRIDE_DIST_PATH=C:\Users\bchen\Documents\GitHub\scrb\node_modules\electron\dist; SCRB_CAPTURE_HELPER and SCRB_FINAL_PASS_CONFIG unset.
+Ran outside filesystem sandbox after initial esbuild access-denied failure.
+
+> meeting-scribe@0.1.0 test:smoke
+> npm run test:smoke -w @scrb/desktop
+
+
+> @scrb/desktop@0.1.0 test:smoke
+> npm run build && playwright test
+
+
+> @scrb/desktop@0.1.0 build
+> vite build && node scripts/build-electron.mjs
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 114 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.60 kB │ gzip:   0.35 kB
+dist/assets/index-C949qilJ.css   33.90 kB │ gzip:   6.20 kB
+dist/assets/index-Br1y7omF.js   391.10 kB │ gzip: 119.28 kB
+
+✓ built in 306ms
+
+Running 7 tests using 3 workers
+
+  -  1 e2e\real-final-pass.spec.ts:12:1 › a real recording reaches a final transcript on the Recordings screen
+  -  2 e2e\real-recording.spec.ts:11:1 › records, pauses, stops and saves real audio from the Live screen
+(node:36668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 3 e2e\smoke.spec.ts:23:1 › settings survive a restart and go to the real library (4.1s)
+  ok 4 e2e\smoke.spec.ts:48:1 › a library that cannot open leaves the app usable (976ms)
+  ok 5 e2e\smoke.spec.ts:62:1 › a damaged index is kept untouched and the app still opens (760ms)
+  ok 6 e2e\smoke.spec.ts:79:1 › a second copy quits and the first keeps working (3.2s)
+  ok 7 e2e\smoke.spec.ts:93:1 › launches and shows every screen against the mock backend (1.7s)
+
+  2 skipped
+  5 passed (11.5s)
+
+COMMAND: npm run format:check
+Exit 2. Selected original output (unrelated repository formatting warnings omitted):
+[error] native/windows-capture/third_party/opus/doc/footer.html: SyntaxError: Unexpected closing tag "body". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags (31:1)
+[error]   29 | </table>
+[error]   30 | <!--END !GENERATE_TREEVIEW-->
+[error] > 31 | </body>
+[error]      | ^^^^^^^
+[error]   32 | </html>
+[error]   33 |
+[error] native/windows-capture/third_party/opus/doc/header.html: SyntaxError: Unexpected closing tag "tr". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags (40:9)
+[error]   38 |    </td></tr>
+[error]   39 |   <td><!--BEGIN PROJECT_NUMBER--><span id="projectnumber">$projectnumber</span><!--END PROJECT_NUMBER-->
+[error] > 40 |    </td></tr>
+[error]      |         ^^^^^
+[error]   41 |    </table>
+[error]   42 |   </td>
+[error]   43 |   <!--END PROJECT_NAME-->
+Error occurred when checking code style in 2 files.
+
+COMMAND: npm run build -w @scrb/transcription
+PASS, exit 0.
+COMMAND: prettier --check <all changed TypeScript and Markdown files>
+PASS: All matched files use Prettier code style.
+Native compile: not run, native code unchanged.
+No Gate 3 approval or merge.
