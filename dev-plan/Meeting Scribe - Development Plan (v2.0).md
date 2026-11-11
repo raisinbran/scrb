@@ -146,6 +146,23 @@ The live speech worker reading saved chunks through a bounded queue, provisional
 
 **Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate, against the 15% word-error target, compared with the actual live output on the same clips; killing the worker during audible capture never affects recording on either operating system; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
 
+**Gate 3 status by platform (2026-11-10):**
+
+- **macOS:** Gate 3 passed earlier (owner-approved; see `docs/gates/gate-3-macos.md`).
+- **Windows, live-latency criterion (median 3 s or less, 95% within 6 s, per track): ACCEPTED BY OWNER DECISION on 2026-11-10**, per the signed record `docs/gates/gate-3-windows-latency-owner-decision-record-20261110.md`. This is a risk-acceptance decision, not a measured protocol pass. It does not reverse the 2026-11-07 result (73 of 77), covers no other Gate 3 criterion, and does not mean the live path is fixed. The record's reopen conditions apply.
+- Gate 3 is recorded per platform, and V1 still needs both platforms recorded. The remaining Windows Gate 3 criteria are not changed by this note.
+
+**Follow-ups from Windows Gate 3** (none blocks the decision above unless a reopen condition occurs):
+
+1. Update the post-run runbook: first-launch location dialog, launching the orchestrator from Windows PowerShell 5.1, a pre-seed settings option, and the manual steps the runbook omits.
+2. The occurrence matcher and the unidentified classifier reject hyphenated published words; a documented filter was used. Fix the tools.
+3. Investigate the extra-sample capture event at about 106 s in two microphone recordings (uninvestigated).
+4. Low priority: a capture-only check on the second Windows PC.
+5. PR #67 diagnostics are unmerged.
+6. Committed `__pycache__` files on `main`.
+7. Level meters read 0 during capture (unexplained).
+8. After review, a deletion pass for the old Windows Gate 3 branches.
+
 ### Phase 4: Speakers
 
 Live multi-speaker diarization on the meeting track, speaker relabeling in the final pass, silently built voice profiles, confidence-gated name assignment, the Speakers screen with rename/merge/split/delete, and the location-based privacy banner. Imported files get final-pass diarization, and build profiles only when the user chooses it for that file.
