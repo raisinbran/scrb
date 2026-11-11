@@ -14,8 +14,20 @@ export function useFocusFallback() {
     const track = (event: FocusEvent) => {
       lastFocused.current = event.target as Element;
     };
+    // Chromium also fires focusout when a focused element is removed, so release the element only
+    // if it is still in the page after the current task's script has finished.
+    const release = (event: FocusEvent) => {
+      const target = event.target as Element;
+      queueMicrotask(() => {
+        if (target.isConnected && lastFocused.current === target) lastFocused.current = null;
+      });
+    };
     document.addEventListener('focusin', track);
-    return () => document.removeEventListener('focusin', track);
+    document.addEventListener('focusout', release);
+    return () => {
+      document.removeEventListener('focusin', track);
+      document.removeEventListener('focusout', release);
+    };
   }, []);
   useEffect(() => {
     const lost =
