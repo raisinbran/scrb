@@ -61,7 +61,9 @@ async function setup(
   let clock = 1000;
   const media = new PlaybackMedia(
     library,
-    (_name, payload) => events.push(payload as BackendEvents['playbackPosition']),
+    (_name, payload) => {
+      events.push(payload as BackendEvents['playbackPosition']);
+    },
     () => clock,
   );
   const handlers = media.wrap({ deleteMeeting: async () => 'deleted' });

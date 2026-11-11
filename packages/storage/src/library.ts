@@ -17,7 +17,7 @@ import {
 } from './db/meetings-index.ts';
 import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
-import { VoiceProfileStore } from './db/voice-profiles.ts';
+import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
 import {
   CorrectionConflictError,
   MeetingNotFoundError,
@@ -250,15 +250,30 @@ export class Library {
     return this.clock().toISOString();
   }
 
-  private withLock<T>(meetingId: string, work: () => Promise<T>): Promise<T> {
+  private withLock<T>(meetingId: string, work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const previous = this.locks.get(meetingId) ?? Promise.resolve();
-    const run = previous.then(work, work);
+    let waiting = true;
+    const start = () => {
+      waiting = false;
+      signal?.throwIfAborted();
+      return work();
+    };
+    const run = previous.then(start, start);
     const settled = run.catch(() => undefined);
     this.locks.set(meetingId, settled);
     void settled.then(() => {
       if (this.locks.get(meetingId) === settled) this.locks.delete(meetingId);
     });
-    return run;
+    if (!signal) return run;
+    // Cancel only the caller's queued wait; the lock chain still owns any started persistence.
+    return new Promise<T>((resolve, reject) => {
+      const abort = () => {
+        if (waiting) reject(signal.reason);
+      };
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+      void run.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
   }
 
   private requireRow(meetingId: string): MeetingRow {
@@ -354,7 +369,12 @@ export class Library {
   private async changeTranscript(
     meetingId: string,
     change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
-    options: { userEdit: boolean; expectedRevision?: number; write?: AtomicWriteOptions },
+    options: {
+      userEdit: boolean;
+      expectedRevision?: number;
+      write?: AtomicWriteOptions;
+      beforeSave?: () => void;
+    },
   ): Promise<TranscriptFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).transcript;
@@ -371,6 +391,7 @@ export class Library {
       const next = { ...changed, revision: current.revision + 1 };
       const learningChanged = current.corrections !== next.corrections;
       if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
+      options.beforeSave?.();
       await saveDocument(file, next, loaded?.fileVersion ?? null, options.write);
       if (learningChanged) {
         try {
@@ -455,6 +476,13 @@ export class Library {
   async deleteVoiceProfile(
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
+    return this.withLock('voice-profile-assignments', () => this.unlinkVoiceProfile(profileId));
+  }
+
+  /** Share the assignment lock through scan, unlink and removal so no new link escapes the scan. */
+  private async unlinkVoiceProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
     const affected: { meetingId: string; before: TranscriptFile }[] = [];
     const linkedMeetings = new Set(this.voiceProfiles.get(profileId)?.meetingIds ?? []);
     for (const row of this.listMeetings()) {
@@ -532,6 +560,69 @@ export class Library {
     }
     this.voiceProfiles.delete(profileId);
     return changed;
+  }
+
+  assignSpeakerProfiles(
+    meetingId: string,
+    assignments: { speaker: Speaker; profile: VoiceProfile }[],
+    expectedRevision: number,
+    signal: AbortSignal,
+  ): Promise<TranscriptFile> {
+    const snapshot = (profile: VoiceProfile) =>
+      JSON.stringify({
+        ...profile,
+        meetingIds: [...profile.meetingIds].sort(),
+      });
+    return this.withLock(
+      'voice-profile-assignments',
+      () =>
+        this.changeTranscript(
+          meetingId,
+          async (current) => {
+            if ((await this.getMeeting(meetingId)).status !== 'ready') {
+              throw new CorrectionConflictError('Meeting is not complete');
+            }
+            for (const { speaker } of assignments) {
+              const latest = current.speakers.find((s) => s.id === speaker.id);
+              if (
+                !latest ||
+                latest.userNamed ||
+                latest.mergedInto !== null ||
+                JSON.stringify(latest) !== JSON.stringify(speaker)
+              ) {
+                throw new CorrectionConflictError('Speaker changed');
+              }
+            }
+            if (assignments.length === 0) return current;
+            return corrections.assignSpeakerProfiles(
+              current,
+              assignments.map(({ speaker, profile }) => {
+                if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
+                return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
+              }),
+            );
+          },
+          {
+            userEdit: true,
+            expectedRevision,
+            beforeSave: () => {
+              signal.throwIfAborted();
+              for (const { profile } of assignments) {
+                const latest = this.voiceProfiles.get(profile.id);
+                if (
+                  !latest ||
+                  profile.name === null ||
+                  profile.meetingIds.includes(meetingId) ||
+                  snapshot(latest) !== snapshot(profile)
+                ) {
+                  throw new CorrectionConflictError('Profile changed');
+                }
+              }
+            },
+          },
+        ),
+      signal,
+    );
   }
 
   renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
@@ -937,9 +1028,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
-    const run = this.runAutoDeleteOnce();
+    const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
     void run
       .finally(() => {
@@ -949,7 +1040,9 @@ export class Library {
     return run;
   }
 
-  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
+  private async runAutoDeleteOnce(
+    beforeDelete?: (meetingId: string) => void,
+  ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };
@@ -957,6 +1050,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
+        beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -971,12 +1065,15 @@ export class Library {
   }
 
   /** Runs now and then on a timer. Returns a stop function. */
-  startAutoDeleteSchedule(intervalMs = 6 * 3_600_000): () => void {
+  startAutoDeleteSchedule(
+    intervalMs = 6 * 3_600_000,
+    beforeDelete?: (meetingId: string) => void,
+  ): () => void {
     let running = false;
     const tick = (): void => {
       if (running) return;
       running = true;
-      this.scheduledDeletion = this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete(beforeDelete)
         .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));

@@ -1,3 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({ test: { name: 'storage', include: ['test/**/*.test.ts'] } });
+// Serialize storage test files: parallel execution significantly slows them on Windows CI.
+export default defineConfig({
+  test: { name: 'storage', include: ['test/**/*.test.ts'], fileParallelism: false },
+});

@@ -2,6 +2,7 @@ import type { LiveSegment } from './livePass.js';
 import { LIVE_PCM_RATE, pcmEndNs, validPcmFrame, type LivePcmFrame } from './livePcmProtocol.js';
 import type { TrackKind } from './types.js';
 import type { VadSpan, WhisperWord } from './whisper.js';
+import { spanKey, type LiveTrace, type TraceFields } from './liveTrace.js';
 
 const HOP_MS = 500;
 /** Longest detection hop while frames are waiting. Stays under MAX_SPEECH_MS, so one pass clears it. */
@@ -60,6 +61,7 @@ interface State {
   generation: number;
   sinceDetect: number;
   boundary: boolean;
+  more?: boolean;
 }
 
 /** Runs only inside the isolated live process; no capture paths or durable files are accepted. */
@@ -67,11 +69,14 @@ export class LivePcmEngine {
   private tracks = new Map<TrackKind, State>();
   private counts = new Map<TrackKind, Counts>();
   private closed = false;
+  private evaluation = 0;
+  private call = 0;
 
   constructor(
     private readonly models: LivePcmModels,
     private readonly emit: (segment: TimedLiveSegment) => void,
     private readonly skip: (gap: LiveSkip) => void,
+    private readonly trace?: LiveTrace,
   ) {}
 
   async push(frame: LivePcmFrame): Promise<void> {
@@ -136,6 +141,7 @@ export class LivePcmEngine {
       this.tracks.set(frame.track, state);
     }
     state.sequence = frame.sequence;
+    state.more = frame.more === true;
     state.endNs = pcmEndNs(frame);
     if (frame.boundary) {
       await this.ready(frame.track, state, true);
@@ -162,6 +168,7 @@ export class LivePcmEngine {
   }
 
   close(): void {
+    this.trace?.record('engine_stop', { reason: 'stopped' });
     this.closed = true;
     this.tracks.clear();
   }
@@ -228,7 +235,27 @@ export class LivePcmEngine {
   private async ready(track: TrackKind, state: State, flush: boolean): Promise<void> {
     if (!state.samples.length) return;
     const durationMs = (state.samples.length * 1000) / LIVE_PCM_RATE;
-    const detected = await this.models.detect(track, state.samples);
+    const evaluation = this.evaluation++;
+    const context: TraceFields = {
+      track,
+      sequence: state.sequence,
+      generation: state.generation,
+      startNs: Math.round(state.baseMs * 1e6),
+      endNs: Math.round((state.baseMs + durationMs) * 1e6),
+      evaluation,
+      more: state.more === true,
+      bufferedMs: durationMs,
+      flush,
+    };
+    this.trace?.record('vad_start', context);
+    let detected: VadSpan[];
+    try {
+      detected = await this.models.detect(track, state.samples);
+    } catch (error) {
+      this.trace?.record('vad_error', context);
+      throw error;
+    }
+    this.trace?.record('vad_end', { ...context, spanCount: detected.length });
     if (this.closed) return;
     const counts = this.count(track);
     counts.vadCalls += 1;
@@ -251,7 +278,19 @@ export class LivePcmEngine {
       )
         throw new Error('Invalid live VAD timing');
       last = span.endMs;
+      this.trace?.record('vad_span', {
+        ...context,
+        startNs: Math.round((state.baseMs + span.startMs) * 1e6),
+        endNs: Math.round((state.baseMs + span.endMs) * 1e6),
+        spanId: spanKey(
+          track,
+          state.generation,
+          state.baseMs + span.startMs,
+          state.baseMs + span.endMs,
+        ),
+      });
     }
+    if (!spans.length) this.trace?.record('defer', { ...context, reason: 'empty' });
     const candidates = flush
       ? spans.flatMap((span) => {
           const pieces: VadSpan[] = [];
@@ -274,15 +313,48 @@ export class LivePcmEngine {
         !flush &&
         span.endMs + SETTLE_MS > durationMs &&
         span.endMs - span.startMs < MAX_SPEECH_MS
-      )
+      ) {
+        this.trace?.record('defer', {
+          ...context,
+          reason: 'settle',
+          spanId: spanKey(
+            track,
+            state.generation,
+            state.baseMs + span.startMs,
+            state.baseMs + span.endMs,
+          ),
+        });
         break;
+      }
       const endMs = Math.min(span.endMs, span.startMs + MAX_SPEECH_MS);
-      const words = await this.models.transcribe(
-        state.samples.slice(
-          Math.round((span.startMs * LIVE_PCM_RATE) / 1000),
-          Math.round((endMs * LIVE_PCM_RATE) / 1000),
+      const call = this.call++;
+      const modelContext: TraceFields = {
+        ...context,
+        call,
+        startNs: Math.round((state.baseMs + span.startMs) * 1e6),
+        endNs: Math.round((state.baseMs + endMs) * 1e6),
+        spanId: spanKey(track, state.generation, state.baseMs + span.startMs, state.baseMs + endMs),
+        parentSpanId: spanKey(
+          track,
+          state.generation,
+          state.baseMs + span.startMs,
+          state.baseMs + span.endMs,
         ),
-      );
+      };
+      this.trace?.record('model_start', modelContext);
+      let words: WhisperWord[];
+      try {
+        words = await this.models.transcribe(
+          state.samples.slice(
+            Math.round((span.startMs * LIVE_PCM_RATE) / 1000),
+            Math.round((endMs * LIVE_PCM_RATE) / 1000),
+          ),
+        );
+      } catch (error) {
+        this.trace?.record('model_error', modelContext);
+        throw error;
+      }
+      this.trace?.record('model_end', { ...modelContext, wordCount: words.length });
       if (this.closed) return;
       counts.modelCalls += 1;
       if (!words.length) counts.modelEmpty += 1;
@@ -308,6 +380,11 @@ export class LivePcmEngine {
           startMs: w.startMs + offset,
           endMs: w.endMs + offset,
         }));
+        this.trace?.record('segment_emit', {
+          ...modelContext,
+          wordCount: absolute.length,
+          segmentKey: `live-${track}-${state.sequence}-${consumed}`,
+        });
         this.emit({
           id: `live-${track}-${state.sequence}-${consumed}`,
           track,
