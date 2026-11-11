@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type Page } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,6 +19,96 @@ async function answerFirstLaunch(page: Page): Promise<void> {
   );
   await page.reload();
 }
+
+/** Ids of the scrb-core processes that Electron's main process started, found through the OS. */
+function coreProcessIds(mainPid: number): number[] {
+  const { stdout } =
+    process.platform === 'win32'
+      ? spawnSync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-Command',
+            `Get-CimInstance Win32_Process -Filter ParentProcessId=${mainPid} | Where-Object Name -eq scrb-core.exe | ForEach-Object ProcessId`,
+          ],
+          { encoding: 'utf8' },
+        )
+      : spawnSync('pgrep', ['-P', String(mainPid), '-x', 'scrb-core'], { encoding: 'utf8' });
+  return stdout.split(/\s+/).filter(Boolean).map(Number);
+}
+
+/**
+ * Waits for a scrb-core process not killed before, kills it as a crash would, and records its id.
+ */
+async function killNextCore(mainPid: number, killed: Set<number>): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const pid = coreProcessIds(mainPid).find((id) => !killed.has(id));
+    if (pid !== undefined) {
+      process.kill(pid, 'SIGKILL');
+      killed.add(pid);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('scrb-core did not start again.');
+}
+
+/** Only scrb-core answers with this build date; the mock uses a different one. */
+const CORE_BUILD_DATE = 'Development build';
+/** What every call gets once the relay stops restarting the core. */
+const KEEPS_STOPPING = 'The recorder keeps stopping. Restart Meeting Scribe.';
+
+// The About section must come from the core, not the mock, once the hybrid backend sends it there.
+test('Help shows getAppInfo from scrb-core', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-core-info-'));
+  pointAtTestLibrary(userData);
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  const page = await app.firstWindow();
+
+  const info = await page.evaluate(() => window.scribeBridge?.invoke('getAppInfo', undefined));
+  await answerFirstLaunch(page);
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+
+  expect(info).toMatchObject({ ok: true, value: { buildDate: CORE_BUILD_DATE } });
+  await expect(page.getByText(`built ${CORE_BUILD_DATE}`)).toBeVisible();
+  await app.close();
+});
+
+// A crash must not leave the window waiting, and a core that keeps crashing must show an error.
+test('the core restarts, then reports repeated crashes', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-core-crash-'));
+  pointAtTestLibrary(userData);
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  const page = await app.firstWindow();
+  const mainPid = await app.evaluate(() => process.pid);
+  const killed = new Set<number>();
+  await answerFirstLaunch(page);
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await expect(page.getByText(`built ${CORE_BUILD_DATE}`)).toBeVisible();
+
+  // After one crash, main restarts the core and reloads the window once it answers hello.
+  const reloaded = page.waitForEvent('load');
+  await killNextCore(mainPid, killed);
+  await reloaded;
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await expect(page.getByText(`built ${CORE_BUILD_DATE}`)).toBeVisible();
+
+  // After three more crashes within a minute, main stops restarting and calls fail at once.
+  // Crashes 2 and 3 each reload the window, which would destroy a page.evaluate run during it.
+  for (let crash = 2; crash <= 3; crash += 1) {
+    const restarted = page.waitForEvent('load');
+    await killNextCore(mainPid, killed);
+    await restarted;
+  }
+  await killNextCore(mainPid, killed);
+  await expect
+    .poll(() => page.evaluate(() => window.scribeBridge?.invoke('getAppInfo', undefined)))
+    .toMatchObject({ ok: false, error: { code: 'internal', message: KEEPS_STOPPING } });
+  await page.reload();
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await expect(page.getByText(KEEPS_STOPPING)).toBeVisible();
+  await app.close();
+});
 
 test('settings survive a restart and go to the real library', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-restart-'));

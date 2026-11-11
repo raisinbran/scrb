@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { IPC_EVENT_CHANNEL } from '@scrb/contracts';
+import { IPC_EVENT_CHANNEL, PROTOCOL_VERSION, type EventName } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
+import { startCore } from './core-relay.ts';
 import { registerCallHandlers } from './ipc.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
@@ -21,6 +23,19 @@ const appOrigin = new URL(appUrl).origin;
 function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   const url = event.senderFrame?.url;
   return url !== undefined && new URL(url).origin === appOrigin;
+}
+
+function sendToWindows(name: EventName, payload: unknown): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+  }
+}
+
+function coreBinaryPath(): string {
+  const file = process.platform === 'win32' ? 'scrb-core.exe' : 'scrb-core';
+  if (app.isPackaged) return path.join(process.resourcesPath, 'bin', file);
+  // Like SCRB_DEV_SERVER_URL, ignored in packaged builds. Main runs from apps/desktop/dist-electron.
+  return process.env['SCRB_CORE_PATH'] || path.resolve(__dirname, '../../../target/debug', file);
 }
 
 function createMainWindow(
@@ -96,7 +111,8 @@ function createMainWindow(
 registerAppScheme();
 
 // A second copy would write to the same index, so it hands over to the first and quits.
-if (!app.requestSingleInstanceLock()) app.quit();
+const ownsInstanceLock = app.requestSingleInstanceLock();
+if (!ownsInstanceLock) app.quit();
 
 app.on('second-instance', () => {
   const [window] = BrowserWindow.getAllWindows();
@@ -105,18 +121,50 @@ app.on('second-instance', () => {
 });
 
 void app.whenReady().then(async () => {
+  // A copy that lost the lock can still get here while it quits, and must not start a core.
+  if (!ownsInstanceLock) return;
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  const backend = await openBackend((name, payload) => {
-    for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
-    }
+  const stderrLogPath = path.join(app.getPath('userData'), 'scrb-core-stderr.log');
+  const core = startCore(spawn, {
+    binaryPath: coreBinaryPath(),
+    hello: {
+      protocol: PROTOCOL_VERSION,
+      appName: app.getName(),
+      appVersion: app.getVersion(),
+      userDataDir: app.getPath('userData'),
+      documentsDir: app.getPath('documents'),
+      countryCode: app.getLocaleCountryCode() || null,
+    },
+    emit: sendToWindows,
+    stderrLogPath,
+    // A reloaded window reads the new core's state from the start.
+    onRestarted: () => {
+      for (const window of BrowserWindow.getAllWindows()) window.webContents.reload();
+    },
+    onStopped: () => {
+      const box = {
+        type: 'error' as const,
+        message: 'The recorder keeps stopping.',
+        detail: `The details are in ${stderrLogPath}.`,
+      };
+      // On macOS a box with no visible parent window stops main answering calls until it closes.
+      // A sheet on a visible window does not. Elsewhere a box with no parent blocks nothing.
+      const parent =
+        process.platform === 'darwin'
+          ? BrowserWindow.getAllWindows().find((window) => window.isVisible())
+          : undefined;
+      void (parent ? dialog.showMessageBox(parent, box) : dialog.showMessageBox(box));
+    },
   });
+  const backend = await openBackend(sendToWindows);
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();
-  registerCallHandlers(backend.handlers, isTrustedSender);
-  closeBeforeQuit(app, backend.close);
+  registerCallHandlers({ ...backend.handlers, ...core.handlers }, isTrustedSender);
+  closeBeforeQuit(app, async () => {
+    await Promise.allSettled([backend.close(), core.close()]);
+  });
   createMainWindow(backend.warning, backend.recovery, stopPlayback);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
