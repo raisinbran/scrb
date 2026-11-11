@@ -72,6 +72,7 @@ async function fixture() {
     recordingBusy: vi.fn(() => false),
     privacyBanner: vi.fn(async () => false),
     emit,
+    beforeDelete: vi.fn<(meetingId: string) => void>(),
     removeStaging: undefined as ((folder: string) => Promise<void>) | undefined,
   };
   const coordinator = new ImportCoordinator(deps);
@@ -157,6 +158,65 @@ describe('Electron import coordination', () => {
     expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
     await f.coordinator.shutdown();
   });
+
+  it.each(['failure', 'cancel', 'preempt'] as const)(
+    'revokes before discarding a provisional meeting after %s',
+    async (mode) => {
+      const f = await fixture();
+      let release!: () => void;
+      let reject!: (error: Error) => void;
+      let entered!: () => void;
+      const applying = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      f.applied.mockImplementation(
+        () =>
+          new Promise<void>((resolve, fail) => {
+            release = resolve;
+            reject = fail;
+            entered();
+          }),
+      );
+      const order: string[] = [];
+      f.deps.beforeDelete.mockImplementation((id) => {
+        order.push(`revoke:${id}`);
+      });
+      f.discard.mockImplementation(async () => {
+        expect(order).toEqual(['revoke:imported-1']);
+        order.push('delete');
+        return { meetingId: 'imported-1', ok: true, remaining: [] };
+      });
+      let finished!: () => void;
+      const terminal = new Promise<void>((resolve) => {
+        finished = resolve;
+      });
+      f.emit.mockImplementation((name: string) => {
+        if (name === 'importFailed' || name === 'importCancelled') finished();
+      });
+      const file = (await f.coordinator.handlers.pickAudioFile!(undefined)) as {
+        fileToken: string;
+      };
+      const { importId } = (await f.coordinator.handlers.importAudioFile!({
+        fileToken: file.fileToken,
+        buildVoiceProfiles: false,
+      })) as { importId: string };
+      await applying;
+      if (mode === 'failure') reject(new Error('invented failure'));
+      else {
+        const done =
+          mode === 'preempt'
+            ? f.coordinator.stopForRecording()
+            : f.coordinator.handlers.cancelImport!({ importId });
+        release();
+        await done;
+      }
+      await terminal;
+      expect(order).toEqual(['revoke:imported-1', 'delete']);
+      expect(f.deps.beforeDelete).toHaveBeenCalledTimes(1);
+      expect(await readFile(f.selected, 'utf8')).toBe('invented audio bytes');
+      await f.coordinator.shutdown();
+    },
+  );
 
   it('continues startup cleanup after a removal failure and logs no private path', async () => {
     const f = await fixture();
