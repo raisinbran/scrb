@@ -13,6 +13,9 @@ pub enum TranscriptError {
     CutsThroughCorrection(String),
     /// No correction has this id.
     CorrectionNotFound(String),
+    /// A merge would have lost a frozen word or split an active correction, so it was refused.
+    /// Holds the correction's id.
+    CorrectionLost(String),
 }
 
 impl fmt::Display for TranscriptError {
@@ -28,6 +31,12 @@ impl fmt::Display for TranscriptError {
                 )
             }
             Self::CorrectionNotFound(_) => write!(f, "That correction is no longer there."),
+            Self::CorrectionLost(_) => {
+                write!(
+                    f,
+                    "The new transcript would have lost a correction, so the change was refused."
+                )
+            }
         }
     }
 }

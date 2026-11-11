@@ -157,6 +157,15 @@ impl Transcript {
         Ok(next)
     }
 
+    /// The words of `active` and `superseded` corrections.
+    pub(crate) fn frozen_word_ids(&self) -> HashSet<&str> {
+        self.corrections
+            .iter()
+            .filter(|correction| correction.state != CorrectionState::Reverted)
+            .flat_map(|correction| correction.word_ids.iter().map(String::as_str))
+            .collect()
+    }
+
     /// The selected words with their segments, if they are consecutive on one track.
     fn select_words(&self, word_ids: &[String]) -> Result<Vec<(&Segment, &Word)>, TranscriptError> {
         let Some(first_id) = word_ids.first() else {

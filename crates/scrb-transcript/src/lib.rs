@@ -6,12 +6,14 @@
 //! edits always give the same file. A function that changes the transcript returns it with
 //! `revision` one higher; one that changes nothing returns it with the same `revision`.
 //!
-//! Start with [`Transcript::apply_correction`], [`Transcript::revert_correction`] and
+//! Start with [`Transcript::apply_correction`], [`Transcript::revert_correction`],
+//! [`Transcript::apply_final_pass`], [`Transcript::apply_live_pass`] and
 //! [`Transcript::shown_segments`].
 
 mod corrections;
 mod error;
 mod file;
+mod merge;
 mod shown;
 
 pub use error::TranscriptError;
@@ -19,4 +21,5 @@ pub use file::{
     Correction, CorrectionState, EditKind, History, HistoryEntry, Original, Pass, Patch, Segment,
     Speaker, SpeakerOverride, Track, Transcript, Word,
 };
+pub use merge::{ModelSegment, ModelWord};
 pub use shown::{ShownSegment, ShownWord, WordState};
