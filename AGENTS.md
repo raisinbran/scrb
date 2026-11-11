@@ -41,7 +41,7 @@
 
 ## Mandatory agent-caused failure reporting
 
-**Owner decision, 2026-11-03:** ChatGPT and Codex must document **every identifiable self-induced failure** in [the existing agents-folder incident register](agents/agent_self_induced_failures.md), including wrong instructions, QA mistakes, false test failures, test-harness/setup errors, unnecessary retries, misleading completion claims, and preventable credit/owner-time waste. Log incidents even when subsequently fixed or unrelated to a production-code defect. Name the observed effect, source evidence, actual/provisional attribution, correction and remaining risk. Do not erase or silently relabel agent errors as application failures. Keep private evidence out of Git; correlate quota impacts with [the usage tracker](agents/agent_task_allocation.md) without inventing exact task cost.
+**Owner decision, 2026-11-03; scope clarified 2026-11-08 (applies to every agent, including Claude Chat and Claude Code, by the rule's intent):** every agent must document **every identifiable self-induced failure** in [the existing agents-folder incident register](agents/agent_self_induced_failures.md), including wrong instructions, QA mistakes, false test failures, test-harness/setup errors, unnecessary retries, misleading completion claims, and preventable credit/owner-time waste. Log incidents even when subsequently fixed or unrelated to a production-code defect. Name the observed effect, source evidence, actual/provisional attribution, correction and remaining risk. Do not erase or silently relabel agent errors as application failures. Keep private evidence out of Git; correlate quota impacts with [the usage tracker](agents/agent_task_allocation.md) without inventing exact task cost.
 
 ## Commands
 
