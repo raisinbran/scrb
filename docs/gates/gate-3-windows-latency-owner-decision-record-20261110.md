@@ -28,17 +28,18 @@ The meeting-track result is identical under both pins (subtree hash `adc8c930139
 
 - **Thin microphone margin.** Likely to matter: 3 of 65 units were uncredited, and a fourth would have dropped it below 95%.
 - **Single run.** Serious but expected: one result cannot show the rate is stable.
-- **Same window as November 7.** The unit in 170 to 245 s showed a wrong word, not a late one; unlikely to be the original failure, but not proven.
+- **Same window as November 7.** One microphone unit at 185.83 s was UNIDENTIFIED, producing Layer B FAILURE OBSERVED. The classifier heuristically identified a recognition difference (class c), but this does not establish that the original failure pattern was absent or explain why the correct word was not credited.
 - **One unit's tail never appeared** (292.8 s). Cause unknown; one of 65, but it is a missing-output case.
 - **Rule change after seeing data.** The chunk-47 allowance was added after run 2; it can only make results slightly worse (at most 13.5 ms), so low risk to the result, but an outside reader may weigh it.
 - **Unexplained capture event** about 106 s into microphone recordings (two chunks, practice and scored, each with extra samples). Uninvestigated; medium concern, and a CAPTURE-LIMITED unit sits next to it.
 - **Hyphenated words.** The matcher and the classifier stop on them; a documented filter was used. Low risk to this result; the tools need fixing.
-- **Level meters read 0 during capture.** The log shows it, but audio chunks exist and both tracks aligned; probably a display issue and not examined.
+- **Post-run evidence handling.** Scorer-format eligibility and frozen flags were established after recording, and scoring used hashed evidence-folder helpers outside the manifest. The owner's D1/D2 decisions accept the stated approach but do not make those inputs pre-capture frozen evidence.
+- **Level meters read 0 during capture.** The log reports zero for both tracks. Audio chunks exist and meeting-track alignment passed, but the cause of the zero readings was not investigated. A display-only issue is unproven.
 - **One machine, one recording.** Other hardware may behave differently.
 
 ## 5. Monitoring and reopen conditions (owner may edit)
 
-- Keep the diagnostics available (PR #67, a draft that is open, not merged, when this was written).
+- PR #67 diagnostics are draft, open and unmerged; they are not currently available in the product. Investigating any reopen condition would first require those diagnostics to be integrated and available.
 - Reopen the criterion if field use or later tests show late or missing output around 3 minutes into a session, or if a later scored run falls below 95% on either track.
 - Open a separate low-priority task to investigate the 106 s capture event.
 
