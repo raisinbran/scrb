@@ -465,3 +465,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** `scored-run-1\run-record.txt` (one line); the scratchpad output file `orch-out.txt`.
 - **Correction / prevention:** launch the orchestrator the way the runbook shows (a Windows PowerShell window), or with a cleared PSModulePath, and confirm `actions.log` appears within 30 s; do not wait on a long run without an early liveness check.
 - **Owner approval:** not required.
+
+### A-077 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — test-file main guard left above the new test class
+- **Status / attribution:** Confirmed; agent (caught by independent review).
+- **What failed:** When porting the six chunk-47 tests into `scripts/gate3-retest/test_v3a_conditional.py` I appended the new class after the existing `if __name__ == '__main__': unittest.main()` guard, so running the file directly skipped the six new tests (12 tests when fixed, 6 fewer before). Discovery-based runs (350 -> 356) still counted them, which hid the problem.
+- **Agent-controlled cause:** Appended to the end of the file without checking for an existing guard.
+- **Impact:** None on results; a direct run would have under-reported the new tests. Caught before approval.
+- **Evidence:** commit f951a4f; fixed in the following commit.
+- **Correction / prevention:** Guard moved to the end of the file; 12 tests now run directly and discovery stays at 356 (3 skipped). Check for a main guard whenever appending a test class.
+- **Owner approval:** Not required.

@@ -219,10 +219,6 @@ class TestRawPracticeMicrophone(unittest.TestCase):
             self.assertEqual(timing.digest(root/entry['path']), entry['sha256'], 'Raw practice input changed')
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class TestAuditedMicrophoneChunk47(unittest.TestCase):
     """Narrow, hash-bound scored-run-2 microphone chunk 47 row (+648 samples = 13.5 ms)."""
     META = 'fa595b9d5e75ccf04b6424c4e7fc423d1cca15c06652ec58a75ca16d525a2bd1'
@@ -315,3 +311,7 @@ class TestAuditedMicrophoneChunk47(unittest.TestCase):
         low, _ = timing.placement_interval(t, m)
         self.assertAlmostEqual((t + 5.993) - low, 6.0065, places=6)
         self.assertGreater((t + 5.993) - low, 6.0)
+
+
+if __name__ == '__main__':
+    unittest.main()
