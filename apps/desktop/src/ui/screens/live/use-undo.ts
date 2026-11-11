@@ -1,31 +1,32 @@
-import { useCallback, useState } from 'react';
-import type { Backend, MeetingId, UndoState } from '@scrb/contracts';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MeetingId, UndoState } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 
 const NOTHING_TO_UNDO: UndoState = { canUndo: false, canRedo: false };
 
-// The contract only reports undo state in call responses, so this survives leaving the screen.
-// After an app reload it starts empty; see the handoff note on `getUndoState`.
-const remembered = new WeakMap<Backend, Map<MeetingId, UndoState>>();
-
-function memoryOf(backend: Backend): Map<MeetingId, UndoState> {
-  const memory = remembered.get(backend) ?? new Map<MeetingId, UndoState>();
-  remembered.set(backend, memory);
-  return memory;
-}
-
 export function useUndo(meetingId: MeetingId) {
   const backend = useBackend();
-  const [state, setState] = useState(() => memoryOf(backend).get(meetingId) ?? NOTHING_TO_UNDO);
+  const [state, setState] = useState(NOTHING_TO_UNDO);
   const [error, setError] = useState<string | null>(null);
+  const change = useRef(0);
 
-  const record = useCallback(
-    (next: UndoState) => {
-      memoryOf(backend).set(meetingId, next);
-      setState(next);
-    },
-    [backend, meetingId],
-  );
+  const record = useCallback((next: UndoState) => {
+    change.current += 1;
+    setState(next);
+  }, []);
+
+  const refresh = useCallback(() => {
+    const asked = change.current;
+    backend.call('getUndoState', { meetingId }).then(
+      (next) => {
+        // An answer to an older question must not overwrite a newer undo or correction.
+        if (asked === change.current) setState(next);
+      },
+      () => undefined,
+    );
+  }, [backend, meetingId]);
+
+  useEffect(refresh, [refresh]);
 
   const run = useCallback(
     (action: 'undo' | 'redo') => {
@@ -41,6 +42,7 @@ export function useUndo(meetingId: MeetingId) {
     ...state,
     error,
     record,
+    refresh,
     undo: useCallback(() => run('undo'), [run]),
     redo: useCallback(() => run('redo'), [run]),
   };

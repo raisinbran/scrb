@@ -14,23 +14,30 @@ const sameSpeaker = (a: SpeakerSuggestion, b: SpeakerSuggestion) =>
   a.meetingId === b.meetingId && a.speakerId === b.speakerId;
 
 /**
- * Mounted above the screens because `speakerSuggestion` is only an event: a suggestion that
- * arrives with nothing listening is lost, and the contract has no call to list pending ones.
+ * Mounted above the screens so a suggestion is kept while the Speakers screen is closed. Pending
+ * ones are loaded once, because a suggestion that arrived before the app opened sends no event.
  */
 export function SpeakerSuggestionsProvider({ children }: { children: ReactNode }) {
   const backend = useBackend();
   const [suggestions, setSuggestions] = useState<SpeakerSuggestion[]>([]);
 
-  useEffect(
-    () =>
-      backend.on('speakerSuggestion', (incoming) =>
+  useEffect(() => {
+    const unsubscribe = backend.on('speakerSuggestion', (incoming) =>
+      setSuggestions((current) => [
+        ...current.filter((suggestion) => !sameSpeaker(suggestion, incoming)),
+        incoming,
+      ]),
+    );
+    backend.call('listSpeakerSuggestions', {}).then(
+      (pending) =>
         setSuggestions((current) => [
-          ...current.filter((suggestion) => !sameSpeaker(suggestion, incoming)),
-          incoming,
+          ...pending.filter((item) => !current.some((other) => sameSpeaker(item, other))),
+          ...current,
         ]),
-      ),
-    [backend],
-  );
+      () => undefined,
+    );
+    return unsubscribe;
+  }, [backend]);
 
   const answer = useCallback(
     async (suggestion: SpeakerSuggestion, accepted: boolean) => {

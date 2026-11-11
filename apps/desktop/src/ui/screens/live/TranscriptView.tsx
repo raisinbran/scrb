@@ -137,11 +137,23 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     [store, liveSelection, version],
   );
   const selectionLost = selection !== null && liveSelection === null;
+  const selectedWords = useMemo(() => {
+    const first = range && store.refAt(range.first);
+    const last = range && store.refAt(range.last);
+    return first && last ? { firstWordId: first.wordId, lastWordId: last.wordId } : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, range, version]);
   const cursorPosition = useMemo(
     () => (cursor ? store.positionOf(cursor) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [store, cursor, version],
   );
+
+  // Left set, the editor would reopen by itself on the next selection.
+  if (selectionLost && editing) setEditing(false);
+  useEffect(() => {
+    if (selectionLost && document.activeElement === document.body) scrollRef.current?.focus();
+  }, [selectionLost]);
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
@@ -389,8 +401,12 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     rows.push(
       <div key={segment.id} className={styles.rowSlot} style={slotStyle} data-row-index={index}>
         <TranscriptRow
+          meetingId={meetingId}
           segment={segment}
-          speakerLabel={store.speakerLabel(segment.speakerId)}
+          speaker={store.speakerOf(segment.speakerId)}
+          speakers={store.speakerList()}
+          range={inRange ? selectedWords : undefined}
+          onSpeakerChanged={undoState.refresh}
           selectedFrom={inRange ? (index === range.first.segment ? range.first.word : 0) : null}
           selectedTo={
             inRange
@@ -515,7 +531,8 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
         </div>
         <p id="transcript-keys" className={styles.srOnly}>
           Arrow keys move between words. Shift with arrows selects. Enter corrects the selection.
-          Space plays the audio. Escape clears the selection.
+          Space plays the audio. Escape clears the selection. Tab reaches the speaker menu of the
+          current line.
         </p>
         <p className={styles.srOnly} role="status">
           {cursorWord ? `${cursorWord.text}, ${formatElapsed(cursorWord.startMs)}` : ''}
