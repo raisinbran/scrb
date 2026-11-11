@@ -474,3 +474,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** commit f951a4f; fixed in the following commit.
 - **Correction / prevention:** Guard moved to the end of the file; 12 tests now run directly and discovery stays at 356 (3 skipped). Check for a main guard whenever appending a test class.
 - **Owner approval:** Not required.
+
+### A-078 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — wrong skipped-test count written into the first draft of the new manifest
+- **Status / attribution:** Confirmed; agent (caught by my own check before verification of the final manifest).
+- **What failed:** I wrote `skipped: 3, passed: 353` into the new manifest's `test_results` from the owner's "356, 3 skipped" expectation and from my earlier reports, before running the suite with the manifest's own recorded environment (`SCRB_V3A_PRACTICE_ROOT`, `SCRB_MATCHER_DIR`). That run gave 356 tests, OK, with no skips; the 3 skips appear only when those variables are unset (skipUnless/skipTest in test_long_correlation.py, test_observer_publications.py, test_v3a_conditional.py).
+- **Agent-controlled cause:** copied a figure instead of measuring it; earlier usage rows (and A-077) say "3 skipped" without naming the environment it applied to.
+- **Impact:** None on results; the interim manifest hash was discarded and the manifest regenerated (356 passed, 0 skipped, final SHA-256 b0a00b68...123d) before verification and before the owner sheet named it.
+- **Evidence:** suite output "Ran 356 tests ... OK" with the variables set; the manifest's test_results.python.environment.
+- **Correction / prevention:** Record counts only from a run under the command and environment the manifest names; say which environment a skip count applies to. Earlier "3 skipped" statements refer to a run without the variables.
+- **Owner approval:** Not required.
