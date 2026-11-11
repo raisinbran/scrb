@@ -221,3 +221,97 @@ class TestRawPracticeMicrophone(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestAuditedMicrophoneChunk47(unittest.TestCase):
+    """Narrow, hash-bound scored-run-2 microphone chunk 47 row (+648 samples = 13.5 ms)."""
+    META = 'fa595b9d5e75ccf04b6424c4e7fc423d1cca15c06652ec58a75ca16d525a2bd1'
+    SOURCE = '418e75c4c1f60fa28d7e197955eae1042d9ecf6d4251fa7eafc8b3be3a80f41a'
+    RATE = 48000
+
+    def native_records(self, decoded=239688):
+        rows = [{'seq': i, 'source_sha256': f'{i+1:064x}', 'start_ns': i*1000000000,
+                 'metadata_start_ns': i*1000000000, 'metadata_end_ns': (i+1)*1000000000,
+                 'decoded_samples': 48000} for i in range(47)]
+        rows.append({'seq': 47, 'source_sha256': self.SOURCE, 'start_ns': 47000000000,
+                     'metadata_start_ns': 47000000000, 'metadata_end_ns': 51980000000,
+                     'decoded_samples': decoded})
+        rows.append({'seq': 48, 'source_sha256': f'{49:064x}', 'start_ns': 51980000000,
+                     'metadata_start_ns': 51980000000, 'metadata_end_ns': 52980000000,
+                     'decoded_samples': 48000})
+        return rows
+
+    def mapping(self):
+        return timing.gap_map(self.native_records(), 'microphone', self.RATE, self.META)
+
+    def test_exact_row_is_valid_and_recorded(self):
+        result = self.mapping()
+        self.assertTrue(result['valid'])
+        self.assertEqual(result['audited_overrun_samples'], 648)
+        self.assertEqual(result['chunks'][47]['decoded_overrun_samples'], 648)
+        self.assertEqual(result['chunks'][48]['timestamp_displacement_samples'], -648)
+
+    def test_anything_else_stays_inconclusive(self):
+        def bad(label, call):
+            with self.subTest(label), self.assertRaises(ValueError):
+                call()
+        for decoded in (239687, 239689, 239039, 239000):  # 647/649 excess, negative mismatches
+            bad(f'decoded={decoded}', lambda d=decoded: timing.gap_map(
+                self.native_records(d), 'microphone', self.RATE, self.META))
+        bad('metadata', lambda: timing.gap_map(self.native_records(), 'microphone', self.RATE, 'f'*64))
+        bad('meeting', lambda: timing.gap_map(self.native_records(), 'meeting', self.RATE, self.META))
+        bad('rate', lambda: timing.gap_map(self.native_records(), 'microphone', 44100, self.META))
+        rows = self.native_records(); rows[47]['source_sha256'] = 'f'*64
+        bad('source', lambda: timing.gap_map(rows, 'microphone', self.RATE, self.META))
+        # Same counts on another chunk and sequence do not inherit the allowance.
+        rows = self.native_records(); rows[48].update(metadata_end_ns=56960000000, decoded_samples=239688)
+        bad('other chunk', lambda: timing.gap_map(rows, 'microphone', self.RATE, self.META))
+        rows = self.native_records(); rows[47]['seq'] = 46
+        bad('other seq', lambda: timing.gap_map(rows, 'microphone', self.RATE, self.META))
+
+    def test_chunk32_row_is_unchanged(self):
+        meta = 'c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290'
+        rows = TestAuditedGapReader.native_records(self)
+        self.assertEqual(timing.gap_map(rows, 'microphone', 48000, meta)['audited_overrun_samples'], 168)
+        # The chunk-47 identity does not make the chunk-32 recording valid with other counts.
+        with self.assertRaisesRegex(ValueError, 'outside audited'):
+            timing.gap_map(rows, 'microphone', 48000, self.META)
+
+    def test_placement_bounds_only_become_less_favourable(self):
+        m = self.mapping()
+        excess = 648/self.RATE
+        for label, t, low_drop in [('before', 10.0, 0), ('inside start', 47.0, excess),
+                                   ('inside', 47.5, excess), ('after', 52.5, excess)]:
+            row = next(r for r in m['chunks'] if t*self.RATE < r['continuous_end_sample'])
+            old_low = t + min(0, row['timestamp_displacement_samples'])/self.RATE
+            old_high = t + max(row['cumulative_gap_samples'], row['timestamp_displacement_samples'])/self.RATE
+            low, high = timing.placement_interval(t, m)
+            with self.subTest(label):
+                self.assertLessEqual(low, old_low + 1e-12)          # lower bound cannot increase
+                # Inside the chunk the excess is newly included; after it, `shift` already held it.
+                self.assertAlmostEqual(low, t - low_drop, places=9)
+                self.assertAlmostEqual(high, old_high, places=12)    # upper bound unchanged
+                self.assertAlmostEqual(high, t, places=12)
+                self.assertLessEqual(t - low, excess + 1e-12)
+        self.assertEqual(timing.placement_interval(10.0, m), [10.0, 10.0])  # before: unchanged
+
+    def test_latency_best_case_unchanged_and_conservative_rises_by_at_most_excess(self):
+        m = self.mapping()
+        excess = 648/self.RATE
+        for t in (10.0, 47.5, 52.5):
+            row = next(r for r in m['chunks'] if t*self.RATE < r['continuous_end_sample'])
+            old_low = t + min(0, row['timestamp_displacement_samples'])/self.RATE
+            low, high = timing.placement_interval(t, m)
+            publication = t + 5.9
+            old_conservative, old_best = publication - old_low, publication - t
+            conservative, best = publication - low, publication - high   # analyze-bounds.py:29-30 pairing
+            self.assertAlmostEqual(best, old_best, places=12)
+            self.assertGreaterEqual(conservative, old_conservative - 1e-12)
+            self.assertLessEqual(conservative - old_conservative, excess + 1e-12)
+
+    def test_unit_at_5_993_s_no_longer_keeps_a_6_s_pass(self):
+        m = self.mapping()
+        t = 47.5
+        low, _ = timing.placement_interval(t, m)
+        self.assertAlmostEqual((t + 5.993) - low, 6.0065, places=6)
+        self.assertGreater((t + 5.993) - low, 6.0)

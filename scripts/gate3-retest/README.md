@@ -240,6 +240,12 @@ preserved microphone chunk 32 has 47688 decoded samples against 47520 declared
 samples (+168 samples, 3.5 ms at 48 kHz). It is bound to that exact source SHA-256,
 track, sequence, native rate, metadata SHA-256 and both counts. A changed hash,
 167/169-sample discrepancy or another recording does not inherit that allowance.
+A second, equally narrow row (owner-approved proposal, commit 08e9478) covers only scored-run-2
+microphone chunk 47: 239,688 decoded against 239,040 declared samples (+648, 13.5 ms), bound to its
+metadata SHA-256, source SHA-256, sequence, rate and both counts; any other count (647/649, negative),
+chunk, hash, recording or track stays INCONCLUSIVE. Units inside or after an overrunning chunk have their
+lower acoustic bound lowered by the accepted excess (`placement_range`): conservative latency can rise by
+up to 648/48000 s; the upper bound and best-case latency are unchanged.
 There is no generic numerical count or gap cutoff. The scalar original-v3
 **timestamped legacy view** reproduces the prior audit's declared-end clipping
 and last-chunk-wins overlap placement; only this legacy view clips. The continuous
