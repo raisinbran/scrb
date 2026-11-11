@@ -3,13 +3,37 @@
 // Each test file uses only some of these helpers.
 #![allow(dead_code)]
 
-use scrb_transcript::{Pass, Segment, Speaker, Track, Transcript, Word};
+use scrb_transcript::{ModelSegment, ModelWord, Pass, Segment, Speaker, Track, Transcript, Word};
 
 /// The time every test edit is made at.
 pub const NOW: &str = "2026-11-11T09:00:00Z";
 
 /// The sentence most tests correct. "jon smith" is words 3 and 4, from 1500 to 2400 ms.
 pub const SENTENCE: &str = "we should ask jon smith about the budget before friday";
+
+/// Model words for `text`, the first starting at `start_ms`.
+pub fn model_words(text: &str, start_ms: u64) -> Vec<ModelWord> {
+    text.split_whitespace()
+        .enumerate()
+        .map(|(index, word)| {
+            let start = start_ms + 500 * index as u64;
+            ModelWord {
+                text: word.to_owned(),
+                start_ms: start,
+                end_ms: start + 400,
+            }
+        })
+        .collect()
+}
+
+/// One model segment of `text` on `track`, starting at `start_ms`.
+pub fn model_segment(label: &str, track: Track, text: &str, start_ms: u64) -> ModelSegment {
+    ModelSegment {
+        speaker_label: label.to_owned(),
+        track,
+        words: model_words(text, start_ms),
+    }
+}
 
 /// A meeting whose live pass heard `text` on the system track from 0 ms.
 pub fn live_transcript(text: &str) -> Transcript {
@@ -95,4 +119,12 @@ pub fn correct(transcript: &Transcript, ids: &[String], text: &str) -> Transcrip
     transcript
         .apply_correction(ids, text, false, NOW)
         .expect("the selection is valid")
+}
+
+/// A final pass that heard `text` on the system track from `start_ms`.
+pub fn final_pass(transcript: &Transcript, text: &str, start_ms: u64) -> Transcript {
+    let segment = model_segment("Speaker 1", Track::System, text, start_ms);
+    transcript
+        .apply_final_pass(&[segment])
+        .expect("no correction is lost")
 }
