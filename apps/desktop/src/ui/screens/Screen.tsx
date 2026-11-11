@@ -16,6 +16,8 @@ export function useFocusFallback() {
     };
     // Chromium also fires focusout when a focused element is removed, so release the element only
     // if it is still in the page after the current task's script has finished.
+    // A programmatic blur followed by removal in the same task cannot be told apart from
+    // removal-caused blur, so it falls back to the heading.
     const release = (event: FocusEvent) => {
       const target = event.target as Element;
       queueMicrotask(() => {
