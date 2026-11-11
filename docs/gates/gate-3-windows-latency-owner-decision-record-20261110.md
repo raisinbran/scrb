@@ -1,6 +1,6 @@
 # Windows Gate 3: owner decision record for the live-latency criterion (2026-11-10 PT)
 
-**DRAFT for independent review and owner signature. Nothing here is approved or signed.** It changes no threshold, pinned file, manifest, plan or earlier result.
+**Status: SIGNED by the owner in chat on 2026-11-10 (commit dcf4333). This is an owner risk-acceptance decision for the Windows live-latency criterion only. It is not a measured protocol pass.** It changes no threshold, pinned file, manifest, plan or earlier result.
 
 ## 1. Decision requested
 
