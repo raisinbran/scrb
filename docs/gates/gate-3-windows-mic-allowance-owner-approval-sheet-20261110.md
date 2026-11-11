@@ -6,12 +6,13 @@ New manifest SHA-256 (the value you would name if you approve): `b0a00b68148a66a
 New pin (code and documents): `78c9acbfd885b678fccd0ea711a8a3be9036776c`, branch `rosmont/windows-gate3-mic-allowance-20261110`.
 Previous pin: manifest `a41e289bd4e5ee8b5a525c6dbb4fca22331a6bce2c9ca663649d1dde52830dc2`, code `76768d5c44e3f267db9892db1d1aa1b1c99e7431`.
 
-## 1. What changed (two small things)
+## 1. What changed
 
-1. **One data row.** The microphone recording of scored run 2 has one 5-second piece (chunk 47) whose decoded audio is 648 samples (13.5 ms) longer than its recorded timestamps say (239,688 decoded against 239,040 declared). The row names that exact piece by its file fingerprints, so it applies to nothing else. An earlier practice recording had the same kind of small excess (3.5 ms, chunk 32) and the same kind of row.
-2. **One lower-bound fix.** The scorer places each spoken word between an earliest and a latest time. With the row in place, the earliest time for words in or after that piece can now be up to 13.5 ms earlier. The fix lets the scorer use that earlier value instead of rejecting the file as inconsistent.
+The fix is two sentences. First, one exact-match data row for scored-run-2 microphone chunk 47 (decoded audio is 648 samples, 13.5 ms, longer than its timestamps say: 239,688 against 239,040); the row names that piece by its file fingerprints, so it applies to nothing else. Second, a change so that units inside that chunk include its excess in the lower bound of their acoustic-end estimate, which can raise conservative latency by at most 13.5 ms and never lowers it.
 
-Four pinned files changed (`audited_decode_spans.json`, `v3a_timing.py`, `test_v3a_conditional.py`, `README.md`) and one document was added to the list (the approved proposal). Nothing else in the manifest changed except the pin fields and the test counts.
+Side effect on the practice recording: its chunk 32 (+168 samples, 3.5 ms, already covered by an older row) also gets the wider lower bound. That is the practice recording only; no scored unit is affected.
+
+What changed in the manifest: 4 entries changed (`audited_decode_spans.json`, `v3a_timing.py`, `test_v3a_conditional.py`, `README.md`) and 1 added (the allowance proposal document); the pin fields; the test-result text (356 tests); and the `git_commit_id` field on 101 entries. Nothing else. The verifier passes with 289 checks and 0 mismatches.
 
 ## 2. Why it is safe
 
@@ -19,7 +20,7 @@ Four pinned files changed (`audited_decode_spans.json`, `v3a_timing.py`, `test_v
 - The meeting-track result is unchanged: re-running the meeting track with the new code on a scratch copy gave a result whose hash is identical to the one from the previous pin (hash `adc8c930...cd76`).
 - It applies to one hash-bound chunk only. A different file, a different chunk or a different count falls back to the old strict rule.
 - Six new tests cover the row, the exact-match requirement, the lower bound and the case where the row is absent. The full suite ran 356 tests, 0 failures (with the two environment variables set it ran 0 skipped; without them 3 tests skip because they need the external practice files).
-- The proposal was approved by ChatGPT round 2 (APPROVE) before any code was written, and a separate review found one test-file issue that is fixed (register A-077).
+- The proposal was independently reviewed by ChatGPT (APPROVE, two rounds) before any code was written. Its file header still reads "PROPOSED": it is not owner-approved, and owner approval happens only by signing this sheet. A separate review found one test-file issue that is fixed (register A-077).
 
 ## 3. What approving authorizes
 
@@ -37,7 +38,16 @@ Offline rescoring of the **microphone track only**, from the **existing** scored
 - **This is a rule change made after the data was seen.** The excess was found in the capture facts, and the row was sized from those facts only (the proposal records which files were read and that no latency or classification result was read). Even so, it was made after run 2 was recorded, so an outside reader may weigh it differently than a rule fixed beforehand. The direction of the change (only more conservative) is the main mitigation.
 - **D1 and D2 are still unapproved.** This sheet does not cover them.
 - **The recurring capture event about 106 s into the recording is uninvestigated.** The excess in chunk 47 lies near that offset (about 106.149 s). The allowance describes the size of the excess; it does not explain what caused it.
+- The independent audit of this pin (AUDIT PASS, audit note `4befed4`) could not verify three things, because that needs the barred scored-run-2 folders or scoring: the meeting-track regression hash, the PowerShell and npm results carried over from the previous pin, and the scored-run-2 sample counts. The author's regression result is reported in the commit message and the usage records.
 - During drafting I read the usage table and saw a provisional meeting-track outcome row. This is disclosed in the proposal and logged as A-058.
+
+## 5a. Known harmless stale text
+
+- The manifest's `pins.branch` and its npm boundary-check text still name the old branch.
+- The manifest's clean-checkout note says the manifest is not in the pin.
+- The proposal's header still says PROPOSED.
+
+None of these affects the check: the verifier binds file hashes and the pinned commit, not these labels. Fixing any of them would change the manifest hash (or a pinned document) and require another audit, so they are left as they are.
 
 ## 6. Run procedure note (how the combined verdict will cite both)
 
