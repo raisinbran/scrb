@@ -1,27 +1,22 @@
-# Gate 3 Windows: proposed audited sample-count allowance (PROPOSAL ONLY)
+# Gate 3 Windows: proposed audited sample-count row for scored-run-2 microphone chunk 47 (PROPOSAL ONLY)
 
-Status: **PROPOSED, not approved, not implemented.** Drafted 2026-11-10 by Claude Code (Sonnet 5.5) under an owner drafting-only authorization. Nothing pinned, scripted, tested, scored or classified was changed or run to produce this. It needs independent review (below) and explicit owner approval before any change.
+Status: **PROPOSED, not approved, not implemented.** Drafted 2026-11-10 by Claude Code (Sonnet 5.5) and rewritten the same day under owner decision option (c): replace the earlier general rule (X = Y = 960 samples) with one narrow, hash-bound row following the chunk-32 precedent. It needs independent review and explicit owner approval before any change. Nothing pinned, scripted, tested, scored or classified was changed or run.
 
 ## 1. Blindness statement
 
-The allowance is sized from capture facts only: chunk metadata (`chunks.json`) and decoded sample counts. It was drafted **without reading any scored-run-2 latency, recurrence or classification result**. Nothing was scored, matched, timed, analyzed or classified.
+The row is derived from capture facts only: chunk metadata (`chunks.json`) and decoded sample counts. It was drafted **without reading any scored-run-2 per-unit latency, recurrence or classification result**, and without running scoring, the matcher, v3a timing, analyze-bounds or classify.
 
-Files and data actually read:
+Read for the first draft: `v3a_timing.py` (lines 60-315), `audited_decode_spans.json`, `README.md` (lines 232-247), grep lines of `test_v3a_conditional.py` and `marker_clock.py`, six tracks' `chunks.json` and `.opus` chunks (decoded), three grep lines of the scored-run runbook, and the tails of `agents/agent_self_induced_failures.md` and `agents/agent_task_allocation.md`. Read for this rewrite: this proposal, `v3a_timing.py` lines 108-115, 249-261 and 465-492, `analyze-bounds.py` lines 27-30 (found by grep), `test_v3a_conditional.py` lines 64-90.
 
-- `scripts/gate3-retest/v3a_timing.py` (lines 60-315), `scripts/gate3-retest/audited_decode_spans.json`, `scripts/gate3-retest/README.md` (lines 232-247), `scripts/gate3-retest/test_v3a_conditional.py` (grep lines only), `scripts/gate3-retest/marker_clock.py` (grep lines only).
-- Chunk metadata and the `.opus` chunks (decoded with the retained ffmpeg) for six tracks, listed in section 2.
-- Runbook `docs/gates/gate-3-windows-scored-run-runbook-20261110.md`: grep output only (three matching lines about evidence paths).
-- The tails of `agents/agent_self_induced_failures.md` and `agents/agent_task_allocation.md`.
-
-**Disclosure of an unintended exposure:** the tail of `agents/agent_task_allocation.md` displayed the existing usage row for the scored-run-2 continuation. It states, in summary, that the meeting track latency was provisionally PASS with recurrence NOT OBSERVED, and the microphone track INCONCLUSIVE at chunk 47. A grep also returned the heading of register entry A-057. No microphone latency, recurrence or per-unit value was seen, and the file `docs/handoffs/2026-11-10-gate3-windows-scored-run-2-result.md` and all scoring outputs were not opened. The reviewer should weigh this: the reader of this proposal knows the meeting track is not the blocker. It did not influence the sizing, which follows from the section 2 numbers. Logged as A-058.
+**Disclosed incidental exposure:** the tail of `agents/agent_task_allocation.md` displayed the existing scored-run-2 usage row, which states that the meeting track was provisionally PASS (recurrence NOT OBSERVED) and the microphone track INCONCLUSIVE at chunk 47. A grep also returned the heading of register entry A-057. No microphone per-unit latency or recurrence value was seen, and the scored-run-2 result handoff and all scoring outputs were not opened. Logged as A-058.
 
 ## 2. Observed facts (capture facts only)
 
-Method: declared = `round(endNs*rate/1e9) - round(startNs*rate/1e9)` from `chunks.json` (same formula as `gap_map`); decoded = frames from the retained ffmpeg decode of each `.opus` file (the pinned pipe-WAV method in `load_views`). The decoder was `gate3-integrated-evidence\decoder\ffmpeg.exe`, SHA-256 `e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030`, version 9.0. The method reproduces the existing audited value exactly (practice chunk 32: 47520 declared, 47688 decoded). An earlier attempt using Ogg granule positions did not reproduce it (it reported no mismatches anywhere) and was discarded.
+Method: declared = `round(endNs*rate/1e9) - round(startNs*rate/1e9)` from `chunks.json` (the formula in `gap_map`); decoded = frames from the retained ffmpeg decode of each `.opus` file (the pinned pipe-WAV method of `load_views`). Decoder: `gate3-integrated-evidence\decoder\ffmpeg.exe`, SHA-256 `e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030`, version 9.0. The method reproduces the existing audited value exactly (practice chunk 32: 47520 declared, 47688 decoded). An earlier granule-position count did not reproduce it and was discarded.
 
 Evidence root: `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-20261108\`.
 
-| Recording / track | chunks.json SHA-256 | Chunks | Mismatching chunks | Seq | Declared | Decoded | Diff (samples) | Diff (ms @ 48 kHz) | Offset in recording (s) | Chunk length (s) |
+| Recording / track | chunks.json SHA-256 | Chunks | Mismatching | Seq | Declared | Decoded | Diff (samples) | Diff (ms @ 48 kHz) | Offset from first chunk (s) | Chunk length (s) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | scored-run-2 microphone | `fa595b9d5e75ccf04b6424c4e7fc423d1cca15c06652ec58a75ca16d525a2bd1` | 157 | 1 | 47 | 239040 | 239688 | +648 | +13.5 | 106.149 | 4.98 |
 | scored-run-2 meeting | `d5b12853756ca73b75c300317d50204f65eb5ba9885b72f6d89221df8085842a` | 84 | 0 | | | | | | | |
@@ -30,109 +25,99 @@ Evidence root: `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-v3-preflight-2026110
 | rehearsal-1 microphone | `4dfa6080f7727b04665d358847ece54f2b29b5ff7d62e0ffc6461fea7a4f1a69` | 26 | 0 | | | | | | | |
 | rehearsal-1 meeting | `24486d73825cb2b508ac397acf5a184d4938cccb6f851b62e416d69eb64345d7` | 12 | 0 | | | | | | | |
 
-Note on the offset column: offset is `chunk.startNs - firstChunk.startNs` in seconds. Scored-run-2 chunk 47 starts 106.149 s after the first chunk start (its absolute `startNs` is 106,158,295,700; the first chunk's is 8,842,500). The "chunk 47 at 106.158-111.138 s" figures elsewhere are absolute capture-clock values. Practice chunk 32 starts 106.062 s after the first chunk start (absolute 106,062,655,400).
+Source SHA-256 of the two mismatching chunks: scored-run-2 mic chunk 47 `418e75c4c1f60fa28d7e197955eae1042d9ecf6d4251fa7eafc8b3be3a80f41a` (absolute `startNs` 106,158,295,700, `endNs` 111,138,295,700); practice mic chunk 32 `86198be2632f2435a0044ee702401601a9d1e5af520916186b738a6d8d9f4571`.
 
-Source SHA-256 of the two mismatching chunks: scored-run-2 mic chunk 47 `418e75c4c1f60fa28d7e197955eae1042d9ecf6d4251fa7eafc8b3be3a80f41a`; practice mic chunk 32 `86198be2632f2435a0044ee702401601a9d1e5af520916186b738a6d8d9f4571` (matches the existing allowance).
+Existence: scored-run-2, practice-d2 and rehearsal-1 exist and were read; the practice recording is the one the chunk-32 allowance was derived from (its metadata SHA equals the allowance's). `scored-run-1-app` has no `chunks.json` and was not examined; nothing else was searched or guessed.
 
-Exists / does not exist:
+Other capture facts: both mismatches are microphone chunks near 106 s, both decoded > declared, both close on `discontinuity` (chunk 32 opens on `rollover`, chunk 47 on `discontinuity`). Chunk 47 (4.98 s) sits between 10 ms `discontinuity` chunks 46 and 48; chunk 46 ends 2.57 ms after chunk 47 starts (timestamp overlap) and chunk 48 starts 2.50 ms after chunk 47 ends (gap). Neither excess is a whole number of 20 ms Opus frames. No negative mismatch exists in any inspected track. Whether any scored unit's anchor lies inside chunk 47 was not determined (that needs matcher output).
 
-- Exist, read: scored-run-2 (`scored-run-2-app`), practice-d2 (`practice-d2\app-run`), rehearsal-1 (`rehearsal-1-app`).
-- The practice recording is the one the existing allowance was derived from (metadata SHA `c99682...7290` equals the allowance's `metadata_sha256`). No other recording was found to derive it from.
-- `scored-run-1-app`: exists as a folder but contains **no** `chunks.json`; not examined. Other earlier-gate recordings were not searched (out of scope; not guessed).
+## 3. The existing rule and chunk-32 allowance
 
-Further capture facts about the two mismatching chunks (metadata only):
+- Rule, `scripts/gate3-retest/v3a_timing.py:147-149` (`gap_map`): `overrun = audited_overrun(record, track, rate, metadata_sha256, end-start)` then `require(count > 0 and end > start and count-(end-start) == overrun, 'Inconsistent timestamp/sample-count record outside audited span allowance')`. Any other difference, either sign, invalidates the track gap map (INCONCLUSIVE).
+- Allowance: `scripts/gate3-retest/audited_decode_spans.json`, one row (microphone, metadata SHA `c99682...7290`, source SHA `861986...4571`, seq 32, rate 48000, declared 47520, decoded 47688, overrun 168). `audited_overrun` (lines 108-115) returns the overrun only on an exact match of track, rate, both SHAs, seq and both counts, else 0. README lines 238-247 say there is no generic numerical cutoff.
+- Application of the excess: nothing is excluded and no offset is corrected. The continuous view keeps every decoded sample; the legacy timestamped view clips the chunk to its declared end; `decoded_overrun_samples` and `cumulative_overrun_samples` are recorded; `timestamp_displacement_samples = start - continuous` therefore falls by the overrun for every later chunk. `placement_interval` (249-261) returns `[seconds + min(0, shift)/rate, seconds + max(cumulative_gap, shift)/rate]`: an overrun can only lower the **lower** bound. `marker_clock.py` only reports `latency: INCONCLUSIVE` when the gap map is invalid (lines 202-207); it has no allowance logic.
 
-- Both are microphone chunks, both near 106 s from the start, both open and close on a `discontinuity` (chunk 32 opens on `rollover`, closes on `discontinuity`; chunk 47 opens and closes on `discontinuity`). The practice meeting, scored meeting and rehearsal-1 tracks have zero mismatches.
-- Chunk 47 is much longer (4.98 s) than the 10 ms neighbours 46 and 48 (`discontinuity` chunks at 106.150863 s and 111.140793 s). Chunk 46 ends 106.160863 s, 2.57 ms after chunk 47 starts (a timestamp overlap of 2.57 ms); chunk 48 starts 2.50 ms after chunk 47 ends (a gap).
-- The mismatch is always decoded > declared. No negative mismatch exists in any inspected track.
-- Neither mismatch is a whole number of 20 ms Opus frames (168 and 648 samples against 960 per frame).
+## 4. Proposed row (the whole rule)
 
-Not determined here (needs data this draft may not use): whether any scored unit's anchor lies inside chunk 47 (offset 106.158-111.138 s of the capture clock). That requires matcher placements. The proposal therefore does not depend on it (section 4).
+Add exactly one row to `audited_decode_spans.json`, accepted only when **all** of these match exactly:
 
-## 3. The existing rule and allowance
+| Field | Value |
+|---|---|
+| track | `microphone` |
+| rate | 48000 |
+| metadata SHA-256 | `fa595b9d5e75ccf04b6424c4e7fc423d1cca15c06652ec58a75ca16d525a2bd1` (scored-run-2 microphone `chunks.json`) |
+| source SHA-256 | `418e75c4c1f60fa28d7e197955eae1042d9ecf6d4251fa7eafc8b3be3a80f41a` |
+| seq | 47 |
+| declared samples | 239,040 |
+| decoded samples | 239,688 (overrun 648 samples = 13.5 ms) |
 
-- Pinned rule, `scripts/gate3-retest/v3a_timing.py:147-149` in `gap_map`:
-  `overrun = audited_overrun(record, track, rate, metadata_sha256, end-start)` then
-  `require(count > 0 and end > start and count-(end-start) == overrun, 'Inconsistent timestamp/sample-count record outside audited span allowance')`.
-  Any other decoded-minus-declared difference, either sign, raises and the track gap map is invalid (INCONCLUSIVE).
-- Allowance: `scripts/gate3-retest/audited_decode_spans.json`, one row: microphone, metadata SHA `c99682505f904e801d9f288d963f4407ca1a2eb39d092eebb8efc3b6afd87290`, source SHA `86198be2632f2435a0044ee702401601a9d1e5af520916186b738a6d8d9f4571`, seq 32, rate 48000, declared 47520, decoded 47688, overrun 168. `audited_overrun` (lines 108-115) returns the overrun only on an exact match of track, rate, both SHAs, seq and both counts, else 0. README lines 238-247 state the same and add "no generic numerical count or gap cutoff".
-- What is done with the excess (`v3a_timing.py`, `gap_map` and `placement_interval`):
-  - Nothing is excluded and no offset is corrected. The continuous view keeps every decoded sample (`continuous += count`).
-  - The legacy timestamped view clips the chunk to its declared end (`timestamped[a:b] = block[:b-a]`, lines 244-245).
-  - `cumulative_overrun_samples` and `decoded_overrun_samples` are recorded per row (lines 155-161). `timestamp_displacement_samples = start - continuous` (line 160) therefore falls by the overrun for every **later** chunk.
-  - `placement_interval` (lines 249-261) returns `[seconds + min(0, shift)/rate, seconds + max(cumulative_gap, shift)/rate]`. A negative shift (from overlaps and overruns) lowers only the **low** end, so the allowance widens the interval and leaves the high end alone.
-  - Observation for review: for the overrunning chunk's own row, `shift` is the displacement *before* that chunk, so a placement inside chunk 47 does not yet receive its own -648 samples at the low end (see check 2).
-- `marker_clock.py` only calls the gap map and reports `latency: INCONCLUSIVE` when it is invalid (lines 202-207); it contains no allowance logic of its own.
+Everything else stays INCONCLUSIVE: any other count in that chunk (including 647 or 649 excess), any other chunk, any other recording, metadata hash or source hash, any decoded < declared (negative) mismatch, and any second excess in the same track beyond the existing audit rows. There is **no X, no Y and no numerical tolerance**. The new row must match its identity **and** counts exactly and cannot fall back to any wider rule: `audited_overrun` keeps its exact-match-or-zero behaviour, and the implementation must not add a ceiling, a tolerance or a "close enough" path. The chunk-32 row is untouched and still applies only to the practice recording.
 
-## 4. Proposed rule
+Why this narrow: the facts are two events in two recordings; a general rule would be a tolerance chosen after seeing the data for cases not yet observed, and could hide a genuine capture fault. A single hash-bound row accepts one reviewed observation and nothing else, identical in kind to chunk 32. The meeting track has no mismatch, so the row does not touch it; had a meeting-track mismatch occurred it would need its own reviewed row.
 
-**Rule M-1 (proposed).** A chunk's decoded sample count may exceed its declared span, and the track's gap map stays valid, only if **all** hold:
+## 5. How the allowance is applied, and the arithmetic
 
-1. decoded - declared is strictly positive and **at most X = 960 samples (20 ms at 48 kHz)**, in that one chunk;
-2. the **sum of such excesses over the track is at most Y = 960 samples (20 ms)**, so at most one chunk of the largest permitted size, or several smaller ones; this applies per track, per recording, to both tracks equally;
-3. the excess is recorded in the gap map exactly as the chunk-32 overrun already is (decoded overrun, cumulative overrun), together with chunk seq, source SHA and metadata SHA, so every use is auditable in the output;
-4. the placement interval is widened as in section 5.
+Confirmed pairing in code (`scripts/gate3-retest/analyze-bounds.py:29-30`, fed by `v3a_timing.py:479-486`):
 
-Still INCONCLUSIVE, unchanged: any decoded < declared (negative) mismatch; any excess over 960 in one chunk; a track total over 960; any non-integer or missing count; the existing identity checks (duplicate or reordered timestamps, missing source identity, embedded timestamp mismatch). The chunk-32 row stays as is and keeps its own hash binding; its 168 samples count toward the practice recording only, not toward scored-run tracks.
+- `conservative = max(point["observed"]) - unit["earliest_acoustic_end_s"]`
+- `best = min(point["observed"] - point["u"]) - unit["latest_acoustic_end_s"]`
+- `earliest_acoustic_end_s` is the **lower** bound of `placement_interval` and `latest_acoustic_end_s` the **upper** bound. Latency is publication time minus acoustic-end time, so the lower acoustic bound drives the conservative (largest) latency and the upper bound drives best-case.
 
-Why these numbers and not larger: the observed values are 168 and 648 (one per track, one per recording). X = 960 is 1.48 times the largest observed value (648) and exactly one Opus frame (20 ms), the natural unit at which a decoder could add or drop one frame. A margin of one frame is enough to cover rounding of timestamps (the declared span is `round(...)` on both ends, so a difference of 1-2 samples from rounding alone cannot matter) and is small against the 3 s and 6 s thresholds (0.67 percent and 0.33 percent). A larger X (for example 100 ms) would be a general tolerance chosen with no observed case that needs it; it would also hide a genuinely lost or duplicated audio frame. Y equals X so the total over a track can never exceed what one frame could hide: the observed value (648) leaves 312 samples of headroom, i.e. a second mismatch is accepted only if it is tiny. This is deliberately tight; if the reviewer thinks a second ~13 ms event is plausible and acceptable, Y could be raised, but no data in section 2 supports that.
+For valid gap-map rows `shift = cumulative_gap - overlaps - overruns <= cumulative_gap`, so the upper bound `max(cumulative_gap, shift)` is `cumulative_gap` and **does not change** when the overrun is accepted. The overrun lowers `shift` by M = 648 samples (M/rate = 13.5 ms), so `min(0, shift)` falls by **at most 13.5 ms** and the lower bound falls by at most that. Therefore for every unit after the chunk, and (with the required code change below) every unit inside it:
 
-## 5. How the allowance is applied (widen only, never favourable)
+- acoustic upper bound: unchanged; **best-case latency: unchanged**;
+- acoustic lower bound: decreases by at most 13.5 ms (cumulative accepted excess / rate);
+- **conservative latency: can increase by up to 13.5 ms and cannot decrease.** A unit at 5.993 s conservative could become 6.0065 s and must **not** keep a 6 s PASS; the same arithmetic applies to the 3 s threshold.
+- units before chunk 47: unchanged.
+- units **inside** chunk 47 must include that chunk's own 648 excess in the lower-bound calculation (current code uses the displacement before the chunk, so this is a required implementation change, not existing behaviour).
 
-Let M be the accepted excess samples of a chunk (M <= 960) and r the sample rate. Interval arithmetic, using the existing formula:
+The allowance can therefore only make results less favourable, never more. This is arithmetic, not a result: it does not say which units are near a threshold, and it does not promise the outcome will be unchanged.
 
-- Every chunk after the overrunning chunk has `shift' = shift - M` (shift is `timestamp_displacement_samples`).
-- Low end: `min(0, shift') <= min(0, shift)`, lowered by at most M/r seconds.
-- High end: `max(cumulative_gap, shift')`. `cumulative_gap` is unchanged by an overrun and `shift' <= shift`, so the high end is unchanged or lower than the zero-allowance reading by nothing (it cannot rise).
-- A unit's latency is its recording placement minus its source time. Consequently:
-  - the **conservative (highest-latency)** estimate changes by **0**;
-  - the **best-case (lowest-latency)** estimate falls by **at most M/r**, i.e. at most **13.5 ms** for the observed 648 and at most **20 ms** by the proposed ceiling; it can never rise;
-  - the interval therefore only widens. The allowance cannot make any estimate more favourable than the pre-allowance continuous reading.
-- Required addition (not in current code): for units whose placement falls **inside** the overrunning chunk, the low end must also include `-M`, because it is unknown where in the chunk the extra samples sit. Equivalently, within such a chunk use `shift' = shift - M` for the low end.
-- Arithmetic statement for the 3 s and 6 s thresholds (not a result): the allowance can move any best-case value by at most 13.5 ms (<= 20 ms at the ceiling) and any conservative value by 0. A unit whose best-case latency is within 13.5 ms above a threshold could change from a best-case fail to an uncertain reading; a unit whose conservative latency is at or below a threshold remains at or below it. No other unit's status is affected by the allowance.
+(A previous draft of this proposal paired the bounds the other way and claimed the conservative latency was unchanged. That was wrong; logged as A-059.)
 
 ## 6. Required tests (not written here)
 
-In `scripts/gate3-retest/test_v3a_conditional.py` or a new test module, with synthetic records:
+In `scripts/gate3-retest/test_v3a_conditional.py` (pattern of `TestAuditedGapReader`, lines 67-89) or a new module, with synthetic records using the real identity and counts:
 
-1. +648 samples (+13.5 ms) in one microphone chunk passes under M-1; the gap map is valid, records overrun 648, and every later chunk's displacement falls by 648.
-2. +960 passes; **+961 fails** with the existing error text.
-3. -1 sample (negative mismatch) fails; a larger negative mismatch fails.
-4. A second excess chunk fails when the track total would exceed 960 (for example 648 then 313), and passes when it does not (648 then 312).
-5. The existing chunk-32 case behaves as before: only the hash-bound 168 row, 167 and 169 fail on that row's identity, and `audited_overrun_samples == 168` for the practice mapping.
-6. The same rule applies unchanged to the meeting track (same tests with `track='meeting'`).
-7. Widening tests: for a unit after the overrun, low end falls by M/r, high end is unchanged; for a unit inside the overrunning chunk, low end includes -M; nothing moves later; `best_case >= pre-allowance best_case - M/r` and `conservative == pre-allowance conservative`.
-8. Real-evidence check, run only after approval: gap maps for the two scored-run-2 tracks, practice and rehearsal-1 are valid and record exactly the section 2 excesses.
+1. The exact row (microphone, 48000, metadata SHA above, source SHA above, seq 47, declared 239,040, decoded 239,688) gives a valid gap map with `decoded_overrun_samples == 648` and `audited_overrun_samples == 648`.
+2. Stays INCONCLUSIVE: excess 647 and 649; a different source SHA; a different metadata SHA; seq 46 or 48; rate not 48000; track `meeting`; decoded < declared (for example -1); a second excess chunk; the row applied to another recording's identity.
+3. Chunk-32 behaves as before (the existing 168 / 167 / 169 / changed-hash assertions pass unchanged).
+4. Placement: the acoustic-placement **lower bound cannot increase** and the **upper bound is unchanged** relative to the same records with the excess treated as zero.
+5. Best-case latency is unchanged; conservative latency cannot decrease and increases by at most 648/48000 s.
+6. Units before chunk 47 are unchanged; units inside chunk 47 and units after it are checked (inside includes the 648 in the lower bound).
+7. A threshold test: a unit at 5.993 s conservative without the row is above 6 s with it (no 6 s PASS), and likewise for 3 s.
+8. After approval only: the scored-run-2 microphone gap map is valid and records exactly 648; no other chunk in any inspected recording changes status.
 
 ## 7. Precedent and honesty
 
-- This is a **rule change proposed after seeing the data**, after a pinned rule marked the scored microphone track INCONCLUSIVE. That is the pattern a pinned rule exists to prevent, and the owner should treat it with that suspicion.
-- Why the outcome cannot steer it: the sizing uses only chunk metadata and decoded counts (section 2). No latency, recurrence or classification result was consulted (section 1 lists the one unintended exposure and what it did and did not reveal). The proposed X and Y would be the same whether the microphone result turned out to be a PASS or a FAIL, because widening-only arithmetic (section 5) makes every unit's conservative latency independent of the allowance.
-- It applies equally to the meeting track (zero mismatches there so far, so it changes nothing for that track today).
-- It would **not** fix: any larger or negative mismatch; any other kind of gap-map invalidity; ambiguous or missing anchors; the question of why the capture produces extra decoded samples at about 106 s in both mic recordings (a recurring pattern in two of two microphone recordings with a `discontinuity` close; root cause not investigated); the meeting-track or any other open owner decision; and it does not convert an INCONCLUSIVE track into a PASS by itself, since scoring would still have to be rerun and judged on its own.
+- This is a **rule change proposed after seeing the data**, after a pinned rule marked the microphone track INCONCLUSIVE. Treat it with the suspicion that pattern deserves.
+- The number (648) was derived from capture metadata and decoded counts without reading microphone per-unit latency. The incidental exposure to the provisional track-outcome row is disclosed in section 1.
+- The allowance can only **increase** conservative latency by up to 13.5 ms and never makes a result more favourable; it does **not** guarantee an unchanged outcome (a unit near a threshold could move across it).
+- It would **not** fix: any other or negative mismatch; any other gap-map invalidity; ambiguous or missing anchors; any other recording or track; the open question why the capture produces extra decoded samples near 106 s in both microphone recordings; and it does not turn the INCONCLUSIVE track into a PASS by itself.
 
 ## 8. Alternatives considered
 
-- **Accept INCONCLUSIVE** for the microphone track. Zero rule risk and no precedent; the cost is that the microphone track of this scored run yields no latency evidence, and a repeat of the same capture behaviour would keep doing so.
-- **Rerun the microphone capture.** Mismatches also appeared in the practice recording (chunk 32), at almost the same offset (106 s) and with a `discontinuity` close, so a rerun may reproduce one. It would also be a new recording and a new scored run needing separate owner approval and (per project rules) a test-duration decision.
-- **Per-recording hash-bound row only** (add chunk 47 beside chunk 32). Narrowest, but it is the same after-the-fact exemption keyed to one result and gives no protection against the next occurrence; offered as a fallback if the owner prefers no general rule. Its tests and widening requirement are the same as above.
+- **Accept INCONCLUSIVE** for the scored-run-2 microphone track: no rule change; no microphone latency evidence from this run.
+- **Rerun microphone capture:** mismatches also appeared in the practice recording (chunk 32, same offset, `discontinuity` close), so a rerun may reproduce one; it needs separate owner approval and a test-duration decision.
+- **General rule (X = Y = 960):** the earlier draft; rejected by the owner as wider than the evidence supports.
 
-## 9. What changing it would require (none of it done)
+## 9. Files an implementation would touch (not touched)
 
-- Edit `scripts/gate3-retest/v3a_timing.py` (`audited_overrun`, `gap_map`, and the inside-chunk widening in `placement_interval`), and `audited_decode_spans.json` or a new policy file if the rule is expressed as data.
-- Add the tests in section 6 to `scripts/gate3-retest/test_v3a_conditional.py` (or a new module); update `scripts/gate3-retest/README.md` lines 238-247, which currently say there is no generic cutoff.
-- New pin of the changed scripts and policy file, regeneration of `docs/gates/windows-gate3-v3-preflight-manifest.json` and the freeze surface list (`docs/gates/gate-3-windows-freeze-surface-list-20261109.md`, not read here), per the existing freeze process.
-- A new owner approval record (the previous one is `docs/gates/gate-3-windows-owner-approval-record-20261110.md`, not read here) naming this rule change, plus independent review.
-- A rescore of scored-run-2 under the new pins (owner-authorized), recorded as a new scoring session, not as a continuation of the old one.
+- `scripts/gate3-retest/audited_decode_spans.json` (one new row).
+- `scripts/gate3-retest/v3a_timing.py` (`placement_interval` / gap-map rows so units inside the overrunning chunk include its excess in the lower bound).
+- `scripts/gate3-retest/test_v3a_conditional.py` (or a new test module): tests in section 6.
+- `scripts/gate3-retest/README.md` lines 238-247 (describe the second row).
+- New pin: regenerate `docs/gates/windows-gate3-v3-preflight-manifest.json` and the freeze surface list (`gate-3-windows-freeze-surface-list-20261109.md`, not read here).
+- A new owner approval record naming this change, independent review, and an owner-authorized rescore of scored-run-2 as a new scoring session.
 
 ## 10. Risk statement (for the owner)
 
-The change is small in size and mathematically widening-only, but it is a pinned-rule change after an unfavourable administrative outcome, and the data behind it are two events in two recordings. The main risks are (a) precedent: later rule changes after seeing outcomes become easier to justify; (b) an implementation that widens the wrong way or applies the shift at the wrong chunk, which could move a latency estimate in the favourable direction; and (c) hiding a real capture fault: a recurring extra-sample event at about 106 s in both microphone recordings may indicate a capture or timestamp defect that the allowance would quietly accommodate within 20 ms. The cap, the equal treatment of both tracks, the recorded audit fields and the independent review are the controls. If the owner is uncomfortable with any of them, accepting INCONCLUSIVE is the safe option.
+The row is as narrow as a hash-bound allowance can be and only moves results toward less favourable, by at most 13.5 ms, but it is still a pinned-rule change made after an unfavourable administrative outcome, resting on two events in two recordings. The main risks are an implementation that applies the shift in the wrong direction or omits the inside-chunk lower bound (which would be favourable), a row that quietly matches more than intended, and hiding a real capture fault: an extra-sample event near 106 s in both microphone recordings has no investigated cause. The exact-match rule, the one-way arithmetic, and independent review are the controls; accepting INCONCLUSIVE remains the safe alternative.
 
 ## 11. What an independent reviewer should check
 
-1. **Direction of the shift (false PASS):** confirm in code, with a test on real numbers, that after the allowance no unit's conservative latency decreases and no placement moves later than before; check both `timestamp_displacement_samples` signs and the `min`/`max` in `placement_interval`.
-2. **Inside the overrunning chunk (false PASS/false FAIL):** current code uses the displacement before the chunk for units inside chunk 47. Confirm that the unknown position of the extra 648 samples is covered on the low side by `-M`, and that units with their anchor in chunk 47 (106.158-111.138 s) are neither dropped nor given a narrower interval than units after it.
-3. **Limits (false PASS):** confirm that X and Y are enforced per chunk and per track (a second chunk at the limit, +961, total > 960 and any negative mismatch all raise), and that the sum counts the chunk-32 row only for the practice recording and cannot be reset by splitting or reordering records.
-4. **Sample counting (false FAIL or PASS):** confirm that the section 2 counts come from the same decode path as the pinned reader (an earlier granule-based count in this draft gave no mismatches and was wrong), and that the retained ffmpeg and chunk hashes match the manifest.
-5. **Overlap with timestamps (false FAIL):** chunk 47 also overlaps chunk 46 by 2.57 ms at the start; confirm the overlap handling (`overlap_before_samples`, last-chunk-wins in the legacy view) and the overrun clipping together do not double count or remove the 648 samples from the continuous view.
+1. **Exactness (false PASS):** the new row matches track, rate, both SHAs, seq 47 and both counts exactly, with no fallback to a tolerance, ceiling or other row; 647, 649, negative, other hash, other chunk and `meeting` all raise.
+2. **Direction (false PASS):** after the row, no unit's `earliest_acoustic_end_s` rises, no `latest_acoustic_end_s` changes, best-case is unchanged and conservative never decreases; verify against `analyze-bounds.py:29-30` with real numbers.
+3. **Inside chunk 47 (false PASS):** units whose placement falls in 106.158-111.138 s (absolute capture clock) include the 648 in the lower bound, and are neither dropped nor given a narrower interval than units after the chunk.
+4. **Threshold crossing (false PASS):** a unit just under 3 s or 6 s conservative that crosses with the extra 13.5 ms is reported as a non-PASS, not rounded back.
+5. **Counting and overlap (false FAIL):** the 239,688 count comes from the same decode path as the pinned reader and retained ffmpeg and chunk hashes match the manifest; chunk 47's 2.57 ms overlap with chunk 46 together with the overrun clipping neither double counts nor removes the 648 samples from the continuous view.
