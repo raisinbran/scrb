@@ -45,11 +45,13 @@ The meeting-track result is identical under both pins (subtree hash `adc8c930139
 
 ## 6. Owner decision (EMPTY; nothing is signed)
 
-- [ ] Accept risk and mark the Windows live-latency criterion accepted: ______________________
+- [x] Accept risk and mark the Windows live-latency criterion accepted: owner decision, recorded from the owner's chat message
 - [ ] Do not accept: ______________________
 
-Name: ______________________    Date and time (PT): ______________________
+Name: Brandon C (git config user.name; owner chat approval)    Date and time (PT): 2026-11-10 18:03
+
+> OWNER DECISION (verbatim): I, the owner, have read docs/gates/gate-3-windows-latency-owner-decision-record-20261110.md at commit 4c08d05. I accept the risks it lists and accept the Windows live-latency criterion (median 3 s or less, 95% within 6 s, per track) as sufficiently evidenced by scored-run-2, as an OWNER DECISION and not as a measured protocol pass. This does not reverse or re-score the 2026-11-07 result, covers no other Gate 3 criterion, and does not mean the live path is fixed. The reopen conditions in the record apply.
 
 ## 7. Independent review
 
-Pending: ChatGPT binary review (not yet done).
+ChatGPT binary review: REJECT on four wording edits (overstated interpretation of the 185.83 s unit, unsupported level-meter diagnosis, diagnostics availability, undisclosed post-run evidence handling); all four applied at 4c08d05; no second ChatGPT round; the owner reviewed the revised text before signing.
