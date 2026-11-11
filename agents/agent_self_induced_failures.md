@@ -284,6 +284,15 @@ The owner-provided Windows Codex handoff reported **five-hour remaining 100% -> 
 - **Correction / prevention:** Validate any new measurement against a known value first; avoid reading usage and register tails in blind tasks (use targeted greps of the needed row only).
 - **Owner approval:** Not required.
 
+### A-059 - 2026-11-10 - Claude Code (Sonnet 5.5) / Windows Desktop - allowance proposal paired latency bounds the wrong way
+- **Status / attribution:** Confirmed; agent (caught by independent review).
+- **What failed:** The first draft of the sample-count allowance proposal said an overrun leaves the conservative latency unchanged and lowers best-case latency by up to 13.5 ms. The code (`analyze-bounds.py:29-30`) computes conservative latency from `earliest_acoustic_end_s` (the lower placement bound) and best-case from `latest_acoustic_end_s`, so the reverse holds: conservative latency can rise by up to 13.5 ms and best-case is unchanged.
+- **Agent-controlled cause:** Reasoned about which bound feeds which latency instead of reading the pairing in code before writing the arithmetic.
+- **Impact:** A wrong favourable-direction claim in a proposal; caught before any approval, pin or rescore. No result affected.
+- **Evidence:** earlier commit b3c5f42 of `docs/gates/gate-3-windows-mic-sample-count-allowance-proposed.md`; corrected in the rewrite (section 5).
+- **Correction / prevention:** Confirm the endpoint pairing in the consuming code before stating any directional claim; proposal now cites `analyze-bounds.py:29-30`.
+- **Owner approval:** Not required.
+
 ## Entry template for next agent
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
