@@ -1,0 +1,26 @@
+[workspace]
+members = ["crates/scrb-core", "crates/scrb-protocol"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[workspace.dependencies]
+scrb-protocol = { path = "crates/scrb-protocol" }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.154"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "std"] }
+ts-rs = "=12.0.1"
+
+[workspace.lints.clippy]
+# Stdout carries the protocol, so one stray print would break the link.
+print_stdout = "deny"
+dbg_macro = "deny"
+
+[profile.release]
+# Already the default. Abort would turn a panic in one thread into a lost recording.
+panic = "unwind"
