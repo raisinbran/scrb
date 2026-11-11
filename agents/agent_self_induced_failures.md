@@ -562,3 +562,11 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Impact:** The second point contributed to A-088 (one stopped step, no wrong result). The first caused no action.
 - **Correction / prevention:** Compare agents only on rates over comparable work; name the governing log, pin and amendment in every replication brief.
 - **Owner approval:** Not required.
+
+### A-090 — 2026-11-10 — Planner (Claude Code, Mac) — unclear manual-action instructions and unverified model labels
+- **Status / attribution:** Confirmed planner error.
+- **What failed:** (1) A prompt for the owner to paste dropped the explicit recipient header (session, model, PC, folder, admin), so the owner had to read it closely to find the recipient. (2) Prompts labelled sessions "Sonnet 5.5" without verifying what ran; the drafting sessions ran on Opus 5.5, and the first fix was a per-prompt model self-check that the owner rejected as a waste of usage. (3) The owner asked for clear, consistent instruction on manual PR actions. The planner gave "Squash and merge" for one PR, then a single blanket "merge commit for every PR" rule with contradictory advice on deleting branches, reading "consistent" as "uniform"; the owner corrected it twice. The owner meant an explicit instruction per item.
+- **Impact:** Owner time and extra turns, and avoidable usage on the self-check lines. No repository, evidence or merge outcome was affected; both PRs were merged with the stated methods.
+- **Correction / prevention:** Every manual action now gets a per-item table (item, exact button, delete branch yes/no, why). Every prompt opens with a "PASTE INTO" header. Model self-check lines are dropped unless there is concrete evidence of a mismatch.
+- **Remaining risk:** Session models can still differ from labels; usage rows must say "unverified" when a model is not confirmed.
+- **Owner approval:** Not required.
