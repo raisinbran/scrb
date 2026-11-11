@@ -483,3 +483,12 @@ Keep the register updated as incidents are found. It does **not** authorize any 
 - **Evidence:** suite output "Ran 356 tests ... OK" with the variables set; the manifest's test_results.python.environment.
 - **Correction / prevention:** Record counts only from a run under the command and environment the manifest names; say which environment a skip count applies to. Earlier "3 skipped" statements refer to a run without the variables.
 - **Owner approval:** Not required.
+
+### A-079 — 2026-11-10 — Claude Code (Sonnet 5.5) / Windows Desktop — incomplete edit of the sensitivity helper caused four failed steps and a rerun
+- **Status / attribution:** Confirmed; agent.
+- **What failed:** I generalized `mk_sens_mic.py` to several rows by string replacement but the replacement did not match the file's line endings, so the loop was not written and `row` was undefined. The four SENS steps (helper, matcher, assemble, analyze) were run in one command without checking the first exit code; the first raised NameError and the other three failed on the missing file.
+- **Agent-controlled cause:** no check of the edited helper (a syntax-only check would not have caught a NameError) and chained steps without stopping on the first non-zero exit.
+- **Impact:** None on results: no output file was written by any failed step, the helper was fixed (same logic) and the four steps rerun; about two minutes lost and eight extra log lines. Logged in `scoring-log.md` as an invocation/helper error.
+- **Evidence:** `scoring-log.md` steps SENS1 to SENS4 (exit 1, outputs MISSING) and the `-rerun` steps (exit 0).
+- **Correction / prevention:** Print the edited helper and stop on the first non-zero exit before running dependent steps.
+- **Owner approval:** Not required.
