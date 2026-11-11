@@ -13,6 +13,8 @@ import {
 import { toolsIn, type ModelPaths } from '../src/config.js';
 import type { LivePcmFrame } from '../src/livePcmProtocol.js';
 import { WorkerProcess } from '../src/worker.js';
+import type { TraceRecord } from '../src/liveTrace.js';
+import { analyzeLiveTrace } from '../src/liveTraceAnalysis.js';
 
 const models: ModelPaths = {
   speechLive: 'unused',
@@ -333,6 +335,7 @@ describe('isolated live audio supervisor with invented processes', () => {
       if (!address || typeof address === 'string') throw new Error('No test port');
       const inputs: number[] = [];
       const worker = await start(events, {
+        traceDirectory: join(root, 'preserved-trace'),
         workerArgs: [join(compiled, 'liveWorkerEntry.js')],
         startModels: async (workDir) => ({
           port: address.port,
@@ -390,7 +393,31 @@ describe('isolated live audio supervisor with invented processes', () => {
       ).toBe(true);
       await worker.close();
       await worker.close();
-      expect(await readdir(root)).toEqual(['compiled']);
+      await vi.waitFor(async () => {
+        const files = await readdir(join(root, 'preserved-trace'));
+        const lines = await Promise.all(
+          files.map((f) => readFile(join(root, 'preserved-trace', f), 'utf8')),
+        );
+        expect(lines.some((s) => s.includes('"stage":"trace_end"'))).toBe(true);
+      });
+      const traceFiles = await readdir(join(root, 'preserved-trace'));
+      const traceText = (
+        await Promise.all(traceFiles.map((f) => readFile(join(root, 'preserved-trace', f), 'utf8')))
+      ).join('');
+      const records = traceText
+        .trim()
+        .split('\n')
+        .map((s) => JSON.parse(s) as TraceRecord);
+      expect(records.some((r) => r.stage === 'segment_received')).toBe(true);
+      expect(records.some((r) => r.stage === 'segment_delivered')).toBe(true);
+      expect(records.some((r) => r.stage === 'frame_dequeue' && r.queueDelayMs !== undefined)).toBe(
+        true,
+      );
+      expect(analyzeLiveTrace(records).observations.some((r) => r.state === 'DELIVERED')).toBe(
+        true,
+      );
+      expect(traceText).not.toMatch(/Hello|world|localhost|127\.0\.0|scrb-live-pcm-/);
+      expect(await readdir(root)).toEqual(['compiled', 'preserved-trace']);
       expect(existsSync(join(root, 'audio'))).toBe(false);
     } finally {
       await new Promise<void>((resolve, reject) =>
