@@ -261,13 +261,26 @@ describe('verified profile recognition', () => {
       await save(...args);
       assignmentPersisted = true;
     });
+    const controller = new AbortController();
     const assignment = library.assignSpeakerProfiles(
       id,
       [{ speaker: before.speakers[0]!, profile: p }],
       before.revision,
-      new AbortController().signal,
+      controller.signal,
     );
     await waiting;
+    controller.abort();
+    let settled = false;
+    void assignment.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
     // Make the old scan deterministic: it sees the persisted pre-assignment snapshot.
     const read = library.readTranscript.bind(library);
     vi.spyOn(library, 'readTranscript').mockImplementation((meetingId) =>
@@ -343,6 +356,68 @@ describe('verified profile recognition', () => {
     const saved = await library.readTranscript(second);
     expect(saved.speakers.every((s) => s.profileId !== p.id)).toBe(true);
     expect(JSON.stringify([...saved.undoStack, ...saved.redoStack])).not.toContain(p.id);
+  });
+
+  it('aborts a queued assignment before slow deletion releases the shared lock', async () => {
+    const p = profile();
+    const first = await seed();
+    const second = await seed();
+    const initial = await library.readTranscript(first);
+    await library.assignSpeakerProfiles(
+      first,
+      [{ speaker: initial.speakers[0]!, profile: p }],
+      initial.revision,
+      new AbortController().signal,
+    );
+    const before = await library.readTranscript(second);
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const save = documents.saveDocument;
+    vi.spyOn(documents, 'saveDocument').mockImplementation(async (...args) => {
+      const doc = args[1] as TranscriptFile;
+      if (doc.meetingId === first && doc.speakers?.every((s) => s.profileId !== p.id)) {
+        entered();
+        await gate;
+      }
+      return save(...args);
+    });
+    const deletion = library.deleteVoiceProfile(p.id);
+    await waiting;
+    const controller = new AbortController();
+    const reason = new Error('invented cancellation');
+    const assignment = library.assignSpeakerProfiles(
+      second,
+      [{ speaker: before.speakers[0]!, profile: p }],
+      before.revision,
+      controller.signal,
+    );
+    const outcome = assignment.then(
+      () => 'saved',
+      (error: unknown) => error,
+    );
+    controller.abort(reason);
+    try {
+      // A queued cancellation must settle while deletion's persistence remains gated.
+      expect(
+        await Promise.race([
+          outcome,
+          new Promise<string>((resolve) => setImmediate(() => resolve('still waiting'))),
+        ]),
+      ).toBe(reason);
+      expect(library.voiceProfiles.get(p.id)).not.toBeNull();
+      expect(await library.readTranscript(second)).toEqual(before);
+    } finally {
+      release();
+      await deletion;
+      await outcome;
+    }
+    expect(await library.readTranscript(second)).toEqual(before);
   });
 
   it('completed import persists automatic profile assignment, Undo and transcript notification', async () => {

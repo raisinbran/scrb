@@ -250,15 +250,30 @@ export class Library {
     return this.clock().toISOString();
   }
 
-  private withLock<T>(meetingId: string, work: () => Promise<T>): Promise<T> {
+  private withLock<T>(meetingId: string, work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const previous = this.locks.get(meetingId) ?? Promise.resolve();
-    const run = previous.then(work, work);
+    let waiting = true;
+    const start = () => {
+      waiting = false;
+      signal?.throwIfAborted();
+      return work();
+    };
+    const run = previous.then(start, start);
     const settled = run.catch(() => undefined);
     this.locks.set(meetingId, settled);
     void settled.then(() => {
       if (this.locks.get(meetingId) === settled) this.locks.delete(meetingId);
     });
-    return run;
+    if (!signal) return run;
+    // Cancel only the caller's queued wait; the lock chain still owns any started persistence.
+    return new Promise<T>((resolve, reject) => {
+      const abort = () => {
+        if (waiting) reject(signal.reason);
+      };
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+      void run.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
   }
 
   private requireRow(meetingId: string): MeetingRow {
@@ -558,52 +573,55 @@ export class Library {
         ...profile,
         meetingIds: [...profile.meetingIds].sort(),
       });
-    return this.withLock('voice-profile-assignments', () =>
-      this.changeTranscript(
-        meetingId,
-        async (current) => {
-          if ((await this.getMeeting(meetingId)).status !== 'ready') {
-            throw new CorrectionConflictError('Meeting is not complete');
-          }
-          for (const { speaker } of assignments) {
-            const latest = current.speakers.find((s) => s.id === speaker.id);
-            if (
-              !latest ||
-              latest.userNamed ||
-              latest.mergedInto !== null ||
-              JSON.stringify(latest) !== JSON.stringify(speaker)
-            ) {
-              throw new CorrectionConflictError('Speaker changed');
+    return this.withLock(
+      'voice-profile-assignments',
+      () =>
+        this.changeTranscript(
+          meetingId,
+          async (current) => {
+            if ((await this.getMeeting(meetingId)).status !== 'ready') {
+              throw new CorrectionConflictError('Meeting is not complete');
             }
-          }
-          if (assignments.length === 0) return current;
-          return corrections.assignSpeakerProfiles(
-            current,
-            assignments.map(({ speaker, profile }) => {
-              if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
-              return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
-            }),
-          );
-        },
-        {
-          userEdit: true,
-          expectedRevision,
-          beforeSave: () => {
-            signal.throwIfAborted();
-            for (const { profile } of assignments) {
-              const latest = this.voiceProfiles.get(profile.id);
+            for (const { speaker } of assignments) {
+              const latest = current.speakers.find((s) => s.id === speaker.id);
               if (
                 !latest ||
-                profile.name === null ||
-                profile.meetingIds.includes(meetingId) ||
-                snapshot(latest) !== snapshot(profile)
+                latest.userNamed ||
+                latest.mergedInto !== null ||
+                JSON.stringify(latest) !== JSON.stringify(speaker)
               ) {
-                throw new CorrectionConflictError('Profile changed');
+                throw new CorrectionConflictError('Speaker changed');
               }
             }
+            if (assignments.length === 0) return current;
+            return corrections.assignSpeakerProfiles(
+              current,
+              assignments.map(({ speaker, profile }) => {
+                if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
+                return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
+              }),
+            );
           },
-        },
-      ),
+          {
+            userEdit: true,
+            expectedRevision,
+            beforeSave: () => {
+              signal.throwIfAborted();
+              for (const { profile } of assignments) {
+                const latest = this.voiceProfiles.get(profile.id);
+                if (
+                  !latest ||
+                  profile.name === null ||
+                  profile.meetingIds.includes(meetingId) ||
+                  snapshot(latest) !== snapshot(profile)
+                ) {
+                  throw new CorrectionConflictError('Profile changed');
+                }
+              }
+            },
+          },
+        ),
+      signal,
     );
   }
 
