@@ -40,7 +40,9 @@ pub struct ModelWord {
 impl Transcript {
     /// Replaces all model text with the final pass's text, keeping every frozen word.
     ///
-    /// Each label in `segments` becomes a new speaker. The old speakers stay in the file.
+    /// Each label in `segments` becomes a new speaker. The old speakers stay in the file, each
+    /// merged into its heir among the new ones. Undo and redo entries that touch a speaker or
+    /// override, or name a word that is gone, are dropped.
     ///
     /// # Errors
     ///
@@ -60,6 +62,12 @@ impl Transcript {
         }
         let replaced = std::mem::take(&mut next.segments);
         next.merge_model_text(self, replaced, segments, &speakers, Pass::Final)?;
+        next.link_speakers_to_heirs(self);
+        next.keep_history_safe_after_pass();
+        // The merge counts a revision only when it changed the text or the speakers.
+        if next.revision == self.revision && next != *self {
+            next.revision += 1;
+        }
         Ok(next)
     }
 

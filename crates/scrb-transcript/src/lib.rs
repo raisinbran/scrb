@@ -7,14 +7,18 @@
 //! `revision` one higher; one that changes nothing returns it with the same `revision`.
 //!
 //! Start with [`Transcript::apply_correction`], [`Transcript::revert_correction`],
-//! [`Transcript::apply_final_pass`], [`Transcript::apply_live_pass`] and
-//! [`Transcript::shown_segments`].
+//! [`Transcript::apply_final_pass`], [`Transcript::apply_live_pass`],
+//! [`Transcript::shown_segments`], [`Transcript::undo`] and [`Transcript::redo`]. The speaker
+//! edits are [`Transcript::rename_speaker`], [`Transcript::merge_speakers`],
+//! [`Transcript::reassign_speaker`] and [`Transcript::split_speaker`].
 
 mod corrections;
 mod error;
 mod file;
+mod history;
 mod merge;
 mod shown;
+mod speakers;
 
 pub use error::TranscriptError;
 pub use file::{

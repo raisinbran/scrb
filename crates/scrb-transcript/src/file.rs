@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-/// The longest the undo list gets. Past it the oldest entry is dropped, so a long meeting's
-/// file stops growing.
+/// The longest the undo and redo lists get. Past it the oldest entry is dropped, so a long
+/// meeting's file stops growing.
 const HISTORY_LIMIT: usize = 200;
 
 /// The contents of one meeting's `transcript.json`, version 1.
@@ -153,6 +153,10 @@ pub enum EditKind {
     Correct,
     EditCorrection,
     RevertCorrection,
+    RenameSpeaker,
+    MergeSpeakers,
+    ReassignSpeaker,
+    SplitSpeaker,
 }
 
 /// One record's value before and after an edit. `None` means the record did not exist.
@@ -198,18 +202,29 @@ impl Transcript {
     }
 
     /// Adds a user edit to the undo list and clears the redo list.
-    pub(crate) fn record_edit(&mut self, label: EditKind, corrections: Vec<Patch<Correction>>) {
+    pub(crate) fn record_edit(
+        &mut self,
+        label: EditKind,
+        corrections: Vec<Patch<Correction>>,
+        speakers: Vec<Patch<Speaker>>,
+        overrides: Vec<Patch<SpeakerOverride>>,
+    ) {
         let entry = HistoryEntry {
             id: self.take_id('h'),
             label,
             corrections,
-            speakers: Vec::new(),
-            overrides: Vec::new(),
+            speakers,
+            overrides,
         };
-        self.history.undo.push(entry);
-        if self.history.undo.len() > HISTORY_LIMIT {
-            self.history.undo.remove(0);
-        }
+        push_entry(&mut self.history.undo, entry);
         self.history.redo.clear();
+    }
+}
+
+/// Adds `entry` as the newest in an undo or redo list, dropping the oldest past the limit.
+pub(crate) fn push_entry(list: &mut Vec<HistoryEntry>, entry: HistoryEntry) {
+    list.push(entry);
+    if list.len() > HISTORY_LIMIT {
+        list.remove(0);
     }
 }

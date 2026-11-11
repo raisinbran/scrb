@@ -55,7 +55,12 @@ impl Transcript {
                 ..(*same).clone()
             };
             next.put_correction(edited.clone());
-            next.record_edit(EditKind::EditCorrection, vec![patch(same, &edited)]);
+            next.record_edit(
+                EditKind::EditCorrection,
+                vec![patch(same, &edited)],
+                Vec::new(),
+                Vec::new(),
+            );
             next.revision += 1;
             return Ok(next);
         }
@@ -103,7 +108,7 @@ impl Transcript {
             after: Some(correction.clone()),
         });
         next.corrections.push(correction);
-        next.record_edit(EditKind::Correct, patches);
+        next.record_edit(EditKind::Correct, patches, Vec::new(), Vec::new());
         next.revision += 1;
         Ok(next)
     }
@@ -152,7 +157,7 @@ impl Transcript {
             next.put_correction(changed.clone());
             patches.push(patch(correction, &changed));
         }
-        next.record_edit(EditKind::RevertCorrection, patches);
+        next.record_edit(EditKind::RevertCorrection, patches, Vec::new(), Vec::new());
         next.revision += 1;
         Ok(next)
     }
@@ -167,7 +172,10 @@ impl Transcript {
     }
 
     /// The selected words with their segments, if they are consecutive on one track.
-    fn select_words(&self, word_ids: &[String]) -> Result<Vec<(&Segment, &Word)>, TranscriptError> {
+    pub(crate) fn select_words(
+        &self,
+        word_ids: &[String],
+    ) -> Result<Vec<(&Segment, &Word)>, TranscriptError> {
         let Some(first_id) = word_ids.first() else {
             return Err(TranscriptError::EmptySelection);
         };
