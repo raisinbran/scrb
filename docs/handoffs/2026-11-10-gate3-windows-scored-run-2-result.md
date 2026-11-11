@@ -44,7 +44,7 @@ Nothing further is authorized. Owner decisions pending: D1, D2; whether to propo
 
 ---
 
-## UPDATE 2026-11-10 (17:24 to 17:40 PST): microphone rescore under the new pin, offline
+## UPDATE 2026-11-10 (17:24 to 17:34 PST): microphone rescore under the new pin, offline
 
 **No Gate 3 pass or fail is claimed. The owner decides.** Authorization: the owner's recorded approval of manifest `b0a00b68148a66a7dab305a7bcf9a3d2f2e9a993ff134818f7c9fcac680c123d` (code pin `78c9acb`, record `docs/gates/gate-3-windows-mic-allowance-owner-approval-record-20261110.md`, commit `44a90ea`, pushed before scoring). The owner accepted D1 (mechanical eligibility; all 140 units eligible) and D2 (12-clip spot-check as sensitivity evidence only). No new recording, no threshold change, no waiver. Sanitized: counts, hashes and statuses only. Evidence stays outside Git in `scored-run-2\mic-rescore\` (`scoring-plan-amendment-3.txt`, `scoring-log.md`, outputs). The meeting-track section above is unchanged and is the earlier session under the previous pin.
 
