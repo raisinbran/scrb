@@ -128,3 +128,31 @@ pub fn final_pass(transcript: &Transcript, text: &str, start_ms: u64) -> Transcr
         .apply_final_pass(&[segment])
         .expect("no correction is lost")
 }
+
+/// The first speaker labeled `label`.
+pub fn speaker<'a>(transcript: &'a Transcript, label: &str) -> &'a Speaker {
+    let found = transcript.speakers.iter().find(|s| s.label == label);
+    found.expect("a speaker has the label")
+}
+
+/// The id of the first speaker labeled `label`.
+pub fn speaker_id(transcript: &Transcript, label: &str) -> String {
+    speaker(transcript, label).id.clone()
+}
+
+/// Each shown segment as its speaker's label and its words, such as `Speaker 1: we should ask`.
+pub fn shown_runs(transcript: &Transcript) -> Vec<String> {
+    transcript
+        .shown_segments()
+        .into_iter()
+        .map(|segment| {
+            let label = transcript
+                .speakers
+                .iter()
+                .find(|speaker| speaker.id == segment.speaker_id)
+                .map_or("?", |speaker| speaker.label.as_str());
+            let words: Vec<String> = segment.words.into_iter().map(|word| word.text).collect();
+            format!("{label}: {}", words.join(" "))
+        })
+        .collect()
+}

@@ -16,6 +16,13 @@ pub enum TranscriptError {
     /// A merge would have lost a frozen word or split an active correction, so it was refused.
     /// Holds the correction's id.
     CorrectionLost(String),
+    /// No speaker has this id.
+    SpeakerNotFound(String),
+    /// Merging these speakers would make `mergedInto` lead back to where it started.
+    MergeLoop,
+    /// A split's span would also take words outside the selection, by their midpoints. Holds
+    /// the first such word's id.
+    SpanCatchesOtherWords(String),
 }
 
 impl fmt::Display for TranscriptError {
@@ -35,6 +42,14 @@ impl fmt::Display for TranscriptError {
                 write!(
                     f,
                     "The new transcript would have lost a correction, so the change was refused."
+                )
+            }
+            Self::SpeakerNotFound(_) => write!(f, "That speaker is no longer there."),
+            Self::MergeLoop => write!(f, "Those speakers are already merged."),
+            Self::SpanCatchesOtherWords(_) => {
+                write!(
+                    f,
+                    "Other speech falls inside the selected time, so it cannot be split off."
                 )
             }
         }
