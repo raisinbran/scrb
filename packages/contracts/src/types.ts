@@ -374,6 +374,15 @@ export interface VocabularyTerm {
 
 export type VocabularyTermPatch = Partial<Pick<VocabularyTerm, 'term' | 'misheard' | 'enabled'>>;
 
+/** A repeated correction offered as vocabulary. `id` is the representative correction's id. */
+export interface VocabularySuggestion {
+  id: string;
+  term: string;
+  misheard: string[];
+  correctionCount: number;
+  meetingCount: number;
+}
+
 export interface VocabularyUndoState {
   canUndo: boolean;
   canRedo: boolean;
