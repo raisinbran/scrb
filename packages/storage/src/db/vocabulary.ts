@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { StorageError } from '../errors.ts';
+import { SettingsStore, normalizeVocabularyTerm } from './settings.ts';
 
 export interface VocabularyContextRef {
   meetingId: string;
@@ -117,6 +118,11 @@ export class VocabularyStore {
     return row as unknown as TermRow | undefined;
   }
 
+  /** True if the user deleted this term and it has not been remembered since. */
+  isDeleted(term: string): boolean {
+    return isMarked(this.db, deletedKey(term));
+  }
+
   isUserEdited(id: string): boolean {
     return isMarked(this.db, `vocabulary.edited.${id}`);
   }
@@ -137,6 +143,7 @@ export class VocabularyStore {
     const id = inTransaction(this.db, () => {
       const now = this.now();
       this.db.prepare('DELETE FROM settings WHERE key = ?').run(deletedKey(term));
+      new SettingsStore(this.db).undismissSuggestion(normalizeVocabularyTerm(term));
       const existing = this.findByTerm(term);
       const termId = existing?.id ?? randomUUID();
       if (existing === undefined) {
