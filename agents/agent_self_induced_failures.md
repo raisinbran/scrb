@@ -943,3 +943,24 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Checked that the test fails when the pass-through is removed, not that each assertion could fail.
 - **Impact:** One extra review round. No product code affected.
 - **Correction / remaining risk:** `b` now has a segment and the test asserts it is returned before checking the flag is absent; mutation check repeated. Low.
+
+### A-307 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — hint-on evaluation run without checking that `-mc 0` leaves the prompt inert
+- **Status / attribution:** Provisional: the plan's assumption (earlier session) plus my execution without checking; found by me from byte-identical hint-off/hint-on output.
+- **What failed:** The plan says hints reach recognition via `--prompt`, with `-mc 0` unchanged. I read `whisper.ts` and ran all 8 hint-on decodes without checking whether `-mc 0` disables prompt conditioning; whisper.cpp line 7112/7296 suggests it does, so the run tested nothing.
+- **Agent-controlled cause:** Did not read the whisper.cpp prompt path (or run a 30 s smoke decode) before the full set. The scorer review did not cover this either.
+- **Impact:** About 6 minutes of compute and one inconclusive stage; no product or evidence harm.
+- **Correction / remaining risk:** Reported in the results note; cause not yet confirmed by a controlled `-mc` > 0 run. Also a minor pre-score shell quoting error (no effect). Medium until the product question is settled.
+
+### A-308 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — diagnostic command run in zsh without word splitting
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect.
+- **What failed:** The `-mc 128` diagnostic stored whisper-cli flags in a shell variable and ran it in zsh, which does not split it; whisper-cli printed usage and wrote no output, and the run had to be repeated in bash.
+- **Agent-controlled cause:** Assumed bash word-splitting semantics in the default shell.
+- **Impact:** About one minute and one wasted command; no results affected.
+- **Correction / remaining risk:** Rerun in bash (the first run produced no output). Low.
+
+### A-309 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — scorer phrase matching, arithmetic slip and corrupted usage row passed my review of PR #118
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT); not application defects.
+- **What failed:** (1) The scorer counted a multiword term as recognised when each word matched individually, even with an inserted or deleted word inside the phrase; (2) the results note said the nine non-"pen" terms had 21 reference occurrences, but the scorer's own counts give 19 (11 + 19 = 30); (3) the usage row was committed with its opening fields duplicated, shifting the columns.
+- **Agent-controlled cause:** I reviewed the scorer for alignment logic but not for phrase contiguity, copied a figure into the note without summing it, and did not check the appended row's column count.
+- **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
+- **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.
