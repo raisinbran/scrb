@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -219,6 +219,24 @@ describe('vocabulary suggestions: exclusions', () => {
     const term = library.vocabulary.remember({ term: 'JOHN   Smythe' });
     library.vocabulary.delete(term.id);
     expect((await library.listVocabularySuggestions()).suggestions).toEqual([]);
+    await library.close();
+  });
+
+  it('honors a deleted-term marker written by the old hashing', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const a = await meeting(library, '2026-11-01', [['jon smith', 'John  Smythe']]);
+    await meeting(library, '2026-11-02', [['jon smith', 'John  Smythe']]);
+    await meeting(library, '2026-11-03', [['john smyth', 'John  Smythe']]);
+    expect((await library.listVocabularySuggestions()).suggestions).toHaveLength(1);
+    const legacy = createHash('sha256').update('john  smythe').digest('hex');
+    library.settings.set(`vocabulary.deleted.${legacy}`, true);
+    expect((await library.listVocabularySuggestions()).suggestions).toEqual([]);
+
+    library.vocabulary.reconcileRemember({
+      term: 'John  Smythe',
+      context: { meetingId: a.id, correctionId: a.ids[0]! },
+    });
+    expect(library.vocabulary.list()).toEqual([]);
     await library.close();
   });
 
