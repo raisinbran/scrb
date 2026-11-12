@@ -367,6 +367,13 @@ describe('createMeetingHandlers', () => {
           pass: 'final',
           words: [{ id: 'w1', text: 'hello', startMs: 10, endMs: 20 }],
         },
+        {
+          id: 's2',
+          speakerId: 'b',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'w2', text: 'again', startMs: 30, endMs: 40 }],
+        },
       ],
       speakers: [speaker('a', true), speaker('b')],
     });
@@ -374,7 +381,9 @@ describe('createMeetingHandlers', () => {
       speakers: Array<{ id: string; needsManualResolution?: boolean }>;
     };
     expect(page.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
-    expect('needsManualResolution' in (page.speakers.find((s) => s.id === 'b') ?? {})).toBe(false);
+    const unflagged = page.speakers.find((s) => s.id === 'b');
+    expect(unflagged).toBeDefined();
+    expect(unflagged).not.toHaveProperty('needsManualResolution');
   });
 
   it('returns final text, and speakers with the You kind', async () => {
