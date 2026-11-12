@@ -1,26 +1,29 @@
-// Usage: node continuous-worker.mjs <compiled transcription> <native test binary> <raw fixtures> <phase0> [source rate ...]
+// Usage: node continuous-worker.mjs <compiled transcription> <native test binary> <raw fixtures> [source rate ...]
+// Models and whisper.cpp builds come from SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 // Fixtures are 60 seconds of invented/public mono s16le at each source rate.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const [compiled, native, fixtures, phase0] = process.argv.slice(2).map((value) => resolve(value));
+const [compiled, native, fixtures] = process.argv.slice(2).map((value) => resolve(value));
+const assets = process.env.SCRB_DEV_ASSETS ?? join(homedir(), 'scrb-dev-assets');
 const load = (file) => import(pathToFileURL(join(compiled, file)).href);
 const { LiveAudioWorker } = await load('liveAudioWorker.js');
 const { PcmFrameDecoder } = await load('livePcmProtocol.js');
 const { toolsIn } = await load('config.js');
 const models = {
-  speechLive: join(phase0, 'models/whisper/ggml-small.en-q5_1.bin'),
+  speechLive: join(assets, 'models/whisper/ggml-small.en-q5_1.bin'),
   speechFinal: 'unused',
-  vad: join(phase0, 'models/whisper/ggml-silero-v6.2.0.bin'),
+  vad: join(assets, 'models/whisper/ggml-silero-v6.2.0.bin'),
   segmentation: 'unused',
   embedding: 'unused',
 };
-const rates = process.argv.length > 6 ? process.argv.slice(6).map(Number) : [48000, 44100];
+const rates = process.argv.length > 5 ? process.argv.slice(5).map(Number) : [48000, 44100];
 for (const rate of rates) {
   const wire = join(fixtures, `wire-${rate}.pcm`);
   execFileSync(native, [String(rate), join(fixtures, `continuous-${rate}.raw`), wire]);
@@ -38,7 +41,7 @@ for (const rate of rates) {
   const events = [];
   let lastLag;
   const worker = await LiveAudioWorker.start({
-    tools: toolsIn(join(phase0, 'upstream/whisper.cpp/build/bin')),
+    tools: toolsIn(join(assets, 'upstream/whisper.cpp/build/bin')),
     models,
     onEvent: (event) => {
       events.push(event);

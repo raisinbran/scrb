@@ -1,16 +1,51 @@
 #!/usr/bin/env bash
-# Re-creates the Phase 0 inputs that are too large for git (see MANIFEST.md):
-# pinned upstream clones, models, the sherpa-onnx Windows binaries, and AMI
-# fixtures.  Every download is checked against its recorded SHA-256.
+# Creates the development assets that are too large for git: pinned upstream
+# clones, models, AMI audio, the CMake/Ninja tools and, on macOS, the
+# whisper.cpp, llama.cpp and sherpa-onnx builds. Every download is checked against its
+# SHA-256. Versions and licenses are listed in phase0/MANIFEST.md.
 #
-# Usage (from the phase0/ folder; Git Bash on Windows or Terminal on macOS):
-#   scripts/fetch-phase0-deps.sh [all|asr|diarization|summary|ami|ami-series|upstream]
-# Default is all.  Already-present files with the right hash are skipped.
+# Usage (Terminal on macOS, Git Bash on Windows):
+#   scripts/dev-assets.sh [all|upstream|asr|diarization|ami|ami-series|summary|tools|build]
+# Default is all. Files already present with the right hash are skipped.
 # The summary group is ~16 GB; everything else is ~2 GB.
+#
+# SCRB_DEV_ASSETS is the destination (default ~/scrb-dev-assets).
+# SCRB_DEV_ASSETS_SEED names an existing folder with the same layout, such as an
+# old phase0/. Files are copied from it instead of downloaded, but are still
+# hash-checked. Build folders are never copied: their library paths point at the
+# seed, so the build group rebuilds them in place.
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+root="${SCRB_DEV_ASSETS:-$HOME/scrb-dev-assets}"
+seed="${SCRB_DEV_ASSETS_SEED:-}"
+abs_path() {  # absolute path, resolved through the nearest folder that exists
+  local p="$1" rest=""
+  while [[ ! -d "$p" ]]; do
+    # A ".." under a folder that does not exist yet cannot be resolved here.
+    [[ "$(basename "$p")" == .. ]] && { echo "path has an unresolved ..: $1" >&2; exit 1; }
+    rest="/$(basename "$p")$rest"; p="$(dirname "$p")"
+  done
+  echo "$(cd "$p" && pwd -P)$rest"
+}
+if [[ -n "$seed" ]]; then
+  [[ -d "$seed" ]] || { echo "SCRB_DEV_ASSETS_SEED is not a folder: $seed" >&2; exit 1; }
+  seed="$(abs_path "$seed")"
+  # The seed may be Gate 0 evidence, and files under the destination get replaced.
+  dest="$(abs_path "$root")"
+  if [[ "$dest" == "$seed" || "$dest" == "$seed"/* || "$seed" == "$dest"/* ]]; then
+    echo "SCRB_DEV_ASSETS and SCRB_DEV_ASSETS_SEED must not overlap" >&2; exit 1
+  fi
+fi
+mkdir -p "$root"
+cd "$root"
 group="${1:-all}"
+
+# APFS clones (cp -c) cost no disk space; elsewhere this is a plain copy.
+clone_flag=
+touch .copy-probe
+if cp -c .copy-probe .copy-probe-2 2>/dev/null; then clone_flag=-c; fi
+rm -f .copy-probe .copy-probe-2
+copy() { cp $clone_flag "$@"; }
 
 sha256() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1
@@ -20,7 +55,15 @@ sha256() {
 fetch() {  # fetch <dest> <sha256> <url>
   local dest="$1" sum="$2" url="$3"
   if [[ -f "$dest" && "$(sha256 "$dest")" == "$sum" ]]; then echo "ok   $dest"; return; fi
+  rm -f "$dest"
   mkdir -p "$(dirname "$dest")"
+  if [[ -n "$seed" && -f "$seed/$dest" ]]; then
+    echo "copy $dest"
+    copy "$seed/$dest" "$dest.part"
+    if [[ "$(sha256 "$dest.part")" == "$sum" ]]; then mv "$dest.part" "$dest"; return; fi
+    echo "seed copy of $dest has the wrong hash; downloading" >&2
+    rm -f "$dest.part"
+  fi
   echo "get  $dest"
   curl -sSfL -o "$dest.part" "$url"
   local got; got="$(sha256 "$dest.part")"
@@ -33,8 +76,15 @@ fetch() {  # fetch <dest> <sha256> <url>
 clone() {  # clone <dir> <url> <commit>
   local dir="$1" url="$2" commit="$3"
   if [[ -d "$dir/.git" && "$(git -C "$dir" rev-parse HEAD)" == "$commit" ]]; then echo "ok   $dir"; return; fi
-  echo "get  $dir @ $commit"
   rm -rf "$dir"
+  if [[ -n "$seed" && -d "$seed/$dir/.git" && "$(git -C "$seed/$dir" rev-parse HEAD)" == "$commit" ]]; then
+    echo "copy $dir @ $commit"
+    mkdir -p "$(dirname "$dir")"
+    copy -R "$seed/$dir" "$dir"
+    rm -rf "$dir/build"
+    return
+  fi
+  echo "get  $dir @ $commit"
   git init -q "$dir"
   git -C "$dir" remote add origin "$url"
   git -C "$dir" fetch -q --depth 1 origin "$commit"
@@ -126,4 +176,37 @@ if [[ "$group" == all || "$group" == summary ]]; then
     $HF/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/0102285ad796bd99af90f58de616092e5630e970/Ministral-3-8B-Instruct-2512-Q4_K_M.gguf
 fi
 
-echo "done ($group)"
+# CMake and Ninja for the native builds, at the versions the Mac used.
+if [[ "$group" == all || "$group" == tools ]] && [[ "$(uname -s)" == Darwin ]]; then
+  if [[ "$(tools/venv/bin/cmake --version 2>/dev/null | head -1)" != "cmake version 4.4.4" ||
+        "$(tools/venv/bin/ninja --version 2>/dev/null)" != 1.13.2.git.kitware.jobserver-pipe-1 ]]; then
+    rm -rf tools/venv
+    python3 -m venv tools/venv
+    tools/venv/bin/pip install -q cmake==4.4.4 ninja==1.13.2
+  fi
+  echo "ok   tools/venv"
+fi
+
+# Release builds configured as the Mac's Phase 0 builds were: whisper.cpp and
+# llama.cpp with upstream defaults (Metal and Accelerate on), sherpa-onnx as the
+# shared C API installed to build/install, which scrb-sherpa links against.
+# Windows uses the prebuilt zips in MANIFEST.md.
+if [[ "$group" == all || "$group" == build ]] && [[ "$(uname -s)" == Darwin ]]; then
+  bin="$root/tools/venv/bin"
+  for dir in upstream/whisper.cpp upstream/llama.cpp upstream/sherpa-onnx; do
+    extra=()
+    if [[ "$dir" == upstream/llama.cpp ]]; then extra=(-DLLAMA_CURL=OFF); fi
+    if [[ "$dir" == upstream/sherpa-onnx ]]; then
+      extra=(-DBUILD_SHARED_LIBS=ON -DSHERPA_ONNX_ENABLE_BINARY=OFF -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=ON
+        -DSHERPA_ONNX_ENABLE_TTS=OFF -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF -DSHERPA_ONNX_ENABLE_WEBSOCKET=OFF
+        -DCMAKE_INSTALL_PREFIX="$root/$dir/build/install")
+    fi
+    "$bin/cmake" -S "$dir" -B "$dir/build" -G Ninja -DCMAKE_MAKE_PROGRAM="$bin/ninja" \
+      -DCMAKE_BUILD_TYPE=Release ${extra[@]+"${extra[@]}"} >/dev/null
+    "$bin/cmake" --build "$dir/build" >/dev/null
+    if [[ "$dir" == upstream/sherpa-onnx ]]; then "$bin/cmake" --install "$dir/build" >/dev/null; fi
+    echo "ok   $dir/build"
+  done
+fi
+
+echo "done ($group) in $root"
