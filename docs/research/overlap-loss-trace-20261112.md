@@ -23,7 +23,7 @@ Measured (retained evidence, ES2004a, reference overlap away from collars = 83.0
 
 ## Cheapest next experiment (proposal, unverified)
 
-Separate "model never signals a second speaker" from "rounding drops it" by dumping per-frame segmentation output for ES2004a, then applying the count rule offline and comparing with the reference RTTM (`reference-ES2004a.rttm` in the evidence folder).
+Separate "model never signals a second speaker" from "rounding or the 0.3 s filter drops it" by dumping per-frame segmentation output for ES2004a, then applying the count rule offline and comparing with the reference RTTM (`reference-ES2004a.rttm` in the evidence folder).
 
 - **Inputs:** `~/scrb-dev-assets/models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0` (int8 model already local), the ES2004a AMI fixture wav (location not confirmed by me), the RTTM above. Needs `onnxruntime` and `numpy` in `~/scrb-dev-assets/tools/venv`; neither is installed (checked), so this needs one package install, which is a download and needs owner OK.
 - **Method:** run 10 s windows at 1 s shift (about 1000 CPU runs of a small int8 model), rebuild per-frame counts with and without `+ 0.5`, and report, over the 44.60 s one-speaker overlap, how many frames have mean count at or above 1.3, 1.1 and so on. If most sit under 1.0 the model is the limit and a rounding patch will not help; if many sit at 1.3-1.5 a small offset could recover them.
