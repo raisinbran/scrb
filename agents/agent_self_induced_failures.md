@@ -846,3 +846,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Ordered the steps by when the old folder is removed instead of by when its paths first change.
 - **Impact:** One extra review round. No step had started.
 - **Correction / remaining risk:** The tag is now step 1, pushed and verified before any tracked file moves, and the archive step reuses it. Plan still needs owner approval.
+
+### A-295 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — numpy installed without an exact pin
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect. ID may need renumbering if another branch also took A-295.
+- **What failed:** The owner approved installing `onnxruntime` and `numpy` with exact pins. I pinned `onnxruntime==1.31.1` but ran `pip install numpy` unpinned; it resolved to 2.5.4.
+- **Agent-controlled cause:** Pinned only the package whose version I had looked up.
+- **Impact:** None on results; the resolved version is recorded in the experiment note. Owner-visible deviation from the pin instruction.
+- **Correction / remaining risk:** Versions recorded (numpy 2.5.4, onnxruntime 1.31.1); no further installs. The venv is outside git.
