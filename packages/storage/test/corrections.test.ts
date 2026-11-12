@@ -701,4 +701,27 @@ describe('reserved microphone speaker through the final pass', () => {
     expect(out.undoStack).toHaveLength(1);
     expect(find(undo(out), 'you')?.name).toBe('Brandon');
   });
+
+  it('never maps you to a final meeting speaker, even with 10 s of speech reassigned to it', () => {
+    const t = transcript(
+      [seg('m', 'you', 0, 5_000, 'live', 'microphone'), seg('l', 'speaker-1', 0, 20_000)],
+      [{ ...speaker('you'), name: 'Brandon', userNamed: true }, speaker('speaker-1')],
+    );
+    const words = t.segments.find((s) => s.track === 'meeting')!.words;
+    const moved = reassignSpeaker(t, [words[0]!.id, ...words.slice(1).map((w) => w.id)], 'you');
+    const out = applyFinalPass(moved, {
+      segments: [
+        seg('fm', 'you', 0, 5_000, 'final', 'microphone'),
+        seg('fl', 'speaker-2', 0, 20_000, 'final'),
+      ],
+      speakers: [speaker('you'), speaker('speaker-2')],
+    });
+    expect(out.speakers.filter((s) => s.id === 'you')).toHaveLength(1);
+    expect(out.segments.find((s) => s.track === 'microphone')?.speakerId).toBe('you');
+    expect(find(out, 'you')).toMatchObject({ name: 'Brandon', userNamed: true });
+    expect(find(out, 'speaker-2')?.name).toBeNull();
+    expect(out.undoStack).toHaveLength(1);
+    expect(out.undoStack[0]?.overrides[0]?.after?.speakerId).toBe('you');
+    expect(undo(out).speakerOverrides).toEqual([]);
+  });
 });
