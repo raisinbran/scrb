@@ -678,3 +678,62 @@ A later whitespace-check command used the evidence parent directory rather than 
 ### Slice 2a — 2026-11-11 implementation and command mistakes (ID pending allocation)
 
 Confirmed agent errors: initial Git command used evidence-parent cwd; fetch required escalation for read-only .git; guessed absent file paths; focused Vitest config/root combination duplicated a path (no tests ran); one edit/format invocation used the package cwd with repository-relative paths and made no changes; binary approval wrappers were mistakenly read as text, producing noisy output without executing approval. Corrected using explicit repository/package paths and guarded write invocation. Initial typecheck caught modelMerge:undefined incompatible with exact optional properties; fixed by deleting metadata on manual merges. Independent code review caught recent replacements bypassing protected aliases and separate one-time merge loss during queue overflow; fixed using shared protection checks and separately bounded coalesced queues, with regression tests. A test initially expected both same-source notifications after intentional coalescing; corrected to assert the latest event. These are agent/setup and implementation failures, not successful application validation. Evidence: task tool output and /private/tmp/slice2a-*.log. No environmental failed-test reruns, recording or merge. Shared-account quota impact is not individually measurable. Remaining risk: full-suite 14 unchanged-test failures and unverified native/Windows/model replay; see slice2a handoff.
+
+### A-266 — 2026-11-11 — Planner — conflicting fixture instruction stopped live diarization re-measurement
+
+- **Status / attribution:** Confirmed planner error, corrected by the planner on 2026-11-11. The task brief specified a 100–400 s excerpt that conflicted with the documented full-length method and fixture.
+- **Effect:** The first attempt stopped before checkout/pull or measurement and used about seven minutes of owner/agent time; no inference, scoring, repository change, or deletion occurred. Exact usage impact is unavailable.
+- **Evidence:** `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/measurement-stop.txt` records the mismatch, stop, and prior method. The planner correction authorizes the documented full 1,049 s ES2004a fixture and explicitly withdraws the excerpt constraint.
+- **Correction / prevention:** Follow the corrected fixture and exact recorded method for this run. Future briefs must preserve the method's matching fixture or explicitly authorize a measured adaptation.
+- **Remaining risk:** The corrected task completed the 13 s final-pass rescore, but the live replay launcher was blocked under the sandbox; see A-268.
+
+### A-267 — 2026-11-11 — Codex — zsh reserved variable obscured successful npm ci exit status
+
+- **Status / attribution:** Confirmed command-wrapper mistake. The shell variable name `status` is read-only in zsh; assigning the exit code after `npm ci` returned `zsh: read-only variable: status`.
+- **Effect:** The wrapper returned an error even though `npm ci` completed successfully (`added 283 packages in 7s`, postinstall completed, and `node_modules/.package-lock.json` advanced to 18:48:08 PT). No dependency retry or inference rerun was made; no tracked code changed.
+- **Evidence:** `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/npm-ci.log` and task command output.
+- **Correction / prevention:** Confirmed install success from npm's retained log and updated lock snapshot; use a non-special variable name if another shell wrapper is needed.
+- **Usage impact:** Exact quota impact unavailable. **Remaining risk:** None identified; continue with the planned single measurement.
+
+### A-268 — 2026-11-11 — Codex — tsx CLI startup was blocked by sandbox IPC socket
+
+- **Status / attribution:** Confirmed agent invocation/setup failure under the restricted shell. `npx tsx` attempted to create its local IPC pipe under `/var/folders/.../tsx-501/` and received `listen EPERM` before the replay script began.
+- **Effect:** The live replay did not start, so it produced no diarization or score result. The failed output is retained in `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/live-run.log`. No rerun was attempted, consistent with the task's no-rerun instruction. No application defect is indicated.
+- **Correction / prevention:** Preserve the failed log and report the measurement as unavailable; use a launcher that does not require the CLI IPC server only if a separately authorized future run permits it.
+- **Usage impact:** Exact quota impact unavailable. **Remaining risk:** Live span DER and persisted-transcript audit were not measured.
+
+### A-269 — 2026-11-11 — Claude Code (planner) — Windows Wave 1 prompt referenced a plan file that exists only on the Mac
+
+- **Status / attribution:** Confirmed planner error. The BCHEN-W10 prompt told Codex to follow "the Wave 1 plan in this clone's evidence folder"; the plan (`wave1-plan.txt`) was only in the Mac `option-a-evidence-20261111` folder, and I did not check that W10 had it or paste its content.
+- **Effect:** W10 Codex correctly stopped (tests 2-5 BLOCKED, nothing run, about 2 minutes, weekly usage about 1%). Same class as A-266 (fixture/method mismatch in the Mac re-measure brief) and the earlier slice-2 plan-path mistake.
+- **Evidence:** W10 Codex report 2026-11-11 6:45-6:47 PM PT; Mac `wave1-plan.txt`.
+- **Correction / prevention:** Plan pasted into a corrected prompt. Rule going forward: a prompt for another machine must be self-contained (inline any plan, criteria or fixture) or name a file verified to exist on that machine; check fixture and method agree before sending.
+- **Remaining risk:** The W10 tests are still not run; a further missing input would be a repeat.
+
+### A-270 — 2026-11-11 — Claude Code (planner) — ambiguous "stop" in W10 follow-up prompt skipped an independent test
+
+- **Status / attribution:** Probable planner wording error. Item B of the W10 follow-up said "If it still decodes or fails before staging, record INCONCLUSIVE and stop." Item C (worker-kill, independent of B) was then not attempted because B was inconclusive.
+- **Effect:** One extra round trip and Windows test 5 still unrun; no data lost. Also, the Test 2 retry recipe (zeroed WAV header) fails at `stage: queued`, before decoding, so it could not satisfy the plan's "failure after staging begins" requirement; I should have said so before authorizing it.
+- **Correction / prevention:** State "stop this item only; continue with the others" in multi-item prompts. Check that a proposed failure recipe can reach the stage the criterion names.
+- **Remaining risk:** Test 2 cannot be satisfied as written with a WAV; owner decision pending. Number A-270 may collide with a W10-clone entry of the same number; renumber when registers are merged.
+
+### A-271 — 2026-11-12 — Claude Code (planner) — asked whether Claude was installed on BCHEN-W10 when project history already answered it
+
+- **Status / attribution:** Confirmed planner error. `agents/agent_task_allocation.md` (rows dated 2026-11-08 and 2026-11-09) records many Claude Code / Windows desktop (Code tab) runs on BCHEN-W10 (PR 74 build, scripts, play-sources.ps1, analysis). I asked the owner to confirm an installation the repo already documents, and earlier implied Claude's Windows use was unknown.
+- **Effect:** One wasted owner round trip and a weaker recommendation. No data lost.
+- **Correction / prevention:** Check the allocation tracker and register before asking the owner what tooling exists on a machine; search project history first.
+- **Remaining risk:** Those runs were report/script/build work; the agent did not launch the app or drive the screen, so Claude computer-use on W10 remains unverified.
+
+### A-272 — 2026-11-12 — Claude Code (planner) — planned Windows Wave 1 around screen control without checking the repo's own e2e specs
+
+- **Status / attribution:** Confirmed planner error. `apps/desktop/e2e/real-import-playback.spec.ts`, `real-recording.spec.ts` and `real-live-run.spec.ts` already drive the real Electron app headlessly through Playwright with the real backend (no screen control, no native picker). I built the Windows Wave 1 prompts on Codex screen control and "owner launches", took the plan's owner-hands labels at face value, and did not search the repo for an unattended route. The owner had said earlier that agents had run app tests almost autonomously.
+- **Effect:** Four W10 Codex attempts (about 2 hours of elapsed time, roughly 10% of weekly Codex allowance by Codex's rounded readings, not isolated) produced two PASS (tests 1, 3), two inconclusive and two blocked results that the e2e route may close. Owner time and credits were wasted.
+- **Correction / prevention:** Before designing any manual or screen-controlled test, search `apps/desktop/e2e`, `scripts/` and prior plans for an existing automated route and state what it cannot cover. A repeated block on the same method is a trigger to search for a different method, not to retry.
+- **Remaining risk:** Test 5 (worker kill) has no existing spec; a scratch script is proposed and unverified. Listening evidence is still a loopback substitute.
+
+### A-281 — 2026-11-12 — Claude Code (planner) — told the owner a missing decoder was a "fresh clone" problem without checking, and did not check the repo's own decoder setup first
+
+- **Status / attribution:** Confirmed planner error. I said every fresh Windows clone repeats the missing `ffmpeg`, then the owner pointed out the PC and clone history. The repo documents the cause: `packages/transcription/README.md` says `npm test` needs `.bin/ffmpeg` and `.bin/ffprobe` built with `npm run build:ffmpeg` (a shell script), `.bin` is gitignored and CI never builds it, so the four real-decoder import tests skip silently in CI and on the Mac. I had not read the README or `package.json` before speaking, and I had accepted Test 2 closure evidence that depended on those tests without checking whether they run.
+- **Effect:** An extra owner round trip and a wrong explanation; Windows Test 2 closure cost one extra W10 run (about 30 s, 1% five-hour).
+- **Correction / prevention:** Before stating why a test dependency is missing, read the package README and scripts. Before accepting an automated test as evidence, confirm in the log that it ran and was not skipped.
+- **Remaining risk:** Whether the macOS Gate 3 evidence for cancelled and failed imports used these tests is unverified.
