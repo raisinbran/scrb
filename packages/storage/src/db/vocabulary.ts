@@ -82,7 +82,7 @@ export interface TermInput {
 
 function deletedKey(term: string): string {
   // A hash, so the marker does not keep the text of a term the user deleted.
-  const key = term.normalize('NFC').toLocaleLowerCase('en-US');
+  const key = normalizeVocabularyTerm(term);
   return `vocabulary.deleted.${createHash('sha256').update(key).digest('hex')}`;
 }
 function isMarked(db: DatabaseSync, key: string): boolean {

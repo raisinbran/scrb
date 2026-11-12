@@ -213,6 +213,15 @@ describe('vocabulary suggestions: exclusions', () => {
     await library.close();
   });
 
+  it('hides a deleted term whatever its case or spacing', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    await seedJohn(library);
+    const term = library.vocabulary.remember({ term: 'JOHN   Smythe' });
+    library.vocabulary.delete(term.id);
+    expect((await library.listVocabularySuggestions()).suggestions).toEqual([]);
+    await library.close();
+  });
+
   it('keeps a dismissed term hidden, even after its meeting is deleted, until remembered', async () => {
     const library = await Library.open({ root: await tempDir() });
     const [a] = await seedJohn(library);
@@ -230,7 +239,11 @@ describe('vocabulary suggestions: exclusions', () => {
 
   it('keeps at most 500 dismissed terms, dropping the oldest', async () => {
     const library = await Library.open({ root: await tempDir() });
-    for (let i = 0; i < 502; i += 1) library.dismissVocabularySuggestion(`Term ${i}`);
+    library.settings.set(
+      'vocabulary.dismissedSuggestions',
+      Array.from({ length: 499 }, (_, i) => `term ${i}`),
+    );
+    for (const i of [499, 500, 501]) library.dismissVocabularySuggestion(`Term ${i}`);
     library.dismissVocabularySuggestion('term 501');
     const list = library.settings.getDismissedSuggestions();
     expect(list).toHaveLength(500);

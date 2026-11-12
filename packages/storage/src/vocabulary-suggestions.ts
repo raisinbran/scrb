@@ -36,13 +36,12 @@ export interface ScannedMeeting {
 
 export interface SuggestionGroup extends VocabularySuggestion {
   correctionIds: string[];
-  replacements: string[];
 }
 
 /** `scanned` is newest meeting first. `excluded` rejects remembered, deleted and dismissed terms. */
 export function buildSuggestionGroups(
   scanned: ScannedMeeting[],
-  excluded: (term: string, replacements: string[]) => boolean,
+  excluded: (term: string) => boolean,
 ): SuggestionGroup[] {
   interface Entry {
     meetingId: string;
@@ -87,8 +86,7 @@ export function buildSuggestionGroups(
     }
     if (![...formMeetings.values()].some((set) => set.size >= 2)) continue;
     if ([...formMeetings.keys()].some((form) => (termsByForm.get(form)?.size ?? 0) > 1)) continue;
-    const replacements = [...new Set(members.map((m) => m.correction.replacement.trim()))];
-    if (excluded(term, replacements)) continue;
+    if (excluded(term)) continue;
     const [representative] = [...members].sort(
       (a, b) => a.rank - b.rank || (a.correction.id < b.correction.id ? -1 : 1),
     ) as [Entry];
@@ -104,7 +102,6 @@ export function buildSuggestionGroups(
       correctionCount: ids.size,
       meetingCount: meetings.size,
       correctionIds: [...ids],
-      replacements,
     });
   }
   return groups
