@@ -34,7 +34,7 @@ Inputs: `~/scrb-dev-assets/eval-vocab/` (`terms.json`, `hint.txt`, `neg/`, `down
 
 ## Cost, time, rules
 
-- Decoding about 25 min of wall-clock is not expected: 2 values x 4.5 h about 12 min, plus diagnostics about 3 min, so about 15 min of decoding. With setup, scoring and writing up, estimate 30 to 40 min total. **The 20-minute test rule applies to the whole test, so the owner must approve before starting** (offer `pde-pr-approve` at once). Running the 64 and 128 runs in parallel would shorten it but is unverified for CPU/GPU contention and would distort timing only, not output.
+- Decoding: 2 values x about 4.5 audio-hours is about 12 min, plus diagnostics about 3 min, so about 15 min of decoding. With setup, scoring and writing up, estimate 30 to 40 min total. **The 20-minute test rule applies to the whole test, so the owner must approve before starting** (offer `pde-pr-approve` at once). Running the 64 and 128 runs in parallel would shorten it but is unverified for CPU/GPU contention and would distort timing only, not output.
 - Stopping rules: run each decode once; **no automatic reruns**, including after a failure or inconclusive result. Stop on the first loop/skip flag or any false replacement and report; do not tune the threshold or terms afterward. Stop if a decode takes over 3x its expected time.
 - Evidence: keep every output under `eval-vocab/` (new dirs `mc64/`, `mc128/`, `mcdiag/`), the command log and score files; delete nothing. Write results to `docs/gates/`.
 - Usage logging: record the row in `agents/agent_task_allocation.md` with 5h/weekly remaining at start and end.
@@ -50,4 +50,4 @@ This changes shipped recognition arguments, so it is a risky change under `AGENT
 
 ## Proposed usage row (this planning task)
 
-Claude Code / Sonnet 5.5 / Mac desktop; plan only, no decode run; 5h used 15% at start (85% left), weekly used 74% (26% left); end values to be filled from `get_usage` at wrap-up; overlapping sessions running, so the decrease is not exclusive.
+Claude Code / Sonnet 5.5 / Mac desktop; plan only, no decode run; 5h used 15% at start (85% left), weekly used 74% (26% left); end 15% used (85% left), weekly 74% (26% left), no visible movement; reset 2026-11-13 02:20 UTC / 13:00 UTC; overlapping sessions running, so the decrease is not exclusive.
