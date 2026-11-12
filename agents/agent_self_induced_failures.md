@@ -964,3 +964,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I reviewed the scorer for alignment logic but not for phrase contiguity, copied a figure into the note without summing it, and did not check the appended row's column count.
 - **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
 - **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.
+
+### A-310 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — told the owner to merge PR #112 after it had already merged
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect.
+- **What failed:** After the Codex branch was merged into PR #112, I answered "nothing outstanding, merge it" without re-reading the PR's state. The owner had already merged it at 13:30 PT (7ad8833) and asked "112 is already merged though?".
+- **Agent-controlled cause:** Relied on remembered PR state instead of running `get_status` first.
+- **Impact:** One wrong instruction and one owner clarification turn; no code affected.
+- **Correction / remaining risk:** Verified the merge contains baea921 and d895a66. Rule: read PR state before telling the owner to merge. Low.
