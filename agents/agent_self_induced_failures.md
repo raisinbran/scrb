@@ -830,3 +830,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Scoped the search to skip `phase0/` as legacy material instead of checking every tracked file.
 - **Impact:** One extra review round. Nothing merged with broken links.
 - **Correction / remaining risk:** Links updated to `docs/handoffs/archive/`; a whole-repository check finds no `blob/main` or relative link to an old handoff path, and every `blob/main/docs/handoffs/archive/` link resolves. Commit-pinned links are unchanged by design.
+
+### A-293 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — false duplicate-ID report
+
+- **Status / attribution:** Confirmed agent review error, caught by the same agent before any edit; not an application defect.
+- **What failed:** After PR #109, the agent told the owner that `main` had two entries numbered A-279. The second heading is "A-279 correction", an amendment to the same entry, which the register's policy asks for.
+- **Agent-controlled cause:** Counted repeated `### A-NNN` heading prefixes without reading the headings.
+- **Impact:** One extra item on the owner's follow-up list. Nothing was renumbered.
+- **Correction / remaining risk:** Item dropped. A duplicate check must compare whole entry titles, not ID prefixes.
