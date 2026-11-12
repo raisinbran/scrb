@@ -44,3 +44,15 @@ That `-mc 0` is the cause (no controlled run with `-mc` > 0; that needs an owner
 ## Proposed next step (owner decision)
 
 Change nothing automatically. Either confirm the `-mc 0` cause with one controlled hint-on run at `-mc` > 0 on TS3003a (about 30 s, but it also needs a plan note since it alters the whisper arguments the app ships), or treat vocabulary hints as non-functional for offline recognition until then.
+
+## Addendum: controlled check of the `-mc 0` cause (planner, 2026-11-12, one run each, not a plan stage)
+
+Same TS3003a command as the hint-off run with only `-mc 0` changed to `-mc 128`, hints off and hints on (hint text unchanged), scored with the same scorer and terms. Outputs in `eval-vocab/diag/`; commands in `command-log.md`.
+
+| `-mc 128`, TS3003a | Hints off | Hints on |
+| --- | --- | --- |
+| Term recall | 12/30 | 16/30 |
+| WER (2534 ref words) | 23.32% | 23.05% |
+| False replacements (held-out) | n/a | 0 (0.418 h) |
+
+**Measured:** with `-mc 0` the hint changes nothing; with `-mc 128` it changes the output and raises recall on this meeting (12 to 16 of 30) with WER slightly lower. So `-mc 0` is the cause of the inert test, and the shipped hint has no effect on the offline final pass or import while `-mc 0` stays. **Not measured:** negative controls at `-mc 128` (the 4.06 h zero-false-replacement result above applies only to the inert configuration); why `-mc 0` was chosen (set in the first transcription commit `7a04512`, no reason recorded; commonly used against repeat loops, unverified here); other term sets. A pass at `-mc 128` on this single check is not a Gate 5 result. Changing the shipped argument is a product change needing a written plan and owner approval.

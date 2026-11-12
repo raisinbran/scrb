@@ -950,3 +950,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Did not read the whisper.cpp prompt path (or run a 30 s smoke decode) before the full set. The scorer review did not cover this either.
 - **Impact:** About 6 minutes of compute and one inconclusive stage; no product or evidence harm.
 - **Correction / remaining risk:** Reported in the results note; cause not yet confirmed by a controlled `-mc` > 0 run. Also a minor pre-score shell quoting error (no effect). Medium until the product question is settled.
+
+### A-308 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — diagnostic command run in zsh without word splitting
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect.
+- **What failed:** The `-mc 128` diagnostic stored whisper-cli flags in a shell variable and ran it in zsh, which does not split it; whisper-cli printed usage and wrote no output, and the run had to be repeated in bash.
+- **Agent-controlled cause:** Assumed bash word-splitting semantics in the default shell.
+- **Impact:** About one minute and one wasted command; no results affected.
+- **Correction / remaining risk:** Rerun in bash (the first run produced no output). Low.
