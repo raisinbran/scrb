@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Library } from '@scrb/storage';
+import { CorrectionConflictError, Library } from '@scrb/storage';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 
@@ -956,6 +956,73 @@ describe('createMeetingHandlers', () => {
     expect(
       await dispatchCall(handlers, 'updateTerm', { id: first.id, patch: { term: 'quillon' } }),
     ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+  });
+
+  describe('vocabulary suggestions', () => {
+    const suggestion = {
+      meetingId: 'm1',
+      correctionId: 'c1',
+      term: 'Marlow Quay',
+      misheard: ['marlo key'],
+      correctionCount: 3,
+      meetingCount: 2,
+    };
+    const listed = () =>
+      vi
+        .spyOn(library, 'listVocabularySuggestions')
+        .mockResolvedValue({ suggestions: [suggestion], incomplete: false, truncated: false });
+
+    it('lists suggestions by the representative correction id', async () => {
+      listed();
+      expect(await dispatchCall(handlers, 'listVocabularySuggestions', undefined)).toEqual({
+        ok: true,
+        value: [
+          {
+            id: 'c1',
+            term: 'Marlow Quay',
+            misheard: ['marlo key'],
+            correctionCount: 3,
+            meetingCount: 2,
+          },
+        ],
+      });
+    });
+
+    it('accepts through storage without telling the UI the summary is outdated', async () => {
+      listed();
+      const accept = vi.spyOn(library, 'acceptVocabularySuggestion').mockResolvedValue({} as never);
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: true }),
+      ).toMatchObject({ ok: true });
+      expect(accept).toHaveBeenCalledWith('m1', 'c1');
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('saves a dismissal as plain text', async () => {
+      listed();
+      const dismiss = vi.spyOn(library, 'dismissVocabularySuggestion');
+      const accept = vi.spyOn(library, 'acceptVocabularySuggestion');
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: false }),
+      ).toMatchObject({ ok: true });
+      expect(dismiss).toHaveBeenCalledWith('Marlow Quay');
+      expect(accept).not.toHaveBeenCalled();
+    });
+
+    it('reports a changed or unknown suggestion as a conflict', async () => {
+      listed();
+      vi.spyOn(library, 'acceptVocabularySuggestion').mockRejectedValue(
+        new CorrectionConflictError('The suggestion changed'),
+      );
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: true }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'gone', accepted: true }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+    });
   });
 
   it('tells the UI the summary is outdated after undo as well as an edit', async () => {
