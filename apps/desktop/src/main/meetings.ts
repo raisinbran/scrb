@@ -596,6 +596,37 @@ export function createMeetingHandlers(
         throw error;
       }
     },
+    listVocabularySuggestions: async () => {
+      const { suggestions } = await library.listVocabularySuggestions();
+      return suggestions.map((s) => ({
+        id: s.correctionId,
+        term: s.term,
+        misheard: s.misheard,
+        correctionCount: s.correctionCount,
+        meetingCount: s.meetingCount,
+      }));
+    },
+    answerVocabularySuggestion: async (request) => {
+      const { id, accepted } = request as { id: string; accepted: boolean };
+      // The id is only a lookup key; the current suggestion decides what is acted on.
+      const { suggestions } = await library.listVocabularySuggestions();
+      const suggestion = suggestions.find((s) => s.correctionId === id);
+      if (suggestion === undefined) {
+        throw new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
+      }
+      if (!accepted) {
+        library.dismissVocabularySuggestion(suggestion.term);
+        return;
+      }
+      try {
+        await library.acceptVocabularySuggestion(suggestion.meetingId, suggestion.correctionId);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError || error instanceof StaleRevisionError) {
+          throw new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
+        }
+        throw error;
+      }
+    },
     getVocabularyUndoState: async () => library.vocabulary.undoState(),
     undoVocabulary: async () => {
       try {

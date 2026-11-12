@@ -27,6 +27,8 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   'cancelImport',
   'listImports',
   'listTerms',
+  'listVocabularySuggestions',
+  'answerVocabularySuggestion',
   'updateTerm',
   'deleteTerm',
   'getVocabularyUndoState',

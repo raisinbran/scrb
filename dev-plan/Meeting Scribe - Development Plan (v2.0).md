@@ -167,6 +167,8 @@ The live speech worker reading saved chunks through a bounded queue, provisional
 
 Live multi-speaker diarization on the meeting track, speaker relabeling in the final pass, silently built voice profiles, confidence-gated name assignment, the Speakers screen with rename/merge/split/delete, and the location-based privacy banner. Imported files get final-pass diarization, and build profiles only when the user chooses it for that file.
 
+**Phase 4 task (owner decision 2026-11-11):** before Gate 4, find where overlapped speech is lost between the pyannote segmentation 3.0 output and the final labels (sherpa sidecar output versus our clustering). About 61–65% of missed speech on ES2004a is overlap (`docs/research/overlap-aware-diarization-note.md`). Silent offline measurement first; any change needs a plan with independent review and owner approval. A new model (e.g. DiariZen) is deferred to V1 or V1.1.
+
 **Gate 4:** speaker accuracy and wrong-match rate meet targets; every assignment can be undone; the banner reappears on each new recording where the rule applies; an imported file changes no profile unless the user turned that on for it.
 
 ### Phase 5: Corrections and vocabulary

@@ -39,6 +39,8 @@ describe('createHybridBackend', () => {
     const backend = createHybridBackend(real, mock);
     const requests: [string, unknown][] = [
       ['listTerms', undefined],
+      ['listVocabularySuggestions', undefined],
+      ['answerVocabularySuggestion', { id: 's1', accepted: true }],
       ['updateTerm', { id: 't1', patch: { enabled: false } }],
       ['deleteTerm', { id: 't1' }],
       ['getVocabularyUndoState', undefined],
