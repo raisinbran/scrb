@@ -1,6 +1,6 @@
 # Plan: make the real-decoder import tests run, and never skip silently
 
-**Status:** proposed, needs owner approval and one independent review before any work. Plan only; nothing implemented.
+**Status:** owner approved Option A, Step 1 on 2026-11-12 ("approve if you recommend"), items 1-4 under "Owner must approve". **Independent review is still pending** (the author cannot review it); it must happen before implementation starts. Nothing implemented.
 
 ## The problem
 
