@@ -310,6 +310,9 @@ Session labels are file-local: `review-usage-logging.md:S-01` below abbreviates 
 | A-101 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-05`: `$B:scripts` was interpreted as a zsh substitution modifier; first review command failed, costing one tool call and a short delay. | **Confirmed (agent admission).** Reissued with a quoted/braced path; no data loss reported. |
 | A-102 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-06`: “no P1” review report omitted that truncated/unread files were outside coverage. Potential false assurance; no defect in those unread files established. | **Provisional**, based on the prior self-audit, not an independent replay. Limit the conclusion to render/measure/assemble/verify/test_units paths; broader review remains unsubstantiated. |
 | A-103 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-07`: claimed another outside-Git memory entry relied on usage numbers without reading that entry; inferred from its index. Possible misleading memory guidance, impact unknown. | **Provisional**, prior self-audit only. Dependency claim remains unverified; do not reproduce private memory contents or silently treat it as confirmed. |
+| A-104 | Nov 12 / Codex, GPT-6, Windows | Windows dev-config search excluded directories only by literal names and still enumerated config-like filenames inside `srcb` gate evidence folders. No file contents were opened or changed. | **Confirmed (agent admission).** Stopped searching `srcb`; later searches excluded it. Eligible dev configs remain unlocated. |
+| A-105 | Nov 12 / Codex, GPT-6, Windows | During the seeded dev-assets run, Ctrl+C was not issued until after the Qwen model `.part` had grown to 553,898,124 bytes, exceeding the requested few-hundred-MB download stop threshold. | **Confirmed (observed file size).** Interrupted the run and removed only `C:\Users\bchen\scrb-dev-assets\models\llm\Qwen3.5-9B-Q4_K_M.gguf.part`; no source seed or protected folder changed. |
+| A-106 | Nov 12 / Codex, GPT-6, Windows | Issued an unintended second invocation of `scripts/dev-assets.sh` while trying to obtain a duration; sandbox denied it immediately, so it made no writes. | **Confirmed (agent admission).** No repeat was made; the original run duration is reported as approximate because its stopwatch process was interrupted. |
 
 ## Explicit exclusions: do not assign blame without evidence
 
@@ -847,15 +850,95 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One extra review round. No step had started.
 - **Correction / remaining risk:** The tag is now step 1, pushed and verified before any tracked file moves, and the archive step reuses it. Plan still needs owner approval.
 
-### A-295 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — numpy installed without an exact pin
-- **Status / attribution:** Confirmed agent error, self-reported; not an application defect. ID may need renumbering if another branch also took A-295.
+### A-295 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — phase0 plan step 2 was written from incomplete reading
+
+- **Status / attribution:** Confirmed agent planning error, found by the same agent when starting step 2; not an application defect. ChatGPT review of PR #111 did not catch it either.
+- **What failed:** `docs/plans/phase0-removal.md` step 2 said `phase0/MANIFEST.md` hashed only three downloads and proposed a new fetch script. In fact `phase0/scripts/fetch-phase0-deps.sh` already held every full hash. The step also didn't mention that the Mac whisper.cpp and llama.cpp builds have library paths that point into `phase0/`, so copied builds would have kept loading from `phase0/` and failed only once it was removed.
+- **Agent-controlled cause:** Read the manifest's truncated hashes and stopped before the script that it names.
+- **Impact:** None yet: found before any asset was moved. The plan was amended and the step-2 PR reuses the existing script and rebuilds the builds.
+- **Correction / remaining risk:** Step 2 amended in the plan. Windows builds were not inspected for the same issue; DLLs there load from the program's own folder, but this is unverified on the Windows PCs.
+
+### A-296 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 2 PR missed the sherpa-onnx build
+
+- **Status / attribution:** Confirmed agent error, found by the same agent while updating the owner's dev configs after PR #112 opened; not an application defect. Not yet independently reviewed.
+- **What failed:** PR #112 (commit `32c2a5d`) rebuilt whisper.cpp and llama.cpp but not `upstream/sherpa-onnx/build/install`. Its build folder was removed on copy like the others, and `packages/transcription/.bin/scrb-sherpa` (final-pass diarization) has an rpath into `phase0/upstream/sherpa-onnx/build/install/lib`. A-295's correction said "the builds" were handled.
+- **Agent-controlled cause:** Checked rpaths only on the whisper.cpp and llama.cpp binaries, and did not list which tools link against each removed build folder.
+- **Impact:** None yet: `phase0/` still exists, so the old sidecar still loads. Final-pass diarization would have broken once `phase0/` was removed.
+- **Correction / remaining risk:** The build group now builds and installs sherpa-onnx with the Phase 0 settings; `scrb-sherpa` is rebuilt against it, its rpath is checked, and it starts with the models. Separately, the owner's final-pass config named `ffmpeg`/`ffprobe` in a deleted worktree; that predates this PR. The live-diarization probe in `phase0/probes/` still uses the old path; it is archived in step 4.
+
+### A-297 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 2 PR safety gaps found in review
+
+- **Status / attribution:** Confirmed agent errors, caught by ChatGPT independent review of PR #112 at `32c2a5d` (REJECT, four findings); not an application defect.
+- **What failed:** In `scripts/dev-assets.sh`, a relative `SCRB_DEV_ASSETS_SEED` was read after `cd` into the destination, so the seed was missed and about 17 GB would have been downloaded. A destination inside or equal to the seed was not rejected; there, `clone` runs `rm -rf` on seed folders, which are Gate 0 evidence. An existing file with a wrong hash stayed at its final path when the replacement also failed. The tools check verified cmake only, not ninja. `continuous-worker.mjs`, `e2e-ami.ts` and `m1-joins.ts` took the assets folder as an argument instead of reading `SCRB_DEV_ASSETS`, which the plan step requires. While fixing the ninja check, the agent first compared against `1.13.2`; the pip build reports `1.13.2.git.kitware.jobserver-pipe-1`, so every run would have rebuilt the venv. That was found by rerunning the step and fixed before commit.
+- **Agent-controlled cause:** Tested only the default seeded run, with an absolute seed path, and did not test bad inputs.
+- **Impact:** One review round. No seed was ever changed: the only seeded run used an absolute, separate destination.
+- **Correction / remaining risk:** The seed is resolved before `cd`; a missing seed or an overlapping destination stops the script before anything is created; a file with a wrong hash is removed before it is replaced; ninja's version is checked; the three scripts read `SCRB_DEV_ASSETS`. Tested on the Mac: overlap and missing seed exit 1 and leave `phase0/` unchanged; a relative seed copies; a bad file with a bad seed and a failed download leaves no file; the tools group reuses a matching venv.
+
+### A-298 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — wrong dev-launch instructions and a stale capture helper
+
+- **Status / attribution:** Confirmed agent errors; the owner ran the instructions and hit them. Not an application defect.
+- **What failed:** The first dev-launch command used a script that does not exist (`dev:electron`), left out `SCRB_CAPTURE_HELPER`, and assumed `npm` was on the PATH. It failed with "command not found: npm". The corrected command named `native/macos-capture/build/scrb-capture`, which was built on Nov 1, before the live-feed commits `183b9cd` and `7cf269b`. The agent had rebuilt the helper only in a scratch copy, so the app recorded but sent no audio to the live worker, and the owner saw no live text. A one-minute live run reproduced this with both the new and the old configs (0 words, `pcmAgeMs` null), so the asset move did not cause it.
+- **Agent-controlled cause:** Wrote the launch command without reading `package.json` or checking the helper's build date against its source.
+- **Impact:** Two owner launch attempts and about 15 minutes of owner time.
+- **Correction / remaining risk:** Helper rebuilt in place with this PR's `build.sh` (Nov 1 binary kept in the session scratchpad). The same one-minute run then passed: live text appeared and the final pass reached `ready`. That run captured only 4 s of the muted `afplay` loop on the system track, so the owner's spoken retest is still the real check.
+
+### A-299 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — Windows step-2 prompt assumed the wrong folder and shell
+
+- **Status / attribution:** Confirmed agent instruction error; Codex stopped at the prompt's own precondition check on BCHEN-WIN10. Not an application defect.
+- **What failed:** The prompt assumed the Windows Phase 0 assets were in `C:\Users\bchen\Documents\GitHub\scrb\phase0`, and that `bash` was on the PATH. That `phase0/` has no `models/`; Windows Phase 0 and Gate 3 work ran from `C:\Users\bchen\Documents\ChatGPT\srcb\repo` (see the Gate 2 F11 record and A-28x evidence paths). PowerShell found no `bash`.
+- **Agent-controlled cause:** Took the repo path from one handoff line without checking where the Windows evidence records put the assets.
+- **Impact:** One short Codex run (about 5 minutes, 5h 99%→99%, weekly 28%→28%) and owner relay time. Nothing changed on the PC.
+- **Correction / remaining risk:** The revised prompt has Codex locate the folder that holds `phase0\models` and use it as the seed, and call Git Bash by its full path.
+
+### A-300 — 2026-11-12 — Codex (GPT-6) / Windows — config search entered excluded evidence folders
+
+- **Status / attribution:** Confirmed agent search-scope mistake; no config contents were read and no files were changed.
+- **What failed:** A search excluded folders only when their names literally contained `evidence` or `results`. Several `srcb` gate evidence folders use other names, so their config-like filenames appeared in search output.
+- **Agent-controlled cause:** Used a name-pattern exclusion instead of excluding the entire protected `srcb` tree from config discovery.
+- **Impact:** Protected-folder filenames were enumerated. No contents, recordings, or evidence were opened or used.
+- **Correction / remaining risk:** Stopped searching `srcb` and excluded it from subsequent searches. Profile-wide search access was denied; no eligible configs were found in searched non-srcb GitHub/AppData locations. Config copies and the final-pass DLL-path check remain unavailable.
+
+### A-301 — 2026-11-12 — Codex (GPT-6) / Windows — delayed stop of a large seeded-run download
+
+- **Status / attribution:** Confirmed agent error. The owner-set stop threshold was exceeded by an incomplete download.
+- **What failed:** The seeded script reached `Qwen3.5-9B-Q4_K_M.gguf`; Ctrl+C was delivered after the `.part` file had reached 553,898,124 bytes.
+- **Agent-controlled cause:** Did not issue the stop signal immediately on the first output identifying the multi-gigabyte missing model.
+- **Impact:** A 553,898,124-byte incomplete download temporarily occupied C: space. No seed, phase0, evidence, or results folder was changed.
+- **Correction / remaining risk:** Removed only that `.part` from `%USERPROFILE%\scrb-dev-assets`. The rest of the authorized seeded run output remains in that destination; it includes earlier successful copies and downloads.
+
+### A-302 — 2026-11-12 — Codex (GPT-6) / Windows — unintended repeated script invocation
+
+- **Status / attribution:** Confirmed agent mistake; the attempted invocation failed immediately on sandbox write permission.
+- **What failed:** A second `scripts/dev-assets.sh` invocation was issued while intending to measure the first run's duration.
+- **Agent-controlled cause:** Reused the script command instead of reading the existing process outcome.
+- **Impact:** One unnecessary failed command; no destination writes occurred. Exact script duration could not be recovered after Ctrl+C terminated the stopwatch wrapper.
+- **Correction / remaining risk:** No further invocation was made; duration is described as approximately 1 minute 40 seconds.
+
+### A-303 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — overlap guard missed an unresolved `..`
+
+- **Status / attribution:** Confirmed agent error in the A-297 fix (`612ee1e`), caught by ChatGPT re-review of PR #112 (REJECT, one finding); not an application defect. A-300 to A-302 are Codex entries on `codex/phase0-step2-windows-20261112`.
+- **What failed:** `abs_path` in `scripts/dev-assets.sh` kept path parts under a folder that did not exist yet as plain text, so `SCRB_DEV_ASSETS=/tmp/newdir/../phase0` with seed `/tmp/phase0` passed the overlap check; `mkdir -p` then made the destination resolve into the seed, where `clone` can delete folders.
+- **Agent-controlled cause:** Tested overlap only with paths whose `..` sat under folders that existed.
+- **Impact:** One review round. No seed was touched; every real run used a separate absolute destination.
+- **Correction / remaining risk:** `abs_path` now stops on a `..` it cannot resolve. Tested on the Mac: the reviewer's case exits 1 before creating `newdir` and leaves a test seed unchanged; a `..` under an existing folder is still resolved and rejected as an overlap; a normal seeded run completes.
+
+### A-304 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — numpy installed without an exact pin
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect. Filed as A-295 in PR #115; renumbered A-304 when PR #112, which already used A-295, merged main.
 - **What failed:** The owner approved installing `onnxruntime` and `numpy` with exact pins. I pinned `onnxruntime==1.31.1` but ran `pip install numpy` unpinned; it resolved to 2.5.4.
 - **Agent-controlled cause:** Pinned only the package whose version I had looked up.
 - **Impact:** None on results; the resolved version is recorded in the experiment note. Owner-visible deviation from the pin instruction.
 - **Correction / remaining risk:** Versions recorded (numpy 2.5.4, onnxruntime 1.31.1); no further installs. The venv is outside git.
 
-### A-296 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — negative test asserted against a speaker that was never returned
-- **Status / attribution:** Confirmed agent error, self-reported after ChatGPT review of PR #116; not an application defect.
+### A-305 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — PR #112 CI failed on every commit unnoticed
+
+- **Status / attribution:** Confirmed agent error, found by the agent when the owner marked PR #112 ready; not an application defect.
+- **What failed:** CI's "Check Prettier on changed TypeScript" step failed on both platforms on every PR #112 commit from `32c2a5d` on, because `packages/summary/eval/run.ts`, `e2e-ami.ts` and `m1-joins.ts` were edited but not formatted. The agent had seen the local Prettier warnings, called them pre-existing, and told the owner CI was pending, never reading its result. ChatGPT approval and the owner's ready step went ahead on a red PR.
+- **Agent-controlled cause:** Did not run the CI's changed-file Prettier check locally, and did not read CI results before asking for approvals.
+- **Impact:** One extra commit and CI round; the owner's ready-for-review approval was given against failing checks.
+- **Correction / remaining risk:** The three files are formatted (layout only); the CI's changed-file check passes locally and `npm run check` passes. CI must be green before merge.
+
+### A-306 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — negative test asserted against a speaker that was never returned
+- **Status / attribution:** Confirmed agent error, self-reported after ChatGPT review of PR #116; not an application defect. Filed as A-296 in PR #116; renumbered A-306 because PR #112 already used A-296.
 - **What failed:** The new `needsManualResolution` pass-through test gave the unflagged speaker `b` no segment, so `getTranscript` omitted it and "flag absent" was asserted on an empty object. The positive assertion was mutation-checked; the negative one was not.
 - **Agent-controlled cause:** Checked that the test fails when the pass-through is removed, not that each assertion could fail.
 - **Impact:** One extra review round. No product code affected.

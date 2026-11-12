@@ -1,7 +1,7 @@
 # Phase 0 Manifest: what is not in git
 
 GitHub limits files to 100 MB, so these Phase 0 inputs live outside the
-repository.  `scripts/fetch-phase0-deps.sh` re-creates all of them at the exact
+repository.  `scripts/dev-assets.sh` at the repository root re-creates all of them at the exact
 versions used and checks every file's SHA-256.
 
 ## Upstream sources (pinned commits)

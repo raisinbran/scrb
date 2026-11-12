@@ -1,10 +1,12 @@
 // M1 from docs/plans/crash-safe-chunks.md: compares the three ways of cutting chunks on AMI audio,
 // with one uncut encode as the control.  Chunks go through the real assembly path.  Run a whole
 // invocation under the model lock:
-//   npx tsx scripts/m1-joins.ts <phase0 dir> <tools dir> <work dir> <meeting>...
+//   npx tsx scripts/m1-joins.ts <tools dir> <work dir> <meeting>...
+// Models, builds and AMI audio come from SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 // Metrics go to stdout as JSON.  Nothing here is written to the repo.
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -17,32 +19,50 @@ import {
   type ToolPaths,
 } from '../src/index.js';
 
-const [phase0, toolsDir, workRoot, ...meetings] = process.argv.slice(2);
-if (!phase0 || !toolsDir || !workRoot || !meetings.length) {
-  throw new Error('usage: <phase0> <tools> <work> <meeting>...');
+const assets = process.env['SCRB_DEV_ASSETS'] ?? join(homedir(), 'scrb-dev-assets');
+const [toolsDir, workRoot, ...meetings] = process.argv.slice(2);
+if (!toolsDir || !workRoot || !meetings.length) {
+  throw new Error('usage: <tools> <work> <meeting>...');
 }
-const whisperBin = join(phase0, 'upstream/whisper.cpp/build/bin');
+const whisperBin = join(assets, 'upstream/whisper.cpp/build/bin');
 const tools: ToolPaths = toolsIn(toolsDir, {
   whisperCli: join(whisperBin, 'whisper-cli'),
   whisperServer: join(whisperBin, 'whisper-server'),
   whisperVad: join(whisperBin, 'whisper-vad-speech-segments'),
 });
 const models: ModelPaths = {
-  speechFinal: join(phase0, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
-  speechLive: join(phase0, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
-  vad: join(phase0, 'models/whisper/ggml-silero-v6.2.0.bin'),
-  segmentation: join(phase0, 'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx'),
-  embedding: join(phase0, 'models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx'),
+  speechFinal: join(assets, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
+  speechLive: join(assets, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
+  vad: join(assets, 'models/whisper/ggml-silero-v6.2.0.bin'),
+  segmentation: join(
+    assets,
+    'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx',
+  ),
+  embedding: join(
+    assets,
+    'models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
+  ),
 };
 const here = dirname(fileURLToPath(import.meta.url));
 const scripts = join(here, '../../../phase0/scripts');
-const ami = join(phase0, 'downloads/ami');
+const ami = join(assets, 'downloads/ami');
 
 const RATE = 48000;
 const FRAME = 960;
 const CHUNK_PACKETS = 250; // 5 s
 const OVERLAP_PACKETS = 4; // 80 ms, as RFC 7845 advises
-const ENCODE = ['-c:a', 'libopus', '-b:a', '32k', '-vbr', 'constrained', '-application', 'voip', '-frame_duration', '20'];
+const ENCODE = [
+  '-c:a',
+  'libopus',
+  '-b:a',
+  '32k',
+  '-vbr',
+  'constrained',
+  '-application',
+  'voip',
+  '-frame_duration',
+  '20',
+];
 const WAV_HEADER = 44;
 
 function le32(x: number): Buffer {
@@ -73,7 +93,13 @@ function readPackets(file: Buffer): { preSkip: number; packets: Buffer[] } {
   return { preSkip: packets[0]!.readUInt16LE(10), packets: packets.slice(2) };
 }
 
-function page(serial: number, sequence: number, flags: number, granule: number, packets: Buffer[]): Buffer {
+function page(
+  serial: number,
+  sequence: number,
+  flags: number,
+  granule: number,
+  packets: Buffer[],
+): Buffer {
   const lacing: number[] = [];
   for (const p of packets) {
     for (let left = p.length; ; left -= 255) {
@@ -95,21 +121,28 @@ function page(serial: number, sequence: number, flags: number, granule: number, 
 
 function writeChunk(packets: Buffer[], preSkip: number): Buffer {
   const opusHead = Buffer.concat([
-    Buffer.from('OpusHead'), Buffer.from([1, 1]), Buffer.from([preSkip & 255, preSkip >> 8]),
-    le32(RATE), Buffer.from([0, 0, 0]),
+    Buffer.from('OpusHead'),
+    Buffer.from([1, 1]),
+    Buffer.from([preSkip & 255, preSkip >> 8]),
+    le32(RATE),
+    Buffer.from([0, 0, 0]),
   ]);
   const tags = Buffer.concat([Buffer.from('OpusTags'), le32(3), Buffer.from('m1 '), le32(0)]);
   const pages = [page(1, 0, 2, 0, [opusHead]), page(1, 1, 0, 0, [tags])];
   let sequence = 2;
   for (let i = 0; i < packets.length; i += 50) {
     const end = Math.min(i + 50, packets.length);
-    pages.push(page(1, sequence++, end === packets.length ? 4 : 0, end * FRAME, packets.slice(i, end)));
+    pages.push(
+      page(1, sequence++, end === packets.length ? 4 : 0, end * FRAME, packets.slice(i, end)),
+    );
   }
   return Buffer.concat(pages);
 }
 
 async function cutFromOneEncode(
-  encoded: Buffer, dir: string, overlap: number,
+  encoded: Buffer,
+  dir: string,
+  overlap: number,
 ): Promise<{ path: string; startMs: number }[]> {
   await mkdir(dir, { recursive: true });
   const { preSkip, packets } = readPackets(encoded);
@@ -133,9 +166,11 @@ async function freshStarts(pcm: Buffer, dir: string): Promise<{ path: string; st
   for (let k = 0; k * bytes < pcm.length; k++) {
     const path = join(dir, `${k}.opus`);
     const slice = pcm.subarray(k * bytes, (k + 1) * bytes);
-    execFileSync(tools.ffmpeg, [
-      '-nostdin', '-v', 'error', '-y', '-f', 'wav', '-i', 'pipe:0', ...ENCODE, path,
-    ], { input: Buffer.concat([wavHeader(slice.length), slice]) });
+    execFileSync(
+      tools.ffmpeg,
+      ['-nostdin', '-v', 'error', '-y', '-f', 'wav', '-i', 'pipe:0', ...ENCODE, path],
+      { input: Buffer.concat([wavHeader(slice.length), slice]) },
+    );
     chunks.push({ path, startMs: k * 5000 });
   }
   return chunks;
@@ -167,18 +202,33 @@ function samples(file: Buffer): Int16Array {
 /** Difference from the uncut encode, within 10 ms of a join against everywhere else. */
 function joinDamage(control: Int16Array, cut: Int16Array, chunkMs = 5000): unknown {
   const rate = 16;
-  let nearSum = 0, nearCount = 0, farSum = 0, farCount = 0, zeroRuns = 0;
+  let nearSum = 0,
+    nearCount = 0,
+    farSum = 0,
+    farCount = 0,
+    zeroRuns = 0;
   const n = Math.min(control.length, cut.length);
   for (let i = 0; i < n; i++) {
     const position = i % (chunkMs * rate);
     const near = position < 10 * rate || position >= (chunkMs - 10) * rate;
     const d = (control[i]! - cut[i]!) ** 2;
-    if (near) { nearSum += d; nearCount++; } else { farSum += d; farCount++; }
+    if (near) {
+      nearSum += d;
+      nearCount++;
+    } else {
+      farSum += d;
+      farCount++;
+    }
     if (cut[i] === 0 && cut[i + 1] === 0 && control[i] !== 0) zeroRuns++;
   }
   const near = Math.sqrt(nearSum / nearCount);
   const far = Math.sqrt(farSum / farCount);
-  return { nearRms: Math.round(near * 10) / 10, farRms: Math.round(far * 10) / 10, ratio: Math.round((near / far) * 100) / 100, zeroRuns };
+  return {
+    nearRms: Math.round(near * 10) / 10,
+    farRms: Math.round(far * 10) / 10,
+    ratio: Math.round((near / far) * 100) / 100,
+    zeroRuns,
+  };
 }
 
 function score(script: string, args: string[]): unknown {
@@ -186,19 +236,35 @@ function score(script: string, args: string[]): unknown {
   return JSON.parse(out.trim().split('\n').at(-1)!);
 }
 
-async function measure(meeting: string, name: string, wavPath: string, work: string): Promise<FinalTranscript> {
+async function measure(
+  meeting: string,
+  name: string,
+  wavPath: string,
+  work: string,
+): Promise<FinalTranscript> {
   const t = await runFinalPass({
-    tools, models, tracks: [{ kind: 'meeting', source: { wavPath } }], workDir: join(work, `${name}-final`),
+    tools,
+    models,
+    tracks: [{ kind: 'meeting', source: { wavPath } }],
+    workDir: join(work, `${name}-final`),
   });
   const words = join(work, `${name}.txt`);
   await writeFile(words, t.words.map((w) => w.text).join(' '));
   const spans = join(work, `${name}.der.txt`);
-  await writeFile(spans, t.spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`).join('\n') + '\n');
-  console.log(JSON.stringify({
-    meeting, writer: name, words: t.words.length, speakers: t.speakers.length,
-    wer: score('score_ami_wer.py', [join(ami, 'ann'), meeting, words]),
-    der: score('score_der.py', [join(ami, 'ann/segments'), meeting, spans]),
-  }));
+  await writeFile(
+    spans,
+    t.spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`).join('\n') + '\n',
+  );
+  console.log(
+    JSON.stringify({
+      meeting,
+      writer: name,
+      words: t.words.length,
+      speakers: t.speakers.length,
+      wer: score('score_ami_wer.py', [join(ami, 'ann'), meeting, words]),
+      der: score('score_der.py', [join(ami, 'ann/segments'), meeting, spans]),
+    }),
+  );
   return t;
 }
 
@@ -209,18 +275,44 @@ for (const meeting of meetings) {
   const source = join(ami, `${meeting}.Mix-Headset.wav`);
   const sourceWav = join(work, 'source.wav');
   execFileSync(tools.ffmpeg, [
-    '-nostdin', '-v', 'error', '-y', '-i', source, '-ac', '1', '-ar', String(RATE), '-c:a', 'pcm_s16le', '-bitexact',
-    '-map_metadata', '-1', sourceWav,
+    '-nostdin',
+    '-v',
+    'error',
+    '-y',
+    '-i',
+    source,
+    '-ac',
+    '1',
+    '-ar',
+    String(RATE),
+    '-c:a',
+    'pcm_s16le',
+    '-bitexact',
+    '-map_metadata',
+    '-1',
+    sourceWav,
   ]);
   const pcm = (await readFile(sourceWav)).subarray(WAV_HEADER);
   const whole = join(work, 'whole.opus');
-  execFileSync(tools.ffmpeg, [
-    '-nostdin', '-v', 'error', '-y', '-i', sourceWav, ...ENCODE, whole,
-  ]);
+  execFileSync(tools.ffmpeg, ['-nostdin', '-v', 'error', '-y', '-i', sourceWav, ...ENCODE, whole]);
   const controlWav = join(work, 'control.wav');
   execFileSync(tools.ffmpeg, [
-    '-nostdin', '-v', 'error', '-y', '-i', whole, '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', '-bitexact',
-    '-map_metadata', '-1', controlWav,
+    '-nostdin',
+    '-v',
+    'error',
+    '-y',
+    '-i',
+    whole,
+    '-ac',
+    '1',
+    '-ar',
+    '16000',
+    '-c:a',
+    'pcm_s16le',
+    '-bitexact',
+    '-map_metadata',
+    '-1',
+    controlWav,
   ]);
   const encoded = await readFile(whole);
   const writers = {
@@ -232,8 +324,19 @@ for (const meeting of meetings) {
   const control = samples(await readFile(controlWav));
   for (const [name, list] of Object.entries(writers)) {
     const wavPath = join(work, `${name}.wav`);
-    await assembleChunks(tools, list.map((c) => ({ ...c, durationMs: 5000 })), wavPath);
-    console.log(JSON.stringify({ meeting, writer: name, chunks: list.length, join: joinDamage(control, samples(await readFile(wavPath))) }));
+    await assembleChunks(
+      tools,
+      list.map((c) => ({ ...c, durationMs: 5000 })),
+      wavPath,
+    );
+    console.log(
+      JSON.stringify({
+        meeting,
+        writer: name,
+        chunks: list.length,
+        join: joinDamage(control, samples(await readFile(wavPath))),
+      }),
+    );
     await measure(meeting, name, wavPath, work);
   }
 }
