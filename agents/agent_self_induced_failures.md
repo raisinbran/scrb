@@ -838,3 +838,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Counted repeated `### A-NNN` heading prefixes without reading the headings.
 - **Impact:** One extra item on the owner's follow-up list. Nothing was renumbered.
 - **Correction / remaining risk:** Item dropped. A duplicate check must compare whole entry titles, not ID prefixes.
+
+### A-294 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — phase0 plan tagged the archive too late
+
+- **Status / attribution:** Confirmed agent planning error, caught by ChatGPT independent review of PR #111 at `b871e1a`; not an application defect.
+- **What failed:** `docs/plans/phase0-removal.md` moved tracked `phase0/` files in step 2 but created the `phase0-archive` tag in step 3, so the tag would not have held those files at their original paths and evidence links pointing at the tag would have broken.
+- **Agent-controlled cause:** Ordered the steps by when the old folder is removed instead of by when its paths first change.
+- **Impact:** One extra review round. No step had started.
+- **Correction / remaining risk:** The tag is now step 1, pushed and verified before any tracked file moves, and the archive step reuses it. Plan still needs owner approval.

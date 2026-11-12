@@ -27,20 +27,22 @@ The Development Plan put Phase 0 in a separate scratch repository. It was mirror
 
 ## Steps
 
-Each step is one small PR, with CI on both platforms.
+Step 1 is a tag push. Each later step is one small PR, with CI on both platforms.
 
-1. **Dev assets outside the repo.** Add a `SCRB_DEV_ASSETS` folder (default `~/scrb-dev-assets`, `%USERPROFILE%\scrb-dev-assets` on Windows) holding `models/`, `upstream/`, `tools/` and `ami/`. Add `scripts/fetch-dev-assets.mjs`, which takes the URLs and versions pinned in `phase0/MANIFEST.md` and checks each file's SHA-256. The manifest hashes only three Windows downloads, so first record the hashes of the owner's current copies as the reference for the rest. The script copies from an existing `phase0/` when one is present, so nothing is downloaded twice. Point every script and native build above at `SCRB_DEV_ASSETS`, and update the owner's two dev config files to match.
-2. **Move the small tracked parts that are still used** into product folders, with `git mv` so their history follows:
+1. **Tag the archive first.** Before any step changes a tracked `phase0/` file, tag the current `main` commit as `phase0-archive` and push the tag. Verify it: `git ls-remote --tags origin phase0-archive` returns that commit, and one evidence link opens as `blob/phase0-archive/phase0/...`. The tag is never moved or deleted.
+2. **Dev assets outside the repo.** Add a `SCRB_DEV_ASSETS` folder (default `~/scrb-dev-assets`, `%USERPROFILE%\scrb-dev-assets` on Windows) holding `models/`, `upstream/`, `tools/` and `ami/`. Add `scripts/fetch-dev-assets.mjs`, which takes the URLs and versions pinned in `phase0/MANIFEST.md` and checks each file's SHA-256. The manifest hashes only three Windows downloads, so first record the hashes of the owner's current copies as the reference for the rest. The script copies from an existing `phase0/` when one is present, so nothing is downloaded twice. Point every script and native build above at `SCRB_DEV_ASSETS`, and update the owner's two dev config files to match.
+3. **Move the small tracked parts that are still used** into product folders, with `git mv` so their history follows:
    - `fixtures/summary/` → `packages/summary/test/fixtures/`
    - `probes/windows-mute`, `probes/windows-tone-player` → `native/windows-capture/tools/`
    - `scripts/run-muted.sh` → `native/macos-capture/scripts/`
    - `scripts/score_ami_wer.py`, `score_der.py`, `prepare_ami_summary.py` → `scripts/eval/`
    - `MANIFEST.md` pins and `THIRD_PARTY_NOTICES.md` → `third_party/`
-3. **Archive the rest.** Tag the last `main` commit that still has `phase0/` as `phase0-archive`. Point doc and evidence links into `phase0/` at that tag (a `blob/phase0-archive/phase0/...` URL), then remove `phase0/` from `main`, along with its ignore rules and config entries.
-4. **Untracked data.** Once step 1 has copied the assets and checked their hashes, the owner decides whether to delete `phase0/` on each machine or keep it there. The 5.8 GB of local artifacts stay put until they decide.
+4. **Archive the rest.** Reuse the step 1 tag; do not create a new one. Point doc and evidence links into `phase0/` at that tag (a `blob/phase0-archive/phase0/...` URL), then remove `phase0/` from `main`, along with its ignore rules and config entries.
+5. **Untracked data.** Once step 2 has copied the assets and checked their hashes, the owner decides whether to delete `phase0/` on each machine or keep it there. The 5.8 GB of local artifacts stay put until they decide.
 
 ## Done when
 
+- The `phase0-archive` tag on `origin` points at a commit where every original `phase0/` path exists.
 - `git grep phase0` on `main` finds only links to the `phase0-archive` tag and this plan.
 - `npm run check` and CI pass on macOS and Windows.
 - `native/macos-capture/tests/run.sh` passes on the Mac, and the Windows capture build plus one short `_case.mjs` run passes on one Windows PC. This is a short test, well under 20 minutes.
@@ -49,10 +51,10 @@ Each step is one small PR, with CI on both platforms.
 
 ## Risks
 
-- **Windows path differences** in the probe builds and scripts: mitigated by one short Windows run before step 3.
+- **Windows path differences** in the probe builds and scripts: mitigated by one short Windows run before step 4.
 - **Old evidence paths on the Windows PCs** (`results/*-hashes-*.txt` name absolute paths): left as they are, since they record where a file was when it was hashed.
-- **Open draft PRs that add new `phase0/` paths:** rebase or retarget them before step 3.
+- **Open draft PRs that add new `phase0/` paths:** rebase or retarget them before step 4.
 
 ## Effort
 
-About four short PRs, plus one owner session on each machine for the asset move and checks.
+One tag push and about four short PRs, plus one owner session on each machine for the asset move and checks.
