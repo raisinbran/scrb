@@ -1,10 +1,12 @@
 // End-to-end AMI check.  Needs the Phase 0 models and binaries; run a whole
 // invocation under the model lock:
 //   taskpolicy -c utility lockf -k ~/.local/share/scrb-node/model.lock \
-//     npx tsx scripts/e2e-ami.ts <dev assets dir> <work dir> <meeting> [import|chunks|live]...
+//     npx tsx scripts/e2e-ami.ts <work dir> <meeting> [import|chunks|live]...
+// Models, builds and AMI audio come from SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 // Paths and metrics go to stdout as JSON.  Nothing here is written to the repo.
 import { execFileSync } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -20,8 +22,9 @@ import {
   type ToolPaths,
 } from '../src/index.js';
 
-const [assets, workRoot, meeting, ...stages] = process.argv.slice(2);
-if (!assets || !workRoot || !meeting) throw new Error('usage: <assets> <work> <meeting> [stages]');
+const assets = process.env['SCRB_DEV_ASSETS'] ?? join(homedir(), 'scrb-dev-assets');
+const [workRoot, meeting, ...stages] = process.argv.slice(2);
+if (!workRoot || !meeting) throw new Error('usage: <work> <meeting> [stages]');
 const want = stages.length ? stages : ['import', 'chunks', 'live'];
 const here = dirname(fileURLToPath(import.meta.url));
 const whisperBin = join(assets, 'upstream/whisper.cpp/build/bin');

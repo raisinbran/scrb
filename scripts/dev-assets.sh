@@ -18,6 +18,20 @@
 set -euo pipefail
 root="${SCRB_DEV_ASSETS:-$HOME/scrb-dev-assets}"
 seed="${SCRB_DEV_ASSETS_SEED:-}"
+abs_path() {  # absolute path, resolved through the nearest folder that exists
+  local p="$1" rest=""
+  while [[ ! -d "$p" ]]; do rest="/$(basename "$p")$rest"; p="$(dirname "$p")"; done
+  echo "$(cd "$p" && pwd -P)$rest"
+}
+if [[ -n "$seed" ]]; then
+  [[ -d "$seed" ]] || { echo "SCRB_DEV_ASSETS_SEED is not a folder: $seed" >&2; exit 1; }
+  seed="$(abs_path "$seed")"
+  # The seed may be Gate 0 evidence, and files under the destination get replaced.
+  dest="$(abs_path "$root")"
+  if [[ "$dest" == "$seed" || "$dest" == "$seed"/* || "$seed" == "$dest"/* ]]; then
+    echo "SCRB_DEV_ASSETS and SCRB_DEV_ASSETS_SEED must not overlap" >&2; exit 1
+  fi
+fi
 mkdir -p "$root"
 cd "$root"
 group="${1:-all}"
@@ -37,6 +51,7 @@ sha256() {
 fetch() {  # fetch <dest> <sha256> <url>
   local dest="$1" sum="$2" url="$3"
   if [[ -f "$dest" && "$(sha256 "$dest")" == "$sum" ]]; then echo "ok   $dest"; return; fi
+  rm -f "$dest"
   mkdir -p "$(dirname "$dest")"
   if [[ -n "$seed" && -f "$seed/$dest" ]]; then
     echo "copy $dest"
@@ -159,7 +174,8 @@ fi
 
 # CMake and Ninja for the native builds, at the versions the Mac used.
 if [[ "$group" == all || "$group" == tools ]] && [[ "$(uname -s)" == Darwin ]]; then
-  if [[ "$(tools/venv/bin/cmake --version 2>/dev/null | head -1)" != "cmake version 4.4.4" ]]; then
+  if [[ "$(tools/venv/bin/cmake --version 2>/dev/null | head -1)" != "cmake version 4.4.4" ||
+        "$(tools/venv/bin/ninja --version 2>/dev/null)" != 1.13.2.git.kitware.jobserver-pipe-1 ]]; then
     rm -rf tools/venv
     python3 -m venv tools/venv
     tools/venv/bin/pip install -q cmake==4.4.4 ninja==1.13.2

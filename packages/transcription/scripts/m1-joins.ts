@@ -1,10 +1,12 @@
 // M1 from docs/plans/crash-safe-chunks.md: compares the three ways of cutting chunks on AMI audio,
 // with one uncut encode as the control.  Chunks go through the real assembly path.  Run a whole
 // invocation under the model lock:
-//   npx tsx scripts/m1-joins.ts <dev assets dir> <tools dir> <work dir> <meeting>...
+//   npx tsx scripts/m1-joins.ts <tools dir> <work dir> <meeting>...
+// Models, builds and AMI audio come from SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 // Metrics go to stdout as JSON.  Nothing here is written to the repo.
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -17,9 +19,10 @@ import {
   type ToolPaths,
 } from '../src/index.js';
 
-const [assets, toolsDir, workRoot, ...meetings] = process.argv.slice(2);
-if (!assets || !toolsDir || !workRoot || !meetings.length) {
-  throw new Error('usage: <assets> <tools> <work> <meeting>...');
+const assets = process.env['SCRB_DEV_ASSETS'] ?? join(homedir(), 'scrb-dev-assets');
+const [toolsDir, workRoot, ...meetings] = process.argv.slice(2);
+if (!toolsDir || !workRoot || !meetings.length) {
+  throw new Error('usage: <tools> <work> <meeting>...');
 }
 const whisperBin = join(assets, 'upstream/whisper.cpp/build/bin');
 const tools: ToolPaths = toolsIn(toolsDir, {
