@@ -870,3 +870,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Tested only the default seeded run, with an absolute seed path, and did not test bad inputs.
 - **Impact:** One review round. No seed was ever changed: the only seeded run used an absolute, separate destination.
 - **Correction / remaining risk:** The seed is resolved before `cd`; a missing seed or an overlapping destination stops the script before anything is created; a file with a wrong hash is removed before it is replaced; ninja's version is checked; the three scripts read `SCRB_DEV_ASSETS`. Tested on the Mac: overlap and missing seed exit 1 and leave `phase0/` unchanged; a relative seed copies; a bad file with a bad seed and a failed download leaves no file; the tools group reuses a matching venv.
+
+### A-298 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — wrong dev-launch instructions and a stale capture helper
+
+- **Status / attribution:** Confirmed agent errors; the owner ran the instructions and hit them. Not an application defect.
+- **What failed:** The first dev-launch command used a script that does not exist (`dev:electron`), left out `SCRB_CAPTURE_HELPER`, and assumed `npm` was on the PATH. It failed with "command not found: npm". The corrected command named `native/macos-capture/build/scrb-capture`, which was built on Nov 1, before the live-feed commits `183b9cd` and `7cf269b`. The agent had rebuilt the helper only in a scratch copy, so the app recorded but sent no audio to the live worker, and the owner saw no live text. A one-minute live run reproduced this with both the new and the old configs (0 words, `pcmAgeMs` null), so the asset move did not cause it.
+- **Agent-controlled cause:** Wrote the launch command without reading `package.json` or checking the helper's build date against its source.
+- **Impact:** Two owner launch attempts and about 15 minutes of owner time.
+- **Correction / remaining risk:** Helper rebuilt in place with this PR's `build.sh` (Nov 1 binary kept in the session scratchpad). The same one-minute run then passed: live text appeared and the final pass reached `ready`. That run captured only 4 s of the muted `afplay` loop on the system track, so the owner's spoken retest is still the real check.
