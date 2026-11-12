@@ -770,13 +770,58 @@ Before the approved test4e run, the agent checked the earlier reference data: th
 
 Effect: in the scratch specs the `tl()` helper appended the two characters backslash-n instead of a newline, so `timeline.log` is one run-together line and lost most events (the in-app STATE snapshots only). The full wall-clock timeline survives in `run-output.txt` (tl also console.logs); the analysis used `test4e\timeline-clean.log` extracted from it. The first analysis attempt failed on this, costing a few tool calls. No effect on the test result. Also note: test4e passed only with a relaxed spec (exactly one "Play from" line; +15 s button seek instead of seeking to a later line); it does not pass the original two-line check. Evidence: test4e\run-output.txt, timeline-clean.log. Remaining risk: none for results; the original spec precondition remains unmet by this fixture.
 
+### A-282 — Wave 1 test manifest update error
+
+Formerly A-266 in the BCHEN-W10 clone's local register
+During the Test 1 evidence update, the agent assigned `completedAt` and `cleanup` to a deserialized JSON object before adding those properties; PowerShell raised `SetValueInvocationException`. The manifest outcome field was written, but those two fields were absent until corrected with `Add-Member`. Evidence: `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-wave1-clone-20261111-evidence\test1-cancel-manifest.json` and `wave1-results.md`. Attribution: agent evidence-editing mistake. Correction: added the missing properties and verified serialization. Remaining risk: none identified; no test data or app files affected.
+
+### A-283 — Continued after restricted process inspection
+
+Formerly A-267 in the BCHEN-W10 clone's local register
+A read-only `Get-CimInstance Win32_Process -Filter "ProcessId=40456"` returned `Access denied`; the agent continued with a UI restart attempt rather than stopping immediately under the Wave 1 sandbox-stop instruction. The restart then showed Windows Electron breakpoint `0x80000003`. Evidence: current tool output and Wave 1 results in the external evidence folder. Attribution: agent procedural error after a permission restriction. Correction: stopped Wave 1 without starting tests 2–5 and recorded the exact owner launch command. Remaining risk: clean restart remains unverified; owner must diagnose/run it manually before resuming.
+
+### A-284 — Unqualified decoder-probe command unavailable
+
+Formerly A-268 in the BCHEN-W10 clone's local register
+The agent attempted `ffprobe` by unqualified command name while checking the unchanged AMI source; PowerShell reported command not recognized. This did not affect the source or any test; source SHA matched, and previously verified duration was carried forward. Evidence: current test-repeat tool output and external `test1-repeat-manifest.json`. Attribution: agent command/setup error. Correction: stopped relying on this unavailable command; no retry. Remaining risk: no new duration measurement in this repeat.
+
+### A-285 — Repeat-manifest update used missing JSON properties
+
+Formerly A-269 in the BCHEN-W10 clone's local register
+The agent repeated the prior mistake of assigning new fields directly to a deserialized JSON object; PowerShell rejected `completedAt`, `launchError`, and `importAttempted`. The outcome field was written, but these fields were missing until corrected with `Add-Member`. Evidence: external `test1-repeat-manifest.json` and current tool output. Attribution: agent evidence-editing mistake. Correction: added all three properties and verified the manifest. No application/test state was affected; remaining risk none identified.
+
+### A-286 — Native file-picker handoff delayed
+
+Formerly A-270 in the BCHEN-W10 clone's local register
+Effect: the owner-only native file-picker dependency was not clearly identified at the outset; after the picker opened, selection waited about 16 minutes and delayed the run. The agent did issue a picker handoff and interim updates, but only after opening it; the dependency should have been flagged before starting the workflow. Evidence: conversation/tool chronology for the 2026-11-11 repeat and the external `wave1-repeat-results.md`. Attribution: agent planning and handoff timing. Correction: document the step as owner-only up front and pause at the handoff; results now mark the owner relaunch audit pending. Remaining risk: Test 1 remains incomplete until owner confirms close/relaunch and library state.
+
+### A-287 — Misleading usage statement
+
+Formerly A-271 in the BCHEN-W10 clone's local register
+Effect: the agent's “unchanged” usage display could imply the test used zero credits. Evidence: conversation and Codex usage snapshots around 1:04 and 1:24 PM PT both showed 30% five-hour and 34% weekly remaining. Attribution: agent overstatement of what rounded shared-account percentages establish. Correction: clarify that exact per-task cost is unknown; the results file now says the readings cannot establish task cost. Remaining risk: no per-task meter or attribution; account readings are shared and rounded.
+
+### A-288 — Incident-register append targeted the wrong worktree
+
+Formerly A-273 in the BCHEN-W10 clone's local register
+Effect: while recording A-289 (formerly A-272), the append command omitted an explicit working directory and wrote to `C:\Users\bchen\Documents\GitHub\scrb\agents\agent_self_induced_failures.md` on `rosmont/windows-gate3-observer-validation-20261109` instead of this detached test clone. The existing register was already modified; no prior content was replaced, but one new uncommitted entry (the former local A-272, now A-289) was added to the wrong worktree. Evidence: `C:\Users\bchen\Documents\GitHub\scrb` status showed that branch and `M agents/agent_self_induced_failures.md`; the file tail contained the former A-272. Attribution: agent working-directory error. Correction: stopped writing to that worktree; this A-288 note (formerly A-273) is in the intended test clone. Remaining risk: the extra uncommitted former-A-272 entry remained in the GitHub worktree at the time; no rollback was attempted because the owner explicitly prohibited touching files on that branch and prohibited deleting evidence.
+
+### A-289 — Wave 1 test 5 capture started before fixture playback was available
+
+Formerly A-272 in the BCHEN-W10 clone's local register
+Effect: after the owner-launched app accepted Start, the sandbox denied opening the public AMI WAV in its default player (`Start-Process ... meeting.wav ... Access is denied`). The native app capture remained active for 66.417 seconds with the built-in microphone selected and no confirmed AMI playback; two track folders were saved. No worker kill or test-5 acceptance check occurred. Evidence: external `gate3-wave1-clone-20261111-evidence\wave1-tests2-5-20261112\wave1-tests2-5-followup-results.md`, `owner-app-library\logs\scrb-2026-11-12.log`, and `owner-app-library\meetings\2026-11-12 Meeting\`. Attribution: agent sequencing error (capture began before confirming the fixture player could start), compounded by sandbox process-launch denial. Correction: stopped the recording, preserved the files, did not inspect their audio/transcript contents, and stopped Wave 1. Future attempt requires owner-side fixture playback before recording begins; exact Command Prompt command is in the results file. Remaining risk: the retained 66.417-second tracks may include ambient microphone audio; no cleanup or audio review was performed.
+
+### A-290 — Correction — A-289 (formerly A-272) register entry moved with owner authorization
+
+Formerly A-273 correction in the BCHEN-W10 clone's local register
+The owner subsequently authorized moving the former local A-272 (now A-289) into this clone. I removed only that block from `C:\Users\bchen\Documents\GitHub\scrb\agents\agent_self_induced_failures.md` using its explicit path; that wrong worktree then had no diff for it, and its pre-existing content was preserved. It is recorded above in this clone as A-289. No commit was made.
+
 ### A-291 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — stale-PR claim in the project review
 
 - **Status / attribution:** Confirmed agent review error, caught by the same agent before any PR was closed or branch deleted; not an application defect.
 - **What failed:** The 2026-11-12 project review told the owner that most open drafts #21–#54 were stale and "whose work later merged through #42", and recommended closing them and deleting the 57 `rosmont/*` branches. A later `git cherry` check against `origin/main` found only #28, #30, #33, #39, #40 and #41 fully on `main`; #21, #25, #32, #34, #35, #36, #38, #52, #53 and #54 still hold commits that are not on `main`, and #53/#54 hold Windows Gate 3 evidence that the evidence-retention rule keeps until that gate passes.
 - **Agent-controlled cause:** Inferred staleness from PR dates and the #42 merge instead of checking each branch against `main`.
 - **Impact:** The owner agreed to the cleanup on the wrong premise. Nothing was closed or deleted. Owner reading time only; quota impact not separately measurable.
-- **Correction / remaining risk:** Per-PR comparison recorded in PR for `cuc/repo-cleanup-20261112`; only the six fully merged PRs are proposed for closing, and no branch deletion is proposed before Windows Gate 3 passes. ID chosen after A-290 in open PR #108; renumber if that collides.
+- **Correction / remaining risk:** Per-PR comparison recorded in PR for `cuc/repo-cleanup-20261112`; only the six fully merged PRs are proposed for closing, and no branch deletion is proposed before Windows Gate 3 passes.
 
 ### A-292 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — PR #109 missed four moved-handoff links
 
