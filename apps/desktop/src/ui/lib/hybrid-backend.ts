@@ -26,6 +26,12 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   'importAudioFile',
   'cancelImport',
   'listImports',
+  'listTerms',
+  'updateTerm',
+  'deleteTerm',
+  'getVocabularyUndoState',
+  'undoVocabulary',
+  'redoVocabulary',
 ]);
 /** Each goes to the side that holds the meeting it names. */
 const MEETING_CALLS: ReadonlySet<CallName> = new Set([

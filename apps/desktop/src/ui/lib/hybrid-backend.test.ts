@@ -29,8 +29,41 @@ describe('createHybridBackend', () => {
 
   it('leaves other calls on the mock', async () => {
     const real = await realReturning();
-    await createHybridBackend(real, mock).call('listTerms');
-    expect(real.call).not.toHaveBeenCalledWith('listTerms', undefined);
+    await createHybridBackend(real, mock).call('getSetupStatus');
+    expect(real.call).not.toHaveBeenCalledWith('getSetupStatus', undefined);
+  });
+
+  it('sends the vocabulary calls to the real backend, not the mock', async () => {
+    const real = { call: vi.fn(async () => undefined), on: vi.fn() } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call');
+    const backend = createHybridBackend(real, mock);
+    const requests: [string, unknown][] = [
+      ['listTerms', undefined],
+      ['updateTerm', { id: 't1', patch: { enabled: false } }],
+      ['deleteTerm', { id: 't1' }],
+      ['getVocabularyUndoState', undefined],
+      ['undoVocabulary', undefined],
+      ['redoVocabulary', undefined],
+    ];
+    for (const [name, request] of requests) {
+      await (backend.call as (n: string, r?: unknown) => Promise<unknown>)(name, request);
+      expect(real.call).toHaveBeenCalledWith(name, request);
+      expect(mockCall).not.toHaveBeenCalledWith(name, request);
+    }
+  });
+
+  it('falls back to the mock for vocabulary when the library did not open', async () => {
+    const real = {
+      call: vi.fn(async (name: string) => {
+        if (name === 'listTerms')
+          throw new ContractError({ code: 'notImplemented', message: 'No.' });
+        return undefined;
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const terms = await createHybridBackend(real, mock).call('listTerms');
+    expect(terms).toEqual(await mock.call('listTerms'));
+    expect(terms.length).toBeGreaterThan(0);
   });
 
   it('sends the source pickers to the real backend without copying them to the mock', async () => {
