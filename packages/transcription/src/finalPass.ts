@@ -27,6 +27,8 @@ import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 
 /** Sherpa runs under the usable band on purpose; speakers are merged afterwards. */
 export const OVERSPLIT_THRESHOLD = 1.0;
+// TS3003a: distinct sub-30 s voices far from every larger cluster were wrongly absorbed.
+const FINAL_RELABEL_DEFAULTS: RelabelOptions = { minSpeakerMs: 13_000 };
 const TURN_GAP_MS = 1500;
 export const YOU_ID = 'you';
 
@@ -60,7 +62,8 @@ export async function runFinalPass(o: FinalPassOptions): Promise<FinalTranscript
   await mkdir(o.workDir, { recursive: true });
   try {
     const threads = o.threads ?? 4;
-    const report = (phase: FinalPhase, fraction: number): void => o.onProgress?.({ phase, fraction });
+    const report = (phase: FinalPhase, fraction: number): void =>
+      o.onProgress?.({ phase, fraction });
 
     const prepared: { kind: TrackKind; wavPath: string }[] = [];
     for (const [i, track] of o.tracks.entries()) {
@@ -129,7 +132,7 @@ async function diarizeTrack(
     const embedded = toEmbed.flatMap((s, i) =>
       vectors[i] ? [{ segment: s, vector: vectors[i] }] : [],
     );
-    return decideSpeakers(raw, embedded, o.relabel);
+    return decideSpeakers(raw, embedded, { ...FINAL_RELABEL_DEFAULTS, ...o.relabel });
   } catch (err) {
     sherpa.kill();
     throw err;
@@ -154,7 +157,11 @@ export function decideSpeakers(
     if (c) c.speechMs += ms;
     else {
       clusters.set(s.speaker, {
-        raw: s.speaker, speechMs: ms, embedding: null, embeddedSegments: 0, sum: null,
+        raw: s.speaker,
+        speechMs: ms,
+        embedding: null,
+        embeddedSegments: 0,
+        sum: null,
       });
     }
   }
@@ -168,7 +175,7 @@ export function decideSpeakers(
   }
   for (const c of clusters.values()) if (c.sum) c.embedding = unit(c.sum);
 
-  const map = relabelClusters([...clusters.values()], relabel);
+  const map = relabelClusters([...clusters.values()], { ...FINAL_RELABEL_DEFAULTS, ...relabel });
   const id = (index: number): string => `speaker-${index + 1}`;
   const spans: SpeakerSpan[] = raw
     .map((s) => ({
@@ -213,7 +220,12 @@ function assemble(
     if (t.kind === 'mic') {
       for (const w of t.words) words.push({ ...w, track: 'mic', speakerId: YOU_ID });
       if (t.words.length > 0) {
-        all.unshift({ id: YOU_ID, label: 'You', speechMs: speechOf(t.words), embeddingSegments: 0 });
+        all.unshift({
+          id: YOU_ID,
+          label: 'You',
+          speechMs: speechOf(t.words),
+          embeddingSegments: 0,
+        });
       }
     } else {
       const ids = assignSpeakers(t.words, spans, 'speaker-1');
@@ -246,12 +258,22 @@ export function buildTurns(words: Word[]): Turn[] {
     open = null;
   };
   words.forEach((w, i) => {
-    if (open && (open.turn.speakerId !== w.speakerId || w.startMs - open.turn.endMs > TURN_GAP_MS)) {
+    if (
+      open &&
+      (open.turn.speakerId !== w.speakerId || w.startMs - open.turn.endMs > TURN_GAP_MS)
+    ) {
       close();
     }
     if (!open) {
       open = {
-        turn: { speakerId: w.speakerId, startMs: w.startMs, endMs: w.endMs, text: '', firstWord: i, wordCount: 0 },
+        turn: {
+          speakerId: w.speakerId,
+          startMs: w.startMs,
+          endMs: w.endMs,
+          text: '',
+          firstWord: i,
+          wordCount: 0,
+        },
         texts: [],
       };
     }
