@@ -854,3 +854,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Read the manifest's truncated hashes and stopped before the script that it names.
 - **Impact:** None yet: found before any asset was moved. The plan was amended and the step-2 PR reuses the existing script and rebuilds the builds.
 - **Correction / remaining risk:** Step 2 amended in the plan. Windows builds were not inspected for the same issue; DLLs there load from the program's own folder, but this is unverified on the Windows PCs.
+
+### A-296 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 2 PR missed the sherpa-onnx build
+
+- **Status / attribution:** Confirmed agent error, found by the same agent while updating the owner's dev configs after PR #112 opened; not an application defect. Not yet independently reviewed.
+- **What failed:** PR #112 (commit `32c2a5d`) rebuilt whisper.cpp and llama.cpp but not `upstream/sherpa-onnx/build/install`. Its build folder was removed on copy like the others, and `packages/transcription/.bin/scrb-sherpa` (final-pass diarization) has an rpath into `phase0/upstream/sherpa-onnx/build/install/lib`. A-295's correction said "the builds" were handled.
+- **Agent-controlled cause:** Checked rpaths only on the whisper.cpp and llama.cpp binaries, and did not list which tools link against each removed build folder.
+- **Impact:** None yet: `phase0/` still exists, so the old sidecar still loads. Final-pass diarization would have broken once `phase0/` was removed.
+- **Correction / remaining risk:** The build group now builds and installs sherpa-onnx with the Phase 0 settings; `scrb-sherpa` is rebuilt against it, its rpath is checked, and it starts with the models. Separately, the owner's final-pass config named `ffmpeg`/`ffprobe` in a deleted worktree; that predates this PR. The live-diarization probe in `phase0/probes/` still uses the old path; it is archived in step 4.
