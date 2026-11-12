@@ -7,7 +7,7 @@ Read-only trace. No product code changed, nothing run, no model, audio or scorin
 1. **Sherpa returns overlapping segments.** It emits one segment list per cluster, so two clusters speaking at once give two time-overlapping segments (P:`ComputeResult` L722-790). The sidecar writes every segment, sorted by start, with no de-overlap (`packages/transcription/native/scrb-sherpa.cpp:68-90`); `toSegments` passes them through (`sherpa.ts:118-120`).
 2. **Overlap enters and leaves sherpa through a count rule.** The powerset head gives a 0/1/2-speaker multilabel per frame (P:`ToMultiLabel` L379, mapping L261-290). Chunks overlap, so each frame is covered by several chunks. `ComputeSpeakersPerFrame` sets the per-frame speaker count to the mean over chunks `+ 0.5`, truncated (P:424). `FinalizeLabels` then keeps that many top clusters per frame (P:697-715). A frame needs a mean count of 1.5 or more to keep two speakers.
 3. **Embeddings skip overlap.** `ExcludeOverlap` drops frames with 2 or more speakers before embedding (P:433, 506). This affects identity, not span output.
-4. **Sidecar settings.** `min_duration_on 0.3`, `min_duration_off 0.5`, window threshold 1.2 (`scrb-sherpa.cpp:40,187-188`). Final pass runs at threshold 1.0, deliberately over-split (`finalPass.ts:28`), then merges (fact 5). In sherpa these only merge a speaker's own nearby segments (P:`MergeSegments`) and drop short ones (P:`ComputeResult`); they never remove a second speaker.
+4. **Sidecar settings.** `min_duration_on 0.3`, `min_duration_off 0.5`, window threshold 1.2 (`scrb-sherpa.cpp:40,187-188`). Final pass runs at threshold 1.0, deliberately over-split (`finalPass.ts:28`), then merges (fact 5). In sherpa these only merge a speaker's own nearby segments (P:`MergeSegments`) and drop short ones (P:`ComputeResult` L783-789 discards any single speaker segment of 0.3 s or less), which can remove a brief second-speaker segment during overlap; how much is unmeasured.
 5. **Final merge flattens overlap.** `decideSpeakers` maps raw clusters to final speakers and relabels every raw segment (`finalPass.ts:147-186`, `relabelClusters` in `speakers.ts`). Two raw clusters speaking together that land on one final speaker give two spans with the same label, which score as one voice.
 6. **Words get one speaker.** `assignSpeakers` picks the span with the largest overlap (`speakers.ts:312-342`). The live path does the same per word (`meetingDiarizer.ts:196-215`). The DER scorer reads spans, not words, so this loses overlap in the transcript only.
 7. **Live path** diarizes windows with the same sidecar and clusters embeddings in `LiveClusterer` (`meetingDiarizer.ts:100-165`, `speakers.ts`). It is untraced beyond that; it also drops spans under 1.5 s before embedding (`meetingDiarizer.ts:133`, per `miss-diagnosis.md`).
@@ -16,10 +16,10 @@ Measured (retained evidence, ES2004a, reference overlap away from collars = 83.0
 
 ## Stages that can drop or flatten overlap, most likely first
 
-1. **Model/count rule before any span exists** (about 50 s: the 44.60 s plus 5.42 s above). Either the model emits one speaker there, or the `+ 0.5` rounding (fact 2) discards a second speaker that only some chunks signal. **Guess:** the rule is the cheapest suspect because it is a known pyannote heuristic, but nothing here shows which it is.
+1. **Loss before raw output** (about 50 s: the 44.60 s plus 5.42 s above). Suspects: the model emits one speaker there; the `+ 0.5` rounding (fact 2) discards a second speaker that only some chunks signal; or the 0.3 s minimum-duration filter (fact 4) removes short second-speaker segments (possible, unmeasured). **Guess:** the rule is the cheapest suspect because it is a known pyannote heuristic, but nothing here shows which it is.
 2. **Final cluster merge** (8.96 s measured). Intended behavior; removing it would raise confusion. Low value.
 3. **One label per word** (transcript only, no DER effect).
-4. **Not causes:** min-durations, `embeddingSpans` 1.5 s selection, sidecar output code, the clustering threshold (previous work found its usable band narrow).
+4. **Not shown to be causes:** `embeddingSpans` 1.5 s selection, sidecar output code, the clustering threshold (previous work found its usable band narrow).
 
 ## Cheapest next experiment (proposal, unverified)
 
