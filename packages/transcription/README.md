@@ -18,9 +18,12 @@ SHERPA_ONNX_DIR=/path/to/sherpa-onnx/install npm run build:sidecar
 npm test
 ```
 
-Tools are found through `toolsIn(dir, overrides)`.  `npm test` needs `.bin/ffmpeg`
-and `.bin/ffprobe`; set `SCRB_VIDEO_FIXTURE` to any small MP4 to run the video
-rejection test.  Decoder license: see `THIRD_PARTY_NOTICES.md`.
+Tools are found through `toolsIn(dir, overrides)`.  The real-decoder tests in
+`import.test.ts` (20) and `live.test.ts` need `.bin/ffmpeg` and `.bin/ffprobe`.
+Without them they skip and print one `SKIPPED` warning per file; with
+`SCRB_REQUIRE_DECODER=1` (set by macOS CI) a missing decoder fails the run.
+The video-rejection test also needs `SCRB_VIDEO_FIXTURE` (any small MP4), so
+CI runs 19 of the 20 unless it is set.  The build script is macOS and Linux only.  Decoder license: see `THIRD_PARTY_NOTICES.md`.
 
 ## What is here
 
