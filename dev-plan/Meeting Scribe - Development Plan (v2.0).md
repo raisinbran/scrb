@@ -114,7 +114,7 @@ The meeting folder is the source of truth; the index can always be rebuilt from 
 
 ## Phases and gates
 
-Nine phases, each ending in a gate you approve. A gate passes only with test evidence on both machines. From Phase 1 on, each phase starts by freezing the contract changes it needs; Claude Code then builds the UI against the mock backend while Codex builds the backend, and the two are merged before the gate (a user-specified split; see the Development Process and UI Specification documents).
+Nine phases, each ending in a gate you approve. A gate passes only with test evidence on both machines, except Gate 3, which is recorded per platform (see Gate 3 status below). From Phase 1 on, each phase starts by freezing the contract changes it needs; Claude Code then builds the UI against the mock backend while Codex builds the backend, and the two are merged before the gate (a user-specified split; see the Development Process and UI Specification documents).
 
 ### Phase 0: Feasibility spikes (throwaway code)
 
