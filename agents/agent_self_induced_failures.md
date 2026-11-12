@@ -310,6 +310,9 @@ Session labels are file-local: `review-usage-logging.md:S-01` below abbreviates 
 | A-101 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-05`: `$B:scripts` was interpreted as a zsh substitution modifier; first review command failed, costing one tool call and a short delay. | **Confirmed (agent admission).** Reissued with a quoted/braced path; no data loss reported. |
 | A-102 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-06`: “no P1” review report omitted that truncated/unread files were outside coverage. Potential false assurance; no defect in those unread files established. | **Provisional**, based on the prior self-audit, not an independent replay. Limit the conclusion to render/measure/assemble/verify/test_units paths; broader review remains unsubstantiated. |
 | A-103 | Nov 8 / Claude Code, Sonnet 5.5, Mac | `review-usage-logging.md:S-07`: claimed another outside-Git memory entry relied on usage numbers without reading that entry; inferred from its index. Possible misleading memory guidance, impact unknown. | **Provisional**, prior self-audit only. Dependency claim remains unverified; do not reproduce private memory contents or silently treat it as confirmed. |
+| A-104 | Nov 12 / Codex, GPT-6, Windows | Windows dev-config search excluded directories only by literal names and still enumerated config-like filenames inside `srcb` gate evidence folders. No file contents were opened or changed. | **Confirmed (agent admission).** Stopped searching `srcb`; later searches excluded it. Eligible dev configs remain unlocated. |
+| A-105 | Nov 12 / Codex, GPT-6, Windows | During the seeded dev-assets run, Ctrl+C was not issued until after the Qwen model `.part` had grown to 553,898,124 bytes, exceeding the requested few-hundred-MB download stop threshold. | **Confirmed (observed file size).** Interrupted the run and removed only `C:\Users\bchen\scrb-dev-assets\models\llm\Qwen3.5-9B-Q4_K_M.gguf.part`; no source seed or protected folder changed. |
+| A-106 | Nov 12 / Codex, GPT-6, Windows | Issued an unintended second invocation of `scripts/dev-assets.sh` while trying to obtain a duration; sandbox denied it immediately, so it made no writes. | **Confirmed (agent admission).** No repeat was made; the original run duration is reported as approximate because its stopwatch process was interrupted. |
 
 ## Explicit exclusions: do not assign blame without evidence
 
@@ -886,6 +889,30 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Took the repo path from one handoff line without checking where the Windows evidence records put the assets.
 - **Impact:** One short Codex run (about 5 minutes, 5h 99%→99%, weekly 28%→28%) and owner relay time. Nothing changed on the PC.
 - **Correction / remaining risk:** The revised prompt has Codex locate the folder that holds `phase0\models` and use it as the seed, and call Git Bash by its full path.
+
+### A-300 — 2026-11-12 — Codex (GPT-6) / Windows — config search entered excluded evidence folders
+
+- **Status / attribution:** Confirmed agent search-scope mistake; no config contents were read and no files were changed.
+- **What failed:** A search excluded folders only when their names literally contained `evidence` or `results`. Several `srcb` gate evidence folders use other names, so their config-like filenames appeared in search output.
+- **Agent-controlled cause:** Used a name-pattern exclusion instead of excluding the entire protected `srcb` tree from config discovery.
+- **Impact:** Protected-folder filenames were enumerated. No contents, recordings, or evidence were opened or used.
+- **Correction / remaining risk:** Stopped searching `srcb` and excluded it from subsequent searches. Profile-wide search access was denied; no eligible configs were found in searched non-srcb GitHub/AppData locations. Config copies and the final-pass DLL-path check remain unavailable.
+
+### A-301 — 2026-11-12 — Codex (GPT-6) / Windows — delayed stop of a large seeded-run download
+
+- **Status / attribution:** Confirmed agent error. The owner-set stop threshold was exceeded by an incomplete download.
+- **What failed:** The seeded script reached `Qwen3.5-9B-Q4_K_M.gguf`; Ctrl+C was delivered after the `.part` file had reached 553,898,124 bytes.
+- **Agent-controlled cause:** Did not issue the stop signal immediately on the first output identifying the multi-gigabyte missing model.
+- **Impact:** A 553,898,124-byte incomplete download temporarily occupied C: space. No seed, phase0, evidence, or results folder was changed.
+- **Correction / remaining risk:** Removed only that `.part` from `%USERPROFILE%\scrb-dev-assets`. The rest of the authorized seeded run output remains in that destination; it includes earlier successful copies and downloads.
+
+### A-302 — 2026-11-12 — Codex (GPT-6) / Windows — unintended repeated script invocation
+
+- **Status / attribution:** Confirmed agent mistake; the attempted invocation failed immediately on sandbox write permission.
+- **What failed:** A second `scripts/dev-assets.sh` invocation was issued while intending to measure the first run's duration.
+- **Agent-controlled cause:** Reused the script command instead of reading the existing process outcome.
+- **Impact:** One unnecessary failed command; no destination writes occurred. Exact script duration could not be recovered after Ctrl+C terminated the stopwatch wrapper.
+- **Correction / remaining risk:** No further invocation was made; duration is described as approximately 1 minute 40 seconds.
 
 ### A-303 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — overlap guard missed an unresolved `..`
 
