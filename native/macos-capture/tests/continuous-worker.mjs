@@ -1,14 +1,17 @@
-// Usage: node continuous-worker.mjs <compiled transcription> <native test binary> <raw fixtures> <dev assets> [source rate ...]
+// Usage: node continuous-worker.mjs <compiled transcription> <native test binary> <raw fixtures> [source rate ...]
+// Models and whisper.cpp builds come from SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 // Fixtures are 60 seconds of invented/public mono s16le at each source rate.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const [compiled, native, fixtures, assets] = process.argv.slice(2).map((value) => resolve(value));
+const [compiled, native, fixtures] = process.argv.slice(2).map((value) => resolve(value));
+const assets = process.env.SCRB_DEV_ASSETS ?? join(homedir(), 'scrb-dev-assets');
 const load = (file) => import(pathToFileURL(join(compiled, file)).href);
 const { LiveAudioWorker } = await load('liveAudioWorker.js');
 const { PcmFrameDecoder } = await load('livePcmProtocol.js');
@@ -20,7 +23,7 @@ const models = {
   segmentation: 'unused',
   embedding: 'unused',
 };
-const rates = process.argv.length > 6 ? process.argv.slice(6).map(Number) : [48000, 44100];
+const rates = process.argv.length > 5 ? process.argv.slice(5).map(Number) : [48000, 44100];
 for (const rate of rates) {
   const wire = join(fixtures, `wire-${rate}.pcm`);
   execFileSync(native, [String(rate), join(fixtures, `continuous-${rate}.raw`), wire]);
