@@ -928,3 +928,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Pinned only the package whose version I had looked up.
 - **Impact:** None on results; the resolved version is recorded in the experiment note. Owner-visible deviation from the pin instruction.
 - **Correction / remaining risk:** Versions recorded (numpy 2.5.4, onnxruntime 1.31.1); no further installs. The venv is outside git.
+
+### A-305 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — PR #112 CI failed on every commit unnoticed
+
+- **Status / attribution:** Confirmed agent error, found by the agent when the owner marked PR #112 ready; not an application defect.
+- **What failed:** CI's "Check Prettier on changed TypeScript" step failed on both platforms on every PR #112 commit from `32c2a5d` on, because `packages/summary/eval/run.ts`, `e2e-ami.ts` and `m1-joins.ts` were edited but not formatted. The agent had seen the local Prettier warnings, called them pre-existing, and told the owner CI was pending, never reading its result. ChatGPT approval and the owner's ready step went ahead on a red PR.
+- **Agent-controlled cause:** Did not run the CI's changed-file Prettier check locally, and did not read CI results before asking for approvals.
+- **Impact:** One extra commit and CI round; the owner's ready-for-review approval was given against failing checks.
+- **Correction / remaining risk:** The three files are formatted (layout only); the CI's changed-file check passes locally and `npm run check` passes. CI must be green before merge.
