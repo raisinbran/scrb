@@ -523,18 +523,14 @@ describe('slice 2b: names across the final pass', () => {
         seg('f2', 'Y', 10_000, 20_000, 'final'),
       );
 
-    it('clears on rename, merge either way and reassign; not on profile matching or another pass', () => {
-      expect(
-        find(renameSpeaker(flagged(), 'a', 'Alicia'), 'a')?.needsManualResolution,
-      ).toBeUndefined();
+    it('clears on a merge either way; not on rename, reassign, profile matching or another pass', () => {
       expect(find(mergeSpeakers(flagged(), 'a', 'X'), 'a')?.needsManualResolution).toBeUndefined();
       expect(find(mergeSpeakers(flagged(), 'X', 'a'), 'a')?.needsManualResolution).toBeUndefined();
       const f = flagged();
+      expect(find(renameSpeaker(f, 'a', 'Alicia'), 'a')?.needsManualResolution).toBe(true);
       const word = f.segments.find((s) => s.speakerId === 'Y')!.words[0]!;
       const moved = reassignSpeaker(f, [word.id], 'a');
-      expect(find(moved, 'a')?.needsManualResolution).toBeUndefined();
-      expect(find(undo(moved), 'a')?.needsManualResolution).toBe(true);
-      expect(find(redo(undo(moved)), 'a')?.needsManualResolution).toBeUndefined();
+      expect(find(moved, 'a')?.needsManualResolution).toBe(true);
       const matched = assignSpeakerProfiles(f, [{ speakerId: 'a', profileId: 'p', name: 'Zed' }]);
       expect(find(matched, 'a')?.needsManualResolution).toBe(true);
       const again = finalOf(
@@ -543,6 +539,8 @@ describe('slice 2b: names across the final pass', () => {
         seg('g2', 'Y', 10_000, 20_000, 'final'),
       );
       expect(find(again, 'a')).toMatchObject({ name: 'Alice', needsManualResolution: true });
+      const merged = mergeSpeakers(f, 'a', 'X');
+      expect(find(undo(merged), 'a')?.needsManualResolution).toBe(true);
     });
 
     it('a flagged speaker merged away is not listed', () => {
@@ -551,11 +549,6 @@ describe('slice 2b: names across the final pass', () => {
           .map((s) => s.id)
           .sort(),
       ).toEqual(['X', 'Y']);
-    });
-
-    it('undo of the rename brings the flag back', () => {
-      const renamed = renameSpeaker(flagged(), 'a', 'Alicia');
-      expect(find(undo(renamed), 'a')?.needsManualResolution).toBe(true);
     });
   });
 
@@ -683,5 +676,29 @@ describe('slice 2b: names across the final pass', () => {
       expect(find(second, fresh.speakerId)?.name).toBeNull();
       expect(find(second, 'speaker-2')?.name).toBeNull();
     });
+  });
+});
+
+describe('reserved microphone speaker through the final pass', () => {
+  it('keeps one renamed you, never re-keys it, and leaves other collisions re-keyed', () => {
+    const t = transcript(
+      [seg('m', 'you', 0, 5_000, 'live', 'microphone'), seg('l', 'speaker-1', 0, 5_000)],
+      [{ ...speaker('you'), name: 'Brandon', userNamed: true }, speaker('speaker-1')],
+    );
+    const renamed = renameSpeaker(t, 'you', 'Brandon C');
+    const out = applyFinalPass(renamed, {
+      segments: [
+        seg('fm', 'you', 0, 5_000, 'final', 'microphone'),
+        seg('fl', 'speaker-1', 0, 5_000, 'final'),
+      ],
+      speakers: [speaker('you'), speaker('speaker-1')],
+    });
+    expect(out.speakers.filter((s) => s.id === 'you')).toHaveLength(1);
+    expect(out.speakers.some((s) => s.id.includes(':you'))).toBe(false);
+    expect(find(out, 'you')).toMatchObject({ name: 'Brandon C', userNamed: true });
+    expect(out.segments.find((s) => s.track === 'microphone')?.speakerId).toBe('you');
+    expect(out.segments.find((s) => s.track === 'meeting')?.speakerId).toBe('final:1:speaker-1');
+    expect(out.undoStack).toHaveLength(1);
+    expect(find(undo(out), 'you')?.name).toBe('Brandon');
   });
 });

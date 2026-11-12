@@ -888,7 +888,7 @@ describe('speaker names across the final pass (library)', () => {
     await library.close();
   });
 
-  it('a failed save leaves the live speaker untouched; a reopened flag persists and clears on rename', async () => {
+  it('a failed save leaves the live speaker untouched; a reopened flag persists and clears on merge', async () => {
     const root = await tempDir();
     let library = await Library.open({ root });
     const id = await liveMeeting(library);
@@ -920,7 +920,9 @@ describe('speaker names across the final pass (library)', () => {
         .sort(),
     ).toEqual(['X', 'Y', 'a']);
     expect(reopened.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
-    const settled = await library.renameSpeaker(id, 'a', 'Alice B');
+    const renamed = await library.renameSpeaker(id, 'a', 'Alice B');
+    expect(renamed.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
+    const settled = await library.mergeSpeakers(id, 'a', 'X');
     expect(settled.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBeUndefined();
     await library.close();
   });
