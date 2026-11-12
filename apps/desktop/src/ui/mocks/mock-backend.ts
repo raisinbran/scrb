@@ -31,6 +31,7 @@ import {
   type SummaryStage,
   type TranscriptSegment,
   type TranscriptionLag,
+  type VocabularySuggestion,
   type VocabularyTerm,
   type VoiceProfile,
   type WordRange,
@@ -44,6 +45,7 @@ import {
   MEETING_APPS,
   MODELS,
   MODEL_UPDATES,
+  VOCABULARY_SUGGESTIONS,
   VOCABULARY_TERMS,
   VOICE_PROFILES,
   createLibrary,
@@ -275,6 +277,7 @@ export class MockBackend implements Backend {
   private termUndo: VocabularyTerm[][] = [];
   private termRedo: VocabularyTerm[][] = [];
   private terms: VocabularyTerm[] = VOCABULARY_TERMS.map((term) => ({ ...term }));
+  private suggestions: VocabularySuggestion[] = VOCABULARY_SUGGESTIONS.map((s) => ({ ...s }));
   private readonly meetingSpeakers = new Map<string, Speaker[]>();
   private readonly updatedModels = new Set<string>();
   private readonly modelUpdateTimers = new Map<ModelRole, Timer[]>();
@@ -359,6 +362,7 @@ export class MockBackend implements Backend {
     this.history.clear();
     this.profiles = VOICE_PROFILES.map((profile) => ({ ...profile }));
     this.terms = VOCABULARY_TERMS.map((term) => ({ ...term }));
+    this.suggestions = VOCABULARY_SUGGESTIONS.map((s) => ({ ...s }));
     this.termUndo = [];
     this.termRedo = [];
     this.meetingSpeakers.clear();
@@ -1185,6 +1189,29 @@ export class MockBackend implements Backend {
       return { canUndo: this.termUndo.length > 0, canRedo: this.termRedo.length > 0 };
     },
     listTerms: () => this.terms,
+    listVocabularySuggestions: () => this.suggestions,
+    answerVocabularySuggestion: ({ id, accepted }) => {
+      const suggestion = this.suggestions.find((item) => item.id === id);
+      if (!suggestion) {
+        throw new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
+      }
+      this.suggestions = this.suggestions.filter((item) => item.id !== id);
+      if (accepted) {
+        this.terms = [
+          ...this.terms,
+          {
+            id: this.id('term'),
+            term: suggestion.term,
+            misheard: suggestion.misheard,
+            contexts: [],
+            enabled: true,
+            history: [
+              { at: new Date().toISOString(), action: 'created', detail: 'From a suggestion' },
+            ],
+          },
+        ];
+      }
+    },
     updateTerm: ({ id, patch }) => {
       const term = this.terms.find((item) => item.id === id);
       if (!term)
