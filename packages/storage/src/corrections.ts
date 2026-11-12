@@ -271,7 +271,8 @@ function replaceSpeakers(
 
 /** An explicit user decision settles a speaker the final pass flagged for review. */
 function clearReview(speaker: Speaker): Speaker {
-  const { needsManualResolution: _flag, ...rest } = speaker;
+  const rest = { ...speaker };
+  delete rest.needsManualResolution;
   return rest;
 }
 
@@ -923,6 +924,7 @@ function rebaseEntry(
   transfer: SpeakerTransfer,
   finals: Map<string, Speaker>,
   known: Set<string>,
+  retired: Set<string>,
 ): HistoryEntry | null {
   const remap = (id: string): string => transfer.mapping.get(id) ?? id;
   const link = (id: string | null): string | null => (id === null ? null : remap(id));
@@ -950,7 +952,9 @@ function rebaseEntry(
   };
   const speakers: Patch<Speaker>[] = [];
   for (const patch of entry.speakers) {
-    if (sides(patch).some((s) => s !== null && s.id !== patch.id)) return null;
+    if (retired.has(patch.id) || sides(patch).some((s) => s !== null && s.id !== patch.id)) {
+      return null;
+    }
     const rebased = {
       id: remap(patch.id),
       before: rebaseSpeaker(patch.before),
@@ -1021,14 +1025,38 @@ export function applyFinalPass(
 
   const wordIds = new Set(next.segments.flatMap((s) => s.words.map((w) => w.id)));
   const finals = new Map(next.speakers.map((speaker) => [speaker.id, speaker]));
-  const known = new Set(finals.keys());
+  // An old speaker nothing points to any more is retired: history about it would act on nobody.
+  const referenced = new Set<string>([
+    ...next.segments.map((segment) => segment.speakerId),
+    ...next.speakerOverrides.map((override) => override.speakerId),
+  ]);
+  for (const id of [...referenced]) {
+    for (let hop = 0, at = finals.get(id); at?.mergedInto && hop < finals.size; hop += 1) {
+      referenced.add(at.mergedInto);
+      at = finals.get(at.mergedInto);
+    }
+  }
+  const previous = new Set(transcript.speakers.map((speaker) => speaker.id));
+  const incomingIds = new Set((incoming.speakers ?? []).map((speaker) => speaker.id));
+  const retired = new Set(
+    [...previous].filter(
+      (id) =>
+        !transfer.mapping.has(id) &&
+        !transfer.flagged.has(id) &&
+        !incomingIds.has(id) &&
+        !referenced.has(id),
+    ),
+  );
+  const known = new Set([...finals.keys()].filter((id) => !retired.has(id)));
   for (const entry of [...transcript.undoStack, ...transcript.redoStack]) {
-    for (const patch of entry.speakers) known.add(remap(patch.id));
+    for (const patch of entry.speakers) {
+      if (!previous.has(patch.id)) known.add(remap(patch.id));
+    }
   }
   const stacks = [transcript.undoStack, transcript.redoStack].map((stack) =>
     stack.map((entry) => ({
       entry,
-      rebased: rebaseEntry(entry, wordIds, transfer, finals, known),
+      rebased: rebaseEntry(entry, wordIds, transfer, finals, known, retired),
     })),
   );
   const dropped = new Set<string>();
