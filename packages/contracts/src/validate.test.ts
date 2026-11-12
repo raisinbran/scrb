@@ -92,6 +92,28 @@ describe('isValidRequest', () => {
     expect(isValidRequest('getPrivacyJurisdictions', { path: '/private' })).toBe(false);
   });
 
+  it('validates vocabulary suggestion calls', () => {
+    expect(isValidRequest('listVocabularySuggestions', undefined)).toBe(true);
+    expect(isValidRequest('listVocabularySuggestions', { id: 'a' })).toBe(false);
+    expect(isValidRequest('answerVocabularySuggestion', { id: 'abc-1', accepted: true })).toBe(
+      true,
+    );
+    expect(isValidRequest('answerVocabularySuggestion', { id: 'abc-1', accepted: false })).toBe(
+      true,
+    );
+    expect(isValidRequest('answerVocabularySuggestion', { id: '', accepted: true })).toBe(false);
+    expect(isValidRequest('answerVocabularySuggestion', { id: '../x', accepted: true })).toBe(
+      false,
+    );
+    expect(isValidRequest('answerVocabularySuggestion', { id: 'a', accepted: 'yes' })).toBe(false);
+    expect(isValidRequest('answerVocabularySuggestion', { id: 'a' })).toBe(false);
+    expect(
+      isValidRequest('answerVocabularySuggestion', { id: 'a', accepted: true, term: 'x' }),
+    ).toBe(false);
+    expect(CALL_NAMES).toContain('listVocabularySuggestions');
+    expect(CALL_NAMES).toContain('answerVocabularySuggestion');
+  });
+
   it('vocabulary history calls have no writable request parameters', () => {
     for (const call of ['getVocabularyUndoState', 'undoVocabulary', 'redoVocabulary'] as const) {
       expect(isValidRequest(call, undefined)).toBe(true);

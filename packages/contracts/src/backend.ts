@@ -62,6 +62,7 @@ import type {
   TranscriptPage,
   TranscriptionLag,
   UndoState,
+  VocabularySuggestion,
   VocabularyTerm,
   VocabularyTermPatch,
   VocabularyUndoState,
@@ -173,6 +174,8 @@ export interface BackendCalls {
   listTerms: { request: void; response: VocabularyTerm[] };
   updateTerm: { request: { id: TermId; patch: VocabularyTermPatch }; response: VocabularyTerm };
   deleteTerm: { request: { id: TermId }; response: void };
+  listVocabularySuggestions: { request: void; response: VocabularySuggestion[] };
+  answerVocabularySuggestion: { request: { id: string; accepted: boolean }; response: void };
   getVocabularyUndoState: { request: void; response: VocabularyUndoState };
   undoVocabulary: { request: void; response: VocabularyUndoState };
   redoVocabulary: { request: void; response: VocabularyUndoState };
@@ -359,6 +362,8 @@ const CALL_TABLE: Record<CallName, true> = {
   listTerms: true,
   updateTerm: true,
   deleteTerm: true,
+  listVocabularySuggestions: true,
+  answerVocabularySuggestion: true,
   getVocabularyUndoState: true,
   undoVocabulary: true,
   redoVocabulary: true,

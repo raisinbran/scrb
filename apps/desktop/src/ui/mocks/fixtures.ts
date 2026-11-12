@@ -9,6 +9,7 @@ import {
   type MeetingSummaryDoc,
   type ModelInfo,
   type ModelUpdate,
+  type VocabularySuggestion,
   type VocabularyTerm,
   type VoiceProfile,
 } from '@scrb/contracts';
@@ -97,6 +98,23 @@ export const VOCABULARY_TERMS: VocabularyTerm[] = [
       { at: '2026-09-30T09:12:00Z', action: 'created', detail: 'From a correction' },
       { at: '2026-10-02T11:00:00Z', action: 'disabled', detail: 'Turned off by you' },
     ],
+  },
+];
+
+export const VOCABULARY_SUGGESTIONS: VocabularySuggestion[] = [
+  {
+    id: 'suggestion-1',
+    term: 'Marlow Quay',
+    misheard: ['marlo key', 'marlowe key'],
+    correctionCount: 4,
+    meetingCount: 3,
+  },
+  {
+    id: 'suggestion-2',
+    term: 'Tessel',
+    misheard: ['tassel'],
+    correctionCount: 2,
+    meetingCount: 2,
   },
 ];
 

@@ -67,3 +67,12 @@
   margin: 0 0 var(--space-2);
   color: var(--color-danger);
 }
+
+.suggestions {
+  margin-bottom: var(--space-4);
+}
+
+.subheading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+}
