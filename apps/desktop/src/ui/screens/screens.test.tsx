@@ -142,7 +142,9 @@ describe('screens', () => {
       confirm.focus();
       fireEvent.click(confirm);
       await waitFor(() => expect(screen.queryByText('Kestrel API')).toBeNull());
-      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' }));
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' })),
+      );
     });
 
     it('shows the empty state', async () => {

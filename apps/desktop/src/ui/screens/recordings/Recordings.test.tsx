@@ -66,8 +66,10 @@ describe('Recordings', () => {
       renderScreen();
       (await button(/Weekly project sync/)).focus();
       await openMeeting(/Weekly project sync/);
-      expect(document.activeElement).toBe(
-        screen.getByRole('heading', { name: 'Weekly project sync' }),
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole('heading', { name: 'Weekly project sync' }),
+        ),
       );
     });
 
