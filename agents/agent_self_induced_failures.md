@@ -936,3 +936,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Did not run the CI's changed-file Prettier check locally, and did not read CI results before asking for approvals.
 - **Impact:** One extra commit and CI round; the owner's ready-for-review approval was given against failing checks.
 - **Correction / remaining risk:** The three files are formatted (layout only); the CI's changed-file check passes locally and `npm run check` passes. CI must be green before merge.
+
+### A-306 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — negative test asserted against a speaker that was never returned
+- **Status / attribution:** Confirmed agent error, self-reported after ChatGPT review of PR #116; not an application defect. Filed as A-296 in PR #116; renumbered A-306 because PR #112 already used A-296.
+- **What failed:** The new `needsManualResolution` pass-through test gave the unflagged speaker `b` no segment, so `getTranscript` omitted it and "flag absent" was asserted on an empty object. The positive assertion was mutation-checked; the negative one was not.
+- **Agent-controlled cause:** Checked that the test fails when the pass-through is removed, not that each assertion could fail.
+- **Impact:** One extra review round. No product code affected.
+- **Correction / remaining risk:** `b` now has a segment and the test asserts it is returned before checking the flag is absent; mutation check repeated. Low.
