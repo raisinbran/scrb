@@ -1,6 +1,15 @@
 import { createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
-import { copyFile, mkdtemp, readFile, readdir, rm, truncate, utimes, writeFile } from 'node:fs/promises';
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  truncate,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -25,7 +34,9 @@ function tone(seconds: number, hz = 440): Int16Array {
 }
 
 const sha = async (p: string): Promise<string> =>
-  createHash('sha256').update(await readFile(p)).digest('hex');
+  createHash('sha256')
+    .update(await readFile(p))
+    .digest('hex');
 
 describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
   let dir: string;
@@ -33,7 +44,10 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
   const run = (sourcePath: string, extra: Partial<ImportOptions> = {}) =>
     importAudioFile({ tools, sourcePath, meetingDir, ...extra });
   const failure = async (p: Promise<unknown>): Promise<ImportError> => {
-    const err = await p.then(() => null, (e: unknown) => e);
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect(err).toBeInstanceOf(ImportError);
     return err as ImportError;
   };
@@ -48,7 +62,14 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
   });
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
-  for (const name of ['speech.wav', 'speech.mp3', 'speech-aac.m4a', 'speech-alac.m4a', 'speech.flac', 'speech.opus']) {
+  for (const name of [
+    'speech.wav',
+    'speech.mp3',
+    'speech-aac.m4a',
+    'speech-alac.m4a',
+    'speech.flac',
+    'speech.opus',
+  ]) {
     it(`imports ${name} into 5 s Opus chunks and leaves the source alone`, async () => {
       const source = join(dir, name);
       await copyFile(join(fixtures, name), source);
@@ -126,7 +147,9 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
   });
 
   it('refuses to start while recording', async () => {
-    const err = await failure(run(join(fixtures, 'speech.wav'), { recording: { isRecording: () => true } }));
+    const err = await failure(
+      run(join(fixtures, 'speech.wav'), { recording: { isRecording: () => true } }),
+    );
     expect(err.code).toBe('recording_active');
     await expectNothingLeft();
   });
@@ -170,13 +193,19 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
 
   it('leaves no meeting when the final pass fails', async () => {
     const models: ModelPaths = {
-      speechFinal: '/no/model', speechLive: '/no/model', vad: '/no/model',
-      segmentation: '/no/model', embedding: '/no/model',
+      speechFinal: '/no/model',
+      speechLive: '/no/model',
+      vad: '/no/model',
+      segmentation: '/no/model',
+      embedding: '/no/model',
     };
     const broken = { ...tools, whisperCli: '/usr/bin/false' };
     const err = await failure(
       importAudioFile({
-        tools: broken, sourcePath: join(fixtures, 'speech.wav'), meetingDir, transcribe: { models },
+        tools: broken,
+        sourcePath: join(fixtures, 'speech.wav'),
+        meetingDir,
+        transcribe: { models },
       }),
     );
     expect(err.code).toBe('transcription_failed');
