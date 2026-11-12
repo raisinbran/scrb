@@ -1,0 +1,35 @@
+name: v3
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Installs the toolchain that rust-toolchain.toml names.
+      - run: rustup toolchain install
+      - name: Run the v3 checks
+        run: SCRB_ENGINE_DIR="$PWD/engine" bash scripts/v3-check.sh
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install
+      - name: Run the tests
+        run: SCRB_ENGINE_DIR="$PWD/engine" cargo test --workspace --locked
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install
+      - name: Run the tests
+        shell: bash
+        run: SCRB_ENGINE_DIR="$PWD/engine" cargo test --workspace --locked
