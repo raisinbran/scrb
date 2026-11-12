@@ -223,7 +223,7 @@ The revised plan has **25 cases**, up from 22 in the first-pass QA. The coverage
 - [First QA, referenced by the revised plan](https://github.com/raisinbran/scrb/blob/main/phase0/gpt-QA-reports/20261030_pause-resume_QA.md)
 - [Approved crash-safe chunks and recovery plan](https://github.com/raisinbran/scrb/blob/main/docs/plans/crash-safe-chunks.md) - worker auto-restart, crash loss, low-disk stop, lock and recovery rules
 - [Capture contract and clock plan](https://github.com/raisinbran/scrb/blob/main/docs/plans/capture-contract-and-clock.md) - shared clock, pause, drift, per-track gap proposals
-- [Approved owner decisions, 2026-10-30](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/2026-10-30-owner-decisions.md) - four-hour Gate 2 run and revised quality targets
+- [Approved owner decisions, 2026-10-30](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/archive/2026-10-30-owner-decisions.md) - four-hour Gate 2 run and revised quality targets
 - [Current TypeScript contract](https://github.com/raisinbran/scrb/blob/main/packages/contracts/src/types.ts) - `RecordingStatus`, `RecordingState.elapsedMs`, `RecordingWarningKind`, `TimelineGap`
 - [V1 Requirements v1.2](https://github.com/raisinbran/scrb/blob/main/dev-plan/Meeting%20Scribe%20-%20V1%20Requirements%20v1.2.md) - recording integrity, pause/resume and export requirements
 

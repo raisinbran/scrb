@@ -1,8 +1,8 @@
 # Plan: Windows capture adapter
 
-Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
+Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/archive/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
-**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/2026-10-30-owner-decisions.md`.
+**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/archive/2026-10-30-owner-decisions.md`.
 
 **Pause changed (owner, 2026-10-30):** the adapter implements the shared gate, command IDs and `audio/session.log` in `docs/plans/pause-resume.md`.
 
