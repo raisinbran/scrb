@@ -921,3 +921,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Tested overlap only with paths whose `..` sat under folders that existed.
 - **Impact:** One review round. No seed was touched; every real run used a separate absolute destination.
 - **Correction / remaining risk:** `abs_path` now stops on a `..` it cannot resolve. Tested on the Mac: the reviewer's case exits 1 before creating `newdir` and leaves a test seed unchanged; a `..` under an existing folder is still resolved and rejected as an overlap; a normal seeded run completes.
+
+### A-304 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — numpy installed without an exact pin
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect. Filed as A-295 in PR #115; renumbered A-304 when PR #112, which already used A-295, merged main.
+- **What failed:** The owner approved installing `onnxruntime` and `numpy` with exact pins. I pinned `onnxruntime==1.31.1` but ran `pip install numpy` unpinned; it resolved to 2.5.4.
+- **Agent-controlled cause:** Pinned only the package whose version I had looked up.
+- **Impact:** None on results; the resolved version is recorded in the experiment note. Owner-visible deviation from the pin instruction.
+- **Correction / remaining risk:** Versions recorded (numpy 2.5.4, onnxruntime 1.31.1); no further installs. The venv is outside git.
