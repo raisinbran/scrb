@@ -1,7 +1,7 @@
 import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveDisplay } from '../src/corrections.ts';
+import { activeSpeakers, resolveDisplay } from '../src/corrections.ts';
 import { MeetingNotFoundError, StaleRevisionError } from '../src/errors.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
 import { Library, readLibraryLocation, writeLibraryLocation } from '../src/library.ts';
@@ -852,5 +852,78 @@ describe('library location', () => {
     expect(await readLibraryLocation(config, '/default')).toBe('/chosen');
     await writeFile(path.join(config, 'library-location.json'), 'garbage');
     expect(await readLibraryLocation(config, '/default')).toBe('/default');
+  });
+});
+
+describe('speaker names across the final pass (library)', () => {
+  const talk = (prefix: string, toMs: number) =>
+    Array.from({ length: toMs / 1000 }, (_, i) => ({
+      id: `${prefix}${i}`,
+      text: `${prefix}${i}`,
+      startMs: i * 1000,
+      endMs: (i + 1) * 1000,
+    }));
+  const incoming = (halves: boolean) => ({
+    segments: halves
+      ? [
+          segment('f1', 'X', talk('x', 10_000), 'final'),
+          segment('f2', 'Y', talk('y', 20_000).slice(10), 'final'),
+        ]
+      : [segment('f1', 'X', talk('x', 20_000), 'final')],
+    speakers: halves ? [speaker('X'), speaker('Y')] : [speaker('X')],
+  });
+  async function liveMeeting(library: Library): Promise<string> {
+    const { id } = await library.createMeeting({ title: 'Names' });
+    await library.appendSegments(id, [segment('l', 'a', talk('l', 20_000))], [speaker('a')]);
+    return id;
+  }
+
+  it('a rename made while the final pass is queued is carried over', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const id = await liveMeeting(library);
+    const rename = library.renameSpeaker(id, 'a', 'Alice');
+    const final = library.applyFinalPass(id, incoming(false));
+    const [, result] = await Promise.all([rename, final]);
+    expect(result.speakers.find((s) => s.id === 'X')).toMatchObject({ name: 'Alice' });
+    await library.close();
+  });
+
+  it('a failed save leaves the live speaker untouched; a reopened flag persists and clears on merge', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const id = await liveMeeting(library);
+    await library.renameSpeaker(id, 'a', 'Alice');
+    const saved = await library.readTranscript(id);
+    const { applyFinalPass } = await import('../src/corrections.ts');
+    const doomed = applyFinalPass(saved, incoming(true));
+    await expect(
+      library.saveTranscript(id, doomed, saved.revision, {
+        onStep: (at: string) => {
+          if (at === 'temp-synced') throw new Error('simulated crash');
+        },
+      }),
+    ).rejects.toThrow('simulated crash');
+    await library.close();
+
+    library = await Library.open({ root });
+    const intact = await library.readTranscript(id);
+    expect(intact.speakers.find((s) => s.id === 'a')).toMatchObject({ name: 'Alice' });
+    expect(intact.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBeUndefined();
+
+    await library.applyFinalPass(id, incoming(true));
+    await library.close();
+    library = await Library.open({ root });
+    const reopened = await library.readTranscript(id);
+    expect(
+      activeSpeakers(reopened)
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual(['X', 'Y', 'a']);
+    expect(reopened.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
+    const renamed = await library.renameSpeaker(id, 'a', 'Alice B');
+    expect(renamed.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
+    const settled = await library.mergeSpeakers(id, 'a', 'X');
+    expect(settled.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBeUndefined();
+    await library.close();
   });
 });

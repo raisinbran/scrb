@@ -76,6 +76,14 @@ export function SpeakerLabel({
       >
         {speaker.label}
       </MenuButton>
+      {speaker.needsManualResolution === true && (
+        <span
+          className={styles.review}
+          title="The final transcript could not safely match this name"
+        >
+          Needs review
+        </span>
+      )}
       {dialog === 'rename' && (
         <TextDialog
           title="Rename speaker"
