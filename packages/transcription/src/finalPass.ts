@@ -148,7 +148,7 @@ export interface EmbeddedSegment {
 export function decideSpeakers(
   raw: RawSegment[],
   embedded: EmbeddedSegment[],
-  relabel: RelabelOptions = FINAL_RELABEL_DEFAULTS,
+  relabel: RelabelOptions = {},
 ): { spans: SpeakerSpan[]; speakers: FinalSpeaker[] } {
   const clusters = new Map<number, RawCluster & { sum: number[] | null }>();
   for (const s of raw) {
@@ -175,7 +175,7 @@ export function decideSpeakers(
   }
   for (const c of clusters.values()) if (c.sum) c.embedding = unit(c.sum);
 
-  const map = relabelClusters([...clusters.values()], relabel);
+  const map = relabelClusters([...clusters.values()], { ...FINAL_RELABEL_DEFAULTS, ...relabel });
   const id = (index: number): string => `speaker-${index + 1}`;
   const spans: SpeakerSpan[] = raw
     .map((s) => ({

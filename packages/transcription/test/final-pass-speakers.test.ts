@@ -22,6 +22,13 @@ describe('final speaker absorption', () => {
     expect(result.spans[0]!.speakerId).not.toBe(result.spans[1]!.speakerId);
   });
 
+  it('keeps a distinct 14 s voice with only a caller merge line', () => {
+    const { raw, embedded } = fixture(14);
+    const result = decideSpeakers(raw, embedded, { mergeLine: 0.65 });
+    expect(result.speakers).toHaveLength(2);
+    expect(result.spans[0]!.speakerId).not.toBe(result.spans[1]!.speakerId);
+  });
+
   it('absorbs a 10 s voice into the large cluster', () => {
     const { raw, embedded } = fixture(10);
     const result = decideSpeakers(raw, embedded);
