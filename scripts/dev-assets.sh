@@ -20,7 +20,11 @@ root="${SCRB_DEV_ASSETS:-$HOME/scrb-dev-assets}"
 seed="${SCRB_DEV_ASSETS_SEED:-}"
 abs_path() {  # absolute path, resolved through the nearest folder that exists
   local p="$1" rest=""
-  while [[ ! -d "$p" ]]; do rest="/$(basename "$p")$rest"; p="$(dirname "$p")"; done
+  while [[ ! -d "$p" ]]; do
+    # A ".." under a folder that does not exist yet cannot be resolved here.
+    [[ "$(basename "$p")" == .. ]] && { echo "path has an unresolved ..: $1" >&2; exit 1; }
+    rest="/$(basename "$p")$rest"; p="$(dirname "$p")"
+  done
   echo "$(cd "$p" && pwd -P)$rest"
 }
 if [[ -n "$seed" ]]; then

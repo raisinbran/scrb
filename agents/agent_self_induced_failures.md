@@ -886,3 +886,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Took the repo path from one handoff line without checking where the Windows evidence records put the assets.
 - **Impact:** One short Codex run (about 5 minutes, 5h 99%→99%, weekly 28%→28%) and owner relay time. Nothing changed on the PC.
 - **Correction / remaining risk:** The revised prompt has Codex locate the folder that holds `phase0\models` and use it as the seed, and call Git Bash by its full path.
+
+### A-303 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — overlap guard missed an unresolved `..`
+
+- **Status / attribution:** Confirmed agent error in the A-297 fix (`612ee1e`), caught by ChatGPT re-review of PR #112 (REJECT, one finding); not an application defect. A-300 to A-302 are Codex entries on `codex/phase0-step2-windows-20261112`.
+- **What failed:** `abs_path` in `scripts/dev-assets.sh` kept path parts under a folder that did not exist yet as plain text, so `SCRB_DEV_ASSETS=/tmp/newdir/../phase0` with seed `/tmp/phase0` passed the overlap check; `mkdir -p` then made the destination resolve into the seed, where `clone` can delete folders.
+- **Agent-controlled cause:** Tested overlap only with paths whose `..` sat under folders that existed.
+- **Impact:** One review round. No seed was touched; every real run used a separate absolute destination.
+- **Correction / remaining risk:** `abs_path` now stops on a `..` it cannot resolve. Tested on the Mac: the reviewer's case exits 1 before creating `newdir` and leaves a test seed unchanged; a `..` under an existing folder is still resolved and rejected as an overlap; a normal seeded run completes.
