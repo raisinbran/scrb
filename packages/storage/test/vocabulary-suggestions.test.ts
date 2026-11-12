@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  CorrectionConflictError,
+  MeetingNotFoundError,
+  StaleRevisionError,
+} from '../src/errors.ts';
 import type { Correction, Segment, Word } from '../src/formats/transcript.ts';
 import { Library } from '../src/library.ts';
 import { speaker, tempDir, words } from './helpers.ts';
@@ -354,5 +359,158 @@ describe('vocabulary suggestions: logs', () => {
       .toLowerCase();
     expect(text).toContain('vocabulary-suggestions-skipped');
     for (const secret of ['smythe', 'jon smith', 'john smyth']) expect(text).not.toContain(secret);
+  });
+});
+
+describe('accepting a vocabulary suggestion', () => {
+  async function setup(library: Library): Promise<{ id: string; correctionId: string }> {
+    await seedJohn(library);
+    const [suggestion] = (await library.listVocabularySuggestions()).suggestions;
+    return { id: suggestion!.meetingId, correctionId: suggestion!.correctionId };
+  }
+
+  it('remembers the same correction without touching the transcript or summary', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const { id, correctionId } = await setup(library);
+    await library.saveGeneratedSummary(id, {
+      generatedAt: null,
+      brief: null,
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    });
+    const summaryBefore = await library.readSummary(id);
+    const before = await library.readTranscript(id);
+
+    const after = await library.acceptVocabularySuggestion(id, correctionId);
+
+    const was = before.corrections.find((c) => c.id === correctionId)!;
+    const now = after.corrections.find((c) => c.id === correctionId)!;
+    expect(now).toEqual({ ...was, remember: true, updatedAt: now.updatedAt });
+    expect(after.corrections).toHaveLength(before.corrections.length);
+    expect(after.segments).toEqual(before.segments);
+    expect(after.undoStack).toHaveLength(before.undoStack.length + 1);
+    expect(library.vocabulary.list()).toMatchObject([
+      { term: 'John Smythe', misheard: ['john smyth'] },
+    ]);
+    expect(summaryBefore?.outdated).toBe(false);
+    expect(await library.readSummary(id)).toEqual(summaryBefore);
+    expect((await library.listVocabularySuggestions()).suggestions).toEqual([]);
+    await library.close();
+  });
+
+  it('is a no-op when repeated', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const { id, correctionId } = await setup(library);
+    const first = await library.acceptVocabularySuggestion(id, correctionId);
+    const second = await library.acceptVocabularySuggestion(id, correctionId);
+    expect(second.revision).toBe(first.revision);
+    expect(second.undoStack).toHaveLength(first.undoStack.length);
+    await library.close();
+  });
+
+  it('follows Undo and Redo, which still mark a summary outdated', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const { id, correctionId } = await setup(library);
+    await library.acceptVocabularySuggestion(id, correctionId);
+    await library.saveGeneratedSummary(id, {
+      generatedAt: null,
+      brief: null,
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    });
+    const undone = await library.undo(id);
+    expect((await library.readSummary(id))?.outdated).toBe(true);
+    expect(undone.corrections.find((c) => c.id === correctionId)?.remember).toBe(false);
+    expect(library.vocabulary.list()).toEqual([]);
+    const redone = await library.redo(id);
+    expect(redone.corrections.find((c) => c.id === correctionId)?.remember).toBe(true);
+    expect(library.vocabulary.list()).toHaveLength(1);
+    await library.close();
+  });
+
+  it('fails with a conflict and adds no correction when the word IDs are gone', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const { id, correctionId } = await setup(library);
+    const current = await library.readTranscript(id);
+    const renewed = current.segments.map((s) => ({
+      ...s,
+      words: s.words.map((w) => ({ ...w, id: `new-${w.id}` })),
+    }));
+    await library.saveTranscript(id, { ...current, segments: renewed }, current.revision);
+    const stale = await library.readTranscript(id);
+
+    await expect(library.acceptVocabularySuggestion(id, correctionId)).rejects.toBeInstanceOf(
+      CorrectionConflictError,
+    );
+    const after = await library.readTranscript(id);
+    expect(after.corrections).toEqual(stale.corrections);
+    expect(after.revision).toBe(stale.revision);
+    expect(library.vocabulary.list()).toEqual([]);
+    await library.close();
+  });
+
+  it('refuses a stale revision, a deleted meeting and a changed suggestion', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const { id, correctionId } = await setup(library);
+    const current = await library.readTranscript(id);
+    await expect(
+      library.acceptVocabularySuggestion(id, correctionId, current.revision - 1),
+    ).rejects.toBeInstanceOf(StaleRevisionError);
+
+    library.dismissVocabularySuggestion('John Smythe');
+    await expect(library.acceptVocabularySuggestion(id, correctionId)).rejects.toBeInstanceOf(
+      CorrectionConflictError,
+    );
+    expect(library.vocabulary.list()).toEqual([]);
+
+    await library.deleteMeeting(id);
+    await expect(library.acceptVocabularySuggestion(id, correctionId)).rejects.toBeInstanceOf(
+      MeetingNotFoundError,
+    );
+    await library.close();
+  });
+
+  it('repairs vocabulary on restart when the sync fails after the save', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    const { id, correctionId } = await setup(library);
+    vi.spyOn(library.vocabulary, 'remember').mockImplementation(() => {
+      throw new Error('disk full');
+    });
+    const saved = await library.acceptVocabularySuggestion(id, correctionId);
+    expect(saved.corrections.find((c) => c.id === correctionId)?.remember).toBe(true);
+    expect(library.vocabulary.list()).toEqual([]);
+    await library.close();
+
+    library = await Library.open({ root });
+    expect(library.vocabulary.list()).toMatchObject([{ term: 'John Smythe' }]);
+    await library.close();
+  });
+
+  it('writes no correction text to the logs', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id, correctionId } = await setup(library);
+    vi.spyOn(library.vocabulary, 'remember').mockImplementation(() => {
+      throw new Error('smythe jon smith');
+    });
+    await library.acceptVocabularySuggestion(id, correctionId);
+    await library.close();
+    const logs = path.join(root, 'logs');
+    const text = (
+      await Promise.all(
+        (await readdir(logs)).map((name) => readFile(path.join(logs, name), 'utf8')),
+      )
+    )
+      .join('\n')
+      .toLowerCase();
+    expect(text).toContain('vocabulary-learning-pending');
+    for (const secret of ['smythe', 'jon smith']) expect(text).not.toContain(secret);
   });
 });
