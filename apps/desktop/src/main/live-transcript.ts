@@ -5,11 +5,14 @@ import type { LiveAudioEvent, TimedLiveSegment } from '@scrb/transcription';
 import { publishEdit } from './meetings.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
-type Store = Pick<Library, 'readTranscript' | 'appendSegments' | 'replaceLiveSegments'>;
+type Store = Pick<Library, 'readTranscript' | 'appendSegments' | 'replaceLiveSegments'> &
+  Partial<Pick<Library, 'mergeLiveSpeaker'>>;
+type Merge = Extract<LiveAudioEvent, { type: 'speakerMerge' }>['merge'];
 
 /** Bounded PR #8 sink adapted for timed words. No native feed or recording lifetime is owned here. */
 export class LiveTranscriptSink {
   private readonly pending: TimedLiveSegment[] = [];
+  private readonly merges = new Map<string, Merge>();
   private draining: Promise<void> | null = null;
   private closed = false;
   private failed = false;
@@ -40,7 +43,16 @@ export class LiveTranscriptSink {
   handle = (event: LiveAudioEvent): void => {
     if (this.closed || this.failed) return;
     if (event.type === 'segment') this.offer(event.segment);
-    else if (event.type === 'failed') this.workerFailed();
+    else if (event.type === 'speakerMerge') {
+      if (!this.merges.has(event.merge.from) && this.merges.size >= 1024) {
+        this.lag('lagging', 0);
+        return;
+      }
+      const old = this.merges.get(event.merge.from);
+      if (!old || event.merge.order > old.order)
+        this.merges.set(event.merge.from, { ...event.merge });
+      this.kick();
+    } else if (event.type === 'failed') this.workerFailed();
     else if (event.type === 'lag')
       this.lag(event.lagMs || event.queuedFrames ? 'lagging' : 'ok', event.lagMs);
     else this.lag('lagging', 0);
@@ -109,13 +121,36 @@ export class LiveTranscriptSink {
       .catch(() => this.fail())
       .finally(() => {
         this.draining = null;
-        if (this.pending.length && !this.failed) this.kick();
+        if ((this.pending.length || this.merges.size) && !this.failed) this.kick();
       });
   }
 
   private async drain(): Promise<void> {
-    while (this.pending.length && !this.failed) {
-      const input = this.pending.shift()!;
+    while ((this.pending.length || this.merges.size) && !this.failed) {
+      const input = this.pending.shift() ?? this.merges.values().next().value!;
+      if ('from' in input) this.merges.delete(input.from);
+      if ('from' in input) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const before = await this.library.readTranscript(this.meetingId);
+          try {
+            const saved = await this.library.mergeLiveSpeaker?.(
+              this.meetingId,
+              input,
+              before.revision,
+            );
+            if (saved && saved.revision !== before.revision) {
+              this.lastSavedAtMs = Date.now();
+              this.lastRevision = saved.revision;
+              publishEdit(before, saved, (name, payload) => this.publish(name, payload));
+            }
+            break;
+          } catch (error) {
+            if (!(error instanceof StaleRevisionError)) throw error;
+            if (attempt === 2) this.lag('lagging', 0);
+          }
+        }
+        continue;
+      }
       // Storage can split frozen corrections into new segments. Persist ownership in
       // word IDs so later revisions (including after reconnect) replace those too.
       const prefix = `live-word-${createHash('sha256').update(input.id).digest('hex')}-`;
@@ -255,6 +290,7 @@ export class LiveTranscriptSink {
     if (this.failed) return;
     this.failed = true;
     this.pending.length = 0;
+    this.merges.clear();
     this.lag('failed', 0);
   }
 
@@ -262,5 +298,6 @@ export class LiveTranscriptSink {
     this.closed = true;
     await this.draining;
     this.pending.length = 0;
+    this.merges.clear();
   }
 }

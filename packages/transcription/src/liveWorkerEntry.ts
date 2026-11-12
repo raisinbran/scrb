@@ -61,6 +61,7 @@ process.on('message', (raw: unknown) => {
         SherpaWorker.start(message.tools as ToolPaths, message.models as ModelPaths, 4, signal),
       (segment) => send({ type: 'attribution', segment }),
       trace,
+      (merge) => send({ type: 'speakerMerge', merge }),
     );
     engine = new LivePcmEngine(
       {

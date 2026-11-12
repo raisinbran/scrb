@@ -13,6 +13,17 @@ import { openLiveTrace, type LiveTrace, type TraceFields } from './liveTrace.js'
 
 export type LiveAudioEvent =
   | { type: 'segment'; segment: TimedLiveSegment }
+  | {
+      type: 'speakerMerge';
+      merge: {
+        from: string;
+        into: string;
+        workerRun: string;
+        generation: number;
+        order: number;
+        label: string;
+      };
+    }
   | { type: 'skipped'; gap: LiveSkip }
   | { type: 'lag'; queuedFrames: number; lagMs: number }
   | { type: 'restarting'; attempt: number }
@@ -77,6 +88,7 @@ function flatStats(raw: unknown): Record<string, number> {
 }
 
 interface Run {
+  mergeOrder?: number;
   id: number;
   abort: AbortController;
   ready: boolean;
@@ -121,6 +133,10 @@ export class LiveAudioWorker {
   private readonly capacity: number;
   private readonly namespace = randomUUID();
   private notifications: LiveAudioEvent[] = [];
+  private readonly mergeNotifications = new Map<
+    string,
+    Extract<LiveAudioEvent, { type: 'speakerMerge' }>
+  >();
   private notificationScheduled = false;
   private notificationOverflow = false;
   private readonly trace: LiveTrace | undefined;
@@ -260,6 +276,12 @@ export class LiveAudioWorker {
 
   private emit(event: LiveAudioEvent): void {
     if (this.notificationOverflow) return;
+    if (event.type === 'speakerMerge') {
+      if (this.mergeNotifications.size < 1024 || this.mergeNotifications.has(event.merge.from))
+        this.mergeNotifications.set(event.merge.from, event);
+      this.scheduleNotifications();
+      return;
+    }
     const previous = this.notifications.findLastIndex((e) =>
       event.type === 'lag'
         ? e.type === 'lag'
@@ -297,10 +319,15 @@ export class LiveAudioWorker {
     this.notificationScheduled = true;
     queueMicrotask(() => {
       this.notificationScheduled = false;
-      const notifications = this.notifications;
+      const notifications = [...this.notifications, ...this.mergeNotifications.values()];
+      this.mergeNotifications.clear();
       this.notifications = [];
       for (const notification of notifications) {
-        if (this.closed && notification.type === 'segment') continue;
+        if (
+          this.closed &&
+          (notification.type === 'segment' || notification.type === 'speakerMerge')
+        )
+          continue;
         try {
           this.options.onEvent(notification);
           if (notification.type === 'segment')
@@ -499,6 +526,36 @@ export class LiveAudioWorker {
           .finally(() => {
             delete run.vad;
           });
+      } else if (message.type === 'speakerMerge') {
+        const m = message.merge as Record<string, unknown> | undefined;
+        if (
+          !m ||
+          typeof m.from !== 'string' ||
+          typeof m.into !== 'string' ||
+          !/^live-[1-9][0-9]{0,8}$/.test(m.from) ||
+          !/^live-[1-9][0-9]{0,8}$/.test(m.into) ||
+          m.from === m.into ||
+          !Number.isSafeInteger(m.order) ||
+          Number(m.order) <= (run.mergeOrder ?? 0) ||
+          m.generation !== this.accepted.get('meeting')?.generation ||
+          this.accepted.get('meeting')?.boundary ||
+          typeof m.label !== 'string' ||
+          !/^(Speaker \?|Speaker [1-9][0-9]{0,8})$/.test(m.label)
+        )
+          return;
+        run.mergeOrder = Number(m.order);
+        const workerRun = `${this.namespace}-${run.id}`;
+        this.emit({
+          type: 'speakerMerge',
+          merge: {
+            from: `${workerRun}-${m.from}`,
+            into: `${workerRun}-${m.into}`,
+            workerRun,
+            generation: Number(m.generation),
+            order: Number(m.order),
+            label: m.label,
+          },
+        });
       } else if (message.type === 'attribution' || (message.type === 'segment' && run.frame)) {
         const segment = message.segment as TimedLiveSegment;
         const original =

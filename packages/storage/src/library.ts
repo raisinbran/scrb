@@ -436,6 +436,19 @@ export class Library {
     );
   }
 
+  mergeLiveSpeaker(
+    meetingId: string,
+    request: corrections.LiveSpeakerMerge,
+    expectedRevision: number,
+    write: AtomicWriteOptions = {},
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      (current) => corrections.mergeLiveSpeaker(current, request),
+      { userEdit: false, expectedRevision, write },
+    );
+  }
+
   replaceLiveSegments(
     meetingId: string,
     segmentIds: string[],

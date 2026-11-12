@@ -173,3 +173,25 @@ it('kills timed-out inference and rejects a result arriving after Stop', async (
     vi.useRealTimers();
   }
 });
+
+it('forwards a real centroid merge after the original parent leaves the 64-parent window', async () => {
+  let hop = 0;
+  const m = model();
+  m.diarizeWindow = async (pcm) => [{ start: 0, end: pcm.length / 16000, speaker: 0 }];
+  m.embedPcm = async () => (++hop === 1 ? [1, 0] : hop === 2 ? [0, 1] : [0.7, 1]);
+  const merges = vi.fn();
+  const updates = vi.fn();
+  const d = new MeetingDiarizer(async () => m, updates, undefined, merges);
+  for (let i = 0; i < 50; i++) d.push(frame(i));
+  await d.waitForHop();
+  d.attribute({ ...segment(), id: 'historical' });
+  for (let i = 0; i < 70; i++) d.attribute({ ...segment(), id: `recent-${i}` });
+  for (let i = 50; i < 600; i++) {
+    d.push(frame(i));
+    if ((i + 1) % 50 === 0) await d.waitForHop();
+  }
+  expect(merges).toHaveBeenCalledTimes(1);
+  expect(merges.mock.calls[0]![0]).toMatchObject({ generation: 0, order: 1 });
+  expect(updates.mock.calls.some(([s]) => s.id === 'historical')).toBe(false);
+  d.close();
+});
