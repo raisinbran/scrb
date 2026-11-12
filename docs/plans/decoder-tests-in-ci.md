@@ -53,3 +53,10 @@ New `packages/transcription/test/decoder.ts` exporting `haveFfmpeg`. If the deco
 2. CI downloading FFmpeg and libopus sources from ffmpeg.org and xiph.org on cache misses (hash-pinned).
 3. No new licence: same LGPL build. A Windows prebuilt binary (option B) is **not** requested now.
 4. That Windows stays warn-only until Step 2.
+
+## Review notes folded in
+
+- `import.test.ts` has 20 tests, but the video-rejection test also needs `SCRB_VIDEO_FIXTURE`, so CI runs 19 unless it is set. No fixture is added.
+- One skip warning per test file is acceptable.
+- The cache key includes `runner.arch` as well as the OS and the script hash.
+- Found while building: after a build, `.work/` holds the unpacked FFmpeg source and ESLint failed on its JavaScript, so `eslint.config.mjs` now ignores `**/.work/**` (CI lints after the decoder step). Measured: build about 41 s on the owner's Mac; the 20 import tests run in about 7 s.

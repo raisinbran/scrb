@@ -24,6 +24,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Cache the import decoder (macOS)
+        if: runner.os == 'macOS'
+        id: decoder-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/transcription/.bin/ffmpeg
+            packages/transcription/.bin/ffprobe
+          key: decoder-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/transcription/scripts/build-ffmpeg.sh') }}
+      - name: Build the import decoder (macOS)
+        if: runner.os == 'macOS' && steps.decoder-cache.outputs.cache-hit != 'true'
+        run: npm run build:ffmpeg -w @scrb/transcription
       - name: Check Prettier on changed TypeScript
         shell: bash
         run: |
@@ -38,7 +50,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build -w @scrb/summary
-      - run: npm test
+      - name: Test
+        run: npm test
+        env:
+          # macOS only: Windows has no decoder build yet and prints a skip warning.
+          SCRB_REQUIRE_DECODER: ${{ runner.os == 'macOS' && '1' || '0' }}
       - run: npm run check:boundaries
       - run: npm run build
       - run: npm run test:smoke

@@ -16,7 +16,7 @@ const backendModules = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-electron/**', '.claude/**', 'phase0/**', 'dev-plan/**'] },
+  { ignores: ['**/.work/**', '**/dist/**', '**/dist-electron/**', '.claude/**', 'phase0/**', 'dev-plan/**'] },
   js.configs.recommended,
   {
     files: ['**/*.mjs'],

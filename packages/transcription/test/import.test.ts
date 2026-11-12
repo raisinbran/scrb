@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { copyFile, mkdtemp, readFile, readdir, rm, truncate, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assembleChunks, decodeChunk, pcmToWav } from '../src/audio.js';
-import { toolsIn, type ModelPaths } from '../src/config.js';
+import { type ModelPaths } from '../src/config.js';
 import {
   ImportError,
   importAudioFile,
@@ -13,11 +13,10 @@ import {
   sweepAbandonedImports,
   type ImportOptions,
 } from '../src/importFile.js';
+import { decoderGuard, haveFfmpeg, tools } from './decoder.js';
 
-const bin = join(import.meta.dirname, '../.bin');
 const fixtures = join(import.meta.dirname, 'fixtures');
-const tools = toolsIn(bin);
-const haveFfmpeg = existsSync(tools.ffmpeg);
+decoderGuard('import.test.ts');
 
 function tone(seconds: number, hz = 440): Int16Array {
   const out = new Int16Array(seconds * 16_000);

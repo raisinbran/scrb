@@ -8,9 +8,9 @@ import { importAudioFile } from '../src/importFile.js';
 import { LivePass, type LiveSegment } from '../src/livePass.js';
 import type { AudioChunk } from '../src/types.js';
 import type { LiveWhisper } from '../src/whisper.js';
+import { bin, decoderGuard, haveFfmpeg } from './decoder.js';
 
-const bin = join(import.meta.dirname, '../.bin');
-const haveFfmpeg = existsSync(join(bin, 'ffmpeg'));
+if (process.platform !== 'win32') decoderGuard('live.test.ts');
 const models: ModelPaths = {
   speechFinal: 'x', speechLive: 'x', vad: 'x', segmentation: 'x', embedding: 'x',
 };
