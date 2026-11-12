@@ -679,6 +679,97 @@ A later whitespace-check command used the evidence parent directory rather than 
 
 Confirmed agent errors: initial Git command used evidence-parent cwd; fetch required escalation for read-only .git; guessed absent file paths; focused Vitest config/root combination duplicated a path (no tests ran); one edit/format invocation used the package cwd with repository-relative paths and made no changes; binary approval wrappers were mistakenly read as text, producing noisy output without executing approval. Corrected using explicit repository/package paths and guarded write invocation. Initial typecheck caught modelMerge:undefined incompatible with exact optional properties; fixed by deleting metadata on manual merges. Independent code review caught recent replacements bypassing protected aliases and separate one-time merge loss during queue overflow; fixed using shared protection checks and separately bounded coalesced queues, with regression tests. A test initially expected both same-source notifications after intentional coalescing; corrected to assert the latest event. These are agent/setup and implementation failures, not successful application validation. Evidence: task tool output and /private/tmp/slice2a-*.log. No environmental failed-test reruns, recording or merge. Shared-account quota impact is not individually measurable. Remaining risk: full-suite 14 unchanged-test failures and unverified native/Windows/model replay; see slice2a handoff.
 
+### A-266 — 2026-11-11 — Planner — conflicting fixture instruction stopped live diarization re-measurement
+
+- **Status / attribution:** Confirmed planner error, corrected by the planner on 2026-11-11. The task brief specified a 100–400 s excerpt that conflicted with the documented full-length method and fixture.
+- **Effect:** The first attempt stopped before checkout/pull or measurement and used about seven minutes of owner/agent time; no inference, scoring, repository change, or deletion occurred. Exact usage impact is unavailable.
+- **Evidence:** `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/measurement-stop.txt` records the mismatch, stop, and prior method. The planner correction authorizes the documented full 1,049 s ES2004a fixture and explicitly withdraws the excerpt constraint.
+- **Correction / prevention:** Follow the corrected fixture and exact recorded method for this run. Future briefs must preserve the method's matching fixture or explicitly authorize a measured adaptation.
+- **Remaining risk:** The corrected task completed the 13 s final-pass rescore, but the live replay launcher was blocked under the sandbox; see A-268.
+
+### A-267 — 2026-11-11 — Codex — zsh reserved variable obscured successful npm ci exit status
+
+- **Status / attribution:** Confirmed command-wrapper mistake. The shell variable name `status` is read-only in zsh; assigning the exit code after `npm ci` returned `zsh: read-only variable: status`.
+- **Effect:** The wrapper returned an error even though `npm ci` completed successfully (`added 283 packages in 7s`, postinstall completed, and `node_modules/.package-lock.json` advanced to 18:48:08 PT). No dependency retry or inference rerun was made; no tracked code changed.
+- **Evidence:** `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/npm-ci.log` and task command output.
+- **Correction / prevention:** Confirmed install success from npm's retained log and updated lock snapshot; use a non-special variable name if another shell wrapper is needed.
+- **Usage impact:** Exact quota impact unavailable. **Remaining risk:** None identified; continue with the planned single measurement.
+
+### A-268 — 2026-11-11 — Codex — tsx CLI startup was blocked by sandbox IPC socket
+
+- **Status / attribution:** Confirmed agent invocation/setup failure under the restricted shell. `npx tsx` attempted to create its local IPC pipe under `/var/folders/.../tsx-501/` and received `listen EPERM` before the replay script began.
+- **Effect:** The live replay did not start, so it produced no diarization or score result. The failed output is retained in `../../ChatGPT/srcb/live-remeasure-after-96-97-20261111/live-run.log`. No rerun was attempted, consistent with the task's no-rerun instruction. No application defect is indicated.
+- **Correction / prevention:** Preserve the failed log and report the measurement as unavailable; use a launcher that does not require the CLI IPC server only if a separately authorized future run permits it.
+- **Usage impact:** Exact quota impact unavailable. **Remaining risk:** Live span DER and persisted-transcript audit were not measured.
+
+### A-269 — 2026-11-11 — Claude Code (planner) — Windows Wave 1 prompt referenced a plan file that exists only on the Mac
+
+- **Status / attribution:** Confirmed planner error. The BCHEN-W10 prompt told Codex to follow "the Wave 1 plan in this clone's evidence folder"; the plan (`wave1-plan.txt`) was only in the Mac `option-a-evidence-20261111` folder, and I did not check that W10 had it or paste its content.
+- **Effect:** W10 Codex correctly stopped (tests 2-5 BLOCKED, nothing run, about 2 minutes, weekly usage about 1%). Same class as A-266 (fixture/method mismatch in the Mac re-measure brief) and the earlier slice-2 plan-path mistake.
+- **Evidence:** W10 Codex report 2026-11-11 6:45-6:47 PM PT; Mac `wave1-plan.txt`.
+- **Correction / prevention:** Plan pasted into a corrected prompt. Rule going forward: a prompt for another machine must be self-contained (inline any plan, criteria or fixture) or name a file verified to exist on that machine; check fixture and method agree before sending.
+- **Remaining risk:** The W10 tests are still not run; a further missing input would be a repeat.
+
+### A-270 — 2026-11-11 — Claude Code (planner) — ambiguous "stop" in W10 follow-up prompt skipped an independent test
+
+- **Status / attribution:** Probable planner wording error. Item B of the W10 follow-up said "If it still decodes or fails before staging, record INCONCLUSIVE and stop." Item C (worker-kill, independent of B) was then not attempted because B was inconclusive.
+- **Effect:** One extra round trip and Windows test 5 still unrun; no data lost. Also, the Test 2 retry recipe (zeroed WAV header) fails at `stage: queued`, before decoding, so it could not satisfy the plan's "failure after staging begins" requirement; I should have said so before authorizing it.
+- **Correction / prevention:** State "stop this item only; continue with the others" in multi-item prompts. Check that a proposed failure recipe can reach the stage the criterion names.
+- **Remaining risk:** Test 2 cannot be satisfied as written with a WAV; owner decision pending. Number A-270 may collide with a W10-clone entry of the same number; renumber when registers are merged.
+
+### A-271 — 2026-11-12 — Claude Code (planner) — asked whether Claude was installed on BCHEN-W10 when project history already answered it
+
+- **Status / attribution:** Confirmed planner error. `agents/agent_task_allocation.md` (rows dated 2026-11-08 and 2026-11-09) records many Claude Code / Windows desktop (Code tab) runs on BCHEN-W10 (PR 74 build, scripts, play-sources.ps1, analysis). I asked the owner to confirm an installation the repo already documents, and earlier implied Claude's Windows use was unknown.
+- **Effect:** One wasted owner round trip and a weaker recommendation. No data lost.
+- **Correction / prevention:** Check the allocation tracker and register before asking the owner what tooling exists on a machine; search project history first.
+- **Remaining risk:** Those runs were report/script/build work; the agent did not launch the app or drive the screen, so Claude computer-use on W10 remains unverified.
+
+### A-272 — 2026-11-12 — Claude Code (planner) — planned Windows Wave 1 around screen control without checking the repo's own e2e specs
+
+- **Status / attribution:** Confirmed planner error. `apps/desktop/e2e/real-import-playback.spec.ts`, `real-recording.spec.ts` and `real-live-run.spec.ts` already drive the real Electron app headlessly through Playwright with the real backend (no screen control, no native picker). I built the Windows Wave 1 prompts on Codex screen control and "owner launches", took the plan's owner-hands labels at face value, and did not search the repo for an unattended route. The owner had said earlier that agents had run app tests almost autonomously.
+- **Effect:** Four W10 Codex attempts (about 2 hours of elapsed time, roughly 10% of weekly Codex allowance by Codex's rounded readings, not isolated) produced two PASS (tests 1, 3), two inconclusive and two blocked results that the e2e route may close. Owner time and credits were wasted.
+- **Correction / prevention:** Before designing any manual or screen-controlled test, search `apps/desktop/e2e`, `scripts/` and prior plans for an existing automated route and state what it cannot cover. A repeated block on the same method is a trigger to search for a different method, not to retry.
+- **Remaining risk:** Test 5 (worker kill) has no existing spec; a scratch script is proposed and unverified. Listening evidence is still a loopback substitute.
+
+### A-281 — 2026-11-12 — Claude Code (planner) — told the owner a missing decoder was a "fresh clone" problem without checking, and did not check the repo's own decoder setup first
+
+- **Status / attribution:** Confirmed planner error. I said every fresh Windows clone repeats the missing `ffmpeg`, then the owner pointed out the PC and clone history. The repo documents the cause: `packages/transcription/README.md` says `npm test` needs `.bin/ffmpeg` and `.bin/ffprobe` built with `npm run build:ffmpeg` (a shell script), `.bin` is gitignored and CI never builds it, so the four real-decoder import tests skip silently in CI and on the Mac. I had not read the README or `package.json` before speaking, and I had accepted Test 2 closure evidence that depended on those tests without checking whether they run.
+- **Effect:** An extra owner round trip and a wrong explanation; Windows Test 2 closure cost one extra W10 run (about 30 s, 1% five-hour).
+- **Correction / prevention:** Before stating why a test dependency is missing, read the package README and scripts. Before accepting an automated test as evidence, confirm in the log that it ran and was not skipped.
+- **Remaining risk:** Whether the macOS Gate 3 evidence for cancelled and failed imports used these tests is unverified.
+
+### A-274 — Loopback capture stopped before resume verification
+
+Effect: the agent stopped the measured loopback capture before resuming saved playback, so the requested full Play–Pause–Resume sequence and post-resume audio could not be measured. Evidence: `wave1-tests2-5-followup-results.md`, `test4-pause-loopback-20261111` helper log (opened at 9:39:14 PM PT, stopped at 9:41:52 PM PT), and CUA action timestamps (Pause 9:41:12 PM, Resume 9:42:41 PM). Attribution: agent sequencing error. Correction: recorded Test 4 as inconclusive and did not retry. Remaining risk: silence during Pause and audio after Resume are not fully established by this capture.
+
+### A-275 — Test 5 capture exceeded the requested interval without fixture audio
+
+Effect: the Test 5 native capture ran 4 min 38 s while the agent attempted to start the AMI player, exceeding the requested 60–90-second check; meeting-track levels remained zero, and the worker was not killed. Evidence: `wave1-tests2-5-followup-results.md` timestamps (9:31:17–9:35:55 PM PT) and `owner-app-library\logs\scrb-2026-11-12.log` (`meeting.rms:0`, `meeting.peak:1` during 9:33–9:35 PM PT). Attribution: agent sequencing/time-management error. Correction: stopped capture, marked C blocked, preserved all output, and did not retry. Remaining risk: the saved capture is not valid evidence for the worker-kill acceptance criteria.
+
+### A-276 — Claude Code: Test 4 scratch run never reached import, and a wrong-repo search
+
+Effect: (1) The agent first searched the working-directory repo (`GitHub\scrb`) for `real-import-playback.spec.ts` and the build, concluded both were missing, and only afterwards found them in the clone; no test effect, a few wasted calls. (2) The Test 4 scratch copy (`wave1-claude-20261112\test4\pause-playback.spec.ts`) waited 240 s for an import that never started (no import log event, empty `cache\imports`, no meeting). Cause not established: possible mismatch between the spec's stubbed `dialog.showOpenDialog` flow and the current Import UI, or a fault in the agent's scratch edits (added `cwd` option, userData path, loopback block placed after the import). Per instructions the test was not rerun, so the Pause/Resume check and loopback match were not performed. Evidence: `wave1-claude-20261112\test4\run-output.txt`, `userdata\library\logs`. Attribution: provisional, unresolved. Remaining risk: Test 4 stays unverified. Also: the app was closed right after Stop in Test 5 while the meeting status was `finalPassRunning`, which may leave that scratch meeting needing recovery (evidence kept, nothing deleted).
+
+### A-277 — Claude Code: authorized Test 4 retry spent before diagnosis was complete
+
+Effect: the owner authorized one diagnostic retry after first finding why the import never started. The agent built an instrumented scratch copy and launched the full test as that single run, hoping the instrumentation would diagnose it, instead of first establishing the cause from existing evidence. The instrumented run showed the import did start (dialog stub called once, Import dialog showed meeting.wav 20 MB, import row with Cancel, staging folder and whisper-cli running) but the scratch/original spec's 240 s import wait expired before the 420 s file finished; staging was cleaned when the app closed. The authorized retry is therefore used with no Pause/Resume or loopback result. Root cause of the earlier failure is almost certainly the same 240 s timeout (the first run saved no page state, so this is inferred, not proven). Evidence: wave1-claude-20261112\test4b\timeline.log, run-output.txt. Correction: raise the import wait (needs a new owner-approved run; expected import >4 min, total possibly near or above 20 min). Remaining risk: Test 4 still unverified.
+
+### A-278 — Claude Code: Test 4 final run failed on a spec readiness race the agent did not check
+
+Effect: the owner-approved single run (1:24:36-1:30:21 AM PT) was spent without reaching playback. Raising the import wait to 15 min was not enough: the spec treats "a folder exists under meetings/" as import complete. At 09:30:08.7Z (323.4 s after the confirm click) the app logged meeting-created for source imported; the meeting.json status was still `importing` and `audio\meeting\chunks.json` did not exist, so the spec's readFileSync threw ENOENT. Playwright then closed the app; at 09:30:09.4Z the app logged meeting-deleted (leftCount 0), apparently cleaning up the unfinished import. The agent had read this poll condition earlier and changed only the timeout, without noticing it should wait for status ready. Evidence: wave1-claude-20261112\test4c\timeline.log, run-output.txt, userdata\library\logs. Correction: needs a new owner-approved run polling meeting.json status === 'ready' (final pass time unknown, run may exceed 20 min). Remaining risk: Test 4 unverified; no retry made.
+
+### A-279 — Claude Code: Test 4d excerpt produced one transcript line, below the spec's two-line precondition
+
+Effect: the owner-approved single run (1:44:35-1:46:24 AM PT) imported the 75 s AMI excerpt (ami-meeting-excerpt-30s-75s.wav, from offset 30 s of the verified meeting.wav, sha256 0af82ec3...3ce1) to status ready with chunks.json present in 80.9 s, but the spec's `expect(lines.count()).toBeGreaterThan(1)` failed with 1 "Play from" line, so playback, Pause/Resume and the loopback recorder never started. The agent chose the excerpt without checking how many transcript segments it would give or that the spec requires at least two (it had read that line earlier). Evidence: wave1-claude-20261112\test4d\timeline.log, run-output.txt. Correction: pick a longer or speech-denser excerpt, or relax the precondition, in a new owner-approved run. Remaining risk: Test 4 unverified; no retry made.
+
+### A-279 correction — expected line count checked before test4e; run not launched
+
+Before the approved test4e run, the agent checked the earlier reference data: the owner-library import of the full 420 s AMI meeting.wav (`2026-11-09 meeting.wav`, status ready) has a single transcript segment (795 words, one speaker), and the spec's "Play from" lines are one per segment. A longer excerpt of the same audio is therefore expected to give 1 line, not 3, so a 3-minute excerpt would have repeated the test4d failure. The agent did not launch the run and no app was started. Earlier note: the test4d failure was knowable from this existing data; the agent did not check it then.
+
+### A-280 — Claude Code: scratch timeline logger wrote literal "\n" (test4b-test4e)
+
+Effect: in the scratch specs the `tl()` helper appended the two characters backslash-n instead of a newline, so `timeline.log` is one run-together line and lost most events (the in-app STATE snapshots only). The full wall-clock timeline survives in `run-output.txt` (tl also console.logs); the analysis used `test4e\timeline-clean.log` extracted from it. The first analysis attempt failed on this, costing a few tool calls. No effect on the test result. Also note: test4e passed only with a relaxed spec (exactly one "Play from" line; +15 s button seek instead of seeking to a later line); it does not pass the original two-line check. Evidence: test4e\run-output.txt, timeline-clean.log. Remaining risk: none for results; the original spec precondition remains unmet by this fixture.
+
 ### A-291 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — stale-PR claim in the project review
 
 - **Status / attribution:** Confirmed agent review error, caught by the same agent before any PR was closed or branch deleted; not an application defect.
