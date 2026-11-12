@@ -6,6 +6,7 @@ import {
   applyFinalPass,
   frozenWordIds,
   mergeSpeakers,
+  assignSpeakerProfiles,
   reassignSpeaker,
   redo,
   renameSpeaker,
@@ -17,6 +18,7 @@ import {
 } from '../src/corrections.ts';
 import { CorrectionConflictError } from '../src/errors.ts';
 import type { TranscriptFile, Word } from '../src/formats/transcript.ts';
+import type { Segment, Speaker } from '../src/formats/transcript.ts';
 import { segment, speaker, transcript, words } from './helpers.ts';
 
 const shown = (t: TranscriptFile): string =>
@@ -346,34 +348,6 @@ describe('speakers', () => {
     expect(() => mergeSpeakers(merged, 'a', 'b')).toThrow(CorrectionConflictError);
   });
 
-  it('the final pass keeps user names, merges and reassignments', () => {
-    const t = transcript(
-      [
-        segment('1', 'a', words('one two three four', 0)),
-        segment('2', 'b', words('five six seven eight', 2000)),
-        segment('3', 'c', words('nine ten', 4000)),
-      ],
-      [speaker('a'), speaker('b'), speaker('c')],
-    );
-    const named = renameSpeaker(t, 'a', 'Alice');
-    const merged = mergeSpeakers(named, 'c', 'a');
-    const ten = t.segments[2]!.words[1]!;
-    const final = applyFinalPass(reassignSpeaker(merged, [ten.id], 'b'), {
-      segments: [
-        segment('f1', 'X', words('one two three four', 0, 'f'), 'final'),
-        segment('f2', 'Y', words('five six seven eight', 2000, 'f'), 'final'),
-        segment('f3', 'Z', words('nine ten', 4000, 'f'), 'final'),
-      ],
-      speakers: [speaker('X'), speaker('Y'), speaker('Z')],
-    });
-    const x = final.speakers.find((s) => s.id === 'X');
-    expect(x).toMatchObject({ name: 'Alice', userNamed: true });
-    expect(final.speakers.find((s) => s.id === 'Z')?.mergedInto).toBe('X');
-    const display = resolveDisplay(final);
-    expect(display.map((s) => s.speakerId)).toEqual(['X', 'Y', 'X', 'Y']);
-    expect(final.undoStack).toEqual([]);
-  });
-
   it('keeps undo and redo of a correction through a final pass', () => {
     const t = transcript([segment('1', 'a', words('one two', 0))], [speaker('a')]);
     const two = t.segments[0]!.words[1]!;
@@ -386,5 +360,328 @@ describe('speakers', () => {
     const undone = undo(final);
     expect(shown(undone)).not.toContain('Twain');
     expect(shown(redo(undone))).toContain('Twain');
+  });
+});
+
+/** One-second words covering [fromMs, toMs); `lengthMs` shortens the last word to hit odd ends. */
+function talk(fromMs: number, toMs: number, prefix: string, track: Segment['track'] = 'meeting') {
+  const list: Word[] = [];
+  for (let at = fromMs, n = 0; at < toMs; at += 1000, n += 1) {
+    list.push({
+      id: `${prefix}${n}`,
+      text: `${prefix}${n}`,
+      startMs: at,
+      endMs: Math.min(at + 1000, toMs),
+    });
+  }
+  return { list, track };
+}
+const seg = (
+  id: string,
+  who: string,
+  from: number,
+  to: number,
+  pass: Segment['pass'] = 'live',
+  track: Segment['track'] = 'meeting',
+): Segment => segment(id, who, talk(from, to, id).list, pass, track);
+const named = (id: string, name: string): Speaker => ({ ...speaker(id), name, userNamed: true });
+const finalOf = (t: TranscriptFile, ...finals: Segment[]) =>
+  applyFinalPass(t, {
+    segments: finals,
+    speakers: [...new Set(finals.map((f) => f.speakerId))].map((id) => speaker(id)),
+  });
+const find = (t: TranscriptFile, id: string) => t.speakers.find((s) => s.id === id);
+
+describe('slice 2b: names across the final pass', () => {
+  const live20 = (): TranscriptFile =>
+    transcript([seg('l', 'a', 0, 20_000)], [named('a', 'Alice')]);
+
+  it('transfers a name (not the profile) and removes the live record', () => {
+    const t = live20();
+    t.speakers[0]!.profileId = 'p1';
+    const out = finalOf(t, seg('f', 'X', 0, 20_000, 'final'));
+    expect(find(out, 'X')).toMatchObject({ name: 'Alice', userNamed: true, profileId: null });
+    expect(find(out, 'a')).toBeUndefined();
+    expect(resolveDisplay(out).map((s) => s.speakerId)).toEqual(['X']);
+  });
+
+  it('needs 10 s of shared speech', () => {
+    const ok = finalOf(
+      transcript([seg('l', 'a', 0, 10_000)], [named('a', 'A')]),
+      seg('f', 'X', 0, 10_000, 'final'),
+    );
+    expect(find(ok, 'X')?.name).toBe('A');
+    const short = finalOf(
+      transcript([seg('l', 'a', 0, 9_990)], [named('a', 'A')]),
+      seg('f', 'X', 0, 9_990, 'final'),
+    );
+    expect(find(short, 'X')?.name).toBeNull();
+    expect(find(short, 'a')).toMatchObject({ name: 'A', needsManualResolution: true });
+  });
+
+  it('needs 70% of the live speaker covered', () => {
+    const ok = finalOf(live20(), seg('f', 'X', 0, 14_000, 'final'));
+    expect(find(ok, 'X')?.name).toBe('Alice');
+    const low = finalOf(live20(), seg('f', 'X', 0, 13_990, 'final'));
+    expect(find(low, 'X')?.name).toBeNull();
+    expect(find(low, 'a')?.needsManualResolution).toBe(true);
+  });
+
+  it('needs a 20-point margin over the next-best final speaker', () => {
+    // X covers 70%, Y covers 50%: exactly 20 points.
+    const ok = finalOf(
+      live20(),
+      seg('f1', 'X', 0, 14_000, 'final'),
+      seg('f2', 'Y', 10_000, 20_000, 'final'),
+    );
+    expect(find(ok, 'X')?.name).toBe('Alice');
+    const close = finalOf(
+      live20(),
+      seg('f1', 'X', 0, 14_000, 'final'),
+      seg('f2', 'Y', 9_990, 20_000, 'final'),
+    );
+    expect(find(close, 'X')?.name).toBeNull();
+    expect(find(close, 'a')?.needsManualResolution).toBe(true);
+  });
+
+  it('two named speakers on one final speaker: one wins, the other goes to review', () => {
+    const t = transcript(
+      [seg('l1', 'a', 0, 22_000), seg('l2', 'b', 22_000, 42_000)],
+      [named('a', 'Alice'), named('b', 'Bob')],
+    );
+    const out = finalOf(t, seg('f', 'X', 0, 42_000, 'final'));
+    expect(find(out, 'X')?.name).toBe('Alice');
+    expect(find(out, 'b')).toMatchObject({
+      name: 'Bob',
+      userNamed: true,
+      needsManualResolution: true,
+    });
+    expect(find(out, 'b')?.mergedInto).toBeNull();
+    expect(
+      activeSpeakers(out)
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual(['X', 'b']);
+  });
+
+  it('one named speaker spanning two finals keeps them distinct and is flagged', () => {
+    const out = finalOf(
+      live20(),
+      seg('f1', 'X', 0, 10_000, 'final'),
+      seg('f2', 'Y', 10_000, 20_000, 'final'),
+    );
+    expect(find(out, 'X')).toMatchObject({ name: null, mergedInto: null });
+    expect(find(out, 'Y')).toMatchObject({ name: null, mergedInto: null });
+    expect(find(out, 'a')).toMatchObject({
+      name: 'Alice',
+      mergedInto: null,
+      needsManualResolution: true,
+    });
+    expect(
+      activeSpeakers(out)
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual(['X', 'Y', 'a']);
+  });
+
+  it('ignores microphone speech and the generic meeting speaker', () => {
+    const t = transcript([seg('l', 'a', 0, 10_000)], [named('a', 'Alice')]);
+    const out = finalOf(
+      t,
+      seg('f1', 'X', 0, 5_000, 'final'),
+      seg('f2', 'X', 5_000, 10_000, 'final', 'microphone'),
+    );
+    expect(find(out, 'X')?.name).toBeNull();
+    expect(find(out, 'a')?.needsManualResolution).toBe(true);
+    const mic = transcript([seg('m', 'a', 0, 20_000, 'live', 'microphone')], [named('a', 'Alice')]);
+    expect(
+      find(finalOf(mic, seg('f', 'X', 0, 20_000, 'final', 'microphone')), 'a')
+        ?.needsManualResolution,
+    ).toBeUndefined();
+    const generic = transcript(
+      [seg('l', 'meeting', 0, 20_000)],
+      [{ ...named('meeting', 'Nobody') }],
+    );
+    const g = finalOf(generic, seg('f', 'X', 0, 20_000, 'final'));
+    expect(find(g, 'X')?.name).toBeNull();
+    expect(find(g, 'meeting')?.needsManualResolution).toBeUndefined();
+  });
+
+  it('counts overlapping words once', () => {
+    // 10 words but only 5 s of distinct time.
+    const doubled = [...talk(0, 5_000, 'p').list, ...talk(0, 5_000, 'q').list];
+    const t = transcript([segment('l', 'a', doubled)], [named('a', 'Alice')]);
+    const out = finalOf(t, seg('f', 'X', 0, 5_000, 'final'));
+    expect(find(out, 'X')?.name).toBeNull();
+  });
+
+  describe('review flag', () => {
+    const flagged = (): TranscriptFile =>
+      finalOf(
+        live20(),
+        seg('f1', 'X', 0, 10_000, 'final'),
+        seg('f2', 'Y', 10_000, 20_000, 'final'),
+      );
+
+    it('clears on rename, merge either way and reassign; not on profile matching or another pass', () => {
+      expect(
+        find(renameSpeaker(flagged(), 'a', 'Alicia'), 'a')?.needsManualResolution,
+      ).toBeUndefined();
+      expect(find(mergeSpeakers(flagged(), 'a', 'X'), 'a')?.needsManualResolution).toBeUndefined();
+      expect(find(mergeSpeakers(flagged(), 'X', 'a'), 'a')?.needsManualResolution).toBeUndefined();
+      const f = flagged();
+      const word = f.segments.find((s) => s.speakerId === 'Y')!.words[0]!;
+      const moved = reassignSpeaker(f, [word.id], 'a');
+      expect(find(moved, 'a')?.needsManualResolution).toBeUndefined();
+      expect(find(undo(moved), 'a')?.needsManualResolution).toBe(true);
+      expect(find(redo(undo(moved)), 'a')?.needsManualResolution).toBeUndefined();
+      const matched = assignSpeakerProfiles(f, [{ speakerId: 'a', profileId: 'p', name: 'Zed' }]);
+      expect(find(matched, 'a')?.needsManualResolution).toBe(true);
+      const again = finalOf(
+        f,
+        seg('g1', 'X', 0, 10_000, 'final'),
+        seg('g2', 'Y', 10_000, 20_000, 'final'),
+      );
+      expect(find(again, 'a')).toMatchObject({ name: 'Alice', needsManualResolution: true });
+    });
+
+    it('a flagged speaker merged away is not listed', () => {
+      expect(
+        activeSpeakers(mergeSpeakers(flagged(), 'a', 'X'))
+          .map((s) => s.id)
+          .sort(),
+      ).toEqual(['X', 'Y']);
+    });
+
+    it('undo of the rename brings the flag back', () => {
+      const renamed = renameSpeaker(flagged(), 'a', 'Alicia');
+      expect(find(undo(renamed), 'a')?.needsManualResolution).toBe(true);
+    });
+  });
+
+  describe('history', () => {
+    const setup = (): TranscriptFile => {
+      const t = transcript(
+        [seg('l1', 'a', 0, 20_000), seg('l2', 'b', 20_000, 40_000)],
+        [speaker('a'), speaker('b')],
+      );
+      const one = renameSpeaker(renameSpeaker(t, 'a', 'Alice'), 'b', 'Bob');
+      const word = one.segments[0]!.words[2]!;
+      return reassignSpeaker(one, [word.id], 'b');
+    };
+    const finals = [seg('f1', 'X', 0, 20_000, 'final'), seg('f2', 'Y', 20_000, 40_000, 'final')];
+
+    it('rebases speaker and override undo/redo onto the final speakers', () => {
+      const before = setup();
+      const out = finalOf(before, ...finals);
+      expect(out.undoStack.map((e) => e.id)).toEqual(before.undoStack.map((e) => e.id));
+      expect(out.speakerOverrides.map((o) => o.speakerId)).toEqual(['Y']);
+      const undone = undo(out);
+      expect(undone.speakerOverrides).toEqual([]);
+      const twice = undo(undo(undone));
+      expect(find(twice, 'X')?.name).toBeNull();
+      expect(find(twice, 'X')?.label).toBe('X');
+      expect(find(twice, 'Y')?.name).toBeNull();
+      expect(find(redo(redo(twice)), 'X')?.name).toBe('Alice');
+      const all = redo(redo(redo(twice)));
+      expect(find(all, 'Y')).toMatchObject({ name: 'Bob', userNamed: true });
+      expect(all.speakerOverrides.map((o) => o.speakerId)).toEqual(['Y']);
+      expect(all.redoStack).toEqual([]);
+    });
+
+    it('keeps the undo vs redo distinction', () => {
+      const out = finalOf(undo(setup()), ...finals);
+      expect(out.undoStack).toHaveLength(2);
+      expect(out.redoStack).toHaveLength(1);
+      expect(redo(out).speakerOverrides.map((o) => o.speakerId)).toEqual(['Y']);
+    });
+
+    it('drops an unsafe entry and every entry sharing its speaker or override, keeping the rest in order', () => {
+      const base = setup();
+      const entry = (id: string, patch: Partial<TranscriptFile['undoStack'][number]>) => ({
+        id,
+        label: id,
+        corrections: [],
+        speakers: [],
+        overrides: [],
+        ...patch,
+      });
+      const ghost = { ...speaker('g1'), mergedInto: 'missing' };
+      const override = {
+        id: 'o1',
+        track: 'meeting' as const,
+        startMs: 0,
+        endMs: 1,
+        speakerId: 'g1',
+      };
+      const bad = entry('bad', { speakers: [{ id: 'g1', before: null, after: ghost }] });
+      const linked = entry('linked', { overrides: [{ id: 'o1', before: null, after: override }] });
+      const viaOverride = entry('via', {
+        overrides: [{ id: 'o1', before: override, after: null }],
+      });
+      const t: TranscriptFile = {
+        ...base,
+        undoStack: [base.undoStack[0]!, bad, base.undoStack[1]!, linked, base.undoStack[2]!],
+        redoStack: [
+          viaOverride,
+          entry('keep', {
+            speakers: [{ id: 'b', before: find(base, 'b')!, after: find(base, 'b')! }],
+          }),
+        ],
+      };
+      const out = finalOf(t, ...finals);
+      expect(out.undoStack.map((e) => e.id)).toEqual(base.undoStack.map((e) => e.id));
+      expect(out.redoStack.map((e) => e.id)).toEqual(['keep']);
+      expect(find(out, 'Y')?.name).toBe('Bob');
+      expect(out.speakerOverrides.map((o) => o.speakerId)).toEqual(['Y']);
+    });
+
+    it('keeps current decisions when an entry is dropped', () => {
+      const base = setup();
+      const t = {
+        ...base,
+        undoStack: [
+          {
+            ...base.undoStack[0]!,
+            speakers: [{ id: 'z', before: { ...speaker('z'), mergedInto: 'nope' }, after: null }],
+          },
+        ],
+      };
+      const out = finalOf(t, ...finals);
+      expect(out.undoStack).toEqual([]);
+      expect(find(out, 'X')?.name).toBe('Alice');
+    });
+  });
+
+  describe('second final pass', () => {
+    it('re-keys a colliding speaker-1 and moves the name when safe', () => {
+      const first = finalOf(live20(), seg('f', 'speaker-1', 0, 20_000, 'final'));
+      expect(find(first, 'speaker-1')?.name).toBe('Alice');
+      const renamed = renameSpeaker(first, 'speaker-1', 'Alicia');
+      const second = finalOf(renamed, seg('g', 'speaker-1', 0, 20_000, 'final'));
+      expect(second.segments.map((s) => s.speakerId)).toEqual(['final:1:speaker-1']);
+      expect(find(second, 'final:1:speaker-1')).toMatchObject({ name: 'Alicia', userNamed: true });
+      expect(find(second, 'speaker-1')).toBeUndefined();
+      expect(undo(second).speakers.find((s) => s.id === 'final:1:speaker-1')?.name).toBe('Alice');
+    });
+
+    it('keeps the old speaker-1 and its history apart from an unrelated new speaker-1', () => {
+      const first = finalOf(live20(), seg('f', 'speaker-1', 0, 20_000, 'final'));
+      const second = finalOf(
+        first,
+        seg('g1', 'speaker-1', 0, 10_000, 'final'),
+        seg('g2', 'speaker-2', 10_000, 20_000, 'final'),
+      );
+      expect(find(second, 'speaker-1')).toMatchObject({
+        name: 'Alice',
+        needsManualResolution: true,
+      });
+      const fresh = second.segments.find(
+        (s) => s.speakerId !== 'speaker-1' && s.words[0]!.startMs === 0,
+      )!;
+      expect(fresh.speakerId).toBe('final:1:speaker-1');
+      expect(find(second, fresh.speakerId)?.name).toBeNull();
+      expect(find(second, 'speaker-2')?.name).toBeNull();
+    });
   });
 });

@@ -29,6 +29,8 @@ export interface Speaker {
   /** Set when this speaker now counts as another one. Follow it to find the shown speaker. */
   mergedInto: string | null;
   /** Backend-only provenance; absent aliases are conservatively user-owned. */
+  /** Set by the final pass when no final speaker was clearly this named speaker. Missing means false. */
+  needsManualResolution?: boolean;
   modelMerge?: { workerRun: string; generation: number; order: number };
 }
 
@@ -125,6 +127,13 @@ function validateTranscript(doc: JsonObject): TranscriptFile {
     'redoStack',
   ]) {
     assertFormat(Array.isArray(doc[key]), key);
+  }
+  for (const speaker of doc['speakers'] as Speaker[]) {
+    assertFormat(
+      speaker.needsManualResolution === undefined ||
+        typeof speaker.needsManualResolution === 'boolean',
+      'speaker review flag',
+    );
   }
   for (const segment of doc['segments'] as Segment[]) {
     assertFormat(typeof segment.id === 'string', 'segment id');
