@@ -2,8 +2,10 @@ mod common;
 
 use std::fs;
 
-use common::{NOW, TempFolder, recording};
+use common::{NOW, TempFolder, meeting_id, recording};
+use rusqlite::Connection;
 use scrb_library::{Library, LibraryError, MeetingId};
+use scrb_transcript::Transcript;
 use serde_json::json;
 
 /// Folder names must be safe on Windows, macOS and network folders and must stay one folder
@@ -139,4 +141,96 @@ fn meeting_id_random_ids_differ_and_parse() {
 
     assert_ne!(first, second);
     assert_eq!(first.as_str().parse::<MeetingId>().unwrap(), first);
+}
+
+/// A save written in place can leave a short `transcript.json` after a crash, losing the user's
+/// corrections. Replacing the file leaves a second name of the old file with the old bytes.
+#[test]
+fn save_transcript_never_writes_in_place() {
+    let folder = TempFolder::new("save-in-place");
+    let mut library = Library::open(folder.path(), NOW).unwrap();
+    let made = library
+        .create_meeting(&recording(1, "Weekly sync"))
+        .unwrap();
+    let path = made.join("transcript.json");
+    let old = fs::read(&path).unwrap();
+    let second_name = folder.path().join("second name.json");
+    fs::hard_link(&path, &second_name).unwrap();
+    let mut transcript = Transcript::new(meeting_id(1).as_str());
+    transcript.revision = 1;
+
+    library
+        .save_transcript(&meeting_id(1), &transcript)
+        .unwrap();
+
+    let saved: Transcript = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(saved, transcript);
+    assert_eq!(fs::read(&second_name).unwrap(), old);
+}
+
+/// The index is a file a user or a bad copy can change, so a folder name in it that leads out of
+/// `meetings/` must be refused before anything is written there.
+#[test]
+fn save_transcript_refuses_folder_outside_meetings() {
+    let folder = TempFolder::new("outside");
+    let mut library = Library::open(folder.path(), NOW).unwrap();
+    library
+        .create_meeting(&recording(1, "Weekly sync"))
+        .unwrap();
+    drop(library);
+    let outside = folder.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    let index = Connection::open(folder.path().join("index.sqlite")).unwrap();
+    index
+        .execute("UPDATE meetings SET folder = '../outside'", [])
+        .unwrap();
+    drop(index);
+    let mut library = Library::open(folder.path(), NOW).unwrap();
+
+    let saved = library.save_transcript(&meeting_id(1), &Transcript::new(meeting_id(1).as_str()));
+
+    assert!(matches!(saved, Err(LibraryError::UnsafeFolder(_))));
+    assert!(!outside.join("transcript.json").exists());
+}
+
+/// A folder whose `meeting.json` was replaced by another meeting's, as by a copy or a sync
+/// client, now holds that meeting, so a save of the first meeting must not write into it.
+#[test]
+fn save_transcript_refuses_folder_of_other_meeting() {
+    let folder = TempFolder::new("save-other");
+    let mut library = Library::open(folder.path(), NOW).unwrap();
+    let weekly = library
+        .create_meeting(&recording(1, "Weekly sync"))
+        .unwrap();
+    let planning = library.create_meeting(&recording(2, "Planning")).unwrap();
+    fs::copy(planning.join("meeting.json"), weekly.join("meeting.json")).unwrap();
+    let before = fs::read(weekly.join("transcript.json")).unwrap();
+    let mut transcript = Transcript::new(meeting_id(1).as_str());
+    transcript.revision = 1;
+
+    let saved = library.save_transcript(&meeting_id(1), &transcript);
+
+    assert!(matches!(saved, Err(LibraryError::NotFound(_))));
+    assert_eq!(fs::read(weekly.join("transcript.json")).unwrap(), before);
+}
+
+/// An unreadable `meeting.json` does not stop a save, so the reply must say the save worked once
+/// `transcript.json` holds it. Otherwise the user is told a correction failed though it was saved.
+#[test]
+fn save_transcript_succeeds_despite_unreadable_meeting_file() {
+    let folder = TempFolder::new("save-unreadable");
+    let mut library = Library::open(folder.path(), NOW).unwrap();
+    let made = library
+        .create_meeting(&recording(1, "Weekly sync"))
+        .unwrap();
+    fs::write(made.join("meeting.json"), "{").unwrap();
+    let mut transcript = Transcript::new(meeting_id(1).as_str());
+    transcript.revision = 1;
+
+    let saved = library.save_transcript(&meeting_id(1), &transcript);
+
+    assert!(saved.is_ok(), "{saved:?}");
+    let on_disk: Transcript =
+        serde_json::from_slice(&fs::read(made.join("transcript.json")).unwrap()).unwrap();
+    assert_eq!(on_disk, transcript);
 }

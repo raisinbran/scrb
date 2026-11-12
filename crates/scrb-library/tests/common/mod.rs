@@ -52,6 +52,14 @@ pub fn recording(n: u8, title: &str) -> NewMeeting {
     }
 }
 
+/// Sets `status` in the `meeting.json` in `folder`, as recording or the final pass would.
+pub fn set_status(folder: &Path, status: &str) {
+    let path = folder.join("meeting.json");
+    let mut file: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    file["status"] = status.into();
+    fs::write(&path, serde_json::to_vec(&file).unwrap()).unwrap();
+}
+
 /// Every file and folder under `folder` with each file's bytes, sorted by path.
 pub fn snapshot(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     let mut files = Vec::new();

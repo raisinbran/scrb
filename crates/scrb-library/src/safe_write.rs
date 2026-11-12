@@ -52,7 +52,7 @@ fn write_and_sync(mut file: File, bytes: &[u8]) -> io::Result<()> {
 
 /// Renames `from` over `to`, waiting a little longer after each failure while antivirus, the
 /// search indexer or a sync client holds the file.
-fn rename_when_free(from: &Path, to: &Path) -> io::Result<()> {
+pub(crate) fn rename_when_free(from: &Path, to: &Path) -> io::Result<()> {
     let mut wait = Duration::from_millis(10);
     for _ in 0..RENAME_RETRIES {
         match fs::rename(from, to) {

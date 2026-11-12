@@ -279,7 +279,7 @@ fn name_of<T: Serialize>(value: &T) -> String {
 }
 
 /// Reads column `column` back from the name [`name_of`] stored.
-fn from_name<T: DeserializeOwned>(row: &Row, column: usize) -> rusqlite::Result<T> {
+pub(crate) fn from_name<T: DeserializeOwned>(row: &Row, column: usize) -> rusqlite::Result<T> {
     let name: String = row.get(column)?;
     serde_json::from_value(Value::String(name)).map_err(|error| {
         rusqlite::Error::FromSqlConversionFailure(column, Type::Text, error.into())
