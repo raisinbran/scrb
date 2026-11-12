@@ -1,5 +1,10 @@
 [workspace]
-members = ["crates/scrb-core", "crates/scrb-protocol", "crates/scrb-transcript"]
+members = [
+    "crates/scrb-core",
+    "crates/scrb-library",
+    "crates/scrb-protocol",
+    "crates/scrb-transcript",
+]
 resolver = "3"
 
 [workspace.package]
@@ -10,11 +15,13 @@ publish = false
 
 [workspace.dependencies]
 scrb-protocol = { path = "crates/scrb-protocol" }
+scrb-transcript = { path = "crates/scrb-transcript" }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.154"
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "std"] }
 ts-rs = "=12.0.1"
+unicode-normalization = "=0.1.26"
 
 [workspace.lints.clippy]
 # Stdout carries the protocol, so one stray print would break the link.
