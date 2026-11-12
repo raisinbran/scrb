@@ -94,6 +94,60 @@ describe('isolated live audio supervisor with invented processes', () => {
     return worker;
   };
 
+  it('forwards validated attribution after ACK with stable namespaced speaker identities', async () => {
+    const events: LiveAudioEvent[] = [];
+    const code = fakeWorker()[1]!.replace(
+      "process.send({type:'ack',track,sequence,bufferedStartNs:endNs});",
+      `const segment = { id:'attributed', track, sequence, generation:0, startMs:0, endMs:50,
+        text:'word', words:[{text:'word', startMs:0,endMs:50,confidence:1}],
+        speakerId:'meeting',speakerLabel:'Meeting',provisional:true };
+      process.send({type:'segment',segment});
+      process.send({type:'ack',track,sequence,bufferedStartNs:endNs});
+      setImmediate(() => process.send({type:'attribution',segment:{...segment,
+        wordSpeakers:[{id:'live-1',label:'Speaker 1'}]}}));`,
+    );
+    const worker = await start(events, { workerArgs: ['-e', code] });
+    worker.offer(frame(0, 'meeting'));
+    await vi.waitFor(() => expect(events.filter((e) => e.type === 'segment')).toHaveLength(2));
+    const segments = events.flatMap((e) => (e.type === 'segment' ? [e.segment] : []));
+    expect(segments[1]!.id).toBe(segments[0]!.id);
+    expect(segments[1]!.words).toEqual(segments[0]!.words);
+    expect(segments[1]!.wordSpeakers).toEqual([
+      { id: `${segments[0]!.id.slice(0, -'attributed'.length)}live-1`, label: 'Speaker 1' },
+    ]);
+    expect(events.some((e) => e.type === 'failed')).toBe(false);
+  });
+
+  it.each([null, [], [{ id: 'invalid', label: 'Speaker 1' }]])(
+    'discards malformed optional attribution %j and continues text delivery and ACKs',
+    async (wordSpeakers) => {
+      const events: LiveAudioEvent[] = [];
+      const code = fakeWorker()[1]!.replace(
+        "process.send({type:'ack',track,sequence,bufferedStartNs:endNs});",
+        `const segment = { id:'valid-'+sequence, track, sequence, generation:0,
+          startMs:startNs/1e6, endMs:startNs/1e6+50, text:'word'+sequence,
+          words:[{text:'word'+sequence,startMs:startNs/1e6,endMs:startNs/1e6+50,confidence:1}],
+          speakerId:'meeting',speakerLabel:'Meeting',provisional:true };
+        process.send({type:'segment',segment});
+        if(sequence===0) process.send({type:'attribution',segment:{...segment,
+          wordSpeakers:${JSON.stringify(wordSpeakers)}}});
+        process.send({type:'ack',track,sequence,bufferedStartNs:endNs});`,
+      );
+      const worker = await start(events, { workerArgs: ['-e', code] });
+      worker.offer(frame(0, 'meeting'));
+      await vi.waitFor(() => expect(worker.getProgress().lastAckAtMs).not.toBeNull());
+      worker.offer(frame(1, 'meeting'));
+      await vi.waitFor(() => expect(events.filter((e) => e.type === 'segment')).toHaveLength(2));
+      await worker.close();
+      expect(events.flatMap((e) => (e.type === 'segment' ? [e.segment.text] : []))).toEqual([
+        'word0',
+        'word1',
+      ]);
+      expect(events.some((e) => e.type === 'restarting' || e.type === 'failed')).toBe(false);
+      expect(worker.getProgress().stats['meeting.sentFrames']).toBe(2);
+    },
+  );
+
   it('bounds each track independently during startup, dropping oldest live PCM without mutating recording input', async () => {
     const events: LiveAudioEvent[] = [];
     let release!: (host: LiveModelHost) => void;

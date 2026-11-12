@@ -27,6 +27,9 @@ export const TRACE_STAGES = [
   'segment_delivered',
   'segment_delivery_error',
   'engine_stop',
+  'speaker_start',
+  'speaker_end',
+  'speaker_error',
 ] as const;
 export type TraceStage = (typeof TRACE_STAGES)[number];
 export interface TraceFields {
