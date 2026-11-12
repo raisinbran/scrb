@@ -15,7 +15,7 @@ import type { Extraction, SummaryItem } from "../src/types.js";
 import { parseTranscript } from "./fixture.js";
 import { RecordingLlm } from "./record.js";
 
-const PHASE0 = process.env.SCRB_PHASE0 ?? join(homedir(), "Documents/GitHub/scrb/phase0");
+const ASSETS = process.env.SCRB_DEV_ASSETS ?? join(homedir(), "scrb-dev-assets");
 
 function arg(args: string[], name: string, fallback: number): number {
   const at = args.indexOf(name);
@@ -57,8 +57,8 @@ async function main(): Promise<void> {
   const transcript = parseTranscript(readFileSync(join(fixtures, `${meeting}.transcript.txt`), "utf8"));
   const reference = JSON.parse(readFileSync(join(fixtures, `${meeting}.reference.json`), "utf8")) as { actions: string[]; decisions: string[] };
   const worker = new LlamaServerWorker({
-    serverPath: join(PHASE0, "upstream/llama.cpp/build/bin/llama-server"),
-    modelPath: join(PHASE0, "models/llm/Qwen3.5-9B-Q4_K_M.gguf"),
+    serverPath: join(ASSETS, "upstream/llama.cpp/build/bin/llama-server"),
+    modelPath: join(ASSETS, "models/llm/Qwen3.5-9B-Q4_K_M.gguf"),
   });
   const llm = new RecordingLlm(worker, join(out, `${meeting}.recording.json`));
   let peakRss = 0;

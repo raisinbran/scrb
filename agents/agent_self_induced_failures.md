@@ -846,3 +846,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Ordered the steps by when the old folder is removed instead of by when its paths first change.
 - **Impact:** One extra review round. No step had started.
 - **Correction / remaining risk:** The tag is now step 1, pushed and verified before any tracked file moves, and the archive step reuses it. Plan still needs owner approval.
+
+### A-295 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — phase0 plan step 2 was written from incomplete reading
+
+- **Status / attribution:** Confirmed agent planning error, found by the same agent when starting step 2; not an application defect. ChatGPT review of PR #111 did not catch it either.
+- **What failed:** `docs/plans/phase0-removal.md` step 2 said `phase0/MANIFEST.md` hashed only three downloads and proposed a new fetch script. In fact `phase0/scripts/fetch-phase0-deps.sh` already held every full hash. The step also didn't mention that the Mac whisper.cpp and llama.cpp builds have library paths that point into `phase0/`, so copied builds would have kept loading from `phase0/` and failed only once it was removed.
+- **Agent-controlled cause:** Read the manifest's truncated hashes and stopped before the script that it names.
+- **Impact:** None yet: found before any asset was moved. The plan was amended and the step-2 PR reuses the existing script and rebuilds the builds.
+- **Correction / remaining risk:** Step 2 amended in the plan. Windows builds were not inspected for the same issue; DLLs there load from the program's own folder, but this is unverified on the Windows PCs.

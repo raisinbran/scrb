@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { build } from 'esbuild';
@@ -14,6 +15,7 @@ import { toolsIn, type ModelPaths } from '../../../packages/transcription/src/co
 
 const [repo, evidence] = process.argv.slice(2);
 if (!repo || !evidence) throw new Error('Expected repository and evidence directories');
+const assets = process.env['SCRB_DEV_ASSETS'] ?? join(homedir(), 'scrb-dev-assets');
 await mkdir(evidence, { recursive: true });
 const started = performance.now();
 const entry = join(evidence, 'live-worker.mjs');
@@ -25,7 +27,7 @@ await build({
   format: 'esm',
   target: 'node22',
 });
-const wav = await readFile(join(repo, 'phase0/downloads/ami/ES2004a.Mix-Headset.wav'));
+const wav = await readFile(join(assets, 'downloads/ami/ES2004a.Mix-Headset.wav'));
 // The AMI fixture is 16 kHz mono PCM; parse chunks rather than assume a 44-byte header.
 let offset = 12;
 let data = Buffer.alloc(0);
@@ -92,12 +94,12 @@ const models: ModelPaths = {
   speechFinal: '',
   vad: '',
   segmentation: join(
-    repo,
-    'phase0/models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx',
+    assets,
+    'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx',
   ),
   embedding: join(
-    repo,
-    'phase0/models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
+    assets,
+    'models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
   ),
 };
 const worker = await LiveAudioWorker.start({
