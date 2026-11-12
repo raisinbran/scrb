@@ -17,7 +17,7 @@ Plan: `docs/plans/vocabulary-gate5-evaluation.md`. Scorer: `scripts/research/sco
 | Audio hours decoded with hints on | | 4.062 h | 0.419 held-out + 3.643 negatives |
 | Rate / 95% upper bound (exact Poisson, scorer) | | 0 per h / 0.74 per h | |
 
-Per-term recall is identical off and on (only "pen" is partly recalled, 8 of 11; the other nine terms 0 of 21). "Improvement within noise" is **left to the reviewer**: there is no improvement to judge, since outputs are identical. The zero false replacements is **not evidence of safety**, because the hint did nothing; the 0.74/h bound only describes this inert configuration.
+Per-term recall is identical off and on (only "pen" is partly recalled, 8 of 11; the other nine terms 0 of 19; 11 + 19 = 30 reference occurrences). "Improvement within noise" is **left to the reviewer**: there is no improvement to judge, since outputs are identical. The zero false replacements is **not evidence of safety**, because the hint did nothing; the 0.74/h bound only describes this inert configuration.
 
 Plan mapping: recall on is not higher than off, so **fail** ("hints stay on, no automatic fixer"). The more accurate reading is **not tested**; this is a stage 1 outcome for the owner and reviewer to decide, not a pass of any Gate 5 criterion. A pass would in any case have shown one meeting and one term set only.
 
