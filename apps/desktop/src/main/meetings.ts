@@ -253,6 +253,7 @@ function toContractSpeaker(speaker: Speaker): ContractSpeaker {
     label: speaker.name ?? speaker.label,
     kind: speaker.id === YOU_ID ? 'you' : speaker.name ? 'named' : 'unknown',
     profileId: speaker.profileId,
+    ...(speaker.needsManualResolution === true ? { needsManualResolution: true } : {}),
   };
 }
 
