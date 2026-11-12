@@ -51,9 +51,9 @@ enum Command {
 
 #[derive(Debug, Subcommand)]
 enum MeetingsAction {
-    /// List all meetings, newest first.
+    /// Every meeting, newest first.
     List,
-    /// Show one meeting's meeting.json.
+    /// One meeting's meeting.json.
     Show { id: String },
 }
 
