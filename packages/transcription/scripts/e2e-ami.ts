@@ -37,8 +37,14 @@ const models: ModelPaths = {
   speechFinal: join(assets, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
   speechLive: join(assets, 'models/whisper/ggml-large-v3-turbo-q5_0.bin'),
   vad: join(assets, 'models/whisper/ggml-silero-v6.2.0.bin'),
-  segmentation: join(assets, 'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx'),
-  embedding: join(assets, 'models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx'),
+  segmentation: join(
+    assets,
+    'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx',
+  ),
+  embedding: join(
+    assets,
+    'models/sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
+  ),
 };
 const ami = join(assets, 'downloads/ami');
 const source = join(ami, `${meeting}.Mix-Headset.wav`);
@@ -65,14 +71,23 @@ async function scoreSpans(name: string, lines: string[]): Promise<unknown> {
 
 async function report(name: string, t: FinalTranscript): Promise<void> {
   await writeFile(join(work, `${name}.json`), JSON.stringify(t));
-  console.log(JSON.stringify({
-    stage: name,
-    words: t.words.length,
-    speakers: t.speakers.map((s) => [s.label, Math.round(s.speechMs / 1000), s.embeddingSegments]),
-    timing: t.timing,
-    wer: await scoreWords(name, t.words.map((w) => w.text).join(' ')),
-    der: await scoreSpans(name, t.spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`)),
-  }));
+  console.log(
+    JSON.stringify({
+      stage: name,
+      words: t.words.length,
+      speakers: t.speakers.map((s) => [
+        s.label,
+        Math.round(s.speechMs / 1000),
+        s.embeddingSegments,
+      ]),
+      timing: t.timing,
+      wer: await scoreWords(name, t.words.map((w) => w.text).join(' ')),
+      der: await scoreSpans(
+        name,
+        t.spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`),
+      ),
+    }),
+  );
 }
 
 const meetingDir = join(work, 'meeting');
@@ -80,19 +95,33 @@ if (want.includes('import')) {
   await rm(meetingDir, { recursive: true, force: true });
   const started = Date.now();
   const result = await importAudioFile({
-    tools, sourcePath: source, meetingDir, transcribe: { models },
+    tools,
+    sourcePath: source,
+    meetingDir,
+    transcribe: { models },
   });
-  console.log(JSON.stringify({
-    stage: 'import-wall', ms: Date.now() - started, durationMs: result.durationMs, chunks: result.chunks.length,
-  }));
+  console.log(
+    JSON.stringify({
+      stage: 'import-wall',
+      ms: Date.now() - started,
+      durationMs: result.durationMs,
+      chunks: result.chunks.length,
+    }),
+  );
   await report('import', result.transcript!);
 }
 
 if (want.includes('chunks')) {
   const chunks = await readChunkManifest(meetingDir);
-  await report('chunks', await runFinalPass({
-    tools, models, tracks: [{ kind: 'meeting', source: { chunks } }], workDir: join(work, 'final-work'),
-  }));
+  await report(
+    'chunks',
+    await runFinalPass({
+      tools,
+      models,
+      tracks: [{ kind: 'meeting', source: { chunks } }],
+      workDir: join(work, 'final-work'),
+    }),
+  );
 }
 
 if (want.includes('live')) {
@@ -102,7 +131,9 @@ if (want.includes('live')) {
   const spans: Span[] = [];
   let maxQueued = 0;
   const live = new LivePass({
-    tools, models, workDir: join(work, 'live-work'),
+    tools,
+    models,
+    workDir: join(work, 'live-work'),
     onSegment: (s) => segments.push(s),
     onMerge: (m) => merges.push([m.from, m.into]),
     onSpeakerSpan: (s) => spans.push(s),
@@ -127,18 +158,25 @@ if (want.includes('live')) {
     while (remap.has(id)) id = remap.get(id)!;
     return id;
   };
-  console.log(JSON.stringify({
-    stage: 'live',
-    segments: segments.length,
-    elapsedMs: elapsed,
-    chunkP50Ms: worst[Math.floor(worst.length / 2)],
-    chunkP95Ms: worst[Math.floor(worst.length * 0.95)],
-    chunkMaxMs: worst.at(-1),
-    relabels: merges.length,
-    labels: [...new Set(segments.map((s) => s.speakerLabel))],
-    wer: await scoreWords('live', segments.map((s) => s.text).join(' ')),
-    der: await scoreSpans('live', spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`)),
-    derPostMerge: await scoreSpans('live-merged',
-      spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${resolve(s.speakerId)}`)),
-  }));
+  console.log(
+    JSON.stringify({
+      stage: 'live',
+      segments: segments.length,
+      elapsedMs: elapsed,
+      chunkP50Ms: worst[Math.floor(worst.length / 2)],
+      chunkP95Ms: worst[Math.floor(worst.length * 0.95)],
+      chunkMaxMs: worst.at(-1),
+      relabels: merges.length,
+      labels: [...new Set(segments.map((s) => s.speakerLabel))],
+      wer: await scoreWords('live', segments.map((s) => s.text).join(' ')),
+      der: await scoreSpans(
+        'live',
+        spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${s.speakerId}`),
+      ),
+      derPostMerge: await scoreSpans(
+        'live-merged',
+        spans.map((s) => `${s.startMs / 1000} ${s.endMs / 1000} ${resolve(s.speakerId)}`),
+      ),
+    }),
+  );
 }
