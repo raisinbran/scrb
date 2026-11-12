@@ -347,6 +347,45 @@ describe('createMeetingHandlers', () => {
     ]);
   });
 
+  it('passes needsManualResolution to the UI only when a speaker is flagged', async () => {
+    const { id: meetingId } = await recorded('Flagged', '2026-10-03T11:00:00.000Z');
+    const speaker = (id: string, needsManualResolution?: boolean) => ({
+      id,
+      label: id,
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+      ...(needsManualResolution ? { needsManualResolution } : {}),
+    });
+    await library.applyFinalPass(meetingId, {
+      segments: [
+        {
+          id: 's1',
+          speakerId: 'a',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'w1', text: 'hello', startMs: 10, endMs: 20 }],
+        },
+        {
+          id: 's2',
+          speakerId: 'b',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'w2', text: 'again', startMs: 30, endMs: 40 }],
+        },
+      ],
+      speakers: [speaker('a', true), speaker('b')],
+    });
+    const page = (await value('getTranscript', { meetingId, offset: 0, limit: 10 })) as {
+      speakers: Array<{ id: string; needsManualResolution?: boolean }>;
+    };
+    expect(page.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
+    const unflagged = page.speakers.find((s) => s.id === 'b');
+    expect(unflagged).toBeDefined();
+    expect(unflagged).not.toHaveProperty('needsManualResolution');
+  });
+
   it('returns final text, and speakers with the You kind', async () => {
     const { id: meetingId } = await recorded('Spoken', '2026-10-03T10:00:00.000Z');
     await library.applyFinalPass(meetingId, {
