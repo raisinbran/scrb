@@ -803,6 +803,52 @@ export class Library {
     this.settings.dismissSuggestion(term);
   }
 
+  /**
+   * Remembers a suggestion's representative correction, keeping the correction itself and the
+   * transcript text as they were. It is not a user edit, so the summary status is left alone.
+   * Accepting twice changes nothing; the Undo entry it adds is the existing "Edit correction".
+   */
+  acceptVocabularySuggestion(
+    meetingId: string,
+    correctionId: string,
+    expectedRevision?: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        const source = current.corrections.find((c) => c.id === correctionId);
+        if (source === undefined || source.state !== 'active') {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        if (source.remember) return current;
+        const key = normalizeVocabularyTerm(source.replacement);
+        const { groups } = await this.scanSuggestions();
+        const stillSuggested = groups.some(
+          (group) =>
+            normalizeVocabularyTerm(group.term) === key &&
+            group.correctionIds.includes(correctionId),
+        );
+        if (!stillSuggested) throw new CorrectionConflictError('The suggestion changed');
+        const result = corrections.applyCorrection(current, {
+          wordIds: source.wordIds,
+          replacement: source.replacement,
+          remember: true,
+          now: this.nowIso(),
+        });
+        const { correction, transcript } = result;
+        if (
+          correction.id !== source.id ||
+          transcript.corrections.length !== current.corrections.length ||
+          transcript.segments !== current.segments
+        ) {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        return transcript;
+      },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
+    );
+  }
+
   private async scanSuggestions(): Promise<{
     groups: SuggestionGroup[];
     incomplete: boolean;
