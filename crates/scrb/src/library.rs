@@ -273,10 +273,31 @@ impl Library {
     /// Moves meeting `id` to `next` and returns the meeting.
     ///
     /// States move only forward, from `recording` to `recorded` to `passing`
-    /// to `ready` or `failed`, and from `failed` to `passing` again. Any other
-    /// move is `bad_state` and leaves `meeting.json` as it was. The caller
-    /// holds the meeting's `.lock`.
+    /// to `ready` or `failed`, and from `failed` to `passing` again. The one
+    /// way back is `ready` to `passing`, which only `transcribe --force` asks
+    /// for. Any other move is `bad_state` and leaves `meeting.json` as it
+    /// was. The caller holds the meeting's `.lock`.
     pub fn move_meeting(&self, id: &str, next: MeetingState) -> Result<Meeting, Error> {
+        self.move_meeting_and_set_pass(id, next, None)
+    }
+
+    /// Moves meeting `id` to `next` as [`Library::move_meeting`] does, and
+    /// replaces its `pass` in the same write.
+    pub fn move_meeting_with_pass(
+        &self,
+        id: &str,
+        next: MeetingState,
+        pass: Pass,
+    ) -> Result<Meeting, Error> {
+        self.move_meeting_and_set_pass(id, next, Some(pass))
+    }
+
+    fn move_meeting_and_set_pass(
+        &self,
+        id: &str,
+        next: MeetingState,
+        pass: Option<Pass>,
+    ) -> Result<Meeting, Error> {
         let mut meeting = self.read_meeting(id)?;
         if !can_move(meeting.state, next) {
             return Err(Error::new(
@@ -288,6 +309,9 @@ impl Library {
             ));
         }
         meeting.state = next;
+        if pass.is_some() {
+            meeting.pass = pass;
+        }
         self.write_meeting(&meeting)?;
         Ok(meeting)
     }
@@ -395,6 +419,7 @@ fn can_move(from: MeetingState, next: MeetingState) -> bool {
             | (MeetingState::Passing, MeetingState::Ready)
             | (MeetingState::Passing, MeetingState::Failed)
             | (MeetingState::Failed, MeetingState::Passing)
+            | (MeetingState::Ready, MeetingState::Passing)
     )
 }
 

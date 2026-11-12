@@ -15,8 +15,8 @@ use crate::library::{Library, append_json_line, read_json, write_json_safely};
 use crate::{Error, ErrorCode};
 
 pub(crate) const TRANSCRIPT_FILE: &str = "transcript.json";
-const EDITS_FILE: &str = "edits.jsonl";
-const SUMMARY_FILE: &str = "summary.json";
+pub(crate) const EDITS_FILE: &str = "edits.jsonl";
+pub(crate) const SUMMARY_FILE: &str = "summary.json";
 
 /// A live, pass or current transcript. Times are seconds on the meeting's
 /// timeline, and segments are sorted by time and never overlap.
