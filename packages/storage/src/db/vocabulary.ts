@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { StorageError } from '../errors.ts';
+import { SettingsStore, normalizeVocabularyTerm } from './settings.ts';
 
 export interface VocabularyContextRef {
   meetingId: string;
@@ -79,10 +80,21 @@ export interface TermInput {
   context?: VocabularyContextRef;
 }
 
-function deletedKey(term: string): string {
+function hashedKey(text: string): string {
   // A hash, so the marker does not keep the text of a term the user deleted.
-  const key = term.normalize('NFC').toLocaleLowerCase('en-US');
-  return `vocabulary.deleted.${createHash('sha256').update(key).digest('hex')}`;
+  return `vocabulary.deleted.${createHash('sha256').update(text).digest('hex')}`;
+}
+function deletedKey(term: string): string {
+  return hashedKey(normalizeVocabularyTerm(term));
+}
+/** Markers written before spaces were collapsed hashed the NFC, lowercased text as stored. */
+function legacyDeletedKeys(term: string): string[] {
+  const legacy = (text: string): string =>
+    hashedKey(text.normalize('NFC').toLocaleLowerCase('en-US'));
+  return [legacy(term), legacy(term.trim())];
+}
+function deletedKeys(term: string): string[] {
+  return [...new Set([deletedKey(term), ...legacyDeletedKeys(term)])];
 }
 function isMarked(db: DatabaseSync, key: string): boolean {
   return db.prepare('SELECT 1 FROM settings WHERE key = ?').get(key) !== undefined;
@@ -117,13 +129,18 @@ export class VocabularyStore {
     return row as unknown as TermRow | undefined;
   }
 
+  /** True if the user deleted this term and it has not been remembered since. */
+  isDeleted(term: string): boolean {
+    return deletedKeys(term).some((key) => isMarked(this.db, key));
+  }
+
   isUserEdited(id: string): boolean {
     return isMarked(this.db, `vocabulary.edited.${id}`);
   }
 
   /** Reconstruct missing links, but never resurrect deliberately deleted vocabulary. */
   reconcileRemember(input: TermInput): void {
-    if (!input.context || isMarked(this.db, deletedKey(input.term))) return;
+    if (!input.context || this.isDeleted(input.term)) return;
     const linked = this.db
       .prepare('SELECT term_id FROM vocabulary_contexts WHERE correction_id = ?')
       .get(input.context.correctionId);
@@ -136,7 +153,10 @@ export class VocabularyStore {
     if (term === '') throw new StorageError('EMPTY_TERM', 'A vocabulary term cannot be empty');
     const id = inTransaction(this.db, () => {
       const now = this.now();
-      this.db.prepare('DELETE FROM settings WHERE key = ?').run(deletedKey(term));
+      for (const key of deletedKeys(term)) {
+        this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+      }
+      new SettingsStore(this.db).undismissSuggestion(normalizeVocabularyTerm(term));
       const existing = this.findByTerm(term);
       const termId = existing?.id ?? randomUUID();
       if (existing === undefined) {

@@ -15,7 +15,7 @@ import {
   upsertMeeting,
   type MeetingRow,
 } from './db/meetings-index.ts';
-import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
+import { normalizeVocabularyTerm, SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
 import {
@@ -51,6 +51,14 @@ import {
   type MeetingPaths,
 } from './layout.ts';
 import { errorFields, Logger } from './logs.ts';
+import {
+  buildSuggestionGroups,
+  SUGGESTION_MEETING_LIMIT,
+  SUGGESTION_RECORD_LIMIT,
+  type ScannedMeeting,
+  type SuggestionGroup,
+  type VocabularySuggestions,
+} from './vocabulary-suggestions.ts';
 import { searchTranscript, type TranscriptHit } from './search.ts';
 
 const DAY_MS = 86_400_000;
@@ -768,6 +776,121 @@ export class Library {
       }
     }
     this.settings.set('vocabulary.repairInitialized', true);
+  }
+
+  /**
+   * Repeated corrections worth offering as vocabulary. Reads transcripts one at a time, newest
+   * first, only when called; nothing is cached and no file is changed.
+   */
+  async listVocabularySuggestions(): Promise<VocabularySuggestions> {
+    const { groups, incomplete, truncated } = await this.scanSuggestions();
+    return {
+      suggestions: groups.map((group) => ({
+        meetingId: group.meetingId,
+        correctionId: group.correctionId,
+        term: group.term,
+        misheard: group.misheard,
+        correctionCount: group.correctionCount,
+        meetingCount: group.meetingCount,
+      })),
+      incomplete,
+      truncated,
+    };
+  }
+
+  /** Dismissed terms are kept as plain text and stay dismissed after their meetings are deleted. */
+  dismissVocabularySuggestion(term: string): void {
+    this.settings.dismissSuggestion(term);
+  }
+
+  /**
+   * Remembers a suggestion's representative correction, keeping the correction itself and the
+   * transcript text as they were. It is not a user edit, so the summary status is left alone.
+   * Accepting twice changes nothing; the Undo entry it adds is the existing "Edit correction".
+   */
+  acceptVocabularySuggestion(
+    meetingId: string,
+    correctionId: string,
+    expectedRevision?: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        const source = current.corrections.find((c) => c.id === correctionId);
+        if (source === undefined || source.state !== 'active') {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        if (source.remember) return current;
+        const key = normalizeVocabularyTerm(source.replacement);
+        const { groups } = await this.scanSuggestions();
+        const stillSuggested = groups.some(
+          (group) =>
+            normalizeVocabularyTerm(group.term) === key &&
+            group.correctionIds.includes(correctionId),
+        );
+        if (!stillSuggested) throw new CorrectionConflictError('The suggestion changed');
+        const result = corrections.applyCorrection(current, {
+          wordIds: source.wordIds,
+          replacement: source.replacement,
+          remember: true,
+          now: this.nowIso(),
+        });
+        const { correction, transcript } = result;
+        if (
+          correction.id !== source.id ||
+          transcript.corrections.length !== current.corrections.length ||
+          transcript.segments !== current.segments
+        ) {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        return transcript;
+      },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
+    );
+  }
+
+  private async scanSuggestions(): Promise<{
+    groups: SuggestionGroup[];
+    incomplete: boolean;
+    truncated: boolean;
+  }> {
+    const ready = this.listMeetings().filter((row) => row.status === 'ready');
+    let truncated = ready.length > SUGGESTION_MEETING_LIMIT;
+    let incomplete = false;
+    let budget = SUGGESTION_RECORD_LIMIT;
+    const scanned: ScannedMeeting[] = [];
+    for (const row of ready.slice(0, SUGGESTION_MEETING_LIMIT)) {
+      if (budget <= 0) {
+        truncated = true;
+        break;
+      }
+      try {
+        const active = (await this.readTranscript(row.id)).corrections.filter(
+          (c) => c.state === 'active',
+        );
+        if (active.length > budget) truncated = true;
+        scanned.push({ meetingId: row.id, corrections: active.slice(0, budget) });
+        budget -= Math.min(active.length, budget);
+      } catch (error) {
+        incomplete = true;
+        this.logger.log('warn', 'vocabulary-suggestions-skipped', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+      }
+    }
+    const remembered = new Set(
+      this.vocabulary.list().map((item) => normalizeVocabularyTerm(item.term)),
+    );
+    const dismissed = new Set(this.settings.getDismissedSuggestions());
+    const groups = buildSuggestionGroups(
+      scanned,
+      (term, replacements) =>
+        remembered.has(term) ||
+        dismissed.has(term) ||
+        [term, ...replacements].some((text) => this.vocabulary.isDeleted(text)),
+    );
+    return { groups, incomplete, truncated };
   }
 
   /** The words around a remembered correction, read from its meeting's file. */
