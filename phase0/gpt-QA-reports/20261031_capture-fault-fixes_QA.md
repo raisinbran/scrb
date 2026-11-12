@@ -27,7 +27,7 @@ The plan is focused and its overall approach is reasonable. The review identifie
 
 **Minimal correction:** Detect source-format transitions using each slot's **device/input rate** (and any other source format property the converter needs); flush/reinitialize the converter at the transition and open a new chunk. Use the **saved/output rate** for encoding and output-frame accounting. Retain device timestamps for gap detection. The planned 48 → 44.1 → 48 kHz test should verify this distinction.
 
-**Evidence:** [`native/macos-capture/src/main.swift`, `Track.drain`](https://github.com/raisinbran/scrb/blob/main/native/macos-capture/src/main.swift); [`2026-10-30-macos-long-run.md`](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/2026-10-30-macos-long-run.md).
+**Evidence:** [`native/macos-capture/src/main.swift`, `Track.drain`](https://github.com/raisinbran/scrb/blob/main/native/macos-capture/src/main.swift); [`2026-10-30-macos-long-run.md`](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/archive/2026-10-30-macos-long-run.md).
 
 ### 2. High — Retry schedule has insufficient timing margin
 
@@ -37,7 +37,7 @@ The plan is focused and its overall approach is reasonable. The review identifie
 
 **Minimal correction:** Make the success criterion the measured **last-saved-audio-to-first-restored-audio gap**, per track, rather than retry-start timestamps. Use the already-planned `three_kill_case.mjs lock` real-helper run to check the maximum. Adjust retry waits if the result exceeds 5 seconds; if the target cannot be met, document the exception for owner approval instead of declaring the limit met.
 
-**Evidence:** [`docs/plans/capture-contract-and-clock.md`, C6](https://github.com/raisinbran/scrb/blob/main/docs/plans/capture-contract-and-clock.md); [`2026-10-30-macos-long-run.md`, worker restart evidence](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/2026-10-30-macos-long-run.md); [`packages/app-core/src/recording.ts`](https://github.com/raisinbran/scrb/blob/main/packages/app-core/src/recording.ts).
+**Evidence:** [`docs/plans/capture-contract-and-clock.md`, C6](https://github.com/raisinbran/scrb/blob/main/docs/plans/capture-contract-and-clock.md); [`2026-10-30-macos-long-run.md`, worker restart evidence](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/archive/2026-10-30-macos-long-run.md); [`packages/app-core/src/recording.ts`](https://github.com/raisinbran/scrb/blob/main/packages/app-core/src/recording.ts).
 
 ### 3. Medium — `writeError` propagation must preserve existing events
 
