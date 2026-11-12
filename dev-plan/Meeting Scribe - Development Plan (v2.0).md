@@ -150,6 +150,7 @@ The live speech worker reading saved chunks through a bounded queue, provisional
 
 - **macOS:** Gate 3 passed earlier (owner-approved; recorded in `docs/handoffs/SRCB_Project_Handover_2026-11-08.md`).
 - **Windows, live-latency criterion (median 3 s or less, 95% within 6 s, per track): ACCEPTED BY OWNER DECISION on 2026-11-10**, per the signed record `docs/gates/gate-3-windows-latency-owner-decision-record-20261110.md`. This is a risk-acceptance decision, not a measured protocol pass. It does not reverse the 2026-11-07 result (73 of 77), covers no other Gate 3 criterion, and does not mean the live path is fixed. The record's reopen conditions apply.
+- **Windows, Wave 1 playback and capture evidence: loopback substitute and relaxed Test 4 ACCEPTED BY OWNER on 2026-11-12**, per `docs/gates/gate-3-windows-wave1-evidence-owner-decision-20261112.md`. This covers those two substitutions only.
 - Gate 3 is recorded per platform, and V1 still needs both platforms recorded. The remaining Windows Gate 3 criteria are not changed by this note.
 
 **Follow-ups from Windows Gate 3** (none blocks the decision above unless a reopen condition occurs):
