@@ -943,3 +943,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Checked that the test fails when the pass-through is removed, not that each assertion could fail.
 - **Impact:** One extra review round. No product code affected.
 - **Correction / remaining risk:** `b` now has a segment and the test asserts it is returned before checking the flag is absent; mutation check repeated. Low.
+
+### A-307 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — hint-on evaluation run without checking that `-mc 0` leaves the prompt inert
+- **Status / attribution:** Provisional: the plan's assumption (earlier session) plus my execution without checking; found by me from byte-identical hint-off/hint-on output.
+- **What failed:** The plan says hints reach recognition via `--prompt`, with `-mc 0` unchanged. I read `whisper.ts` and ran all 8 hint-on decodes without checking whether `-mc 0` disables prompt conditioning; whisper.cpp line 7112/7296 suggests it does, so the run tested nothing.
+- **Agent-controlled cause:** Did not read the whisper.cpp prompt path (or run a 30 s smoke decode) before the full set. The scorer review did not cover this either.
+- **Impact:** About 6 minutes of compute and one inconclusive stage; no product or evidence harm.
+- **Correction / remaining risk:** Reported in the results note; cause not yet confirmed by a controlled `-mc` > 0 run. Also a minor pre-score shell quoting error (no effect). Medium until the product question is settled.
