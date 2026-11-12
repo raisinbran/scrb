@@ -957,3 +957,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Assumed bash word-splitting semantics in the default shell.
 - **Impact:** About one minute and one wasted command; no results affected.
 - **Correction / remaining risk:** Rerun in bash (the first run produced no output). Low.
+
+### A-309 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — scorer phrase matching, arithmetic slip and corrupted usage row passed my review of PR #118
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT); not application defects.
+- **What failed:** (1) The scorer counted a multiword term as recognised when each word matched individually, even with an inserted or deleted word inside the phrase; (2) the results note said the nine non-"pen" terms had 21 reference occurrences, but the scorer's own counts give 19 (11 + 19 = 30); (3) the usage row was committed with its opening fields duplicated, shifting the columns.
+- **Agent-controlled cause:** I reviewed the scorer for alignment logic but not for phrase contiguity, copied a figure into the note without summing it, and did not check the appended row's column count.
+- **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
+- **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.

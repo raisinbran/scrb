@@ -103,12 +103,15 @@ def find_phrase(words, phrase):
 
 # ---------- term metrics ----------
 def term_recall(ref, ops, terms):
-    """Occurrence in ref is recalled when every one of its words is a Match in the alignment."""
-    matched_ref = {o[1] for o in ops if o[0] == "M"}
+    """Occurrence in ref is recalled when every one of its words is a Match in the alignment and the matched
+    hyp words are consecutive (an inserted or deleted word inside a phrase breaks it)."""
+    r2h = {o[1]: o[2] for o in ops if o[0] == "M"}
+    matched_ref = set(r2h)
     per, tot_n, tot_hit = {}, 0, 0
     for t in terms:
         occ = find_phrase(ref, t)
-        hit = sum(1 for s in occ if all(k in matched_ref for k in range(s, s + len(t))))
+        hit = sum(1 for s in occ if all(k in matched_ref for k in range(s, s + len(t)))
+                  and all(r2h[k + 1] == r2h[k] + 1 for k in range(s, s + len(t) - 1)))
         per[" ".join(t)] = {"ref_occurrences": len(occ), "recalled": hit}
         tot_n += len(occ); tot_hit += hit
     return {"occurrences": tot_n, "recalled": tot_hit, "recall": tot_hit / tot_n if tot_n else None, "per_term": per}
@@ -132,7 +135,8 @@ def heldout_false_replacements(ref, ops_on, hyp_on, ops_off, hyp_off, terms):
     (some word of the occurrence is not a Match) AND hint-off output has no occurrence of the term at the same ref place.
     'Same place' = the closed ref intervals overlap."""
     son, soff = hyp_ref_spans(ops_on), hyp_ref_spans(ops_off)
-    match_on = {o[2] for o in ops_on if o[0] == "M"}
+    h2r = {o[2]: o[1] for o in ops_on if o[0] == "M"}
+    match_on = set(h2r)
     events = []
     for t in terms:
         n = len(t)
@@ -141,8 +145,9 @@ def heldout_false_replacements(ref, ops_on, hyp_on, ops_off, hyp_off, terms):
             return min(a for a, _ in iv), max(b for _, b in iv)
         off_ivs = [interval(soff, s) for s in find_phrase(hyp_off, t)]
         for s in find_phrase(hyp_on, t):
-            if all(k in match_on for k in range(s, s + n)):
-                continue  # reference has the term there: a correct recognition, not a replacement
+            if (all(k in match_on for k in range(s, s + n))
+                    and all(h2r[k + 1] == h2r[k] + 1 for k in range(s, s + n - 1))):
+                continue  # reference has the whole term there, contiguous: a correct recognition, not a replacement
             lo, hi = interval(son, s)
             if any(a <= hi and lo <= b for a, b in off_ivs):
                 continue  # hint-off output already had it there: not caused by the hint
@@ -284,6 +289,14 @@ def selftest():
     r = run("a b", "a b", "a b", ["Kestrel", "blue sky"], neg="Kestrel was kestrels; the Blue Sky and kestrel.")
     assert [e["term"] for e in r["neg"]] == ["kestrel", "kestrel", "blue sky"] or len(r["neg"]) == 3, r["neg"]
     assert len(r["neg"]) == 3  # "kestrels" must not count
+    # 3b. phrases must be contiguous: an inserted or deleted word inside breaks recall / correct-recognition
+    r = run("see the blue sky today", "see the blue red sky today", "see the blue red sky today", ["blue sky"])
+    assert r["rec_on"] == 0, r
+    assert len(r["held"]) == 0 and run("see the blue sky today", "see the blue sky today", "see the blue sky today", ["blue sky"])["rec_on"] == 1
+    r = run("see the blue red sky today", "see the blue sky today", "see the blue sky today", ["blue sky"])
+    assert r["rec_on"] == 0, r  # ref has no contiguous "blue sky" occurrence at all
+    r = run("see the blue red sky today", "see the green sky today", "see the blue sky today", ["blue sky"])
+    assert len(r["held"]) == 1, r  # hyp phrase matches non-adjacent ref words: not a correct recognition
     # 4. WER regression with recall gain -> fail
     r = run("one two three four five six", "one two three four five six", "one X three Y five Z Kestrel", ["Kestrel"])
     assert r["wer_on"] > r["wer_off"]
