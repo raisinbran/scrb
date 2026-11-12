@@ -82,6 +82,15 @@ describe('shared components', () => {
       ]);
     });
 
+    it('shows a Needs review badge only for a flagged speaker', () => {
+      const { unmount } = renderLabel(backend, unknown);
+      expect(screen.queryByText('Needs review')).toBeNull();
+      unmount();
+      renderLabel(backend, { ...unknown, needsManualResolution: true });
+      expect(screen.getByText('Needs review')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Speaker: Speaker 2' })).toBeTruthy();
+    });
+
     it('moves through the menu by keyboard and returns focus on Escape', () => {
       renderLabel(backend, unknown, true);
       const trigger = screen.getByRole('button', { name: 'Speaker: Speaker 2' });

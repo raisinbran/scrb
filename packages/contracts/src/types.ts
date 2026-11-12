@@ -252,6 +252,8 @@ export interface Speaker {
   label: string;
   kind: 'you' | 'unknown' | 'named';
   profileId: ProfileId | null;
+  /** True when the final pass could not safely match this named speaker. Missing means false. */
+  needsManualResolution?: boolean;
 }
 
 /** The backend decides this state. The UI only styles it. */
