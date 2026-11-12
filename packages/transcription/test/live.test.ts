@@ -8,11 +8,15 @@ import { importAudioFile } from '../src/importFile.js';
 import { LivePass, type LiveSegment } from '../src/livePass.js';
 import type { AudioChunk } from '../src/types.js';
 import type { LiveWhisper } from '../src/whisper.js';
+import { bin, decoderGuard, haveFfmpeg } from './decoder.js';
 
-const bin = join(import.meta.dirname, '../.bin');
-const haveFfmpeg = existsSync(join(bin, 'ffmpeg'));
+if (process.platform !== 'win32') decoderGuard('live.test.ts');
 const models: ModelPaths = {
-  speechFinal: 'x', speechLive: 'x', vad: 'x', segmentation: 'x', embedding: 'x',
+  speechFinal: 'x',
+  speechLive: 'x',
+  vad: 'x',
+  segmentation: 'x',
+  embedding: 'x',
 };
 
 function fakeWhisper(reply: () => Promise<string>): LiveWhisper {
@@ -31,7 +35,8 @@ describe.skipIf(!haveFfmpeg || process.platform === 'win32')('LivePass with fake
     await chmod(vad, 0o755);
     tools = toolsIn(bin, { whisperVad: vad });
     const source = join(import.meta.dirname, 'fixtures/speech.wav');
-    chunks = (await importAudioFile({ tools, sourcePath: source, meetingDir: join(dir, 'm') })).chunks;
+    chunks = (await importAudioFile({ tools, sourcePath: source, meetingDir: join(dir, 'm') }))
+      .chunks;
   });
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
@@ -61,10 +66,11 @@ describe.skipIf(!haveFfmpeg || process.platform === 'win32')('LivePass with fake
     const pass = live({
       maxQueuedChunks: 2,
       onSkipped: (_t, start) => skipped.push(start),
-      startWhisper: async () => fakeWhisper(async () => {
-        await gate;
-        return 'x';
-      }),
+      startWhisper: async () =>
+        fakeWhisper(async () => {
+          await gate;
+          return 'x';
+        }),
     });
     await pass.start();
     const c = chunks[0]!;
@@ -103,9 +109,10 @@ describe.skipIf(!haveFfmpeg || process.platform === 'win32')('LivePass with fake
     const reasons: string[] = [];
     const pass = live({
       onFailed: (r) => reasons.push(r),
-      startWhisper: async () => fakeWhisper(async () => {
-        throw new Error('still dead');
-      }),
+      startWhisper: async () =>
+        fakeWhisper(async () => {
+          throw new Error('still dead');
+        }),
     });
     await pass.start();
     for (let i = 0; i < 6; i++) {

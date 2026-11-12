@@ -8,12 +8,14 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$here/.work/ffmpeg"
 out="$here/.bin"
 ffmpeg_sha=7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52
+opus_sha=6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1
 mkdir -p "$work" "$out"
 cd "$work"
 
 [ -f ffmpeg-9.0.tar.xz ] || curl -sSfL -o ffmpeg-9.0.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz
 [ -f opus-1.6.1.tar.gz ] || curl -sSfL -o opus-1.6.1.tar.gz https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz
 echo "$ffmpeg_sha  ffmpeg-9.0.tar.xz" | shasum -a 256 -c -
+echo "$opus_sha  opus-1.6.1.tar.gz" | shasum -a 256 -c -
 
 if [ ! -f prefix/lib/libopus.a ]; then
   rm -rf opus-1.6.1 && tar xzf opus-1.6.1.tar.gz
