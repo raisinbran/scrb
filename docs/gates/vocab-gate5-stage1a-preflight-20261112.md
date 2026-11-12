@@ -50,3 +50,17 @@ Runtime model path of the installed app; run-to-run determinism; whether Metal G
 ## Proposed usage row
 
 Appended to `agents/agent_task_allocation.md` (Claude Code / Sonnet 5.5 / Mac; 5h remaining 95% -> 94%, weekly 27% -> 27%; clock times unavailable). No self-induced failures to log.
+
+## Download done (step 2), owner-approved in chat 2026-11-12
+
+Fetched with `curl` from the mirror above into `~/scrb-dev-assets/eval-vocab/neg/` (outside git). Sizes equal the earlier HEAD values exactly. `ffprobe` is not on PATH here, so durations were read from the WAV headers (Python `wave`); all files are 16 kHz, mono, 16-bit PCM. No anomalies.
+
+| File | Size (B) | Duration | SHA-256 |
+| --- | --- | --- | --- |
+| EN2002d.Mix-Headset.wav | 70,716,802 | 2209.9 s | 6aa99d9d71cb695ea699d6be277f78eff68e847c93560031486eba9f18164ebe |
+| ES2003c.Mix-Headset.wav | 72,221,740 | 2256.9 s | 828faf52f14ae584c299c35009fa519b4780bfcc2c966288eebb6af091ef0fd7 |
+| ES2014b.Mix-Headset.wav | 74,236,632 | 2319.9 s | 472969899eb229d56e4c68576dd641afecae1a2300591d3be1c8561f6a41d79d |
+| ES2015c.Mix-Headset.wav | 68,348,632 | 2135.9 s | 50999075fa47769474ecb2b39629db674f0b2a33ca5368df6af07ea106253dcb |
+| ES2016c.Mix-Headset.wav | 73,868,674 | 2308.4 s | 8885f3d72b9f15b20002ef15491545af7c7339e650f9b245cfb8d7fc5f8c20a0 |
+
+New files: 11,231 s = 3.12 h; with local ES2004a and IS1009a, about 3.64 h of negative controls (plan target 3.2 h met). References are the local `ann/words/` files. Steps 4 to 8 not started.
