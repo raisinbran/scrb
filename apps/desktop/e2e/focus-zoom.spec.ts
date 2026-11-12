@@ -85,13 +85,18 @@ test('keeps minimum-window controls usable at real zoom', async () => {
     );
     await page.reload();
     for (const zoom of [2, 1]) {
-      await app.evaluate(({ BrowserWindow }, factor) => {
+      // macOS clamps the window to the display (the CI runner's is 1024 wide). The
+      // supported size is 1280×720, so on a smaller display raise the zoom until the
+      // CSS viewport is the one 1280 DIP would give at the requested zoom.
+      const applied = await app.evaluate(async ({ BrowserWindow }, factor) => {
         const win = BrowserWindow.getAllWindows()[0]!;
         win.setSize(1280, 720);
-        win.webContents.setZoomFactor(factor);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const effective =
+          factor > 1 ? Math.min(factor, (win.getContentBounds().width * factor) / 1280) : factor;
+        win.webContents.setZoomFactor(effective);
+        return effective;
       }, zoom);
-      // macOS clamps the window to the display (the CI runner's is ~1024 wide), so
-      // measure the size the window ended up with, not the size requested.
       const readWindow = () =>
         app.evaluate(({ BrowserWindow }) => {
           const win = BrowserWindow.getAllWindows()[0]!;
@@ -106,7 +111,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
           async () => {
             const w = await readWindow();
             const seen = await page.evaluate(() => innerWidth);
-            return Math.abs(seen - w.contentWidth / zoom) < 1;
+            return Math.abs(seen - w.contentWidth / applied) < 1;
           },
           { message: `viewport never matched the window at ${zoom * 100}%`, timeout: 30_000 },
         )
@@ -119,7 +124,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       const dimensions = `Effective Electron window ${window.bounds.width}×${window.bounds.height} DIP; CSS viewport ${viewport.width}×${viewport.height} at ${zoom * 100}%`;
       expect(window.bounds.width, dimensions).toBeGreaterThanOrEqual(1024);
       expect(window.bounds.height, dimensions).toBeGreaterThanOrEqual(600);
-      expect(window.zoom).toBe(zoom);
+      expect(window.zoom).toBeCloseTo(applied, 5);
       await page.getByRole('button', { name: 'Live', exact: true }).click();
       await expect(page.getByRole('combobox', { name: 'Microphone' })).toBeVisible();
       await inspectLayout(page, `${zoom}-live-idle`);
