@@ -269,7 +269,7 @@ function replaceSpeakers(
   return pushHistory({ ...transcript, speakers }, label, { speakers: patches });
 }
 
-/** An explicit user decision settles a speaker the final pass flagged for review. */
+/** A merge settles final ownership of a speaker the final pass flagged for review. */
 function clearReview(speaker: Speaker): Speaker {
   const rest = { ...speaker };
   delete rest.needsManualResolution;
@@ -298,9 +298,7 @@ export function renameSpeaker(
   name: string,
 ): TranscriptFile {
   const speaker = findSpeaker(transcript, speakerId);
-  return replaceSpeakers(transcript, 'Rename speaker', [
-    clearReview({ ...speaker, name, userNamed: true }),
-  ]);
+  return replaceSpeakers(transcript, 'Rename speaker', [{ ...speaker, name, userNamed: true }]);
 }
 
 export function resolveSpeakerId(transcript: TranscriptFile, speakerId: string): string {
@@ -399,7 +397,7 @@ export function reassignSpeaker(
   wordIds: string[],
   speakerId: string,
 ): TranscriptFile {
-  const target = findSpeaker(transcript, speakerId);
+  findSpeaker(transcript, speakerId);
   const span = selectSpan(transcript, wordIds);
   const override: SpeakerOverride = {
     id: randomUUID(),
@@ -408,21 +406,12 @@ export function reassignSpeaker(
     endMs: (span.at(-1) as PlacedWord).word.endMs,
     speakerId,
   };
-  const settled = target.needsManualResolution === true ? clearReview(target) : null;
-  const next = {
-    ...transcript,
-    speakerOverrides: [...transcript.speakerOverrides, override],
-    speakers: transcript.speakers.map((s) =>
-      settled !== null && s.id === speakerId ? settled : s,
-    ),
-  };
+  const next = { ...transcript, speakerOverrides: [...transcript.speakerOverrides, override] };
   return pushHistory(next, 'Reassign speaker', {
     overrides: [{ id: override.id, before: null, after: override }],
-    speakers: settled === null ? [] : [{ id: speakerId, before: target, after: settled }],
   });
 }
 
-/** Promotion changes only a model-owned placeholder label; user edits keep their own history. */
 function promoteLiveSpeakers(existing: Speaker[], incoming: Speaker[]): Speaker[] {
   return existing.map((s) => {
     const next = incoming.find((n) => n.id === s.id);
@@ -701,6 +690,7 @@ const MIN_SHARED_MS = 10_000;
 const MIN_LIVE_SHARE = 0.7;
 const MIN_MARGIN = 0.2;
 const FALLBACK_SPEAKER = 'meeting';
+const YOU_SPEAKER = 'you';
 
 /** Meeting-track speech per speaker as 10 ms bins, so overlapping words count once. */
 function speechBins(
@@ -778,8 +768,12 @@ function transferSpeakers(
   transcript: TranscriptFile,
   replaced: Segment[],
   incoming: Segment[],
-  incomingSpeakers: Speaker[],
+  rawIncomingSpeakers: Speaker[],
 ): SpeakerTransfer {
+  const incomingSpeakers = rawIncomingSpeakers.filter(
+    (speaker) =>
+      speaker.id !== YOU_SPEAKER || !transcript.speakers.some((s) => s.id === YOU_SPEAKER),
+  );
   const liveBins = speechBins(replaced, (segment, word) =>
     resolveSpeakerId(
       transcript,
@@ -889,7 +883,8 @@ function rekeyIncoming(transcript: TranscriptFile, incoming: ModelReplacement): 
   const incomingIds = new Set((incoming.speakers ?? []).map((speaker) => speaker.id));
   const renamed = new Map<string, string>();
   for (const speaker of incoming.speakers ?? []) {
-    if (!taken.has(speaker.id)) continue;
+    // The microphone speaker is one reserved identity; the existing record stays the owner.
+    if (!taken.has(speaker.id) || speaker.id === YOU_SPEAKER) continue;
     const base = `final:${transcript.revision + 1}:${speaker.id}`;
     let candidate = base;
     for (let n = 2; taken.has(candidate) || incomingIds.has(candidate); n += 1) {
