@@ -315,7 +315,9 @@ export function mergeSpeakers(
   if (resolveSpeakerId(transcript, intoId) === resolveSpeakerId(transcript, fromId)) {
     throw new CorrectionConflictError('These speakers are already one');
   }
-  return replaceSpeakers(transcript, 'Merge speakers', [{ ...from, mergedInto: intoId }]);
+  const merged = { ...from, mergedInto: intoId };
+  delete merged.modelMerge;
+  return replaceSpeakers(transcript, 'Merge speakers', [merged]);
 }
 
 export function splitSpeaker(
@@ -811,6 +813,23 @@ export function replaceLiveSegments(
 ): TranscriptFile {
   const ids = new Set(segmentIds);
   const replaced = transcript.segments.filter((segment) => ids.has(segment.id));
+  const protectedIds = protectedLiveSpeakers(transcript);
+  const oldOwner = new Map(
+    replaced.flatMap((s) => s.words.map((w) => [w.id, s.speakerId] as const)),
+  );
+  if (
+    incoming.segments.some((s) =>
+      s.words.some((w) => {
+        const old = oldOwner.get(w.id);
+        return (
+          old !== undefined &&
+          old !== s.speakerId &&
+          (protectedIds.has(old) || protectedIds.has(s.speakerId))
+        );
+      }),
+    )
+  )
+    return transcript;
   const kept = transcript.segments.filter((segment) => !ids.has(segment.id));
   const known = new Set(transcript.speakers.map((speaker) => speaker.id));
   const speakers = (incoming.speakers ?? []).filter((speaker) => !known.has(speaker.id));
@@ -929,4 +948,111 @@ export function resolveDisplay(transcript: TranscriptFile): DisplaySegment[] {
 export function activeSpeakers(transcript: TranscriptFile): Speaker[] {
   const shown = new Set(resolveDisplay(transcript).map((segment) => segment.speakerId));
   return transcript.speakers.filter((speaker) => shown.has(speaker.id));
+}
+
+/** Internal worker metadata, never part of the UI contract. */
+export interface LiveSpeakerMerge {
+  from: string;
+  into: string;
+  workerRun: string;
+  generation: number;
+  order: number;
+  label: string;
+}
+
+export function mergeLiveSpeaker(t: TranscriptFile, request: LiveSpeakerMerge): TranscriptFile {
+  const { from, into, workerRun, generation, order, label } = request;
+  if (
+    !/^[a-zA-Z0-9-]{1,128}$/.test(workerRun) ||
+    !Number.isSafeInteger(generation) ||
+    generation < 0 ||
+    !Number.isSafeInteger(order) ||
+    order < 1 ||
+    !/^(Speaker \?|Speaker [1-9][0-9]{0,8})$/.test(label)
+  )
+    return t;
+  const local = (id: string) =>
+    id.startsWith(`${workerRun}-live-`) && /^[1-9][0-9]{0,8}$/.test(id.slice(workerRun.length + 6));
+  if (
+    !local(from) ||
+    !local(into) ||
+    from === into ||
+    t.segments.some((s) => s.track === 'meeting' && s.pass === 'final')
+  )
+    return t;
+  const a = t.speakers.find((s) => s.id === from);
+  const b = t.speakers.find((s) => s.id === into);
+  if (
+    !a ||
+    !b ||
+    (a.modelMerge && (generation < a.modelMerge.generation || order <= a.modelMerge.order))
+  )
+    return t;
+  const protectedIds = protectedLiveSpeakers(t);
+  if (protectedIds.has(from) || protectedIds.has(into)) return t;
+  const seen = new Set([from]);
+  let target: Speaker | undefined = b;
+  while (target) {
+    if (seen.has(target.id)) return t;
+    seen.add(target.id);
+    if (!target.mergedInto) break;
+    target = t.speakers.find((s) => s.id === target!.mergedInto);
+  }
+  if (!target || a.mergedInto !== null) return t;
+  return {
+    ...t,
+    speakers: t.speakers.map((s) =>
+      s.id === from
+        ? { ...s, mergedInto: into, modelMerge: { workerRun, generation, order } }
+        : s.id === target.id && s.label === 'Speaker ?' && label !== 'Speaker ?'
+          ? { ...s, label }
+          : s,
+    ),
+  };
+}
+
+function protectedLiveSpeakers(t: TranscriptFile): Set<string> {
+  const protectedIds = new Set<string>();
+  const protect = (s: Speaker | null) => {
+    if (s) {
+      protectedIds.add(s.id);
+      if (s.mergedInto) protectedIds.add(s.mergedInto);
+    }
+  };
+  for (const s of t.speakers)
+    if (
+      s.userNamed ||
+      s.name !== null ||
+      s.profileId !== null ||
+      (s.mergedInto !== null && !s.modelMerge)
+    )
+      protect(s);
+  for (const h of [...t.undoStack, ...t.redoStack]) {
+    for (const p of h.speakers) {
+      protectedIds.add(p.id);
+      protect(p.before);
+      protect(p.after);
+    }
+    for (const p of h.overrides)
+      for (const o of [p.before, p.after]) if (o) protectedIds.add(o.speakerId);
+  }
+  for (const o of t.speakerOverrides) {
+    protectedIds.add(o.speakerId);
+    for (const s of t.segments)
+      if (s.track === o.track && s.words.some((w) => w.endMs > o.startMs && w.startMs < o.endMs))
+        protectedIds.add(s.speakerId);
+  }
+  // Protect the entire connected alias component on either side of a user decision.
+  for (let i = 0; i < t.speakers.length; i++) {
+    let changed = false;
+    for (const s of t.speakers)
+      if (s.mergedInto && (protectedIds.has(s.id) || protectedIds.has(s.mergedInto))) {
+        const size = protectedIds.size;
+        protectedIds.add(s.id);
+        protectedIds.add(s.mergedInto);
+        changed ||= size !== protectedIds.size;
+      }
+    if (!changed) break;
+  }
+  return protectedIds;
 }

@@ -403,3 +403,128 @@ it('preserves a frozen correction and history when attribution splits the parent
     initial.segments[0]!.words.map((w) => w.id),
   );
 });
+
+it('publishes persisted historical aliases beyond 64 parents and reloads a missed event', async () => {
+  const { library, id } = await setup();
+  const emit = vi.fn();
+  const run = 'invented-1';
+  const sink = new LiveTranscriptSink(library, id, emit, 64);
+  // Persist sequentially without wall-clock waits or overflowing the bounded input queue.
+  for (let i = 0; i < 70; i++) {
+    const one = new LiveTranscriptSink(library, id, emit);
+    one.offer({
+      ...segment(`s${i}`),
+      track: 'meeting',
+      wordSpeakers: [0, 1].map(() => ({ id: `${run}-live-${(i % 3) + 1}`, label: 'Speaker ?' })),
+    });
+    await one.stop();
+  }
+  const before = await library.readTranscript(id);
+  sink.handle({
+    type: 'speakerMerge',
+    merge: {
+      from: `${run}-live-1`,
+      into: `${run}-live-2`,
+      workerRun: run,
+      generation: 0,
+      order: 1,
+      label: 'Speaker 1',
+    },
+  });
+  sink.handle({
+    type: 'speakerMerge',
+    merge: {
+      from: `${run}-live-2`,
+      into: `${run}-live-3`,
+      workerRun: run,
+      generation: 0,
+      order: 2,
+      label: 'Speaker 1',
+    },
+  });
+  await sink.stop();
+  const after = await library.readTranscript(id);
+  expect(after.revision).toBe(before.revision + 2);
+  expect(after.segments).toEqual(before.segments);
+  expect(resolveDisplay(after).every((s) => s.speakerId === `${run}-live-3`)).toBe(true);
+  const last = emit.mock.calls.filter(([name]) => name === 'transcriptChanged').at(-1)![1];
+  expect(last.revision).toBe(after.revision);
+  expect(last.change.kind).toBe('replace');
+  // A reader that missed both events obtains the same resolved display from persisted storage.
+  expect(resolveDisplay(await library.readTranscript(id))).toEqual(resolveDisplay(after));
+});
+
+it.each(['rename', 'manual'] as const)(
+  'does not bypass %s through a recent reattribution before the alias',
+  async (kind) => {
+    const { library, id } = await setup();
+    const run = 'protected-1';
+    const a = `${run}-live-1`,
+      b = `${run}-live-2`,
+      c = `${run}-live-3`;
+    const attributed = (sid: string, who: string) => ({
+      ...segment(sid),
+      track: 'meeting' as const,
+      wordSpeakers: [0, 1].map(() => ({ id: who, label: 'Speaker ?' })),
+    });
+    for (const [i, who] of [a, b, c].entries()) {
+      const sink = new LiveTranscriptSink(library, id, vi.fn());
+      sink.offer(attributed(`s${i}`, who));
+      await sink.stop();
+    }
+    if (kind === 'rename') await library.renameSpeaker(id, a, 'User choice');
+    else await library.mergeSpeakers(id, a, c);
+    const before = await library.readTranscript(id);
+    const sink = new LiveTranscriptSink(library, id, vi.fn());
+    sink.offer(attributed('s0', b));
+    sink.handle({
+      type: 'speakerMerge',
+      merge: { from: a, into: b, workerRun: run, generation: 0, order: 1, label: 'Speaker 1' },
+    });
+    await sink.stop();
+    expect(await library.readTranscript(id)).toEqual(before);
+  },
+);
+
+it('retains coalesced merge edges through a full slow-storage segment queue', async () => {
+  const { library, id } = await setup();
+  const run = 'burst-1';
+  const [a, b, c] = [1, 2, 3].map((n) => `${run}-live-${n}`) as [string, string, string];
+  await library.appendSegments(
+    id,
+    [],
+    [a, b, c].map((s) => ({
+      id: s,
+      label: 'Speaker ?',
+      name: null,
+      userNamed: false,
+      profileId: null,
+      mergedInto: null,
+    })),
+  );
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  const read = library.readTranscript.bind(library);
+  vi.spyOn(library, 'readTranscript').mockImplementationOnce(async (key) => {
+    await gate;
+    return read(key);
+  });
+  const sink = new LiveTranscriptSink(library, id, vi.fn(), 1);
+  sink.offer(segment('inflight'));
+  sink.handle({
+    type: 'speakerMerge',
+    merge: { from: a, into: b, workerRun: run, generation: 0, order: 1, label: 'Speaker 1' },
+  });
+  sink.handle({
+    type: 'speakerMerge',
+    merge: { from: b, into: c, workerRun: run, generation: 0, order: 2, label: 'Speaker 1' },
+  });
+  for (let i = 0; i < 10; i++) sink.offer(segment(`burst-${i}`));
+  release();
+  await sink.stop();
+  const saved = await library.readTranscript(id);
+  expect(saved.speakers.find((s) => s.id === a)?.mergedInto).toBe(b);
+  expect(saved.speakers.find((s) => s.id === b)?.mergedInto).toBe(c);
+});
