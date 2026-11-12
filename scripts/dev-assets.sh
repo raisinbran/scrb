@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Creates the development assets that are too large for git: pinned upstream
 # clones, models, AMI audio, the CMake/Ninja tools and, on macOS, the
-# whisper.cpp and llama.cpp builds. Every download is checked against its
+# whisper.cpp, llama.cpp and sherpa-onnx builds. Every download is checked against its
 # SHA-256. Versions and licenses are listed in phase0/MANIFEST.md.
 #
 # Usage (Terminal on macOS, Git Bash on Windows):
@@ -167,16 +167,24 @@ if [[ "$group" == all || "$group" == tools ]] && [[ "$(uname -s)" == Darwin ]]; 
   echo "ok   tools/venv"
 fi
 
-# Release builds with upstream defaults (Metal and Accelerate on), as the Mac's
-# Phase 0 builds were configured. Windows uses the prebuilt CUDA zips in MANIFEST.md.
+# Release builds configured as the Mac's Phase 0 builds were: whisper.cpp and
+# llama.cpp with upstream defaults (Metal and Accelerate on), sherpa-onnx as the
+# shared C API installed to build/install, which scrb-sherpa links against.
+# Windows uses the prebuilt zips in MANIFEST.md.
 if [[ "$group" == all || "$group" == build ]] && [[ "$(uname -s)" == Darwin ]]; then
   bin="$root/tools/venv/bin"
-  for dir in upstream/whisper.cpp upstream/llama.cpp; do
+  for dir in upstream/whisper.cpp upstream/llama.cpp upstream/sherpa-onnx; do
     extra=()
     if [[ "$dir" == upstream/llama.cpp ]]; then extra=(-DLLAMA_CURL=OFF); fi
+    if [[ "$dir" == upstream/sherpa-onnx ]]; then
+      extra=(-DBUILD_SHARED_LIBS=ON -DSHERPA_ONNX_ENABLE_BINARY=OFF -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=ON
+        -DSHERPA_ONNX_ENABLE_TTS=OFF -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF -DSHERPA_ONNX_ENABLE_WEBSOCKET=OFF
+        -DCMAKE_INSTALL_PREFIX="$root/$dir/build/install")
+    fi
     "$bin/cmake" -S "$dir" -B "$dir/build" -G Ninja -DCMAKE_MAKE_PROGRAM="$bin/ninja" \
       -DCMAKE_BUILD_TYPE=Release ${extra[@]+"${extra[@]}"} >/dev/null
     "$bin/cmake" --build "$dir/build" >/dev/null
+    if [[ "$dir" == upstream/sherpa-onnx ]]; then "$bin/cmake" --install "$dir/build" >/dev/null; fi
     echo "ok   $dir/build"
   done
 fi
