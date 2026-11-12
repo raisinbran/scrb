@@ -885,7 +885,10 @@ export class Library {
     const dismissed = new Set(this.settings.getDismissedSuggestions());
     const groups = buildSuggestionGroups(
       scanned,
-      (term) => remembered.has(term) || dismissed.has(term) || this.vocabulary.isDeleted(term),
+      (term, replacements) =>
+        remembered.has(term) ||
+        dismissed.has(term) ||
+        [term, ...replacements].some((text) => this.vocabulary.isDeleted(text)),
     );
     return { groups, incomplete, truncated };
   }
