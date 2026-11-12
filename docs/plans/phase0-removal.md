@@ -15,15 +15,15 @@ The Development Plan put Phase 0 in a separate scratch repository. It was mirror
 
 ## What depends on `phase0/` today
 
-| Use | Where | Needs from `phase0/` |
-| --- | --- | --- |
-| Native builds | `native/macos-capture/build.sh`, `tests/run.sh`; `native/windows-capture/scripts/fetch-opus.ps1` | `upstream/opus`, `tools/venv` (CMake), the commit pins in `MANIFEST.md` |
-| Native test scripts | `native/windows-capture/scripts/*_case.mjs`, `long_run.mjs`; `native/macos-capture/scripts/*.py`, `tests/continuous-worker.mjs` | `probes/windows-mute`, `probes/windows-tone-player` builds, `scripts/run-muted.sh`, whisper models and binaries |
-| Unit test | `packages/summary/test/recorded.test.ts` | `fixtures/summary/ES2016b.transcript.txt` |
-| Evaluation scripts | `packages/transcription/scripts/e2e-ami.ts`, `m1-joins.ts`; `packages/summary/eval/run.ts`; `apps/desktop/scripts/live-diarization-replay.ts` | models, `upstream/whisper.cpp` builds, `downloads/ami`, `scripts/score_*.py`, `prepare_ami_summary.py` |
-| Dev app runs | the owner's `SCRB_LIVE_CONFIG` and `SCRB_FINAL_PASS_CONFIG` files (untracked) | model and tool paths |
-| Repo config | `.gitattributes`, `.gitignore`, `.prettierignore`, `eslint.config.mjs` | ignore rules only |
-| Docs | Gate 2 records, `native/windows-capture/README.md`, `HANDOFF.md`, `results/*.txt`, 15 files under `docs/` and `agents/` | text references and evidence paths |
+| Use                 | Where                                                                                                                                         | Needs from `phase0/`                                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Native builds       | `native/macos-capture/build.sh`, `tests/run.sh`; `native/windows-capture/scripts/fetch-opus.ps1`                                              | `upstream/opus`, `tools/venv` (CMake), the commit pins in `MANIFEST.md`                                         |
+| Native test scripts | `native/windows-capture/scripts/*_case.mjs`, `long_run.mjs`; `native/macos-capture/scripts/*.py`, `tests/continuous-worker.mjs`               | `probes/windows-mute`, `probes/windows-tone-player` builds, `scripts/run-muted.sh`, whisper models and binaries |
+| Unit test           | `packages/summary/test/recorded.test.ts`                                                                                                      | `fixtures/summary/ES2016b.transcript.txt`                                                                       |
+| Evaluation scripts  | `packages/transcription/scripts/e2e-ami.ts`, `m1-joins.ts`; `packages/summary/eval/run.ts`; `apps/desktop/scripts/live-diarization-replay.ts` | models, `upstream/whisper.cpp` builds, `downloads/ami`, `scripts/score_*.py`, `prepare_ami_summary.py`          |
+| Dev app runs        | the owner's `SCRB_LIVE_CONFIG` and `SCRB_FINAL_PASS_CONFIG` files (untracked)                                                                 | model and tool paths                                                                                            |
+| Repo config         | `.gitattributes`, `.gitignore`, `.prettierignore`, `eslint.config.mjs`                                                                        | ignore rules only                                                                                               |
+| Docs                | Gate 2 records, `native/windows-capture/README.md`, `HANDOFF.md`, `results/*.txt`, 15 files under `docs/` and `agents/`                       | text references and evidence paths                                                                              |
 
 ## Steps
 
