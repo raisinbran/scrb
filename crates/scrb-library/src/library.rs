@@ -31,10 +31,9 @@ pub struct Library {
 impl Library {
     /// Opens the library at `root`, making its folders and databases on first use.
     ///
-    /// It takes the library lock first, then removes what a crash left behind, which is temporary
-    /// files of safe writes and meeting folders a create left empty, then opens the databases.
-    /// It does not rebuild the index, so call [`Library::rebuild_index`] next. `now` names any
-    /// damaged database it sets aside.
+    /// It takes the library lock first, then removes the temporary files of safe writes that a
+    /// crash left behind, and then opens the databases. It does not rebuild the index, so call
+    /// [`Library::rebuild_index`] next. `now` names any damaged database it sets aside.
     pub fn open(root: &Path, now: &str) -> Result<Self, LibraryError> {
         fs::create_dir_all(root)?;
         let lock = take_lock(root)?;
@@ -121,8 +120,8 @@ fn take_lock(root: &Path) -> Result<File, LibraryError> {
     }
 }
 
-/// Removes temporary files from the library folder and each meeting folder, and meeting folders
-/// left empty by a crash between making the folder and writing its `meeting.json`.
+/// Removes temporary files from the library folder and each meeting folder. Meeting folders
+/// stay, even empty ones, since a sync client may not have filled them yet.
 ///
 /// Only failing to list the library folder or `meetings/` is an error. Any other entry that
 /// cannot be read or removed is skipped, so one file that antivirus or a sync client holds cannot
@@ -134,12 +133,7 @@ fn remove_leftovers(root: &Path) -> io::Result<()> {
         if !is_folder || entry.file_name().to_string_lossy().starts_with('.') {
             continue;
         }
-        let folder = entry.path();
-        if remove_temp_files(&folder).is_ok() {
-            // `remove_dir` refuses a folder that is not empty, so a folder with audio but no
-            // `meeting.json` stays.
-            let _ = fs::remove_dir(&folder);
-        }
+        let _ = remove_temp_files(&entry.path());
     }
     Ok(())
 }
