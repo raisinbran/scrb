@@ -1,0 +1,3 @@
+disallowed-methods = [
+  { path = "std::io::stdout", reason = "stdout carries the protocol, so only scrb-core's stdout writer may use it" },
+]

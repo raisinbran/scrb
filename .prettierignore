@@ -3,3 +3,4 @@ phase0/
 dist/
 dist-electron/
 package-lock.json
+packages/contracts/src/generated/

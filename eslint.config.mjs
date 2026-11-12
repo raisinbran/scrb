@@ -16,7 +16,17 @@ const backendModules = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-electron/**', '.claude/**', 'phase0/**', 'dev-plan/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/dist-electron/**',
+      '.claude/**',
+      'phase0/**',
+      'dev-plan/**',
+      // ts-rs output, which CI regenerates and compares byte for byte.
+      'packages/contracts/src/generated/**',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.mjs'],

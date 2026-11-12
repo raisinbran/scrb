@@ -1,0 +1,45 @@
+name: Core
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # Installs the toolchain that rust-toolchain.toml names, with rustfmt and clippy.
+      - run: rustup toolchain install
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      # The tests rewrite the generated TypeScript. Only macOS compares it, so Windows line
+      # endings cannot fail the check. Intent-to-add makes new files show in the diff too.
+      - name: Check the generated TypeScript is committed
+        if: runner.os == 'macOS'
+        run: |
+          git add --intent-to-add packages/contracts/src/generated
+          git diff --exit-code -- packages/contracts/src/generated
+      - name: Keep OS-specific code under 300 lines per OS
+        shell: bash
+        run: |
+          status=0
+          for os in macos windows; do
+            lines=0
+            while IFS= read -r -d '' file; do
+              lines=$((lines + $(wc -l < "$file")))
+            done < <(git ls-files -z -- ":(glob)**/src/os/$os.rs")
+            echo "$os: $lines lines in src/os/$os.rs files"
+            if ((lines > 300)); then status=1; fi
+          done
+          exit "$status"
