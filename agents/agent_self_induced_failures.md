@@ -814,3 +814,19 @@ Effect: after the owner-launched app accepted Start, the sandbox denied opening 
 
 Formerly A-273 correction in the BCHEN-W10 clone's local register
 The owner subsequently authorized moving the former local A-272 (now A-289) into this clone. I removed only that block from `C:\Users\bchen\Documents\GitHub\scrb\agents\agent_self_induced_failures.md` using its explicit path; that wrong worktree then had no diff for it, and its pre-existing content was preserved. It is recorded above in this clone as A-289. No commit was made.
+
+### A-291 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — stale-PR claim in the project review
+
+- **Status / attribution:** Confirmed agent review error, caught by the same agent before any PR was closed or branch deleted; not an application defect.
+- **What failed:** The 2026-11-12 project review told the owner that most open drafts #21–#54 were stale and "whose work later merged through #42", and recommended closing them and deleting the 57 `rosmont/*` branches. A later `git cherry` check against `origin/main` found only #28, #30, #33, #39, #40 and #41 fully on `main`; #21, #25, #32, #34, #35, #36, #38, #52, #53 and #54 still hold commits that are not on `main`, and #53/#54 hold Windows Gate 3 evidence that the evidence-retention rule keeps until that gate passes.
+- **Agent-controlled cause:** Inferred staleness from PR dates and the #42 merge instead of checking each branch against `main`.
+- **Impact:** The owner agreed to the cleanup on the wrong premise. Nothing was closed or deleted. Owner reading time only; quota impact not separately measurable.
+- **Correction / remaining risk:** Per-PR comparison recorded in PR for `cuc/repo-cleanup-20261112`; only the six fully merged PRs are proposed for closing, and no branch deletion is proposed before Windows Gate 3 passes.
+
+### A-292 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — PR #109 missed four moved-handoff links
+
+- **Status / attribution:** Confirmed agent error, caught by ChatGPT independent review of PR #109 at `0dcb0f8`; not an application defect.
+- **What failed:** The link rewrite and its check excluded `phase0/`, so four `blob/main` links in `phase0/gpt-QA-reports/` (pause-resume QA line 85, second-pass QA line 226, capture-fault-fixes QA lines 30 and 40) would have broken after the move. The PR said no unarchived path remained "outside `phase0/`" without saying `phase0/` itself was unchecked.
+- **Agent-controlled cause:** Scoped the search to skip `phase0/` as legacy material instead of checking every tracked file.
+- **Impact:** One extra review round. Nothing merged with broken links.
+- **Correction / remaining risk:** Links updated to `docs/handoffs/archive/`; a whole-repository check finds no `blob/main` or relative link to an old handoff path, and every `blob/main/docs/handoffs/archive/` link resolves. Commit-pinned links are unchanged by design.

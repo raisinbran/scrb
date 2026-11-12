@@ -53,7 +53,7 @@ export const US_STATES: { code: string; name: string }[] = [
 ].map(([code, name]) => ({ code: code as string, name: name as string }));
 
 // The starting list from the requirements. The real list is an editable settings file the
-// contract cannot read yet; see docs/handoffs/2026-10-30-speakers-settings-contract-gaps.md.
+// contract cannot read yet; see docs/handoffs/archive/2026-10-30-speakers-settings-contract-gaps.md.
 const BIOMETRIC_PRIVACY_STATES = new Set(['CA', 'CO', 'IL', 'TX', 'WA']);
 
 export const isListedState = (code: string | null) =>

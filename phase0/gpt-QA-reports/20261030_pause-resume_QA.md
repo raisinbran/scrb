@@ -82,5 +82,5 @@ The plan's fault inventory is useful, but it does not yet guarantee that an expl
 - [Approved V1 requirements, recording integrity](https://github.com/raisinbran/scrb/blob/main/dev-plan/Meeting%20Scribe%20-%20V1%20Requirements%20v1.2.md)
 - [Crash-safe chunks and recovery](https://github.com/raisinbran/scrb/blob/main/docs/plans/crash-safe-chunks.md)
 - [Capture contract and clock](https://github.com/raisinbran/scrb/blob/main/docs/plans/capture-contract-and-clock.md)
-- [Owner decisions, 2026-10-30](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/2026-10-30-owner-decisions.md)
+- [Owner decisions, 2026-10-30](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/archive/2026-10-30-owner-decisions.md)
 - [Current typed contract](https://github.com/raisinbran/scrb/blob/main/packages/contracts/src/types.ts)

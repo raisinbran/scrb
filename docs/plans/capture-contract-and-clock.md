@@ -1,8 +1,8 @@
 # Plan: capture contract and session clock
 
-Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
+Status: **Approved by the owner on 2026-10-30, with every recommendation accepted except as noted in `docs/handoffs/archive/2026-10-30-owner-decisions.md`. Code starts in its phase, after the gate before it.**
 
-**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/2026-10-30-owner-decisions.md`.
+**Long runs changed (owner, 2026-10-30):** Gate 2 now uses a 4-hour run, so read 4 hours wherever this plan says 8 for T15 or Gate 2, and scale per-run figures to match. Details are in `docs/handoffs/archive/2026-10-30-owner-decisions.md`.
 
 **Pause changed (owner, 2026-10-30):** `pause` and `resume` act on one shared gate ahead of both tracks, and every command has an ID. `docs/plans/pause-resume.md` overrides this plan on pause, including Q8: streams stay open during a pause.
 
@@ -166,7 +166,7 @@ interface LevelMeter { micDb: number; meetingDb: number | null }
 
 ## Decisions for the owner
 
-**C1. Confirm four decisions recorded only on the `windows-capture` branch.** They are not in `docs/handoffs/2026-10-30-owner-decisions.md`, and this plan depends on them.
+**C1. Confirm four decisions recorded only on the `windows-capture` branch.** They are not in `docs/handoffs/archive/2026-10-30-owner-decisions.md`, and this plan depends on them.
 (a) "System default" mic means the Windows communications default. (b) A picked mic that vanishes falls back to the default with a warning, and the app offers to switch back when it returns. (c) If the meeting app exits: warn at once, keep the mic recording, mark the meeting track missing, reattach if it returns within 2 minutes, otherwise auto-pause and offer Resume or Stop, never widening to whole-computer audio on its own. (d) A chunk splits at every OS discontinuity flag.
 *Recommendation: confirm (a), (b), (c). Change (d) as in C4.*
 
