@@ -31,7 +31,7 @@ The 12% of 2+ frames below 1.5 is expected: clusters, min-duration merging and `
 
 The 5.45 s with no raw speaker: 5.27 s have mean < 0.5, none reach 1.0.
 
-Would-be second-speaker runs (consecutive grid frames with mean >= t that touch the one-speaker set), how many are 0.3 s or shorter:
+Would-be second-speaker runs (consecutive grid frames with mean >= t that touch the one-speaker set), how many are 0.3 s or shorter. These are short runs of elevated mean count, not sherpa's per-speaker segments (sherpa applies its filter after clustering and merging), so they are an estimate only:
 
 | t | Runs | Runs <= 0.3 s | Their seconds inside the one-speaker set |
 | --- | --- | --- | --- |
@@ -43,11 +43,11 @@ Would-be second-speaker runs (consecutive grid frames with mean >= t that touch 
 ## What this shows (measured)
 
 - The model itself averages **below one speaker on 52% (23.3 s)** of the frames where sherpa's raw output shows one speaker, and below 1.1 on 63%. In those frames chunks often signal no speaker at all, so even the first speaker is only kept thanks to the `+ 0.5` rounding. A second speaker is not signalled by the model there; a rounding offset cannot recover it.
-- Only 4.4 s (10%) reach 1.3 and 0.64 s reach 1.5. Lowering the bar to 1.3 (offset +0.7) could at best add about 4 s of 2-speaker frames, before cluster assignment, and only about 2 s of that sits in runs of 0.3 s or less that the minimum-duration filter would then drop.
+- Only 4.4 s (10%) reach 1.3 and 0.64 s reach 1.5. Lowering the bar to 1.3 (offset +0.7) could at best add about 4 s of 2-speaker frames, before cluster assignment, and about 2 s of that sits in count runs of 0.3 s or less (a rough estimate of what the minimum-duration filter might then drop).
 - A threshold of 1.0 or 1.1 is not a second-speaker test: a mean of 1.0 is what a solid single speaker gives, so 21.37 s at >= 1.0 means mostly "one speaker, consistently", not overlap. Those rows only bound the signal.
-- The 0.3 s filter is a minor factor: it affects runs worth at most about 2 s.
+- The 0.3 s filter's actual contribution is **unmeasured**. The 2.33 s at t = 1.3 is only a short count-run estimate, not a bound, because the filter acts on clustered, merged segments.
 
-So the loss before raw output is mainly (a): the model does not signal a second speaker. (b) the count rule could recover at most about 4 s (offset +0.7) of the 44.66 s, and only at the cost of more false overlap; (c) the 0.3 s filter is small.
+So the loss before raw output is mainly (a): the model does not signal a second speaker. (b) the count rule could recover at most about 4 s (offset +0.7) of the 44.66 s, and only at the cost of more false overlap; (c) the 0.3 s filter is unmeasured; the count-run estimate is about 2 s at t = 1.3.
 
 ## What it does not show (guesses and gaps)
 
