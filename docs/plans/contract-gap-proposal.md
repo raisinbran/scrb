@@ -1,8 +1,8 @@
 # Task 5: Consolidated UI/backend contract-gap proposal
 
-**Status:** Decided by owner on 2026-10-31 in stages, recorded in `docs/handoffs/2026-10-30-owner-decisions.md`. That note overrides "approve now" below. `packages/contracts/` is unchanged until the owner sees the exact TypeScript shapes.
+**Status:** Decided by owner on 2026-10-31 in stages, recorded in `docs/handoffs/archive/2026-10-30-owner-decisions.md`. That note overrides "approve now" below. `packages/contracts/` is unchanged until the owner sees the exact TypeScript shapes.
 **Base `main`:** `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a`
-**Inputs reviewed:** all five `docs/handoffs/2026-10-30-*-gaps.md` files (Live, Speakers/Settings, Recordings, Export/Summary, Final Pass); requirements v1.2; UI specification; current `packages/contracts/src/{backend,types,validate}.ts`; `apps/desktop/src/main/{meetings,recording}.ts`.
+**Inputs reviewed:** all five `docs/handoffs/archive/2026-10-30-*-gaps.md` files (Live, Speakers/Settings, Recordings, Export/Summary, Final Pass); requirements v1.2; UI specification; current `packages/contracts/src/{backend,types,validate}.ts`; `apps/desktop/src/main/{meetings,recording}.ts`.
 
 ## Approve in two small batches
 
