@@ -878,3 +878,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Wrote the launch command without reading `package.json` or checking the helper's build date against its source.
 - **Impact:** Two owner launch attempts and about 15 minutes of owner time.
 - **Correction / remaining risk:** Helper rebuilt in place with this PR's `build.sh` (Nov 1 binary kept in the session scratchpad). The same one-minute run then passed: live text appeared and the final pass reached `ready`. That run captured only 4 s of the muted `afplay` loop on the system track, so the owner's spoken retest is still the real check.
+
+### A-299 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — Windows step-2 prompt assumed the wrong folder and shell
+
+- **Status / attribution:** Confirmed agent instruction error; Codex stopped at the prompt's own precondition check on BCHEN-WIN10. Not an application defect.
+- **What failed:** The prompt assumed the Windows Phase 0 assets were in `C:\Users\bchen\Documents\GitHub\scrb\phase0`, and that `bash` was on the PATH. That `phase0/` has no `models/`; Windows Phase 0 and Gate 3 work ran from `C:\Users\bchen\Documents\ChatGPT\srcb\repo` (see the Gate 2 F11 record and A-28x evidence paths). PowerShell found no `bash`.
+- **Agent-controlled cause:** Took the repo path from one handoff line without checking where the Windows evidence records put the assets.
+- **Impact:** One short Codex run (about 5 minutes, 5h 99%→99%, weekly 28%→28%) and owner relay time. Nothing changed on the PC.
+- **Correction / remaining risk:** The revised prompt has Codex locate the folder that holds `phase0\models` and use it as the seed, and call Git Bash by its full path.
