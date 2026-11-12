@@ -785,7 +785,9 @@ function transferSpeakers(
   const byId = new Map(transcript.speakers.map((speaker) => [speaker.id, speaker]));
   const candidates = [...liveBins.keys()].filter((id) => {
     const speaker = byId.get(id);
-    return speaker?.userNamed === true && speaker.needsManualResolution !== true;
+    return (
+      id !== YOU_SPEAKER && speaker?.userNamed === true && speaker.needsManualResolution !== true
+    );
   });
   const finals = incomingSpeakers.map((speaker) => speaker.id).filter((id) => finalBins.has(id));
 
