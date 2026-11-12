@@ -8,11 +8,11 @@ use std::path::{Path, PathBuf};
 
 use scrb_library::{MeetingId, NewMeeting, Origin};
 
-/// The time every test creates its meetings at.
+/// The time every test opens its library and creates its meetings at.
 pub const NOW: &str = "2026-11-11T09:00:00Z";
 
 /// A temporary folder that is removed when the test ends. Declare it before the library, so the
-/// library closes first and releases its lock.
+/// library closes first and releases its lock and its databases.
 pub struct TempFolder(PathBuf);
 
 impl TempFolder {
@@ -50,4 +50,20 @@ pub fn recording(n: u8, title: &str) -> NewMeeting {
         origin: Origin::Recorded,
         now: NOW.to_owned(),
     }
+}
+
+/// Every file and folder under `folder` with each file's bytes, sorted by path.
+pub fn snapshot(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(folder).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            files.push((path.clone(), Vec::new()));
+            files.extend(snapshot(&path));
+        } else {
+            files.push((path.clone(), fs::read(&path).unwrap()));
+        }
+    }
+    files.sort();
+    files
 }

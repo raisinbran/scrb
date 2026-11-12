@@ -2,7 +2,7 @@ mod common;
 
 use std::fs;
 
-use common::{TempFolder, recording};
+use common::{NOW, TempFolder, recording};
 use scrb_library::{Library, LibraryError};
 
 /// Two cores writing one library would overwrite each other's meetings, so a second open must
@@ -10,11 +10,11 @@ use scrb_library::{Library, LibraryError};
 #[test]
 fn library_open_refuses_second_open_until_dropped() {
     let folder = TempFolder::new("lock");
-    let first = Library::open(folder.path()).unwrap();
+    let first = Library::open(folder.path(), NOW).unwrap();
 
-    let second = Library::open(folder.path());
+    let second = Library::open(folder.path(), NOW);
     drop(first);
-    let third = Library::open(folder.path());
+    let third = Library::open(folder.path(), NOW);
 
     assert!(matches!(second, Err(LibraryError::Busy)));
     assert!(third.is_ok());
@@ -25,12 +25,12 @@ fn library_open_refuses_second_open_until_dropped() {
 #[test]
 fn library_open_keeps_temp_files_when_busy() {
     let folder = TempFolder::new("busy-cleanup");
-    let mut first = Library::open(folder.path()).unwrap();
+    let mut first = Library::open(folder.path(), NOW).unwrap();
     let meeting = first.create_meeting(&recording(1, "Weekly sync")).unwrap();
     let saving = meeting.join("transcript.json.tmp-00ff00ff00ff00ff");
     fs::write(&saving, "{").unwrap();
 
-    let second = Library::open(folder.path());
+    let second = Library::open(folder.path(), NOW);
 
     assert!(matches!(second, Err(LibraryError::Busy)));
     assert!(saving.exists());
