@@ -35,23 +35,17 @@ fn library_open_removes_only_crash_temp_files() {
     );
 }
 
-/// A crash right after a meeting folder is made leaves it empty, and opening the library removes
-/// it. A folder with any file in it, even with no `meeting.json`, may hold someone's audio and
-/// must stay.
+/// Opening the library must keep an empty meeting folder. A sync client may have made it and not
+/// filled it yet, and removing it could lose that meeting on every synced copy.
 #[test]
-fn library_open_removes_only_empty_meeting_folders() {
+fn library_open_keeps_empty_meeting_folders() {
     let folder = TempFolder::new("empty-folders");
-    let meetings = folder.path().join("meetings");
-    let empty = meetings.join("2026-11-12 Weekly sync");
+    let empty = folder.path().join("meetings/2026-11-12 Weekly sync");
     fs::create_dir_all(&empty).unwrap();
-    let audio = meetings.join("2026-11-12 Planning/audio/system/000001.opus");
-    fs::create_dir_all(audio.parent().unwrap()).unwrap();
-    fs::write(&audio, b"OggS").unwrap();
 
     let _library = Library::open(folder.path()).unwrap();
 
-    assert!(!empty.exists());
-    assert_eq!(fs::read(&audio).unwrap(), b"OggS");
+    assert!(empty.exists());
 }
 
 /// A leftover that cannot be removed, such as a temporary file another program holds, must not
