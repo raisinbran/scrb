@@ -30,6 +30,27 @@ def longest_repeat(words, min_len=4, max_len=12):
     return best
 
 
+def repeated_phrases(words, min_len=4, max_len=12, min_repeats=3):
+    """{phrase: max consecutive repeats} for every phrase of min_len..max_len words repeated >= min_repeats times in a row."""
+    out = {}
+    for n in range(min_len, max_len + 1):
+        for i in range(len(words) - min_repeats * n + 1):
+            p = words[i:i + n]
+            r = 1
+            while words[i + r * n:i + (r + 1) * n] == p:
+                r += 1
+            if r >= min_repeats:
+                k = " ".join(p)
+                out[k] = max(out.get(k, 0), r)
+    return out
+
+
+def new_repeats(base, test, min_repeats=3):
+    """Phrases repeated >= min_repeats times in test whose baseline repeat count is below min_repeats (by phrase identity)."""
+    b = repeated_phrases(base, min_repeats=min_repeats)
+    return {k: r for k, r in repeated_phrases(test, min_repeats=min_repeats).items() if b.get(k, 0) < min_repeats}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ann")
@@ -52,7 +73,9 @@ def main():
                "ratio": round(len(test) / max(1, len(base)), 4), "wer_base": round(wb, 4), "wer_test": round(wt, 4),
                "repeat_base": rb, "repeat_test": rt, "term_events_test": len(sv.negative_events(test, terms))}
         reasons = []
-        if rt[1] >= 3 and rt[1] > rb[1]:
+        nr = new_repeats(base, test)
+        row["new_repeats"] = nr
+        if nr:
             reasons.append("new repeated phrase")
         if wt - wb > a.wer_margin:
             reasons.append("WER worse by more than margin")

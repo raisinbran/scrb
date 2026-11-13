@@ -1,6 +1,6 @@
 # Vocabulary hint `-mc` test results (2026-11-12)
 
-Plan: `docs/plans/vocabulary-hint-context-fix.md` (owner-approved to run). AMI only, offline, no audio played, product code unchanged, every decode run once (20 decodes, all rc=0, about 15 min), no reruns. Baseline for all comparisons is the shipped configuration, `-mc 0` (hint-off output is identical to hint-on at `-mc 0`). Scorer `score_vocab_eval.py` (contiguous phrases); loop/skip check `scripts/research/mc_loopcheck.py` (new). Same term set, hint text, model (turbo q5_0) and whisper.cpp `284029c` as Stage 1. Evidence: `~/scrb-dev-assets/eval-vocab/{mc64,mc128,mcdiag,base0}`, `mc-command-log.md`, `run_mc.sh`.
+Plan: `docs/plans/vocabulary-hint-context-fix.md` (owner-approved to run). AMI only, offline, no audio played, product code unchanged, every decode run once (20 decodes, all rc=0, about 15 min), no reruns. Baseline for all comparisons is the shipped configuration, `-mc 0` (hint-off output is identical to hint-on at `-mc 0`). Scorer `score_vocab_eval.py` (contiguous phrases); loop/skip check `scripts/research/mc_loopcheck.py` (new; compares repeated phrases by identity against the baseline, regression `test_mc_loopcheck.py`; the retained outputs were re-scored with the corrected checker after review, no decodes rerun, flags unchanged). Same term set, hint text, model (turbo q5_0) and whisper.cpp `284029c` as Stage 1. Evidence: `~/scrb-dev-assets/eval-vocab/{mc64,mc128,mcdiag,base0}`, `mc-command-log.md`, `run_mc.sh`.
 
 ## Verdict: INCONCLUSIVE by the plan's rules, owner decides. Neither value passes.
 
@@ -13,12 +13,12 @@ Plan: `docs/plans/vocabulary-hint-context-fix.md` (owner-approved to run). AMI o
 | Table rate / exact 95% upper bound (4.062 h)  | 0 / 0.74 per h    | 0.25 / 1.17 per h | 0.49 / 1.55 per h |
 | Loop/skip flags                               | none              | 4 files           | 1 file            |
 
-The plan's table passes only on zero events; 1 to 3 is inconclusive. The loop/skip rule (new repeated 4+ word phrase 3+ times, or WER worse by more than 1 point absolute) is not met at either value.
+The plan's table passes only on zero events; 1 to 3 is inconclusive. The loop/skip rule (new repeated 4+ word phrase 3+ times, or WER worse by more than 1 point absolute) is **tripped** on 4 files at `-mc 64` and 1 file at `-mc 128` (below), so by the plan neither value passes.
 
 ## Loop/skip flags (WER versus AMI reference, hint on, versus `-mc 0`)
 
-- `-mc 64`: EN2002d new 4-word phrase repeated 3 times (WER +0.5 pt); ES2003c +2.75 pt; ES2015c +2.10 pt; ES2004a +2.75 pt.
-- `-mc 128`: ES2003c +1.86 pt only (EN2002d now improves by 0.9 pt, ES2016c, ES2004a and IS1009a improve, ES2014b +0.5, ES2015c +0.6). Word-count ratios 0.98 to 1.02, no repeats above baseline. No sign of skipping or looping beyond that one WER flag.
+- `-mc 64`: EN2002d new 4-word phrase "we should do this" repeated 3 times in a row, absent as a 3x repeat from the baseline (WER +0.5 pt); ES2003c +2.75 pt; ES2015c +2.10 pt; ES2004a +2.75 pt.
+- `-mc 128`: ES2003c +1.86 pt only (EN2002d now improves by 0.9 pt, ES2016c, ES2004a and IS1009a improve, ES2014b +0.5, ES2015c +0.6). Word-count ratios 0.98 to 1.02, no new repeated phrase (checked by phrase identity against the baseline). No sign of skipping or looping beyond that one WER flag.
 - Held-out TS3003a improves at both values.
 
 ## The events (read, not assumed)
@@ -29,11 +29,11 @@ The plan's table passes only on zero events; 1 to 3 is inconclusive. The loop/sk
 
 ## Diagnostic: hint-less non-zero `-mc` (ES2004a, IS1009a; not a shipped configuration)
 
-WER versus `-mc 0`: `-mc 64` ES2004a +0.95 pt, IS1009a -0.1 pt; `-mc 128` ES2004a -0.3 pt, IS1009a +0.15 pt. No repeats. So non-zero `-mc` alone is small and mixed on these two files; at `-mc 64` the hint-on ES2004a regression (+2.75) is larger than hint-less (+0.95), suggesting the hint adds to it there. The turbo "loops or skips" worry from the code comment did not show up as repeated phrases or large word-count changes in any of the 20 runs.
+WER versus `-mc 0`: `-mc 64` ES2004a +0.95 pt, IS1009a -0.1 pt; `-mc 128` ES2004a -0.3 pt, IS1009a +0.15 pt. No repeats. So non-zero `-mc` alone is small and mixed on these two files; at `-mc 64` the hint-on ES2004a regression (+2.75) is larger than hint-less (+0.95), suggesting the hint adds to it there. The turbo "loops or skips" worry from the code comment showed up only once as a repeated phrase (EN2002d, `-mc 64`, three repeats of one 4-word phrase) and in no run as a large word-count change (ratios 0.96 to 1.02). That is not a demonstrated loop, but it is a real, if minor, sign at `-mc 64`; none at `-mc 128`.
 
 ## Reading
 
-`-mc 128` is the better value: more recall (16 vs 15), better held-out WER, one WER flag instead of four, no new repeats. It is not clean: one real held-out wrong word (probably non-zero-context related) and one file (ES2003c) 1.9 points worse. This is one meeting, one 10-term set, one model; it does not show Gate 5. Options for the owner:
+`-mc 128` is the better value: more recall (16 vs 15), better held-out WER, one WER flag instead of four, no new repeated phrase. It is not clean: one real held-out wrong word (probably non-zero-context related) and one file (ES2003c) 1.9 points worse. This is one meeting, one 10-term set, one model; it does not show Gate 5. Options for the owner:
 
 1. Ship `-mc 128` with hint (recall roughly doubles on this meeting) accepting the ES2003c regression; Gate 5 stays open.
 2. Run Stage 2 (more meetings and term sets) before changing anything.
