@@ -964,3 +964,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I reviewed the scorer for alignment logic but not for phrase contiguity, copied a figure into the note without summing it, and did not check the appended row's column count.
 - **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
 - **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.
+
+### A-310 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — loop checker compared repeat counts, not phrases; results note contradicted itself
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT of PR #121); not application defects.
+- **What failed:** `mc_loopcheck.py` flagged a new repeat only when the test's maximum repeat count exceeded the baseline's, so a different phrase with an equal count escaped; the results note said "the rule is not met at either value" and "no repeats" while its own table listed a flagged repeat and flagged files.
+- **Agent-controlled cause:** I implemented the plan's rule from its short form and wrote the note's conclusions without re-reading its own table.
+- **Impact:** One review round. Re-scoring retained outputs with the corrected checker gave the same flags (the one new repeat is EN2002d at `-mc 64`), so the verdict did not change.
+- **Correction / remaining risk:** Phrase-identity comparison with a regression test (mutation fails it); note corrected. Low.
