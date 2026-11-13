@@ -404,4 +404,19 @@ describe('createHybridBackend', () => {
     } as unknown as Backend;
     await expect(createHybridBackend(real, mock).call('getSettings')).rejects.toThrow('Disk full.');
   });
+
+  it('refuses to record, and does not simulate it, when the real backend is missing its tools or models', async () => {
+    const real = {
+      call: vi.fn(async () => {
+        throw new ContractError({ code: 'conflict', message: 'Scribe cannot record yet.' });
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call');
+    await expect(createHybridBackend(real, mock).call('startRecording', {})).rejects.toMatchObject({
+      code: 'conflict',
+      message: 'Scribe cannot record yet.',
+    });
+    expect(mockCall).not.toHaveBeenCalledWith('startRecording', expect.anything());
+  });
 });

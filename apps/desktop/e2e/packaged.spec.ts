@@ -11,12 +11,15 @@ test.skip(!executable, 'set SCRB_PACKAGED_APP to run');
 
 test('packaged app keeps the saved library, is named Scribe, and refuses to record without models', async () => {
   const home = mkdtempSync(join(tmpdir(), 'scrb-home-'));
-  const userData = join(home, 'Library', 'Application Support', '@scrb', 'desktop');
+  // Electron ignores HOME for its application-data folder, so an explicit one keeps this off the
+  // real profile; the pin itself is covered by unit tests.
+  const userData = join(home, 'userData');
   const library = join(home, 'chosen-library');
   mkdirSync(userData, { recursive: true });
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
   const app = await electron.launch({
     executablePath: executable!,
+    args: [`--user-data-dir=${userData}`],
     env: { ...process.env, HOME: home } as Record<string, string>,
   });
   const page = await app.firstWindow();
@@ -35,5 +38,14 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
     ok: false,
     error: { message: expect.stringContaining('--install-models') },
   });
+  // Through the UI's hybrid backend: the Live screen must show the refusal, not simulate recording.
+  await page.evaluate(() =>
+    window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
+  );
+  await page.reload();
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
+  await expect(page.getByText(/--install-models/).first()).toBeVisible();
   await app.close();
 });

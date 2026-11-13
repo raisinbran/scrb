@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   modelsDirFor,
   resolvePackagedSetup,
+  pinUserData,
   userDataFor,
   type DigestTable,
 } from './packaged-setup.ts';
@@ -90,8 +91,33 @@ describe('resolvePackagedSetup', () => {
   });
 
   it('keeps the pinned data folder and the models folder apart from the app name', () => {
-    expect(userDataFor('/h')).toBe('/h/Library/Application Support/@scrb/desktop');
+    expect(userDataFor('/h/Library/Application Support')).toBe(
+      '/h/Library/Application Support/@scrb/desktop',
+    );
     expect(modelsDirFor('/h')).toBe('/h/Library/Application Support/Scribe/models');
+  });
+
+  it('creates a fresh macOS-style profile folder before pinning, and keeps an existing Windows-style one', () => {
+    const calls: string[] = [];
+    const fake = (appData: string) => ({
+      getPath: () => appData,
+      setPath: (_: 'userData', value: string) => calls.push(`set ${value}`),
+    });
+    // Fresh profile: folder absent, so it must be created before setPath.
+    const fresh = join(dir, 'Library', 'Application Support');
+    const made = pinUserData(fake(fresh), (d) => {
+      calls.push(`mkdir ${d}`);
+      mkdirSync(d, { recursive: true });
+    });
+    expect(calls).toEqual([`mkdir ${made}`, `set ${made}`]);
+    expect(existsSync(made)).toBe(true);
+    // Existing Windows-style profile with a library pointer: found unchanged, nothing removed.
+    const roaming = join(dir, 'AppData', 'Roaming');
+    const old = join(roaming, '@scrb', 'desktop');
+    mkdirSync(old, { recursive: true });
+    writeFileSync(join(old, 'library-location.json'), '{"root":"D:\\invented"}');
+    expect(pinUserData(fake(roaming))).toBe(old);
+    expect(readFileSync(join(old, 'library-location.json'), 'utf8')).toContain('invented');
   });
 
   it('pins the same digests the dev-assets script downloads', () => {

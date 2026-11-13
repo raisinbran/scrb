@@ -208,7 +208,7 @@ export async function openBackend(
           ? {
               startRecording: async () => {
                 throw new ContractError({
-                  code: 'notImplemented',
+                  code: 'conflict',
                   message: missingMessage(packaged.missing),
                 });
               },

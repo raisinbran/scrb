@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ModelInfo } from '@scrb/contracts';
@@ -12,8 +12,11 @@ export const MODELS_FOLDER_NAME = 'Scribe';
 /** The one place models are installed (scripts/package-mac.sh --install-models writes here). */
 export const modelsDirFor = (home: string): string =>
   path.join(home, 'Library', 'Application Support', MODELS_FOLDER_NAME, 'models');
-export const userDataFor = (home: string): string =>
-  path.join(home, 'Library', 'Application Support', USER_DATA_FOLDER);
+/**
+ * The folder Electron used before the rename (the package name `@scrb/desktop` under the
+ * platform's application-data folder), so saved library pointers and settings stay found.
+ */
+export const userDataFor = (appData: string): string => path.join(appData, USER_DATA_FOLDER);
 
 export type DigestTable = Record<string, { sha256: string; bytes: number }>;
 const DIGESTS = digests as DigestTable;
@@ -176,6 +179,17 @@ export async function resolvePackagedSetup(options: {
     }),
   );
   return { helper: tools['scrb-capture'], finalPassConfig, liveConfig, missing, models };
+}
+
+/** Creates the folder first: `app.setPath` throws for one that does not exist yet. Never moves or deletes. */
+export function pinUserData(
+  app: { getPath(name: 'appData'): string; setPath(name: 'userData', value: string): void },
+  mkdirFn: (dir: string, options: { recursive: true }) => unknown = mkdirSync,
+): string {
+  const dir = userDataFor(app.getPath('appData'));
+  mkdirFn(dir, { recursive: true });
+  app.setPath('userData', dir);
+  return dir;
 }
 
 export function missingMessage(missing: string[]): string {
