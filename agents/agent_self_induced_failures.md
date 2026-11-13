@@ -985,3 +985,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I wrote the command without reading the script's argument handling.
 - **Impact:** One failed run and one rerun on BCHEN-W10 (about a minute); no results affected.
 - **Correction / remaining risk:** Codex reran with a fresh temporary directory and the case passed. Rule: read a script's argument handling before putting its command in a prompt. Low.
+
+### A-313 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — changed TypeScript test file pushed without the CI Prettier check (PR #124)
+- **Status / attribution:** Confirmed agent error, found by CI and ChatGPT review; not an application defect.
+- **What failed:** I ran `npm run check` (which does not include Prettier), reverted an overbroad Prettier run that had also touched unrelated files, and so pushed `packages/transcription/test/parsing.test.ts` unformatted. Windows CI failed at "Check Prettier on changed TypeScript".
+- **Agent-controlled cause:** I did not run the formatter check CI uses on the files I changed, and my earlier fix of the overbroad run reverted the file's formatting too.
+- **Impact:** One failed CI run and one review round.
+- **Correction / remaining risk:** Formatted that one file with the repo's Prettier and re-ran its tests. Rule: run `prettier --check` on each changed TypeScript file before pushing. Low.
