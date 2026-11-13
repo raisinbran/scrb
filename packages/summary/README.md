@@ -82,9 +82,9 @@ npm test
 Evaluation holds the model lock per meeting and resumes from its saved answers:
 
 ```bash
-eval/run-batch.sh ../../phase0/fixtures/summary eval/out/run ES2016b ES2008b TS3012b
+eval/run-batch.sh test/fixtures eval/out/run ES2016b ES2008b TS3012b
 ```
 
-Held-out fixtures come from `phase0/scripts/prepare_ami_summary.py` into
+Held-out fixtures come from `scripts/eval/prepare_ami_summary.py` into
 `eval/heldout/` (not committed). Always use the script: a replay whose prompts
 changed starts the model, and that must happen under the lock.

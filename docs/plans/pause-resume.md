@@ -1,6 +1,6 @@
 # Pause and resume
 
-Status: **Approved by the owner on 2026-10-30, with all five recommendations, after two QA rounds (`phase0/gpt-QA-reports/`).**
+Status: **Approved by the owner on 2026-10-30, with all five recommendations, after two QA rounds (`docs/qa/`).**
 
 Depends on: `capture-contract-and-clock.md`, `crash-safe-chunks.md` and the two capture adapter plans.
 
