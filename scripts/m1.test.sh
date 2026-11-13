@@ -24,9 +24,19 @@ cat >"$bin/npm" <<STUB
 STUB
 chmod +x "$bin/npm"
 
+# A stub ps stands in for the process list, so the result does not depend on what runs here.
+psbin="$fake/psbin"
+mkdir -p "$psbin"
+cat >"$psbin/ps" <<STUB
+#!/bin/sh
+cat "$fake/ps.out" 2>/dev/null || true
+STUB
+chmod +x "$psbin/ps"
+: >"$fake/ps.out"
+
 run() {  # sets out and code
   set +e
-  out="$(HOME="$home" bash "$fake/repo/scripts/m1.sh" 2>&1)"
+  out="$(PATH="$psbin:$PATH" HOME="$home" bash "$fake/repo/scripts/m1.sh" 2>&1)"
   code=$?
   set -e
 }
@@ -60,6 +70,22 @@ for want in "args=start -w @scrb/desktop" \
   "live=$cfg/live.json" "final=$cfg/final-pass.json" "cwd=$(cd "$fake/repo" && pwd -P)"; do
   grep -qxF -- "$want" "$fake/npm.log" || { echo "FAIL: npm launch lacks '$want'"; cat "$fake/npm.log"; exit 1; }
 done
+
+# A running copy: refuse, say how to quit, and do not launch.
+rm -f "$fake/npm.log"
+echo "123 $fake/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron ." >"$fake/ps.out"
+run
+expect_fail "already running" "Cmd+Q"
+[[ ! -e "$fake/npm.log" ]] || { echo "FAIL: launched despite a running copy"; exit 1; }
+# Helpers, other Electron apps and another repo's Electron dev app do not count.
+{
+  echo "124 /x/node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Helper.app/Contents/MacOS/Electron Helper --type=gpu-process"
+  echo "125 /Applications/Claude.app/Contents/MacOS/Claude"
+  echo "126 /other/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron ."
+} >"$fake/ps.out"
+run
+[[ $code -eq 0 ]] || { echo "FAIL: unrelated processes blocked the start"; echo "$out"; exit 1; }
+: >"$fake/ps.out"
 
 # Each case below breaks one thing.
 echo '{"tools":{},"models":{}}' >"$cfg/live.json"
