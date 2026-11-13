@@ -4,7 +4,7 @@ import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
 import { buildTurns, decideSpeakers } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
-import { parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
+import { HINTED_MAX_CONTEXT, parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
 import type { Word } from '../src/types.js';
 
 describe('whisper settings', () => {
@@ -15,20 +15,33 @@ describe('whisper settings', () => {
     expect(args).not.toContain('--carry-initial-prompt');
   });
 
-  it('carries a vocabulary hint across segments', () => {
+  it('carries a vocabulary hint across segments with a bounded text context', () => {
     const args = wholeFileArgs('a.wav', 'out', { model: 'm', vadModel: 'v', prompt: 'Scrb' });
     expect(args).toEqual(expect.arrayContaining(['--prompt', 'Scrb', '--carry-initial-prompt']));
+    expect(HINTED_MAX_CONTEXT).toBe(128);
+    expect(args[args.indexOf('-mc') + 1]).toBe('128');
+    expect(args.join(' ')).not.toContain('-mc 0');
+    expect(args.filter((x) => x === '-mc')).toHaveLength(1);
   });
 
   it('parses words and drops sound tags and special tokens', () => {
     const json = JSON.stringify({
       transcription: [
-        { offsets: { from: 100, to: 400 }, text: ' Hello', tokens: [{ text: ' Hello', p: 0.8 }, { text: '[_TT_20]', p: 0 }] },
+        {
+          offsets: { from: 100, to: 400 },
+          text: ' Hello',
+          tokens: [
+            { text: ' Hello', p: 0.8 },
+            { text: '[_TT_20]', p: 0 },
+          ],
+        },
         { offsets: { from: 500, to: 900 }, text: ' [BLANK_AUDIO]', tokens: [] },
         { offsets: { from: 900, to: 950 }, text: ' ', tokens: [] },
       ],
     });
-    expect(parseWords(json)).toEqual([{ text: 'Hello', startMs: 100, endMs: 400, confidence: 0.8 }]);
+    expect(parseWords(json)).toEqual([
+      { text: 'Hello', startMs: 100, endMs: 400, confidence: 0.8 },
+    ]);
   });
 
   it('reads VAD centiseconds as milliseconds', () => {
@@ -60,13 +73,15 @@ describe('import checks', () => {
   });
 
   it('treats cover art as audio-only', () => {
-    const info = parseProbe(JSON.stringify({
-      format: { format_name: 'mp3', duration: '1.5' },
-      streams: [
-        { codec_type: 'audio', codec_name: 'mp3', channels: 2, sample_rate: '44100' },
-        { codec_type: 'video', codec_name: 'mjpeg', disposition: { attached_pic: 1 } },
-      ],
-    }));
+    const info = parseProbe(
+      JSON.stringify({
+        format: { format_name: 'mp3', duration: '1.5' },
+        streams: [
+          { codec_type: 'audio', codec_name: 'mp3', channels: 2, sample_rate: '44100' },
+          { codec_type: 'video', codec_name: 'mjpeg', disposition: { attached_pic: 1 } },
+        ],
+      }),
+    );
     expect(info.hasVideo).toBe(false);
     expect(info.durationMs).toBe(1500);
     expect(info.channels).toBe(2);
@@ -80,7 +95,9 @@ describe('import checks', () => {
   });
 
   it('reads the chunk list', () => {
-    expect(parseChunkList('000000.opus,0.000000,5.000000\n000001.opus,5.000000,7.5\n', '/d')).toEqual([
+    expect(
+      parseChunkList('000000.opus,0.000000,5.000000\n000001.opus,5.000000,7.5\n', '/d'),
+    ).toEqual([
       { path: join('/d', '000000.opus'), startMs: 0, durationMs: 5000 },
       { path: join('/d', '000001.opus'), startMs: 5000, durationMs: 2500 },
     ]);
@@ -99,7 +116,12 @@ describe('audio helpers', () => {
 
 describe('final-pass assembly', () => {
   const w = (text: string, startMs: number, speakerId: string): Word => ({
-    text, startMs, endMs: startMs + 300, confidence: 1, track: 'meeting', speakerId,
+    text,
+    startMs,
+    endMs: startMs + 300,
+    confidence: 1,
+    track: 'meeting',
+    speakerId,
   });
 
   it('builds turns on speaker change and long gaps', () => {

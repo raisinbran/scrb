@@ -18,15 +18,24 @@ export interface WholeFileOptions {
   threads?: number;
   language?: string;
   useGpu?: boolean;
-  /** Vocabulary hint; carried across segments because `-mc 0` drops context. */
+  /** Vocabulary hint; only takes effect with a non-zero `-mc` (see `HINTED_MAX_CONTEXT`). */
   prompt?: string;
   signal?: AbortSignal;
   onFraction?: (fraction: number) => void;
 }
 
 /**
+ * Text context allowed when a vocabulary hint is set.  With `-mc 0` whisper.cpp
+ * drops the prompt, so the hint did nothing; 128 was measured on AMI
+ * (docs/gates/vocab-mc-test-results-20261112.md: inconclusive, one meeting).
+ * Set to 0 to make hints inert again.
+ */
+export const HINTED_MAX_CONTEXT = 128;
+
+/**
  * The proven final-pass settings: Silero VAD segments and no text conditioning
- * (`-mc 0`), without which turbo loops or skips.  `-ml 1 -sow` gives one result
+ * (`-mc 0`) when there is no hint; its original reason ("turbo loops or skips")
+ * is unverified, so it stays for hint-less runs.  `-ml 1 -sow` gives one result
  * per word because only segment times are mapped back through the VAD; token
  * times in the JSON stay in VAD-trimmed time.
  */
@@ -44,7 +53,7 @@ export function wholeFileArgs(wavPath: string, outBase: string, o: WholeFileOpti
     '--vad-model',
     o.vadModel,
     '-mc',
-    '0',
+    String(o.prompt ? HINTED_MAX_CONTEXT : 0),
     '-ml',
     '1',
     '-sow',

@@ -994,3 +994,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Relied on remembered PR state instead of running `get_status` first.
 - **Impact:** One wrong instruction and one owner clarification turn; no code affected.
 - **Correction / remaining risk:** Verified the merge contains baea921 and d895a66. Rule: read PR state before telling the owner to merge. Low.
+
+### A-314 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — changed TypeScript test file pushed without the CI Prettier check (PR #124)
+- **Status / attribution:** Confirmed agent error, found by CI and ChatGPT review; not an application defect.
+- **What failed:** I ran `npm run check` (which does not include Prettier), reverted an overbroad Prettier run that had also touched unrelated files, and so pushed `packages/transcription/test/parsing.test.ts` unformatted. Windows CI failed at "Check Prettier on changed TypeScript".
+- **Agent-controlled cause:** I did not run the formatter check CI uses on the files I changed, and my earlier fix of the overbroad run reverted the file's formatting too.
+- **Impact:** One failed CI run and one review round.
+- **Correction / remaining risk:** Formatted that one file with the repo's Prettier and re-ran its tests. Rule: run `prettier --check` on each changed TypeScript file before pushing. Low.
