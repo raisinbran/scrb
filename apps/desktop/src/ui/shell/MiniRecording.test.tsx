@@ -132,4 +132,90 @@ describe('MiniRecording', () => {
     );
     expect(document.body.textContent).toBe('Recording 01:05');
   });
+
+  it('keeps the status row and one fixed slot when the warning comes and goes', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording'),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const shape = () =>
+      Array.from(document.querySelector('[role=status]')!.children).map((c) => c.tagName);
+    const before = shape();
+    expect(before).toHaveLength(2);
+    act(() => fake.emit('recordingHealth', warned));
+    expect(screen.getByText('Microphone changed')).toBeTruthy();
+    expect(shape()).toEqual(before);
+    act(() => fake.emit('recordingHealth', { level: 'ok', warnings: [], diskFreeBytes: 1e10 }));
+    expect(shape()).toEqual(before);
+  });
+
+  it('shows who spoke last, highlighted while recent, without their words', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 10_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const words = [
+      {
+        id: 'w',
+        text: 'secretwords',
+        startMs: 8000,
+        endMs: 9000,
+        state: 'final',
+        correctionId: null,
+      },
+    ];
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'invented-meeting',
+        revision: 1,
+        change: {
+          kind: 'append',
+          segments: [{ id: 's', speakerId: 'a', track: 'mic', startMs: 8000, endMs: 9000, words }],
+        },
+        speakers: [{ id: 'a', label: 'You', kind: 'you', profileId: null }],
+      }),
+    );
+    const slot = screen.getByText('You');
+    expect(slot.getAttribute('data-active')).toBe('true');
+    expect(document.body.textContent).not.toContain('secretwords');
+  });
+
+  it('dims the speaker once they have been quiet a while', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 60_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'invented-meeting',
+        revision: 1,
+        change: {
+          kind: 'append',
+          segments: [
+            { id: 's', speakerId: 'a', track: 'mic', startMs: 1000, endMs: 2000, words: [] },
+          ],
+        },
+        speakers: [{ id: 'a', label: 'Speaker 2', kind: 'unknown', profileId: null }],
+      }),
+    );
+    expect(screen.getByText('Speaker 2').getAttribute('data-active')).toBe('false');
+  });
 });

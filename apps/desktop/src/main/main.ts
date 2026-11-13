@@ -30,8 +30,8 @@ let miniWindow: BrowserWindow | null = null;
 function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   const mini = new BrowserWindow({
     title: 'Meeting Scribe recording',
-    width: 280,
-    height: 120,
+    width: 240,
+    height: 72,
     alwaysOnTop: true,
     resizable: false,
     maximizable: false,
