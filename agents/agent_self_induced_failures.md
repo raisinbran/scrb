@@ -965,6 +965,13 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
 - **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.
 
+### A-310 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — loop checker compared repeat counts, not phrases; results note contradicted itself
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT of PR #121); not application defects.
+- **What failed:** `mc_loopcheck.py` flagged a new repeat only when the test's maximum repeat count exceeded the baseline's, so a different phrase with an equal count escaped; the results note said "the rule is not met at either value" and "no repeats" while its own table listed a flagged repeat and flagged files.
+- **Agent-controlled cause:** I implemented the plan's rule from its short form and wrote the note's conclusions without re-reading its own table.
+- **Impact:** One review round. Re-scoring retained outputs with the corrected checker gave the same flags (the one new repeat is EN2002d at `-mc 64`), so the verdict did not change.
+- **Correction / remaining risk:** Phrase-identity comparison with a regression test (mutation fails it); note corrected. Low.
+
 ### A-311 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 3 path update missed references and misstated a count (PR #122)
 - **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT); not application defects.
 - **What failed:** (1) I excluded `scripts/dev-assets.sh` from the path rewrite, leaving a `phase0/MANIFEST.md` reference; (2) a link inside the moved `docs/qa/` files still pointed at `phase0/gpt-QA-reports/`, because I rewrote only code and plan docs, not the moved files; (3) the rewrite changed a README sentence about a Windows Volume Mixer setting observed at the old `TonePlayer.exe` path to the new path, implying it was observed there; (4) the plan note said three BUG-1 probe files moved, but the folder holds two.
