@@ -35,6 +35,8 @@
   --color-border: #c9cdd3;
   --color-text: #1f2328;
   --color-text-muted: #4e5560;
+  --color-word-idle: #4e5560;
+  --color-word-current: #000000;
   --color-accent: #4149b8;
   --color-on-accent: #ffffff;
   --color-focus: #4149b8;
@@ -58,6 +60,8 @@
   --color-border: #4a4d55;
   --color-text: #f2f3f5;
   --color-text-muted: #b5bac1;
+  --color-word-idle: #b5bac1;
+  --color-word-current: #ffffff;
   --color-accent: #9aa1f7;
   --color-on-accent: #16171a;
   --color-focus: #a5abf8;

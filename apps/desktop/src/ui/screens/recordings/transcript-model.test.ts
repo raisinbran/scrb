@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineGap, TranscriptSegment } from '@scrb/contracts';
-import { applyTranscriptChange, buildRows, rowIndexAt } from './transcript-model.ts';
+import { applyTranscriptChange, buildRows, currentWordId, rowIndexAt } from './transcript-model.ts';
 
 function segment(id: string, startMs: number): TranscriptSegment {
   return {
@@ -62,5 +62,34 @@ describe('rows', () => {
     expect(rowIndexAt(rows, 0)).toBe(0);
     expect(rowIndexAt(rows, 1600)).toBe(2);
     expect(rowIndexAt(rows, 99_000)).toBe(3);
+  });
+});
+
+describe('currentWordId', () => {
+  const seg: TranscriptSegment = {
+    ...segment('s', 1000),
+    endMs: 3000,
+    words: ['a', 'b', 'c'].map((id, i) => ({
+      id,
+      text: id,
+      startMs: 1000 + i * 600,
+      endMs: 1500 + i * 600,
+      state: 'final' as const,
+      correctionId: null,
+    })),
+  };
+
+  it('is the last word that has started, including in the pause after it', () => {
+    expect(currentWordId(seg, 1000)).toBe('a');
+    expect(currentWordId(seg, 1550)).toBe('a');
+    expect(currentWordId(seg, 1600)).toBe('b');
+    expect(currentWordId(seg, 2700)).toBe('c');
+  });
+
+  it('is none outside the words, including the silence after the last one', () => {
+    expect(currentWordId(seg, 999)).toBeUndefined();
+    expect(currentWordId(seg, 2701)).toBeUndefined();
+    expect(currentWordId(seg, 3000)).toBeUndefined();
+    expect(currentWordId({ ...seg, words: [] }, 1500)).toBeUndefined();
   });
 });
