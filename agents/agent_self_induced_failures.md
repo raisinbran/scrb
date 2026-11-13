@@ -1071,7 +1071,14 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** About two extra check runs (about 2 minutes each). `packages/summary` `worker.test.ts` failed once without its `dist` built; passed after building, unrelated to this change.
 - **Correction / remaining risk:** Test updated; full check passes. Low.
 
-### A-325 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — owner-found defects in my merged Recordings UI (#141, #145)
+### A-325 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — usage not read at task start; stray tool and path slips (test-tone override)
+- **Status / attribution:** Confirmed agent errors; no code defect.
+- **What failed:** I did not call `get_usage` before starting, so the start percentages are unrecorded. I also called a tool with the wrong name (`bash`) and chained `cd` into a folder I was already in, which skipped the edits in that command until I reran them.
+- **Agent-controlled cause:** Skipping the start-of-task checklist; not checking the working directory first.
+- **Impact:** Start allowance unknown; two wasted tool calls. The failed chain did not apply its edits, so nothing was half-applied.
+- **Correction / remaining risk:** End reading logged in the usage table. Low. A-number taken from origin/main at 756d31f; other in-flight PRs may collide.
+
+### A-326 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — owner-found defects in my merged Recordings UI (#141, #145)
 - **Status / attribution:** Confirmed agent errors, found by the owner's first run of the merged build; not application defects.
 - **What failed:** (1) A word click highlighted nothing, or the wrong word, when speakers overlap, because the active row was "last row that started before now" and a clicked word in a longer turn lost to a short later turn; while audio played a word click did nothing at all. (2) I excluded focused buttons from the Space shortcut, so after clicking a timestamp button Space replayed from it instead of pausing. (3) The edit hint had no content-column padding. (4) My first tests used one-speaker fixtures and `fireEvent.click` without focus, so none of these showed.
 - **Agent-controlled cause:** Designing the key and click rules from the brief's wording without trying overlapping turns, focus after a click, or the real column layout.
