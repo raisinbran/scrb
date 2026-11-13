@@ -15,10 +15,7 @@ const fake = vi.hoisted(() => ({
   sessions: [] as {
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
     launchWorker(): void;
-    trackMissing(track: 'microphone' | 'meeting'): void {
-      this.options.onTrackMissing(track);
-    }
-
+    trackMissing(track: 'microphone' | 'meeting'): void;
     state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
   workerEvents: [] as ((event: unknown) => void)[],
@@ -50,6 +47,10 @@ vi.mock('@scrb/app-core', async (importOriginal) => ({
     async start(): Promise<void> {
       this.options.launch();
       this.options.onStateChanged('recording', null, null);
+    }
+
+    trackMissing(track: 'microphone' | 'meeting'): void {
+      this.options.onTrackMissing(track);
     }
 
     state(status: 'recording' | 'paused', atNs: number | null): void {
