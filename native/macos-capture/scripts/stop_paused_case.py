@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stop during a pause must not move the cutoff: nothing recorded after Pause may reach a chunk.
 
-Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh.
+Run from the Claude app's terminal pane, under native/macos-capture/scripts/run-muted.sh.
 Usage: stop_paused_case.py <helper> <work dir> <rounds>
 """
 import json, math, os, struct, subprocess, sys, time, wave

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Long-run test: a tone plus the default mic through the real helper, with timed pauses.
 
-Run from the Claude app's terminal pane under phase0/scripts/run-muted.sh. Prints a line a minute
+Run from the Claude app's terminal pane under native/macos-capture/scripts/run-muted.sh. Prints a line a minute
 with the chunks on disk, so a silent failure shows at once. A stream that stops is reported.
 Usage: long_run.py <helper> <work dir> <seconds> <pause every seconds> <pause length seconds>
 """
