@@ -85,3 +85,13 @@ export function parsePlacement(text: string): SavedPlacement | null {
 export function serializePlacement(placement: SavedPlacement): string {
   return JSON.stringify(placement);
 }
+
+/**
+ * Bounds after growing back from the compact strip: the top edge stays, but the window moves up
+ * if the taller window would run past the bottom of the work area.
+ */
+export function expandedBounds(current: Rect, height: number, workArea: Rect): Rect {
+  const bottom = workArea.y + workArea.height;
+  const y = Math.max(workArea.y, Math.min(current.y, bottom - height));
+  return { x: current.x, y, width: current.width, height };
+}

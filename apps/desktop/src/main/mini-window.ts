@@ -87,15 +87,47 @@ export function restoreMain<T>(
 /** The fixed address the mini window's "Show Scribe" button opens; the UI keeps a copy of this string. */
 export const SHOW_MAIN_URL = 'scrb-app://show-main';
 
+/** Addresses the mini window's buttons open; the UI keeps a copy of these strings. */
+export const COMPACT_URL = 'scrb-app://mini-compact';
+export const EXPAND_URL = 'scrb-app://mini-expand';
+
 /**
- * The mini window's only window-open rule: the exact show-main address brings the app back, and
- * every open is still denied. Apply it to the mini window's contents alone.
+ * The mini window's only window-open rules: three exact addresses (show the app, make the window
+ * compact, make it full size), and every open is still denied. Apply it to the mini window's
+ * contents alone.
  */
-export function miniWindowOpenHandler(showMain: () => void): (details: { url: string }) => {
-  action: 'deny';
-} {
+export function miniWindowOpenHandler(
+  showMain: () => void,
+  setCompact: (compact: boolean) => void,
+): (details: { url: string }) => { action: 'deny' } {
   return ({ url }) => {
     if (url === SHOW_MAIN_URL) showMain();
+    else if (url === COMPACT_URL) setCompact(true);
+    else if (url === EXPAND_URL) setCompact(false);
     return { action: 'deny' };
   };
 }
+
+/**
+ * Fixed window options. The OS minimize is off: on macOS the key window going to the dock hands
+ * the keyboard to the next window of the app and raises it, so minimizing the mini window brought
+ * the main window to the front. The window's own compact button replaces it and never touches
+ * another window.
+ */
+export const MINI_WINDOW_SIZE = { width: 280, height: 72 } as const;
+/** Content height of the compact strip: the status row only. */
+export const MINI_COMPACT_HEIGHT = 40;
+
+export const MINI_WINDOW_OPTIONS = {
+  title: 'Scribe recording',
+  ...MINI_WINDOW_SIZE,
+  // The size is the page area, so the title bar never takes from the two rows.
+  useContentSize: true,
+  alwaysOnTop: true,
+  resizable: false,
+  minimizable: false,
+  maximizable: false,
+  fullscreenable: false,
+  autoHideMenuBar: true,
+  show: false,
+} as const;

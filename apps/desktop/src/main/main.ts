@@ -13,6 +13,8 @@ import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
+  MINI_COMPACT_HEIGHT,
+  MINI_WINDOW_OPTIONS,
   createMiniController,
   type MiniHandle,
   miniWindowOpenHandler,
@@ -22,6 +24,7 @@ import {
 import { fadeOpacity } from './mini-fade.ts';
 import {
   choosePosition,
+  expandedBounds,
   parsePlacement,
   serializePlacement,
   type DisplayInfo,
@@ -90,24 +93,30 @@ const prefersReducedMotion = (): boolean =>
 
 function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   const mini = new BrowserWindow({
-    title: 'Scribe recording',
-    width: 264,
-    height: 72,
-    // The size is the page area, so the title bar never takes from the two rows.
-    useContentSize: true,
-    alwaysOnTop: true,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    autoHideMenuBar: true,
-    show: false,
+    ...MINI_WINDOW_OPTIONS,
     webPreferences: secureWebPreferences(__dirname),
   });
   miniWindows.add(mini);
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
-  mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.()));
+  let compact = false;
+  let fullHeight = 0;
+  const setCompact = (next: boolean): void => {
+    if (mini.isDestroyed() || next === compact) return;
+    const bounds = mini.getBounds();
+    if (next) {
+      fullHeight = bounds.height;
+      // Content height, so the title bar is kept; the window keeps its top edge.
+      const chrome = bounds.height - mini.getContentBounds().height;
+      mini.setBounds({ ...bounds, height: MINI_COMPACT_HEIGHT + chrome });
+    } else {
+      const area = screen.getDisplayMatching(bounds).workArea;
+      mini.setBounds(expandedBounds(bounds, fullHeight, area));
+    }
+    compact = next;
+  };
+  mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.(), setCompact));
   let opacity = 0;
   let cancelFade: () => void = () => undefined;
   const fadeTo = (to: number, done?: () => void): void => {
@@ -139,7 +148,10 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     mini.showInactive();
     fadeTo(1);
     // Only after the placement above, so the default is not saved as if the user chose it.
-    mini.on('moved', () => saveMiniPlacement(mini));
+    // The compact strip is not a place to remember: its top edge is the full window's.
+    mini.on('moved', () => {
+      if (!compact) saveMiniPlacement(mini);
+    });
   });
   mini.on('closed', () => {
     cancelFade();

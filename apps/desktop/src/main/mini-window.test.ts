@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WebContents } from 'electron';
 import {
+  COMPACT_URL,
+  EXPAND_URL,
   SHOW_MAIN_URL,
+  MINI_WINDOW_OPTIONS,
   createMiniController,
   miniWindowOpenHandler,
   restoreMain,
@@ -168,25 +171,32 @@ describe('restoreMain', () => {
 });
 
 describe('miniWindowOpenHandler', () => {
-  it('brings the app back for the exact show-main address and denies the open', () => {
+  it('maps each exact address to its action and denies every open', () => {
     const showMain = vi.fn();
-    expect(miniWindowOpenHandler(showMain)({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
+    const setCompact = vi.fn();
+    const handler = miniWindowOpenHandler(showMain, setCompact);
+    expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
+    expect(handler({ url: COMPACT_URL })).toEqual({ action: 'deny' });
+    expect(handler({ url: EXPAND_URL })).toEqual({ action: 'deny' });
     expect(showMain).toHaveBeenCalledTimes(1);
+    expect(setCompact.mock.calls).toEqual([[true], [false]]);
   });
 
   it('does nothing for any other address, and still denies', () => {
     const showMain = vi.fn();
-    const handler = miniWindowOpenHandler(showMain);
+    const setCompact = vi.fn();
+    const handler = miniWindowOpenHandler(showMain, setCompact);
     for (const url of [
       'https://example.com/',
       `${SHOW_MAIN_URL}/extra`,
-      `${SHOW_MAIN_URL}?x=1`,
+      `${COMPACT_URL}?x=1`,
       'scrb-app://other',
       'scrb://app/index.html',
     ]) {
       expect(handler({ url })).toEqual({ action: 'deny' });
     }
     expect(showMain).not.toHaveBeenCalled();
+    expect(setCompact).not.toHaveBeenCalled();
   });
 });
 
@@ -199,5 +209,19 @@ describe('the main window keeps denying every open', () => {
     } as unknown as WebContents;
     lockDownContents(contents, 'scrb://app');
     expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
+  });
+});
+
+describe('MINI_WINDOW_OPTIONS', () => {
+  it('has no OS minimize, which would raise the main window; the compact button replaces it', () => {
+    expect(MINI_WINDOW_OPTIONS.minimizable).toBe(false);
+  });
+
+  it('keeps the content-size, always-on-top and hidden-until-ready settings', () => {
+    expect(MINI_WINDOW_OPTIONS).toMatchObject({
+      useContentSize: true,
+      alwaysOnTop: true,
+      show: false,
+    });
   });
 });
