@@ -78,7 +78,7 @@ All commands run in **PowerShell, not as administrator**, from the `scrb` folder
 | 0 | 1 | both | no | `winver`; Settings → Privacy & security → Windows Security → App & browser control → Smart App Control (read only) | Windows 11 confirmed; Smart App Control state noted |
 | 1 | 1 | one with the repo and Node | no | `npm install; npm run check`; `powershell -File scripts\package-win.ps1` | unpacked `apps\desktop\release\win-unpacked\Scribe.exe` exists |
 | 1b | 1–2 | Mac (build PC) | n/a | `scripts/package-mac.sh`, then list `Scribe.app/Contents/Resources/bin` | still the seven Mac tools; no Windows files |
-| 2 | 1 | same | no | `$env:SCRB_PACKAGED_APP="…\Scribe.exe"; npx playwright test apps/desktop/e2e/packaged.spec.ts` | passes (name, library pointer, refusal to record) |
+| 2 | 1 | the Windows PC from step 1 | no | `$env:SCRB_PACKAGED_APP="…\Scribe.exe"; npx playwright test apps/desktop/e2e/packaged.spec.ts` | passes (name, library pointer, refusal to record) |
 | 3 | 1/5 | one with a saved dev library | no | start the unpacked app; open Settings; compare `dir $env:APPDATA\@scrb\desktop` before and after | same library, same settings, nothing moved |
 | 4 | 2–3 | **Regiurn** (clean: no repo, no dev assets, if Windows 11) | no | copy the packaged app folder and the handover folder (`models\`, `model-digests.json`, `install-models.ps1`, made on the build PC by `-StageModels`); run each tool in `resources\bin` with `--help`/`-version`; `powershell -File install-models.ps1` from the handover folder | all run; hashes verified; a one-byte corrupted model is refused |
 | 5 | 4 | one PC, then the other | no | run the NSIS installer; open from Start; run installer again; uninstall | no admin prompt; data survives replace and uninstall |
