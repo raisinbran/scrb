@@ -3,7 +3,8 @@ import CoreAudio
 
 /// Mic stream through Apple's voice-processing unit (echo cancellation against the system output).
 /// Feeds the same `RtRing` as `MicStream`; the ring rate is set from the format the unit delivers.
-/// Ducking of other audio is switched off; if that cannot be done, open fails and the caller uses the raw path.
+/// Minimum ducking is requested, but macOS offers no way to turn ducking off: other audio is still ducked (about 9 dB measured).
+/// Only a voice-processing startup failure makes open fail, and then the caller uses the raw path.
 final class VoiceMicStream {
     private let ring: UnsafeMutablePointer<RtRing>
     private var engine: AVAudioEngine?

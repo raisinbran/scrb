@@ -4,8 +4,8 @@ Branch `cuc/echo-aec-spike-16c88b`. Plan: `mic-echo-handling.md`, option A. Date
 
 ## What was built
 
-- `native/macos-capture/src/VoiceMic.swift`: `VoiceMicStream` runs the mic through `AVAudioEngine` voice processing, turns ducking off (`voiceProcessingOtherAudioDuckingConfiguration`, enableAdvancedDucking false, level min), sets `ring->rate` from the delivered format, passes the tap's host time to `rt_capture`.
-- `main.swift`: `open` reads `echoCancellation`; `openMic()`/`closeMic()` replace direct `MicStream` use (also in `rebuild`). Any failure to start voice processing is logged (`voiceProcessingUnavailable`) and the raw `MicStream` is used.
+- `native/macos-capture/src/VoiceMic.swift`: `VoiceMicStream` runs the mic through `AVAudioEngine` voice processing, asks for minimum ducking (`voiceProcessingOtherAudioDuckingConfiguration`, enableAdvancedDucking false, level min). Zero attenuation is not available: `min` still ducked the meeting track by about 9 dB, sets `ring->rate` from the delivered format, passes the tap's host time to `rt_capture`.
+- `main.swift`: `open` reads `echoCancellation`; `openMic()`/`closeMic()` replace direct `MicStream` use (also in `rebuild`). Only a voice-processing startup failure (not ducking) is logged (`voiceProcessingUnavailable`) and the raw `MicStream` is used as the fallback.
 - `packages/capture` (`OpenCommand.echoCancellation?`), `recording.ts` and `backend.ts` pass it. It is **opt-in via env `SCRB_VOICE_AEC=1`** plus the stored setting (and not "Studio"/bypass), so nothing changes by default. No contracts change, no Electron settings change.
 
 ## Measured (6 s mic recordings, speakers silent: system volume was 0)
