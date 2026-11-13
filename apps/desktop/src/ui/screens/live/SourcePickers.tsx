@@ -22,10 +22,12 @@ interface SourcePickersProps {
   devices: InputDevice[];
   apps: MeetingApp[];
   selection: SourceSelection;
+  /** True while a switch during a recording is in flight. */
+  switching?: boolean;
   onSelect(selection: SourceSelection): void;
 }
 
-export function SourcePickers({ devices, apps, selection, onSelect }: SourcePickersProps) {
+export function SourcePickers({ devices, apps, selection, switching = false, onSelect }: SourcePickersProps) {
   const appId = useId();
   const micId = useId();
   const choices = withFallback(apps);
@@ -34,12 +36,13 @@ export function SourcePickers({ devices, apps, selection, onSelect }: SourcePick
   const defaultMic = devices.find((device) => device.isSystemDefault);
 
   return (
-    <div className={styles.pickers}>
+    <div className={styles.pickers} aria-busy={switching}>
       <div className={styles.picker}>
         <label htmlFor={appId}>Meeting app</label>
         <select
           id={appId}
           value={app.id}
+          disabled={switching}
           onChange={(event) => onSelect({ ...selection, meetingAppId: event.target.value })}
         >
           {choices.map((item) => (
@@ -55,12 +58,14 @@ export function SourcePickers({ devices, apps, selection, onSelect }: SourcePick
             <button
               type="button"
               className={styles.linkButton}
+              disabled={switching}
               onClick={() => onSelect({ ...selection, meetingAppId: WHOLE_COMPUTER_SOURCE_ID })}
             >
               Use Whole computer audio
             </button>
           </p>
         )}
+        {switching && <p className={styles.hint}>Switching…</p>}
         {app.kind === 'browser' && (
           <p className={styles.hint}>Records the entire browser, including other tabs.</p>
         )}
@@ -70,6 +75,7 @@ export function SourcePickers({ devices, apps, selection, onSelect }: SourcePick
         <select
           id={micId}
           value={selection.micDeviceId ?? ''}
+          disabled={switching}
           onChange={(event) => onSelect({ ...selection, micDeviceId: event.target.value || null })}
         >
           <option value="">System default{defaultMic ? ` (${defaultMic.name})` : ''}</option>

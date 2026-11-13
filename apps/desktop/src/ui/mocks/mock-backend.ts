@@ -1023,6 +1023,17 @@ export class MockBackend implements Backend {
     listInputDevices: () => INPUT_DEVICES,
     listMeetingApps: () => MEETING_APPS,
     selectSources: (selection) => {
+      if (this.recording.status === 'recording' || this.recording.status === 'paused') {
+        const { micDeviceId, meetingAppId } = this.settings.audio;
+        const micChanged = selection.micDeviceId !== micDeviceId;
+        const appChanged = selection.meetingAppId !== meetingAppId;
+        const conflict = (message: string) => new ContractError({ code: 'conflict', message });
+        if (micChanged && appChanged) {
+          throw conflict('Change the microphone and the meeting app one at a time while recording.');
+        }
+        const app = MEETING_APPS.find((item) => item.id === selection.meetingAppId);
+        if (appChanged && app && !app.isRunning) throw conflict('That app is not playing audio yet.');
+      }
       this.settings = mergeSettings(this.settings, { audio: selection });
     },
 

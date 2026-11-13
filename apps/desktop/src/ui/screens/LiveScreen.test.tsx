@@ -128,6 +128,29 @@ describe('LiveScreen', () => {
       expect((await backend.call('getSettings')).audio.meetingAppId).toBe('whole-computer');
     });
 
+    it('keeps the pickers enabled while recording and applies a change', async () => {
+      await startMeeting();
+      const mic = screen.getByLabelText<HTMLSelectElement>('Microphone');
+      expect(mic.disabled).toBe(false);
+      fireEvent.change(mic, { target: { value: 'mic-usb' } });
+      expect(mic.disabled).toBe(true);
+      expect(screen.getByText('Switching…')).toBeTruthy();
+      await advance(0);
+      expect(mic.disabled).toBe(false);
+      expect(mic.value).toBe('mic-usb');
+      expect((await backend.call('getSettings')).audio.micDeviceId).toBe('mic-usb');
+    });
+
+    it('reverts the picker and shows the reason when the switch is refused', async () => {
+      await startMeeting();
+      const app = screen.getByLabelText<HTMLSelectElement>('Meeting app');
+      fireEvent.change(app, { target: { value: 'app-zoom' } });
+      await advance(0);
+      expect(screen.getByText(/not playing audio yet/)).toBeTruthy();
+      expect(app.value).toBe('app-teams');
+      expect(app.disabled).toBe(false);
+    });
+
     it('warns that browser capture takes every tab', async () => {
       await renderLive();
       fireEvent.change(screen.getByLabelText('Meeting app'), { target: { value: 'app-browser' } });
