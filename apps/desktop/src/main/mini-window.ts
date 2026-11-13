@@ -99,3 +99,23 @@ export function miniWindowOpenHandler(showMain: () => void): (details: { url: st
     return { action: 'deny' };
   };
 }
+
+/**
+ * Fixed window options. It cannot be minimized: on macOS the key window going to the dock hands
+ * the keyboard to the next window of the app and raises it, so minimizing the mini window brought
+ * the main window to the front. Closing it is the way to dismiss it.
+ */
+export const MINI_WINDOW_OPTIONS = {
+  title: 'Scribe recording',
+  width: 264,
+  height: 72,
+  // The size is the page area, so the title bar never takes from the two rows.
+  useContentSize: true,
+  alwaysOnTop: true,
+  resizable: false,
+  minimizable: false,
+  maximizable: false,
+  fullscreenable: false,
+  autoHideMenuBar: true,
+  show: false,
+} as const;

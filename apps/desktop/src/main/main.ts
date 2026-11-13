@@ -13,6 +13,7 @@ import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
+  MINI_WINDOW_OPTIONS,
   createMiniController,
   type MiniHandle,
   miniWindowOpenHandler,
@@ -90,17 +91,7 @@ const prefersReducedMotion = (): boolean =>
 
 function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   const mini = new BrowserWindow({
-    title: 'Scribe recording',
-    width: 264,
-    height: 72,
-    // The size is the page area, so the title bar never takes from the two rows.
-    useContentSize: true,
-    alwaysOnTop: true,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    autoHideMenuBar: true,
-    show: false,
+    ...MINI_WINDOW_OPTIONS,
     webPreferences: secureWebPreferences(__dirname),
   });
   miniWindows.add(mini);

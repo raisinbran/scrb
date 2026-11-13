@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WebContents } from 'electron';
 import {
   SHOW_MAIN_URL,
+  MINI_WINDOW_OPTIONS,
   createMiniController,
   miniWindowOpenHandler,
   restoreMain,
@@ -199,5 +200,19 @@ describe('the main window keeps denying every open', () => {
     } as unknown as WebContents;
     lockDownContents(contents, 'scrb://app');
     expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
+  });
+});
+
+describe('MINI_WINDOW_OPTIONS', () => {
+  it('cannot be minimized, so minimizing never raises the main window', () => {
+    expect(MINI_WINDOW_OPTIONS.minimizable).toBe(false);
+  });
+
+  it('keeps the content-size, always-on-top and hidden-until-ready settings', () => {
+    expect(MINI_WINDOW_OPTIONS).toMatchObject({
+      useContentSize: true,
+      alwaysOnTop: true,
+      show: false,
+    });
   });
 });
