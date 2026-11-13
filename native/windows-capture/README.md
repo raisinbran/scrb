@@ -13,7 +13,8 @@ in `C:\BuildTools`, Windows SDK 10.0.26100, libopus
 ```
 pwsh -File scripts\fetch-opus.ps1
 build.cmd
-git show phase0-archive:phase0/artifacts/capture/devices/sleep-wake-timing.csv > sleep-wake-timing.csv
+# cmd keeps the bytes; PowerShell 5.1 ">" writes UTF-16, which PipelineTests cannot parse.
+cmd /c "git show phase0-archive:phase0/artifacts/capture/devices/sleep-wake-timing.csv > sleep-wake-timing.csv"
 build\bin\PipelineTests.exe sleep-wake-timing.csv
 ```
 
