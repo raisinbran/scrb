@@ -1,0 +1,9 @@
+# Uncommitted usage-row proposal — slice 2a
+
+Proposed for agents/agent_task_allocation.md; not staged or committed. Task began 2026-11-11 12:45:57 PT; end observation 12:54:52 PT. Plan commit 772f21e, implementation 77a3a9f; ordinary push succeeded. Draft PR request awaits guarded approval, hash 9e3c20eeb6e93c9783a9cfc3e336311e0533776570fe0ccd548ec6690560a58b; PR creation is not confirmed. No merge.
+
+| Date (PT) | Agent / device | Task and outcome | Start time | End time | 5h left, start -> end | Week left, start -> end | Observed decrease, 5h / week (pp) | Phase / model / effort | Retries | Acceptance | Source, reset, overlap and qualification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-11 | Codex Desktop / Mac; independent review subagent on same pool | live-diarization-slice2a-20261111 / implementation: backend aliases, silent regression tests, pushed; draft PR request pending approval | 12:45:57 | 12:54:52 | 42% -> 31% | 36% -> 35% | 11 / 1, account-wide only | Implementation/checks/review / gpt-6.1-sol / low | 3 corrected test invocations (config path, cwd/filter, coalesced count); one review-fix round; no environmental failed-test repeats | pending owner acceptance; independent code review passed after fixes | get_usage_limits at start/end; active turn_context metadata confirms model/effort. 5h reset 2026-11-11T13:46:37-08:00; weekly reset 2026-11-15T16:43:52-08:00. Rounded shared readings include reviewer, other overlap unknown; not isolated task cost. Full check non-green: 1106 passed/14 failed/25 skipped; final types/lint pass; focused storage32/sink16/centroid/supervisor pass. See committed handoff and incident register. |
+
+Publication setup follow-up: first guarded PR request could not write approval state in sandbox; authorized escalation produced the hash above. It did not bypass approval or establish PR creation. This is a permission/setup limitation, not an application failure.
