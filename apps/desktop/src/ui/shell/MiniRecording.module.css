@@ -13,18 +13,24 @@
 }
 
 .line {
-  display: inline-flex;
+  display: flex;
+  white-space: nowrap;
   gap: var(--space-2);
   align-items: center;
   font-weight: 600;
 }
 
 .elapsed {
+  /* Room for H:MM:SS and beyond from the first second, so the row never changes width. */
+  min-width: 8ch;
+  text-align: right;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .dot {
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -67,12 +73,21 @@
   background: var(--color-ok);
 }
 
-.show {
+.buttons {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
   margin-left: auto;
-  padding: 0 var(--space-2);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 400;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   color: var(--color-accent);
   cursor: pointer;
   background: none;
@@ -80,6 +95,12 @@
   border-radius: 4px;
 }
 
-.show:focus-visible {
+.flag {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-warning);
+}
+
+.icon:focus-visible {
   outline: 2px solid var(--color-focus);
 }

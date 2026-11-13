@@ -1,4 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Backend,
@@ -50,6 +53,7 @@ function show(fake: ReturnType<typeof fakeBackend>) {
 }
 
 afterEach(cleanup);
+afterEach(() => vi.unstubAllGlobals());
 
 describe('MiniRecording', () => {
   it('opened while paused with a warning already present, shows both from the snapshot', async () => {
@@ -130,7 +134,7 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    expect(document.body.textContent).toBe('Recording 01:05Show Scribe');
+    expect(document.body.textContent).toBe('Recording 01:05');
   });
 
   it('keeps the status row and one fixed slot when the warning comes and goes', async () => {
@@ -270,5 +274,52 @@ describe('MiniRecording', () => {
     );
     expect(screen.getByText('Ana')).toBeTruthy();
     expect(screen.queryByText('Ben')).toBeNull();
+  });
+
+  async function showRecording(elapsedMs: number, health: RecordingHealth | null = null) {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('paused', elapsedMs),
+        pauseSpans: [],
+        health,
+        transcription: null,
+      }),
+    );
+  }
+
+  it('the two buttons ask the main process by exact address and swap the compact label', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    await showRecording(65_000);
+    fireEvent.click(screen.getByRole('button', { name: 'Show Scribe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make smaller' }));
+    expect(open.mock.calls).toEqual([['scrb-app://show-main'], ['scrb-app://mini-compact']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Make larger' }));
+    expect(open).toHaveBeenLastCalledWith('scrb-app://mini-expand');
+  });
+
+  it('compact keeps the time and a warning flag, and drops the slot', async () => {
+    await showRecording(65_000, warned);
+    fireEvent.click(screen.getByRole('button', { name: 'Make smaller' }));
+    expect(screen.getByText('01:05')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Microphone changed' })).toBeTruthy();
+    expect(screen.queryByText('Microphone changed')).toBeNull();
+  });
+
+  it('shows 99:59:59 in full on the status row', async () => {
+    await showRecording((99 * 3600 + 59 * 60 + 59) * 1000);
+    expect(screen.getByText('99:59:59')).toBeTruthy();
+  });
+
+  it('the row cannot reflow as the time grows: fixed-width time, buttons that do not shrink', () => {
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('elapsed')).toMatch(/min-width: 8ch/);
+    expect(rule('elapsed')).toMatch(/tabular-nums/);
+    expect(rule('elapsed')).toMatch(/white-space: nowrap/);
+    expect(rule('line')).toMatch(/white-space: nowrap/);
+    expect(rule('buttons')).toMatch(/flex-shrink: 0/);
   });
 });
