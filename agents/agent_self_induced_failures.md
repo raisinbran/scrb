@@ -1128,3 +1128,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I pushed without running prettier on `vitest.config.ts` (CI failed on both platforms), and my first duplicate check allowlisted A-104 for any number of occurrences and the usage-log rows had no integrity check, so a union merge could combine edited rows silently (review-found). I also ran prettier over the markdown files, which reformatted usage rows; I reverted that.
 - **Impact:** One rejected review round and a failing CI run.
 - **Correction / remaining risk:** Exact-count exemption, row checks and tests added; prettier run on code files only. Low.
+
+### A-333 — 2026-11-13 — Claude Code / Mac — pushed PR #154 head b5a5aa6 with a failing unit test
+- **What failed:** I chained `commit && push` after `npm run check` and a vitest run had both shown a failure; the new "one field changed" test mutated a trailing cell that does not exist in the real rows. The earlier grandfathering by prefix was also review-found as too loose.
+- **Impact:** One commit with a red test on the PR branch; fixed in the next commit.
+- **Correction / remaining risk:** Test now changes a named field; `npm run check` passes before this push. Low.

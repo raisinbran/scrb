@@ -40,7 +40,7 @@ describe('findBadUsageRows', () => {
       );
     expect(real).toHaveLength(2);
     expect(real.map((r) => findBadUsageRows(r))).toEqual([[], []]);
-    for (const r of real) expect(findBadUsageRows(r.replace(/ \|$/, ' edited |'))).toHaveLength(1);
+    for (const r of real) expect(findBadUsageRows(r.replace('Codex', 'Codex2'))).toHaveLength(1);
     expect(findBadUsageRows(`${real[0]} `)).toHaveLength(1);
     expect(findBadUsageRows(row('other', 11))).toHaveLength(1);
   });
