@@ -328,6 +328,8 @@ function LoadedDetail(props: LoadedDetailProps) {
   const [jump, setJump] = useState<JumpTarget | null>(
     initialJumpMs === undefined ? null : { ms: initialJumpMs, nonce: 0 },
   );
+  // A word at 0 ms leaves the position at 0, so "placed" is tracked on its own.
+  const [placed, setPlaced] = useState(false);
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -510,10 +512,17 @@ function LoadedDetail(props: LoadedDetailProps) {
             gaps={meeting.gaps}
             fontPx={fontPx}
             positionMs={playback.positionMs}
-            showPosition={playback.isPlaying || playback.positionMs > 0}
+            showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
             jump={jump}
             onPlay={playback.play}
-            onPlace={playback.isPlaying ? undefined : playback.setPosition}
+            onPlace={
+              playback.isPlaying
+                ? undefined
+                : (ms) => {
+                    setPlaced(true);
+                    playback.setPosition(ms);
+                  }
+            }
           />
         )}
         {tab === 'Summary' && (

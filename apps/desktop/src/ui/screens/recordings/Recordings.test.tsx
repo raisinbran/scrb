@@ -229,6 +229,18 @@ describe('Recordings', () => {
       expect(await button('Pause')).toBeTruthy();
     });
 
+    it('highlights a clicked word at 0 ms while stopped, without playing', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const call = vi.spyOn(backend, 'call');
+      const word = document.querySelector('[data-ms="0"]') as HTMLElement;
+      expect(word).toBeTruthy();
+      fireEvent.click(word);
+      expect(word.getAttribute('aria-current')).toBe('true');
+      expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+    });
+
     it('toggles play and pause with Space without scrolling', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);
