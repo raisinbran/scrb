@@ -3,7 +3,7 @@ import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
-import { createMiniController, withoutMini } from './mini-window.ts';
+import { createMiniController, restoreMain, withoutMini } from './mini-window.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
@@ -149,11 +149,10 @@ registerAppScheme();
 // A second copy would write to the same index, so it hands over to the first and quits.
 if (!app.requestSingleInstanceLock()) app.quit();
 
-app.on('second-instance', () => {
-  const [window] = mainWindows();
-  if (window?.isMinimized()) window.restore();
-  window?.focus();
-});
+// Set once the backend is open; a second launch before then has nothing to restore.
+let restoreApp: (() => void) | null = null;
+
+app.on('second-instance', () => restoreApp?.());
 
 void app.whenReady().then(async () => {
   denyAllPermissions();
@@ -170,12 +169,18 @@ void app.whenReady().then(async () => {
   registerCallHandlers(backend.handlers, isTrustedSender);
   closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning, backend.recovery, stopPlayback);
-  app.on('activate', () => {
-    // The mini window does not count: with only it open, the dock must bring the app back.
-    if (mainWindows().length === 0) {
-      createMainWindow(backend.warning, backend.recovery, stopPlayback);
-    }
-  });
+  // The mini window does not count as the app: with only it open, a second launch or the dock
+  // must bring the main window back through this same path.
+  restoreApp = () =>
+    restoreMain(
+      mainWindows(),
+      (window) => {
+        if (window.isMinimized()) window.restore();
+        window.focus();
+      },
+      () => createMainWindow(backend.warning, backend.recovery, stopPlayback),
+    );
+  app.on('activate', restoreApp);
 });
 
 app.on('window-all-closed', () => {

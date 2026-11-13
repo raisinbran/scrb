@@ -62,3 +62,14 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
 export function withoutMini<T>(windows: T[], mini: T | null): T[] {
   return windows.filter((window) => window !== mini);
 }
+
+/** Brings the app back from the dock or a second launch: focus a main window, or make one if only the mini is left. */
+export function restoreMain<T>(
+  mainWindows: T[],
+  focus: (window: T) => void,
+  create: () => void,
+): void {
+  const [window] = mainWindows;
+  if (window === undefined) create();
+  else focus(window);
+}

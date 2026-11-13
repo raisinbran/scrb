@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMiniController, shouldShowMini, withoutMini } from './mini-window.ts';
+import { createMiniController, restoreMain, shouldShowMini, withoutMini } from './mini-window.ts';
 
 describe('shouldShowMini', () => {
   it.each([
@@ -89,5 +89,26 @@ describe('withoutMini', () => {
     const main = { id: 'main' };
     expect(withoutMini([mini, main], mini)).toEqual([main]);
     expect(withoutMini([main], null)).toEqual([main]);
+  });
+});
+
+describe('restoreMain', () => {
+  it('creates the main window when only the mini one is left (second launch or dock)', () => {
+    const mini = { id: 'mini' };
+    const focus = vi.fn();
+    const create = vi.fn();
+    restoreMain(withoutMini([mini], mini), focus, create);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it('focuses the existing main window instead of making a second one', () => {
+    const main = { id: 'main' };
+    const mini = { id: 'mini' };
+    const focus = vi.fn();
+    const create = vi.fn();
+    restoreMain(withoutMini([mini, main], mini), focus, create);
+    expect(focus).toHaveBeenCalledWith(main);
+    expect(create).not.toHaveBeenCalled();
   });
 });
