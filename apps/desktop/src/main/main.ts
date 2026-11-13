@@ -1,8 +1,9 @@
 import { app, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
-import { IPC_EVENT_CHANNEL } from '@scrb/contracts';
+import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
+import { createMiniController } from './mini-window.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
@@ -12,6 +13,7 @@ import {
   serveMedia,
   serveRenderer,
 } from './security.ts';
+import { secureWebPreferences } from './web-preferences.ts';
 
 // Ignored in packaged builds, so the environment can never point the app at another page.
 const devServerUrl = app.isPackaged ? undefined : process.env['SCRB_DEV_SERVER_URL'];
@@ -21,6 +23,47 @@ const appOrigin = new URL(appUrl).origin;
 function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   const url = event.senderFrame?.url;
   return url !== undefined && new URL(url).origin === appOrigin;
+}
+
+let miniWindow: BrowserWindow | null = null;
+
+function openMiniWindow(onClosedByUser: () => void): { close(): void } {
+  const mini = new BrowserWindow({
+    title: 'Meeting Scribe recording',
+    width: 280,
+    height: 120,
+    alwaysOnTop: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: secureWebPreferences(__dirname),
+  });
+  miniWindow = mini;
+  mini.setAlwaysOnTop(true, 'floating');
+  mini.setMenuBarVisibility(false);
+  lockDownContents(mini.webContents, appOrigin);
+  // It carries status only; it must not take the keyboard from the app being used.
+  mini.once('ready-to-show', () => mini.showInactive());
+  mini.on('closed', () => {
+    if (miniWindow === mini) miniWindow = null;
+    onClosedByUser();
+  });
+  void mini.loadURL(`${appUrl}#mini`);
+  return { close: () => mini.close() };
+}
+
+const mini = createMiniController(openMiniWindow);
+
+/** Any app window other than the mini one that is visible and has the keyboard. */
+function refreshMainInFront(): void {
+  mini.setMainInFront(
+    BrowserWindow.getAllWindows().some(
+      (window) =>
+        window !== miniWindow && window.isVisible() && !window.isMinimized() && window.isFocused(),
+    ),
+  );
 }
 
 function createMainWindow(
@@ -38,13 +81,7 @@ function createMainWindow(
     ...(process.platform === 'darwin'
       ? { trafficLightPosition: { x: 12, y: 12 } }
       : { titleBarOverlay: { color: '#00000000', symbolColor: '#808080', height: 40 } }),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-      webviewTag: false,
-    },
+    webPreferences: secureWebPreferences(__dirname),
   });
   lockDownContents(window.webContents, appOrigin);
   // A reloaded or lost page cannot release what it was granted, so grants end here.
@@ -53,6 +90,17 @@ function createMainWindow(
   });
   window.webContents.on('render-process-gone', stopPlayback);
   window.on('closed', stopPlayback);
+  window.on('focus', refreshMainInFront);
+  window.on('blur', refreshMainInFront);
+  window.on('show', refreshMainInFront);
+  window.on('hide', refreshMainInFront);
+  window.on('minimize', refreshMainInFront);
+  window.on('restore', refreshMainInFront);
+  window.on('closed', () => {
+    // Elsewhere the app quits with its last main window; the mini one must not keep it alive.
+    if (process.platform !== 'darwin') mini.dispose();
+    else refreshMainInFront();
+  });
   window.once('ready-to-show', () => {
     window.show();
     if (recovery) {
@@ -108,6 +156,7 @@ void app.whenReady().then(async () => {
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
   const backend = await openBackend((name, payload) => {
+    if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
     for (const window of BrowserWindow.getAllWindows()) {
       window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
     }
