@@ -1,11 +1,11 @@
 # Plan: enable the vocabulary hint with `-mc 128` (code PR)
 
-Owner decision (2026-11-12): proceed with `-mc 128` for hinted decodes. Basis: `docs/plans/vocabulary-hint-context-fix.md` (reviewed, merged) and `docs/gates/vocab-mc-test-results-20261112.md` (PR #121). Risky change under `AGENTS.md` (changes shipped recognition arguments): **no code before ChatGPT review of this plan and owner approval.**
+Owner decision (2026-11-12): proceed with `-mc 128` for hinted decodes. Basis: `docs/plans/vocabulary-hint-context-fix.md` (reviewed, merged) and `docs/gates/vocab-mc-test-results-20261112.md` (PR #121, which was corrected after review: the loop checker now compares repeated phrases by identity and the retained outputs were re-scored without new decoding; flags unchanged. This plan should not be approved before #121 is merged). Risky change under `AGENTS.md` (changes shipped recognition arguments): **no code before ChatGPT review of this plan and owner approval.**
 
 ## What the evidence supports, and what it does not
 
 - Held-out TS3003a: recall 8 to 16 of 30, WER 23.91% to 23.05%.
-- Costs the owner accepts by choosing this: ES2003c WER 1.9 points worse; one wrong held-out word ("waterproof"); 2 benign negative-control events (spelling forms). The plan's table calls this **inconclusive**, not a pass.
+- Costs the owner accepts by choosing this: ES2003c WER 1.9 points worse; one wrong held-out word ("waterproof"); one benign negative-control event at `-mc 128` ("kick off" versus the reference's "kickoff"; the other benign event was at `-mc 64`). The plan's table calls this **inconclusive**, not a pass.
 - It is **not** a Gate 5 pass: one meeting, one 10-term set. Gate 5 stays open; Stage 2 remains an owner decision.
 
 ## Change
@@ -22,7 +22,7 @@ Owner decision (2026-11-12): proceed with `-mc 128` for hinted decodes. Basis: `
 
 ## Rollback and watch
 
-Set the constant to 0 (hint becomes inert again, as shipped before). A hinted meeting that shows repeated phrases or a clear WER drop is the signal to revert; there is no automatic detector in this change (out of scope).
+Set the constant to 0 (hint becomes inert again, as shipped before). A hinted meeting that shows repeated phrases or a clear WER increase (accuracy drop) is the signal to revert; there is no automatic detector in this change (out of scope).
 
 ## Process
 
