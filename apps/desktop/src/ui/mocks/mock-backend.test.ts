@@ -632,6 +632,30 @@ describe('MockBackend', () => {
       expect((await backend.call('getSummary', { meetingId })).state).toBe('outdated');
     });
 
+    it('renames a meeting speaker without touching voice profiles, and Undo reverses it', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const profilesBefore = JSON.stringify(await backend.call('listProfiles'));
+      const label = async () =>
+        (await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 })).speakers.find(
+          (speaker) => speaker.id === 'sp-2',
+        )?.label;
+      const original = await label();
+      await backend.call('renameSpeaker', {
+        target: { kind: 'meetingSpeaker', meetingId, speakerId: 'sp-2' },
+        name: 'Ana',
+      });
+      expect(await label()).toBe('Ana');
+      expect(JSON.stringify(await backend.call('listProfiles'))).toBe(profilesBefore);
+      expect(await backend.call('getUndoState', { meetingId })).toEqual({
+        canUndo: true,
+        canRedo: false,
+      });
+      await backend.call('undo', { meetingId });
+      expect(await label()).toBe(original);
+      await backend.call('redo', { meetingId });
+      expect(await label()).toBe('Ana');
+    });
+
     it('updates the library speaker count on merge and split', async () => {
       const meetingId = LONG_MEETING_ID;
       const count = async () => (await backend.call('getMeeting', { meetingId })).speakerCount;

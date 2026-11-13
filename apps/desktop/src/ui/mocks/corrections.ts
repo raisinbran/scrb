@@ -1,9 +1,17 @@
-import type { SpeakerId, TranscriptSegment, TranscriptWord, WordRange } from '@scrb/contracts';
+import type {
+  Speaker,
+  SpeakerId,
+  TranscriptSegment,
+  TranscriptWord,
+  WordRange,
+} from '@scrb/contracts';
 
 /** A reversible change: the segments as they were, and as they became. */
 export interface TranscriptEdit {
   before: TranscriptSegment[];
   after: TranscriptSegment[];
+  /** Set when the edit changed the meeting's speakers, such as a rename. */
+  speakers?: { before: Speaker[]; after: Speaker[] };
 }
 
 export function finalizeProvisionalWords(

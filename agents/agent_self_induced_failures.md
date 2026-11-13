@@ -1049,3 +1049,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
 - **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
 - **Correction / remaining risk:** All fixed before commit. Low.
+
+### A-322 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — layout and rename-form defects in the Recordings edit UI, caught before the PR
+- **Status / attribution:** Confirmed agent errors, found by my own tests and smoke run; not merged.
+- **What failed:** (1) The first rename form opened on every segment of the same speaker, because I keyed it by speaker rather than by row; (2) the new Undo/Redo buttons made the tab bar overflow at the minimum window, failing the zoom smoke test; (3) my first storage-backed test failed the typecheck (untyped dispatch result). Also, the first #141 version hid the highlight for a word at 0 ms (review-found, fixed in #141).
+- **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
+- **Impact:** Two extra check runs; no user-visible defect shipped.
+- **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.

@@ -8,9 +8,16 @@ import { DataView, useFocusFallback } from '../Screen.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
-import { TranscriptTab, gapLabel, type JumpTarget } from './TranscriptTab.tsx';
+import {
+  EDITOR_MARK,
+  TranscriptTab,
+  gapLabel,
+  type JumpTarget,
+  type TranscriptEditing,
+} from './TranscriptTab.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
+import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
 import styles from './recordings.module.css';
 
@@ -20,6 +27,7 @@ type Tab = (typeof TABS)[number];
 const SKIP_MS = 15_000;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
+const HINT_KEY = 'scrb.recordings.editHintDismissed';
 
 function movePlayback(playback: Playback, durationMs: number, target: number) {
   const clamped = Math.min(durationMs, Math.max(0, target));
@@ -30,7 +38,8 @@ function movePlayback(playback: Playback, durationMs: number, target: number) {
 /** Keys that belong to the focused control, so the player shortcuts must leave them alone. */
 function ownsKeys(target: EventTarget | null, key: string): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable || target.closest('[role="dialog"], [role="tablist"]')) return true;
+  const owner = `[role="dialog"], [role="tablist"], [${EDITOR_MARK}]`;
+  if (target.isContentEditable || target.closest(owner)) return true;
   const tag = target.tagName;
   if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (tag === 'INPUT') return true;
@@ -329,12 +338,15 @@ function LoadedDetail(props: LoadedDetailProps) {
     initialJumpMs === undefined ? null : { ms: initialJumpMs, nonce: 0 },
   );
   // A word at 0 ms leaves the position at 0, so "placed" is tracked on its own.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [hintShown, setHintShown] = useState(() => readStored<boolean>(HINT_KEY) !== true);
   const [placed, setPlaced] = useState(false);
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const playback = usePlayback(meetingId);
   const transcript = useTranscript(meetingId, meeting.status);
+  const undoState = useMeetingUndo(meetingId);
 
   const selectTab = (next: Tab) => {
     setTab(next);
@@ -369,7 +381,56 @@ function LoadedDetail(props: LoadedDetailProps) {
   };
 
   const live = meeting.status === 'recording' || meeting.status === 'paused';
-  usePlayerKeys(meeting, playback, !live && dialog === null);
+  const canEdit = !live && meeting.status !== 'deleting';
+  usePlayerKeys(meeting, playback, !live && dialog === null && !editorOpen);
+  const { undo, redo } = undoState;
+  useEffect(() => {
+    if (!canEdit || tab !== 'Transcript' || dialog !== null) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key !== 'z' && !(key === 'y' && event.ctrlKey)) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.closest(`[${EDITOR_MARK}]`) ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      )
+        return;
+      event.preventDefault();
+      if (key === 'y' || event.shiftKey) redo();
+      else undo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canEdit, tab, dialog, undo, redo]);
+
+  const editing: TranscriptEditing | undefined = canEdit
+    ? {
+        correctWord: async (wordId, text, remember) => {
+          const next = await backend.call('applyCorrection', {
+            meetingId,
+            range: { firstWordId: wordId, lastWordId: wordId },
+            text,
+            remember,
+          });
+          undoState.record(next);
+        },
+        renameSpeaker: async (speakerId, name) => {
+          await backend.call('renameSpeaker', {
+            target: { kind: 'meetingSpeaker', meetingId, speakerId },
+            name,
+          });
+          undoState.record(await backend.call('getUndoState', { meetingId }));
+        },
+      }
+    : undefined;
+  const dismissHint = () => {
+    setHintShown(false);
+    writeStored(HINT_KEY, true);
+  };
   const unfinished = isUnfinished(meeting.status);
   const status = STATUS_LABELS[meeting.status];
   const summaryLabel = SUMMARY_STATE_LABELS[meeting.summaryState];
@@ -480,6 +541,26 @@ function LoadedDetail(props: LoadedDetailProps) {
         ))}
         {tab === 'Transcript' && (
           <span className={styles.fontControls}>
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  className={styles.button}
+                  disabled={!undoState.canUndo}
+                  onClick={undoState.undo}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  className={styles.button}
+                  disabled={!undoState.canRedo}
+                  onClick={undoState.redo}
+                >
+                  Redo
+                </button>
+              </>
+            )}
             <button
               type="button"
               className={styles.button}
@@ -506,6 +587,15 @@ function LoadedDetail(props: LoadedDetailProps) {
         aria-labelledby={`meeting-tab-${tab}`}
         className={styles.panel}
       >
+        {tab === 'Transcript' && canEdit && hintShown && (
+          <p className={styles.editHint}>
+            Double-click a word to correct it. Click a speaker name to rename them.
+            <button type="button" className={styles.button} onClick={dismissHint}>
+              Got it
+            </button>
+          </p>
+        )}
+        {undoState.error && <p role="alert">{undoState.error}</p>}
         {tab === 'Transcript' && (
           <TranscriptTab
             transcript={transcript}
@@ -515,6 +605,8 @@ function LoadedDetail(props: LoadedDetailProps) {
             showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
             jump={jump}
             onPlay={playback.play}
+            editing={editing}
+            onEditorOpenChange={setEditorOpen}
             onPlace={
               playback.isPlaying
                 ? undefined
