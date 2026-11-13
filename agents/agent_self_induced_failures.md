@@ -1143,3 +1143,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** `scripts/check-register-ids.mjs` split the registers on `\n` only, so a Windows CRLF checkout left a trailing `\r` on each line; the full-row hashes of the two grandfathered rows no longer matched and Windows CI failed (review-found). I had only run the check on the Mac.
 - **Impact:** One more review round and a red Windows check on a7b3783.
 - **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
+
+#### A-335 — 2026-11-13 — usage not read at task start
+- **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
+- **Impact:** The usage row has an end reading only; no consumption figure.
+- **Correction / remaining risk:** Logged as unavailable. Low.

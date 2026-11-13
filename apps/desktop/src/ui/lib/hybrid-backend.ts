@@ -35,6 +35,15 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   'getVocabularyUndoState',
   'undoVocabulary',
   'redoVocabulary',
+  // Together, so a profile id never reaches a side that did not make it. The meeting variants of
+  // the two speaker calls are routed by meeting first and never reach this set.
+  'listProfiles',
+  'getProfileUndoState',
+  'undoProfileChange',
+  'redoProfileChange',
+  'deleteProfile',
+  'renameSpeaker',
+  'mergeSpeakers',
 ]);
 /** Each goes to the side that holds the meeting it names. */
 const MEETING_CALLS: ReadonlySet<CallName> = new Set([
