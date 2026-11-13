@@ -57,6 +57,8 @@ if grep -qE '^CONFIG_(GPL|NONFREE)=yes' ffbuild/config.mak; then
   echo "refusing: build is not LGPL" >&2
   exit 1
 fi
-make -j4 ffmpeg ffprobe >/dev/null
-cp ffmpeg ffprobe "$out/"
-"$out/ffmpeg" -hide_banner -version | head -3
+# Windows (MSYS2/MinGW) names the programs ffmpeg.exe and ffprobe.exe.
+x=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) x=.exe ;; esac
+make -j4 "ffmpeg$x" "ffprobe$x" >/dev/null
+cp "ffmpeg$x" "ffprobe$x" "$out/"
+"$out/ffmpeg$x" -hide_banner -version | head -3
