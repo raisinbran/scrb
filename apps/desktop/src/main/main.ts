@@ -6,6 +6,7 @@ import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
   createMiniController,
+  type MiniHandle,
   miniWindowOpenHandler,
   restoreMain,
   withoutMini,
@@ -43,7 +44,8 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   return url !== undefined && new URL(url).origin === appOrigin;
 }
 
-let miniWindow: BrowserWindow | null = null;
+// Every mini window that exists, including one fading out; none may stand in for the main window.
+const miniWindows = new Set<BrowserWindow>();
 
 const miniPlacementFile = (): string => path.join(app.getPath('userData'), 'mini-window.json');
 
@@ -78,7 +80,7 @@ function saveMiniPlacement(mini: BrowserWindow): void {
 const prefersReducedMotion = (): boolean =>
   systemPreferences.getAnimationSettings().prefersReducedMotion;
 
-function openMiniWindow(onClosedByUser: () => void): { close(): void } {
+function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   const mini = new BrowserWindow({
     title: 'Scribe recording',
     width: 264,
@@ -93,8 +95,7 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
     show: false,
     webPreferences: secureWebPreferences(__dirname),
   });
-  miniWindow = mini;
-  mini.setAlwaysOnTop(true, 'floating');
+  miniWindows.add(mini);  mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
   mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.()));
@@ -133,7 +134,7 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   });
   mini.on('closed', () => {
     cancelFade();
-    if (miniWindow === mini) miniWindow = null;
+    miniWindows.delete(mini);
     onClosedByUser();
   });
   void mini.loadURL(`${appUrl}#mini`);
@@ -143,13 +144,18 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
       if (!mini.isVisible()) mini.close();
       else fadeTo(0, () => mini.close());
     },
+    reopen: () => {
+      if (mini.isDestroyed() || !mini.isVisible()) return false;
+      fadeTo(1);
+      return true;
+    },
   };
 }
 
 const mini = createMiniController(openMiniWindow);
 
 function mainWindows(): BrowserWindow[] {
-  return withoutMini(BrowserWindow.getAllWindows(), miniWindow);
+  return withoutMini(BrowserWindow.getAllWindows(), miniWindows);
 }
 
 /** Any main window that is visible and has the keyboard. */
