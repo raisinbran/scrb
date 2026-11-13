@@ -109,12 +109,10 @@ export function miniWindowOpenHandler(
 }
 
 /**
- * Fixed window options. The OS minimize is off: on macOS the key window going to the dock hands
- * the keyboard to the next window of the app and raises it, so minimizing the mini window brought
- * the main window to the front. The window's own compact button replaces it and never touches
- * another window.
+ * Fixed window options. The OS minimize is on, as in other apps' call windows; what it does to
+ * the main window is handled by `mini-minimize-guard.ts`.
  */
-export const MINI_WINDOW_SIZE = { width: 280, height: 72 } as const;
+export const MINI_WINDOW_SIZE = { width: 320, height: 72 } as const;
 /** Content height of the compact strip: the status row only. */
 export const MINI_COMPACT_HEIGHT = 40;
 
@@ -125,7 +123,7 @@ export const MINI_WINDOW_OPTIONS = {
   useContentSize: true,
   alwaysOnTop: true,
   resizable: false,
-  minimizable: false,
+  minimizable: true,
   maximizable: false,
   fullscreenable: false,
   autoHideMenuBar: true,

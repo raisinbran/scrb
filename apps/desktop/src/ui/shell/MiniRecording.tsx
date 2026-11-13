@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { Speaker, SpeakerId } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
 import { formatElapsed } from '../lib/format.ts';
@@ -61,12 +61,36 @@ function useLastSpeaker(meetingId: string | null) {
   };
 }
 
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
 /** The small window shown over other apps: status and time only, never transcript text. */
 export function MiniRecording() {
   const { recording, recordingAt, health, lag } = useRecordingStatus();
   const { heard, label } = useLastSpeaker(recording.meetingId);
   const [now, setNow] = useState(() => Date.now());
+  const backend = useBackend();
   const [compact, setCompact] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const control = useCallback(
+    (call: 'pauseRecording' | 'resumeRecording' | 'stopRecording') => {
+      setBusy(true);
+      setFailure(null);
+      backend
+        .call(call)
+        .catch((error: unknown) =>
+          setFailure(error instanceof Error ? error.message : 'The recording could not be changed'),
+        )
+        .finally(() => setBusy(false));
+    },
+    [backend],
+  );
   const toggleCompact = (): void => {
     window.open(compact ? EXPAND_URL : COMPACT_URL);
     setCompact(!compact);
@@ -88,11 +112,12 @@ export function MiniRecording() {
   const elapsed =
     recording.elapsedMs + (recording.status === 'recording' ? Math.max(0, now - recordingAt) : 0);
   const warning =
-    health && health.level !== 'ok'
+    failure ??
+    (health && health.level !== 'ok'
       ? (health.warnings[0]?.message ?? 'Recording needs attention')
       : lag && (lag.status === 'failed' || lag.status === 'lagging')
         ? 'Transcription behind'
-        : null;
+        : null);
   const speaking = heard !== null && elapsed - heard.endMs <= ACTIVE_WITHIN_MS;
   return (
     <div className={styles.mini} role="status">
@@ -109,34 +134,72 @@ export function MiniRecording() {
           <button
             type="button"
             className={styles.icon}
+            disabled={busy}
+            aria-label={recording.status === 'recording' ? 'Pause recording' : 'Resume recording'}
+            title={
+              recording.status === 'recording'
+                ? 'Pause recording: stop capturing until you resume'
+                : 'Resume recording'
+            }
+            onClick={() =>
+              control(recording.status === 'recording' ? 'pauseRecording' : 'resumeRecording')
+            }
+          >
+            <Icon>
+              {recording.status === 'recording' ? (
+                <path d="M3.5 2v8M8.5 2v8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              ) : (
+                <path d="M3 2l7 4-7 4z" fill="currentColor" />
+              )}
+            </Icon>
+          </button>
+          <button
+            type="button"
+            className={styles.icon}
+            disabled={busy}
+            aria-label="Stop recording"
+            title="Stop recording and save the meeting"
+            onClick={() => control('stopRecording')}
+          >
+            <Icon>
+              <rect x="2.5" y="2.5" width="7" height="7" fill="currentColor" />
+            </Icon>
+          </button>
+          <button
+            type="button"
+            className={styles.icon}
             aria-label={compact ? 'Make larger' : 'Make smaller'}
-            title={compact ? 'Make larger' : 'Make smaller'}
+            title={
+              compact
+                ? 'Make larger: show the speaker and warning line again'
+                : 'Make smaller: show only the status row'
+            }
             onClick={toggleCompact}
           >
-            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+            <Icon>
               <path
                 d={compact ? 'M2 8l4-4 4 4' : 'M2 6h8'}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
               />
-            </svg>
+            </Icon>
           </button>
           <button
             type="button"
             className={styles.icon}
             aria-label="Show Scribe"
-            title="Show Scribe"
+            title="Return to the main Scribe window"
             onClick={() => window.open(SHOW_MAIN_URL)}
           >
-            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+            <Icon>
               <path
                 d="M2 10L10 2M4.5 2H10v5.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
               />
-            </svg>
+            </Icon>
           </button>
         </span>
       </span>
