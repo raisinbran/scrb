@@ -42,6 +42,7 @@ interface SegmentRowProps {
   following: boolean;
   currentWord: string | undefined;
   onPlay(ms: number): void;
+  onPlace: ((ms: number) => void) | undefined;
   ref: Ref<HTMLDivElement>;
   rowKey: string;
 }
@@ -53,13 +54,15 @@ const SegmentRow = memo(function SegmentRow({
   following,
   currentWord,
   onPlay,
+  onPlace,
   ref,
   rowKey,
 }: SegmentRowProps) {
   const onClick = (event: MouseEvent) => {
     const ms = (event.target as HTMLElement).dataset['ms'];
-    // Dragging across words selects text; that must not start the audio.
-    if (ms !== undefined && window.getSelection()?.isCollapsed !== false) onPlay(Number(ms));
+    // A word click only moves the playhead; playing is the timestamp button's job.
+    // Dragging across words selects text and must not move it.
+    if (ms !== undefined && window.getSelection()?.isCollapsed !== false) onPlace?.(Number(ms));
   };
   return (
     <div
@@ -144,10 +147,12 @@ interface TranscriptTabProps {
   showPosition: boolean;
   jump: JumpTarget | null;
   onPlay(ms: number): void;
+  /** Moves the playhead without playing; absent while audio plays, so a click does nothing. */
+  onPlace?: ((ms: number) => void) | undefined;
 }
 
 export function TranscriptTab(props: TranscriptTabProps) {
-  const { transcript, gaps, fontPx, positionMs, showPosition, jump, onPlay } = props;
+  const { transcript, gaps, fontPx, positionMs, showPosition, jump, onPlay, onPlace } = props;
   const { segments, speakers, totalSegments, loading, error } = transcript;
   const scroller = useRef<HTMLDivElement>(null);
   const observer = useRef<ResizeObserver | null>(null);
@@ -278,6 +283,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
                       : undefined
                   }
                   onPlay={onPlay}
+                  onPlace={onPlace}
                 />
               ),
             )}

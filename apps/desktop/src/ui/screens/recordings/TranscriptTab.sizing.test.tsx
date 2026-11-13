@@ -83,7 +83,7 @@ describe('TranscriptTab sizing', () => {
     expect(current[0]!.textContent).toBe('two');
   });
 
-  it('makes a clicked word current, also when it is provisional', () => {
+  it('moves the playhead to a clicked word without playing, also when it is provisional', () => {
     const transcript = data(1);
     transcript.segments[0]!.words = ['one', 'two'].map((text, i) => ({
       id: `w${i}`,
@@ -102,10 +102,8 @@ describe('TranscriptTab sizing', () => {
           {...props}
           showPosition
           positionMs={position}
-          onPlay={(ms) => {
-            played.push(ms);
-            setPosition(ms);
-          }}
+          onPlay={(ms) => played.push(ms)}
+          onPlace={setPosition}
         />
       );
     }
@@ -116,7 +114,7 @@ describe('TranscriptTab sizing', () => {
       )!;
     expect(word('one').getAttribute('aria-current')).toBe('true');
     fireEvent.click(word('two'));
-    expect(played).toEqual([2000]);
+    expect(played).toEqual([]);
     expect(word('two').getAttribute('aria-current')).toBe('true');
     expect(word('one').getAttribute('aria-current')).toBeNull();
     expect(word('two').className).toMatch(/wordCurrent/);
