@@ -1,4 +1,4 @@
-# Echo cancellation spike (voice-processing mic): partial result
+# Echo cancellation spike (voice-processing mic): result, option A dropped
 
 Branch `cuc/echo-aec-spike-16c88b`. Plan: `mic-echo-handling.md`, option A. Date 2026-11-13, Apple silicon Mac, macOS 27.0.1.
 
@@ -45,3 +45,17 @@ Owner run (AMI clip via afplay, built-in speakers 50%, 60 s): mic quiet-level of
 Ducking investigation: the SDK headers (macOS 14+) offer one control, `voiceProcessingOtherAudioDuckingConfiguration` (advanced ducking on/off, level default/min/mid/max). The code already sets advanced off and level `min` after enabling voice processing and before the engine starts. `kAUVoiceIOProperty_DuckNonVoiceAudio` (the "turn ducking off" switch) is iOS-only and deprecated, so it is not available on macOS. `min` is "minimum ducking", not none, and the meeting track (process tap) records the ducked level. The change now also sets property 2108 directly on the unit after the engine starts and logs the read-back in the `voiceProcessing` event (`ducking` field). Verified here only that the setting is accepted and reads back as advanced false, level 10 (min); the owner must re-run to see whether the 9 dB drop changes.
 
 **Recommendation: drop option A for ducking** unless the re-run shows the meeting track within 0.5 dB. No other macOS switch exists, so the plan's hard stop applies; do option C.
+
+## Final result: option A dropped (ducking cannot be disabled on macOS)
+
+Re-run at head 3f73b7a, same clip and volume: ducking setting accepted (set 0, get 0, advanced false, level 10 = min), but the meeting-track median was -56.1 dB against a -47.1 dB baseline, about 9 dB ducked. Summary:
+
+| Check | Result |
+|---|---|
+| Echo reduction on the mic track | at least 15 dB (pass) |
+| Owner's voice | intact |
+| Format, timing, gaps | match the raw path (first packet about 75 ms later) |
+| Meeting-track level | **about 9 dB lower, fail (bar: within 0.5 dB)** |
+| Ducking switch | none on macOS: only level min..max exists; the iOS-only off switch is unavailable |
+
+Outcome: the zero-attenuation condition fails, so option A is not shipped. The code stays only as an opt-in spike (needs `SCRB_VOICE_AEC=1` plus the setting; off by default, no default behaviour change). Next: option C in `mic-echo-handling.md`; `dropRoomEcho` stays.
