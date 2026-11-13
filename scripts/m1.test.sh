@@ -73,14 +73,15 @@ done
 
 # A running copy: refuse, say how to quit, and do not launch.
 rm -f "$fake/npm.log"
-echo "123 /x/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron ." >"$fake/ps.out"
+echo "123 $fake/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron ." >"$fake/ps.out"
 run
 expect_fail "already running" "Cmd+Q"
 [[ ! -e "$fake/npm.log" ]] || { echo "FAIL: launched despite a running copy"; exit 1; }
-# Helper processes and other Electron apps do not count.
+# Helpers, other Electron apps and another repo's Electron dev app do not count.
 {
   echo "124 /x/node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Helper.app/Contents/MacOS/Electron Helper --type=gpu-process"
   echo "125 /Applications/Claude.app/Contents/MacOS/Claude"
+  echo "126 /other/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron ."
 } >"$fake/ps.out"
 run
 [[ $code -eq 0 ]] || { echo "FAIL: unrelated processes blocked the start"; echo "$out"; exit 1; }

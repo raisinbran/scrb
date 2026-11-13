@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { RecordingSession, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
+import { RecordingSession, lateStartNsFor, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
 import { ProcessAdapter, type Track } from '@scrb/capture';
 import {
   ContractError,
@@ -45,7 +45,11 @@ export async function recoverInterrupted(
 ): Promise<void> {
   for (const meetingId of library.openReport.interruptedRecordings) {
     const audio = library.meetingPaths(meetingId).audio;
-    const sealed = await sealAudio(audio, async () => lockHeld(helper, join(audio, 'writer.lock')));
+    const sealed = await sealAudio(
+      audio,
+      async () => lockHeld(helper, join(audio, 'writer.lock')),
+      lateStartNsFor(process.platform),
+    );
     if (sealed.outcome === 'writerAlive') continue;
     const transcribe = sealed.outcome === 'ready' && finalPasses !== null;
     await library.updateMeeting(meetingId, {
@@ -183,8 +187,10 @@ export class RecordingController {
     // Live cleanup never delays the capture Stop acknowledgement.
     await live?.stop();
     const audio = this.library.meetingPaths(meetingId).audio;
-    const sealed = await sealAudio(audio, async () =>
-      lockHeld(this.helper, join(audio, 'writer.lock')),
+    const sealed = await sealAudio(
+      audio,
+      async () => lockHeld(this.helper, join(audio, 'writer.lock')),
+      lateStartNsFor(process.platform),
     );
     const clean = end === 'stopped' && sealed.outcome === 'ready';
     const transcribe = clean && this.finalPasses !== null;
@@ -353,8 +359,10 @@ export class RecordingController {
   /** A meeting with no audio stays listed as recovered, so nothing a worker saved is lost. */
   private async closeFailedStart(meetingId: string): Promise<void> {
     const audio = this.library.meetingPaths(meetingId).audio;
-    const sealed = await sealAudio(audio, async () =>
-      lockHeld(this.helper, join(audio, 'writer.lock')),
+    const sealed = await sealAudio(
+      audio,
+      async () => lockHeld(this.helper, join(audio, 'writer.lock')),
+      lateStartNsFor(process.platform),
     );
     // A worker still holding the lock leaves this row for recovery at the next launch.
     if (sealed.outcome === 'writerAlive') return;
