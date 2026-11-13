@@ -137,4 +137,4 @@ Estimates are rough; the owner's Mac has not run the full pipeline yet.
 
 ## Independent review
 
-Round 1 (ChatGPT) rejected the first draft with four blockers: dead links kept with a flag, recording abort deferred, stale summary saved as current, text-hash tombstones. All four are revised (sections 2, 3, 4, 5, slice table). Round 2: three resolved; the fourth (two items from one segment) is now answered by an item key and an exact pairing rule in section 5. Round 3 pending. Not approved; do not start slice 1 until approved.
+Round 1 (ChatGPT) rejected the first draft with four blockers: dead links kept with a flag, recording abort deferred, stale summary saved as current, text-hash tombstones. All four are revised (sections 2, 3, 4, 5, slice table). Round 2: three resolved; the fourth (two items from one segment) is now answered by an item key and an exact pairing rule in section 5. Round 3 rejected: a dismissal could suppress a kept neighbour ("Sam books the review room" counterexample); the match rule now compares fresh items with surviving items as well, with a named regression test. Round 4 pending. Not approved; do not start slice 1 until approved.
