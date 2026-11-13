@@ -1167,7 +1167,7 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** Start-of-task allowance is unavailable; the usage row has end values only. The weekly allowance was already at 98% used when read.
 - **Correction / remaining risk:** Logged as unavailable. Low.
 
-### A-340 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — source-switch plan: Co-Authored-By trailer added to a commit
+### A-341 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — source-switch plan: Co-Authored-By trailer added to a commit
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** I followed the harness attribution reminder and ended the plan commit with a `Co-Authored-By` line, against the task brief and the owner's no-trailer rule.
 - **Impact:** One pushed commit carries the trailer. Force-push is forbidden, so history was not rewritten; the PR body has no attribution line.

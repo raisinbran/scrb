@@ -37,14 +37,14 @@ TypeScript: `packages/capture/src/index.ts` already types both commands. **Nothi
 - Same-value request: ack `ok: true`, do nothing (no needless gap).
 - Do not open the new stream while the old one runs: two streams feeding one ring would interleave samples.
 - Reuse `rebuild`'s reasons (`deviceChanged`, `sourceChanged`) so chunk reasons and `docs/plans/capture-contract-and-clock.md` stay true. No new chunk format, event type or command.
-- Keep `selectMic` correct with the default-device listener: it only acts when `mic == "default"`, so a user's explicit pick is not undone by a later default change. Picking "System default" re-enables it.
+- **Cancel the pending default-device rebuild.** The default-input listener schedules a rebuild 5 s later (`micChange`, `main.swift` `watch`). That work item does not recheck `mic` when it fires, and `selectMic` does not cancel it, so a pick made inside those 5 s is followed by a second rebuild and a second gap. `selectMic` must cancel `micChange` (also on a failed switch's rollback), and the work item must recheck `mic == "default"` when it runs. Picking "System default" keeps the listener working.
 
 ### Main process (`recording.ts`, `sources.ts`)
 
-- `select` while recording or paused: validate the choice (`resolveSources`, which already turns a missing mic into a fallback and the app into pids), send `selectMic` and/or `selectSource` with fresh command IDs, wait for the ack, then `sources.save`. On `ok: false` throw `ContractError('conflict', <plain message>)` and **do not save**, so Settings and the Live pickers stay on the working source.
+- `select` while recording or paused: resolve the choice with `resolveSources`, then **reject before sending anything** when it reports `micFellBack` (the picked mic is gone; `resolveSources` would otherwise substitute the system default, and the switch would "succeed" and save the missing ID) or when the picked app has no audio process (`NO_PROCESS`). Throw `ContractError('conflict', "That microphone is not available." / "That app is not playing audio yet.")`, keep the old source, save nothing. A null mic (system default) is always valid. Otherwise send `selectMic` and/or `selectSource` with fresh command IDs, wait for the ack, then `sources.save`. On `ok: false` throw `ContractError('conflict', <plain message>)` and **do not save**, so Settings and the Live pickers stay on the working source.
 - While `starting` or a worker restart is in flight, still refuse with the current `conflict` (the session is not ready to switch).
 - On success raise a **non-alarming** health note with the existing warning kind `deviceChanged` ("Switched to <name>. About a second of audio may be missing.") at level `ok`. If the track stayed dead, keep the existing `audioMissing` warning from `streamDead`.
-- A restarted worker joins with `open` and the saved selection (`sources.read()`), which now is the latest successful choice. This is why the save must wait for the ack.
+- **Worker restart must restore the new source.** `RecordingSession` (`packages/app-core/src/recording.ts`) keeps the original `open` command (`openCommand`, set once in `start`) and every restart re-sends it through `reopenCommand()`, not `sources.read()`. A restart after a switch would silently go back to the old mic or app. Add a method on `RecordingSession` that sends the select command and, only on an `ok` ack, updates `openCommand.mic` / `.source` / `.followApp`, so the next restart opens with the switched choice. `recording.ts` calls that method, not `adapter.send` directly. Save the selection to Settings only after it returns.
 - Windows: until its own slice is done, keep the current refusal on Windows (platform check), so macOS behaviour does not widen Windows risk.
 
 ### Gap and timing behaviour
@@ -82,26 +82,30 @@ The pickers on the Live screen already call `selectSources` and already revert t
 | New mic or app fails to open | Old source re-opened, selection not saved, user told, recording continues |
 | Old source also fails to reopen | Track dead with the existing warning and retry; selection not saved |
 | App has no audio process yet | Fails as "no audio process"; old app kept (user can pick Whole computer audio) |
-| Worker dies mid-switch | Existing worker-restart path; reopens with the last **saved** (old) choice |
+| Worker dies mid-switch | Existing restart path; reopens with `openCommand` as last updated, so the old choice (the update happens only after an `ok` ack) |
+| Worker restarts after a successful switch | Reopens with the **new** choice (`openCommand` updated) |
+| Picked mic disappeared before the switch | Rejected up front, old mic kept, nothing saved |
 | Ack lost | Same command ID returns the first ack (`CaptureAck` contract); no double switch |
 | Stop during a switch | The switch call is rejected or ignored; Stop wins |
 
 ## Tests (invented audio or AMI only; none over 20 minutes)
 
 1. **Helper command tests** in `native/macos-capture/tests/` (extend `capture-smoke.mjs` style): tone through a test source; `selectMic` to a second input; assert ack `ok`, new chunk with reason `deviceChanged`, `streamReopened`; `selectMic` to a nonexistent id: ack `ok: false`, old mic still recording (rollback), `mic` unchanged. Same for `selectSource`. About 2 minutes.
-2. **Unit tests in `recording.test.ts`/`sources.test.ts`** with a fake adapter: success saves and warns; failure does not save and throws; refused while starting; refused on Windows; same value is a no-op.
+2. **Unit tests in `recording.test.ts`/`sources.test.ts` and `packages/app-core/src/recording.test.ts`** with a fake adapter: success saves and warns; failure does not save and throws; refused while starting; refused on Windows; same value is a no-op; **a missing mic ID or an app with no process is rejected with nothing sent and nothing saved**; **after a successful switch a forced worker restart sends `open` with the new mic or source, and after a failed switch with the old one.**
 3. **Gap measurement:** record a continuous invented tone, switch mid-way 10 times, and report the gap per switch from chunk start/end times for mic and meeting. Pass rule: gap equals the measured value within one chunk-clock tolerance, with no overlap above 2 ms (the existing Q4 rule). Under 5 minutes.
 4. **Chunk integrity:** after those switches, every chunk decodes, sequence numbers have no hole, and total duration of both tracks matches the timeline. 
-5. **Pause interaction:** switch while paused, resume, confirm nothing recorded in the pause and a `resume` chunk follows.
-6. **UI tests** on the mock: pickers enabled while recording, busy state, success note, failure revert and message.
-7. **Owner check, optional, 10 minutes or less:** start on the speakers, switch to headphones with a reference AMI clip playing, and read the sentence boundary in the transcript. Never the owner's real meetings.
+5. **Debounce:** change the system default input, then within 5 s pick an explicit mic; assert exactly one rebuild (one gap), no `deviceChanged` rebuild at 5 s. Also a default change with no pick still rebuilds once.
+6. **Pause interaction:** switch while paused, resume, confirm nothing recorded in the pause and a `resume` chunk follows.
+7. **UI tests** on the mock: pickers enabled while recording, busy state, success note, failure revert and message.
+8. **Owner check, optional, 10 minutes or less:** start on the speakers, switch to headphones with a reference AMI clip playing, and read the sentence boundary in the transcript. Never the owner's real meetings.
 
 `npm run check` and `npm run test:smoke` stay green. No test is expected over 20 minutes, so no extra approval is needed.
 
 ## Risks
 
 - **Real gap of audio** at the switch (the point of the "about a second" wording). Unmeasured until test 3.
-- **Default-device listener race:** a headset connecting flips the default while the user also picks a mic. The debounced rebuild (5 s) only fires when `mic == "default"`; the test list covers pick-then-default-change.
+- **Default-device listener race:** a headset connecting flips the default while the user also picks a mic. Handled by cancelling and rechecking the pending rebuild (test 5).
+- **Stale restart command:** if the `openCommand` update is missed, a worker crash silently reverts the source. Covered by test 2.
 - **Tap rebuild latency and failure** (new app not yet producing audio, permission denied) is the main unknown for the meeting side. Hence mic first.
 - **Rollback correctness:** reopening the old source after a failed new one is new code in a critical path; it must not leave two open streams or a stale `mic` value.
 - **Windows** `followApp`, hands-free (halved rate) mics and its separate pipeline are not covered until its own slice.
@@ -112,7 +116,7 @@ The pickers on the Live screen already call `selectSources` and already revert t
 Speaker echo comes from the mic hearing the laptop speakers. Switching to a headset or other mic mid-meeting stops *new* echo from that moment (a headset leaks nothing, and the plan's own "not an issue" list already says so), and the owner can do it without losing the meeting. It does nothing for audio recorded before the switch, nothing for the next meeting if the user forgets, and changing the *meeting app* has no effect on echo at all. The real remedies are unchanged: `dropRoomEcho` in the final pass (PR #143) and the voice-processing spike in PR #160 (`docs/plans/mic-echo-handling.md`, option A). This plan must not be presented to users as echo cancellation, and must not delay that spike.
 ## Slice order and recommendation
 
-1. **Slice 1, macOS mic switching (recommend starting here).** Helper: honest ack and rollback for `selectMic` (and the shared helper code, so `selectSource` gets it too), helper tests 1, 3, 4, 5. Main: wire `select` for the mic, platform gate for Windows, unit tests, success and failure messages. UI: enable the mic picker while recording and paused, mock parity. The helper path is already proven for device changes, so the new risk is only rollback and the ack.
+1. **Slice 1, macOS mic switching (recommend starting here).** Helper: honest ack, rollback and the pending-rebuild cancel for `selectMic` (and the shared helper code, so `selectSource` gets the ack and rollback too), helper tests 1, 3, 4, 5, 6. Main: wire `select` for the mic with the up-front rejection of a missing mic, the `RecordingSession` restart-command update, platform gate for Windows, unit tests, success and failure messages. UI: enable the mic picker while recording and paused, mock parity. The helper path is already proven for device changes, so the new risk is only rollback and the ack.
 2. **Slice 2, macOS meeting-app switching.** Enable the app picker with the same plumbing, add the "no audio process", permission-denied and Whole computer cases to tests 1 and 2, and measure tap rebuild latency. Separate slice because a new process tap is the part with real unknowns and the owner's biggest use (wrong app) can be worked around by picking Whole computer audio.
 3. **Slice 3, Windows** (`DoSelectMic`, `DoSelectSource`, `followApp`), after its own check on a Windows PC. Not needed for the owner's Mac use now.
 
