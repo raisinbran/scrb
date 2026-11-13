@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { chunk } from './chunk-fixture.ts';
-import { readPages, sealAudio, type TrackName } from './recovery.ts';
+import { lateStartNsFor, readPages, sealAudio, type TrackName } from './recovery.ts';
 
 const dead = async () => false;
 const SECOND = 1_000_000_000;
@@ -405,6 +405,27 @@ describe('sealAudio', () => {
       endNs: start,
     });
 
+    it('still leaves a first chunk at 1.99 s unmarked on the Mac', async () => {
+      put('microphone', '000000.opus', chunk(0, 1.99 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead, MAC);
+      expect(gaps).toEqual([]);
+    });
+
+    it('keeps the 100 ms limit on Windows: a first chunk at 1.5 s is reported', async () => {
+      put('microphone', '000000.opus', chunk(0, 1.5 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead, lateStartNsFor('win32'));
+      expect(gaps).toEqual([late(1.5 * SECOND)]);
+    });
+
+    it('marks a first chunk past 2 s, the line between start-up and failure', async () => {
+      put('microphone', '000000.opus', chunk(0, 2 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead, MAC);
+      expect(gaps).toEqual([late(2 * SECOND)]);
+    });
+
     it('is marked with no restart', async () => {
       put('microphone', '000000.opus', chunk(0, 4.6 * SECOND, 2, 'device'));
       events([{ event: 'open', seq: 1 }]);
@@ -412,10 +433,12 @@ describe('sealAudio', () => {
       expect(gaps).toEqual([late(4.6 * SECOND)]);
     });
 
-    it('leaves a normal start unmarked, up to 99 ms', async () => {
-      put('microphone', '000000.opus', chunk(0, 0.099 * SECOND, 2, 'start'));
+    const MAC = lateStartNsFor('darwin');
+
+    it('leaves a normal start unmarked, including 1 s of capture start-up', async () => {
+      put('microphone', '000000.opus', chunk(0, 1 * SECOND, 2, 'start'));
       events([{ event: 'open', seq: 1 }]);
-      const { gaps } = await sealAudio(audio, dead);
+      const { gaps } = await sealAudio(audio, dead, MAC);
       expect(gaps).toEqual([]);
     });
 
