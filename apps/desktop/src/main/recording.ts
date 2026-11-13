@@ -36,6 +36,7 @@ const IDLE: RecordingState = {
   privacyBannerRequired: false,
 };
 
+const trackMissingMessage = (track: Track): string => `The ${track} track is not recording.`;
 const streamDeadMessage = (track: Track): string => `The ${track} track stopped. Reconnecting.`;
 
 function lockHeld(helper: string, lock: string): boolean {
@@ -327,7 +328,10 @@ export class RecordingController {
             // A blocked track is reopened every few seconds, so a reopen alone does not clear its warning.
             this.deadStreams.delete(event.track);
             this.clearWarning(
-              (w) => w.track === event.track && w.message === streamDeadMessage(event.track),
+              (w) =>
+                w.track === event.track &&
+                (w.message === streamDeadMessage(event.track) ||
+                  w.message === trackMissingMessage(event.track)),
             );
           } else if (event.type === 'permissionLost') {
             this.permissionLost(event.track);
@@ -349,10 +353,7 @@ export class RecordingController {
         }
       },
       onTrackMissing: (track) =>
-        this.warn(
-          { kind: 'audioMissing', track, message: `The ${track} track is not recording.` },
-          'warning',
-        ),
+        this.warn({ kind: 'audioMissing', track, message: trackMissingMessage(track) }, 'warning'),
       onEnded: (end) => {
         this.finishing = this.finish(meeting.id, end)
           .catch((error: unknown) => {

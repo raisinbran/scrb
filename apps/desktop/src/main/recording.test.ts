@@ -15,6 +15,10 @@ const fake = vi.hoisted(() => ({
   sessions: [] as {
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
     launchWorker(): void;
+    trackMissing(track: 'microphone' | 'meeting'): void {
+      this.options.onTrackMissing(track);
+    }
+
     state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
   workerEvents: [] as ((event: unknown) => void)[],
@@ -33,6 +37,7 @@ vi.mock('@scrb/app-core', async (importOriginal) => ({
         launch: () => unknown;
         onStateChanged: (status: 'recording' | 'paused', reason: null, atNs: number | null) => void;
         onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
+        onTrackMissing: (track: 'microphone' | 'meeting') => void;
       },
     ) {
       fake.sessions.push(this);
@@ -390,6 +395,34 @@ describe('Start while the previous recording is finishing', () => {
 
     send({ type: 'permissionLost', track: 'microphone' });
     expect(last().warnings).toMatchObject([{ kind: 'permissionLost', track: 'microphone' }]);
+    await controller.shutdown();
+  });
+
+  it('clears the missing-microphone start warning when the microphone reopens', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    const last = () =>
+      emit.mock.calls.filter(([name]) => name === 'recordingHealth').at(-1)?.[1] as {
+        level: string;
+        warnings: { kind: string; track?: string; message: string }[];
+      };
+    send({ type: 'writeError', track: 'meeting' });
+    fake.sessions[0]!.trackMissing('microphone');
+    expect(last().warnings).toHaveLength(2);
+    send({ type: 'streamReopened', track: 'microphone' });
+    expect(last().warnings).toMatchObject([{ kind: 'audioMissing', track: 'meeting' }]);
+    expect(last().warnings).toHaveLength(1);
+    expect(last().level).toBe('failed');
     await controller.shutdown();
   });
 
