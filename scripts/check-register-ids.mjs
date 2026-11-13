@@ -1,5 +1,6 @@
 // Register integrity: no repeated A-number in the failures register, and well-formed, unique rows in the
 // usage log. Both files merge as a union, so this catches what a silent union merge can produce.
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -7,11 +8,11 @@ import { fileURLToPath } from 'node:url';
 export const KNOWN_DUPLICATES = new Map([['A-104', 2]]);
 
 export const USAGE_COLUMNS = 12;
-// The two existing 11-column rows, identified by their leading cells. Do not add to this.
-export const KNOWN_SHORT_ROWS = [
-  '| 2026-11-12 | Codex / GPT-6 / Windows desktop | PHASE0-STEP2-WINDOWS-20261112 ',
-  '| 2026-11-12 | Codex / GPT-6 / Windows desktop | PHASE0-STEP2-WINDOWS-FOLLOWUP-20261112 ',
-];
+// SHA-256 of the two complete existing 11-column rows (full-line equality). Do not add to this.
+export const KNOWN_SHORT_ROW_HASHES = new Set([
+  'c4310a8439ec548b1dcb12c4c969cf2d537ed3473ac3c8a087da64761657fade',
+  '266784f56b5ef5aac2e48cb320d280c11284283c047db2a44cfc5fc3fd6d138d',
+]);
 
 export function findDuplicateIds(text) {
   const counts = new Map();
@@ -33,8 +34,9 @@ export function findBadUsageRows(text) {
   text.split('\n').forEach((line, i) => {
     if (!/^\| 20\d\d-\d\d-\d\d /.test(line)) return;
     const n = columns(line);
-    const grandfathered =
-      n === USAGE_COLUMNS - 1 && KNOWN_SHORT_ROWS.some((p) => line.startsWith(p));
+    const grandfathered = KNOWN_SHORT_ROW_HASHES.has(
+      createHash('sha256').update(line).digest('hex'),
+    );
     if (n !== USAGE_COLUMNS && !grandfathered)
       problems.push(`line ${i + 1}: ${n} columns, expected ${USAGE_COLUMNS}`);
     if (seen.has(line)) problems.push(`line ${i + 1}: duplicate row`);

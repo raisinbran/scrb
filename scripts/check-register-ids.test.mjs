@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KNOWN_SHORT_ROWS, findBadUsageRows, findDuplicateIds } from './check-register-ids.mjs';
+import { readFileSync } from 'node:fs';
+import { findBadUsageRows, findDuplicateIds } from './check-register-ids.mjs';
 
 const row = (task, cols = 12) => `| 2026-11-13 | a | ${task} ${'| x '.repeat(cols - 3)}|`;
 
@@ -31,9 +32,16 @@ describe('findBadUsageRows', () => {
   it('flags a duplicated row', () => {
     expect(findBadUsageRows(`${row('t1')}\n${row('t1')}`)).toEqual(['line 2: duplicate row']);
   });
-  it('grandfathers the two known 11-column rows by identity only', () => {
-    const known = KNOWN_SHORT_ROWS.map((p) => `${p}${'| x '.repeat(8)}|`);
-    expect(known.map((r) => findBadUsageRows(r))).toEqual([[], []]);
+  it('grandfathers the two real 11-column rows by full-row hash only', () => {
+    const real = readFileSync('agents/usage-log.md', 'utf8')
+      .split('\n')
+      .filter((l) =>
+        l.startsWith('| 2026-11-12 | Codex / GPT-6 / Windows desktop | PHASE0-STEP2-WINDOWS'),
+      );
+    expect(real).toHaveLength(2);
+    expect(real.map((r) => findBadUsageRows(r))).toEqual([[], []]);
+    for (const r of real) expect(findBadUsageRows(r.replace(/ \|$/, ' edited |'))).toHaveLength(1);
+    expect(findBadUsageRows(`${real[0]} `)).toHaveLength(1);
     expect(findBadUsageRows(row('other', 11))).toHaveLength(1);
   });
 });
