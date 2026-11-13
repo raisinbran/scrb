@@ -80,10 +80,16 @@ export class LiveEchoFilter {
       this.held.shift();
       this.emit(segment, arrivedAt);
     }
-    if (this.carry && (force || now - this.carry.arrivedAt >= this.holdMs)) {
-      const { segment } = this.carry;
-      this.carry = null;
-      this.out(segment);
+    while (this.carry && (force || now - this.carry.arrivedAt >= this.holdMs)) {
+      const queued = this.held.shift();
+      if (queued) {
+        // The next queued segment may complete a run with the carried word; match it first.
+        this.emit(queued.segment, queued.arrivedAt);
+      } else {
+        const { segment } = this.carry;
+        this.carry = null;
+        this.out(segment);
+      }
     }
     const next = this.held[0] ?? this.carry;
     if (next)

@@ -123,15 +123,14 @@ describe('LiveEchoFilter', () => {
     expect(r.out.map((s) => s.id)).toEqual(['m1', 'm2']);
   });
 
-  it('waits for meeting coverage past the mic segment end plus the echo window', () => {
+  it('keeps holding while meeting coverage is past the segment end but inside the echo window', () => {
     const r = rig();
-    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
-    // Meeting has covered up to 5550; the mic copy ends at 6250 and ship/it arrive 700 ms late.
-    r.f.push(seg('mic', 'm1', 5700, 'ship it'));
-    r.advance(1000);
-    expect(r.texts()).toEqual(['meeting:ship it']);
-    r.f.push(seg('meeting', 'a2', 5400, 'ship it'));
-    r.advance(1000);
+    r.f.push(seg('mic', 'm1', 5700, 'ship it')); // ends 6250
+    r.f.push(seg('meeting', 'a0', 6300, 'hello there')); // head 6850 < 6250 + 1000
+    r.advance(500);
+    expect(r.texts()).toEqual(['meeting:hello there']);
+    r.f.push(seg('meeting', 'a1', 5400, 'ship it')); // late match
+    r.advance(1500);
     expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
   });
 
@@ -153,5 +152,17 @@ describe('LiveEchoFilter', () => {
     expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
     r.advance(2000);
     expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:ship']);
+  });
+
+  it('matches two one-word mic segments 100 ms apart when the first reaches its deadline', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it')); // head 5550: not past 5350 + 1000
+    r.f.push(seg('mic', 'm1', 5100, 'ship'));
+    r.advance(100);
+    r.f.push(seg('mic', 'm2', 5400, 'it'));
+    r.advance(1900); // first deadline; the second has waited only 1.9 s
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+    r.advance(500);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
   });
 });
