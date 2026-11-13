@@ -1,5 +1,6 @@
 import type { RecordingHealth, TranscriptionLag } from '@scrb/contracts';
 import { formatElapsed } from '../lib/format.ts';
+import { useMockMode } from '../lib/mock-mode.tsx';
 import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './TitleBar.module.css';
 
@@ -17,6 +18,7 @@ function healthText(health: RecordingHealth | null): string | null {
 
 export function TitleBar() {
   const { recording, health, lag } = useRecordingStatus();
+  const mockMode = useMockMode();
   const active = recording.status === 'recording' || recording.status === 'paused';
   const warning = active ? healthText(health) : null;
   const lagText = active && lag ? LAG_TEXT[lag.status] : undefined;
@@ -24,6 +26,15 @@ export function TitleBar() {
     <header className={styles.bar}>
       <span className={styles.name}>Meeting Scribe</span>
       <div className={styles.status}>
+        {mockMode && (
+          <span
+            className={styles.mock}
+            data-testid="mock-backend-marker"
+            title="Recording or the final pass is simulated. Start the app with scripts/m1.sh to record real meetings."
+          >
+            Mock backend
+          </span>
+        )}
         {lagText && (
           <span
             className={styles.lag}

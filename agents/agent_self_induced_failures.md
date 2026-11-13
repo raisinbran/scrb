@@ -1009,16 +1009,43 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** Three review rounds on #125 (two REJECTs on these errors, a third on the files below); no behavior affected.
 - **Correction / remaining risk:** The command now extracts the CSV with `cmd /c git show`, the mixer note keeps the historical path, the build location names the new folder, and `native/windows-capture/tools/**/*.exe|*.obj` is ignored. Low.
 
-### A-316 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — small self-caught errors in the export handler task
-- **Status / attribution:** Confirmed agent errors, found by my own typecheck and test run; not application defects.
-- **What failed:** I ran `npx`/`npm` without the project's Node on `PATH` (command not found, so a formatting and typecheck step silently did not run once); my first HTML-scan test fixture contained `http://` text, which the scan then flagged although the package had escaped it; a test used track `'mic'` instead of `'microphone'`. I also did not read `get_usage` at task start.
-- **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
-- **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
-- **Correction / remaining risk:** All fixed before commit. Low.
+### A-316 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — launched the real app by accident while testing `scripts/m1.sh` (PR #134)
+- **Status / attribution:** Confirmed agent error (agent admission); not an application defect.
+- **What failed:** To check that the script resolved the capture helper from a worktree, I ran it with its output piped to `head`, which started `npm start` and the Electron build instead of stopping at validation.
+- **Agent-controlled cause:** I ran a script whose last step launches the app without a dry-run path, and did not use a fake HOME as in the test.
+- **Impact:** One unintended build start; I killed the process, no recording was started and no files changed. A few minutes of compute.
+- **Correction / remaining risk:** The regression test now runs the script only against a fake HOME. Low.
 
+### A-317 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — added Co-Authored-By trailers and "Generated with Claude Code" lines against the owner's standing rule
+- **Status / attribution:** Confirmed agent error (agent admission); not an application defect.
+- **What failed:** The owner ruled on 2026-10-30 that no commit or PR carries a `Co-Authored-By` or similar attribution line. A harness reminder supplied such lines, and I followed it for PRs #129 and #130 and for the sessions I briefed (#131), instead of the standing rule in my memory.
+- **Agent-controlled cause:** I let a system reminder outrank the owner's recorded instruction, and my session briefs did not forbid the lines.
+- **Impact:** Owner time and credit, two history rewrites. At the owner's instruction `main` was rewritten twice (113 commits from 2026-11-08 onward lost the trailer; trees unchanged) and the #131 branch rebased. Remote branches that contain the old history (parked PRs #87-#95 and about 40 others) now carry stale ancestry.
+- **Correction / remaining risk:** Memory note strengthened; every later session brief states the ban. PR text of merged #129 cannot be edited. Low once the briefs hold.
+
+### A-318 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — committed machine-local `node_modules` symlinks to PRs #128 and #129
+- **Status / attribution:** Confirmed agent error (ChatGPT review for #128; my own check for #129); not an application defect.
+- **What failed:** I symlinked `node_modules` into worktrees to run checks, then ran `git add` on a directory that included the symlinks. #128 grew from two files to four; #129 had the same slip and I removed it before review.
+- **Agent-controlled cause:** Broad `git add` instead of naming files, with untracked symlinks present.
+- **Impact:** One REJECT and a fix commit on #128; no merged damage.
+- **Correction / remaining risk:** Session briefs say never `git add node_modules`; I add named paths only. Low.
+
+### A-319 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — review-found defects in PRs #129 and #130 before merge
+- **Status / attribution:** Confirmed agent errors (ChatGPT reviews).
+- **What failed:** #129: the current-word colour sat before the provisional-word colour in the CSS, so a spoken provisional word stayed muted; the highlight outlived the last word's end; click and empty-segment tests were missing. #130: with only the mini window left, a second launch did nothing, the elapsed time counted a long pause after resume, and the dock path was missing a regression test.
+- **Agent-controlled cause:** Implemented to the plan without checking cascade order, word-end limits and lifecycle paths.
+- **Impact:** Two fix rounds each; no defect merged.
+- **Correction / remaining risk:** Fixed with tests in both PRs. The mini window's real Dock and second-launch path still needs the owner's manual Mac check.
 ### A-320 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — export cleanup could delete user files; print window not adversarially tested (PR #139)
 - **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT at a26ac77); not caused by the application's design.
 - **What failed:** (1) The stale-file sweep in an exports folder deleted any file named `*.part` or `.print-*` older than a day, including a user's own files. (2) The approved plan required an adversarial test of the print window, but I shipped only a DOCX/PDF round trip and a throwaway manual check, so "another local file is refused" was inferred, not asserted. While adding the test I also lost time to a flaky spec: the probe app quit when its only window was destroyed, before it wrote the result.
 - **Agent-controlled cause:** Writing a convenience sweep with a loose name filter and following `stat`, and not turning a plan line into a test.
 - **Impact:** One review round; no user data was lost (not released).
 - **Correction / remaining risk:** Temp names are now `.scrb-export-<uuid>.part` / `.scrb-print-<uuid>.html`, matched by a strict pattern, regular files only (`lstat`), with tests that user files and symlinks survive. New `print-window-security.spec.ts` runs the real print function in Electron and asserts the session refused another local file and the network (0 server hits); it fails if the guard is made permissive. Low.
+
+### A-321 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — small self-caught errors in the export handler task
+- **Status / attribution:** Confirmed agent errors, found by my own typecheck and test run; not application defects.
+- **What failed:** I ran `npx`/`npm` without the project's Node on `PATH` (command not found, so a formatting and typecheck step silently did not run once); my first HTML-scan test fixture contained `http://` text, which the scan then flagged although the package had escaped it; a test used track `'mic'` instead of `'microphone'`. I also did not read `get_usage` at task start.
+- **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
+- **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
+- **Correction / remaining risk:** All fixed before commit. Low.
