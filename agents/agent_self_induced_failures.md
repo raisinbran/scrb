@@ -1015,3 +1015,24 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I ran a script whose last step launches the app without a dry-run path, and did not use a fake HOME as in the test.
 - **Impact:** One unintended build start; I killed the process, no recording was started and no files changed. A few minutes of compute.
 - **Correction / remaining risk:** The regression test now runs the script only against a fake HOME. Low.
+
+### A-317 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — added Co-Authored-By trailers and "Generated with Claude Code" lines against the owner's standing rule
+- **Status / attribution:** Confirmed agent error (agent admission); not an application defect.
+- **What failed:** The owner ruled on 2026-10-30 that no commit or PR carries a `Co-Authored-By` or similar attribution line. A harness reminder supplied such lines, and I followed it for PRs #129 and #130 and for the sessions I briefed (#131), instead of the standing rule in my memory.
+- **Agent-controlled cause:** I let a system reminder outrank the owner's recorded instruction, and my session briefs did not forbid the lines.
+- **Impact:** Owner time and credit, two history rewrites. At the owner's instruction `main` was rewritten twice (113 commits from 2026-11-08 onward lost the trailer; trees unchanged) and the #131 branch rebased. Remote branches that contain the old history (parked PRs #87-#95 and about 40 others) now carry stale ancestry.
+- **Correction / remaining risk:** Memory note strengthened; every later session brief states the ban. PR text of merged #129 cannot be edited. Low once the briefs hold.
+
+### A-318 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — committed machine-local `node_modules` symlinks to PRs #128 and #129
+- **Status / attribution:** Confirmed agent error (ChatGPT review for #128; my own check for #129); not an application defect.
+- **What failed:** I symlinked `node_modules` into worktrees to run checks, then ran `git add` on a directory that included the symlinks. #128 grew from two files to four; #129 had the same slip and I removed it before review.
+- **Agent-controlled cause:** Broad `git add` instead of naming files, with untracked symlinks present.
+- **Impact:** One REJECT and a fix commit on #128; no merged damage.
+- **Correction / remaining risk:** Session briefs say never `git add node_modules`; I add named paths only. Low.
+
+### A-319 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — review-found defects in PRs #129 and #130 before merge
+- **Status / attribution:** Confirmed agent errors (ChatGPT reviews).
+- **What failed:** #129: the current-word colour sat before the provisional-word colour in the CSS, so a spoken provisional word stayed muted; the highlight outlived the last word's end; click and empty-segment tests were missing. #130: with only the mini window left, a second launch did nothing, the elapsed time counted a long pause after resume, and the dock path was missing a regression test.
+- **Agent-controlled cause:** Implemented to the plan without checking cascade order, word-end limits and lifecycle paths.
+- **Impact:** Two fix rounds each; no defect merged.
+- **Correction / remaining risk:** Fixed with tests in both PRs. The mini window's real Dock and second-launch path still needs the owner's manual Mac check.
