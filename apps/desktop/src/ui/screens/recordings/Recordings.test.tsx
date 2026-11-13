@@ -349,6 +349,50 @@ describe('Recordings', () => {
       expect(time()).toMatch(/00:15/);
     });
 
+    it('sets the app volume with a labelled slider and mute button, and remembers it', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const volume = screen.getByRole('slider', { name: 'Volume' }) as HTMLInputElement;
+      expect(volume.value).toBe('100');
+      fireEvent.change(volume, { target: { value: '40' } });
+      expect(volume.getAttribute('aria-valuetext')).toBe('40%');
+      expect(JSON.parse(window.localStorage.getItem('scrb.playback.volume') ?? 'null')).toBe(0.4);
+      const mute = screen.getByRole('button', { name: 'Mute' });
+      expect(mute.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(mute);
+      expect(screen.getByRole('button', { name: 'Unmute' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(volume.getAttribute('aria-valuetext')).toBe('Muted');
+      // Dragging the slider up is a request to hear the audio again.
+      fireEvent.change(volume, { target: { value: '60' } });
+      expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
+      cleanup();
+      backend.dispose();
+      renderScreen();
+      try {
+        await openMeeting(/Weekly project sync/);
+      } catch {
+        // The screen may reopen the last meeting by itself.
+      }
+      const again = (await screen.findByRole('slider', { name: 'Volume' })) as HTMLInputElement;
+      expect(again.value).toBe('60');
+      expect(screen.getByRole('button', { name: 'Unmute' })).toBeTruthy();
+    });
+
+    it('keeps the arrow keys for the focused volume slider while Space still plays', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const volume = screen.getByRole('slider', { name: 'Volume' });
+      const call = vi.spyOn(backend, 'call');
+      expect(fireEvent.keyDown(volume, { key: 'ArrowRight' })).toBe(true);
+      expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+      expect(fireEvent.keyDown(volume, { key: ' ' })).toBe(false);
+      expect(call).toHaveBeenCalledWith('seekAudio', expect.anything());
+    });
+
     it('a word click seeks without pausing while audio plays, and only moves the playhead when stopped', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);

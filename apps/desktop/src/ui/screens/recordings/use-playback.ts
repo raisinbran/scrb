@@ -2,6 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MeetingId } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { PlaybackEngine } from '../../lib/playback-engine.ts';
+import { readStored, writeStored } from '../../lib/stored-value.ts';
+
+const VOLUME_KEY = 'scrb.playback.volume';
+const MUTED_KEY = 'scrb.playback.muted';
+
+function storedVolume(): number {
+  const value = readStored<number>(VOLUME_KEY);
+  return typeof value === 'number' && value >= 0 && value <= 1 ? value : 1;
+}
 
 export interface Playback {
   positionMs: number;
@@ -11,6 +20,11 @@ export interface Playback {
   pause(): void;
   /** Moves the position without starting playback. */
   setPosition(positionMs: number): void;
+  /** The app's own playback level, 0 to 1. The system volume is never touched. */
+  volume: number;
+  muted: boolean;
+  setVolume(volume: number): void;
+  setMuted(muted: boolean): void;
 }
 
 /** The backend keeps the clock; this mirrors its position for every tab of one meeting. */
@@ -21,10 +35,18 @@ export function usePlayback(meetingId: MeetingId): Playback {
   const [error, setError] = useState<string | null>(null);
   const playing = useRef(false);
   const engine = useRef<PlaybackEngine | null>(null);
+  const [volume, setVolumeState] = useState(storedVolume);
+  const [muted, setMutedState] = useState(() => readStored<boolean>(MUTED_KEY) === true);
+  const level = useRef({ volume, muted });
+  useEffect(() => {
+    level.current = { volume, muted };
+    engine.current?.setVolume(volume, muted);
+  }, [volume, muted]);
 
   useEffect(() => {
     const audio = new PlaybackEngine(backend, meetingId, setError);
     engine.current = audio;
+    audio.setVolume(level.current.volume, level.current.muted);
     const off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
       setPositionMs(position.positionMs);
@@ -55,5 +77,31 @@ export function usePlayback(meetingId: MeetingId): Playback {
     backend.call('pauseAudio', { meetingId }).catch(report);
   }, [backend, meetingId, report]);
 
-  return { positionMs, isPlaying, error, play, pause, setPosition: setPositionMs };
+  const setVolume = useCallback((next: number) => {
+    const clamped = Math.min(1, Math.max(0, next));
+    setVolumeState(clamped);
+    writeStored(VOLUME_KEY, clamped);
+    // Raising the level is a request to hear it.
+    if (clamped > 0) {
+      setMutedState(false);
+      writeStored(MUTED_KEY, false);
+    }
+  }, []);
+  const setMuted = useCallback((next: boolean) => {
+    setMutedState(next);
+    writeStored(MUTED_KEY, next);
+  }, []);
+
+  return {
+    positionMs,
+    isPlaying,
+    error,
+    play,
+    pause,
+    setPosition: setPositionMs,
+    volume,
+    muted,
+    setVolume,
+    setMuted,
+  };
 }

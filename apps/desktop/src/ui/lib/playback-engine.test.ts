@@ -8,6 +8,8 @@ class FakeAudio {
   currentTime = 0;
   paused = true;
   seeking = false;
+  volume = 1;
+  muted = false;
   readyState = 4;
   listeners = new Map<string, () => void>();
   played = 0;
@@ -176,5 +178,20 @@ describe('PlaybackEngine', () => {
     expect(t.errors).toEqual(['Some of the audio could not be played.']);
     expect(microphone.src).toBe('');
     expect(meeting.paused).toBe(false);
+  });
+
+  it('sets the app volume and mute on every element, including ones created later', async () => {
+    const t = setup();
+    t.engine.setVolume(0.4, false);
+    await t.engine.seek(0);
+    await t.settle();
+    expect(t.audios.map(({ volume }) => volume)).toEqual([0.4, 0.4]);
+    t.engine.setVolume(0.7, true);
+    expect(t.audios.map(({ volume, muted }) => [volume, muted])).toEqual([
+      [0.7, true],
+      [0.7, true],
+    ]);
+    t.engine.setVolume(5, false);
+    expect(t.audios.every(({ volume }) => volume === 1)).toBe(true);
   });
 });

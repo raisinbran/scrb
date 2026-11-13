@@ -295,12 +295,18 @@ describe('screens', () => {
       fireEvent.change(await screen.findByRole('combobox', { name: /Auto-delete/ }), {
         target: { value: '90d' },
       });
-      fireEvent.change(screen.getByRole('combobox', { name: 'What to delete' }), {
-        target: { value: 'wholeMeeting' },
-      });
+      const scope = screen.getByRole('combobox', { name: 'What to delete' });
+      expect(
+        within(scope)
+          .getAllByRole('option')
+          .map((o) => o.textContent),
+      ).toEqual(['Audio', 'Audio & Transcript']);
+      fireEvent.change(scope, { target: { value: 'wholeMeeting' } });
       fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
       const dialog = await screen.findByRole('dialog');
-      expect(dialog.textContent).toContain('Meetings older than 90 days');
+      expect(dialog.textContent).toContain(
+        'Meetings older than 90 days will be permanently deleted: the audio, the transcript, and the summary and exports.',
+      );
       expect((await backend.call('getSettings')).autoDelete.period).toBe('never');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save and turn on' }));
       await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

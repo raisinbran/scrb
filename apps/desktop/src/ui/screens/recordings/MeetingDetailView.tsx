@@ -26,6 +26,7 @@ const TAB_KEY = 'scrb.recordings.tab';
 const TABS = ['Transcript', 'Summary', 'Audio'] as const;
 type Tab = (typeof TABS)[number];
 const SKIP_MS = 15_000;
+const DEFAULT_UNMUTE_VOLUME = 0.5;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
 const HINT_KEY = 'scrb.recordings.editHintDismissed';
@@ -49,7 +50,8 @@ function ownsKeys(target: EventTarget | null, key: string): boolean {
   if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (tag !== 'INPUT') return false;
   const type = (target as HTMLInputElement).type;
-  if (type === 'range') return false;
+  // The volume slider keeps its arrow keys; Space still plays or pauses.
+  if (type === 'range') return key !== ' ' && target.hasAttribute('data-owns-arrows');
   if (type === 'checkbox' || type === 'radio') return key === ' ';
   return true;
 }
@@ -93,7 +95,7 @@ function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: bool
 }
 
 function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Playback }) {
-  const { positionMs, isPlaying, play, pause } = playback;
+  const { positionMs, isPlaying, play, pause, volume, muted } = playback;
   const { durationMs } = meeting;
   const move = (target: number) => movePlayback(playback, durationMs, target);
   return (
@@ -139,6 +141,29 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
       <span className={styles.time}>
         {formatElapsed(positionMs)} / {formatElapsed(durationMs)}
       </span>
+      <button
+        type="button"
+        className={styles.button}
+        aria-pressed={muted}
+        onClick={() => {
+          if (muted && volume === 0) playback.setVolume(DEFAULT_UNMUTE_VOLUME);
+          playback.setMuted(!muted);
+        }}
+      >
+        {muted ? 'Unmute' : 'Mute'}
+      </button>
+      <input
+        type="range"
+        className={styles.volume}
+        data-owns-arrows=""
+        aria-label="Volume"
+        aria-valuetext={muted ? 'Muted' : `${Math.round(volume * 100)}%`}
+        min={0}
+        max={100}
+        step={5}
+        value={Math.round(volume * 100)}
+        onChange={(event) => playback.setVolume(Number(event.target.value) / 100)}
+      />
       {playback.error && <span role="alert">{playback.error}</span>}
     </div>
   );
@@ -616,6 +641,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             fontPx={fontPx}
             positionMs={playback.positionMs}
             showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
+            playing={playback.isPlaying}
             jump={jump}
             onPlay={playback.play}
             editing={editing}
