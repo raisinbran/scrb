@@ -10,6 +10,7 @@ final class VoiceMicStream {
     /// Last delivered format, for the spike log and format regression.
     private(set) var deliveredRate = 0.0
     private(set) var deliveredChannels = 0
+    private(set) var duckingReport = ""
 
     init(ring: UnsafeMutablePointer<RtRing>) { self.ring = ring }
 
@@ -48,6 +49,17 @@ final class VoiceMicStream {
         engine.prepare()
         do { try engine.start() } catch { return "start: \(error)" }
         self.engine = engine
+        // The AVAudioEngine property can be dropped when the unit initialises at start, so set it again on the
+        // unit itself (property 2108) and read it back for the log. Level .min is the lowest macOS offers.
+        if let unit = input.audioUnit {
+            var config = AUVoiceIOOtherAudioDuckingConfiguration(mEnableAdvancedDucking: false, mDuckingLevel: .min)
+            let set = AudioUnitSetProperty(unit, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, kAudioUnitScope_Global, 0,
+                                           &config, UInt32(MemoryLayout.size(ofValue: config)))
+            var back = AUVoiceIOOtherAudioDuckingConfiguration(mEnableAdvancedDucking: true, mDuckingLevel: .max)
+            var size = UInt32(MemoryLayout.size(ofValue: back))
+            let got = AudioUnitGetProperty(unit, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, kAudioUnitScope_Global, 0, &back, &size)
+            duckingReport = "set \(set) get \(got) advanced \(back.mEnableAdvancedDucking) level \(back.mDuckingLevel.rawValue)"
+        }
         return nil
     }
 

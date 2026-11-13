@@ -220,7 +220,7 @@ final class Session {
                 record(["event": "voiceProcessingUnavailable", "message": failure])
             } else {
                 voiceActive = true
-                record(["event": "voiceProcessing", "rate": voiceMic.deliveredRate, "channels": voiceMic.deliveredChannels])
+                record(["event": "voiceProcessing", "rate": voiceMic.deliveredRate, "channels": voiceMic.deliveredChannels, "ducking": voiceMic.duckingReport])
                 return nil
             }
         }

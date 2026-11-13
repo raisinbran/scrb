@@ -37,3 +37,11 @@ Re-checked after the merge of #154: this session's helper reports `systemAudio: 
    `(sleep 1; afplay CLIP) & node scripts/echo_spike.mjs build/scrb-capture /tmp/echo/off off 60` then the same with `on` and `/tmp/echo/on`.
 4. Compare, per mode: `for t in microphone meeting; do cat /tmp/echo/MODE/audio/$t/*.opus | ffmpeg -i - -af volumedetect -f null - 2>&1 | grep -E 'mean_volume|max_volume'; done`. Pass: mic mean level with `on` at least 10 dB lower than `off` (echo reduction) and meeting-track mean/max level unchanged within 0.5 dB (no ducking or tap disturbance). Also confirm in the script output there is no `permissionLost`, and that `chunks.log` of `meeting` has the same `rate` and no gaps in both modes.
 5. Fidelity: speak a fixed invented sentence at the mic while the clip plays, in each mode; transcribe both mic tracks and compare word recall (accuracy may not fall by more than 3 points).
+
+## Owner run and ducking investigation (2026-11-13)
+
+Owner run (AMI clip via afplay, built-in speakers 50%, 60 s): mic quiet-level off -54.4 / off2 -47.6 / on -69.4 dB (echo reduction at least 15 dB, passes); meeting track off -47.2 / off2 -47.1 / on -55.9 dB (**about 9 dB lower, fails the 0.5 dB ducking bar**); no gaps, no `permissionLost`; owner's voice intact.
+
+Ducking investigation: the SDK headers (macOS 14+) offer one control, `voiceProcessingOtherAudioDuckingConfiguration` (advanced ducking on/off, level default/min/mid/max). The code already sets advanced off and level `min` after enabling voice processing and before the engine starts. `kAUVoiceIOProperty_DuckNonVoiceAudio` (the "turn ducking off" switch) is iOS-only and deprecated, so it is not available on macOS. `min` is "minimum ducking", not none, and the meeting track (process tap) records the ducked level. The change now also sets property 2108 directly on the unit after the engine starts and logs the read-back in the `voiceProcessing` event (`ducking` field). Verified here only that the setting is accepted and reads back as advanced false, level 10 (min); the owner must re-run to see whether the 9 dB drop changes.
+
+**Recommendation: drop option A for ducking** unless the re-run shows the meeting track within 0.5 dB. No other macOS switch exists, so the plan's hard stop applies; do option C.
