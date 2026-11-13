@@ -11,7 +11,7 @@ import type {
 export const STATUS_LABELS: Partial<Record<MeetingStatus, string>> = {
   recording: 'Recording',
   paused: 'Paused',
-  finalPassRunning: 'Final pass running',
+  finalPassRunning: 'Processing final transcript',
   transcriptionFailed: 'Transcription failed',
   recovered: 'Recovered after crash',
   importing: 'Importing',
