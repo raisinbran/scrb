@@ -1029,10 +1029,13 @@ export class MockBackend implements Backend {
         const appChanged = selection.meetingAppId !== meetingAppId;
         const conflict = (message: string) => new ContractError({ code: 'conflict', message });
         if (micChanged && appChanged) {
-          throw conflict('Change the microphone and the meeting app one at a time while recording.');
+          throw conflict(
+            'Change the microphone and the meeting app one at a time while recording.',
+          );
         }
         const app = MEETING_APPS.find((item) => item.id === selection.meetingAppId);
-        if (appChanged && app && !app.isRunning) throw conflict('That app is not playing audio yet.');
+        if (appChanged && app && !app.isRunning)
+          throw conflict('That app is not playing audio yet.');
       }
       this.settings = mergeSettings(this.settings, { audio: selection });
     },

@@ -672,7 +672,9 @@ describe('Changing sources during a recording', () => {
 
   it('refuses on Windows', async () => {
     const { controller, save, select } = await recording('win32');
-    await expect(select({ ...saved, micDeviceId: 'mic-new' })).rejects.toThrow('Stop the recording');
+    await expect(select({ ...saved, micDeviceId: 'mic-new' })).rejects.toThrow(
+      'Stop the recording',
+    );
     expect(fake.switchSource).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
     await controller.shutdown();

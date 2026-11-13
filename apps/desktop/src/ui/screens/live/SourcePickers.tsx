@@ -27,7 +27,13 @@ interface SourcePickersProps {
   onSelect(selection: SourceSelection): void;
 }
 
-export function SourcePickers({ devices, apps, selection, switching = false, onSelect }: SourcePickersProps) {
+export function SourcePickers({
+  devices,
+  apps,
+  selection,
+  switching = false,
+  onSelect,
+}: SourcePickersProps) {
   const appId = useId();
   const micId = useId();
   const choices = withFallback(apps);
