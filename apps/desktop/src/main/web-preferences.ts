@@ -10,3 +10,14 @@ export function secureWebPreferences(dir: string) {
     webviewTag: false,
   } as const;
 }
+
+/** The hidden print window: the locked settings, no preload and no scripts, so a page cannot act. */
+export function printWebPreferences() {
+  return {
+    contextIsolation: true,
+    sandbox: true,
+    nodeIntegration: false,
+    webviewTag: false,
+    javascript: false,
+  } as const;
+}
