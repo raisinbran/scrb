@@ -11,6 +11,8 @@ export function shouldShowMini({ status, mainInFront, dismissed }: MiniInputs): 
 
 export interface MiniHandle {
   close(): void;
+  /** Cancels a close still fading out and shows the window again; false if it is already gone. */
+  reopen?(): boolean;
 }
 
 /**
@@ -23,19 +25,27 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
   let dismissed = false;
   let disposed = false;
   let handle: MiniHandle | null = null;
+  // A window fading out. Showing again reuses it, so two mini windows never overlap.
+  let closing: MiniHandle | null = null;
 
   const sync = (): void => {
     if (status === 'idle') dismissed = false;
     const want = !disposed && shouldShowMini({ status, mainInFront, dismissed });
     if (want && !handle) {
+      if (closing?.reopen?.()) {
+        handle = closing;
+        closing = null;
+        return;
+      }
       const opened: MiniHandle = openWindow(() => {
+        if (closing === opened) closing = null;
         if (handle !== opened) return;
         handle = null;
         dismissed = true;
       });
       handle = opened;
     } else if (!want && handle) {
-      const closing = handle;
+      closing = handle;
       handle = null;
       closing.close();
     }
@@ -58,9 +68,9 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
   };
 }
 
-/** The app's own windows, without the mini one, which must never stand in for the main window. */
-export function withoutMini<T>(windows: T[], mini: T | null): T[] {
-  return windows.filter((window) => window !== mini);
+/** The app's own windows, without any mini one (one may still be fading out), which must never stand in for the main window. */
+export function withoutMini<T>(windows: T[], minis: ReadonlySet<T>): T[] {
+  return windows.filter((window) => !minis.has(window));
 }
 
 /** Brings the app back from the dock or a second launch: focus a main window, or make one if only the mini is left. */

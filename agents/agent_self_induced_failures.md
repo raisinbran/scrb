@@ -1119,6 +1119,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
 
+### A-336 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — vocabulary note: first check run without building packages/summary
+- **What failed:** Ran `npm run check` before building `packages/summary`; one unrelated worker test failed with ERR_MODULE_NOT_FOUND. The task brief had said to build it if needed.
+- **Impact:** One wasted check run (about 30 s); no code defect.
+- **Correction / remaining risk:** Built it, check and smoke passed. None.
+
 ### A-331 — 2026-11-13 — Claude Code / Mac — first `npm run check` run without building `packages/summary`
 - **What failed:** I ran `npm run check` before building `packages/summary`, so one summary worker test failed on a missing `dist`; the task brief had said to build it first if needed. I also ran `cd agents` in a persistent shell called a tool with the wrong name, and overwrote the existing `.gitattributes` (a fixtures `-text` rule) with `>` before reading it; caught in the staged diff and restored.
 - **Impact:** One wasted check run (about 30 s); no code defect.
@@ -1139,7 +1144,25 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round and a red Windows check on a7b3783.
 - **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
 
+### A-338 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — performance-settings plan: forbidden Co-Authored-By trailer committed and pushed
+- **Status / attribution:** Confirmed agent error. Not merged.
+- **What failed:** I followed a harness attribution reminder and added a `Co-Authored-By` trailer to the first commit, then pushed it to `cuc/performance-settings-plan`. The owner's rule is no such trailer.
+- **Agent-controlled cause:** Did not check the owner's memory rule before committing; chained commit and push.
+- **Impact:** One abandoned remote branch and a re-created branch (`-v2`); force-push was not allowed, so no history rewrite.
+- **Correction / remaining risk:** Re-committed without the trailer on a new branch; old branch deleted. Low.
+### A-337 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
+- **Status / attribution:** Confirmed agent errors; no application defect.
+- **What failed:** (1) I did not read `get_usage` before starting, against the measure-at-start rule. (2) My first "no location" test reused the library saved by the previous case in the same temp directory, so it failed for a fixture reason, not a code one.
+- **Impact:** Start-of-task allowance is unavailable; one extra `npm run check` run.
+- **Correction / remaining risk:** Test order fixed. Also noted: `@scrb/summary` worker test fails in a fresh worktree because `packages/summary/dist` is not built (environment, not this change). Low.
+- **A-337 addendum (review-found):** the required-tools list omitted ffprobe, so setup could report `complete: true` while imports (which refuse to run without ffprobe) could not. Cause: I copied the final pass's key list without checking `scripts/m1.sh` and the import runner. Fixed with ffprobe in the list and a test; I also first mis-edited my test fixture (prettier had reflowed the line my scripted replace targeted) and reran `npm run check` once for that.
 #### A-335 — 2026-11-13 — usage not read at task start
 - **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
 - **Impact:** The usage row has an end reading only; no consumption figure.
+- **Correction / remaining risk:** Logged as unavailable. Low.
+
+### A-339 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — voice-profile growth plan: usage not read at task start
+- **Status / attribution:** Confirmed agent error; no application defect.
+- **What failed:** I did not call `get_usage` before starting, against the measure-at-start rule, and only read it after most of the code reading.
+- **Impact:** Start-of-task allowance is unavailable; the usage row has end values only. The weekly allowance was already at 98% used when read.
 - **Correction / remaining risk:** Logged as unavailable. Low.

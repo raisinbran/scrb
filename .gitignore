@@ -22,3 +22,7 @@ __pycache__/
 # Windows probe build output (the old phase0/.gitignore covered these)
 native/windows-capture/tools/**/*.exe
 native/windows-capture/tools/**/*.obj
+
+# Packaged app staging and output
+/apps/desktop/build/
+/apps/desktop/release/

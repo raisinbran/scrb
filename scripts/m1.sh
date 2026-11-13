@@ -59,8 +59,8 @@ fi
 electron_main="${repo}/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
 running="$(ps -axo pid=,command= 2>/dev/null | grep -F -- "${electron_main}" | grep -v 'Helper' | grep -v grep || true)"
 if [[ -n "$running" ]]; then
-  echo "Meeting Scribe is already running, so a new start would just reopen the old copy." >&2
-  echo "Quit it first: click the Meeting Scribe window, press Cmd+Q, then run this again." >&2
+  echo "Scribe is already running, so a new start would just reopen the old copy." >&2
+  echo "Quit it first: click the Scribe window, press Cmd+Q, then run this again." >&2
   echo "If it will not quit, run: pkill -f '${electron_main}'" >&2
   exit 1
 fi
