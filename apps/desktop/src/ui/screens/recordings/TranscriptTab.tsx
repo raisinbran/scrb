@@ -5,11 +5,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type FormEvent,
   type MouseEvent,
   type Ref,
 } from 'react';
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
+import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
 import type { TranscriptData } from './use-transcript.ts';
 import styles from './recordings.module.css';
@@ -35,6 +37,88 @@ const WORD_CLASSES = {
   corrected: styles.wordCorrected,
 };
 
+export const EDITOR_MARK = 'data-editor';
+const MAX_NAME_LENGTH = 60;
+
+/** The message to show for a name that cannot be used, or null when it is fine. */
+export function nameProblem(name: string, others: string[]): string | null {
+  const trimmed = name.trim();
+  if (trimmed === '') return 'Enter a name.';
+  if (trimmed.length > MAX_NAME_LENGTH) return `Use at most ${MAX_NAME_LENGTH} characters.`;
+  const lower = trimmed.toLowerCase();
+  if (others.some((other) => other.trim().toLowerCase() === lower)) {
+    return 'Another speaker in this meeting already has that name.';
+  }
+  return null;
+}
+
+interface SpeakerRenameProps {
+  current: string;
+  others: string[];
+  onSave(name: string): Promise<void>;
+  onCancel(): void;
+}
+
+function SpeakerRename({ current, others, onSave, onCancel }: SpeakerRenameProps) {
+  const [name, setName] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+    input.current?.select();
+  }, []);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed === current) {
+      onCancel();
+      return;
+    }
+    const problem = nameProblem(trimmed, others);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(trimmed);
+    } catch (failure) {
+      setSaving(false);
+      setError(failure instanceof Error ? failure.message : 'The name could not be saved.');
+    }
+  };
+
+  return (
+    <form
+      {...{ [EDITOR_MARK]: '' }}
+      className={styles.renameForm}
+      aria-label="Rename speaker"
+      onSubmit={(event) => void submit(event)}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Escape') onCancel();
+      }}
+    >
+      <input
+        ref={input}
+        className={styles.input}
+        aria-label="Speaker name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <button type="submit" className={styles.primary} disabled={saving}>
+        Save
+      </button>
+      <button type="button" className={styles.button} onClick={onCancel}>
+        Cancel
+      </button>
+      {error && <span role="alert">{error}</span>}
+    </form>
+  );
+}
+
 interface SegmentRowProps {
   segment: TranscriptSegment;
   speaker: string;
@@ -43,6 +127,13 @@ interface SegmentRowProps {
   currentWord: string | undefined;
   onPlay(ms: number): void;
   onPlace: ((ms: number) => void) | undefined;
+  /** Absent when the meeting cannot be edited. */
+  onEditWord: ((wordId: string) => void) | undefined;
+  onStartRename: ((speakerId: string, rowKey: string) => void) | undefined;
+  renaming: boolean;
+  otherNames: string[];
+  onSaveRename(name: string): Promise<void>;
+  onCancelRename(): void;
   ref: Ref<HTMLDivElement>;
   rowKey: string;
 }
@@ -55,9 +146,19 @@ const SegmentRow = memo(function SegmentRow({
   currentWord,
   onPlay,
   onPlace,
+  onEditWord,
+  onStartRename,
+  renaming,
+  otherNames,
+  onSaveRename,
+  onCancelRename,
   ref,
   rowKey,
 }: SegmentRowProps) {
+  const onDoubleClick = (event: MouseEvent) => {
+    const id = (event.target as HTMLElement).dataset['word'];
+    if (id !== undefined) onEditWord?.(id);
+  };
   const onClick = (event: MouseEvent) => {
     const ms = (event.target as HTMLElement).dataset['ms'];
     // A word click only moves the playhead; playing is the timestamp button's job.
@@ -72,7 +173,25 @@ const SegmentRow = memo(function SegmentRow({
       aria-current={active ? 'true' : undefined}
     >
       <div className={styles.segmentHead}>
-        <span className={styles.speaker}>{speaker}</span>
+        {renaming ? (
+          <SpeakerRename
+            current={speaker}
+            others={otherNames}
+            onSave={onSaveRename}
+            onCancel={onCancelRename}
+          />
+        ) : onStartRename ? (
+          <button
+            type="button"
+            className={styles.speakerButton}
+            aria-label={`Rename speaker ${speaker}`}
+            onClick={() => onStartRename(segment.speakerId, rowKey)}
+          >
+            {speaker}
+          </button>
+        ) : (
+          <span className={styles.speaker}>{speaker}</span>
+        )}
         <button
           type="button"
           className={styles.timeLink}
@@ -86,11 +205,13 @@ const SegmentRow = memo(function SegmentRow({
       <p
         className={following ? `${styles.words} ${styles.wordsFollowing}` : styles.words}
         onClick={onClick}
+        onDoubleClick={onDoubleClick}
       >
         {segment.words.map((word) => (
           <span key={word.id}>
             <span
               data-ms={word.startMs}
+              data-word={word.id}
               className={
                 word.id === currentWord
                   ? [WORD_CLASSES[word.state], styles.wordCurrent].filter(Boolean).join(' ')
@@ -134,6 +255,29 @@ function firstRowAt(offsets: Float64Array, top: number): number {
   return Math.max(0, low);
 }
 
+function isRendered(
+  rows: TranscriptRow[],
+  offsets: Float64Array,
+  scrollTop: number,
+  viewportPx: number,
+  key: string,
+): boolean {
+  const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
+  return rows.slice(first, end).some((row) => row.key === key);
+}
+
+function renderedRange(
+  offsets: Float64Array,
+  count: number,
+  scrollTop: number,
+  viewportPx: number,
+) {
+  const first = firstRowAt(offsets, scrollTop - OVERSCAN_PX);
+  let end = first;
+  while (end < count && (offsets[end] as number) < scrollTop + viewportPx + OVERSCAN_PX) end += 1;
+  return { first, end };
+}
+
 export interface JumpTarget {
   ms: number;
   nonce: number;
@@ -149,10 +293,29 @@ interface TranscriptTabProps {
   onPlay(ms: number): void;
   /** Moves the playhead without playing; absent while audio plays, so a click does nothing. */
   onPlace?: ((ms: number) => void) | undefined;
+  /** Present only when the meeting can be edited. */
+  editing?: TranscriptEditing | undefined;
+  onEditorOpenChange?(open: boolean): void;
+}
+
+export interface TranscriptEditing {
+  correctWord(wordId: string, text: string, remember: boolean): Promise<void>;
+  renameSpeaker(speakerId: string, name: string): Promise<void>;
 }
 
 export function TranscriptTab(props: TranscriptTabProps) {
-  const { transcript, gaps, fontPx, positionMs, showPosition, jump, onPlay, onPlace } = props;
+  const {
+    transcript,
+    gaps,
+    fontPx,
+    positionMs,
+    showPosition,
+    jump,
+    onPlay,
+    onPlace,
+    editing,
+    onEditorOpenChange,
+  } = props;
   const { segments, speakers, totalSegments, loading, error } = transcript;
   const scroller = useRef<HTMLDivElement>(null);
   const observer = useRef<ResizeObserver | null>(null);
@@ -237,62 +400,122 @@ export function TranscriptTab(props: TranscriptTabProps) {
     scroller.current.scrollTop = offsets[rowIndexAt(rows, jump.ms)] ?? 0;
   }, [jump, lastStart, loading, offsets, rows]);
 
+  const [editWord, setEditWord] = useState<{ id: string; text: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ speakerId: string; rowKey: string } | null>(null);
+  const renamingId = renaming?.speakerId ?? null;
+  // The rename form lives in its row. While that row is outside the rendered range the form is
+  // gone, so it must not keep the playback keys off.
+  const renamingRowKey = renaming?.rowKey;
+  const renamingShown =
+    renamingRowKey !== undefined &&
+    isRendered(rows, offsets, scrollTop, viewportPx, renamingRowKey);
+  const editorOpen = editWord !== null || renamingShown;
+  useEffect(() => {
+    onEditorOpenChange?.(editorOpen);
+    return () => onEditorOpenChange?.(false);
+  }, [editorOpen, onEditorOpenChange]);
+  const canEdit = editing !== undefined;
+  const onEditWord = useCallback(
+    (id: string) => {
+      const word = segments.flatMap((segment) => segment.words).find((item) => item.id === id);
+      if (word) {
+        setRenaming(null);
+        setEditWord({ id, text: word.text });
+      }
+    },
+    [segments],
+  );
+  const onStartRename = useCallback((speakerId: string, rowKey: string) => {
+    setEditWord(null);
+    setRenaming({ speakerId, rowKey });
+  }, []);
+  const otherNames = useMemo(
+    () => speakers.filter((speaker) => speaker.id !== renamingId).map((speaker) => speaker.label),
+    [speakers, renamingId],
+  );
+  const onSaveRename = useCallback(
+    async (name: string) => {
+      if (!editing || renamingId === null) return;
+      await editing.renameSpeaker(renamingId, name);
+      setRenaming(null);
+    },
+    [editing, renamingId],
+  );
+  const onCancelRename = useCallback(() => setRenaming(null), []);
+
+  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
+  const contentHeight = (offsets[rows.length] as number) + unloaded;
+  const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
   if (error) return <p role="alert">{error}</p>;
   if (!showList) {
     return <p className={styles.muted}>There is no transcript text yet.</p>;
   }
 
-  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
-  const contentHeight = (offsets[rows.length] as number) + unloaded;
-  const first = firstRowAt(offsets, scrollTop - OVERSCAN_PX);
-  let end = first;
-  while (end < rows.length && (offsets[end] as number) < scrollTop + viewportPx + OVERSCAN_PX) {
-    end += 1;
-  }
   const activeIndex = showPosition ? rowIndexAt(rows, positionMs) : -1;
 
   return (
-    <div
-      ref={scroller}
-      className={styles.transcript}
-      style={{ fontSize: fontPx }}
-      tabIndex={0}
-      role="region"
-      aria-label="Transcript"
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-    >
-      <div style={{ height: contentHeight }}>
-        <div style={{ transform: `translateY(${offsets[first] ?? 0}px)` }}>
-          {rows
-            .slice(first, end)
-            .map((row, index) =>
-              row.kind === 'gap' ? (
-                <GapRow key={row.key} ref={measure} rowKey={row.key} gap={row.gap} />
-              ) : (
-                <SegmentRow
-                  key={row.key}
-                  ref={measure}
-                  rowKey={row.key}
-                  segment={row.segment}
-                  speaker={labels.get(row.segment.speakerId) ?? 'Unknown speaker'}
-                  active={first + index === activeIndex}
-                  following={showPosition}
-                  currentWord={
-                    showPosition && first + index === activeIndex
-                      ? currentWordId(row.segment, positionMs)
-                      : undefined
-                  }
-                  onPlay={onPlay}
-                  onPlace={onPlace}
-                />
-              ),
-            )}
+    <div className={styles.transcriptBox}>
+      <div
+        ref={scroller}
+        className={styles.transcript}
+        style={{ fontSize: fontPx }}
+        tabIndex={0}
+        role="region"
+        aria-label="Transcript"
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
+        <div style={{ height: contentHeight }}>
+          <div style={{ transform: `translateY(${offsets[first] ?? 0}px)` }}>
+            {rows
+              .slice(first, end)
+              .map((row, index) =>
+                row.kind === 'gap' ? (
+                  <GapRow key={row.key} ref={measure} rowKey={row.key} gap={row.gap} />
+                ) : (
+                  <SegmentRow
+                    key={row.key}
+                    ref={measure}
+                    rowKey={row.key}
+                    segment={row.segment}
+                    speaker={labels.get(row.segment.speakerId) ?? 'Unknown speaker'}
+                    active={first + index === activeIndex}
+                    following={showPosition}
+                    currentWord={
+                      showPosition && first + index === activeIndex
+                        ? currentWordId(row.segment, positionMs)
+                        : undefined
+                    }
+                    onPlay={onPlay}
+                    onPlace={onPlace}
+                    onEditWord={canEdit ? onEditWord : undefined}
+                    onStartRename={canEdit ? onStartRename : undefined}
+                    renaming={renaming?.rowKey === row.key}
+                    otherNames={otherNames}
+                    onSaveRename={onSaveRename}
+                    onCancelRename={onCancelRename}
+                  />
+                ),
+              )}
+          </div>
         </div>
+        {loading && (
+          <p role="status" className={styles.srOnly}>
+            Loading the transcript…
+          </p>
+        )}
       </div>
-      {loading && (
-        <p role="status" className={styles.srOnly}>
-          Loading the transcript…
-        </p>
+      {editing && editWord && (
+        <div {...{ [EDITOR_MARK]: '' }}>
+          <CorrectionEditor
+            originalText={editWord.text}
+            top={8}
+            onApply={async (text, remember) => {
+              await editing.correctWord(editWord.id, text, remember);
+              setEditWord(null);
+            }}
+            onCancel={() => setEditWord(null)}
+          />
+        </div>
       )}
     </div>
   );

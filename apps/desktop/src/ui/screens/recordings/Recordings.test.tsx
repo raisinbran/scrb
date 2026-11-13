@@ -287,6 +287,180 @@ describe('Recordings', () => {
       );
     });
 
+    describe('editing a finished meeting', () => {
+      const firstWord = async () => {
+        await screen.findAllByRole('button', { name: /Play from/ });
+        return document.querySelector('[data-word]') as HTMLElement;
+      };
+      const correct = async (word: HTMLElement, text: string) => {
+        fireEvent.doubleClick(word);
+        const form = await screen.findByRole('form', { name: 'Correct transcript' });
+        fireEvent.change(within(form).getByRole('textbox'), { target: { value: text } });
+        fireEvent.click(within(form).getByRole('button', { name: 'Apply' }));
+      };
+      const undoButton = () => screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement;
+
+      it('corrects one word on double-click, shows it, and Undo brings the old word back', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        const word = await firstWord();
+        const id = word.dataset['word'];
+        const original = word.textContent;
+        expect(undoButton().disabled).toBe(true);
+        await correct(word, 'Zebra');
+        await waitFor(() =>
+          expect(document.querySelector(`[data-word="${id}"]`)?.textContent).toBe('Zebra'),
+        );
+        await waitFor(() => expect(undoButton().disabled).toBe(false));
+        fireEvent.click(undoButton());
+        await waitFor(() =>
+          expect(document.querySelector(`[data-word="${id}"]`)?.textContent).toBe(original),
+        );
+      });
+
+      it('corrects a word while audio plays, without pausing it', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        const word = await firstWord();
+        fireEvent.click(
+          (await screen.findAllByRole('button', { name: /Play from/ }))[1] as HTMLElement,
+        );
+        await button('Pause');
+        const call = vi.spyOn(backend, 'call');
+        await correct(word, 'Zebra');
+        await waitFor(() =>
+          expect(call).toHaveBeenCalledWith('applyCorrection', expect.anything()),
+        );
+        expect(call).not.toHaveBeenCalledWith('pauseAudio', expect.anything());
+        expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+      });
+
+      it('renames a speaker everywhere, leaves voice profiles alone, and Undo reverses it', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        await firstWord();
+        const profiles = JSON.stringify(await backend.call('listProfiles'));
+        const first = screen.getAllByRole('button', { name: /^Rename speaker/ })[0] as HTMLElement;
+        const oldName = first.textContent as string;
+        fireEvent.click(first);
+        const form = await screen.findByRole('form', { name: 'Rename speaker' });
+        fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'Ana' } });
+        fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+        await waitFor(() =>
+          expect(
+            screen.getAllByRole('button', { name: 'Rename speaker Ana' }).length,
+          ).toBeGreaterThan(0),
+        );
+        expect(screen.queryByRole('button', { name: `Rename speaker ${oldName}` })).toBeNull();
+        expect(JSON.stringify(await backend.call('listProfiles'))).toBe(profiles);
+        await waitFor(() => expect(undoButton().disabled).toBe(false));
+        fireEvent.click(undoButton());
+        await waitFor(() =>
+          expect(
+            screen.getAllByRole('button', { name: `Rename speaker ${oldName}` }).length,
+          ).toBeGreaterThan(0),
+        );
+      });
+
+      it('rejects blank, too long and duplicate speaker names without calling the backend', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        await firstWord();
+        const buttons = screen.getAllByRole('button', { name: /^Rename speaker/ });
+        const names = [...new Set(buttons.map((item) => item.textContent as string))];
+        expect(names.length).toBeGreaterThan(1);
+        const call = vi.spyOn(backend, 'call');
+        fireEvent.click(buttons.find((item) => item.textContent === names[0]) as HTMLElement);
+        const form = await screen.findByRole('form', { name: 'Rename speaker' });
+        const box = within(form).getByRole('textbox');
+        const save = within(form).getByRole('button', { name: 'Save' });
+        for (const bad of ['   ', 'x'.repeat(61), (names[1] as string).toUpperCase()]) {
+          fireEvent.change(box, { target: { value: bad } });
+          fireEvent.click(save);
+          expect(await within(form).findByRole('alert')).toBeTruthy();
+        }
+        expect(call).not.toHaveBeenCalledWith('renameSpeaker', expect.anything());
+      });
+
+      it('ends a rename when its row scrolls out of the rendered range, and the keys work again', async () => {
+        renderScreen();
+        await openMeeting(/Depot rollout/);
+        await firstWord();
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /^Rename speaker/ })[0] as HTMLElement,
+        );
+        await screen.findByRole('form', { name: 'Rename speaker' });
+        const region = screen.getByRole('region', { name: 'Transcript' });
+        region.scrollTop = 200_000;
+        fireEvent.scroll(region);
+        await waitFor(() =>
+          expect(screen.queryByRole('form', { name: 'Rename speaker' })).toBeNull(),
+        );
+        fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+        expect(screen.getByRole('group', { name: 'Audio player' }).textContent).toMatch(/00:15/);
+      });
+
+      it('keeps Undo per meeting when switching between meetings', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        await correct(await firstWord(), 'Zebra');
+        await waitFor(() => expect(undoButton().disabled).toBe(false));
+        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
+        await openMeeting(/Vendor call/);
+        await waitFor(() => expect(undoButton().disabled).toBe(true));
+        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
+        await openMeeting(/Weekly project sync/);
+        await waitFor(() => expect(undoButton().disabled).toBe(false));
+      });
+
+      it('turns the playback keys off while an editor is open, also on Apply and Cancel', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        fireEvent.doubleClick(await firstWord());
+        const form = await screen.findByRole('form', { name: 'Correct transcript' });
+        const call = vi.spyOn(backend, 'call');
+        for (const target of [
+          within(form).getByRole('button', { name: 'Cancel' }),
+          within(form).getByRole('textbox'),
+          document.body,
+        ]) {
+          fireEvent.keyDown(target, { key: 'ArrowRight' });
+          fireEvent.keyDown(target, { key: ' ' });
+        }
+        expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+        expect(screen.getByRole('group', { name: 'Audio player' }).textContent).toMatch(/00:00 \//);
+        fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('form')).toBeNull());
+        fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+        expect(screen.getByRole('group', { name: 'Audio player' }).textContent).toMatch(/00:15/);
+      });
+
+      it('undoes with Ctrl+Z except while typing in a text field', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        const word = await firstWord();
+        await correct(word, 'Zebra');
+        await waitFor(() => expect(undoButton().disabled).toBe(false));
+        fireEvent.doubleClick(await firstWord());
+        const form = await screen.findByRole('form', { name: 'Correct transcript' });
+        const call = vi.spyOn(backend, 'call');
+        fireEvent.keyDown(within(form).getByRole('textbox'), { key: 'z', ctrlKey: true });
+        expect(call).not.toHaveBeenCalledWith('undo', expect.anything());
+        fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+        fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true });
+        await waitFor(() => expect(call).toHaveBeenCalledWith('undo', expect.anything()));
+      });
+
+      it('shows the hint until it is dismissed, and remembers that', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        expect(screen.getByText(/Double-click a word to correct it/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(screen.queryByText(/Double-click a word to correct it/)).toBeNull();
+        expect(window.localStorage.getItem('scrb.recordings.editHintDismissed')).toBe('true');
+      });
+    });
+
     it('renders only part of the 8-hour transcript', async () => {
       renderScreen();
       const started = performance.now();

@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { TranscriptPage } from '@scrb/contracts';
 import { CorrectionConflictError, Library } from '@scrb/storage';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
@@ -687,6 +688,105 @@ describe('createMeetingHandlers', () => {
       ok: true,
       value: { canUndo: true, canRedo: false },
     });
+  });
+
+  it('keeps a single-word correction and a speaker rename in one meeting, across a reopen', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'scrb-edit-reopen-'));
+    let store = await Library.open({ root });
+    try {
+      const make = async (title: string, date: string) => {
+        const meeting = await store.createMeeting({
+          title,
+          date,
+          source: 'recorded',
+          status: 'ready',
+          durationMs: 5000,
+        });
+        const profile = store.voiceProfiles.create({
+          modelId: 'invented-model',
+          embedding: new Float32Array([1, 0]),
+          meetingId: meeting.id,
+        });
+        await store.applyFinalPass(meeting.id, {
+          segments: [
+            {
+              id: 's1',
+              track: 'meeting',
+              speakerId: 'speaker-1',
+              pass: 'final',
+              words: [
+                { id: 'w1', text: 'hello', startMs: 0, endMs: 100 },
+                { id: 'w2', text: 'wrold', startMs: 200, endMs: 300 },
+              ],
+            },
+          ],
+          speakers: [
+            {
+              id: 'speaker-1',
+              label: 'Speaker 1',
+              name: null,
+              profileId: profile.id,
+              userNamed: false,
+              mergedInto: null,
+            },
+          ],
+        });
+        return { id: meeting.id, profileName: profile.name };
+      };
+      const first = await make('Edit one', '2026-10-15T10:00:00.000Z');
+      const second = await make('Edit two', '2026-10-16T10:00:00.000Z');
+      const edits = createMeetingHandlers(store);
+      expect(
+        await dispatchCall(edits, 'applyCorrection', {
+          meetingId: first.id,
+          range: { firstWordId: 'w2', lastWordId: 'w2' },
+          text: 'world',
+          remember: false,
+        }),
+      ).toMatchObject({ ok: true, value: { canUndo: true } });
+      expect(
+        await dispatchCall(edits, 'renameSpeaker', {
+          target: { kind: 'meetingSpeaker', meetingId: first.id, speakerId: 'speaker-1' },
+          name: 'Ana',
+        }),
+      ).toMatchObject({ ok: true });
+
+      await store.close();
+      store = await Library.open({ root });
+      const reopened = createMeetingHandlers(store);
+      const page = async (meetingId: string): Promise<TranscriptPage> => {
+        const envelope = await dispatchCall(reopened, 'getTranscript', {
+          meetingId,
+          offset: 0,
+          limit: 10,
+        });
+        if (!envelope.ok) throw new Error(envelope.error.message);
+        return envelope.value as TranscriptPage;
+      };
+      const edited = await page(first.id);
+      expect(edited.segments[0]?.words.map((word) => word.text)).toEqual(['hello', 'world']);
+      expect(edited.speakers[0]?.label).toBe('Ana');
+      const untouched = await page(second.id);
+      expect(untouched.segments[0]?.words.map((word) => word.text)).toEqual(['hello', 'wrold']);
+      expect(untouched.speakers[0]?.label).not.toBe('Ana');
+      expect(store.voiceProfiles.list().map((profile) => profile.name)).not.toContain('Ana');
+      expect(store.voiceProfiles.list().map((profile) => profile.name)).toContain(
+        first.profileName,
+      );
+      expect(await dispatchCall(reopened, 'getUndoState', { meetingId: first.id })).toMatchObject({
+        ok: true,
+        value: { canUndo: true },
+      });
+      expect(await dispatchCall(reopened, 'getUndoState', { meetingId: second.id })).toMatchObject({
+        ok: true,
+        value: { canUndo: false },
+      });
+      await dispatchCall(reopened, 'undo', { meetingId: first.id });
+      expect((await page(first.id)).speakers[0]?.label).not.toBe('Ana');
+    } finally {
+      await store.close();
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('emits revisioned transcript changes only after a persisted correction', async () => {

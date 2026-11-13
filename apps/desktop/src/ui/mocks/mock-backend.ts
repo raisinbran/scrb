@@ -1095,14 +1095,20 @@ export class MockBackend implements Backend {
         this.recordProfileHistory('rename', before);
         return;
       }
+      // Like the real backend: only this meeting changes, never the voice profile, and the
+      // rename can be undone with the transcript's Undo.
       const { meetingId, speakerId } = target;
-      const { profileId } = this.renameMeetingSpeaker(meetingId, speakerId, {
+      const speakersBefore = this.speakersOf(meetingId);
+      this.renameMeetingSpeaker(meetingId, speakerId, {
         label: name,
         kind: 'named',
       });
-      this.profiles = this.profiles.map((profile) =>
-        profile.id === profileId ? { ...profile, name } : profile,
-      );
+      const speakersAfter = this.speakersOf(meetingId);
+      this.pushUndo(meetingId, {
+        before: [],
+        after: [],
+        speakers: { before: speakersBefore, after: speakersAfter },
+      });
     },
     mergeSpeakers: (merge) => {
       if (merge.kind === 'profiles') {
@@ -1472,7 +1478,11 @@ export class MockBackend implements Backend {
     const edit = source.pop();
     if (edit) {
       target.push(edit);
-      if (direction === -1) this.applyEdit(meetingId, edit.after, edit.before);
+      const back = direction === -1;
+      if (edit.speakers) {
+        const speakers = back ? edit.speakers.before : edit.speakers.after;
+        this.changeSpeakers(meetingId, speakers, speakers);
+      } else if (back) this.applyEdit(meetingId, edit.after, edit.before);
       else this.applyEdit(meetingId, edit.before, edit.after);
     }
     return this.undoStateOf(meetingId);
