@@ -15,6 +15,7 @@
     "@scrb/app-core": "*",
     "@scrb/capture": "*",
     "@scrb/contracts": "*",
+    "@scrb/export": "*",
     "@scrb/storage": "*",
     "react": "19.3.1",
     "react-dom": "19.3.1",

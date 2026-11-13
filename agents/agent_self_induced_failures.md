@@ -1008,3 +1008,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Applying one regex to every match, and checking only that no bare `phase0/` remained, not whether each result read correctly; the lost ignore rule was found while fixing the findings.
 - **Impact:** Three review rounds on #125 (two REJECTs on these errors, a third on the files below); no behavior affected.
 - **Correction / remaining risk:** The command now extracts the CSV with `cmd /c git show`, the mixer note keeps the historical path, the build location names the new folder, and `native/windows-capture/tools/**/*.exe|*.obj` is ignored. Low.
+
+### A-316 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — small self-caught errors in the export handler task
+- **Status / attribution:** Confirmed agent errors, found by my own typecheck and test run; not application defects.
+- **What failed:** I ran `npx`/`npm` without the project's Node on `PATH` (command not found, so a formatting and typecheck step silently did not run once); my first HTML-scan test fixture contained `http://` text, which the scan then flagged although the package had escaped it; a test used track `'mic'` instead of `'microphone'`. I also did not read `get_usage` at task start.
+- **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
+- **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
+- **Correction / remaining risk:** All fixed before commit. Low.

@@ -20,6 +20,9 @@ import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { readLiveSetup } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
+import { createExportHandlers } from './export.ts';
+import { createDocxRenderer } from './export-worker.ts';
+import { printHtmlToPdf } from './export-print.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -171,6 +174,12 @@ export async function openBackend(
         ...playback.wrap(
           createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ),
+        ...createExportHandlers({
+          library,
+          emit,
+          print: printHtmlToPdf,
+          renderDocx: createDocxRenderer(path.join(__dirname, 'exportWorkerEntry.mjs')),
+        }),
         ...recording?.handlers,
       },
       warning: library.retainedIndexSnapshot
