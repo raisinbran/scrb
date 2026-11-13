@@ -8,7 +8,7 @@ Status: **Approved by the owner on 2026-10-30, with every recommendation accepte
 
 Date: 2026-10-30. Base commit: `4abe340`. Depends on `capture-contract-and-clock.md`, whose rules (D1 to D10), tests (T1 to T24) and decisions (C1 to C10) are used here.
 
-Sources: Gate 0 evidence, `phase0/HANDOFF-WINDOWS.md`, and the `windows-capture` branch (tip `cac61df`, cut from `3fc9931`).
+Sources: Gate 0 evidence, `phase0-archive:phase0/HANDOFF-WINDOWS.md`, and the `windows-capture` branch (tip `cac61df`, cut from `3fc9931`).
 
 ## In short
 

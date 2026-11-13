@@ -38,13 +38,13 @@ Step 1 is a tag push. Each later step is one small PR, with CI on both platforms
    - `scripts/run-muted.sh` → `native/macos-capture/scripts/`
    - `scripts/score_ami_wer.py`, `score_der.py`, `prepare_ami_summary.py` → `scripts/eval/`
    - `MANIFEST.md` pins and `THIRD_PARTY_NOTICES.md` → `third_party/`
-4. **Archive the rest.** Reuse the step 1 tag; do not create a new one. Point doc and evidence links into `phase0/` at that tag (a `blob/phase0-archive/phase0/...` URL), then remove `phase0/` from `main`, along with its ignore rules and config entries.
+4. **Archive the rest.** _(Done 2026-11-12. Amended: links in live docs and code now name the tag; hash-pinned gate documents, `native/*/results` evidence, the `agents/` register and `docs/handoffs/archive` keep their old `phase0/` wording, because editing them would change pinned hashes or rewrite history. The root `.gitignore`, `.prettierignore` and ESLint ignore keep a `phase0/` entry so the local leftovers cannot be committed; remove them after step 5.)_ Reuse the step 1 tag; do not create a new one. Point doc and evidence links into `phase0/` at that tag (a `blob/phase0-archive/phase0/...` URL), then remove `phase0/` from `main`, along with its ignore rules and config entries.
 5. **Untracked data.** Once step 2 has copied the assets and checked their hashes, the owner decides whether to delete `phase0/` on each machine or keep it there. The 5.8 GB of local artifacts stay put until they decide.
 
 ## Done when
 
 - The `phase0-archive` tag on `origin` points at a commit where every original `phase0/` path exists.
-- `git grep phase0` on `main` finds only links to the `phase0-archive` tag and this plan.
+- `git grep phase0` on `main` finds only links to the `phase0-archive` tag, this plan, the three ignore entries above, and the unedited evidence and register files listed in step 4.
 - `npm run check` and CI pass on macOS and Windows.
 - `native/macos-capture/tests/run.sh` passes on the Mac, and the Windows capture build plus one short `_case.mjs` run passes on one Windows PC. This is a short test, well under 20 minutes.
 - One dev launch on the Mac with the updated live config records a short clip with live text.
