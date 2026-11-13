@@ -30,7 +30,7 @@ CI runs 19 of the 20 unless it is set.  The build script is macOS and Linux only
 | Module | Job |
 | --- | --- |
 | `importFile.ts` | WAV, MP3, M4A, FLAC, Opus to 5 s mono 32 kbps Opus chunks and a 16 kHz WAV; progress, cancel, plain-language failures.  Builds in a hidden sibling folder and renames last, so failure leaves nothing.  Refuses to start during a recording and stops if one begins |
-| `finalPass.ts` | Silero VAD, large-v3-turbo-q5_0, `-mc 0`, then offline diarization relabel; one model at a time |
+| `finalPass.ts` | Silero VAD, large-v3-turbo-q5_0, `-mc 0` (`-mc 128` when a vocabulary hint is set; the hint is dropped at `-mc 0`; one meeting measured, see `docs/gates/vocab-mc-test-results-20261112.md`), then offline diarization relabel; one model at a time |
 | `livePass.ts` | Bounded per-track queue over saved chunks; skips and reports when behind; restarts whisper-server up to 3 times, then stops without touching the caller |
 | `speakers.ts` | Live clustering (join 0.5, "Speaker ?" until 30 s) and the final relabel |
 | `profiles.ts` | Voice matching: auto at 0.60, suggest from 0.45, no auto-naming from under 8 segments, one profile per speaker per meeting, no changes when building is off |

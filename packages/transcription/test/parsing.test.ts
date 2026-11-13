@@ -4,7 +4,7 @@ import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
 import { buildTurns, decideSpeakers } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
-import { parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
+import { HINTED_MAX_CONTEXT, parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
 import type { Word } from '../src/types.js';
 
 describe('whisper settings', () => {
@@ -15,9 +15,13 @@ describe('whisper settings', () => {
     expect(args).not.toContain('--carry-initial-prompt');
   });
 
-  it('carries a vocabulary hint across segments', () => {
+  it('carries a vocabulary hint across segments with a bounded text context', () => {
     const args = wholeFileArgs('a.wav', 'out', { model: 'm', vadModel: 'v', prompt: 'Scrb' });
     expect(args).toEqual(expect.arrayContaining(['--prompt', 'Scrb', '--carry-initial-prompt']));
+    expect(HINTED_MAX_CONTEXT).toBe(128);
+    expect(args[args.indexOf('-mc') + 1]).toBe('128');
+    expect(args.join(' ')).not.toContain('-mc 0');
+    expect(args.filter((x) => x === '-mc')).toHaveLength(1);
   });
 
   it('parses words and drops sound tags and special tokens', () => {
