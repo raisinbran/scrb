@@ -29,8 +29,30 @@ describe('createHybridBackend', () => {
 
   it('leaves other calls on the mock', async () => {
     const real = await realReturning();
-    await createHybridBackend(real, mock).call('getSetupStatus');
-    expect(real.call).not.toHaveBeenCalledWith('getSetupStatus', undefined);
+    await createHybridBackend(real, mock).call('checkModelUpdates');
+    expect(real.call).not.toHaveBeenCalledWith('checkModelUpdates', undefined);
+  });
+
+  it('asks the real backend for setup status, and the mock when the library did not open', async () => {
+    const real = {
+      call: vi.fn(async (name: string) => {
+        if (name === 'getSetupStatus') return { locationSet: true };
+        throw new ContractError({ code: 'notImplemented', message: 'No library.' });
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    expect(await createHybridBackend(real, mock).call('getSetupStatus')).toEqual({
+      locationSet: true,
+    });
+    const closed = {
+      call: vi.fn(async () => {
+        throw new ContractError({ code: 'notImplemented', message: 'No library.' });
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    expect(await createHybridBackend(closed, mock).call('getSetupStatus')).toEqual(
+      await mock.call('getSetupStatus'),
+    );
   });
 
   it('sends the vocabulary calls to the real backend, not the mock', async () => {
@@ -86,8 +108,7 @@ describe('createHybridBackend', () => {
 
   it('brings the mock up to date before any other call', async () => {
     const real = await realReturning();
-    const status = await createHybridBackend(real, mock).call('getSetupStatus');
-    expect(status.locationSet).toBe(true);
+    await createHybridBackend(real, mock).call('checkModelUpdates');
     expect((await mock.call('getSettings')).location.usState).toBe('IL');
   });
 
