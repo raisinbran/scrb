@@ -687,3 +687,10 @@
   min-width: 60px;
   accent-color: var(--color-accent);
 }
+
+.processing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
