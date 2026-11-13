@@ -86,6 +86,7 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'importFinished',
   'importFailed',
   'importCancelled',
+  'finalPassProgress',
 ]);
 
 /**

@@ -22,6 +22,7 @@ import type {
   ImportFailed,
   ImportFinished,
   ImportId,
+  FinalPassProgress,
   ImportProgress,
   InputDevice,
   LevelMeter,
@@ -243,6 +244,9 @@ export interface BackendEvents {
   /** @addition */
   importCancelled: ImportCancelled;
 
+  /** @addition */
+  finalPassProgress: FinalPassProgress;
+
   // Devices
   deviceChanged: DeviceChange;
   levelMeter: LevelMeter;
@@ -401,6 +405,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   importFinished: true,
   importFailed: true,
   importCancelled: true,
+  finalPassProgress: true,
   deviceChanged: true,
   levelMeter: true,
   audioCheck: true,

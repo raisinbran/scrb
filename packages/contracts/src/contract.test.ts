@@ -46,6 +46,7 @@ const SPEC_EVENTS = [
   'importProgress',
   'importFinished',
   'importFailed',
+  'finalPassProgress',
   'deviceChanged',
   'levelMeter',
   'transcriptChanged',

@@ -89,6 +89,7 @@ export async function openBackend(
             modelGate,
             undefined,
             (before, after) => publishEdit(before, after, emit),
+            (report) => emit('finalPassProgress', report),
           )
         : null;
     const liveConfig = packaged

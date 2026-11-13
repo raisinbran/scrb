@@ -19,6 +19,7 @@ import {
   type ImportResult,
   type Progress,
   type ImportPhase,
+  type FinalPhase,
   type ModelPaths,
   type ToolPaths,
   type TrackInput,
@@ -60,7 +61,35 @@ export type RunFinalPass = (input: {
   signal: AbortSignal;
   vocabularyHint?: string;
   onEmbeddingModel?: (path: string) => void;
+  onProgress?: (progress: Progress<FinalPhase>) => void;
 }) => Promise<FinalTranscript>;
+
+/** Progress of one meeting's pass, as the queue reports it. */
+export interface FinalPassReport {
+  meetingId: string;
+  stage: 'queued' | 'transcribing' | 'diarizing' | 'finishing';
+  /** 0 to 1 across the whole pass; never decreases within one pass. */
+  fraction: number;
+  startedAt: string;
+}
+
+/** Share of the pass each phase takes, from the 13-minute owner run: transcription dominates. */
+const PHASE_SPAN: Record<FinalPhase, readonly [FinalPassReport['stage'], number, number]> = {
+  assembling: ['transcribing', 0, 0.05],
+  transcribing: ['transcribing', 0.05, 0.8],
+  diarizing: ['diarizing', 0.8, 0.97],
+  done: ['finishing', 0.97, 0.97],
+};
+
+/** Maps a phase and its own 0..1 fraction to a stage and a fraction of the whole pass. */
+export function overallProgress(
+  phase: FinalPhase,
+  fraction: number,
+): { stage: FinalPassReport['stage']; fraction: number } {
+  const [stage, from, to] = PHASE_SPAN[phase];
+  const within = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0));
+  return { stage, fraction: from + (to - from) * within };
+}
 
 /** Tracks with audio, in the form the final pass reads. Throws on a damaged `chunks.json`. */
 export function sealedTracks(audioDir: string): TrackInput[] {
@@ -173,7 +202,7 @@ export function createConfiguredImportRunner(configPath: string) {
  * read for each meeting, so a missing tool fails that meeting and not the app.
  */
 export function createFinalPassRunner(configPath: string): RunFinalPass {
-  return async ({ tracks, workDir, signal, vocabularyHint: hint, onEmbeddingModel }) => {
+  return async ({ tracks, workDir, signal, vocabularyHint: hint, onEmbeddingModel, onProgress }) => {
     const { tools, models } = await loadSetup(configPath);
     onEmbeddingModel?.(models.embedding);
     return runFinalPass({
@@ -183,6 +212,7 @@ export function createFinalPassRunner(configPath: string): RunFinalPass {
       workDir,
       signal,
       ...(hint ? { vocabularyHint: hint } : {}),
+      ...(onProgress ? { onProgress } : {}),
     });
   };
 }
@@ -204,6 +234,7 @@ export class FinalPassQueue {
     private readonly modelGate?: LargeModelGate,
     private readonly startMatching = startProfileMatching,
     private readonly onProfileAssignment?: (before: TranscriptFile, after: TranscriptFile) => void,
+    private readonly onProgress?: (report: FinalPassReport) => void,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -242,7 +273,20 @@ export class FinalPassQueue {
     }
     let transcript: FinalTranscript | undefined;
     let modelPath: string | undefined;
+    const startedAt = new Date().toISOString();
+    let reporting = true;
+    let last = 0;
+    const report = (stage: FinalPassReport['stage'], fraction: number): void => {
+      if (!reporting || this.abort.signal.aborted || !this.onProgress) return;
+      last = Math.max(last, Math.min(1, fraction));
+      try {
+        this.onProgress({ meetingId, stage, fraction: last, startedAt });
+      } catch {
+        // Progress is advisory; a failing listener must not fail the pass.
+      }
+    };
     try {
+      report('queued', 0);
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
       if (tracks.length > 0) {
         const job = () =>
@@ -254,6 +298,10 @@ export class FinalPassQueue {
             onEmbeddingModel: (path) => {
               modelPath = path;
             },
+            onProgress: ({ phase, fraction }) => {
+              const next = overallProgress(phase, fraction);
+              report(next.stage, next.fraction);
+            },
           });
         transcript = this.modelGate
           ? await this.modelGate.run(job, this.abort.signal)
@@ -263,6 +311,7 @@ export class FinalPassQueue {
       }
       this.abort.signal.throwIfAborted();
       await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
+      report('finishing', 1);
       if (transcript && matching) {
         let edit: ProfileAssignmentEdit | undefined;
         try {
@@ -281,9 +330,11 @@ export class FinalPassQueue {
         }
       }
     } catch (error) {
+      reporting = false;
       if (this.abort.signal.aborted) return;
       await this.fail(meetingId, error);
     } finally {
+      reporting = false;
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
