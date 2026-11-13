@@ -6,6 +6,7 @@ with the chunks on disk, so a silent failure shows at once. A stream that stops 
 Usage: long_run.py <helper> <work dir> <seconds> <pause every seconds> <pause length seconds>
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
+from tone import play_tone
 
 helper, work, seconds, every, length = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:6])
 os.makedirs(work, exist_ok=True)
@@ -19,7 +20,7 @@ with wave.open(tone + ".wav", "wb") as w:
 subprocess.run(["afconvert", "-f", "m4af", "-d", "aac", tone + ".wav", tone + ".m4a"], check=True)
 os.remove(tone + ".wav")
 
-player = subprocess.Popen(["afplay", tone + ".m4a"])
+player = play_tone(tone + ".m4a")
 time.sleep(2)
 worker = subprocess.Popen(["caffeinate", "-i", helper], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 events = open(os.path.join(work, "events.jsonl"), "a")
