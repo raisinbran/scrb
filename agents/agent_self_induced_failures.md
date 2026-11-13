@@ -1118,3 +1118,9 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** (1) The 72 px mini height was the outer window, so macOS title-bar chrome could clip the rows (review-found; fixed with `useContentSize: true`); (2) I again chained commit and push after `npm run check` and `test:smoke` without reading the result, and the first smoke run had one failed playback e2e (no change in the mini window; a single rerun passed 11/11, cause not diagnosed, likely a flaky timing test).
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
+
+### A-331 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
+- **Status / attribution:** Confirmed agent errors; no application defect.
+- **What failed:** (1) I did not read `get_usage` before starting, against the measure-at-start rule. (2) My first "no location" test reused the library saved by the previous case in the same temp directory, so it failed for a fixture reason, not a code one.
+- **Impact:** Start-of-task allowance is unavailable; one extra `npm run check` run.
+- **Correction / remaining risk:** Test order fixed. Also noted: `@scrb/summary` worker test fails in a fresh worktree because `packages/summary/dist` is not built (environment, not this change). Low.
