@@ -1,4 +1,12 @@
-import { app, BrowserWindow, dialog, screen, shell, systemPreferences, type IpcMainInvokeEvent } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  screen,
+  shell,
+  systemPreferences,
+  type IpcMainInvokeEvent,
+} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
@@ -95,7 +103,8 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     show: false,
     webPreferences: secureWebPreferences(__dirname),
   });
-  miniWindows.add(mini);  mini.setAlwaysOnTop(true, 'floating');
+  miniWindows.add(mini);
+  mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
   mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.()));
