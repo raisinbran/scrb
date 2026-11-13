@@ -13,10 +13,10 @@
 | `userData` pin | `pinUserData` already uses `app.getPath('appData')`, so on Windows it resolves to `%APPDATA%\@scrb\desktop` (unverified) | check on a PC with an old dev build (§5) |
 | Models | same five files, same digests | installer script in PowerShell/Node (the Mac one is bash with `shasum`, `tar -xj`) |
 | Security rules | unchanged | none |
-| Tools | same seven names | all seven must be obtained or built for Windows and their DLLs staged (§4) |
+| Tools | same seven names | all seven must be obtained or built for Windows and their DLLs staged (§4): six in slice 2, `scrb-capture.exe` in slice 3 |
 | Capture | helper protocol, `ProcessAdapter` | `native/windows-capture` (C++, WASAPI) instead of Swift |
 | Signing | n/a | none or self-signed (§3) |
-| Bundle check | `stage-mac-tools.mjs` (fails on any library outside bundle/system) | `stage-win-tools.mjs` stages `build\win-stage\bin`; and a post-package check (see slice 2) that `win-unpacked\resources\bin` holds the seven `.exe` plus every DLL, run on the packaged output, not only the stage folder |
+| Bundle check | `stage-mac-tools.mjs` (fails on any library outside bundle/system) | `stage-win-tools.mjs` stages `build\win-stage\bin`; and a post-package check on `win-unpacked\resources\bin` for every `.exe` staged so far plus every DLL: the six non-capture tools in slice 2, all seven once `scrb-capture.exe` joins in slice 3, run on the packaged output, not only the stage folder |
 | Tests | `apps/desktop/e2e/packaged.spec.ts` (mac executable path in its comment only) | run it against `Scribe.exe`; Windows CI already runs `npm run check`-equivalent steps |
 
 ## 2. What exists for Windows today
