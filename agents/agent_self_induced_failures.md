@@ -432,6 +432,8 @@ Session labels are file-local: `review-usage-logging.md:S-01` below abbreviates 
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
 
+**Parallel sessions:** before choosing an ID, run `git fetch` and take the highest `A-` number across `origin/main` and every open PR branch, plus one. If two PRs still collide at merge time, the PR that merges second renumbers only its own entries (and any references to them); never renumber an entry already on `main`.
+
 ```markdown
 ### A-NNN — YYYY-MM-DD — Agent / environment
 - **Status / attribution:** Confirmed | Provisional; agent/test tooling vs application vs unknown
@@ -985,3 +987,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I wrote the command without reading the script's argument handling.
 - **Impact:** One failed run and one rerun on BCHEN-W10 (about a minute); no results affected.
 - **Correction / remaining risk:** Codex reran with a fresh temporary directory and the case passed. Rule: read a script's argument handling before putting its command in a prompt. Low.
+
+### A-313 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — told the owner to merge PR #112 after it had already merged
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect.
+- **What failed:** After the Codex branch was merged into PR #112, I answered "nothing outstanding, merge it" without re-reading the PR's state. The owner had already merged it at 13:30 PT (7ad8833) and asked "112 is already merged though?".
+- **Agent-controlled cause:** Relied on remembered PR state instead of running `get_status` first.
+- **Impact:** One wrong instruction and one owner clarification turn; no code affected.
+- **Correction / remaining risk:** Verified the merge contains baea921 and d895a66. Rule: read PR state before telling the owner to merge. Low.
