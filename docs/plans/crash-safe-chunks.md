@@ -7,10 +7,10 @@ Status: **Approved by the owner on 2026-10-30, with every recommendation accepte
 Date: 2026-10-30. Starts from commit `4abe340`.
 
 Depends on the capture contract and session clock plan, which is not written yet. This plan uses
-`phase0/design/capture-contract-draft.md` as its base. If that plan changes the chunk rules, this
+`phase0-archive:phase0/design/capture-contract-draft.md` as its base. If that plan changes the chunk rules, this
 one is updated.
 
-Sources: Development Plan v2.0, V1 Requirements v1.2, `phase0/evidence/gate-0.md`, the capture
+Sources: Development Plan v2.0, V1 Requirements v1.2, `phase0-archive:phase0/evidence/gate-0.md`, the capture
 draft, `packages/storage`, `packages/transcription`, and the owner decisions of 2026-10-30.
 
 ## In short

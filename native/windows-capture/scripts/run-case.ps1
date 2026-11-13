@@ -1,4 +1,4 @@
-# Derived from phase0/scripts/run-windows-device-case.ps1, which hardcodes
+# Derived from phase0-archive:phase0/scripts/run-windows-device-case.ps1, which hardcodes
 # DualCapture: same tone target and output mute, driving scrb-capture instead.
 # -Script holds "<seconds>=<json command>" entries, sent at that time after start.
 # A command of "kill" force-kills the helper; "killtone" ends the target app;

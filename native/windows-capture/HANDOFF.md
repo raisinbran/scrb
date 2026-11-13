@@ -38,7 +38,7 @@ Remaining for this phase: nothing on this PC.  Still needed elsewhere:
 3. T23 and T24 pass after fixes (README findings 14 and 15).  Meeting audio in a
    stall is still lost, now marked; T24 still needs a real device change once a
    second device is here.
-4. Updates to `phase0/design/capture-contract-draft.md` from the README findings:
+4. Updates to `phase0-archive:phase0/design/capture-contract-draft.md` from the README findings:
    F11, D2 and T3, Q10, and the new process loopback silent death.  These do not
    touch `packages/contracts/`.
 
@@ -48,5 +48,5 @@ in the Volume Mixer here, so set `SCRB_TONE` to a copy elsewhere (README, "Worke
 restart").  Run
 `build.cmd` by absolute path from PowerShell (through Bash it
 silently does nothing).  `Mute.exe` and `TonePlayer.exe` are built in
-`phase0/probes` and ignored by git.  Use the Write tool for source files.  Hand-run
+`native/windows-capture/tools/windows-mute` and `.../windows-tone-player` and ignored by git.  Use the Write tool for source files.  Hand-run
 cases pass `-Actions` to `scripts/run-case.ps1`, which opens the countdown.
