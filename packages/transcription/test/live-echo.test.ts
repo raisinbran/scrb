@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { LiveEchoFilter, type TimedLiveSegment } from '../src/index.js';
 
-function seg(track: 'mic' | 'meeting', id: string, startMs: number, text: string): TimedLiveSegment {
+function seg(
+  track: 'mic' | 'meeting',
+  id: string,
+  startMs: number,
+  text: string,
+): TimedLiveSegment {
   const words = text.split(' ').map((t, i) => ({
     text: t,
     startMs: startMs + i * 300,
