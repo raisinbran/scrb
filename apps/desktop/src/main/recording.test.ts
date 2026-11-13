@@ -15,6 +15,7 @@ const fake = vi.hoisted(() => ({
   sessions: [] as {
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
     launchWorker(): void;
+    trackMissing(track: 'microphone' | 'meeting'): void;
     state(status: 'recording' | 'paused', atNs: number | null): void;
   }[],
   workerEvents: [] as ((event: unknown) => void)[],
@@ -33,6 +34,7 @@ vi.mock('@scrb/app-core', async (importOriginal) => ({
         launch: () => unknown;
         onStateChanged: (status: 'recording' | 'paused', reason: null, atNs: number | null) => void;
         onEnded: (reason: 'stopped' | 'pauseFailed' | 'workerFailed') => void;
+        onTrackMissing: (track: 'microphone' | 'meeting') => void;
       },
     ) {
       fake.sessions.push(this);
@@ -45,6 +47,10 @@ vi.mock('@scrb/app-core', async (importOriginal) => ({
     async start(): Promise<void> {
       this.options.launch();
       this.options.onStateChanged('recording', null, null);
+    }
+
+    trackMissing(track: 'microphone' | 'meeting'): void {
+      this.options.onTrackMissing(track);
     }
 
     state(status: 'recording' | 'paused', atNs: number | null): void {
@@ -358,7 +364,7 @@ describe('Start while the previous recording is finishing', () => {
     await controller.shutdown();
   });
 
-  it('warns once per loss of access until it returns', async () => {
+  it('keeps one warning per lost track and clears it when access returns', async () => {
     const emit = vi.fn();
     const controller = new RecordingController(
       libraryStub() as unknown as Library,
@@ -371,20 +377,80 @@ describe('Start while the previous recording is finishing', () => {
     );
     await controller.handlers.startRecording!({});
     const send = fake.workerEvents[0]!;
+    const last = () =>
+      emit.mock.calls.filter(([name]) => name === 'recordingHealth').at(-1)?.[1] as {
+        level: string;
+        warnings: { kind: string; track?: string }[];
+      };
     send({ type: 'permissionLost', track: 'microphone' });
     send({ type: 'permissionLost', track: 'microphone' });
-    send({ type: 'permissionRestored', track: 'microphone' });
-    send({ type: 'permissionLost', track: 'microphone' });
+    expect(last().warnings).toHaveLength(1);
+    expect(last().level).toBe('warning');
 
-    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
-    expect(health).toHaveLength(2);
-    expect(health.at(-1)?.[1]).toMatchObject({
-      level: 'warning',
-      warnings: [
-        { kind: 'permissionLost', track: 'microphone' },
-        { kind: 'permissionLost', track: 'microphone' },
-      ],
+    // A reopen while blocked must not clear it.
+    send({ type: 'streamReopened', track: 'microphone' });
+    expect(last().warnings).toHaveLength(1);
+
+    send({ type: 'permissionRestored', track: 'microphone' });
+    expect(last()).toMatchObject({ level: 'ok', warnings: [] });
+
+    send({ type: 'permissionLost', track: 'microphone' });
+    expect(last().warnings).toMatchObject([{ kind: 'permissionLost', track: 'microphone' }]);
+    await controller.shutdown();
+  });
+
+  it('clears the missing-microphone start warning when the microphone reopens', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    const last = () =>
+      emit.mock.calls.filter(([name]) => name === 'recordingHealth').at(-1)?.[1] as {
+        level: string;
+        warnings: { kind: string; track?: string; message: string }[];
+      };
+    send({ type: 'writeError', track: 'meeting' });
+    fake.sessions[0]!.trackMissing('microphone');
+    expect(last().warnings).toHaveLength(2);
+    send({ type: 'streamReopened', track: 'microphone' });
+    expect(last().warnings).toMatchObject([{ kind: 'audioMissing', track: 'meeting' }]);
+    expect(last().warnings).toHaveLength(1);
+    expect(last().level).toBe('failed');
+    await controller.shutdown();
+  });
+
+  it('clears only the recovered warning and keeps unrelated ones', async () => {
+    const emit = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      {
+        read: () => ({ meetingAppId: 'whole-computer', micDeviceId: null }),
+        save: vi.fn(),
+      },
+    );
+    await controller.handlers.startRecording!({});
+    const send = fake.workerEvents[0]!;
+    send({ type: 'writeError', track: 'meeting' });
+    send({ type: 'permissionLost', track: 'microphone' });
+    send({ type: 'streamDead', track: 'microphone', message: 'x' });
+    send({ type: 'permissionRestored', track: 'microphone' });
+    send({ type: 'streamReopened', track: 'microphone' });
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth').at(-1)?.[1];
+    expect(health).toMatchObject({
+      level: 'failed',
+      warnings: [{ kind: 'audioMissing', track: 'meeting' }],
     });
+    expect(health.warnings).toHaveLength(1);
     await controller.shutdown();
   });
 
@@ -469,7 +535,7 @@ describe('Start while the previous recording is finishing', () => {
     await controller.shutdown();
   });
 
-  it('warns once while a stream stays dead, and again if it dies after reopening', async () => {
+  it('warns once while a stream stays dead, clears on reopen, and warns again if it dies after', async () => {
     const emit = vi.fn();
     const controller = new RecordingController(
       libraryStub() as unknown as Library,
@@ -488,14 +554,13 @@ describe('Start while the previous recording is finishing', () => {
     send({ type: 'serviceRestarted', track: 'meeting' });
 
     const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
-    expect(health).toHaveLength(2);
+    // Dead (one warning), reopened (cleared), dead again (one warning).
+    expect(health).toHaveLength(3);
     expect(health.at(-1)?.[1]).toMatchObject({
       level: 'warning',
-      warnings: [
-        { kind: 'audioMissing', track: 'meeting' },
-        { kind: 'audioMissing', track: 'meeting' },
-      ],
+      warnings: [{ kind: 'audioMissing', track: 'meeting' }],
     });
+    expect(health.at(-1)?.[1].warnings).toHaveLength(1);
     await controller.shutdown();
   });
 });
