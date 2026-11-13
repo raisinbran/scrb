@@ -1160,3 +1160,9 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
 - **Impact:** The usage row has an end reading only; no consumption figure.
 - **Correction / remaining risk:** Logged as unavailable. Low.
+
+### A-339 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — voice-profile growth plan: usage not read at task start
+- **Status / attribution:** Confirmed agent error; no application defect.
+- **What failed:** I did not call `get_usage` before starting, against the measure-at-start rule, and only read it after most of the code reading.
+- **Impact:** Start-of-task allowance is unavailable; the usage row has end values only. The weekly allowance was already at 98% used when read.
+- **Correction / remaining risk:** Logged as unavailable. Low.
