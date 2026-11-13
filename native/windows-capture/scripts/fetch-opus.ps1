@@ -1,4 +1,4 @@
-# Fetches libopus at the commit pinned in phase0/MANIFEST.md and builds it static.
+# Fetches libopus at the commit pinned in third_party/MANIFEST.md and builds it static.
 $ErrorActionPreference = 'Stop'
 $commit = '251d657e92fccfa3b05baec4f05756cce252fb75'
 $root = Split-Path $PSScriptRoot -Parent

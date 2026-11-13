@@ -48,7 +48,7 @@ const models: ModelPaths = {
 };
 const ami = join(assets, 'downloads/ami');
 const source = join(ami, `${meeting}.Mix-Headset.wav`);
-const scripts = join(here, '../../../phase0/scripts');
+const scripts = join(here, '../../../scripts/eval');
 const work = join(workRoot, meeting);
 await mkdir(work, { recursive: true });
 

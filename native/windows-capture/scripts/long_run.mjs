@@ -34,8 +34,8 @@ const root = resolve(dirname(script), '..');
 const repo = resolve(root, '..', '..');
 const helper = join(root, 'build', 'bin', 'scrb-capture.exe');
 const verify = join(root, 'build', 'bin', 'ChunkVerify.exe');
-const mute = join(repo, 'phase0', 'probes', 'windows-mute', 'Mute.exe');
-const tone = join(repo, 'phase0', 'probes', 'windows-tone-player', 'TonePlayer.exe');
+const mute = join(repo, 'native', 'windows-capture', 'tools', 'windows-mute', 'Mute.exe');
+const tone = join(repo, 'native', 'windows-capture', 'tools', 'windows-tone-player', 'TonePlayer.exe');
 const TRACKS = ['microphone', 'meeting'];
 const PACKET_MS = 10; // owner decision: a chunk may end one packet past the cutoff
 
