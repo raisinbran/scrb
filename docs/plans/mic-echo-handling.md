@@ -22,14 +22,15 @@ The mic path moves from the raw HAL IO proc to an audio unit with voice processi
 
 What it needs in `native/macos-capture`:
 
-- A new mic stream class beside `MicStream` that renders the voice-processing unit into the same `RtRing` (`rt_capture` takes an `AudioBufferList` and a host time, so the ring and everything after it stay as they are). Chosen by an `echoCancellation` field on the helper's `open` command; `packages/capture/src/index.ts` (the command types) and `apps/desktop/src/main/recording.ts` pass it from the stored setting. No change to `packages/contracts/` (the setting already exists), no change to the Electron settings or the IPC channel names.
+- A new mic stream class beside `MicStream` that runs the voice-processing unit and feeds the same `RtRing`. The ring is **not** a drop-in: `rt_capture` (`rt.h`) reads only the first non-empty buffer, treats it as interleaved Float32, takes the sample rate from `ring->rate` (set once at open from the device's nominal rate) and uses the host time passed in. The new stream must therefore negotiate the unit's output format explicitly (Float32, interleaved, mono or stereo, a known rate), convert if the unit delivers anything else, set `ring->rate` from the format actually delivered (and again if it changes), and pass a valid host time from the render callback's timestamp. A native format and timing regression is a precondition for reuse (see test plan).
+- Chosen by an `echoCancellation` field on the helper's `open` command; `packages/capture/src/index.ts` (the command types) and `apps/desktop/src/main/recording.ts` pass it from the stored setting. No change to `packages/contracts/` (the setting already exists), no change to the Electron settings or the IPC channel names.
 - The existing rebuild, device-change and stall logic (`rebuild`, `faultStop`, zero-packet check) has to work with the new stream; `bypassSystemInputProcessing` ("Studio" preset) keeps the raw path.
 
 Risks to check in a spike (these are the facts I could not confirm without hardware):
 
 1. Voice processing can change the input device format and rate, and can disturb other streams on the same hardware. The tap's aggregate is clocked from the built-in speaker (`tapClockDevice`), so the meeting track could glitch or change rate when the unit starts. This is the main unknown.
 2. It also applies noise suppression and gain control. There are properties to bypass or limit them (for example `kAUVoiceIOProperty_BypassVoiceProcessing`, `kAUVoiceIOProperty_VoiceProcessingEnableAGC`), but whether they can be set per feature on the owner's macOS version must be tested. Fidelity of the user's voice for whisper is the acceptance question.
-3. It ducks other audio output by default (the remote speakers would get quieter for the user). Newer macOS has a ducking-configuration property; must be set to the minimum.
+3. **Ducking is a hard stop, not a risk to tune.** Voice processing ducks other audio output by default, and the V1 requirements say the app must never lower other apps' volume (`dev-plan/Meeting Scribe - V1 Requirements v1.2.md`, the global attenuation exclusion). `echoCancellation` defaults to on, so any ducking would reach every user. Acceptance condition: **zero output attenuation** with echo cancellation on, using the ducking-configuration property (newer macOS) or whatever disables it on the owner's macOS version. If it cannot be fully disabled on a supported macOS version, option A is not shipped for that version and the raw mic path stays (with `dropRoomEcho` / option C as the remedy).
 4. Added latency and a possible fixed offset between the mic and meeting tracks. Transcript timing across the two tracks and the existing clock evidence (`native/macos-capture/spikes/HandsFreeClock.swift`) must be re-checked.
 5. Bluetooth hands-free microphones already run in a voice mode; behaviour there is unchanged by this option but must be included in the matrix.
 
@@ -57,7 +58,7 @@ Keep the text-matching rule and add an audio test: for each mic word, compare th
 
 ## Recommendation
 
-1. **Do A first, as a time-boxed spike (about 2 days), behind the existing `echoCancellation` setting.** It is the only option that fixes the live pass, uses no new dependency, and makes an existing, currently inert setting true. Stop and report if risk 1 (meeting-track disturbance) or risk 2 (voice fidelity) cannot be controlled; the helper's existing raw path stays as the default fallback.
+1. **Do A first, as a time-boxed spike (about 2 days), behind the existing `echoCancellation` setting.** It is the only option that fixes the live pass, uses no new dependency, and makes an existing, currently inert setting true. Stop and report if risk 1 (meeting-track disturbance), risk 2 (voice fidelity), the zero-attenuation condition in risk 3, or the format and timing regression cannot be met; the helper's existing raw path stays as the default fallback.
 2. Keep `dropRoomEcho` as it is (it already ships and is the safety net for headsets-off or Bluetooth cases).
 3. If the spike fails, do C before B: it is smaller, and B1 only if C's measured miss rate is too high.
 
@@ -73,8 +74,12 @@ All speech is invented or AMI; never the owner's recordings. Each item states th
 2. **Spike for A, on the Mac, 10 minutes or less per run, quiet room, volume at a fixed level.**
    - Far-end only: play an AMI clip through the built-in speakers and record with the helper in four modes (voice processing off; on with default; on with bypassed noise suppression and gain; headset). Score each: echo reduction in dB against mode 1; whisper words on the mic track that match the meeting track (reuse the `dropRoomEcho` matcher as the counter); WER of the meeting track against the AMI reference (the meeting track must not get worse).
    - Near-end: play a second invented or AMI voice from a separate small speaker at the mic while the first plays through the laptop; score the second voice's word recall on the mic track with processing off and on (accuracy must not fall by more than 3 points).
-   - Meeting-track health: compare the meeting track's rate, chunk gaps and the existing `health` events with processing off and on; any rate change or gap is a fail for that mode.
-   - Timing: cross-correlate the two tracks with a click played through the speakers, off versus on; report the offset change in ms.
+   - Output level (ducking): play a fixed-level test tone or AMI clip through the speakers and measure the played level at a reference point (the meeting-track tap, plus a measurement microphone or the system output meter if available) with echo cancellation off, then on, then on while the helper starts and stops. Pass: no attenuation beyond measurement noise (target at most 0.5 dB); any attenuation fails the option.
+
+- Format and timing regression (native test, runs on and off): log the delivered buffer count, channels, interleaving, sample rate and host times; assert a mono or stereo interleaved Float32 stream, `ring->rate` equal to the delivered rate, monotonic host times with no gaps larger than a buffer, and that a 10 s tone recorded with echo cancellation on has the right duration and pitch (rate error under 0.1%) and the same chunk output format as the raw path.
+- Meeting-track health: compare the meeting track's rate, chunk gaps and the existing `health` events with processing off and on; any rate change or gap is a fail for that mode.
+  - Timing: cross-correlate the two tracks with a click played through the speakers, off versus on; report the offset change in ms.
+
 3. **Real-app smoke:** `npm run check` and `npm run test:smoke` unchanged; the helper's existing tests under `native/macos-capture/tests/` (`run.sh`) with the new stream on and off.
 4. **Owner check (optional, 5 minutes, after the above pass):** the owner reads fixed invented sentences while an AMI clip plays through the speakers; transcript shows no duplicated words and the owner's words intact.
 
