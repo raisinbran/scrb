@@ -7,10 +7,13 @@ rust-version = "1.89"
 publish = false
 
 [dependencies]
+claxon = "=0.4.3"
 clap = { version = "=4.6.7", features = ["derive"] }
+hound = "=3.5.1"
 jiff = "=0.2.43"
+regex = "=1.13.1"
+rubato = "=5.0.1"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
-
-[dev-dependencies]
+shell-words = "=1.1.1"
 tempfile = "=3.27.0"

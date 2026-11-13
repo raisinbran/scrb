@@ -19,9 +19,23 @@ run_step() {
   steps+=("{\"name\":\"$name\",\"ok\":$ok}")
 }
 
+# Transcribes the test clip with the fake engine and checks that the
+# transcript has two speakers.
+transcribe_clip() {
+  local scratch library
+  scratch=$(mktemp -d)
+  library=$(mktemp -d)
+  cargo build --locked -q &&
+    SCRB_ENGINE="target/debug/scrb dev fake-engine --ref crates/scrb/tests/data/two-speakers.ref.json" \
+      target/debug/scrb transcribe crates/scrb/tests/data/two-speakers.wav \
+      --library "$library" --out "$scratch/out.json" | tail -n1 | jq -e .ok &&
+    jq -e '.speakers|length==2' "$scratch/out.json"
+}
+
 run_step fmt cargo fmt --all -- --check
 run_step clippy cargo clippy --workspace --all-targets --locked -- -D warnings
 run_step test cargo test --workspace --locked
+run_step transcribe transcribe_clip
 
 joined=$(IFS=,; echo "${steps[*]}")
 echo "{\"ok\":$all_ok,\"steps\":[$joined]}"
