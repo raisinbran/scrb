@@ -31,8 +31,8 @@ function createMainWindow(
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 1024,
-    minHeight: 640,
+    minWidth: 800,
+    minHeight: 560,
     show: false,
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
