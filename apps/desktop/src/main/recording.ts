@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { RecordingSession, lateStartNsFor, sealAudio, type FinalPassQueue, type SessionEnd } from '@scrb/app-core';
+import {
+  RecordingSession,
+  lateStartNsFor,
+  sealAudio,
+  type FinalPassQueue,
+  type SessionEnd,
+} from '@scrb/app-core';
 import { ProcessAdapter, type Track } from '@scrb/capture';
 import {
   ContractError,
