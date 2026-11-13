@@ -90,14 +90,12 @@ describe('component styles', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('hides the focus ring only on code-focused headings and dialog panels', () => {
+  it('hides the focus ring only on code-focused headings', () => {
     const rule = /([^{}]*:focus-visible)\s*\{\s*outline:\s*none;\s*\}/g;
     const selectors = [...tokensCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(rule)].map((m) =>
       m[1]?.replace(/\s+/g, ' ').trim(),
     );
-    expect(selectors).toEqual([
-      "h1[tabindex='-1']:focus-visible, [role='dialog'][tabindex='-1']:focus-visible",
-    ]);
+    expect(selectors).toEqual(["h1[tabindex='-1']:focus-visible"]);
     // The general ring stays for every real control, including tabs that use tabindex -1.
     expect(tokensCss).toMatch(/:focus-visible\s*\{\s*outline:\s*2px solid var\(--color-focus\)/);
   });
