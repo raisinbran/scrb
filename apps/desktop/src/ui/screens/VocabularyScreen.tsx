@@ -143,7 +143,7 @@ function UsageNote({ terms }: { terms: VocabularyTerm[] }) {
   const enabled = terms.filter((term) => term.enabled).length;
   return (
     <p className={styles.note}>
-      <strong>{enabled} enabled, about 40 used.</strong> Only the most recently updated enabled
+      <strong>{enabled} enabled, up to 40 used.</strong> Only the most recently updated enabled
       terms (about 40, and at most 512 characters) are used for transcription. Disabling terms you
       do not need frees room.
     </p>

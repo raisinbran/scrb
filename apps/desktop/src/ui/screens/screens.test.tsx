@@ -151,7 +151,7 @@ describe('screens', () => {
       renderScreen(backend, <VocabularyScreen />);
       const terms = await backend.call('listTerms');
       const enabled = terms.filter((term) => term.enabled).length;
-      expect(await screen.findByText(`${enabled} enabled, about 40 used.`)).toBeTruthy();
+      expect(await screen.findByText(`${enabled} enabled, up to 40 used.`)).toBeTruthy();
       expect(screen.getByText(/at most 512 characters/)).toBeTruthy();
       expect(screen.getByText(/Disabling terms you do not need frees room/)).toBeTruthy();
     });
