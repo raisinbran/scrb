@@ -34,6 +34,6 @@ This guidance selects a Claude model **when Claude Code is assigned the work**. 
 
 ## Measure results before changing defaults
 
-Record model and effort for each phase (plan, execution, review), retries, final acceptance, both quota bars and reset times, known overlapping use, and any observed model/effort/session transfer or cache miss in [the tracker](agent_task_allocation.md). Include project-related Claude chat planning/review: it may affect the same quota as Claude Code. Use one short phase breakdown only for hybrid work; link to existing PRs/handoffs for details.
+Record model and effort for each phase (plan, execution, review), retries, final acceptance, both quota bars and reset times, known overlapping use, and any observed model/effort/session transfer or cache miss in [the usage log](usage-log.md) (policy: [agent_task_allocation.md](agent_task_allocation.md)). Include project-related Claude chat planning/review: it may affect the same quota as Claude Code. Use one short phase breakdown only for hybrid work; link to existing PRs/handoffs for details.
 
 Compare naturally occurring, similarly scoped tasks by **observed quota change per accepted task**, including failed attempts, planning, QA and rework, plus elapsed time and acceptance quality. Rounded readings, reset windows, and concurrent sessions make individual task costs uncertain. Do not sum overlapping account-level deltas, invent an exact quota multiplier, or run duplicate implementations just to collect data.

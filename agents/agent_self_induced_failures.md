@@ -1119,9 +1119,29 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
 
-### A-331 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
+### A-331 — 2026-11-13 — Claude Code / Mac — first `npm run check` run without building `packages/summary`
+- **What failed:** I ran `npm run check` before building `packages/summary`, so one summary worker test failed on a missing `dist`; the task brief had said to build it first if needed. I also ran `cd agents` in a persistent shell called a tool with the wrong name, and overwrote the existing `.gitattributes` (a fixtures `-text` rule) with `>` before reading it; caught in the staged diff and restored.
+- **Impact:** One wasted check run (about 30 s); no code defect.
+- **Correction / remaining risk:** Built the package and reran: check and smoke pass. None.
+
+### A-332 — 2026-11-13 — Claude Code / Mac — PR #154 pushed with a prettier failure and an over-broad A-104 exemption
+- **What failed:** I pushed without running prettier on `vitest.config.ts` (CI failed on both platforms), and my first duplicate check allowlisted A-104 for any number of occurrences and the usage-log rows had no integrity check, so a union merge could combine edited rows silently (review-found). I also ran prettier over the markdown files, which reformatted usage rows; I reverted that.
+- **Impact:** One rejected review round and a failing CI run.
+- **Correction / remaining risk:** Exact-count exemption, row checks and tests added; prettier run on code files only. Low.
+
+### A-333 — 2026-11-13 — Claude Code / Mac — pushed PR #154 head b5a5aa6 with a failing unit test
+- **What failed:** I chained `commit && push` after `npm run check` and a vitest run had both shown a failure; the new "one field changed" test mutated a trailing cell that does not exist in the real rows. The earlier grandfathering by prefix was also review-found as too loose.
+- **Impact:** One commit with a red test on the PR branch; fixed in the next commit.
+- **Correction / remaining risk:** Test now changes a named field; `npm run check` passes before this push. Low.
+
+### A-334 — 2026-11-13 — Claude Code / Mac — usage-log check hashed rows with a trailing carriage return on Windows
+- **What failed:** `scripts/check-register-ids.mjs` split the registers on `\n` only, so a Windows CRLF checkout left a trailing `\r` on each line; the full-row hashes of the two grandfathered rows no longer matched and Windows CI failed (review-found). I had only run the check on the Mac.
+- **Impact:** One more review round and a red Windows check on a7b3783.
+- **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
+
+### A-335 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
 - **Status / attribution:** Confirmed agent errors; no application defect.
 - **What failed:** (1) I did not read `get_usage` before starting, against the measure-at-start rule. (2) My first "no location" test reused the library saved by the previous case in the same temp directory, so it failed for a fixture reason, not a code one.
 - **Impact:** Start-of-task allowance is unavailable; one extra `npm run check` run.
 - **Correction / remaining risk:** Test order fixed. Also noted: `@scrb/summary` worker test fails in a fresh worktree because `packages/summary/dist` is not built (environment, not this change). Low.
-- **A-331 addendum (review-found):** the required-tools list omitted ffprobe, so setup could report `complete: true` while imports (which refuse to run without ffprobe) could not. Cause: I copied the final pass's key list without checking `scripts/m1.sh` and the import runner. Fixed with ffprobe in the list and a test; I also first mis-edited my test fixture (prettier had reflowed the line my scripted replace targeted) and reran `npm run check` once for that.
+- **A-335 addendum (review-found):** the required-tools list omitted ffprobe, so setup could report `complete: true` while imports (which refuse to run without ffprobe) could not. Cause: I copied the final pass's key list without checking `scripts/m1.sh` and the import runner. Fixed with ffprobe in the list and a test; I also first mis-edited my test fixture (prettier had reflowed the line my scripted replace targeted) and reran `npm run check` once for that.
