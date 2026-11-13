@@ -2,7 +2,9 @@
 
 **Ownership rule:** UI code lives in `apps/desktop/src/ui/`, backend code lives everywhere else, and `packages/contracts/` changes only with the owner's approval.
 
-**Work split (owner decision, 2026-10-30):** gates are approved in sequence; a phase does not start before the previous gate is approved. The Codex/Claude split in the Development Process document is a preference, not a rule: unless the owner asks for work to be split between Claude and Codex, Claude Code may build both UI and backend. The folder boundaries still apply: keep each change on one side of the line, and do not let UI code import backend modules.
+**Gates relaxed (owner decision, 2026-11-13; supersedes the 2026-10-30 sequencing rule):** phases no longer wait for the previous gate to be approved, and Windows and Mac gate evidence is not required for work outside M1. Still required: independent review before merge, the Electron security rules, owner approval for `packages/contracts/` changes, and approval before any test expected to exceed 20 minutes.
+
+**Work split (owner decision, 2026-10-30):** The Codex/Claude split in the Development Process document is a preference, not a rule: unless the owner asks for work to be split between Claude and Codex, Claude Code may build both UI and backend. The folder boundaries still apply: keep each change on one side of the line, and do not let UI code import backend modules.
 
 ## Sources
 
