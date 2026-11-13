@@ -1063,3 +1063,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
+
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — mini window PR #148: cross-meeting speaker bug, stale docs, lint error pushed
+- **Status / attribution:** Confirmed agent errors; the first two found by independent (ChatGPT) review, the third by my own check run. Not merged.
+- **What failed:** (1) The speaker indicator listened to `transcriptChanged` for every meeting, so another meeting's event could blank it or lend it a name through a reused speaker ID; (2) the plan and PR body said 240x72 and "not implemented" after I widened the window to 264 and built the button; (3) I committed and pushed a version whose `npm run check` had printed a lint error (setState in an effect), because the check and the commit ran in one command.
+- **Agent-controlled cause:** No multi-meeting case thought through; docs not re-read after changing the code; commit chained after an unread check.
+- **Impact:** One rejected review round and one extra push; no user-visible defect shipped.
+- **Correction / remaining risk:** Events filtered by the shown meeting, state carries its meeting, interleaved-meeting test added, docs corrected, lint fixed. The mini window was not viewed in real Electron. Low.
