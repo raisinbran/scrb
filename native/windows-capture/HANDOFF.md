@@ -48,5 +48,5 @@ in the Volume Mixer here, so set `SCRB_TONE` to a copy elsewhere (README, "Worke
 restart").  Run
 `build.cmd` by absolute path from PowerShell (through Bash it
 silently does nothing).  `Mute.exe` and `TonePlayer.exe` are built in
-`phase0-archive:phase0/probes` and ignored by git.  Use the Write tool for source files.  Hand-run
+`native/windows-capture/tools/windows-mute` and `.../windows-tone-player` and ignored by git.  Use the Write tool for source files.  Hand-run
 cases pass `-Actions` to `scripts/run-case.ps1`, which opens the countdown.
