@@ -21,24 +21,31 @@ missing=()
 [[ -x "$helper" ]] || missing+=("capture helper: ${helper} (build it: cd native/macos-capture && ./build.sh)")
 [[ -f "$live" ]] || missing+=("live config: ${live}")
 [[ -f "$final" ]] || missing+=("final-pass config: ${final}")
-# Every tool and model path named inside a config must exist too (config values under "tools" and "models").
-referenced() {  # referenced <config>: prints one path per line, or "unreadable" when it is not valid JSON
+# Keys the app requires (backend.ts readLiveSetup; app-core final-pass.ts loadSetup; ffprobe for imports).
+live_keys="tools.whisperServer tools.whisperVad models.speechLive models.vad"
+final_keys="tools.ffmpeg tools.ffprobe tools.whisperCli tools.sherpaSidecar models.speechFinal models.vad models.segmentation models.embedding"
+problems() {  # problems <config> <keys>: prints one problem per line for a bad key or a missing path
   node -e '
-    const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-    for (const k of ["tools", "models"]) for (const v of Object.values(c[k] ?? {})) console.log(v);
-  ' "$1" 2>/dev/null || echo "unreadable"
+    const fs = require("fs");
+    let c;
+    try { c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); }
+    catch { console.log("is not valid JSON"); process.exit(); }
+    for (const key of process.argv[2].split(" ")) {
+      const [group, name] = key.split(".");
+      const v = c?.[group]?.[name];
+      if (typeof v !== "string" || v === "") console.log(`lacks a non-empty "${key}"`);
+      else if (!fs.existsSync(v)) console.log(`"${key}" points to a missing file: ${v}`);
+    }
+  ' "$1" "$2"
 }
-check_config() {  # check_config <label> <config>
+check_config() {  # check_config <label> <config> <keys>
   [[ -f "$2" ]] || return 0
-  local path
-  while IFS= read -r path; do
-    if [[ "$path" == unreadable ]]; then missing+=("$1 is not valid JSON: $2"); return 0; fi
-    [[ -e "$path" ]] || missing+=("$1 references a missing file: ${path} (in $2)")
-  done < <(referenced "$2")
+  local line
+  while IFS= read -r line; do missing+=("$1 $line (in $2)"); done < <(problems "$2" "$3")
 }
 command -v node >/dev/null 2>&1 || missing+=("node (expected in ${HOME}/.local/share/scrb-node/current/bin)")
-check_config "live config" "$live"
-check_config "final-pass config" "$final"
+check_config "live config" "$live" "$live_keys"
+check_config "final-pass config" "$final" "$final_keys"
 command -v npm >/dev/null 2>&1 || missing+=("npm (expected in ${HOME}/.local/share/scrb-node/current/bin)")
 if ((${#missing[@]} > 0)); then
   echo "Cannot start real mode. Missing:" >&2

@@ -28,21 +28,32 @@ expect_fail() {  # expect_fail <text the message must name>...
 run
 expect_fail "capture helper" "live.json" "final-pass.json"
 
-# 2. Helper and configs exist, but a config names a missing tool or model.
+# 2. Helper exists; configs are complete except as each case below says.
 printf '#!/bin/sh\n' >"$fake/repo/native/macos-capture/build/scrb-capture"
 chmod +x "$fake/repo/native/macos-capture/build/scrb-capture"
 touch "$fake/present.bin"
-cat >"$home/scrb-dev-assets/config/live.json" <<JSON
-{"tools":{"whisperServer":"$fake/present.bin"},"models":{"speechLive":"$fake/no-such-live-model.bin"}}
-JSON
-cat >"$home/scrb-dev-assets/config/final-pass.json" <<JSON
-{"tools":{"ffmpeg":"$fake/no-such-ffmpeg"},"models":{"speechFinal":"$fake/present.bin"}}
-JSON
-run
-expect_fail "no-such-live-model.bin" "no-such-ffmpeg"
+p="$fake/present.bin"
+cfg="$home/scrb-dev-assets/config"
+good_live="{\"tools\":{\"whisperServer\":\"$p\",\"whisperVad\":\"$p\"},\"models\":{\"speechLive\":\"$p\",\"vad\":\"$p\"}}"
+good_final="{\"tools\":{\"ffmpeg\":\"$p\",\"ffprobe\":\"$p\",\"whisperCli\":\"$p\",\"sherpaSidecar\":\"$p\"},\"models\":{\"speechFinal\":\"$p\",\"vad\":\"$p\",\"segmentation\":\"$p\",\"embedding\":\"$p\"}}"
+echo "$good_live" >"$cfg/live.json"
+echo "$good_final" >"$cfg/final-pass.json"
 
-# 3. A config that is not JSON.
-echo 'not json' >"$home/scrb-dev-assets/config/live.json"
+# The script would launch the app here, so the complete case is not run; each case below breaks one thing.
+echo '{"tools":{},"models":{}}' >"$cfg/live.json"
 run
-expect_fail "not valid JSON"
+expect_fail 'live config lacks a non-empty "tools.whisperServer"' '"models.vad"'
+
+echo "${good_final/\"embedding\":\"$p\"/\"embedding\":\"\"}" >"$cfg/final-pass.json"
+echo "$good_live" >"$cfg/live.json"
+run
+expect_fail 'final-pass config lacks a non-empty "models.embedding"'
+
+echo "${good_final/\"ffmpeg\":\"$p\"/\"ffmpeg\":\"$fake/no-such-ffmpeg\"}" >"$cfg/final-pass.json"
+run
+expect_fail '"tools.ffmpeg" points to a missing file' "no-such-ffmpeg"
+
+echo 'not json' >"$cfg/live.json"
+run
+expect_fail "live config is not valid JSON"
 echo ok
