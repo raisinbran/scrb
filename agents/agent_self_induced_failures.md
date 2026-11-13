@@ -1008,3 +1008,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Applying one regex to every match, and checking only that no bare `phase0/` remained, not whether each result read correctly; the lost ignore rule was found while fixing the findings.
 - **Impact:** Three review rounds on #125 (two REJECTs on these errors, a third on the files below); no behavior affected.
 - **Correction / remaining risk:** The command now extracts the CSV with `cmd /c git show`, the mixer note keeps the historical path, the build location names the new folder, and `native/windows-capture/tools/**/*.exe|*.obj` is ignored. Low.
+
+### A-316 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — launched the real app by accident while testing `scripts/m1.sh` (PR #134)
+- **Status / attribution:** Confirmed agent error (agent admission); not an application defect.
+- **What failed:** To check that the script resolved the capture helper from a worktree, I ran it with its output piped to `head`, which started `npm start` and the Electron build instead of stopping at validation.
+- **Agent-controlled cause:** I ran a script whose last step launches the app without a dry-run path, and did not use a fake HOME as in the test.
+- **Impact:** One unintended build start; I killed the process, no recording was started and no files changed. A few minutes of compute.
+- **Correction / remaining risk:** The regression test now runs the script only against a fake HOME. Low.
