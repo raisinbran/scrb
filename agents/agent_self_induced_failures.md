@@ -1001,3 +1001,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I did not run the formatter check CI uses on the files I changed, and my earlier fix of the overbroad run reverted the file's formatting too.
 - **Impact:** One failed CI run and one review round.
 - **Correction / remaining risk:** Formatted that one file with the repo's Prettier and re-ran its tests. Rule: run `prettier --check` on each changed TypeScript file before pushing. Low.
+
+### A-314 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 4 rewrite turned path text into invalid or false paths (PR #125)
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT); not application defects.
+- **What failed:** My blanket rewrite of `phase0/...` to `phase0-archive:phase0/...` (1) produced a Git revision string as a Windows command-line path in the Windows README, (2) replaced the true historical path of a Volume Mixer observation, which I had restored correctly in step 3, and (3) told readers that `Mute.exe` and `TonePlayer.exe` are built under the tag. I also removed the old `phase0/.gitignore` that ignored built `.exe` files without adding an equivalent rule.
+- **Agent-controlled cause:** Applying one regex to every match, and checking only that no bare `phase0/` remained, not whether each result read correctly; the lost ignore rule was found while fixing the findings.
+- **Impact:** One review round on #125; no behavior affected.
+- **Correction / remaining risk:** The command now extracts the CSV with `git show`, the mixer note keeps the historical path, the build location names the new folder, and `native/windows-capture/tools/**/*.exe|*.obj` is ignored. Low.

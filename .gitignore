@@ -18,3 +18,7 @@ coverage/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Windows probe build output (the old phase0/.gitignore covered these)
+native/windows-capture/tools/**/*.exe
+native/windows-capture/tools/**/*.obj
