@@ -5,6 +5,7 @@ Run from the Claude app's terminal pane, under native/macos-capture/scripts/run-
 Usage: stop_paused_case.py <helper> <work dir> <rounds>
 """
 import json, math, os, struct, subprocess, sys, time, wave
+from tone import play_tone
 
 helper, work, rounds = sys.argv[1], sys.argv[2], int(sys.argv[3])
 os.makedirs(work, exist_ok=True)
@@ -16,7 +17,7 @@ with wave.open(tone_file, "wb") as w:
     for _ in range(rounds * 5 + 10):
         w.writeframes(one)
 
-player = subprocess.Popen(["afplay", tone_file])
+player = play_tone(tone_file, override=True)
 time.sleep(0.5)
 leaks = 0
 for n in range(rounds):
