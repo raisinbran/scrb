@@ -58,6 +58,7 @@ describe('getSetupStatus', () => {
       const names = [
         'helper',
         'ffmpeg',
+        'ffprobe',
         'whisper-cli',
         'sherpa',
         'vad',
@@ -70,7 +71,12 @@ describe('getSetupStatus', () => {
       await writeFile(
         config,
         JSON.stringify({
-          tools: { ffmpeg: p['ffmpeg'], whisperCli: p['whisper-cli'], sherpaSidecar: p['sherpa'] },
+          tools: {
+            ffmpeg: p['ffmpeg'],
+            ffprobe: p['ffprobe'],
+            whisperCli: p['whisper-cli'],
+            sherpaSidecar: p['sherpa'],
+          },
           models: {
             speechFinal: p['ggml-large-v3-turbo.bin'],
             vad: p['vad'],
@@ -129,10 +135,13 @@ describe('getSetupStatus', () => {
       expect(status.complete).toBe(false);
     });
 
-    it.each([['ffmpeg'], ['helper'], ['vad']])('is incomplete when %s is missing', async (name) => {
-      const f = await files([name]);
-      expect((await run(f, () => 'granted')).complete).toBe(false);
-    });
+    it.each([['ffmpeg'], ['ffprobe'], ['helper'], ['vad']])(
+      'is incomplete when %s is missing',
+      async (name) => {
+        const f = await files([name]);
+        expect((await run(f, () => 'granted')).complete).toBe(false);
+      },
+    );
 
     it('is incomplete without microphone permission or location', async () => {
       const f = await files();

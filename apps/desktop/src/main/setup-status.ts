@@ -15,8 +15,8 @@ export interface SetupStatusSources {
   microphoneStatus?: (() => string) | undefined;
 }
 
-// Same required keys as the final pass itself, so "complete" cannot disagree with it.
-const FINAL_TOOLS = ['ffmpeg', 'whisperCli', 'sherpaSidecar'];
+// The final pass's keys plus ffprobe, which imports refuse to run without.
+const FINAL_TOOLS = ['ffmpeg', 'ffprobe', 'whisperCli', 'sherpaSidecar'];
 const LIVE_TOOLS = ['whisperServer', 'whisperVad'];
 
 type Paths = Record<string, string | undefined>;
