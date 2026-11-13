@@ -10,7 +10,7 @@ let backend: MockBackend;
 const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 const goTo = async (name: string) => {
   const nav = screen.getByRole('navigation', { name: 'Main' });
-  fireEvent.click(within(nav).getByRole('button', { name }));
+  fireEvent.click(within(nav).getByRole('button', { name: new RegExp(`^${name}`) }));
   await advance(0);
 };
 const firstWord = () => document.querySelector<HTMLElement>('[data-word-id]') as HTMLElement;
@@ -170,5 +170,70 @@ describe('screens working together on the mock', () => {
     await startRecording(1);
     await goTo('Recordings');
     expect(screen.getByText(/A recording started, so this import stopped/)).toBeTruthy();
+  });
+});
+
+describe('leaving a tab and coming back', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.localStorage.clear();
+    backend = new MockBackend();
+  });
+
+  afterEach(() => {
+    cleanup();
+    backend.dispose();
+    vi.useRealTimers();
+  });
+
+  it('keeps the Recordings search and the workspace scroll position', async () => {
+    await renderApp();
+    await goTo('Recordings');
+    const search = screen.getByRole('searchbox') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'budget' } });
+    await advance(500);
+    const workspace = screen.getByRole('main');
+    workspace.scrollTop = 120;
+    await goTo('Vocabulary');
+    expect(workspace.scrollTop).toBe(0);
+    await goTo('Recordings');
+    expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('budget');
+    expect(screen.getByRole('main').scrollTop).toBe(120);
+  });
+
+  it('returns to the open meeting and its tab', async () => {
+    await renderApp();
+    await openMeeting(/Budget review/);
+    fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+    await goTo('Vocabulary');
+    await goTo('Recordings');
+    expect(screen.getByRole('tab', { name: 'Summary' }).getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+describe('recording dot in the sidebar', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.localStorage.clear();
+    backend = new MockBackend();
+  });
+
+  afterEach(() => {
+    cleanup();
+    backend.dispose();
+    vi.useRealTimers();
+  });
+
+  it('shows on the Live tab from every screen while recording, and goes when it stops', async () => {
+    await renderApp();
+    expect(screen.queryByRole('img', { name: 'Recording in progress' })).toBeNull();
+    await startRecording();
+    await goTo('Vocabulary');
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('img', { name: 'Recording in progress' })).toBeTruthy();
+    await goTo('Live');
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    await advance(0);
+    expect(screen.queryByRole('img', { name: 'Recording in progress' })).toBeNull();
   });
 });

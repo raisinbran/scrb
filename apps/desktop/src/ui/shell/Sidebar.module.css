@@ -49,3 +49,16 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-inline-start: auto;
+  background: var(--color-recording);
+  border-radius: 50%;
+}
+
+.dot[data-state='paused'] {
+  background: var(--color-paused);
+}

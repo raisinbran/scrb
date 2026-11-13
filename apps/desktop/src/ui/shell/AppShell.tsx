@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { readStored, writeStored } from '../lib/stored-value.ts';
+import { recall, remember } from '../lib/tab-memory.ts';
 import { usePanelSize, type PanelLimits } from '../lib/use-panel-size.ts';
 import { Inspector } from './Inspector.tsx';
 import { ResizeHandle } from './ResizeHandle.tsx';
@@ -42,6 +43,24 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
   const narrow = useIsNarrowWindow();
   const inspectorOpen = inspectorWanted && !narrow;
 
+  const workspace = useRef<HTMLElement>(null);
+  const leave = (id: ScreenId) => {
+    if (workspace.current) remember(`scroll.${screenId}`, workspace.current.scrollTop);
+    onSelectScreen(id);
+  };
+  // A screen's data can arrive after it opens, so the place is set again once it has laid out.
+  useLayoutEffect(() => {
+    const element = workspace.current;
+    const saved = recall<number>(`scroll.${screenId}`) ?? 0;
+    if (!element) return;
+    element.scrollTop = saved;
+    if (!saved) return;
+    const frame = requestAnimationFrame(() => {
+      if (element.scrollTop !== saved) element.scrollTop = saved;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [screenId]);
+
   const toggleInspector = () => {
     setInspectorWanted(!inspectorOpen);
     writeStored(INSPECTOR_OPEN_KEY, !inspectorOpen);
@@ -53,7 +72,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <PrivacyBanner />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: sidebarWidth }}>
-          <Sidebar selected={screenId} onSelect={onSelectScreen} />
+          <Sidebar selected={screenId} onSelect={leave} />
         </div>
         <ResizeHandle
           label="Resize sidebar"
@@ -63,7 +82,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
           direction={1}
           onResize={setSidebarWidth}
         />
-        <main className={styles.workspace}>
+        <main ref={workspace} className={styles.workspace}>
           <button
             type="button"
             className={styles.inspectorToggle}

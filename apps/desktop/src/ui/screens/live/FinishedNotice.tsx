@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { MeetingId, MeetingStatus } from '@scrb/contracts';
+import { DismissButton } from '../../components/DismissButton.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { useRemembered } from '../../lib/tab-memory.ts';
 import styles from '../LiveScreen.module.css';
 
-function noticeOf(status: MeetingStatus | null): string {
+function noticeOf(status: MeetingStatus | null): string | null {
   switch (status) {
+    case 'ready':
+      return null;
     case 'finalPassRunning':
       return 'Recording stopped. The final pass is running; find this meeting in Recordings.';
-    case 'ready':
-      return 'Recording stopped. The final transcript is ready in Recordings.';
     case 'transcriptionFailed':
       return 'Recording stopped. The transcript could not be finished; the audio is saved in Recordings.';
     default:
@@ -16,10 +18,11 @@ function noticeOf(status: MeetingStatus | null): string {
   }
 }
 
-/** Follows the stopped meeting, so the notice never outlives the final pass it describes. */
+/** Follows the stopped meeting, so the notice goes away once the transcript is final. */
 export function FinishedNotice({ meetingId }: { meetingId: MeetingId }) {
   const backend = useBackend();
   const [status, setStatus] = useState<MeetingStatus | null>(null);
+  const [dismissed, setDismissed] = useRemembered(`notice.stopped.${meetingId}`, false);
 
   useEffect(() => {
     let current = true;
@@ -41,5 +44,13 @@ export function FinishedNotice({ meetingId }: { meetingId: MeetingId }) {
     };
   }, [backend, meetingId]);
 
-  return <p className={styles.finished}>{noticeOf(status)}</p>;
+  const text = noticeOf(status);
+  // A final transcript needs no notice: the meeting is simply in Recordings.
+  if (dismissed || text === null) return null;
+  return (
+    <div className={styles.finished}>
+      <p role="status">{text}</p>
+      <DismissButton label="Dismiss notice" onClick={() => setDismissed(true)} />
+    </div>
+  );
 }

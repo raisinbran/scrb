@@ -160,7 +160,18 @@ describe('LiveScreen', () => {
       await advance(0);
       expect(notice()).toContain('final pass is running');
       await trigger('finish-final-pass');
-      expect(notice()).toContain('final transcript is ready');
+      // A final transcript needs no notice, and the old "ready" message is gone for good.
+      expect(screen.queryByText(/^Recording stopped\./)).toBeNull();
+      expect(screen.queryByText(/final transcript is ready/)).toBeNull();
+    });
+
+    it('can be dismissed with an X', async () => {
+      await startMeeting();
+      fireEvent.click(button('Stop'));
+      await advance(0);
+      expect(notice()).toContain('final pass is running');
+      fireEvent.click(button('Dismiss notice'));
+      expect(screen.queryByText(/^Recording stopped\./)).toBeNull();
     });
 
     it('says when the transcript could not be finished', async () => {

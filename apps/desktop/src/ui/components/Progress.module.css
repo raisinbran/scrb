@@ -1,0 +1,33 @@
+.track {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  background: var(--color-surface-hover);
+  border-radius: 3px;
+}
+
+.fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* No progress is reported: a full, slowly breathing bar says work continues without implying a position. */
+.unknown {
+  width: 100%;
+  opacity: 0.45;
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unknown {
+    animation: none;
+  }
+}

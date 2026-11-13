@@ -109,7 +109,9 @@ describe('Recordings', () => {
       renderScreen();
       await openMeeting(/Budget review/);
       expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
-      expect(screen.getByLabelText('Final transcript processing')).toBeTruthy();
+      // The backend reports no final-pass progress, so the bar must not claim a position.
+      const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
+      expect(bar.getAttribute('aria-valuenow')).toBeNull();
       expect(screen.getByText(/Time since you opened this view/)).toBeTruthy();
       backend.finishFinalPass();
       await waitFor(
@@ -117,6 +119,13 @@ describe('Recordings', () => {
         SLOW,
       );
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
+    });
+
+    it('lets the banner be dismissed with an X', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
     });
 
     it('marks the library row as changing', async () => {
