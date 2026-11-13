@@ -31,7 +31,7 @@ export const OVERSPLIT_THRESHOLD = 1.0;
 const FINAL_RELABEL_DEFAULTS: RelabelOptions = { minSpeakerMs: 13_000 };
 const TURN_GAP_MS = 1500;
 /** A mic word counts as room echo when the meeting track has the same word this close in time. */
-const ECHO_WINDOW_MS = 1000;
+export const ECHO_WINDOW_MS = 1000;
 /** Echo needs this many matched mic words in a row, so a lone "yeah" from the user survives. */
 const ECHO_MIN_RUN = 2;
 export const YOU_ID = 'you';
