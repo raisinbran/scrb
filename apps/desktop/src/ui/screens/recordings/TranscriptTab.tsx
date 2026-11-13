@@ -126,7 +126,7 @@ interface SegmentRowProps {
   following: boolean;
   currentWord: string | undefined;
   onPlay(ms: number): void;
-  onPlace: ((ms: number) => void) | undefined;
+  onPlace: (ms: number, wordId: string, rowKey: string) => void;
   /** Absent when the meeting cannot be edited. */
   onEditWord: ((wordId: string) => void) | undefined;
   onStartRename: ((speakerId: string, rowKey: string) => void) | undefined;
@@ -163,7 +163,10 @@ const SegmentRow = memo(function SegmentRow({
     const ms = (event.target as HTMLElement).dataset['ms'];
     // A word click only moves the playhead; playing is the timestamp button's job.
     // Dragging across words selects text and must not move it.
-    if (ms !== undefined && window.getSelection()?.isCollapsed !== false) onPlace?.(Number(ms));
+    const wordId = (event.target as HTMLElement).dataset['word'];
+    if (ms !== undefined && wordId !== undefined && window.getSelection()?.isCollapsed !== false) {
+      onPlace(Number(ms), wordId, rowKey);
+    }
   };
   return (
     <div
@@ -266,6 +269,16 @@ function isRendered(
   return rows.slice(first, end).some((row) => row.key === key);
 }
 
+/** The row being spoken at `ms`; with overlapping speakers a later-starting row may already be over. */
+function activeRowAt(rows: TranscriptRow[], ms: number): number {
+  const latest = rowIndexAt(rows, ms);
+  for (let index = latest; index >= Math.max(0, latest - 30); index -= 1) {
+    const row = rows[index];
+    if (row?.kind === 'segment' && currentWordId(row.segment, ms) !== undefined) return index;
+  }
+  return latest;
+}
+
 function renderedRange(
   offsets: Float64Array,
   count: number,
@@ -291,8 +304,8 @@ interface TranscriptTabProps {
   showPosition: boolean;
   jump: JumpTarget | null;
   onPlay(ms: number): void;
-  /** Moves the playhead without playing; absent while audio plays, so a click does nothing. */
-  onPlace?: ((ms: number) => void) | undefined;
+  /** Moves the playhead to a clicked word's start. It must not start or pause audio. */
+  onPlace(ms: number): void;
   /** Present only when the meeting can be edited. */
   editing?: TranscriptEditing | undefined;
   onEditorOpenChange?(open: boolean): void;
@@ -400,6 +413,16 @@ export function TranscriptTab(props: TranscriptTabProps) {
     scroller.current.scrollTop = offsets[rowIndexAt(rows, jump.ms)] ?? 0;
   }, [jump, lastStart, loading, offsets, rows]);
 
+  // Overlapping speakers make the time alone ambiguous, so the clicked word itself stays current
+  // for as long as the playhead is where the click put it.
+  const [placed, setPlaced] = useState<{ wordId: string; rowKey: string; ms: number } | null>(null);
+  const onPlaceWord = useCallback(
+    (ms: number, wordId: string, rowKey: string) => {
+      setPlaced({ wordId, rowKey, ms });
+      onPlace(ms);
+    },
+    [onPlace],
+  );
   const [editWord, setEditWord] = useState<{ id: string; text: string } | null>(null);
   const [renaming, setRenaming] = useState<{ speakerId: string; rowKey: string } | null>(null);
   const renamingId = renaming?.speakerId ?? null;
@@ -451,7 +474,13 @@ export function TranscriptTab(props: TranscriptTabProps) {
     return <p className={styles.muted}>There is no transcript text yet.</p>;
   }
 
-  const activeIndex = showPosition ? rowIndexAt(rows, positionMs) : -1;
+  const placedNow = showPosition && placed?.ms === positionMs ? placed : null;
+  const placedIndex = placedNow ? rows.findIndex((row) => row.key === placedNow.rowKey) : -1;
+  const activeIndex = !showPosition
+    ? -1
+    : placedIndex >= 0
+      ? placedIndex
+      : activeRowAt(rows, positionMs);
 
   return (
     <div className={styles.transcriptBox}>
@@ -482,11 +511,13 @@ export function TranscriptTab(props: TranscriptTabProps) {
                     following={showPosition}
                     currentWord={
                       showPosition && first + index === activeIndex
-                        ? currentWordId(row.segment, positionMs)
+                        ? placedIndex >= 0 && placedNow
+                          ? placedNow.wordId
+                          : currentWordId(row.segment, positionMs)
                         : undefined
                     }
                     onPlay={onPlay}
-                    onPlace={onPlace}
+                    onPlace={onPlaceWord}
                     onEditWord={canEdit ? onEditWord : undefined}
                     onStartRename={canEdit ? onStartRename : undefined}
                     renaming={renaming?.rowKey === row.key}

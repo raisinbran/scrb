@@ -35,6 +35,7 @@ const props = {
   showPosition: false,
   jump: null,
   onPlay: () => undefined,
+  onPlace: () => undefined,
 };
 
 describe('TranscriptTab sizing', () => {
@@ -118,6 +119,47 @@ describe('TranscriptTab sizing', () => {
     expect(word('two').getAttribute('aria-current')).toBe('true');
     expect(word('one').getAttribute('aria-current')).toBeNull();
     expect(word('two').className).toMatch(/wordCurrent/);
+  });
+
+  it('highlights the clicked word, not a short overlapping turn that started later', () => {
+    const word = (id: string, text: string, startMs: number, endMs: number) => ({
+      id,
+      text,
+      startMs,
+      endMs,
+      state: 'final' as const,
+      correctionId: null,
+    });
+    const transcript = data(2);
+    transcript.segments[0]!.words = ['a1', 'a2', 'a3'].map((id, i) =>
+      word(id, id, i * 3000, i * 3000 + 2500),
+    );
+    transcript.segments[1]!.startMs = 1000;
+    transcript.segments[1]!.words = [word('b1', 'b1', 1000, 1500)];
+    transcript.segments.sort((a, b) => a.startMs - b.startMs);
+    const played: number[] = [];
+    function Harness() {
+      const [position, setPosition] = useState(0);
+      return (
+        <TranscriptTab
+          transcript={transcript}
+          {...props}
+          showPosition
+          positionMs={position}
+          onPlay={(ms) => played.push(ms)}
+          onPlace={setPosition}
+        />
+      );
+    }
+    const { container } = render(<Harness />);
+    const find = (text: string) =>
+      [...container.querySelectorAll<HTMLElement>('[data-ms]')].find(
+        (el) => el.textContent === text,
+      )!;
+    fireEvent.click(find('a3'));
+    expect(find('a3').getAttribute('aria-current')).toBe('true');
+    expect(find('b1').getAttribute('aria-current')).toBeNull();
+    expect(played).toEqual([]);
   });
 
   it('declares the current-word colour after every word-state colour', () => {

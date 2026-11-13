@@ -105,3 +105,9 @@ textarea {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Headings are focused by code so screen readers land on them, but they are not controls, so a
+   ring around them only looks like a stray rectangle. Dialog panels keep the ring. */
+h1[tabindex='-1']:focus-visible {
+  outline: none;
+}

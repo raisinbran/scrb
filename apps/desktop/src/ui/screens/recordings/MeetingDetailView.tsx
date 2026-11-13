@@ -36,16 +36,22 @@ function movePlayback(playback: Playback, durationMs: number, target: number) {
   else playback.setPosition(clamped);
 }
 
-/** Keys that belong to the focused control, so the player shortcuts must leave them alone. */
+/**
+ * Keys that belong to the focused control, so the player shortcuts must leave them alone. Buttons
+ * own nothing: after a click the focus stays on the button, and Space must still play or pause.
+ */
 function ownsKeys(target: EventTarget | null, key: string): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  const owner = `[role="dialog"], [role="tablist"], [${EDITOR_MARK}]`;
-  if (target.isContentEditable || target.closest(owner)) return true;
+  if (target.isContentEditable || target.closest(`[role="dialog"], [${EDITOR_MARK}]`)) return true;
+  // The tabs keep their arrow keys; Space on a tab must still play or pause.
+  if (key !== ' ' && target.closest('[role="tablist"]')) return true;
   const tag = target.tagName;
   if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (tag === 'INPUT') return true;
-  // Space presses a focused button; arrows do not, so they stay usable after a button click.
-  return tag === 'BUTTON' && key === ' ';
+  if (tag !== 'INPUT') return false;
+  const type = (target as HTMLInputElement).type;
+  if (type === 'range') return false;
+  if (type === 'checkbox' || type === 'radio') return key === ' ';
+  return true;
 }
 
 /** Space plays or pauses; Left and Right skip by 15 s. */
@@ -64,6 +70,8 @@ function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: bool
       const { meeting: current, playback: audio } = latest.current;
       event.preventDefault();
       if (key === ' ') {
+        // Holding the key repeats keydown; one press is one toggle.
+        if (event.repeat) return;
         if (audio.isPlaying) audio.pause();
         else audio.play(audio.positionMs);
       } else {
@@ -71,8 +79,16 @@ function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: bool
         movePlayback(audio, current.durationMs, audio.positionMs + delta);
       }
     };
+    // A button presses on Space's key-up in some browsers, so that must not click it either.
+    const onKeyUp = (event: globalThis.KeyboardEvent) => {
+      if (event.key === ' ' && !ownsKeys(event.target, ' ')) event.preventDefault();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, [enabled, meeting.hasAudio]);
 }
 
@@ -604,14 +620,13 @@ function LoadedDetail(props: LoadedDetailProps) {
             onPlay={playback.play}
             editing={editing}
             onEditorOpenChange={setEditorOpen}
-            onPlace={
-              playback.isPlaying
-                ? undefined
-                : (ms) => {
-                    setPlaced(true);
-                    playback.setPosition(ms);
-                  }
-            }
+            onPlace={(ms) => {
+              if (playback.isPlaying) playback.play(ms);
+              else {
+                setPlaced(true);
+                playback.setPosition(ms);
+              }
+            }}
           />
         )}
         {tab === 'Summary' && (
