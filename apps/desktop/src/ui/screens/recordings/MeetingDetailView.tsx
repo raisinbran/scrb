@@ -69,6 +69,8 @@ function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: bool
       const { meeting: current, playback: audio } = latest.current;
       event.preventDefault();
       if (key === ' ') {
+        // Holding the key repeats keydown; one press is one toggle.
+        if (event.repeat) return;
         if (audio.isPlaying) audio.pause();
         else audio.play(audio.positionMs);
       } else {

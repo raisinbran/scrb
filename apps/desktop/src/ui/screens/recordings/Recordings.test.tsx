@@ -294,6 +294,21 @@ describe('Recordings', () => {
       }
     });
 
+    it('toggles once per Space press; a held key does not repeat the toggle', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const call = vi.spyOn(backend, 'call');
+      fireEvent.keyDown(document.body, { key: ' ' });
+      expect(fireEvent.keyDown(document.body, { key: ' ', repeat: true })).toBe(false);
+      fireEvent.keyDown(document.body, { key: ' ', repeat: true });
+      fireEvent.keyUp(document.body, { key: ' ' });
+      const toggles = call.mock.calls.filter(
+        ([name]) => name === 'seekAudio' || name === 'pauseAudio',
+      );
+      expect(toggles).toHaveLength(1);
+    });
+
     it('skips with the arrow keys after a click on a button or the slider', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);
