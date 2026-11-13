@@ -47,7 +47,7 @@ Hardware facts come from Node (`os.cpus()`, `os.totalmem()`, arch, platform). GP
 
 The resolver also picks the live model path, because `LiveSetup.models.speechLive` is set separately from the whisper options. The live config file gains an optional `models.speechLiveAccurate` (turbo). Eligible for Best means: that file exists, a GPU path is likely (Apple silicon, or a passing benchmark with live RTF at or below 0.4), and live text is on. Otherwise Best uses `models.speechLive` as Balanced does.
 
-Order of precedence, highest first: (1) an explicit `whisper.*` or `models.speechLive` value in the live config file (dev override, unchanged from today); (2) the resolver's choice from preset, switch and hardware; (3) built-in defaults. A missing or unreadable model file falls back one step (turbo → small.en → live off with a visible note), never to a crash. The resolved choice is logged at recording start.
+Order of precedence, highest first: (1) a deliberate developer override: the environment variable `SCRB_LIVE_MODEL`, or the new live-config key `whisperOverride: true` that marks the file's `whisper.*` values and `models.speechLive` as forced (today's behaviour for anyone who sets it); (2) the resolver's choice from preset, switch and hardware, where the file's `models.speechLive` is only the **baseline** model (the one `readLiveSetup` already requires in every valid config) and `models.speechLiveAccurate` is the upgrade; (3) built-in defaults. Without an override, Best with both models present picks the accurate one. The file's `whisper.threads`, `useGpu`, `audioContext` and `language` are likewise baselines unless the override is set; `language` is never changed by the resolver. A missing or unreadable model file falls back one step (turbo → small.en → live off with a visible note), never to a crash. The resolved choice is logged at recording start.
 
 ### 2.2 Recommendation without a benchmark (step 1)
 
@@ -101,7 +101,7 @@ Main-process side: a resolver turns (preset, switch, hardware) into `LiveSetup.w
 
 Tests, all generated or AMI data, each under 20 minutes total:
 
-1. Unit: resolver table (presets × core counts including odd ones: 1, 2, 3, 5, 7, 9, 10, 12 × RAM × platform), every thread count an integer inside its clamp; live switch off builds no live setup; Best picks `speechLiveAccurate` when eligible and `speechLive` when the file is missing, the GPU path is unlikely or live is off; config-file values beat the resolver; a missing model falls back as in 2.1a.
+1. Unit: resolver table (presets × core counts including odd ones: 1, 2, 3, 5, 7, 9, 10, 12 × RAM × platform), every thread count an integer inside its clamp; live switch off builds no live setup; Best picks `speechLiveAccurate` when eligible and `speechLive` when the file is missing, the GPU path is unlikely or live is off; a deliberate override (env var or `whisperOverride`) beats the resolver; Best with both models present and no override picks `speechLiveAccurate`; with only the baseline file it uses `speechLive`; a missing model falls back as in 2.1a.
 2. Unit: settings merge with the new fields, old settings, invalid values.
 3. Unit: benchmark decision function from fixed RTF numbers, including borderline and timeout.
 4. Unit/integration: refusal while recording, cancel, start-recording-during-check, with a stub whisper that sleeps.
