@@ -8,6 +8,7 @@ export type AudioOutput = Pick<
   | 'addEventListener'
   | 'currentTime'
   | 'load'
+  | 'muted'
   | 'pause'
   | 'paused'
   | 'play'
@@ -16,6 +17,7 @@ export type AudioOutput = Pick<
   | 'removeAttribute'
   | 'seeking'
   | 'src'
+  | 'volume'
 >;
 
 interface Slot {
@@ -47,6 +49,8 @@ export class PlaybackEngine {
   /** Set while a seek is out: older ticks may still arrive and must not move the clock. */
   private seeking = false;
   private latest: PlaybackPosition | null = null;
+  private volume = 1;
+  private muted = false;
   /** Bumped by every restart, so a slower earlier grant is dropped. */
   private turn = 0;
   private readonly off: () => void;
@@ -75,6 +79,18 @@ export class PlaybackEngine {
       this.seeking = false;
     }
     if (this.latest && !this.latest.isPlaying) this.halt();
+  }
+
+  /** The app's own level for every element, new ones included; the system volume is untouched. */
+  setVolume(volume: number, muted: boolean): void {
+    this.volume = Math.min(1, Math.max(0, volume));
+    this.muted = muted;
+    for (const { audio } of this.slots) this.applyVolume(audio);
+  }
+
+  private applyVolume(audio: AudioOutput): void {
+    audio.volume = this.volume;
+    audio.muted = this.muted;
   }
 
   dispose(): void {
@@ -185,6 +201,7 @@ export class PlaybackEngine {
     const audio = this.createAudio();
     const slot: Slot = { chunk, audio, started: false, ended: false };
     audio.preload = 'auto';
+    this.applyVolume(audio);
     audio.addEventListener('ended', () => {
       slot.ended = true;
       this.sync();

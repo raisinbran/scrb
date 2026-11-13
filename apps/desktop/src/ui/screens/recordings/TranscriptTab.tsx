@@ -19,6 +19,9 @@ import styles from './recordings.module.css';
 const ESTIMATED_ROW_PX = 72;
 const OVERSCAN_PX = 800;
 const DEFAULT_VIEWPORT_PX = 600;
+/** Room kept above the current row when following, so the line before it stays visible. */
+const FOLLOW_MARGIN_PX = 24;
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
 
 const GAP_LABELS: Record<TimelineGap['kind'], string> = {
   paused: 'Paused',
@@ -26,6 +29,12 @@ const GAP_LABELS: Record<TimelineGap['kind'], string> = {
   possiblyMissing: 'Audio possibly missing',
   computerAsleep: 'Computer asleep',
 };
+
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target.closest(`[${EDITOR_MARK}]`)) return true;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
 
 export function gapLabel(gap: TimelineGap): string {
   return `${GAP_LABELS[gap.kind]}, ${formatElapsed(gap.startMs)} to ${formatElapsed(gap.endMs)}`;
@@ -302,6 +311,8 @@ interface TranscriptTabProps {
   fontPx: number;
   positionMs: number;
   showPosition: boolean;
+  /** Audio is playing, so the list keeps the current row in view until the reader scrolls away. */
+  playing?: boolean;
   jump: JumpTarget | null;
   onPlay(ms: number): void;
   /** Moves the playhead to a clicked word's start. It must not start or pause audio. */
@@ -323,6 +334,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
     fontPx,
     positionMs,
     showPosition,
+    playing = false,
     jump,
     onPlay,
     onPlace,
@@ -378,6 +390,16 @@ export function TranscriptTab(props: TranscriptTabProps) {
     setHeights(next);
     if (element && shiftAbove !== 0) element.scrollTop += shiftAbove;
   }, []);
+
+  // Only the reader's own wheel, touch, scrollbar or keys stop following; scrolling done here
+  // never does, so the tracking cannot switch itself off.
+  const [followPlayback, setFollowPlayback] = useState(true);
+  const stopFollowing = useCallback(() => setFollowPlayback(false), []);
+  const wasPlaying = useRef(false);
+  useEffect(() => {
+    if (playing && !wasPlaying.current) setFollowPlayback(true);
+    wasPlaying.current = playing;
+  }, [playing]);
 
   const showList = !error && (loading || rows.length > 0);
   useEffect(() => {
@@ -466,14 +488,6 @@ export function TranscriptTab(props: TranscriptTabProps) {
   );
   const onCancelRename = useCallback(() => setRenaming(null), []);
 
-  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
-  const contentHeight = (offsets[rows.length] as number) + unloaded;
-  const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
-  if (error) return <p role="alert">{error}</p>;
-  if (!showList) {
-    return <p className={styles.muted}>There is no transcript text yet.</p>;
-  }
-
   const placedNow = showPosition && placed?.ms === positionMs ? placed : null;
   const placedIndex = placedNow ? rows.findIndex((row) => row.key === placedNow.rowKey) : -1;
   const activeIndex = !showPosition
@@ -481,6 +495,28 @@ export function TranscriptTab(props: TranscriptTabProps) {
     : placedIndex >= 0
       ? placedIndex
       : activeRowAt(rows, positionMs);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || !playing || !followPlayback || activeIndex < 0) return;
+    const { offsets: tops } = layout.current;
+    const top = tops[activeIndex];
+    const bottom = tops[activeIndex + 1];
+    if (top === undefined || bottom === undefined) return;
+    if (top >= element.scrollTop && bottom <= element.scrollTop + element.clientHeight) return;
+    const target = Math.max(0, top - FOLLOW_MARGIN_PX);
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    if (typeof element.scrollTo === 'function') {
+      element.scrollTo({ top: target, behavior: reduced ? 'auto' : 'smooth' });
+    } else element.scrollTop = target;
+  }, [playing, followPlayback, activeIndex, viewportPx]);
+
+  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
+  const contentHeight = (offsets[rows.length] as number) + unloaded;
+  const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
+  if (error) return <p role="alert">{error}</p>;
+  if (!showList) {
+    return <p className={styles.muted}>There is no transcript text yet.</p>;
+  }
 
   return (
     <div className={styles.transcriptBox}>
@@ -492,6 +528,16 @@ export function TranscriptTab(props: TranscriptTabProps) {
         role="region"
         aria-label="Transcript"
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onWheel={stopFollowing}
+        onTouchMove={stopFollowing}
+        onPointerDown={(event) => {
+          // A press on the scroller itself is its scrollbar; the rows handle their own clicks.
+          if (event.target === event.currentTarget) stopFollowing();
+        }}
+        onKeyDown={(event) => {
+          // Keys bubble from a focused timestamp or speaker button too, and they scroll the list.
+          if (SCROLL_KEYS.has(event.key) && !isTextEntry(event.target)) stopFollowing();
+        }}
       >
         <div style={{ height: contentHeight }}>
           <div style={{ transform: `translateY(${offsets[first] ?? 0}px)` }}>
@@ -535,6 +581,23 @@ export function TranscriptTab(props: TranscriptTabProps) {
           </p>
         )}
       </div>
+      {!followPlayback && showPosition && (
+        <button
+          type="button"
+          className={styles.jumpToPosition}
+          onClick={() => {
+            setFollowPlayback(true);
+            const element = scroller.current;
+            const top = offsets[activeIndex];
+            if (element && top !== undefined) {
+              element.scrollTop = Math.max(0, top - FOLLOW_MARGIN_PX);
+            }
+            element?.focus();
+          }}
+        >
+          Jump to current position
+        </button>
+      )}
       {editing && editWord && (
         <div {...{ [EDITOR_MARK]: '' }}>
           <CorrectionEditor
