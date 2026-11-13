@@ -122,4 +122,36 @@ describe('LiveEchoFilter', () => {
     r.f.flush();
     expect(r.out.map((s) => s.id)).toEqual(['m1', 'm2']);
   });
+
+  it('waits for meeting coverage past the mic segment end plus the echo window', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
+    // Meeting has covered up to 5550; the mic copy ends at 6250 and ship/it arrive 700 ms late.
+    r.f.push(seg('mic', 'm1', 5700, 'ship it'));
+    r.advance(1000);
+    expect(r.texts()).toEqual(['meeting:ship it']);
+    r.f.push(seg('meeting', 'a2', 5400, 'ship it'));
+    r.advance(1000);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+  });
+
+  it('drops a two-word echo that arrives as two one-word mic segments', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
+    r.f.push(seg('meeting', 'a9', 9000, 'later'));
+    r.f.push(seg('mic', 'm1', 5100, 'ship'));
+    r.f.push(seg('mic', 'm2', 5400, 'it'));
+    r.advance(2000);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+  });
+
+  it('shows a lone matching word after the hold when no second word follows', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
+    r.f.push(seg('meeting', 'a9', 9000, 'later'));
+    r.f.push(seg('mic', 'm1', 5100, 'ship'));
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+    r.advance(2000);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:ship']);
+  });
 });

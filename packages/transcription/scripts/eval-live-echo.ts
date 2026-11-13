@@ -116,7 +116,7 @@ function run(
     (seg) => {
       if (seg.track === 'mic') {
         for (const w of seg.words) kept.add(w as W);
-        delays.push(now - arrival.get(seg.id.replace(/-.*/, '') + seg.id)!);
+        delays.push(now - arrival.get('mic' + seg.id.replace(/-tail$/, ''))!);
       }
     },
     {

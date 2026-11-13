@@ -255,7 +255,7 @@ export function assemble(
 
 const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
 
-const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
+export const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
 
 /**
  * Removes mic words that re-capture the meeting audio from the speakers: runs of at least

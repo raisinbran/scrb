@@ -1,4 +1,4 @@
-import { dropRoomEcho } from './finalPass.js';
+import { ECHO_WINDOW_MS, bare, dropRoomEcho } from './finalPass.js';
 import type { TimedLiveSegment } from './livePcmEngine.js';
 
 /** Longest a mic segment waits for the meeting words that could prove it is echo. */
@@ -30,6 +30,8 @@ interface Held {
 export class LiveEchoFilter {
   private readonly meeting = new Map<string, TimedLiveSegment>();
   private held: Held[] = [];
+  /** A trailing mic word that matches a meeting word may start a run; wait for the next segment. */
+  private carry: Held | null = null;
   /** Recent mic words of earlier segments (kept or dropped), so a run can span a segment boundary. */
   private context: TimedLiveSegment['words'] = [];
   private headMs = -Infinity;
@@ -73,26 +75,73 @@ export class LiveEchoFilter {
     const now = this.now();
     while (this.held.length) {
       const { segment, arrivedAt } = this.held[0]!;
-      const covered = this.headMs >= segment.endMs;
+      const covered = this.headMs >= segment.endMs + ECHO_WINDOW_MS;
       if (!force && !covered && now - arrivedAt < this.holdMs) break;
       this.held.shift();
-      this.emit(segment);
+      this.emit(segment, arrivedAt);
     }
-    if (this.held.length)
+    if (this.carry && (force || now - this.carry.arrivedAt >= this.holdMs)) {
+      const { segment } = this.carry;
+      this.carry = null;
+      this.out(segment);
+    }
+    const next = this.held[0] ?? this.carry;
+    if (next)
       this.timer = this.setTimer(
         () => {
           this.timer = null;
           this.release(false);
         },
-        Math.max(0, this.holdMs - (now - this.held[0]!.arrivedAt)),
+        Math.max(0, this.holdMs - (now - next.arrivedAt)),
       );
   }
 
-  private emit(segment: TimedLiveSegment): void {
+  private emit(incoming: TimedLiveSegment, arrivedAt: number): void {
+    let carried = this.carry?.segment;
+    this.carry = null;
+    if (carried && incoming.startMs - carried.endMs > ECHO_WINDOW_MS) {
+      this.out(carried);
+      carried = undefined;
+    }
+    const segment = carried
+      ? {
+          ...incoming,
+          words: [...carried.words, ...incoming.words],
+          text: `${carried.text} ${incoming.text}`,
+          startMs: carried.startMs,
+        }
+      : incoming;
     const meetingWords = [...this.meeting.values()].flatMap((s) => s.words);
     const kept = new Set(dropRoomEcho([...this.context, ...segment.words], meetingWords));
-    this.context = [...this.context, ...segment.words].slice(-CONTEXT_WORDS);
-    const words = segment.words.filter((w) => kept.has(w));
+    let words = segment.words.filter((w) => kept.has(w));
+    let tail: TimedLiveSegment['words'] = [];
+    const last = segment.words.at(-1)!;
+    if (
+      kept.has(last) &&
+      meetingWords.some(
+        (m) =>
+          bare(m.text) === bare(last.text) && Math.abs(m.startMs - last.startMs) <= ECHO_WINDOW_MS,
+      )
+    ) {
+      tail = [last];
+      words = words.slice(0, -1);
+    }
+    this.context = [
+      ...this.context,
+      ...segment.words.slice(0, segment.words.length - tail.length),
+    ].slice(-CONTEXT_WORDS);
+    if (tail.length)
+      this.carry = {
+        arrivedAt,
+        segment: {
+          ...segment,
+          id: `${segment.id}-tail`,
+          words: tail,
+          text: tail[0]!.text,
+          startMs: tail[0]!.startMs,
+          endMs: tail[0]!.endMs,
+        },
+      };
     if (words.length === segment.words.length) return this.out(segment);
     if (!words.length) return;
     this.out({
