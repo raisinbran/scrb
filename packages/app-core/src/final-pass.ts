@@ -202,7 +202,14 @@ export function createConfiguredImportRunner(configPath: string) {
  * read for each meeting, so a missing tool fails that meeting and not the app.
  */
 export function createFinalPassRunner(configPath: string): RunFinalPass {
-  return async ({ tracks, workDir, signal, vocabularyHint: hint, onEmbeddingModel, onProgress }) => {
+  return async ({
+    tracks,
+    workDir,
+    signal,
+    vocabularyHint: hint,
+    onEmbeddingModel,
+    onProgress,
+  }) => {
     const { tools, models } = await loadSetup(configPath);
     onEmbeddingModel?.(models.embedding);
     return runFinalPass({
