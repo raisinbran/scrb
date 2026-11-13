@@ -73,3 +73,19 @@ export function restoreMain<T>(
   if (window === undefined) create();
   else focus(window);
 }
+
+/** The fixed address the mini window's "Show Scribe" button opens; the UI keeps a copy of this string. */
+export const SHOW_MAIN_URL = 'scrb-app://show-main';
+
+/**
+ * The mini window's only window-open rule: the exact show-main address brings the app back, and
+ * every open is still denied. Apply it to the mini window's contents alone.
+ */
+export function miniWindowOpenHandler(showMain: () => void): (details: { url: string }) => {
+  action: 'deny';
+} {
+  return ({ url }) => {
+    if (url === SHOW_MAIN_URL) showMain();
+    return { action: 'deny' };
+  };
+}

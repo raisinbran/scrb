@@ -5,6 +5,9 @@ import { formatElapsed } from '../lib/format.ts';
 import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './MiniRecording.module.css';
 
+/** Opening this address asks the main process to bring the app forward; it matches `SHOW_MAIN_URL` in main. */
+const SHOW_MAIN_URL = 'scrb-app://show-main';
+
 /** A speaker counts as talking while their latest transcribed words end within this of the clock. */
 const ACTIVE_WITHIN_MS = 4000;
 
@@ -83,6 +86,9 @@ export function MiniRecording() {
         <span className={styles.dot} data-state={recording.status} aria-hidden="true" />
         {recording.status === 'recording' ? 'Recording' : 'Paused'}{' '}
         <span className={styles.elapsed}>{formatElapsed(elapsed)}</span>
+        <button type="button" className={styles.show} onClick={() => window.open(SHOW_MAIN_URL)}>
+          Show Scribe
+        </button>
       </span>
       {/* One fixed-height slot: a warning takes it over, so the row above never moves. */}
       {warning ? (

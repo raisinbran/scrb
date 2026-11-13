@@ -130,7 +130,7 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    expect(document.body.textContent).toBe('Recording 01:05');
+    expect(document.body.textContent).toBe('Recording 01:05Show Scribe');
   });
 
   it('keeps the status row and one fixed slot when the warning comes and goes', async () => {
@@ -217,5 +217,22 @@ describe('MiniRecording', () => {
       }),
     );
     expect(screen.getByText('Speaker 2').getAttribute('data-active')).toBe('false');
+  });
+
+  it('opens the show-main address when Show Scribe is pressed', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording'),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    screen.getByRole('button', { name: 'Show Scribe' }).click();
+    expect(open).toHaveBeenCalledWith('scrb-app://show-main');
+    open.mockRestore();
   });
 });

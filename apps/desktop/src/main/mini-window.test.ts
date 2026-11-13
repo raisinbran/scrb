@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMiniController, restoreMain, shouldShowMini, withoutMini } from './mini-window.ts';
+import type { WebContents } from 'electron';
+import {
+  SHOW_MAIN_URL,
+  createMiniController,
+  miniWindowOpenHandler,
+  restoreMain,
+  shouldShowMini,
+  withoutMini,
+} from './mini-window.ts';
+import { lockDownContents } from './security.ts';
 
 describe('shouldShowMini', () => {
   it.each([
@@ -110,5 +119,40 @@ describe('restoreMain', () => {
     restoreMain(withoutMini([mini, main], mini), focus, create);
     expect(focus).toHaveBeenCalledWith(main);
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe('miniWindowOpenHandler', () => {
+  it('brings the app back for the exact show-main address and denies the open', () => {
+    const showMain = vi.fn();
+    expect(miniWindowOpenHandler(showMain)({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
+    expect(showMain).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing for any other address, and still denies', () => {
+    const showMain = vi.fn();
+    const handler = miniWindowOpenHandler(showMain);
+    for (const url of [
+      'https://example.com/',
+      `${SHOW_MAIN_URL}/extra`,
+      `${SHOW_MAIN_URL}?x=1`,
+      'scrb-app://other',
+      'scrb://app/index.html',
+    ]) {
+      expect(handler({ url })).toEqual({ action: 'deny' });
+    }
+    expect(showMain).not.toHaveBeenCalled();
+  });
+});
+
+describe('the main window keeps denying every open', () => {
+  it('lockDownContents alone never acts on the show-main address', () => {
+    let handler: (details: { url: string }) => { action: string } = () => ({ action: 'allow' });
+    const contents = {
+      on: () => undefined,
+      setWindowOpenHandler: (next: typeof handler) => (handler = next),
+    } as unknown as WebContents;
+    lockDownContents(contents, 'scrb://app');
+    expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
   });
 });

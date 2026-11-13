@@ -18,5 +18,5 @@ The button is a plain link/`window.open('scrb-app://show-main')` from the mini r
 ### Option B: new allowlisted call `showMainWindow`
 Needs a contract addition (owner approval), entries in preload and main allowlists, mock backend parity, and a sender check restricting it to the mini window. Larger surface and any renderer could call it unless the sender check is right. Not recommended.
 
-### Decision needed
+### Decision: owner approved Option A (implemented in this PR)
 Approve Option A, B, or neither. Review by an agent other than the author is required before merge.
