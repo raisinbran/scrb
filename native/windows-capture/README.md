@@ -8,7 +8,7 @@ are not done.**  Design source:
 
 Recorded on a Dell Precision 7760, Windows 11 10.0.26300, VS 2022 Build Tools
 in `C:\BuildTools`, Windows SDK 10.0.26100, libopus
-`251d657e92fccfa3b05baec4f05756cce252fb75` (`phase0/MANIFEST.md`).
+`251d657e92fccfa3b05baec4f05756cce252fb75` (`third_party/MANIFEST.md`).
 
 ```
 pwsh -File scripts\fetch-opus.ps1
@@ -18,6 +18,18 @@ build\bin\PipelineTests.exe ..\..\phase0\artifacts\capture\devices\sleep-wake-ti
 
 The helper links the dynamic C runtime (`/MD`) to match the libopus build; a
 shipped build must bundle it or move both to `/MT`.
+
+`--live-pipe \\.\pipe\NAME` enables the optional Phase 3 binary PCM feed. The
+helper opens that app-owned named pipe for overlapped writes. Without the flag,
+capture follows the existing durable path. A stalled or broken reader disables
+or drops only live output; Stop never waits for the live reader.
+
+The feed uses wire version 1 from
+`docs/plans/task-17-native-pcm-feed-proposal.md`. Each track has its own sequence
+and generation. A 31-tap low-pass converter runs on the exporter thread and
+adds 15 input samples of delay. The first timestamp includes that delay. Later
+timestamps advance by exactly 62,500 ns per emitted 16 kHz sample. A boundary
+flushes the converter tail before closing its generation.
 
 ## Protocol
 
@@ -156,7 +168,7 @@ reopens with reason `device`, so that track has no `workerRestarted` chunk;
 recovery does not depend on the reason.
 
 **`TonePlayer.exe` is muted in the Volume Mixer on this PC.**  Windows keeps
-per-app settings by path, and `phase0\probes\windows-tone-player\TonePlayer.exe`
+per-app settings by path, and `phase0\probes\windows-tone-player\TonePlayer.exe` (its path when this was observed; the tool now lives under `native\windows-capture\tools\windows-tone-player\`, and the mixer setting for the new path has not been checked)
 is saved at 30% and muted on the speakers, so it reads about -96 dB, even in
 whole-computer capture.  A copy at another path reads -17.9 dB.  Set `SCRB_TONE`
 to such a copy; `restart_case.mjs`, `pause_case.mjs`, `crash_case.mjs` and
@@ -427,7 +439,7 @@ unplug (no USB mic).
     process loopback gives silence for any stream of category Communications, in
     include and exclude modes; other categories record at -13 dB, with no call and
     output muted (`results/process-loopback-comms.txt`,
-    `phase0/probes/windows-comm-tone`).  The category Teams uses was not read
+    `native/windows-capture/tools/windows-comm-tone`).  The category Teams uses was not read
     directly, but this reproduces its result, and a capture client cannot ask for
     these streams.  One PC; no documentation found either way.  So per-app Teams
     capture records silence, with no warning.  Zoom and browser targets were not run.  `run-case.ps1 -WholeComputer` starts its tone
@@ -438,7 +450,7 @@ unplug (no USB mic).
     mode.  A probe with OBS's exact format, flags and buffer captured an Other
     stream at -10.5 dB and a Communications stream as digital silence
     (`results/process-loopback-obs-settings.txt`,
-    `phase0/probes/windows-comm-tone/ObsProbe.cpp`).  OBS itself was not run.
+    `native/windows-capture/tools/windows-comm-tone/ObsProbe.cpp`).  OBS itself was not run.
     Public reports agree: microsoft/Windows-classic-samples#414 (Teams desktop
     silent, and a Communications repro on build 26200), OpenWhispr PR 2233 (Teams
     0.0000 against endpoint loopback 0.38-0.65) and anarlog PR 7590 (moved to

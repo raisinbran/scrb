@@ -275,6 +275,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   redo: meeting,
   seekAudio: shape({ meetingId: id, positionMs: ms }),
   pauseAudio: meeting,
+  getPlaybackMedia: shape({ meetingId: id, positionMs: ms }),
 
   listProfiles: nothing,
   getProfileUndoState: nothing,
@@ -302,6 +303,8 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
     patch: shape({}, { term: filled(MAX_NAME), misheard: list(filled(MAX_NAME)), enabled: flag }),
   }),
   deleteTerm: shape({ id }),
+  listVocabularySuggestions: nothing,
+  answerVocabularySuggestion: shape({ id, accepted: flag }),
   getVocabularyUndoState: nothing,
   undoVocabulary: nothing,
   redoVocabulary: nothing,

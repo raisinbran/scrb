@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MeetingId } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { PlaybackEngine } from '../../lib/playback-engine.ts';
 
 /** Click-to-play state for one meeting. `positionMs` is null while nothing plays. */
 export function usePlayback(meetingId: MeetingId) {
@@ -8,24 +9,30 @@ export function usePlayback(meetingId: MeetingId) {
   const [positionMs, setPositionMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(
-    () =>
-      backend.on('playbackPosition', (playback) => {
-        if (playback.meetingId !== meetingId) return;
-        setPositionMs(playback.isPlaying ? playback.positionMs : null);
-      }),
-    [backend, meetingId],
-  );
+  const engine = useRef<PlaybackEngine | null>(null);
+  const playing = useRef(false);
 
-  const play = useCallback(
-    (ms: number) => {
-      setError(null);
-      backend.call('seekAudio', { meetingId, positionMs: ms }).catch((failure: unknown) => {
-        setError(failure instanceof Error ? failure.message : 'That audio could not be played.');
-      });
-    },
-    [backend, meetingId],
-  );
+  useEffect(() => {
+    const audio = new PlaybackEngine(backend, meetingId, setError);
+    engine.current = audio;
+    const off = backend.on('playbackPosition', (playback) => {
+      if (playback.meetingId !== meetingId) return;
+      playing.current = playback.isPlaying;
+      setPositionMs(playback.isPlaying ? playback.positionMs : null);
+    });
+    return () => {
+      off();
+      audio.dispose();
+      if (playing.current) void backend.call('pauseAudio', { meetingId }).catch(() => undefined);
+    };
+  }, [backend, meetingId]);
+
+  const play = useCallback((ms: number) => {
+    setError(null);
+    engine.current?.seek(ms).catch((failure: unknown) => {
+      setError(failure instanceof Error ? failure.message : 'That audio could not be played.');
+    });
+  }, []);
 
   const stop = useCallback(() => {
     void backend.call('pauseAudio', { meetingId }).catch(() => setPositionMs(null));

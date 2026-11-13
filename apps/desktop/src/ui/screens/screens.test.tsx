@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
@@ -133,6 +133,60 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    it('focuses the heading after deleting a term', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      const remove = await screen.findByRole('button', { name: 'Delete Kestrel API' });
+      remove.focus();
+      fireEvent.click(remove);
+      const confirm = screen.getByRole('button', { name: 'Delete term' });
+      confirm.focus();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(screen.queryByText('Kestrel API')).toBeNull());
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Vocabulary' })),
+      );
+    });
+
+    it('lists suggested terms with their counts and their misheard forms', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      expect(await screen.findByRole('heading', { name: 'Suggested terms' })).toBeTruthy();
+      expect(screen.getByText('4 corrections in 3 meetings')).toBeTruthy();
+      expect(screen.getByText('2 corrections in 2 meetings')).toBeTruthy();
+    });
+
+    it('remembers a suggestion and refreshes both lists', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Remember Marlow Quay' }));
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull(),
+      );
+      expect(await screen.findByRole('button', { name: 'Edit Marlow Quay' })).toBeTruthy();
+    });
+
+    it('dismisses a suggestion without adding a term', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Dismiss Tessel' }));
+      await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
+      expect((await backend.call('listTerms')).some((term) => term.term === 'Tessel')).toBe(false);
+    });
+
+    it('shows an error and refreshes when a suggestion changed', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      const remember = await screen.findByRole('button', { name: 'Remember Tessel' });
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
+      fireEvent.click(remember);
+      expect((await screen.findByRole('alert')).textContent).toBe('That suggestion changed.');
+      await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
+    });
+
+    it('hides the section when there are no suggestions', async () => {
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
+      renderScreen(backend, <VocabularyScreen />);
+      await screen.findByText('Kestrel API');
+      expect(screen.queryByRole('heading', { name: 'Suggested terms' })).toBeNull();
+    });
+
     it('shows the empty state', async () => {
       backend.setTerms([]);
       renderScreen(backend, <VocabularyScreen />);

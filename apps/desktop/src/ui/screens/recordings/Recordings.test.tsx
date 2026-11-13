@@ -62,6 +62,17 @@ describe('Recordings', () => {
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
     });
 
+    it('focuses the title after meeting navigation', async () => {
+      renderScreen();
+      (await button(/Weekly project sync/)).focus();
+      await openMeeting(/Weekly project sync/);
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole('heading', { name: 'Weekly project sync' }),
+        ),
+      );
+    });
+
     it('searches transcripts and opens a match at its time', async () => {
       renderScreen();
       await button(/Budget review/);
@@ -118,6 +129,39 @@ describe('Recordings', () => {
           buildVoiceProfiles: false,
         }),
       );
+    });
+
+    it('keeps an import privacy reminder dismissed after leaving and returning', async () => {
+      renderScreen();
+      await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
+      await startImport(true);
+      const reminder = /Voice-profile building (is|was) enabled for this import\./;
+      expect(await screen.findByText(reminder)).toBeTruthy();
+      fireEvent.click(
+        screen.getByRole('button', { name: /Dismiss voice-profile privacy reminder for/ }),
+      );
+      expect(screen.queryByText(reminder)).toBeNull();
+
+      fireEvent.click(await button(/Budget review/));
+      await screen.findByRole('tab', { name: 'Transcript' });
+      fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
+      await button('Import audio file');
+      expect(screen.queryByText(reminder)).toBeNull();
+    });
+
+    it('uses completed-state wording without claiming profiles were created', async () => {
+      renderScreen();
+      await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
+      await startImport(true);
+      await screen.findByRole('button', { name: 'Open' }, SLOW);
+      expect(screen.getByText('Voice-profile building was enabled for this import.')).toBeTruthy();
+    });
+
+    it('does not show the import privacy reminder when profiling is off', async () => {
+      renderScreen();
+      await backend.call('updateSettings', { location: { country: 'US', usState: 'IL' } });
+      await startImport();
+      expect(screen.queryByText(/Voice-profile building/)).toBeNull();
     });
 
     it('shows progress, then lets the user open the new meeting', async () => {

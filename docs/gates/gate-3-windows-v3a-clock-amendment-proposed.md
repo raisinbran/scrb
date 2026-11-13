@@ -1,0 +1,78 @@
+# Gate 3 Windows: Protocol v3a clock amendment (PROPOSED)
+
+Status: **PROPOSED, NOT_FROZEN.** Separate document. Protocol v3 and the earlier v3 timing amendment are not edited. Nothing here is approved, implemented or run. No recording, playback, build, launch, freeze or merge is authorized by this text. The practice run (2026-11-09 PT) was not scored and freezes nothing.
+
+## 1. Practice evidence this proposal rests on
+
+Figures below were supplied in the owner's assignment from the Codex analysis of the practice recording. Claude Code has not re-derived them; they are to be re-checked before approval. The practice recording is test data (r3 assembled WAVs).
+
+| Observation | Value |
+| --- | --- |
+| Affine (offset plus drift) fit of the marker times | **INCONCLUSIVE** at 210 ms and 200 ms (microphone and meeting) |
+| Gaps in capture timestamps | 161 ms and 210 ms; **no assigned samples near 141.7 s** |
+| Marker span error on the continuous view | **+80 ms** microphone, **-10 ms** meeting |
+| Direct matching of short words | **Not reliable** |
+| Matching of long utterances | **Reliable** |
+
+Practice-run facts that stay as written in `gate-3-windows-d2-practice-run-results-20261109.md`: common drift of about +205 ms microphone and +200 ms meeting over 380 s (D2 draft O-1) and a 40 to 45 ms microphone-behind-meeting offset (O-2).
+
+## 2. Cause not determined
+
+The cause of the gaps (a playback stall, a capture timestamp artifact, or something else) is **undetermined**. No document, script or report may assert one. The rules below are written so that they hold whichever it is.
+
+## 3. Two named views of a captured track
+
+- **Sample-continuous view:** the track's samples laid end to end in the order captured, with no gap inserted. A sample's position is its index divided by 48000.
+- **Timestamped capture view:** each chunk placed by its recorded start time (`startNs`), so a recorded gap appears as missing time.
+
+Every result states which view it used. The original result under the unamended rule is preserved and reported beside any v3a result; v3a never replaces or relabels it.
+
+## 4. Proposed rules
+
+1. **Marker check.** The 100 ms marker check (as in Protocol v3) is applied on the **sample-continuous view** as an explicit amendment. The result on the timestamped view is also reported. Neither is deleted.
+2. **Speech-time interval.** For each scored unit, the capture time of the speech is an interval, not a point:
+   - **Earliest** = its placement on the sample-continuous view.
+   - **Latest** = earliest plus the cumulative recorded gap time before that point.
+   - Conservative latency uses the **earliest** speech time. Best-case latency uses the **latest**. Both are reported.
+3. **Unlogged interior steps.** If a step in the track clock is not in the gap log, the long utterances before and after it locate it. The step is then carried as a **symmetric uncertainty** around its located position. If the long utterances cannot locate it, the affected units are **INCONCLUSIVE**.
+4. **Gaps never remove or excuse.** A gap never removes a unit from the count and never grants SETUP-AFFECTED.
+5. **No numeric gap cutoff.** No gap length is chosen as a pass or fail line. A bound that is finite and validated is evaluated normally. Timing that is unbounded or unsupported is INCONCLUSIVE.
+6. **A finite interval is not proof of intact capture.** A finite timing interval does not establish that speech crossing a gap was captured intact. If a scored word's presence or endpoint cannot be supported from the recording, the uncertainty never produces acceptance credit: the unit is uncredited in both bounds and stays in the denominator (scorer outcome CAPTURE-LIMITED). Proposed, owner approval pending: the preserved recording can verify the word, in which case rule 8 applies instead: the 5 ms frames on both sides of each recorded gap, overlap or overrun inside the word interval (before its measured end) are above both energy levels of the existing two-threshold acoustic-end rule, and the last active frame under each level ends inside the unit's earliest-to-latest acoustic end interval. Not verified or not checkable means uncredited in both bounds. A **confirmed capture failure** (the word is shown absent or damaged in the preserved recording) and a **measurement limitation** (the word cannot be confirmed either way) are reported as separate outcomes and are never merged or relabelled.
+7. **Steps persist.** After an unlogged step the offset persists. Later units use the offset measured at the nearest **preceding** long anchor. Only units between two bracketing anchors that span a detected step are widened by the symmetric uncertainty in rule 3; units outside such a bracket are not widened. **Proposal for review (not an approval):** units before the first long anchor use the continuous-view offset derived from the lead marker (recorded continuous position minus the marker's source time) with the marker's own measured uncertainty, and the step from that lead offset to the first long anchor is computed and applied under this rule like any other step; the lead marker is valid only as the first anchor and only with a valid continuous marker check. The marker's source time is not typed in: it is detected in the frozen source file by the same marker detector as the recording's marker (a supplied value must equal the detected one or the run is INCONCLUSIVE), and the anchor's uncertainty is the recording detection uncertainty plus the source detection uncertainty. The placement of a word on the timestamped timeline also keeps the overlap and audited-overrun reading: the earliest placement is the continuous time plus the smaller of zero and the signed chunk displacement (cumulative gaps minus overlaps and overruns), and the latest is the continuous time plus the larger of the cumulative gap and that displacement. This is a marked proposal for owner approval.
+8. **Units whose timing cannot be established (proposed, owner approval pending).** A unit whose placement is unsupported is **TIMING-INCONCLUSIVE**: because an anchor was excluded and no valid anchor covers it (reach 30 s, proposed), because its span overlaps an unexplained offset disagreement found before exclusion, or because its placement is unsupported without any overlap of a recorded gap. A word that overlaps a recorded gap, overlap or overrun is timing-INCONCLUSIVE only when the decoded recording verifies its presence and endpoint (rule 6); otherwise rule 6 applies and it is uncredited in both bounds. A timing-INCONCLUSIVE unit stays in the denominator, receives no credit in the conservative bound, and is credited in the best-case bound, so it can neither make Layer A a definitive FAIL nor make Layer B FAILURE OBSERVED; a verdict that changes depending on it is INCONCLUSIVE (Layer A) or INDETERMINATE (Layer B). This does not depart from rule 6: gap-overlap units the recording does not verify are uncredited in both bounds. A unit farther than a replaced anchor adds a drift-rate bound (proposed, owner approval pending) times the extra distance to the calibrated uncertainty. The 0.0006 s/s drift allowance and the 30 s reach are proposed, owner approval pending; the drift allowance is an empirical engineering allowance from the practice recording, not a proven bound, and it must not be retuned after seeing scored-run results. Track-level INCONCLUSIVE remains only for marker disagreement beyond 100 ms, no usable lead or trail marker, and no valid long anchor.
+
+### 4b. Observation uncertainty: 250 ms is a reporting threshold (marked proposal for owner approval, NOT frozen)
+
+"The former global maximum of 250 ms observation uncertainty is retained as a reporting threshold, not a run-validity threshold. Every reliably identified publication is evaluated using its measured per-observation uncertainty u, including values above 250 ms. Conservative latency uses the latest observed publication time; best-case latency uses the earliest supported time (observed - u). No observation interval is truncated or capped at 250 ms. The distribution, maximum and count of observation intervals above 250 ms, the number of first-observed scored words affected, and the worst intervals with their context are reported. Raw timing, read-error, visibility, identity and setup-affected evidence is preserved. No additional minimum percentage of observations below 250 ms is required. Existing PASS/FAIL/INCONCLUSIVE logic, thresholds, the frozen denominator and all other conditions are unchanged. This does not alter the November 7 result."
+
+Implementation note (offline): the scorer output `observer_u_summary` gives the number of credited scored endpoints and how many of them have u above 250 ms. u of a publication is the current successful sample end minus the previous successful sample begin, so failed polls in between are inside it. `observer_publications.py` reports `interval_statistics` (all intervals and `published_word_positions`, the word positions the observer published, which are not necessarily scored words: count, maximum, median, 90th and 99th percentile, count above 250 ms, worst intervals, and the count above 250 ms per phase: before viewport, stop, scrolling, other, plus any marker such as recording supplied with `--phase-mark`). `u_pass` remains a descriptive field; `validation_pass` no longer depends on it.
+
+### 4a. Placement over a range, endpoint binding and the 2 ms conversion allowance (marked proposal for owner approval)
+
+- **Placement over every chunk in the range.** Overlaps make the signed displacement non-monotonic, so the placement interval of an uncertain continuous range (acoustic end, last-word start, utterance onset) is the minimum and maximum of the possible placements over **every** chunk the whole range intersects, not only the two end chunks. With gaps only, the result equals the end-chunk rule. No threshold changes.
+- **Scored endpoints are bound to the converted publication file.** The scorer takes the converted publication file by path and checks, for every credited endpoint, its publication ID, observed time and u against that file (exact, or within 1e-9 s of float tolerance). A missing, extra, duplicated, mismatched or stale endpoint means that unit is never credited and stays in the denominator. The file's conversion identity (observer frequency, harness origin ticks, reconstructed effective origin, conversion u, track, session, chunk hashes, metadata hash) must equal what is recomputed from the track's clock context, the observer raw file header and the harness log; otherwise the track is INCONCLUSIVE. The scorer regenerates the converted file from the raw observer samples with the same code and requires it to equal the supplied file (any difference makes the track INCONCLUSIVE), and it requires a conversion allowance of at least 2 ms (larger documented values stay valid). The scorer output records the SHA-256 of the raw observer file, the harness log and the converted publication file.
+- **The 2 ms conversion allowance** is a conservative numerical allowance for converting between two QPC-based clocks (Stopwatch ticks and capture timestamps); it is not measured device timestamp accuracy and not a bound on playback or capture delay.
+- **The freeze record must list:** the pinned native candidate; the QPC frequency; the conversion method (one conversion, no marker fit: session seconds = ticks / frequency minus the session origin); the reconstructed effective origin; the 2 ms allowance with the basis above; and the evidence hashes (raw observer file, harness log, converted publication file).
+- If the same-counter assumption (Stopwatch ticks and the capture helper's QPC nanoseconds count the same counter) or the origin reconstruction fails, the affected timing is **INCONCLUSIVE**.
+
+## 5. Unchanged
+
+3 s median limit; 6 s within-limit rule; 95% fraction; denominator; the failure window; Layers B and C; the historical 73/77 result under the original frozen detector-end rule. No acceptance threshold changes.
+
+## 6. Observer requirements to verify later (not yet verified)
+
+- The observer's clock uses the **same QPC epoch and frequency** as the session, or a **known conversion** to the session origin.
+- Observations are **visible-text** observations.
+- Each observation carries its own **uncertainty**.
+
+## 7. Approval state
+
+| Item | State |
+| --- | --- |
+| Amendment text hash | PENDING |
+| Gap-map reader hash | PENDING (not written) |
+| v3a scoring-script hash | PENDING (not written) |
+| Owner approval of v3a | PENDING |
+| Independent code review of the reader and scoring script | PENDING |
+
+Codex writes the matcher and marker code; Claude Code does not.

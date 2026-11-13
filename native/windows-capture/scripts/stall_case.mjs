@@ -28,7 +28,7 @@ const root = resolve(scripts, '..');
 const repo = resolve(root, '..', '..');
 const helper = join(root, 'build', 'bin', 'scrb-capture.exe');
 const verify = join(root, 'build', 'bin', 'ChunkVerify.exe');
-const mute = join(repo, 'phase0', 'probes', 'windows-mute', 'Mute.exe');
+const mute = join(repo, 'native', 'windows-capture', 'tools', 'windows-mute', 'Mute.exe');
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const SUSPENDER = `

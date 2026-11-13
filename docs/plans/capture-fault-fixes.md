@@ -1,7 +1,7 @@
 # Two capture faults from the Gate 2 Mac runs
 
-**Status:** QA applied (`phase0/gpt-QA-reports/20261031_capture-fault-fixes_QA.md`). Approved by the owner on 2026-10-31.
-**Evidence:** `docs/handoffs/2026-10-30-macos-long-run.md`.
+**Status:** QA applied (`docs/qa/20261031_capture-fault-fixes_QA.md`). Approved by the owner on 2026-10-31.
+**Evidence:** `docs/handoffs/archive/2026-10-30-macos-long-run.md`.
 **Scope:** `packages/app-core/src/recording.ts`, `packages/capture/src/index.ts`, `apps/desktop/src/main/recording.ts`, `native/macos-capture/src/`. No change to `packages/contracts/`, IPC or the chunk file format.
 
 ## Fault 1: a brief fault ends the recording

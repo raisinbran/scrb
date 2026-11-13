@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Library } from '@scrb/storage';
+import { CorrectionConflictError, Library } from '@scrb/storage';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
 
@@ -42,6 +42,287 @@ describe('createMeetingHandlers', () => {
   const recorded = (title: string, date: string) =>
     library.createMeeting({ title, date, source: 'recorded', status: 'ready', durationMs: 5000 });
 
+  describe('speaker split', () => {
+    const range = { firstWordId: 'w2', lastWordId: 'w2' };
+    const speaker = (id: string) => ({
+      id,
+      label: id,
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+    });
+    const seed = async () => {
+      const { id } = await recorded('Invented split', '2026-11-03T10:00:00Z');
+      await library.appendSegments(
+        id,
+        [
+          {
+            id: 's1',
+            speakerId: 'a',
+            track: 'meeting',
+            pass: 'final',
+            words: [
+              { id: 'w1', text: 'hello', startMs: 0, endMs: 400 },
+              { id: 'w2', text: 'there', startMs: 500, endMs: 900 },
+              { id: 'w3', text: 'again', startMs: 1000, endMs: 1400 },
+            ],
+          },
+        ],
+        [speaker('a'), speaker('b')],
+      );
+      return id;
+    };
+    const split = (meetingId: string, selected = range) =>
+      dispatchCall(handlers, 'splitSpeaker', {
+        meetingId,
+        range: selected,
+        newLabel: 'Invented voice',
+      });
+
+    it.each([
+      {
+        scenario: 'an unselected overlapping speaker word',
+        secondSpeaker: 'b',
+        secondStartMs: 400,
+        secondEndMs: 600,
+        lastSelectedId: 'w1',
+      },
+      {
+        scenario: 'a selected overlapping word outside the override',
+        secondSpeaker: 'a',
+        secondStartMs: 200,
+        secondEndMs: 300,
+        lastSelectedId: 'w2',
+      },
+    ])('rejects split affecting $scenario', async (testCase) => {
+      const { id: meetingId } = await recorded(
+        'Invented overlapping split',
+        '2026-11-03T10:00:00Z',
+      );
+      await library.appendSegments(
+        meetingId,
+        [
+          {
+            id: 's1',
+            speakerId: 'a',
+            track: 'meeting',
+            pass: 'final',
+            words: [{ id: 'w1', text: 'one', startMs: 0, endMs: 1000 }],
+          },
+          {
+            id: 's2',
+            speakerId: testCase.secondSpeaker,
+            track: 'meeting',
+            pass: 'final',
+            words: [
+              {
+                id: 'w2',
+                text: 'two',
+                startMs: testCase.secondStartMs,
+                endMs: testCase.secondEndMs,
+              },
+            ],
+          },
+        ],
+        [speaker('a'), speaker('b')],
+      );
+      await library.saveGeneratedSummary(meetingId, {
+        generatedAt: null,
+        brief: null,
+        full: null,
+        actionItems: [],
+        decisions: [],
+        openQuestions: [],
+        warnings: [],
+      });
+      const before = await library.readTranscript(meetingId);
+      const beforeBytes = readFileSync(library.meetingPaths(meetingId).transcript, 'utf8');
+      const summary = await library.readSummary(meetingId);
+      const metadata = await library.getMeeting(meetingId);
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+
+      expect(
+        await split(meetingId, { firstWordId: 'w1', lastWordId: testCase.lastSelectedId }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(await library.readTranscript(meetingId)).toEqual(before);
+      expect(readFileSync(library.meetingPaths(meetingId).transcript, 'utf8')).toBe(beforeBytes);
+      expect(await library.readSummary(meetingId)).toEqual(summary);
+      expect(await library.getMeeting(meetingId)).toEqual(metadata);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('persists split undo across restarts', async () => {
+      const meetingId = await seed();
+      const unrelatedId = await seed();
+      const unrelated = await library.readTranscript(unrelatedId);
+      await library.applyCorrection(meetingId, {
+        wordIds: ['w2'],
+        replacement: 'Invented term',
+        remember: true,
+      });
+      const before = await library.readTranscript(meetingId);
+      const metadata = await library.getMeeting(meetingId);
+      const terms = library.vocabulary.list();
+      const profile = library.voiceProfiles.create({
+        modelId: 'invented',
+        embedding: new Float32Array([1, 0]),
+        name: 'Unrelated voice',
+      });
+      await library.saveGeneratedSummary(meetingId, {
+        generatedAt: null,
+        brief: null,
+        full: null,
+        actionItems: [],
+        decisions: [],
+        openQuestions: [],
+        warnings: [],
+      });
+      const emit = vi.fn((name: string, payload: unknown) => {
+        if (name === 'transcriptChanged') {
+          const persisted = JSON.parse(
+            readFileSync(library.meetingPaths(meetingId).transcript, 'utf8'),
+          ) as { revision: number };
+          expect(payload).toMatchObject({ revision: persisted.revision });
+          expect(persisted.revision).toBe(before.revision + 1);
+        }
+      });
+      handlers = createMeetingHandlers(library, emit);
+      const root = library.paths.root;
+
+      const result = await split(meetingId);
+      expect(result).toMatchObject({ ok: true, value: { speakerId: expect.any(String) } });
+      if (!result.ok) throw new Error('Split failed');
+      const { speakerId } = result.value as { speakerId: string };
+      const saved = await library.readTranscript(meetingId);
+      expect(saved.revision).toBe(before.revision + 1);
+      expect(saved.undoStack).toHaveLength(before.undoStack.length + 1);
+      expect(saved.speakers).toEqual([
+        ...before.speakers,
+        {
+          id: speakerId,
+          label: 'Invented voice',
+          name: 'Invented voice',
+          profileId: null,
+          userNamed: true,
+          mergedInto: null,
+        },
+      ]);
+      expect(saved.speakerOverrides).toEqual([
+        {
+          id: expect.any(String),
+          track: 'meeting',
+          startMs: 500,
+          endMs: 900,
+          speakerId,
+        },
+      ]);
+      expect(saved.segments).toEqual(before.segments);
+      expect(saved.corrections).toEqual(before.corrections);
+      expect(saved.gaps).toEqual(before.gaps);
+      expect(await library.readTranscript(unrelatedId)).toEqual(unrelated);
+      expect(await library.getMeeting(meetingId)).toEqual(metadata);
+      expect(library.vocabulary.list()).toEqual(terms);
+      expect(library.voiceProfiles.list()).toEqual([profile]);
+      expect(await library.readSummary(meetingId)).toMatchObject({ outdated: true });
+      expect(emit).toHaveBeenCalledWith('summaryOutdated', { meetingId });
+      expect(emit).toHaveBeenCalledWith(
+        'transcriptChanged',
+        expect.objectContaining({
+          meetingId,
+          revision: saved.revision,
+          speakers: expect.arrayContaining([expect.objectContaining({ id: speakerId })]),
+        }),
+      );
+      await library.close();
+
+      library = await Library.open({ root });
+      handlers = createMeetingHandlers(library);
+      expect(await library.readTranscript(meetingId)).toEqual(saved);
+      expect(await value('getTranscript', { meetingId, offset: 0, limit: 10 })).toMatchObject({
+        segments: [{ speakerId: 'a' }, { speakerId }, { speakerId: 'a' }],
+        speakers: [{ id: 'a' }, { id: speakerId, label: 'Invented voice' }],
+      });
+      expect(await dispatchCall(handlers, 'undo', { meetingId })).toMatchObject({ ok: true });
+      const undone = await library.readTranscript(meetingId);
+      expect(undone.speakers).toEqual(before.speakers);
+      expect(undone.speakerOverrides).toEqual(before.speakerOverrides);
+      expect(undone.corrections).toEqual(before.corrections);
+      await library.close();
+
+      library = await Library.open({ root });
+      handlers = createMeetingHandlers(library);
+      expect(await dispatchCall(handlers, 'redo', { meetingId })).toMatchObject({ ok: true });
+      const redone = await library.readTranscript(meetingId);
+      expect(redone.speakers).toEqual(saved.speakers);
+      expect(redone.speakerOverrides).toEqual(saved.speakerOverrides);
+      expect(redone.segments).toEqual(saved.segments);
+      expect(await library.readTranscript(unrelatedId)).toEqual(unrelated);
+      expect(library.vocabulary.list()).toEqual(terms);
+      expect(library.voiceProfiles.list()).toEqual([profile]);
+    });
+
+    it.each(['status', 'revision'] as const)('refuses split after %s changes', async (change) => {
+      const meetingId = await seed();
+      const original = library.splitSpeaker.bind(library);
+      let changed = await library.readTranscript(meetingId);
+      vi.spyOn(library, 'splitSpeaker').mockImplementationOnce(async (...args) => {
+        if (change === 'status') {
+          await library.updateMeeting(meetingId, { status: 'finalPassRunning' });
+        } else {
+          await library.renameSpeaker(meetingId, 'a', 'Concurrent name');
+        }
+        changed = await library.readTranscript(meetingId);
+        return original(...args);
+      });
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+
+      expect(await split(meetingId)).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(await library.readTranscript(meetingId)).toEqual(changed);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects mixed speakers inside corrected tokens', async () => {
+      const meetingId = await seed();
+      await library.reassignSpeaker(meetingId, ['w2'], 'b');
+      await library.applyCorrection(meetingId, {
+        wordIds: ['w1', 'w2'],
+        replacement: 'Invented phrase',
+      });
+      const before = await library.readTranscript(meetingId);
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+
+      expect(await split(meetingId, { firstWordId: 'w1', lastWordId: 'w1' })).toMatchObject({
+        ok: false,
+        error: { code: 'conflict' },
+      });
+      expect(await library.readTranscript(meetingId)).toEqual(before);
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it.each(['latest override', 'merged identity'] as const)(
+      'splits equivalent identities through %s',
+      async (identity) => {
+        const meetingId = await seed();
+        await library.reassignSpeaker(meetingId, ['w1', 'w2'], 'b');
+        if (identity === 'latest override') {
+          await library.reassignSpeaker(meetingId, ['w1', 'w2'], 'a');
+        } else {
+          await library.mergeSpeakers(meetingId, 'b', 'a');
+        }
+
+        expect(await split(meetingId, { firstWordId: 'w1', lastWordId: 'w3' })).toMatchObject({
+          ok: true,
+        });
+        const saved = await library.readTranscript(meetingId);
+        expect(saved.speakerOverrides.at(-1)).toMatchObject({ startMs: 0, endMs: 1400 });
+      },
+    );
+  });
+
   it('maps library rows to list items, newest first', async () => {
     const older = await recorded('Older', '2026-10-01T10:00:00.000Z');
     const newer = await library.createMeeting({
@@ -64,6 +345,45 @@ describe('createMeetingHandlers', () => {
       },
       expect.objectContaining({ id: older.id, origin: 'recorded', status: 'ready' }),
     ]);
+  });
+
+  it('passes needsManualResolution to the UI only when a speaker is flagged', async () => {
+    const { id: meetingId } = await recorded('Flagged', '2026-10-03T11:00:00.000Z');
+    const speaker = (id: string, needsManualResolution?: boolean) => ({
+      id,
+      label: id,
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+      ...(needsManualResolution ? { needsManualResolution } : {}),
+    });
+    await library.applyFinalPass(meetingId, {
+      segments: [
+        {
+          id: 's1',
+          speakerId: 'a',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'w1', text: 'hello', startMs: 10, endMs: 20 }],
+        },
+        {
+          id: 's2',
+          speakerId: 'b',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'w2', text: 'again', startMs: 30, endMs: 40 }],
+        },
+      ],
+      speakers: [speaker('a', true), speaker('b')],
+    });
+    const page = (await value('getTranscript', { meetingId, offset: 0, limit: 10 })) as {
+      speakers: Array<{ id: string; needsManualResolution?: boolean }>;
+    };
+    expect(page.speakers.find((s) => s.id === 'a')?.needsManualResolution).toBe(true);
+    const unflagged = page.speakers.find((s) => s.id === 'b');
+    expect(unflagged).toBeDefined();
+    expect(unflagged).not.toHaveProperty('needsManualResolution');
   });
 
   it('returns final text, and speakers with the You kind', async () => {
@@ -675,6 +995,73 @@ describe('createMeetingHandlers', () => {
     expect(
       await dispatchCall(handlers, 'updateTerm', { id: first.id, patch: { term: 'quillon' } }),
     ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+  });
+
+  describe('vocabulary suggestions', () => {
+    const suggestion = {
+      meetingId: 'm1',
+      correctionId: 'c1',
+      term: 'Marlow Quay',
+      misheard: ['marlo key'],
+      correctionCount: 3,
+      meetingCount: 2,
+    };
+    const listed = () =>
+      vi
+        .spyOn(library, 'listVocabularySuggestions')
+        .mockResolvedValue({ suggestions: [suggestion], incomplete: false, truncated: false });
+
+    it('lists suggestions by the representative correction id', async () => {
+      listed();
+      expect(await dispatchCall(handlers, 'listVocabularySuggestions', undefined)).toEqual({
+        ok: true,
+        value: [
+          {
+            id: 'c1',
+            term: 'Marlow Quay',
+            misheard: ['marlo key'],
+            correctionCount: 3,
+            meetingCount: 2,
+          },
+        ],
+      });
+    });
+
+    it('accepts through storage without telling the UI the summary is outdated', async () => {
+      listed();
+      const accept = vi.spyOn(library, 'acceptVocabularySuggestion').mockResolvedValue({} as never);
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: true }),
+      ).toMatchObject({ ok: true });
+      expect(accept).toHaveBeenCalledWith('m1', 'c1');
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('saves a dismissal as plain text', async () => {
+      listed();
+      const dismiss = vi.spyOn(library, 'dismissVocabularySuggestion');
+      const accept = vi.spyOn(library, 'acceptVocabularySuggestion');
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: false }),
+      ).toMatchObject({ ok: true });
+      expect(dismiss).toHaveBeenCalledWith('Marlow Quay');
+      expect(accept).not.toHaveBeenCalled();
+    });
+
+    it('reports a changed or unknown suggestion as a conflict', async () => {
+      listed();
+      vi.spyOn(library, 'acceptVocabularySuggestion').mockRejectedValue(
+        new CorrectionConflictError('The suggestion changed'),
+      );
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'c1', accepted: true }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+      expect(
+        await dispatchCall(handlers, 'answerVocabularySuggestion', { id: 'gone', accepted: true }),
+      ).toMatchObject({ ok: false, error: { code: 'conflict' } });
+    });
   });
 
   it('tells the UI the summary is outdated after undo as well as an edit', async () => {

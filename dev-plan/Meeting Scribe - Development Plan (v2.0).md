@@ -114,7 +114,7 @@ The meeting folder is the source of truth; the index can always be rebuilt from 
 
 ## Phases and gates
 
-Nine phases, each ending in a gate you approve. A gate passes only with test evidence on both machines. From Phase 1 on, each phase starts by freezing the contract changes it needs; Claude Code then builds the UI against the mock backend while Codex builds the backend, and the two are merged before the gate (a user-specified split; see the Development Process and UI Specification documents).
+Nine phases, each ending in a gate you approve. A gate passes only with test evidence on both machines, except Gate 3, which is recorded per platform (see Gate 3 status below). From Phase 1 on, each phase starts by freezing the contract changes it needs; Claude Code then builds the UI against the mock backend while Codex builds the backend, and the two are merged before the gate (a user-specified split; see the Development Process and UI Specification documents).
 
 ### Phase 0: Feasibility spikes (throwaway code)
 
@@ -146,9 +146,29 @@ The live speech worker reading saved chunks through a bounded queue, provisional
 
 **Gate 3:** live delay and memory meet targets; the final pass is measurably more accurate, against the 15% word-error target, compared with the actual live output on the same clips; killing the worker during audible capture never affects recording on either operating system; each supported format imports to a final transcript that meets the final-pass targets, and a cancelled or failed import leaves nothing behind.
 
+**Gate 3 status by platform (2026-11-10):**
+
+- **macOS:** Gate 3 passed earlier (owner-approved; recorded in `docs/handoffs/SRCB_Project_Handover_2026-11-08.md`).
+- **Windows, live-latency criterion (median 3 s or less, 95% within 6 s, per track): ACCEPTED BY OWNER DECISION on 2026-11-10**, per the signed record `docs/gates/gate-3-windows-latency-owner-decision-record-20261110.md`. This is a risk-acceptance decision, not a measured protocol pass. It does not reverse the 2026-11-07 result (73 of 77), covers no other Gate 3 criterion, and does not mean the live path is fixed. The record's reopen conditions apply.
+- **Windows, Wave 1 playback and capture evidence: loopback substitute and relaxed Test 4 ACCEPTED BY OWNER on 2026-11-12**, per `docs/gates/gate-3-windows-wave1-evidence-owner-decision-20261112.md`. This covers those two substitutions only.
+- Gate 3 is recorded per platform, and V1 still needs both platforms recorded. The remaining Windows Gate 3 criteria are not changed by this note.
+
+**Follow-ups from Windows Gate 3** (none blocks the decision above unless a reopen condition occurs):
+
+1. Update the post-run runbook: first-launch location dialog, launching the orchestrator from Windows PowerShell 5.1, a pre-seed settings option, and the manual steps the runbook omits.
+2. The occurrence matcher and the unidentified classifier reject hyphenated published words; a documented filter was used. Fix the tools.
+3. Investigate the extra-sample capture event at about 106 s in two microphone recordings (uninvestigated).
+4. Low priority: a capture-only check on the second Windows PC.
+5. PR #67 diagnostics are unmerged.
+6. Committed `__pycache__` files on `main`.
+7. Level meters read 0 during capture (unexplained).
+8. After review, a deletion pass for the old Windows Gate 3 branches.
+
 ### Phase 4: Speakers
 
 Live multi-speaker diarization on the meeting track, speaker relabeling in the final pass, silently built voice profiles, confidence-gated name assignment, the Speakers screen with rename/merge/split/delete, and the location-based privacy banner. Imported files get final-pass diarization, and build profiles only when the user chooses it for that file.
+
+**Phase 4 task (owner decision 2026-11-11):** before Gate 4, find where overlapped speech is lost between the pyannote segmentation 3.0 output and the final labels (sherpa sidecar output versus our clustering). About 61–65% of missed speech on ES2004a is overlap (`docs/research/overlap-aware-diarization-note.md`). Silent offline measurement first; any change needs a plan with independent review and owner approval. A new model (e.g. DiariZen) is deferred to V1 or V1.1.
 
 **Gate 4:** speaker accuracy and wrong-match rate meet targets; every assignment can be undone; the banner reappears on each new recording where the rule applies; an imported file changes no profile unless the user turned that on for it.
 

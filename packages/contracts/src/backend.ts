@@ -57,10 +57,12 @@ import type {
   SummaryLength,
   SummaryProgress,
   TermId,
+  TrackKind,
   TranscriptChanged,
   TranscriptPage,
   TranscriptionLag,
   UndoState,
+  VocabularySuggestion,
   VocabularyTerm,
   VocabularyTermPatch,
   VocabularyUndoState,
@@ -128,6 +130,19 @@ export interface BackendCalls {
   seekAudio: { request: { meetingId: MeetingId; positionMs: number }; response: void };
   /** @addition */
   pauseAudio: { request: { meetingId: MeetingId }; response: void };
+  /**
+   * @addition
+   * Short-lived `scribe-media:` URLs for at most one sealed chunk per track at or after
+   * `positionMs`, during the playback `seekAudio` started. Never a file path. `nextPositionMs` is
+   * the next playable boundary, skipping gaps; null when no more saved audio follows.
+   */
+  getPlaybackMedia: {
+    request: { meetingId: MeetingId; positionMs: number };
+    response: {
+      chunks: Array<{ track: TrackKind; startMs: number; endMs: number; url: string }>;
+      nextPositionMs: number | null;
+    };
+  };
 
   // Speakers
   /** @addition */
@@ -159,6 +174,8 @@ export interface BackendCalls {
   listTerms: { request: void; response: VocabularyTerm[] };
   updateTerm: { request: { id: TermId; patch: VocabularyTermPatch }; response: VocabularyTerm };
   deleteTerm: { request: { id: TermId }; response: void };
+  listVocabularySuggestions: { request: void; response: VocabularySuggestion[] };
+  answerVocabularySuggestion: { request: { id: string; accepted: boolean }; response: void };
   getVocabularyUndoState: { request: void; response: VocabularyUndoState };
   undoVocabulary: { request: void; response: VocabularyUndoState };
   redoVocabulary: { request: void; response: VocabularyUndoState };
@@ -331,6 +348,7 @@ const CALL_TABLE: Record<CallName, true> = {
   redo: true,
   seekAudio: true,
   pauseAudio: true,
+  getPlaybackMedia: true,
   listProfiles: true,
   getProfileUndoState: true,
   undoProfileChange: true,
@@ -344,6 +362,8 @@ const CALL_TABLE: Record<CallName, true> = {
   listTerms: true,
   updateTerm: true,
   deleteTerm: true,
+  listVocabularySuggestions: true,
+  answerVocabularySuggestion: true,
   getVocabularyUndoState: true,
   undoVocabulary: true,
   redoVocabulary: true,

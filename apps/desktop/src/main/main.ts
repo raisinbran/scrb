@@ -9,6 +9,7 @@ import {
   denyAllPermissions,
   lockDownContents,
   registerAppScheme,
+  serveMedia,
   serveRenderer,
 } from './security.ts';
 
@@ -25,6 +26,7 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
 function createMainWindow(
   warning: string | null = null,
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null = null,
+  stopPlayback: () => void = () => undefined,
 ): void {
   const window = new BrowserWindow({
     width: 1280,
@@ -45,6 +47,12 @@ function createMainWindow(
     },
   });
   lockDownContents(window.webContents, appOrigin);
+  // A reloaded or lost page cannot release what it was granted, so grants end here.
+  window.webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
+    if (isMainFrame && !isSameDocument) stopPlayback();
+  });
+  window.webContents.on('render-process-gone', stopPlayback);
+  window.on('closed', stopPlayback);
   window.once('ready-to-show', () => {
     window.show();
     if (recovery) {
@@ -104,12 +112,15 @@ void app.whenReady().then(async () => {
       window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
     }
   });
+  const { playback } = backend;
+  if (playback) serveMedia((request) => playback.serve(request));
+  const stopPlayback = () => playback?.stop();
   registerCallHandlers(backend.handlers, isTrustedSender);
   closeBeforeQuit(app, backend.close);
-  createMainWindow(backend.warning, backend.recovery);
+  createMainWindow(backend.warning, backend.recovery, stopPlayback);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow(backend.warning, backend.recovery);
+      createMainWindow(backend.warning, backend.recovery, stopPlayback);
     }
   });
 });

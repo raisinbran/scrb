@@ -252,6 +252,8 @@ export interface Speaker {
   label: string;
   kind: 'you' | 'unknown' | 'named';
   profileId: ProfileId | null;
+  /** True when the final pass could not safely match this named speaker. Missing means false. */
+  needsManualResolution?: boolean;
 }
 
 /** The backend decides this state. The UI only styles it. */
@@ -371,6 +373,15 @@ export interface VocabularyTerm {
 }
 
 export type VocabularyTermPatch = Partial<Pick<VocabularyTerm, 'term' | 'misheard' | 'enabled'>>;
+
+/** A repeated correction offered as vocabulary. `id` is the representative correction's id. */
+export interface VocabularySuggestion {
+  id: string;
+  term: string;
+  misheard: string[];
+  correctionCount: number;
+  meetingCount: number;
+}
 
 export interface VocabularyUndoState {
   canUndo: boolean;

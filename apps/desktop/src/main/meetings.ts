@@ -36,6 +36,7 @@ import {
   errorFields,
   MeetingNotFoundError,
   StorageError,
+  StaleRevisionError,
   resolveDisplay,
   type DisplaySegment,
   type Library,
@@ -88,7 +89,7 @@ function editState(t: TranscriptFile): { canUndo: boolean; canRedo: boolean } {
 }
 
 /** Only persisted changes are broadcast; the UI uses the revision to notice missing events. */
-function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit): void {
+export function publishEdit(before: TranscriptFile, after: TranscriptFile, emit?: Emit): void {
   if (!emit || before.revision === after.revision) return;
   const oldSegments = toTranscriptPage(before, 0, Number.MAX_SAFE_INTEGER).segments;
   const fresh = toTranscriptPage(after, 0, Number.MAX_SAFE_INTEGER);
@@ -252,6 +253,7 @@ function toContractSpeaker(speaker: Speaker): ContractSpeaker {
     label: speaker.name ?? speaker.label,
     kind: speaker.id === YOU_ID ? 'you' : speaker.name ? 'named' : 'unknown',
     profileId: speaker.profileId,
+    ...(speaker.needsManualResolution === true ? { needsManualResolution: true } : {}),
   };
 }
 
@@ -377,6 +379,39 @@ export function createMeetingHandlers(
             code: 'conflict',
             message: 'Selection changed. Select the text again.',
           });
+        }
+        throw error;
+      }
+    },
+    splitSpeaker: async (request) => {
+      const { meetingId, range, newLabel } = request as {
+        meetingId: string;
+        range: WordRange;
+        newLabel: string;
+      };
+      const meeting = await requireMeeting(library, meetingId);
+      if (meeting.status !== 'ready') {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'Wait for the final transcript before splitting a speaker.',
+        });
+      }
+      const before = await library.readTranscript(meetingId);
+      try {
+        const after = await library.splitSpeaker(
+          meetingId,
+          selectedWordIds(before, range),
+          newLabel,
+          before.revision,
+        );
+        const speaker = after.speakers.at(-1);
+        if (!speaker) throw new Error('Split did not create a speaker');
+        publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
+        return { speakerId: speaker.id };
+      } catch (error) {
+        if (error instanceof CorrectionConflictError || error instanceof StaleRevisionError) {
+          throw new ContractError({ code: 'conflict', message: 'The selected text changed.' });
         }
         throw error;
       }
@@ -557,6 +592,37 @@ export function createMeetingHandlers(
       } catch (error) {
         if (error instanceof StorageError && error.code === 'PROFILE_BUSY') {
           throw new ContractError({ code: 'conflict', message: error.message });
+        }
+        throw error;
+      }
+    },
+    listVocabularySuggestions: async () => {
+      const { suggestions } = await library.listVocabularySuggestions();
+      return suggestions.map((s) => ({
+        id: s.correctionId,
+        term: s.term,
+        misheard: s.misheard,
+        correctionCount: s.correctionCount,
+        meetingCount: s.meetingCount,
+      }));
+    },
+    answerVocabularySuggestion: async (request) => {
+      const { id, accepted } = request as { id: string; accepted: boolean };
+      // The id is only a lookup key; the current suggestion decides what is acted on.
+      const { suggestions } = await library.listVocabularySuggestions();
+      const suggestion = suggestions.find((s) => s.correctionId === id);
+      if (suggestion === undefined) {
+        throw new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
+      }
+      if (!accepted) {
+        library.dismissVocabularySuggestion(suggestion.term);
+        return;
+      }
+      try {
+        await library.acceptVocabularySuggestion(suggestion.meetingId, suggestion.correctionId);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError || error instanceof StaleRevisionError) {
+          throw new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
         }
         throw error;
       }

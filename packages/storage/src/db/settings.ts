@@ -25,6 +25,14 @@ function isAutoDelete(value: unknown): value is AutoDeleteSettings {
   );
 }
 
+export const DISMISSED_SUGGESTIONS_KEY = 'vocabulary.dismissedSuggestions';
+const DISMISSED_LIMIT = 500;
+
+/** NFC, trimmed, single-spaced, lowercase: the key for comparing vocabulary terms. */
+export function normalizeVocabularyTerm(text: string): string {
+  return text.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+}
+
 /**
  * JSON values by key, in the index. The app core owns most keys; this package checks only the
  * ones it acts on, because a bad retention value must never reach the auto-delete job.
@@ -38,8 +46,7 @@ export class SettingsStore {
 
   get<T>(key: string, fallback: T): T {
     const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     if (row === undefined) return fallback;
     try {
       return JSON.parse(row.value) as T;
@@ -79,5 +86,34 @@ export class SettingsStore {
   setAutoDelete(settings: AutoDeleteSettings): void {
     if (!isAutoDelete(settings)) throw new StorageError('BAD_SETTING', 'Bad auto-delete choice');
     this.set(AUTO_DELETE_KEY, settings);
+  }
+
+  /**
+   * Terms the user dismissed as suggestions, oldest first, as plain text. They outlive the
+   * meetings they came from, so a deleted meeting cannot bring a dismissed suggestion back.
+   */
+  getDismissedSuggestions(): string[] {
+    const value = this.get<unknown>(DISMISSED_SUGGESTIONS_KEY, []);
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : [];
+  }
+
+  dismissSuggestion(term: string): void {
+    const key = normalizeVocabularyTerm(term);
+    if (key === '') throw new StorageError('EMPTY_TERM', 'A vocabulary term cannot be empty');
+    const kept = this.getDismissedSuggestions().filter((item) => item !== key);
+    this.set(DISMISSED_SUGGESTIONS_KEY, [...kept, key].slice(-DISMISSED_LIMIT));
+  }
+
+  undismissSuggestion(term: string): void {
+    const key = normalizeVocabularyTerm(term);
+    const current = this.getDismissedSuggestions();
+    if (current.includes(key)) {
+      this.set(
+        DISMISSED_SUGGESTIONS_KEY,
+        current.filter((item) => item !== key),
+      );
+    }
   }
 }

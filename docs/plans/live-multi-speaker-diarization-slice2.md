@@ -1,0 +1,33 @@
+# Live multi-speaker diarization — slice 2 addendum
+
+**Plan only; uncommitted.** Extends `docs/plans/live-multi-speaker-diarization.md`. Read `main` at `f072dac254fd95d033dd35644bd85b1bea9b98f9` on 2026-11-11. Independent plan review and owner approval precede code. No contract, audio, or voiceprint change proposed. **All proposed tests and native behavior are unverified.**
+
+## What slice 1 leaves open
+
+`packages/transcription/src/meetingDiarizer.ts:154-167,182-214` merges clusters in memory but revisits only 64 recent segment parents, discarding historical merge notifications. `packages/storage/src/corrections.ts:401-432,807-828` persists limited revisions and model-owned label promotion; `resolveDisplay` already follows speaker aliases and timestamped user overrides (`:849-925`). After Stop, final clustering independently assigns `speaker-N` IDs (`packages/transcription/src/finalPass.ts:145-202`). Its time-overlap name matching is imperfect (`corrections.ts:674-732`), and final replacement drops speaker/override Undo entries (`:777-800`). These are **code-observed gaps**, not verified user data loss.
+
+## Proposed implementation
+
+1. **Retroactive merges without touching text.** Have the live clusterer forward bounded **internal** `{from, into, workerRun, generation}` merge notifications. Re-read the latest transcript and atomically update only a model-owned `Speaker.mergedInto` alias under the existing per-meeting lock/revision checks (`packages/storage/src/library.ts:369-409`). Require both IDs in one worker run, no cycle, no final-pass transition, no dangling ID; discard stale/duplicate/out-of-order requests. Protect *both* sides when referenced by a user rename, manual merge, profile assignment, override or speaker history. A user decision wins; an ambiguous merge is skipped. Model merges never create user Undo entries. Existing `resolveSpeakerId` (`corrections.ts:297-305`) updates historical display without changing raw segment or word IDs, text, timing, corrections, gaps, or user history. Publish persisted `transcriptChanged` replacements (`apps/desktop/src/main/meetings.ts:91-111`) and support missed-revision reloads. The precise manual-vs-model alias provenance check is **not yet implemented or verified**.
+2. **Safe final handoff.** Drain/close live updates before final replacement (`apps/desktop/src/main/live-transcript.ts:261-265`); reject late old-run messages. Match final meeting speakers against **resolved**, same-track live spans, not numbers. Transfer a user-given name/profile only for a uniquely supported mapping; define the required evidence margin through tests. For competing names or one-to-many/many-to-one matches, **do not guess**: retain the user's original record and surface a manual-resolution need. Existing UI support for showing unresolved names is **unverified**; propose exact `packages/contracts/` fields separately for owner approval if required. Preserve timestamp speaker overrides and frozen corrections (`corrections.ts:734-752`). Rebase speaker/override Undo/Redo entries only where their targets remain provably valid; current `applyFinalPass` drops them (`:787-800`), so this is an explicit completion blocker. Post-final profile matching must not replace user choices (`packages/app-core/src/profile-matching.ts:65-99`); never learn live voiceprints automatically.
+3. **Renumbering rule.** Mic remains `you`; `Speaker ?` is not an identity or numbered speaker. Live `Speaker 1` is run-local and provisional, even after 30-second promotion. Final `speaker-1` may be a *different person*: never match by equal numbers; re-number anonymous model labels from final diarization while retaining safely matched user names. Publish changed speakers/segments in one saved revision. Historical IDs and correction provenance stay intact; worker restarts begin a new namespace.
+
+## Deferred original failure-table rows — silent tests required, **not run**
+
+| Risk | Required deterministic proof |
+| --- | --- |
+| Over-splits, promotion, merges | Three clusters, late A→B→C merge outside 64 retained parents, `?` promotion, cycles, repeat/out-of-order events, manual-merge precedence, restart namespace. |
+| Lost corrections, names, words | Frozen spans, overlapping speaker splits, user rename/profile/reassign/override, concurrent edit, failed atomic save, reopening, same raw word IDs/text; Undo/Redo before **and after** final. |
+| Stalls, crashes, stale output | Delayed/failed worker, event burst, pause/Stop/final race; bounded backlog, no ACK/ASR/recording stall, no stale write, redacted logs. |
+| Real pipeline | Silent ES2004a replay through worker→sink→storage→events with an old-label merge and inverted live/final numbering; persisted display after reopening. Windows: CI, silent replay, then only owner-authorized short native integrity/latency/resource checks; no automatic 4h/8h test or Gate 3 reopening. |
+
+## Separate code-only audit: vocabulary self-learning today
+
+| Step | Code evidence; assessment |
+| --- | --- |
+| Capture correction | `apps/desktop/src/ui/screens/live/CorrectionEditor.tsx:13-15,25-35,66-73` exposes an **unchecked by default** “Remember correction”; `apps/desktop/src/main/meetings.ts:357-374` forwards it; `packages/storage/src/corrections.ts:149-226` saves it. **Wired; UI execution unverified.** |
+| Suggest term / auto-add | `packages/storage/src/library.ts:389-406,679-707` syncs only active remembered corrections; `packages/storage/src/db/vocabulary.ts:124-180` auto-adds a term and provenance, and `library.ts:709-757` repairs failed sync. **Opt-in auto-add wired; automatic term suggestions not found/proven.** |
+| Use next recognition | `packages/storage/src/db/vocabulary.ts:361-369` selects enabled terms; `packages/app-core/src/vocabulary-hints.ts:3-24` bounds prompts; `packages/app-core/src/final-pass.ts:245-262` and `apps/desktop/src/main/imports.ts:192` pass them; `packages/transcription/src/finalPass.ts:77-89` → `whisper.ts:21-22,57-59` passes `--prompt`. Live options (`whisper.ts:163-201`) show no hint. **Final/import path wired; recognition effect unverified.** |
+| False replacements <1/audio hour | `packages/app-core/src/vocabulary-hints.ts:6-24` does **not** replace text; prompts can still bias recognition. No rate-enforcing logic or measured multi-hour negative-control result found on these code paths. **Threshold unverified; not an end-to-end PASS.** |
+
+**Delivery gates:** independent plan review → owner approval → bounded implementation/checks → independent code review → owner merge decision. No tests, sound, app launch, repository modification or merge performed for this addendum.

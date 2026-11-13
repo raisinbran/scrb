@@ -15,10 +15,15 @@ import {
   upsertMeeting,
   type MeetingRow,
 } from './db/meetings-index.ts';
-import { SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
+import { normalizeVocabularyTerm, SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
-import { VoiceProfileStore } from './db/voice-profiles.ts';
-import { MeetingNotFoundError, StaleRevisionError, StorageError } from './errors.ts';
+import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
+import {
+  CorrectionConflictError,
+  MeetingNotFoundError,
+  StaleRevisionError,
+  StorageError,
+} from './errors.ts';
 import {
   MEETING_FORMAT,
   type MeetingMeta,
@@ -46,6 +51,14 @@ import {
   type MeetingPaths,
 } from './layout.ts';
 import { errorFields, Logger } from './logs.ts';
+import {
+  buildSuggestionGroups,
+  SUGGESTION_MEETING_LIMIT,
+  SUGGESTION_RECORD_LIMIT,
+  type ScannedMeeting,
+  type SuggestionGroup,
+  type VocabularySuggestions,
+} from './vocabulary-suggestions.ts';
 import { searchTranscript, type TranscriptHit } from './search.ts';
 
 const DAY_MS = 86_400_000;
@@ -245,15 +258,30 @@ export class Library {
     return this.clock().toISOString();
   }
 
-  private withLock<T>(meetingId: string, work: () => Promise<T>): Promise<T> {
+  private withLock<T>(meetingId: string, work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const previous = this.locks.get(meetingId) ?? Promise.resolve();
-    const run = previous.then(work, work);
+    let waiting = true;
+    const start = () => {
+      waiting = false;
+      signal?.throwIfAborted();
+      return work();
+    };
+    const run = previous.then(start, start);
     const settled = run.catch(() => undefined);
     this.locks.set(meetingId, settled);
     void settled.then(() => {
       if (this.locks.get(meetingId) === settled) this.locks.delete(meetingId);
     });
-    return run;
+    if (!signal) return run;
+    // Cancel only the caller's queued wait; the lock chain still owns any started persistence.
+    return new Promise<T>((resolve, reject) => {
+      const abort = () => {
+        if (waiting) reject(signal.reason);
+      };
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+      void run.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
   }
 
   private requireRow(meetingId: string): MeetingRow {
@@ -348,8 +376,13 @@ export class Library {
 
   private async changeTranscript(
     meetingId: string,
-    change: (current: TranscriptFile) => TranscriptFile,
-    options: { userEdit: boolean; expectedRevision?: number; write?: AtomicWriteOptions },
+    change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
+    options: {
+      userEdit: boolean;
+      expectedRevision?: number;
+      write?: AtomicWriteOptions;
+      beforeSave?: () => void;
+    },
   ): Promise<TranscriptFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).transcript;
@@ -359,13 +392,14 @@ export class Library {
       if (expectedRevision !== undefined && expectedRevision !== current.revision) {
         throw new StaleRevisionError(expectedRevision, current.revision);
       }
-      const changed = change(current);
+      const changed = await change(current);
       if (changed === current) return current;
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
       if (options.userEdit) await this.flagSummaryOutdated(meetingId);
       const next = { ...changed, revision: current.revision + 1 };
       const learningChanged = current.corrections !== next.corrections;
       if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
+      options.beforeSave?.();
       await saveDocument(file, next, loaded?.fileVersion ?? null, options.write);
       if (learningChanged) {
         try {
@@ -401,11 +435,25 @@ export class Library {
     meetingId: string,
     segments: Segment[],
     speakers: Speaker[] = [],
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.appendSegments(current, segments, speakers),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
+    );
+  }
+
+  mergeLiveSpeaker(
+    meetingId: string,
+    request: corrections.LiveSpeakerMerge,
+    expectedRevision: number,
+    write: AtomicWriteOptions = {},
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      (current) => corrections.mergeLiveSpeaker(current, request),
+      { userEdit: false, expectedRevision, write },
     );
   }
 
@@ -413,11 +461,12 @@ export class Library {
     meetingId: string,
     segmentIds: string[],
     incoming: ModelReplacement,
+    expectedRevision?: number,
   ): Promise<TranscriptFile> {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.replaceLiveSegments(current, segmentIds, incoming),
-      { userEdit: false },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
     );
   }
 
@@ -446,6 +495,13 @@ export class Library {
 
   /** Unlink a deleted voice profile from saved speaker layers and undo history first. */
   async deleteVoiceProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
+    return this.withLock('voice-profile-assignments', () => this.unlinkVoiceProfile(profileId));
+  }
+
+  /** Share the assignment lock through scan, unlink and removal so no new link escapes the scan. */
+  private async unlinkVoiceProfile(
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
     const affected: { meetingId: string; before: TranscriptFile }[] = [];
@@ -527,12 +583,95 @@ export class Library {
     return changed;
   }
 
+  assignSpeakerProfiles(
+    meetingId: string,
+    assignments: { speaker: Speaker; profile: VoiceProfile }[],
+    expectedRevision: number,
+    signal: AbortSignal,
+  ): Promise<TranscriptFile> {
+    const snapshot = (profile: VoiceProfile) =>
+      JSON.stringify({
+        ...profile,
+        meetingIds: [...profile.meetingIds].sort(),
+      });
+    return this.withLock(
+      'voice-profile-assignments',
+      () =>
+        this.changeTranscript(
+          meetingId,
+          async (current) => {
+            if ((await this.getMeeting(meetingId)).status !== 'ready') {
+              throw new CorrectionConflictError('Meeting is not complete');
+            }
+            for (const { speaker } of assignments) {
+              const latest = current.speakers.find((s) => s.id === speaker.id);
+              if (
+                !latest ||
+                latest.userNamed ||
+                latest.mergedInto !== null ||
+                JSON.stringify(latest) !== JSON.stringify(speaker)
+              ) {
+                throw new CorrectionConflictError('Speaker changed');
+              }
+            }
+            if (assignments.length === 0) return current;
+            return corrections.assignSpeakerProfiles(
+              current,
+              assignments.map(({ speaker, profile }) => {
+                if (profile.name === null) throw new CorrectionConflictError('Profile is unnamed');
+                return { speakerId: speaker.id, profileId: profile.id, name: profile.name };
+              }),
+            );
+          },
+          {
+            userEdit: true,
+            expectedRevision,
+            beforeSave: () => {
+              signal.throwIfAborted();
+              for (const { profile } of assignments) {
+                const latest = this.voiceProfiles.get(profile.id);
+                if (
+                  !latest ||
+                  profile.name === null ||
+                  profile.meetingIds.includes(meetingId) ||
+                  snapshot(latest) !== snapshot(profile)
+                ) {
+                  throw new CorrectionConflictError('Profile changed');
+                }
+              }
+            },
+          },
+        ),
+      signal,
+    );
+  }
+
   renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.renameSpeaker(t, speakerId, name));
   }
 
   mergeSpeakers(meetingId: string, fromId: string, intoId: string): Promise<TranscriptFile> {
     return this.edit(meetingId, (t) => corrections.mergeSpeakers(t, fromId, intoId));
+  }
+
+  splitSpeaker(
+    meetingId: string,
+    wordIds: string[],
+    newLabel: string,
+    expectedRevision: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        if ((await this.getMeeting(meetingId)).status !== 'ready') {
+          throw new CorrectionConflictError(
+            'Wait for the final transcript before splitting a speaker.',
+          );
+        }
+        return corrections.splitSpeaker(current, wordIds, newLabel);
+      },
+      { userEdit: true, expectedRevision },
+    );
   }
 
   reassignSpeaker(
@@ -637,6 +776,121 @@ export class Library {
       }
     }
     this.settings.set('vocabulary.repairInitialized', true);
+  }
+
+  /**
+   * Repeated corrections worth offering as vocabulary. Reads transcripts one at a time, newest
+   * first, only when called; nothing is cached and no file is changed.
+   */
+  async listVocabularySuggestions(): Promise<VocabularySuggestions> {
+    const { groups, incomplete, truncated } = await this.scanSuggestions();
+    return {
+      suggestions: groups.map((group) => ({
+        meetingId: group.meetingId,
+        correctionId: group.correctionId,
+        term: group.term,
+        misheard: group.misheard,
+        correctionCount: group.correctionCount,
+        meetingCount: group.meetingCount,
+      })),
+      incomplete,
+      truncated,
+    };
+  }
+
+  /** Dismissed terms are kept as plain text and stay dismissed after their meetings are deleted. */
+  dismissVocabularySuggestion(term: string): void {
+    this.settings.dismissSuggestion(term);
+  }
+
+  /**
+   * Remembers a suggestion's representative correction, keeping the correction itself and the
+   * transcript text as they were. It is not a user edit, so the summary status is left alone.
+   * Accepting twice changes nothing; the Undo entry it adds is the existing "Edit correction".
+   */
+  acceptVocabularySuggestion(
+    meetingId: string,
+    correctionId: string,
+    expectedRevision?: number,
+  ): Promise<TranscriptFile> {
+    return this.changeTranscript(
+      meetingId,
+      async (current) => {
+        const source = current.corrections.find((c) => c.id === correctionId);
+        if (source === undefined || source.state !== 'active') {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        if (source.remember) return current;
+        const key = normalizeVocabularyTerm(source.replacement);
+        const { groups } = await this.scanSuggestions();
+        const stillSuggested = groups.some(
+          (group) =>
+            normalizeVocabularyTerm(group.term) === key &&
+            group.correctionIds.includes(correctionId),
+        );
+        if (!stillSuggested) throw new CorrectionConflictError('The suggestion changed');
+        const result = corrections.applyCorrection(current, {
+          wordIds: source.wordIds,
+          replacement: source.replacement,
+          remember: true,
+          now: this.nowIso(),
+        });
+        const { correction, transcript } = result;
+        if (
+          correction.id !== source.id ||
+          transcript.corrections.length !== current.corrections.length ||
+          transcript.segments !== current.segments
+        ) {
+          throw new CorrectionConflictError('The suggested correction changed');
+        }
+        return transcript;
+      },
+      { userEdit: false, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
+    );
+  }
+
+  private async scanSuggestions(): Promise<{
+    groups: SuggestionGroup[];
+    incomplete: boolean;
+    truncated: boolean;
+  }> {
+    const ready = this.listMeetings().filter((row) => row.status === 'ready');
+    let truncated = ready.length > SUGGESTION_MEETING_LIMIT;
+    let incomplete = false;
+    let budget = SUGGESTION_RECORD_LIMIT;
+    const scanned: ScannedMeeting[] = [];
+    for (const row of ready.slice(0, SUGGESTION_MEETING_LIMIT)) {
+      if (budget <= 0) {
+        truncated = true;
+        break;
+      }
+      try {
+        const active = (await this.readTranscript(row.id)).corrections.filter(
+          (c) => c.state === 'active',
+        );
+        if (active.length > budget) truncated = true;
+        scanned.push({ meetingId: row.id, corrections: active.slice(0, budget) });
+        budget -= Math.min(active.length, budget);
+      } catch (error) {
+        incomplete = true;
+        this.logger.log('warn', 'vocabulary-suggestions-skipped', {
+          meetingId: row.id,
+          ...errorFields(error),
+        });
+      }
+    }
+    const remembered = new Set(
+      this.vocabulary.list().map((item) => normalizeVocabularyTerm(item.term)),
+    );
+    const dismissed = new Set(this.settings.getDismissedSuggestions());
+    const groups = buildSuggestionGroups(
+      scanned,
+      (term, replacements) =>
+        remembered.has(term) ||
+        dismissed.has(term) ||
+        [term, ...replacements].some((text) => this.vocabulary.isDeleted(text)),
+    );
+    return { groups, incomplete, truncated };
   }
 
   /** The words around a remembered correction, read from its meeting's file. */
@@ -910,9 +1164,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(): Promise<AutoDeleteRun> {
+  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
-    const run = this.runAutoDeleteOnce();
+    const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
     void run
       .finally(() => {
@@ -922,7 +1176,9 @@ export class Library {
     return run;
   }
 
-  private async runAutoDeleteOnce(): Promise<AutoDeleteRun> {
+  private async runAutoDeleteOnce(
+    beforeDelete?: (meetingId: string) => void,
+  ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
       return { scope, deferred: true, results: [] };
@@ -930,6 +1186,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
+        beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -944,12 +1201,15 @@ export class Library {
   }
 
   /** Runs now and then on a timer. Returns a stop function. */
-  startAutoDeleteSchedule(intervalMs = 6 * 3_600_000): () => void {
+  startAutoDeleteSchedule(
+    intervalMs = 6 * 3_600_000,
+    beforeDelete?: (meetingId: string) => void,
+  ): () => void {
     let running = false;
     const tick = (): void => {
       if (running) return;
       running = true;
-      this.scheduledDeletion = this.runAutoDelete()
+      this.scheduledDeletion = this.runAutoDelete(beforeDelete)
         .then(() => undefined)
         .catch((error: unknown) => {
           this.logger.log('error', 'auto-delete-failed', errorFields(error));

@@ -389,6 +389,7 @@ describe('RecordingSession', () => {
         const line = { file: `00000${seq}.opus`, closeReason: 'stop' };
         writeFileSync(join(audio, track, 'chunks.log'), `${JSON.stringify(line)}\n`);
       }
+      logEvent({ event: 'stop', commandId: 'stop-kills', atNs: now * SECOND, seq: 4 });
     };
     const crashAt = async (second: number) => {
       now = second;

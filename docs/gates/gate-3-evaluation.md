@@ -6,29 +6,29 @@
 
 | Existing tool | What it already covers |
 | --- | --- |
-| `phase0/scripts/score_ami_wer.py` | AMI reference extraction, text normalization and WER edit counts (reused by the new scorer) |
-| `phase0/scripts/simulate_live_delay.py` | Phase 0 real-time whisper-server replay and per-segment `delay_s` JSON; **simulation, not production Gate 3 evidence** |
-| `phase0/scripts/score_der.py` | Later speaker accuracy work; not a Gate 3 requirement |
+| `scripts/eval/score_ami_wer.py` | AMI reference extraction, text normalization and WER edit counts (reused by the new scorer) |
+| `phase0-archive:phase0/scripts/simulate_live_delay.py` | Phase 0 real-time whisper-server replay and per-segment `delay_s` JSON; **simulation, not production Gate 3 evidence** |
+| `scripts/eval/score_der.py` | Later speaker accuracy work; not a Gate 3 requirement |
 | `packages/transcription/test/live.test.ts`, `worker.test.ts` | Fake-worker queue overflow, restart, bounded failure and process exits |
 | `packages/transcription/test/import.test.ts` | Format decoding, cancel, failure cleanup and recording priority; does not prove installed-machine final-pass accuracy |
 | Desktop transcript tests and Phase 0 worker-crash reports | UI behavior and early isolation feasibility; neither proves a production worker kill during Phase 3 capture |
 
-`phase0/scripts/evaluate_gate3.py` only adds paired live/final WER, median/p95 delay and structured worker-failure scoring. It does not run transcription, kill workers, inspect captured audio or approve a gate. Inputs/results stay **outside git** when they involve recordings or transcripts.
+`scripts/eval/evaluate_gate3.py` only adds paired live/final WER, median/p95 delay and structured worker-failure scoring. It does not run transcription, kill workers, inspect captured audio or approve a gate. Inputs/results stay **outside git** when they involve recordings or transcripts.
 
 ## Reproducible scoring
 
-From the repository root, run the tests with `python -m unittest discover -s phase0/scripts -p test_evaluate_gate3.py` on Windows or `python3 -m unittest discover -s phase0/scripts -p test_evaluate_gate3.py` on macOS. Keep evidence under the user's home folder, **outside the repository**. Score independently on each operating system:
+From the repository root, run the tests with `python -m unittest discover -s scripts/eval -p test_evaluate_gate3.py` on Windows or `python3 -m unittest discover -s scripts/eval -p test_evaluate_gate3.py` on macOS. Keep evidence under the user's home folder, **outside the repository**. Score independently on each operating system:
 
 Windows (PowerShell):
 
 ```powershell
-python phase0/scripts/evaluate_gate3.py "$env:USERPROFILE\gate3\windows.json" > "$env:USERPROFILE\gate3\windows-score.json"
+python scripts/eval/evaluate_gate3.py "$env:USERPROFILE\gate3\windows.json" > "$env:USERPROFILE\gate3\windows-score.json"
 ```
 
 macOS (Terminal):
 
 ```sh
-python3 phase0/scripts/evaluate_gate3.py "$HOME/gate3/macos.json" > "$HOME/gate3/macos-score.json"
+python3 scripts/eval/evaluate_gate3.py "$HOME/gate3/macos.json" > "$HOME/gate3/macos-score.json"
 ```
 
 The manifest paths are relative to its folder. An example **shape, not recorded evidence**:
