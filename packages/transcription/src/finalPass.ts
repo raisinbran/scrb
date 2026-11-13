@@ -209,7 +209,7 @@ export function decideSpeakers(
   return { spans, speakers };
 }
 
-function assemble(
+export function assemble(
   tracks: TrackResult[],
   spans: Span[],
   speakers: FinalSpeaker[],
@@ -232,17 +232,22 @@ function assemble(
       t.words.forEach((w, i) => words.push({ ...w, track: 'meeting', speakerId: ids[i]! }));
     }
   }
-  words.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+  // Words stay grouped by track, each in time order, because a turn is a range of words.
+  // One merged timeline made a mic that hears the room alternate with the meeting track,
+  // one word per turn.  Turns are ordered by time instead.
+  words.sort((a, b) => trackRank(a) - trackRank(b) || a.startMs - b.startMs || a.endMs - b.endMs);
   const lastSpan = spans.reduce((end, s) => Math.max(end, s.endMs), 0);
   return {
     version: 1,
-    durationMs: Math.max(words.at(-1)?.endMs ?? 0, lastSpan),
+    durationMs: words.reduce((end, w) => Math.max(end, w.endMs), lastSpan),
     words,
-    turns: buildTurns(words),
+    turns: buildTurns(words).sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs),
     speakers: all,
     spans: spans.map(({ startMs, endMs, speakerId }) => ({ startMs, endMs, speakerId })),
   };
 }
+
+const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
 
 function speechOf(words: WhisperWord[]): number {
   return words.reduce((sum, w) => sum + (w.endMs - w.startMs), 0);

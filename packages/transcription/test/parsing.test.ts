@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
-import { buildTurns, decideSpeakers } from '../src/finalPass.js';
+import { assemble, buildTurns, decideSpeakers } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
 import { HINTED_MAX_CONTEXT, parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
 import type { Word } from '../src/types.js';
@@ -131,6 +131,38 @@ describe('final-pass assembly', () => {
       ['s2', 'c', 2, 1],
       ['s2', 'd', 3, 1],
     ]);
+  });
+
+  it('keeps a mic that hears the room from splitting the meeting into one-word turns', () => {
+    const say = (text: string, startMs: number) => ({
+      text,
+      startMs,
+      endMs: startMs + 300,
+      confidence: 1,
+    });
+    const meeting = ['hello', 'everybody', 'this', 'is', 'the', 'plan'].map((t, i) =>
+      say(t, i * 400),
+    );
+    const mic = ['Hello', 'everybody', 'this', 'is', 'the', 'plan'].map((t, i) =>
+      say(t, i * 400 + 150),
+    );
+    const out = assemble(
+      [
+        { kind: 'meeting', wavPath: 'm.wav', words: meeting },
+        { kind: 'mic', wavPath: 'y.wav', words: mic },
+      ],
+      [{ startMs: 0, endMs: 3000, speakerId: 'speaker-1' }],
+      [{ id: 'speaker-1', label: 'Speaker 1', speechMs: 3000, embeddingSegments: 0 }],
+    );
+    expect(out.turns.map((t) => [t.speakerId, t.wordCount])).toEqual([
+      ['speaker-1', 6],
+      ['you', 6],
+    ]);
+    for (const t of out.turns) {
+      const slice = out.words.slice(t.firstWord, t.firstWord + t.wordCount);
+      expect(slice.every((x) => x.speakerId === t.speakerId)).toBe(true);
+    }
+    expect(out.durationMs).toBe(3000);
   });
 
   it('relabels raw clusters and gives each final speaker a voice', () => {
