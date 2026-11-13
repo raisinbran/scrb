@@ -28,7 +28,7 @@ Status: draft, independent ChatGPT review **pending**. Docs only; no code in thi
 | Same-name profile exists but cosine < 0.45 | Create a second profile with that name (merge on the Speakers screen); never pollute P |
 | No same-name profile | Create profile N from S, link S |
 
-A profile with fewer than 8 segments only ever suggests (existing `minProfileSegments`), so a first-meeting profile cannot auto-name a stranger.
+A profile with fewer than 8 segments never auto-names (`minProfileSegments`), so a first-meeting profile cannot auto-name a stranger. Today `startProfileMatching` drops such profiles in its snapshot (`sampleCount >= 8`, `profile-matching.ts` lines 41-49), so thin profiles would never even suggest. Change: the snapshot keeps every named, approved-model profile; the 8-segment rule for automatic naming stays, enforced by `matchVoices` itself (it already returns `suggest`, not `auto`, for a thin profile) plus an explicit `sampleCount >= 8` check on the `auto` branch before assignment. Matches of kind `suggest` are collected separately and written to `suggestions.json`.
 
 **Silent versus asking.**
 - Silent: anything the owner explicitly did (typing a name; accepting a suggestion). Auto matches at >= 0.60 by a profile with >= 8 segments, as today.
@@ -44,7 +44,7 @@ A profile with fewer than 8 segments only ever suggests (existing `minProfileSeg
 
 ## Contract
 
-**No `packages/contracts/` change is needed, so no handoff note.** `SpeakerSuggestion`, `answerSpeakerSuggestion`, `listSpeakerSuggestions`, the `speakerSuggestion` event and `renameSpeaker` already carry everything. Profile growth is a side effect, not a new call. Profile growth is not in the profile undo stack (the contract limits `ProfileUndoState` to `rename`/`merge`); it is reversed through transcript undo (slice 4) or Delete. UI work: none required; `hybrid-backend.ts` already routes both suggestion calls by meeting, so they go real as soon as the handlers exist.
+**No `packages/contracts/` change is needed, so no handoff note.** `SpeakerSuggestion`, `answerSpeakerSuggestion`, `listSpeakerSuggestions`, the `speakerSuggestion` event and `renameSpeaker` already carry everything. Profile growth is a side effect, not a new call. Profile growth is not in the profile undo stack (the contract limits `ProfileUndoState` to `rename`/`merge`); it is reversed through transcript undo (slice 2) or Delete. **UI change (no contract change):** `SpeakerSuggestionsProvider` in `apps/desktop/src/ui/components/speakers/SpeakerSuggestions.tsx` only listens for the `speakerSuggestion` event, so suggestions vanish after a restart or if they arrive while nothing listens (its comment wrongly says the contract has no list call). It must also load stored suggestions through the existing `listSpeakerSuggestions` on mount and when a meeting opens, merge them with event arrivals, and test that. `hybrid-backend.ts` already routes both suggestion calls by meeting, so they go real as soon as the handlers exist.
 
 ## Tests (invented data; AMI optional)
 
@@ -60,9 +60,10 @@ Synthetic unit vectors with set cosines, no recordings. Storage: migration, cont
 
 ## Slice order
 
-1. **Storage:** migration, contribution add/remove/recompute, `voices.json` read/write/purge, tests. No behaviour change.
-2. **First teaching path:** write `voices.json` after the final pass, recordings opt in, `profile-learning` hooked into `renameSpeaker` (create/grow/unlink). This is the first owner-visible gain.
-3. **Suggestions:** persist matcher `suggest` results, real `listSpeakerSuggestions` and `answerSpeakerSuggestion`, event.
-4. **Consistency:** merge, transcript undo/redo and meeting delete keep contributions in sync; `deleteProfile` purges `voices.json` entries.
+1. **Storage:** migration, contribution add/remove/recompute, `voices.json` read/write/purge, tests. No behaviour change (nothing writes voices yet).
+2. **First teaching path, with every safeguard in the same slice** (no voice data is saved before it can be removed): write `voices.json` after the final pass; recordings opt in; `profile-learning` hooked into `renameSpeaker` (create/grow/unlink); `deleteProfile` removes the profile's contributions and linked `voices.json` entries; transcript undo/redo removes or restores the meeting's contribution; meeting delete and auto-delete remove its contributions (then recompute). Tests cover each removal path.
+3. **Suggestions (backend):** thin-profile snapshot change, persist matcher `suggest` results, real `listSpeakerSuggestions` and `answerSpeakerSuggestion`, event.
+4. **Suggestions (UI, no contract change):** `SpeakerSuggestionsProvider` loads stored suggestions on mount and on meeting open; test with a restart.
+5. **Merge sync:** merging meeting speakers updates the meeting's contribution.
 
-Each slice is one backend PR with independent review before merge.
+Each slice is one PR (slice 4 is UI-side, per the folder boundary) with independent review before merge.
