@@ -1119,6 +1119,11 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
 
+### A-336 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — vocabulary note: first check run without building packages/summary
+- **What failed:** Ran `npm run check` before building `packages/summary`; one unrelated worker test failed with ERR_MODULE_NOT_FOUND. The task brief had said to build it if needed.
+- **Impact:** One wasted check run (about 30 s); no code defect.
+- **Correction / remaining risk:** Built it, check and smoke passed. None.
+
 ### A-331 — 2026-11-13 — Claude Code / Mac — first `npm run check` run without building `packages/summary`
 - **What failed:** I ran `npm run check` before building `packages/summary`, so one summary worker test failed on a missing `dist`; the task brief had said to build it first if needed. I also ran `cd agents` in a persistent shell called a tool with the wrong name, and overwrote the existing `.gitattributes` (a fixtures `-text` rule) with `>` before reading it; caught in the staged diff and restored.
 - **Impact:** One wasted check run (about 30 s); no code defect.
