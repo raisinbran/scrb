@@ -84,11 +84,11 @@ describe('screens working together on the mock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     await advance(0);
     await openMeeting(/Scripted live meeting/);
-    expect(screen.getAllByText(/final pass/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/final transcript/i).length).toBeGreaterThan(0);
 
     act(() => backend.finishFinalPass());
     await advance(3000);
-    expect(screen.queryAllByText(/final pass/i)).toHaveLength(0);
+    expect(screen.queryAllByText(/final transcript/i)).toHaveLength(0);
     expect(screen.getByText('Halden')).toBeTruthy();
 
     await goTo('Vocabulary');

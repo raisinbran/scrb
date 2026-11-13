@@ -7,6 +7,7 @@ import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, useFocusFallback } from '../Screen.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
+import { ProcessingBanner } from './ProcessingBanner.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import {
   EDITOR_MARK,
@@ -522,11 +523,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             {retryError && <p role="alert">{retryError}</p>}
           </div>
         )}
-        {meeting.status === 'finalPassRunning' && (
-          <p role="status" className={styles.bannerInfo}>
-            Final pass running. The text may still change, and your corrections are kept.
-          </p>
-        )}
+        {meeting.status === 'finalPassRunning' && <ProcessingBanner />}
         {live && (
           <p role="status" className={styles.bannerInfo}>
             This meeting is still recording. Controls are on the Live screen.
