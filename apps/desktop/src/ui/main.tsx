@@ -4,6 +4,7 @@ import { createBridgeBackend, type ScribeBridge } from '@scrb/contracts';
 import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
 import { createHybridBackend } from './lib/hybrid-backend.ts';
+import { MiniRecording } from './shell/MiniRecording.tsx';
 import { DevMenu, MockBackend } from './mocks/index.ts';
 import { ThemeProvider } from './theme/ThemeProvider.tsx';
 import './theme/tokens.css';
@@ -20,14 +21,23 @@ const bridge = window.scribeBridge;
 const mock = new MockBackend();
 const backend = bridge ? createHybridBackend(createBridgeBackend(bridge), mock) : mock;
 
+// The recording mini window loads this same page with #mini and shows status only.
+const isMini = window.location.hash === '#mini';
+
 document.documentElement.dataset['platform'] = bridge?.platform ?? 'browser';
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
     <BackendProvider backend={backend}>
       <ThemeProvider>
-        <App />
-        <DevMenu backend={mock} />
+        {isMini ? (
+          <MiniRecording />
+        ) : (
+          <>
+            <App />
+            <DevMenu backend={mock} />
+          </>
+        )}
       </ThemeProvider>
     </BackendProvider>
   </StrictMode>,

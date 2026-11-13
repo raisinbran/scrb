@@ -14,6 +14,8 @@ const IDLE: RecordingState = {
 export function useRecordingStatus() {
   const backend = useBackend();
   const [recording, setRecording] = useState<RecordingState>(IDLE);
+  /** When `recording` arrived, for views that count on from its elapsed time. */
+  const [recordingAt, setRecordingAt] = useState(() => Date.now());
   const [health, setHealth] = useState<RecordingHealth | null>(null);
   const [lag, setLag] = useState<TranscriptionLag | null>(null);
 
@@ -24,6 +26,7 @@ export function useRecordingStatus() {
       backend.on('recordingStateChanged', (state) => {
         seen.add('recording');
         setRecording(state);
+        setRecordingAt(Date.now());
         if (state.status === 'idle') {
           seen.add('lag');
           setLag(null);
@@ -40,7 +43,10 @@ export function useRecordingStatus() {
     ];
     void backend.call('getRecordingSnapshot').then(
       (snapshot) => {
-        if (!seen.has('recording')) setRecording(snapshot.state);
+        if (!seen.has('recording')) {
+          setRecording(snapshot.state);
+          setRecordingAt(Date.now());
+        }
         if (!seen.has('health')) setHealth(snapshot.health);
         if (!seen.has('lag')) setLag(snapshot.transcription);
       },
@@ -49,5 +55,5 @@ export function useRecordingStatus() {
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [backend]);
 
-  return { recording, health, lag };
+  return { recording, recordingAt, health, lag };
 }
