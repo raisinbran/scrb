@@ -14,6 +14,7 @@ const NOT_REAL: ReadonlySet<ContractErrorCode> = new Set(['notFound', 'notImplem
 const SETTINGS_CALLS: ReadonlySet<CallName> = new Set(['getSettings', 'updateSettings']);
 const REAL_CALLS: ReadonlySet<CallName> = new Set([
   ...SETTINGS_CALLS,
+  'getSetupStatus',
   'startRecording',
   'pauseRecording',
   'resumeRecording',
