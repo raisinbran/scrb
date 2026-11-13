@@ -220,7 +220,7 @@ The revised plan has **25 cases**, up from 22 in the first-pass QA. The coverage
 
 **Repository cross-checks (read on 2026-10-30)**
 - [Pause/resume plan, current GitHub path](https://github.com/raisinbran/scrb/blob/main/docs/plans/pause-resume.md)
-- [First QA, referenced by the revised plan](https://github.com/raisinbran/scrb/blob/main/phase0/gpt-QA-reports/20261030_pause-resume_QA.md)
+- [First QA, referenced by the revised plan](https://github.com/raisinbran/scrb/blob/main/docs/qa/20261030_pause-resume_QA.md)
 - [Approved crash-safe chunks and recovery plan](https://github.com/raisinbran/scrb/blob/main/docs/plans/crash-safe-chunks.md) - worker auto-restart, crash loss, low-disk stop, lock and recovery rules
 - [Capture contract and clock plan](https://github.com/raisinbran/scrb/blob/main/docs/plans/capture-contract-and-clock.md) - shared clock, pause, drift, per-track gap proposals
 - [Approved owner decisions, 2026-10-30](https://github.com/raisinbran/scrb/blob/main/docs/handoffs/archive/2026-10-30-owner-decisions.md) - four-hour Gate 2 run and revised quality targets

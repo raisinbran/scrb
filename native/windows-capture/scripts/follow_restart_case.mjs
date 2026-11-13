@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const helper = join(root, 'build', 'bin', 'scrb-capture.exe');
-const mute = join(root, '..', '..', 'phase0', 'probes', 'windows-mute', 'Mute.exe');
+const mute = join(root, '..', '..', 'native', 'windows-capture', 'tools', 'windows-mute', 'Mute.exe');
 const [work, tone] = process.argv.slice(2);
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 

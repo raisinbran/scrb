@@ -44,7 +44,7 @@ const models: ModelPaths = {
   ),
 };
 const here = dirname(fileURLToPath(import.meta.url));
-const scripts = join(here, '../../../phase0/scripts');
+const scripts = join(here, '../../../scripts/eval');
 const ami = join(assets, 'downloads/ami');
 
 const RATE = 48000;

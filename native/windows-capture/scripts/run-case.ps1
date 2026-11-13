@@ -35,8 +35,8 @@ $out = Join-Path $root "out\$Case"
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null
 $results = Join-Path $root 'results'
-$mute = Join-Path $repo 'phase0\probes\windows-mute\Mute.exe'
-$tonePlayer = if ($env:SCRB_TONE) { $env:SCRB_TONE } else { Join-Path $repo 'phase0\probes\windows-tone-player\TonePlayer.exe' }
+$mute = Join-Path $repo 'native\windows-capture\tools\windows-mute\Mute.exe'
+$tonePlayer = if ($env:SCRB_TONE) { $env:SCRB_TONE } else { Join-Path $repo 'native\windows-capture\tools\windows-tone-player\TonePlayer.exe' }
 if (-not $NoMute) { & $mute on | Out-Null }
 
 $tone = if ($TargetExe) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real-audio pause test: run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh.
+"""Real-audio pause test: run from the Claude app's terminal pane, under native/macos-capture/scripts/run-muted.sh.
 
 Plays 880 Hz for 6 s, a marker of 2000 Hz for 6 s, then 880 Hz again, and pauses across the marker.
 Passes if no marker reached any chunk, the tone either side did, and the paused span is recorded.

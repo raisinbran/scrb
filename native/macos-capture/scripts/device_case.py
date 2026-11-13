@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hands-on device switches, sleep or permission changes during a recording, with a floating countdown window.
 
-Run from the Claude app's terminal pane, under phase0/scripts/run-muted.sh. Plays a quiet tone,
+Run from the Claude app's terminal pane, under native/macos-capture/scripts/run-muted.sh. Plays a quiet tone,
 because a switch to headphones can leave the mute behind. Reports each track's chunks and gaps.
 Usage: device_case.py <helper> <work dir> [devices|sleep|permission|reopen|service|restart|call]
 """
