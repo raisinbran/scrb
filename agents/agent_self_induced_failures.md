@@ -1123,3 +1123,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I ran `npm run check` before building `packages/summary`, so one summary worker test failed on a missing `dist`; the task brief had said to build it first if needed. I also ran `cd agents` in a persistent shell called a tool with the wrong name, and overwrote the existing `.gitattributes` (a fixtures `-text` rule) with `>` before reading it; caught in the staged diff and restored.
 - **Impact:** One wasted check run (about 30 s); no code defect.
 - **Correction / remaining risk:** Built the package and reran: check and smoke pass. None.
+
+### A-332 — 2026-11-13 — Claude Code / Mac — PR #154 pushed with a prettier failure and an over-broad A-104 exemption
+- **What failed:** I pushed without running prettier on `vitest.config.ts` (CI failed on both platforms), and my first duplicate check allowlisted A-104 for any number of occurrences and the usage-log rows had no integrity check, so a union merge could combine edited rows silently (review-found). I also ran prettier over the markdown files, which reformatted usage rows; I reverted that.
+- **Impact:** One rejected review round and a failing CI run.
+- **Correction / remaining risk:** Exact-count exemption, row checks and tests added; prettier run on code files only. Low.
