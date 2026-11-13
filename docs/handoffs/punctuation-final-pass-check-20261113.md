@@ -1,6 +1,6 @@
 # Final-pass punctuation check (2026-11-13)
 
-**Result: not a bug. No code changed.**
+**Result: not reproduced in this test. No code changed.**
 
 Suspicion: with `-ml 1 -sow -ojf`, `parseWords` (`packages/transcription/src/whisper.ts`) might emit punctuation-only or sub-word segments as separate words, or lose them.
 
