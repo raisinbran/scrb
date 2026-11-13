@@ -254,6 +254,11 @@ function toListItem(meeting: MeetingDetail): MeetingListItem {
 export class MockBackend implements Backend {
   private readonly listeners = new Map<EventName, Set<Listener>>();
   private readonly armed = new Set<ArmedFault>();
+  /** Running summaries, with the state to restore if one is cancelled. */
+  private readonly summaryRuns = new Map<
+    string,
+    { run: symbol; previous: MeetingSummaryDoc['state'] }
+  >();
   private readonly prng = createPrng(20261030);
   private readonly transcripts = new Map<string, TranscriptSegment[]>();
   private readonly summaries = new Map<string, MeetingSummaryDoc>();
@@ -654,13 +659,20 @@ export class MockBackend implements Backend {
   }
 
   /** Reports each stage in turn, then writes one length and keeps every edited item. */
-  private runSummaryStages(meetingId: string, length: SummaryLength, step: number): void {
+  private runSummaryStages(
+    meetingId: string,
+    length: SummaryLength,
+    step: number,
+    run: symbol,
+  ): void {
+    if (this.summaryRuns.get(meetingId)?.run !== run) return;
     const next = SUMMARY_STEPS[step];
     if (next) {
       this.emit('summaryProgress', { meetingId, ...next });
-      setTimeout(() => this.runSummaryStages(meetingId, length, step + 1), SUMMARY_STEP_MS);
+      setTimeout(() => this.runSummaryStages(meetingId, length, step + 1, run), SUMMARY_STEP_MS);
       return;
     }
+    this.summaryRuns.delete(meetingId);
     if (!this.library.some((meeting) => meeting.id === meetingId)) return;
     const previous = this.summaryOf(meetingId);
     const fresh = createSummary(meetingId, 'ready');
@@ -1260,12 +1272,27 @@ export class MockBackend implements Backend {
         this.emit('summaryProgress', { meetingId, stage: 'failed', fraction: 0, message });
         return;
       }
+      const run = Symbol('summary');
+      this.summaryRuns.set(meetingId, { run, previous: this.summaryOf(meetingId).state });
       this.setSummaryState(meetingId, 'generating');
       if (this.armed.delete('summaryStalls')) {
         this.emit('summaryProgress', { meetingId, stage: 'extracting', fraction: 0.2 });
         return;
       }
-      this.runSummaryStages(meetingId, length, 0);
+      this.runSummaryStages(meetingId, length, 0, run);
+    },
+    cancelSummary: ({ meetingId }) => {
+      this.findMeeting(meetingId);
+      const running = this.summaryRuns.get(meetingId);
+      if (!running) return;
+      this.summaryRuns.delete(meetingId);
+      this.setSummaryState(meetingId, running.previous);
+      this.emit('summaryProgress', {
+        meetingId,
+        stage: 'failed',
+        fraction: 0,
+        message: 'Summary cancelled.',
+      });
     },
     updateSummaryItem: ({ meetingId, update }) => {
       const summary = this.summaryOf(meetingId);

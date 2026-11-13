@@ -62,6 +62,7 @@ const MEETING_CALLS: ReadonlySet<CallName> = new Set([
   'answerSpeakerSuggestion',
   'getSummary',
   'generateSummary',
+  'cancelSummary',
   'updateSummaryItem',
   'updateMeeting',
   'retryFinalPass',

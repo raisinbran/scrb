@@ -614,6 +614,29 @@ describe('MockBackend', () => {
       expect((await backend.call('getSummary', { meetingId })).state).toBe('outdated');
     });
 
+    it('cancels a running summary, keeps the old one, and ignores a repeat', async () => {
+      const meetingId = LONG_MEETING_ID;
+      const before = await backend.call('getSummary', { meetingId });
+      const seen: { stage: string; message?: string | undefined }[] = [];
+      backend.on('summaryProgress', (event) => seen.push(event));
+      await backend.call('generateSummary', { meetingId, length: 'brief' });
+      await backend.call('cancelSummary', { meetingId });
+      await backend.call('cancelSummary', { meetingId });
+      vi.advanceTimersByTime(5000);
+      expect(seen.filter((event) => event.stage === 'failed')).toEqual([
+        expect.objectContaining({ message: 'Summary cancelled.' }),
+      ]);
+      expect(seen.some((event) => event.stage === 'done')).toBe(false);
+      expect(await backend.call('getSummary', { meetingId })).toEqual(before);
+    });
+
+    it('does nothing when cancelling a summary that is not running, and rejects an unknown meeting', async () => {
+      await backend.call('cancelSummary', { meetingId: LONG_MEETING_ID });
+      await expect(backend.call('cancelSummary', { meetingId: 'meeting-999' })).rejects.toMatchObject({
+        code: 'notFound',
+      });
+    });
+
     it('leaves a meeting with no summary alone', async () => {
       const seen: string[] = [];
       backend.on('summaryOutdated', (event) => seen.push(event.meetingId));

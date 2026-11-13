@@ -11,6 +11,7 @@ import {
   YOU_ID,
   sealedTracks,
   type FinalPassQueue,
+  type SegmentSpan,
 } from '@scrb/app-core';
 import {
   ContractError,
@@ -22,6 +23,7 @@ import {
   type MeetingFilter,
   type MeetingListItem,
   type MeetingStatus,
+  type SummaryState,
   type SummaryItemUpdate,
   type VocabularyTerm as ContractTerm,
   type VocabularyTermPatch,
@@ -173,7 +175,54 @@ function hasSavedAudio(library: Library, meeting: MeetingMeta): boolean {
   });
 }
 
-function toListItem(meeting: MeetingFacts): MeetingListItem {
+/** The real state from `summary.json`; `generating` comes from the running job. */
+export async function readSummaryState(
+  library: Library,
+  meetingId: string,
+  isRunning: (meetingId: string) => boolean = () => false,
+): Promise<SummaryState> {
+  try {
+    return toSummaryDoc(meetingId, await library.readSummary(meetingId), isRunning(meetingId))
+      .state;
+  } catch (error) {
+    library.logger.log('warn', 'summary-state-unreadable', errorFields(error));
+    return isRunning(meetingId) ? 'generating' : 'notGenerated';
+  }
+}
+
+/** Engine lines and the time spans a saved link may point at, from the corrected transcript. */
+export function toEngineTranscript(transcript: TranscriptFile): {
+  engine: { lines: Array<{ startSec: number; speaker: string; text: string }> };
+  spans: SegmentSpan[];
+} {
+  const names = new Map(
+    activeSpeakers(transcript).map((speaker) => [speaker.id, speaker.name ?? speaker.label]),
+  );
+  const rows = resolveDisplay(transcript)
+    .filter((segment) => segment.tokens.length > 0)
+    .map((segment) => ({
+      startMs: segment.tokens[0]?.startMs ?? 0,
+      endMs: segment.tokens.at(-1)?.endMs ?? 0,
+      speaker: names.get(segment.speakerId) ?? 'Unknown',
+      text: segment.tokens.map((token) => token.text).join(' '),
+    }))
+    .sort((a, b) => a.startMs - b.startMs);
+  return {
+    engine: {
+      lines: rows.map((row) => ({
+        startSec: row.startMs / 1000,
+        speaker: row.speaker,
+        text: row.text,
+      })),
+    },
+    spans: rows.map(({ startMs, endMs }) => ({ startMs, endMs })),
+  };
+}
+
+function toListItem(
+  meeting: MeetingFacts,
+  summaryState: SummaryState = 'notGenerated',
+): MeetingListItem {
   return {
     id: meeting.id,
     title: meeting.title,
@@ -181,7 +230,7 @@ function toListItem(meeting: MeetingFacts): MeetingListItem {
     durationMs: meeting.durationMs,
     origin: meeting.source,
     status: toContractStatus(meeting.status),
-    summaryState: 'notGenerated',
+    summaryState,
     speakerCount: 0,
   };
 }
@@ -217,9 +266,13 @@ export function timelineGaps(library: Library, meeting: MeetingMeta): TimelineGa
   }
 }
 
-function toDetail(library: Library, meeting: MeetingMeta): MeetingDetail {
+function toDetail(
+  library: Library,
+  meeting: MeetingMeta,
+  summaryState: SummaryState,
+): MeetingDetail {
   return {
-    ...toListItem(meeting),
+    ...toListItem(meeting, summaryState),
     gaps: timelineGaps(library, meeting),
     hasAudio: hasSavedAudio(library, meeting),
     ...(meeting.status === 'transcriptionFailed' && {
@@ -279,19 +332,21 @@ export function createMeetingHandlers(
   emit?: Emit,
   openPath?: (path: string) => Promise<string>,
   finalPasses: FinalPassQueue | null = null,
+  summaryRunning: (meetingId: string) => boolean = () => false,
 ): CallHandlers {
   const retrying = new Set<string>();
+  const itemOf = async (meeting: MeetingFacts): Promise<MeetingListItem> =>
+    toListItem(meeting, await readSummaryState(library, meeting.id, summaryRunning));
   return {
     listMeetings: async (request) => {
       const { filter = {} } = request as { filter?: MeetingFilter };
-      return library
-        .listMeetings()
-        .map(toListItem)
-        .filter((item) => matchesMeetingFilter(item, filter));
+      const items = await Promise.all(library.listMeetings().map(itemOf));
+      return items.filter((item) => matchesMeetingFilter(item, filter));
     },
     getMeeting: async (request) => {
       const { meetingId } = request as { meetingId: string };
-      return toDetail(library, await requireMeeting(library, meetingId));
+      const meeting = await requireMeeting(library, meetingId);
+      return toDetail(library, meeting, await readSummaryState(library, meetingId, summaryRunning));
     },
     retryFinalPass: async (request) => {
       const { meetingId } = request as { meetingId: string };
@@ -329,7 +384,7 @@ export function createMeetingHandlers(
           status: 'finalPassRunning',
           transcriptionFailure: null,
         });
-        emit?.('meetingChanged', toListItem(await requireMeeting(library, meetingId)));
+        emit?.('meetingChanged', await itemOf(await requireMeeting(library, meetingId)));
         finalPasses.enqueue(meetingId);
       } finally {
         retrying.delete(meetingId);
@@ -682,10 +737,13 @@ export function createMeetingHandlers(
       const { query, filter } = request as { query: string; filter?: MeetingFilter };
       // Storage UTC-date prefiltering would discard meetings on a local midnight boundary.
       const found = await library.search(query, { hitsPerMeeting: 5 });
-      return found.results
-        .filter((result) => matchesMeetingFilter(toListItem(result.meeting), filter))
-        .map((result) => ({
-          meeting: toListItem(result.meeting),
+      const items = await Promise.all(
+        found.results.map(async (result) => ({ result, item: await itemOf(result.meeting) })),
+      );
+      return items
+        .filter(({ item }) => matchesMeetingFilter(item, filter))
+        .map(({ result, item }) => ({
+          meeting: item,
           matches: [
             ...(result.matchedIn.includes('title or date')
               ? [{ segmentId: null, startMs: null, snippet: null }]
@@ -762,9 +820,11 @@ export function createMeetingHandlers(
       };
       await requireMeeting(library, meetingId);
       try {
+        const { spans } = toEngineTranscript(await library.readTranscript(meetingId));
         const doc = await library.updateSummary(meetingId, (current) =>
-          applySummaryUpdate(current, update),
+          applySummaryUpdate(current, update, spans),
         );
+        emit?.('meetingChanged', await itemOf(await requireMeeting(library, meetingId)));
         return toSummaryDoc(meetingId, doc);
       } catch (error) {
         if (error instanceof StorageError && error.code === 'NO_SUMMARY') {

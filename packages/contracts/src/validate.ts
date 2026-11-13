@@ -311,6 +311,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
 
   getSummary: meeting,
   generateSummary: shape({ meetingId: id, length: oneOf('brief', 'full') }),
+  cancelSummary: meeting,
   updateSummaryItem: shape({ meetingId: id, update: summaryUpdate }),
 
   listMeetings: shape({}, { filter: meetingFilter }),

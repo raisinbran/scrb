@@ -25,6 +25,7 @@ const SPEC_CALLS = [
   'updateTerm',
   'deleteTerm',
   'generateSummary',
+  'cancelSummary',
   'updateSummaryItem',
   'listMeetings',
   'searchMeetings',

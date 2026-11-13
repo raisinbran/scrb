@@ -12,15 +12,17 @@ import {
   privacyJurisdictions,
 } from '@scrb/app-core';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
-import type { SettingsPatch } from '@scrb/contracts';
+import { LlamaServerWorker, extractItems, writeSummary } from '@scrb/summary';
+import type { RecordingState, SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
-import { createMeetingHandlers, publishEdit } from './meetings.ts';
+import { createMeetingHandlers, publishEdit, readSummaryState } from './meetings.ts';
 import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { readLiveSetup } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
 import { createExportHandlers } from './export.ts';
+import { readSummaryPaths, SummaryController, type SummaryEngine } from './summary.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
 import { createSetupStatusHandler } from './setup-status.ts';
@@ -54,18 +56,44 @@ export async function openBackend(
     const playback = new PlaybackMedia(library, emit);
     const settings = createSettingsHandlers(library.settings, root);
     const modelGate = new LargeModelGate();
-    library.setMeetingChangedListener((meeting) =>
-      emit('meetingChanged', {
-        id: meeting.id,
-        title: meeting.title,
-        startedAt: meeting.date,
-        durationMs: meeting.durationMs,
-        origin: meeting.source,
-        status: meeting.status,
-        summaryState: 'notGenerated',
-        speakerCount: 0,
-      }),
-    );
+    // Recording always wins: a recording that starts stops any running summary.
+    let recording: RecordingController | null = null;
+    const engine: SummaryEngine = {
+      server: (paths, options) => new LlamaServerWorker({ ...paths, ...options }),
+      extractItems,
+      writeSummary,
+    };
+    const summaries = new SummaryController({
+      library,
+      emit,
+      gate: modelGate,
+      engine,
+      recordingActive: () => recording?.isBusy() ?? false,
+      readPaths: () => readSummaryPaths(finalPassConfig),
+      pidFile: path.join(app.getPath('userData'), 'summary-server.pid'),
+    });
+    await summaries.stopStaleServer();
+    const emitObserved: typeof emit = (name, payload) => {
+      emit(name, payload);
+      if (name === 'recordingStateChanged' && (payload as RecordingState).status !== 'idle') {
+        summaries.recordingStarted();
+      }
+    };
+    library.setMeetingChangedListener((meeting) => {
+      void readSummaryState(library, meeting.id, (id) => summaries.isRunning(id)).then(
+        (summaryState) =>
+          emit('meetingChanged', {
+            id: meeting.id,
+            title: meeting.title,
+            startedAt: meeting.date,
+            durationMs: meeting.durationMs,
+            origin: meeting.source,
+            status: meeting.status,
+            summaryState,
+            speakerCount: 0,
+          }),
+      );
+    });
     // Unpackaged: real mode is opt-in through the environment, otherwise the mock answers.
     // Packaged: paths come only from the bundle and the models folder, never the environment.
     const packaged: PackagedSetup | null = app.isPackaged
@@ -104,11 +132,11 @@ export async function openBackend(
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);
     let imports: ImportCoordinator | null = null;
-    const recording = helper
+    recording = helper
       ? new RecordingController(
           library,
           helper,
-          emit,
+          emitObserved,
           {
             read: () => settings.getSettings().audio,
             save: (selection) => settings.updateSettings({ audio: selection }),
@@ -121,6 +149,7 @@ export async function openBackend(
           },
           liveSetup,
           async () => {
+            summaries.recordingStarted();
             await imports?.stopForRecording();
           },
         )
@@ -202,9 +231,19 @@ export async function openBackend(
               ? () => systemPreferences.getMediaAccessStatus('microphone')
               : undefined,
         }),
-        ...playback.wrap(
-          createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
+        ...deleteAfterSummaryStops(
+          playback.wrap(
+            createMeetingHandlers(
+              library,
+              emit,
+              (folder) => shell.openPath(folder),
+              finalPasses,
+              (id) => summaries.isRunning(id),
+            ),
+          ),
+          summaries,
         ),
+        ...summaries.handlers,
         ...createExportHandlers({
           library,
           emit,
@@ -234,6 +273,7 @@ export async function openBackend(
       close: async () => {
         playback.stop();
         stopRetention();
+        await summaries.shutdown();
         await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();
@@ -260,4 +300,20 @@ export async function openBackend(
       close: async () => undefined,
     };
   }
+}
+
+/** A run is stopped, and its server has exited, before the meeting's files are deleted. */
+function deleteAfterSummaryStops(
+  handlers: CallHandlers,
+  summaries: SummaryController,
+): CallHandlers {
+  const deleteMeeting = handlers.deleteMeeting;
+  if (!deleteMeeting) return handlers;
+  return {
+    ...handlers,
+    deleteMeeting: async (request) => {
+      await summaries.stopAndWait((request as { meetingId: string }).meetingId, 'deleted');
+      return deleteMeeting(request);
+    },
+  };
 }

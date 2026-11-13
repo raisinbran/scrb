@@ -35,7 +35,8 @@ export interface ExtractOptions {
   coverageChars?: number;
   maxTokens?: number;
   signal?: AbortSignal;
-  onProgress?: (done: number, total: number) => void;
+  /** `sections` of `total` are the first pass; the rest is the coverage pass. */
+  onProgress?: (done: number, total: number, sections: number) => void;
 }
 
 const DEFAULTS = { sectionChars: 16000, overlapChars: 600, coverageChars: 8000, maxTokens: 4096 };
@@ -223,7 +224,7 @@ export async function extractItems(transcript: Transcript, llm: LlmClient, optio
   let done = 0;
   const step = () => {
     done += 1;
-    settings.onProgress?.(done, total);
+    settings.onProgress?.(done, total, sections.length);
   };
   extractor.stats.sections = sections.length;
 

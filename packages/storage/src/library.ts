@@ -939,18 +939,26 @@ export class Library {
     });
   }
 
-  /** Stores a generated summary. User-edited items carry over and the outdated flag clears. */
+  /**
+   * Stores a generated summary. User-edited items carry over and the outdated flag clears. Pass
+   * `readRevision`, the transcript revision the summary was made from: if the transcript has moved
+   * on, nothing is saved and `StaleRevisionError` is thrown.
+   */
   saveGeneratedSummary(
     meetingId: string,
     generated: Omit<
       SummaryFile,
       'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
     >,
+    readRevision?: number,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
       const loaded = await loadDocument(SUMMARY_FORMAT, file);
       const transcript = await this.readTranscript(meetingId);
+      if (readRevision !== undefined && readRevision !== transcript.revision) {
+        throw new StaleRevisionError(readRevision, transcript.revision);
+      }
       const fresh: SummaryFile = {
         ...generated,
         schemaVersion: 3,

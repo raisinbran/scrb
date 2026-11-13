@@ -151,6 +151,108 @@ export function toGeneratedSummary(summary: MeetingSummary, generatedAt: string)
   };
 }
 
+/** Where each transcript segment lies, in the same clock as `sourceMs`. */
+export interface SegmentSpan {
+  startMs: number;
+  endMs: number;
+}
+
+/** An item between segments is moved to the nearest segment start only within this distance. */
+export const LINK_REMAP_WINDOW_MS = 5000;
+export const DROPPED_ITEMS_WARNING =
+  'items were left out because their place in the recording could not be found';
+
+type Resolved = { ms: number; remapped: boolean } | null;
+
+function resolveLink(ms: number, segments: readonly SegmentSpan[]): Resolved {
+  if (segments.some((span) => ms >= span.startMs && ms <= span.endMs)) {
+    return { ms, remapped: false };
+  }
+  const first = Math.min(...segments.map((span) => span.startMs));
+  const last = Math.max(...segments.map((span) => span.endMs));
+  if (!(ms >= first && ms <= last)) return null;
+  const distance = (span: SegmentSpan) =>
+    Math.min(Math.abs(span.startMs - ms), Math.abs(span.endMs - ms));
+  const nearest = segments.reduce((best, span) => (distance(span) < distance(best) ? span : best));
+  if (distance(nearest) > LINK_REMAP_WINDOW_MS) return null;
+  return { ms: nearest.startMs, remapped: true };
+}
+
+function guardItems<
+  T extends { sourceMs: number | null; alsoAtMs: number[]; needsReview: boolean },
+>(items: T[], segments: readonly SegmentSpan[]): { kept: T[]; dropped: number } {
+  const kept: T[] = [];
+  let dropped = 0;
+  for (const item of items) {
+    // Only an open question may have no time of its own.
+    const own =
+      item.sourceMs === null ? { ms: null, remapped: false } : resolveLink(item.sourceMs, segments);
+    if (!own) {
+      dropped += 1;
+      continue;
+    }
+    let remapped = own.remapped;
+    const alsoAtMs: number[] = [];
+    for (const ms of item.alsoAtMs) {
+      const link = resolveLink(ms, segments);
+      if (!link) continue;
+      remapped ||= link.remapped;
+      if (link.ms !== own.ms && !alsoAtMs.includes(link.ms)) alsoAtMs.push(link.ms);
+    }
+    kept.push({ ...item, sourceMs: own.ms, alsoAtMs, needsReview: item.needsReview || remapped });
+  }
+  return { kept, dropped };
+}
+
+/**
+ * Makes every saved link point at real transcript text. A link inside a segment stays. One in a
+ * gap close to a segment moves to that segment's start and the item is marked for review. A bad
+ * `alsoAtMs` entry is removed; an item whose own time is bad is dropped and the user is told.
+ * An open question with no time (null) is allowed.
+ */
+export function guardSummaryLinks(
+  summary: GeneratedSummary,
+  segments: readonly SegmentSpan[],
+): GeneratedSummary {
+  const actions = guardItems(summary.actionItems, segments);
+  const decisions = guardItems(summary.decisions, segments);
+  const questions = guardItems(summary.openQuestions, segments);
+  const dropped = actions.dropped + decisions.dropped + questions.dropped;
+  return {
+    ...summary,
+    actionItems: actions.kept,
+    decisions: decisions.kept,
+    openQuestions: questions.kept,
+    warnings:
+      dropped === 0
+        ? summary.warnings
+        : [...summary.warnings, `${dropped} ${DROPPED_ITEMS_WARNING}.`],
+  };
+}
+
+function requireLinks(times: Array<number | null>, segments?: readonly SegmentSpan[]): void {
+  if (!segments) return;
+  for (const ms of times) {
+    if (ms !== null && !segments.some((span) => ms >= span.startMs && ms <= span.endMs)) {
+      throw new ContractError({
+        code: 'invalidRequest',
+        message: 'That time is outside the meeting transcript.',
+      });
+    }
+  }
+}
+
+/** An edit may keep an old link, but a new one must lie inside the transcript. */
+function requireChangedLink(
+  items: Array<{ id: string; sourceMs: number | null }>,
+  item: { id: string; sourceMs: number | null },
+  segments?: readonly SegmentSpan[],
+): void {
+  if (items.find((existing) => existing.id === item.id)?.sourceMs !== item.sourceMs) {
+    requireLinks([item.sourceMs], segments);
+  }
+}
+
 function stateOf(file: SummaryFile): SummaryState {
   if (file.outdated) return 'outdated';
   const items = [...file.actionItems, ...file.decisions, ...file.openQuestions];
@@ -209,9 +311,14 @@ function removed<T extends { id: string }>(items: T[], id: string): T[] {
 }
 
 /** One user edit, marked so regenerating cannot overwrite it. */
-export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate): SummaryFile {
+export function applySummaryUpdate(
+  file: SummaryFile,
+  update: SummaryItemUpdate,
+  segments?: readonly SegmentSpan[],
+): SummaryFile {
   switch (update.kind) {
     case 'add': {
+      requireLinks([update.item.sourceMs], segments);
       const evidence = { alsoAtMs: [], needsReview: false, edited: true };
       switch (update.collection) {
         case 'actionItems':
@@ -253,13 +360,16 @@ export function applySummaryUpdate(file: SummaryFile, update: SummaryItemUpdate)
       return { ...file, brief, full };
     }
     case 'actionItem':
+      requireChangedLink(file.actionItems, update.item, segments);
       return {
         ...file,
         actionItems: replaced(file.actionItems, { ...update.item, edited: true }),
       };
     case 'decision':
+      requireChangedLink(file.decisions, update.item, segments);
       return { ...file, decisions: replaced(file.decisions, { ...update.item, edited: true }) };
     case 'openQuestion':
+      requireChangedLink(file.openQuestions, update.item, segments);
       return {
         ...file,
         openQuestions: replaced(file.openQuestions, { ...update.item, edited: true }),

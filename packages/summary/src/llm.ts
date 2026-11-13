@@ -10,8 +10,8 @@ export interface LlmRequest {
   schema: object;
   maxTokens: number;
   /** Sampling overrides for a retry; absent means greedy. */
-  sampling?: Record<string, number>;
-  signal?: AbortSignal;
+  sampling?: Record<string, number> | undefined;
+  signal?: AbortSignal | undefined;
 }
 
 export interface LlmResponse {
