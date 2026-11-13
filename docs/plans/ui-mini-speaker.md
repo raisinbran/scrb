@@ -2,7 +2,7 @@
 
 ## Done in this PR (no approval needed)
 
-Status row no longer hops (fixed second slot), window 264x72 (wide enough for the Show Scribe button beside the timer), last-speaker label from existing `transcriptChanged` events (label only, no text). No contract, IPC or preload change.
+Status row no longer hops (fixed second slot), window 264x72 of page area, `useContentSize` (wide enough for the Show Scribe button beside the timer), last-speaker label from existing `transcriptChanged` events (label only, no text). No contract, IPC or preload change.
 
 ## "Show Scribe" button: owner approved Option A, implemented
 

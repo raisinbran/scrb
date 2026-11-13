@@ -37,6 +37,8 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
     title: 'Meeting Scribe recording',
     width: 264,
     height: 72,
+    // The size is the page area, so the title bar never takes from the two rows.
+    useContentSize: true,
     alwaysOnTop: true,
     resizable: false,
     maximizable: false,
