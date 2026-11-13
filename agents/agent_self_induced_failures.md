@@ -1144,6 +1144,12 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round and a red Windows check on a7b3783.
 - **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
 
+### A-338 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — performance-settings plan: forbidden Co-Authored-By trailer committed and pushed
+- **Status / attribution:** Confirmed agent error. Not merged.
+- **What failed:** I followed a harness attribution reminder and added a `Co-Authored-By` trailer to the first commit, then pushed it to `cuc/performance-settings-plan`. The owner's rule is no such trailer.
+- **Agent-controlled cause:** Did not check the owner's memory rule before committing; chained commit and push.
+- **Impact:** One abandoned remote branch and a re-created branch (`-v2`); force-push was not allowed, so no history rewrite.
+- **Correction / remaining risk:** Re-committed without the trailer on a new branch; old branch deleted. Low.
 ### A-337 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
 - **Status / attribution:** Confirmed agent errors; no application defect.
 - **What failed:** (1) I did not read `get_usage` before starting, against the measure-at-start rule. (2) My first "no location" test reused the library saved by the previous case in the same temp directory, so it failed for a fixture reason, not a code one.
