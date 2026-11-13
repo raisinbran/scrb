@@ -168,7 +168,7 @@ reopens with reason `device`, so that track has no `workerRestarted` chunk;
 recovery does not depend on the reason.
 
 **`TonePlayer.exe` is muted in the Volume Mixer on this PC.**  Windows keeps
-per-app settings by path, and `native\windows-capture\tools\windows-tone-player\TonePlayer.exe`
+per-app settings by path, and `phase0\probes\windows-tone-player\TonePlayer.exe` (its path when this was observed; the tool now lives under `native\windows-capture\tools\windows-tone-player\`, and the mixer setting for the new path has not been checked)
 is saved at 30% and muted on the speakers, so it reads about -96 dB, even in
 whole-computer capture.  A copy at another path reads -17.9 dB.  Set `SCRB_TONE`
 to such a copy; `restart_case.mjs`, `pause_case.mjs`, `crash_case.mjs` and

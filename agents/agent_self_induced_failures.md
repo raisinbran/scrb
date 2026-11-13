@@ -964,3 +964,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** I reviewed the scorer for alignment logic but not for phrase contiguity, copied a figure into the note without summing it, and did not check the appended row's column count.
 - **Impact:** One review round on #118. Re-scoring the retained outputs with the fixed scorer gave identical results (recall 8/30, WER 23.91%, 0 events), so no conclusion changed.
 - **Correction / remaining risk:** Contiguity enforced in recall and held-out checks with regression tests (both mutations fail the selftest); note and row corrected. Low.
+
+### A-311 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — step 3 path update missed references and misstated a count (PR #122)
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT); not application defects.
+- **What failed:** (1) I excluded `scripts/dev-assets.sh` from the path rewrite, leaving a `phase0/MANIFEST.md` reference; (2) a link inside the moved `docs/qa/` files still pointed at `phase0/gpt-QA-reports/`, because I rewrote only code and plan docs, not the moved files; (3) the rewrite changed a README sentence about a Windows Volume Mixer setting observed at the old `TonePlayer.exe` path to the new path, implying it was observed there; (4) the plan note said three BUG-1 probe files moved, but the folder holds two.
+- **Agent-controlled cause:** A blanket regex rewrite without checking each match's meaning, an exclusion I did not recheck, and a count written from memory.
+- **Impact:** One review round on #122; no code behavior affected (the Mac check and the W10 crash case both passed).
+- **Correction / remaining risk:** All four fixed on the branch; remaining `phase0/` references are historical docs scheduled for step 4. Low.
