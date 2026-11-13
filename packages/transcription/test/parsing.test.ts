@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
-import { buildTurns, decideSpeakers } from '../src/finalPass.js';
+import { assemble, buildTurns, decideSpeakers, dropRoomEcho } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
 import { HINTED_MAX_CONTEXT, parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
 import type { Word } from '../src/types.js';
@@ -131,6 +131,117 @@ describe('final-pass assembly', () => {
       ['s2', 'c', 2, 1],
       ['s2', 'd', 3, 1],
     ]);
+  });
+
+  it('keeps a mic that hears the room from splitting the meeting into one-word turns', () => {
+    const say = (text: string, startMs: number) => ({
+      text,
+      startMs,
+      endMs: startMs + 300,
+      confidence: 1,
+    });
+    const meeting = ['hello', 'everybody', 'this', 'is', 'the', 'plan'].map((t, i) =>
+      say(t, i * 400),
+    );
+    const mic = ['Right,', 'so', 'I', 'think', 'we', 'agree'].map((t, i) => say(t, i * 400 + 150));
+    const out = assemble(
+      [
+        { kind: 'meeting', wavPath: 'm.wav', words: meeting },
+        { kind: 'mic', wavPath: 'y.wav', words: mic },
+      ],
+      [{ startMs: 0, endMs: 3000, speakerId: 'speaker-1' }],
+      [{ id: 'speaker-1', label: 'Speaker 1', speechMs: 3000, embeddingSegments: 0 }],
+    );
+    expect(out.turns.map((t) => [t.speakerId, t.wordCount])).toEqual([
+      ['speaker-1', 6],
+      ['you', 6],
+    ]);
+    for (const t of out.turns) {
+      const slice = out.words.slice(t.firstWord, t.firstWord + t.wordCount);
+      expect(slice.every((x) => x.speakerId === t.speakerId)).toBe(true);
+    }
+    expect(out.durationMs).toBe(3000);
+  });
+
+  it("drops mic words that echo the meeting but keeps the user's own speech", () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = [at('Now,', 0), at("they're", 400), at('just', 800), at('yeah', 5000)];
+    const mic = [
+      at('now', 300),
+      at("they're", 700),
+      at('just', 1100),
+      at('um', 3000),
+      at('yeah', 5200),
+      at('my', 9000),
+      at('turn', 9400),
+    ];
+    expect(dropRoomEcho(mic, meeting).map((w) => w.text)).toEqual(['um', 'yeah', 'my', 'turn']);
+  });
+
+  it('does not let one meeting word justify deleting several mic words', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const mic = [at('yeah', 200), at('yeah', 600)];
+    expect(dropRoomEcho(mic, [at('yeah', 0)])).toHaveLength(2);
+  });
+
+  it('keeps a reversed phrase', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const mic = [at('okay', 100), at('fine', 500)];
+    expect(dropRoomEcho(mic, [at('fine', 0), at('okay', 400)])).toHaveLength(2);
+  });
+
+  it('does not join matches that are far apart, and sorts unsorted mic words', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = [at('yeah', 0), at('okay', 60_000), at('right', 60_400), at('so', 60_800)];
+    expect(dropRoomEcho([at('okay', 60_100), at('yeah', 100)], meeting)).toHaveLength(2);
+    const unsorted = [at('so', 60_900), at('right', 60_500), at('okay', 60_100)];
+    expect(dropRoomEcho(unsorted, meeting)).toHaveLength(0);
+  });
+
+  it('drops every word of a delayed copy and none of an independent track', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const words = Array.from({ length: 200 }, (_, i) => at(`w${i % 37}`, i * 450));
+    const copy = words.map((w) => at(w.text, w.startMs + 400));
+    const other = Array.from({ length: 200 }, (_, i) => at(`w${(i * 7 + 3) % 37}`, i * 450 + 100));
+    expect(dropRoomEcho(copy, words)).toHaveLength(0);
+    expect(dropRoomEcho(other, words).length).toBeGreaterThan(190);
+  });
+
+  it('stays fast on a long meeting', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const words = Array.from({ length: 5000 }, (_, i) => at(`w${i % 37}`, i * 450));
+    const copy = words.map((w) => at(w.text, w.startMs + 400));
+    const began = performance.now();
+    expect(dropRoomEcho(copy, words)).toHaveLength(0);
+    expect(performance.now() - began).toBeLessThan(500);
+  });
+
+  it('stays fast when nothing matches', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = Array.from({ length: 5000 }, (_, i) => at(`m${i}`, i * 450));
+    const mic = Array.from({ length: 5000 }, (_, i) => at(`u${i}`, i * 450 + 100));
+    const began = performance.now();
+    expect(dropRoomEcho(mic, meeting)).toHaveLength(5000);
+    expect(performance.now() - began).toBeLessThan(250);
+  });
+
+  it('removes the echoed mic words from the assembled transcript', () => {
+    const say = (text: string, startMs: number) => ({
+      text,
+      startMs,
+      endMs: startMs + 300,
+      confidence: 1,
+    });
+    const out = assemble(
+      [
+        { kind: 'meeting', wavPath: 'm.wav', words: [say('hello', 0), say('everybody', 400)] },
+        { kind: 'mic', wavPath: 'y.wav', words: [say('Hello', 200), say('everybody', 600)] },
+      ],
+      [{ startMs: 0, endMs: 1000, speakerId: 'speaker-1' }],
+      [{ id: 'speaker-1', label: 'Speaker 1', speechMs: 1000, embeddingSegments: 0 }],
+    );
+    expect(out.words.map((w) => w.track)).toEqual(['meeting', 'meeting']);
+    expect(out.speakers.map((x) => x.id)).toEqual(['speaker-1']);
   });
 
   it('relabels raw clusters and gives each final speaker a voice', () => {

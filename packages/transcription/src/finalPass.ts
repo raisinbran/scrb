@@ -30,6 +30,10 @@ export const OVERSPLIT_THRESHOLD = 1.0;
 // TS3003a: distinct sub-30 s voices far from every larger cluster were wrongly absorbed.
 const FINAL_RELABEL_DEFAULTS: RelabelOptions = { minSpeakerMs: 13_000 };
 const TURN_GAP_MS = 1500;
+/** A mic word counts as room echo when the meeting track has the same word this close in time. */
+const ECHO_WINDOW_MS = 1000;
+/** Echo needs this many matched mic words in a row, so a lone "yeah" from the user survives. */
+const ECHO_MIN_RUN = 2;
 export const YOU_ID = 'you';
 
 export interface FinalPassOptions {
@@ -209,15 +213,17 @@ export function decideSpeakers(
   return { spans, speakers };
 }
 
-function assemble(
+export function assemble(
   tracks: TrackResult[],
   spans: Span[],
   speakers: FinalSpeaker[],
 ): Pick<FinalTranscript, 'version' | 'durationMs' | 'words' | 'turns' | 'speakers' | 'spans'> {
   const words: Word[] = [];
   const all = [...speakers];
+  const meetingWords = tracks.filter((t) => t.kind === 'meeting').flatMap((t) => t.words);
   for (const t of tracks) {
     if (t.kind === 'mic') {
+      t.words = dropRoomEcho(t.words, meetingWords);
       for (const w of t.words) words.push({ ...w, track: 'mic', speakerId: YOU_ID });
       if (t.words.length > 0) {
         all.unshift({
@@ -232,16 +238,82 @@ function assemble(
       t.words.forEach((w, i) => words.push({ ...w, track: 'meeting', speakerId: ids[i]! }));
     }
   }
-  words.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+  // Words stay grouped by track, each in time order, because a turn is a range of words.
+  // One merged timeline made a mic that hears the room alternate with the meeting track,
+  // one word per turn.  Turns are ordered by time instead.
+  words.sort((a, b) => trackRank(a) - trackRank(b) || a.startMs - b.startMs || a.endMs - b.endMs);
   const lastSpan = spans.reduce((end, s) => Math.max(end, s.endMs), 0);
   return {
     version: 1,
-    durationMs: Math.max(words.at(-1)?.endMs ?? 0, lastSpan),
+    durationMs: words.reduce((end, w) => Math.max(end, w.endMs), lastSpan),
     words,
-    turns: buildTurns(words),
+    turns: buildTurns(words).sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs),
     speakers: all,
     spans: spans.map(({ startMs, endMs, speakerId }) => ({ startMs, endMs, speakerId })),
   };
+}
+
+const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
+
+const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
+
+/**
+ * Removes mic words that re-capture the meeting audio from the speakers: runs of at least
+ * ECHO_MIN_RUN mic words, each at most TURN_GAP_MS after the previous, that match distinct
+ * meeting words of the same text, within ECHO_WINDOW_MS, in the same order.  Not an echo
+ * canceller; the user repeating a phrase at the same moment is lost.
+ */
+export function dropRoomEcho<W extends { text: string; startMs: number }>(
+  mic: W[],
+  meeting: { text: string; startMs: number }[],
+): W[] {
+  const heard = [...meeting].sort((a, b) => a.startMs - b.startMs);
+  const own = [...mic].sort((a, b) => a.startMs - b.startMs);
+  const heardText = heard.map((m) => bare(m.text));
+  // First meeting word that starts inside the window; only the window is scanned after it.
+  const firstInWindow = (from: number): number => {
+    let lo = 0;
+    let hi = heard.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (heard[mid]!.startMs < from) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  const heardAfter = (w: W, after: number): number => {
+    const text = bare(w.text);
+    const k0 = Math.max(after + 1, firstInWindow(w.startMs - ECHO_WINDOW_MS));
+    for (let k = k0; k < heard.length && heard[k]!.startMs <= w.startMs + ECHO_WINDOW_MS; k++) {
+      if (heardText[k] === text) return k;
+    }
+    return -1;
+  };
+  const echo = new Set<W>();
+  let run: W[] = [];
+  let last = -1;
+  const endRun = (): void => {
+    if (run.length >= ECHO_MIN_RUN) for (const w of run) echo.add(w);
+    run = [];
+    last = -1;
+  };
+  for (const w of own) {
+    if (run.length > 0 && w.startMs - run.at(-1)!.startMs > TURN_GAP_MS) endRun();
+    if (!bare(w.text)) {
+      endRun();
+      continue;
+    }
+    let k = heardAfter(w, last);
+    if (k < 0 && run.length > 0) {
+      endRun();
+      k = heardAfter(w, -1);
+    }
+    if (k < 0) continue;
+    run.push(w);
+    last = k;
+  }
+  endRun();
+  return own.filter((w) => !echo.has(w));
 }
 
 function speechOf(words: WhisperWord[]): number {
