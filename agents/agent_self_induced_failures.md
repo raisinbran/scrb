@@ -1070,6 +1070,13 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Searched only part of the tree for the old text; assumed flake without reading the failing names.
 - **Impact:** About two extra check runs (about 2 minutes each). `packages/summary` `worker.test.ts` failed once without its `dist` built; passed after building, unrelated to this change.
 - **Correction / remaining risk:** Test updated; full check passes. Low.
+
+### A-325 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — usage not read at task start; stray tool and path slips (test-tone override)
+- **Status / attribution:** Confirmed agent errors; no code defect.
+- **What failed:** I did not call `get_usage` before starting, so the start percentages are unrecorded. I also called a tool with the wrong name (`bash`) and chained `cd` into a folder I was already in, which skipped the edits in that command until I reran them.
+- **Agent-controlled cause:** Skipping the start-of-task checklist; not checking the working directory first.
+- **Impact:** Start allowance unknown; two wasted tool calls. The failed chain did not apply its edits, so nothing was half-applied.
+- **Correction / remaining risk:** End reading logged in the usage table. Low. A-number taken from origin/main at 756d31f; other in-flight PRs may collide.
 ### A-326 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — `npm run check` run before building `packages/summary`
 - **Status / attribution:** Confirmed agent error; no code defect.
 - **What failed:** The first full test run failed `LlamaServerWorker leaves no server behind` because `packages/summary/dist` did not exist in this fresh worktree. The task brief had already said to build it first.
