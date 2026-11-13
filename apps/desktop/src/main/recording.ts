@@ -36,6 +36,8 @@ const IDLE: RecordingState = {
   privacyBannerRequired: false,
 };
 
+const streamDeadMessage = (track: Track): string => `The ${track} track stopped. Reconnecting.`;
+
 function lockHeld(helper: string, lock: string): boolean {
   return spawnSync(helper, ['check-lock', lock]).status === 3;
 }
@@ -136,7 +138,22 @@ export class RecordingController {
 
   private warn(warning: Omit<RecordingWarning, 'atMs'>, level: RecordingHealth['level']): void {
     const warnings = [...(this.health?.warnings ?? []), { ...warning, atMs: this.state.elapsedMs }];
-    this.health = { level, warnings, diskFreeBytes: this.health?.diskFreeBytes ?? 0 };
+    // A later warning never hides an earlier failure.
+    const worse = this.health?.level === 'failed' ? 'failed' : level;
+    this.health = { level: worse, warnings, diskFreeBytes: this.health?.diskFreeBytes ?? 0 };
+    this.emit('recordingHealth', this.health);
+  }
+
+  /** Drops a recovered track's warning. Writes and pause failures are never passed here, so they stay. */
+  private clearWarning(matches: (warning: RecordingWarning) => boolean): void {
+    if (!this.health) return;
+    const warnings = this.health.warnings.filter((warning) => !matches(warning));
+    if (warnings.length === this.health.warnings.length) return;
+    this.health = {
+      ...this.health,
+      level: warnings.length === 0 ? 'ok' : this.health.level,
+      warnings,
+    };
     this.emit('recordingHealth', this.health);
   }
 
@@ -171,10 +188,7 @@ export class RecordingController {
   private streamDead(track: Track): void {
     if (this.deadStreams.has(track)) return;
     this.deadStreams.add(track);
-    this.warn(
-      { kind: 'audioMissing', track, message: `The ${track} track stopped. Reconnecting.` },
-      'warning',
-    );
+    this.warn({ kind: 'audioMissing', track, message: streamDeadMessage(track) }, 'warning');
   }
 
   private tick(): void {
@@ -310,11 +324,16 @@ export class RecordingController {
           } else if (event.type === 'streamDead' || event.type === 'serviceRestarted') {
             this.streamDead(event.track);
           } else if (event.type === 'streamReopened') {
+            // A blocked track is reopened every few seconds, so a reopen alone does not clear its warning.
             this.deadStreams.delete(event.track);
+            this.clearWarning(
+              (w) => w.track === event.track && w.message === streamDeadMessage(event.track),
+            );
           } else if (event.type === 'permissionLost') {
             this.permissionLost(event.track);
           } else if (event.type === 'permissionRestored') {
             this.blockedTracks.delete(event.track);
+            this.clearWarning((w) => w.kind === 'permissionLost' && w.track === event.track);
           }
         });
         return adapter;
