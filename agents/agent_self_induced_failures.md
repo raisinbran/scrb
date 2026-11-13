@@ -1063,3 +1063,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
+
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — setup slips in the punctuation and diarization investigation
+- **Status / attribution:** Confirmed agent errors, caught from my own command output; not application defects.
+- **What failed:** A `git merge --ff-only` on a branch that had diverged after the squash merge of #143, so I had to start a new branch; a background launcher's completion notice that I first took to mean the run had finished (the process was still running); several full-model runs per clip (4 clips x 3 clustering thresholds) where cached raw output would have allowed fewer.
+- **Agent-controlled cause:** Not checking branch state after a squash merge and reading a launcher exit as the job exit.
+- **Impact:** A few wasted tool calls and about 15 minutes of model runs; no data lost.
+- **Correction / remaining risk:** Fixed in-session; findings are in `docs/handoffs/final-pass-punctuation-diarization-findings-20261113.md`. Low.
