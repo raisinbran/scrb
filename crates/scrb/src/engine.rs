@@ -24,6 +24,7 @@ const ENGINE_ENV: &str = "SCRB_ENGINE";
 const ENGINE_DIR_ENV: &str = "SCRB_ENGINE_DIR";
 const TIMEOUT_ENV: &str = "SCRB_ENGINE_TIMEOUT_S";
 const BASE_TIMEOUT_S: f64 = 600.0;
+const FETCH_HINT: &str = "run scrb models fetch";
 
 /// Called with each progress line's op, `done` and `total`.
 pub type Progress = Box<dyn FnMut(&str, u64, u64)>;
@@ -234,11 +235,11 @@ impl Engine {
             if reply["ok"] == json!(true) {
                 return Ok(reply);
             }
-            let code = reply["error"]["code"].as_str().unwrap_or("internal");
-            let message = reply["error"]["message"].as_str().unwrap_or_default();
-            return Err(Failure::Refused(engine_failed(format!(
-                "{code}: {message}"
-            ))));
+            let error = reply_error(&reply);
+            if reply["error"]["code"] == "model_missing" {
+                return Err(Failure::Refused(error.with_hint(FETCH_HINT)));
+            }
+            return Err(Failure::Refused(error));
         }
     }
 
@@ -366,6 +367,14 @@ fn read_timeout_override() -> Result<Option<Duration>, Error> {
             format!("{TIMEOUT_ENV} must be a number of seconds, not {text:?}"),
         )),
     }
+}
+
+/// The error in a worker's or `scrb-engine fetch`'s failed reply, as
+/// `<code>: <message>`.
+fn reply_error(reply: &Value) -> Error {
+    let code = reply["error"]["code"].as_str().unwrap_or("internal");
+    let message = reply["error"]["message"].as_str().unwrap_or_default();
+    engine_failed(format!("{code}: {message}"))
 }
 
 fn engine_failed(message: impl Into<String>) -> Error {

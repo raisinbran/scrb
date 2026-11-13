@@ -367,6 +367,19 @@ fn transcribe_import_failure_returns_meeting_id() {
     assert_eq!(result["meeting_id"], meetings[0].id.as_str());
 }
 
+/// A missing model's error carries the command that fetches it, so an agent
+/// or user can recover without reading the docs.
+#[test]
+fn transcribe_model_missing_hints_models_fetch() {
+    let library_dir = TempDir::new().unwrap();
+    let failing_engine = fake_engine(&["--fault", "load:model_missing"]);
+
+    let output = transcribe_clip(library_dir.path(), &failing_engine, "60");
+
+    let result = result_line(&output);
+    assert_eq!(result["error"]["hint"], "run scrb models fetch");
+}
+
 /// `--out` transcribes a file with nothing in the library, even before the
 /// library folder exists, as on a new machine or a CI runner.
 #[test]

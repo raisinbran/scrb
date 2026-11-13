@@ -24,6 +24,8 @@ pub struct Error {
     /// The meeting a failed `scrb transcribe` made or ran, so it can be run
     /// again by id.
     pub meeting_id: Option<String>,
+    /// A command that may fix the failure, such as `run scrb models fetch`.
+    pub hint: Option<String>,
 }
 
 /// Stable error codes. Tests and agents match on these, never on the message.
@@ -55,6 +57,15 @@ impl Error {
             code,
             message: message.into(),
             meeting_id: None,
+            hint: None,
+        }
+    }
+
+    /// This error, with `hint` in its result.
+    pub fn with_hint(self, hint: &str) -> Error {
+        Error {
+            hint: Some(hint.to_string()),
+            ..self
         }
     }
 

@@ -360,6 +360,9 @@ fn error_result(error: &Error) -> Value {
         "ok": false,
         "error": { "code": error.code, "message": error.message },
     });
+    if let Some(hint) = &error.hint {
+        line["error"]["hint"] = json!(hint);
+    }
     if let Some(id) = &error.meeting_id {
         line["meeting_id"] = json!(id);
     }
