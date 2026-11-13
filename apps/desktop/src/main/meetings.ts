@@ -187,7 +187,7 @@ function toListItem(meeting: MeetingFacts): MeetingListItem {
 }
 
 /** Reads a meeting's real facts, turning a missing one into the error the contract names. */
-async function requireMeeting(library: Library, meetingId: string): Promise<MeetingMeta> {
+export async function requireMeeting(library: Library, meetingId: string): Promise<MeetingMeta> {
   try {
     return await library.getMeeting(meetingId);
   } catch (error) {
@@ -198,7 +198,7 @@ async function requireMeeting(library: Library, meetingId: string): Promise<Meet
   }
 }
 
-function timelineGaps(library: Library, meeting: MeetingMeta): TimelineGap[] {
+export function timelineGaps(library: Library, meeting: MeetingMeta): TimelineGap[] {
   try {
     const { audio } = library.meetingPaths(meeting.id);
     return readSealedGaps(audio, meeting.durationMs * NS_PER_MS).map((gap) => ({

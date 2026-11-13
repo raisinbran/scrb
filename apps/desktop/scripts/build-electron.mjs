@@ -23,3 +23,15 @@ await build({
   target: 'node22',
   logLevel: 'warning',
 });
+
+// The DOCX builder runs in a worker thread; `docx` is bundled into it.
+await build({
+  entryPoints: { exportWorkerEntry: 'src/main/exportWorkerEntry.ts' },
+  outdir: 'dist-electron',
+  outExtension: { '.js': '.mjs' },
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});
