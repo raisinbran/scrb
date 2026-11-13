@@ -23,12 +23,24 @@ const DEFAULT_VIEWPORT_PX = 600;
 const FOLLOW_MARGIN_PX = 24;
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
 
-const GAP_LABELS: Record<TimelineGap['kind'], string> = {
-  paused: 'Paused',
-  audioMissing: 'Audio missing',
-  possiblyMissing: 'Audio possibly missing',
-  computerAsleep: 'Computer asleep',
+const TRACK_NAMES: Record<TimelineGap['track'], string> = {
+  microphone: 'Microphone audio',
+  meeting: 'Meeting audio',
+  both: 'Audio',
 };
+
+function gapName(gap: TimelineGap): string {
+  switch (gap.kind) {
+    case 'paused':
+      return 'Paused';
+    case 'computerAsleep':
+      return 'Computer asleep';
+    case 'possiblyMissing':
+      return `${TRACK_NAMES[gap.track]} may be missing`;
+    case 'audioMissing':
+      return `${TRACK_NAMES[gap.track]} missing`;
+  }
+}
 
 function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -36,8 +48,11 @@ function isTextEntry(target: EventTarget | null): boolean {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
+/** The start rounds down and the end up, so a short gap is never shown as a zero-length range. */
 export function gapLabel(gap: TimelineGap): string {
-  return `${GAP_LABELS[gap.kind]}, ${formatElapsed(gap.startMs)} to ${formatElapsed(gap.endMs)}`;
+  const from = formatElapsed(gap.startMs);
+  const to = formatElapsed(Math.ceil(gap.endMs / 1000) * 1000);
+  return from === to ? `${gapName(gap)}, at ${from}` : `${gapName(gap)}, ${from} to ${to}`;
 }
 
 const WORD_CLASSES = {
