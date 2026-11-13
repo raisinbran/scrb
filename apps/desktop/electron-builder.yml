@@ -1,0 +1,25 @@
+appId: com.raisinbran.scribe
+productName: Scribe
+# Not asar: the live worker is started as a separate process and cannot read inside an archive.
+asar: false
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+  - '!**/node_modules/**'
+# Tools and libraries are staged by scripts/package-mac.sh; models are installed separately.
+extraResources:
+  - from: build/mac-stage/bin
+    to: bin
+mac:
+  target:
+    - target: dir
+      arch: arm64
+  # Signed ad hoc by scripts/package-mac.sh, inside-out, after the tools are in place.
+  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    NSMicrophoneUsageDescription: Scribe records your microphone so it can transcribe your meetings on this Mac. Nothing leaves your computer.
+    NSAudioCaptureUsageDescription: Scribe records the sound of your meeting app (the other participants) so it can transcribe it on this Mac. Nothing leaves your computer.

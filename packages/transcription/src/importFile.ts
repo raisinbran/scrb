@@ -44,7 +44,7 @@ export type ImportFailure =
 
 const MESSAGES: Record<ImportFailure, string> = {
   not_found: 'That file could not be found. It may have been moved or deleted.',
-  no_permission: 'Meeting Scribe is not allowed to read that file.',
+  no_permission: 'Scribe is not allowed to read that file.',
   unsupported_format: 'This file type is not supported. Use WAV, MP3, M4A, FLAC or Opus audio.',
   video_not_accepted: 'This is a video file. Only audio files can be imported.',
   no_audio: 'This file does not contain any audio.',

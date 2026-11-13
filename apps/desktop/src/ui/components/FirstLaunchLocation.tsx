@@ -33,9 +33,9 @@ export function FirstLaunchLocation({ onAnswered }: { onAnswered(): void }) {
   return (
     <Dialog title="Where are you based?">
       <p className={styles.intro}>
-        Some places have laws about voice data. Meeting Scribe builds voice profiles, and this
-        answer decides whether a privacy banner shows when you record. It stays on this computer,
-        and you can change it later in Settings.
+        Some places have laws about voice data. Scribe builds voice profiles, and this answer
+        decides whether a privacy banner shows when you record. It stays on this computer, and you
+        can change it later in Settings.
       </p>
       <LocationField value={location} onChange={setLocation} />
       {error && (
