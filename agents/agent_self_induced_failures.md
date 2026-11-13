@@ -1118,3 +1118,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** (1) The 72 px mini height was the outer window, so macOS title-bar chrome could clip the rows (review-found; fixed with `useContentSize: true`); (2) I again chained commit and push after `npm run check` and `test:smoke` without reading the result, and the first smoke run had one failed playback e2e (no change in the mini window; a single rerun passed 11/11, cause not diagnosed, likely a flaky timing test).
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
+
+#### A-331 — 2026-11-13 — usage not read at task start
+- **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
+- **Impact:** The usage row has an end reading only; no consumption figure.
+- **Correction / remaining risk:** Logged as unavailable. Low.
