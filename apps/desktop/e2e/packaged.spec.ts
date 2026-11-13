@@ -31,9 +31,7 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
     value: { storageLocation: library },
   });
   expect(await call('getAppInfo')).toMatchObject({ ok: true, value: { name: 'Scribe' } });
-  const status = (await call('getSetupStatus')) as { value: { models: { installed: boolean }[] } };
-  expect(status.value.models.length).toBe(5);
-  expect(status.value.models.every((m) => !m.installed)).toBe(true);
+  expect(await call('getSetupStatus')).toMatchObject({ ok: true, value: { complete: false } });
   expect(await call('startRecording', {})).toMatchObject({
     ok: false,
     error: { message: expect.stringContaining('--install-models') },

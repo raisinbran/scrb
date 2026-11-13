@@ -270,30 +270,46 @@ describe('createHybridBackend', () => {
       expect(mockCall).not.toHaveBeenCalledWith('undo', { meetingId: REAL_ID });
     });
 
-    it('keeps profile-only calls and sample meeting edits on the mock', async () => {
+    it('keeps sample meeting edits on the mock', async () => {
       const real = realWithMeeting();
       const backend = createHybridBackend(real, mock);
       const [sample] = await mock.call('listMeetings', {});
       const meetingId = sample?.id ?? '';
       await backend.call('getUndoState', { meetingId });
       await backend.call('listSpeakerSuggestions', {});
-      await expect(
-        backend.call('renameSpeaker', {
-          target: { kind: 'profile', profileId: 'profile-1' },
-          name: 'New',
-        }),
-      ).resolves.toBeUndefined();
-      await expect(
-        backend.call('mergeSpeakers', {
-          kind: 'profiles',
-          from: 'profile-1',
-          into: 'profile-2',
-        }),
-      ).resolves.toBeUndefined();
       expect(real.call).not.toHaveBeenCalledWith('getUndoState', { meetingId });
       expect(real.call).not.toHaveBeenCalledWith('listSpeakerSuggestions', {});
-      expect(real.call).not.toHaveBeenCalledWith('renameSpeaker', expect.anything());
-      expect(real.call).not.toHaveBeenCalledWith('mergeSpeakers', expect.anything());
+    });
+
+    it('sends all voice-profile calls to the real backend, not the mock', async () => {
+      const real = { call: vi.fn(async () => undefined), on: vi.fn() } as unknown as Backend;
+      const mockCall = vi.spyOn(mock, 'call');
+      const backend = createHybridBackend(real, mock);
+      const requests: [string, unknown][] = [
+        ['listProfiles', undefined],
+        ['getProfileUndoState', undefined],
+        ['undoProfileChange', undefined],
+        ['redoProfileChange', undefined],
+        ['deleteProfile', { profileId: 'profile-1' }],
+        ['renameSpeaker', { target: { kind: 'profile', profileId: 'profile-1' }, name: 'New' }],
+        ['mergeSpeakers', { kind: 'profiles', from: 'profile-1', into: 'profile-2' }],
+      ];
+      for (const [name, request] of requests) {
+        await (backend.call as (n: string, r?: unknown) => Promise<unknown>)(name, request);
+        expect(real.call).toHaveBeenCalledWith(name, request);
+        expect(mockCall).not.toHaveBeenCalledWith(name, request);
+      }
+    });
+
+    it('falls back to the mock for profiles when the library did not open', async () => {
+      const real = {
+        call: vi.fn(async () => {
+          throw new ContractError({ code: 'notImplemented', message: 'No.' });
+        }),
+        on: vi.fn(),
+      } as unknown as Backend;
+      const profiles = await createHybridBackend(real, mock).call('listProfiles');
+      expect(profiles).toEqual(await mock.call('listProfiles'));
     });
 
     it('forwards real meeting events and unsubscribes on both sides', () => {
