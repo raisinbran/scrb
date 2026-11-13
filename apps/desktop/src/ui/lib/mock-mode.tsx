@@ -7,21 +7,31 @@ export function MockModeProvider({ mock, children }: { mock: boolean; children: 
   return <MockModeContext.Provider value={mock}>{children}</MockModeContext.Provider>;
 }
 
-/** True when meetings made in this window are fake: recording is not backed by the real helper. */
+/** True when part of the app is simulated: recording or the final pass is not set up. */
 export function useMockMode(): boolean {
   return useContext(MockModeContext);
 }
 
-/**
- * Real recording exists only when the main process built a recording controller. Without one the
- * real side answers `notImplemented` for the recording calls, and the hybrid backend falls back
- * to the mock. Live text and the final pass have no such signal in the contract.
- */
-export async function detectMockRecording(real: Backend): Promise<boolean> {
+async function isUnsupported(real: Backend, probe: () => Promise<unknown>): Promise<boolean> {
   try {
-    await real.call('getRecordingSnapshot');
+    await probe();
     return false;
   } catch (error) {
     return error instanceof ContractError && error.code === 'notImplemented';
   }
+}
+
+/**
+ * The main process registers recording handlers only with a capture helper, and import handlers
+ * only with a final-pass config; a missing handler answers `notImplemented` and the hybrid
+ * backend falls back to the mock. The import probe names an import that cannot exist, so a
+ * real handler answers `notFound` and changes nothing. Live text has no such signal in the
+ * contract, so a missing live config is not detected here.
+ */
+export async function detectMockMode(real: Backend): Promise<boolean> {
+  const unsupported = await Promise.all([
+    isUnsupported(real, () => real.call('getRecordingSnapshot')),
+    isUnsupported(real, () => real.call('cancelImport', { importId: 'mock-mode-probe' })),
+  ]);
+  return unsupported.some(Boolean);
 }

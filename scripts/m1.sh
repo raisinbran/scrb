@@ -21,6 +21,24 @@ missing=()
 [[ -x "$helper" ]] || missing+=("capture helper: ${helper} (build it: cd native/macos-capture && ./build.sh)")
 [[ -f "$live" ]] || missing+=("live config: ${live}")
 [[ -f "$final" ]] || missing+=("final-pass config: ${final}")
+# Every tool and model path named inside a config must exist too (config values under "tools" and "models").
+referenced() {  # referenced <config>: prints one path per line, or "unreadable" when it is not valid JSON
+  node -e '
+    const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    for (const k of ["tools", "models"]) for (const v of Object.values(c[k] ?? {})) console.log(v);
+  ' "$1" 2>/dev/null || echo "unreadable"
+}
+check_config() {  # check_config <label> <config>
+  [[ -f "$2" ]] || return 0
+  local path
+  while IFS= read -r path; do
+    if [[ "$path" == unreadable ]]; then missing+=("$1 is not valid JSON: $2"); return 0; fi
+    [[ -e "$path" ]] || missing+=("$1 references a missing file: ${path} (in $2)")
+  done < <(referenced "$2")
+}
+command -v node >/dev/null 2>&1 || missing+=("node (expected in ${HOME}/.local/share/scrb-node/current/bin)")
+check_config "live config" "$live"
+check_config "final-pass config" "$final"
 command -v npm >/dev/null 2>&1 || missing+=("npm (expected in ${HOME}/.local/share/scrb-node/current/bin)")
 if ((${#missing[@]} > 0)); then
   echo "Cannot start real mode. Missing:" >&2

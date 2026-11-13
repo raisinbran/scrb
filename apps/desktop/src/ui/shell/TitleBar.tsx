@@ -30,7 +30,7 @@ export function TitleBar() {
           <span
             className={styles.mock}
             data-testid="mock-backend-marker"
-            title="Recording is simulated. Start the app with scripts/m1.sh to record real meetings."
+            title="Recording or the final pass is simulated. Start the app with scripts/m1.sh to record real meetings."
           >
             Mock backend
           </span>
