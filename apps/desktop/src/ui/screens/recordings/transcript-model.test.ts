@@ -83,11 +83,13 @@ describe('currentWordId', () => {
     expect(currentWordId(seg, 1000)).toBe('a');
     expect(currentWordId(seg, 1550)).toBe('a');
     expect(currentWordId(seg, 1600)).toBe('b');
-    expect(currentWordId(seg, 3000)).toBe('c');
+    expect(currentWordId(seg, 2700)).toBe('c');
   });
 
-  it('is none outside the segment', () => {
+  it('is none outside the words, including the silence after the last one', () => {
     expect(currentWordId(seg, 999)).toBeUndefined();
-    expect(currentWordId(seg, 3001)).toBeUndefined();
+    expect(currentWordId(seg, 2701)).toBeUndefined();
+    expect(currentWordId(seg, 3000)).toBeUndefined();
+    expect(currentWordId({ ...seg, words: [] }, 1500)).toBeUndefined();
   });
 });

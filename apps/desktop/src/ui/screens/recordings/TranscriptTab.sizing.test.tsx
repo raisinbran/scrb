@@ -1,4 +1,7 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
 import { TranscriptTab } from './TranscriptTab.tsx';
@@ -78,6 +81,52 @@ describe('TranscriptTab sizing', () => {
     const current = container.querySelectorAll('[data-ms][aria-current="true"]');
     expect(current).toHaveLength(1);
     expect(current[0]!.textContent).toBe('two');
+  });
+
+  it('makes a clicked word current, also when it is provisional', () => {
+    const transcript = data(1);
+    transcript.segments[0]!.words = ['one', 'two'].map((text, i) => ({
+      id: `w${i}`,
+      text,
+      startMs: i * 2000,
+      endMs: i * 2000 + 1500,
+      state: i === 1 ? ('provisional' as const) : ('final' as const),
+      correctionId: null,
+    }));
+    const played: number[] = [];
+    function Harness() {
+      const [position, setPosition] = useState(0);
+      return (
+        <TranscriptTab
+          transcript={transcript}
+          {...props}
+          showPosition
+          positionMs={position}
+          onPlay={(ms) => {
+            played.push(ms);
+            setPosition(ms);
+          }}
+        />
+      );
+    }
+    const { container } = render(<Harness />);
+    const word = (text: string) =>
+      [...container.querySelectorAll<HTMLElement>('[data-ms]')].find(
+        (el) => el.textContent === text,
+      )!;
+    expect(word('one').getAttribute('aria-current')).toBe('true');
+    fireEvent.click(word('two'));
+    expect(played).toEqual([2000]);
+    expect(word('two').getAttribute('aria-current')).toBe('true');
+    expect(word('one').getAttribute('aria-current')).toBeNull();
+    expect(word('two').className).toMatch(/wordCurrent/);
+  });
+
+  it('declares the current-word colour after every word-state colour', () => {
+    const css = readFileSync(join(import.meta.dirname, 'recordings.module.css'), 'utf8');
+    const current = css.indexOf('.wordCurrent {');
+    expect(current).toBeGreaterThan(css.indexOf('.wordProvisional {'));
+    expect(current).toBeGreaterThan(css.indexOf('.wordCorrected {'));
   });
 
   it('measures the viewport when the first text arrives after an empty start', () => {
