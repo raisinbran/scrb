@@ -1049,3 +1049,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
 - **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
 - **Correction / remaining risk:** All fixed before commit. Low.
+
+### A-322 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — setup slips while reproducing the one-word segments
+- **Status / attribution:** Confirmed agent errors, caught by my own command output; not application defects.
+- **What failed:** I ran `npx`/project binaries without the project's Node on `PATH` and from a worktree that has no `.bin/`; I used an ffmpeg `adelay` filter the repo's ffmpeg build lacks; a `sed` edit failed on macOS; a first reproduction ran the 2-minute diarization on one track without the mic track that causes the bug; I left a placeholder line in my first `assemble` edit; my first test expected a duration that ignored the span end.
+- **Agent-controlled cause:** Not following the AGENTS.md Node path note, assuming filters and BSD `sed` behaviour without checking, and editing before the test was written.
+- **Impact:** About two extra model runs (about 2 minutes each) and several wasted tool calls; no data lost.
+- **Correction / remaining risk:** All fixed before commit; the test now fails on the old code and passes on the new. Low.
