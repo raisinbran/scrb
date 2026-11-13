@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseProbe, wavHeader } from '../src/audio.js';
 import { oggCrc } from '../src/ogg.js';
-import { assemble, buildTurns, decideSpeakers } from '../src/finalPass.js';
+import { assemble, buildTurns, decideSpeakers, dropRoomEcho } from '../src/finalPass.js';
 import { checkProbe, decodeArgs, parseChunkList } from '../src/importFile.js';
 import { HINTED_MAX_CONTEXT, parseVadSegments, parseWords, wholeFileArgs } from '../src/whisper.js';
 import type { Word } from '../src/types.js';
@@ -143,9 +143,7 @@ describe('final-pass assembly', () => {
     const meeting = ['hello', 'everybody', 'this', 'is', 'the', 'plan'].map((t, i) =>
       say(t, i * 400),
     );
-    const mic = ['Hello', 'everybody', 'this', 'is', 'the', 'plan'].map((t, i) =>
-      say(t, i * 400 + 150),
-    );
+    const mic = ['Right,', 'so', 'I', 'think', 'we', 'agree'].map((t, i) => say(t, i * 400 + 150));
     const out = assemble(
       [
         { kind: 'meeting', wavPath: 'm.wav', words: meeting },
@@ -163,6 +161,40 @@ describe('final-pass assembly', () => {
       expect(slice.every((x) => x.speakerId === t.speakerId)).toBe(true);
     }
     expect(out.durationMs).toBe(3000);
+  });
+
+  it("drops mic words that echo the meeting but keeps the user's own speech", () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = [at('Now,', 0), at("they're", 400), at('just', 800), at('yeah', 5000)];
+    const mic = [
+      at('now', 300),
+      at("they're", 700),
+      at('just', 1100),
+      at('um', 3000),
+      at('yeah', 5200),
+      at('my', 9000),
+      at('turn', 9400),
+    ];
+    expect(dropRoomEcho(mic, meeting).map((w) => w.text)).toEqual(['um', 'yeah', 'my', 'turn']);
+  });
+
+  it('removes the echoed mic words from the assembled transcript', () => {
+    const say = (text: string, startMs: number) => ({
+      text,
+      startMs,
+      endMs: startMs + 300,
+      confidence: 1,
+    });
+    const out = assemble(
+      [
+        { kind: 'meeting', wavPath: 'm.wav', words: [say('hello', 0), say('everybody', 400)] },
+        { kind: 'mic', wavPath: 'y.wav', words: [say('Hello', 200), say('everybody', 600)] },
+      ],
+      [{ startMs: 0, endMs: 1000, speakerId: 'speaker-1' }],
+      [{ id: 'speaker-1', label: 'Speaker 1', speechMs: 1000, embeddingSegments: 0 }],
+    );
+    expect(out.words.map((w) => w.track)).toEqual(['meeting', 'meeting']);
+    expect(out.speakers.map((x) => x.id)).toEqual(['speaker-1']);
   });
 
   it('relabels raw clusters and gives each final speaker a voice', () => {

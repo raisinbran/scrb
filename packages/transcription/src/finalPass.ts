@@ -30,6 +30,10 @@ export const OVERSPLIT_THRESHOLD = 1.0;
 // TS3003a: distinct sub-30 s voices far from every larger cluster were wrongly absorbed.
 const FINAL_RELABEL_DEFAULTS: RelabelOptions = { minSpeakerMs: 13_000 };
 const TURN_GAP_MS = 1500;
+/** A mic word counts as room echo when the meeting track has the same word this close in time. */
+const ECHO_WINDOW_MS = 1000;
+/** Echo needs this many matched mic words in a row, so a lone "yeah" from the user survives. */
+const ECHO_MIN_RUN = 2;
 export const YOU_ID = 'you';
 
 export interface FinalPassOptions {
@@ -216,8 +220,10 @@ export function assemble(
 ): Pick<FinalTranscript, 'version' | 'durationMs' | 'words' | 'turns' | 'speakers' | 'spans'> {
   const words: Word[] = [];
   const all = [...speakers];
+  const meetingWords = tracks.filter((t) => t.kind === 'meeting').flatMap((t) => t.words);
   for (const t of tracks) {
     if (t.kind === 'mic') {
+      t.words = dropRoomEcho(t.words, meetingWords);
       for (const w of t.words) words.push({ ...w, track: 'mic', speakerId: YOU_ID });
       if (t.words.length > 0) {
         all.unshift({
@@ -248,6 +254,39 @@ export function assemble(
 }
 
 const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
+
+const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
+
+/**
+ * Removes mic words that re-capture the meeting audio from the speakers: runs of at least
+ * ECHO_MIN_RUN consecutive mic words that each match a meeting word of the same text within
+ * ECHO_WINDOW_MS.  Not an echo canceller; the user repeating a phrase at the same moment is lost.
+ */
+export function dropRoomEcho<W extends { text: string; startMs: number }>(
+  mic: W[],
+  meeting: { text: string; startMs: number }[],
+): W[] {
+  const starts = new Map<string, number[]>();
+  for (const w of meeting) {
+    const key = bare(w.text);
+    if (key) starts.set(key, [...(starts.get(key) ?? []), w.startMs]);
+  }
+  const matched = mic.map((w) =>
+    (starts.get(bare(w.text)) ?? []).some((t) => Math.abs(t - w.startMs) <= ECHO_WINDOW_MS),
+  );
+  const keep = mic.map(() => true);
+  for (let i = 0; i < mic.length;) {
+    if (!matched[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < mic.length && matched[j]) j++;
+    if (j - i >= ECHO_MIN_RUN) for (let k = i; k < j; k++) keep[k] = false;
+    i = j;
+  }
+  return mic.filter((_, i) => keep[i]);
+}
 
 function speechOf(words: WhisperWord[]): number {
   return words.reduce((sum, w) => sum + (w.endMs - w.startMs), 0);
