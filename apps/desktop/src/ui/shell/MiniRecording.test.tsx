@@ -235,4 +235,40 @@ describe('MiniRecording', () => {
     expect(open).toHaveBeenCalledWith('scrb-app://show-main');
     open.mockRestore();
   });
+
+  it('ignores another meeting’s events, even with a reused speaker ID', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 10_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const event = (meetingId: string, endMs: number, label: string) => ({
+      meetingId,
+      revision: 1,
+      change: {
+        kind: 'append',
+        segments: [
+          { id: `s${endMs}`, speakerId: 'a', track: 'mic', startMs: endMs - 500, endMs, words: [] },
+        ],
+      },
+      speakers: [{ id: 'a', label, kind: 'unknown', profileId: null }],
+    });
+    act(() => fake.emit('transcriptChanged', event('invented-meeting', 9000, 'Ana')));
+    act(() => fake.emit('transcriptChanged', event('other-meeting', 9500, 'Ben')));
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'other-meeting',
+        revision: 2,
+        change: { kind: 'replace', segments: [], removedSegmentIds: ['x'] },
+        speakers: [{ id: 'a', label: 'Ben', kind: 'named', profileId: null }],
+      }),
+    );
+    expect(screen.getByText('Ana')).toBeTruthy();
+    expect(screen.queryByText('Ben')).toBeNull();
+  });
 });

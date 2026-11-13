@@ -22,29 +22,33 @@ function useLastSpeaker(meetingId: string | null) {
   const backend = useBackend();
   const [heard, setHeard] = useState<LastHeard | null>(null);
   const [speakers, setSpeakers] = useState<Record<SpeakerId, Speaker>>({});
-  useEffect(
-    () =>
-      backend.on('transcriptChanged', (event) => {
-        if (event.speakers.length > 0) {
-          setSpeakers((known) => ({
-            ...known,
-            ...Object.fromEntries(event.speakers.map((speaker) => [speaker.id, speaker])),
-          }));
-        }
-        if (event.change.kind === 'realign') return;
-        const latest = event.change.segments.reduce<{ speakerId: SpeakerId; endMs: number } | null>(
-          (best, segment) => (best && best.endMs >= segment.endMs ? best : segment),
-          null,
-        );
-        if (!latest) return;
-        setHeard((previous) =>
-          previous && previous.meetingId === event.meetingId && previous.endMs > latest.endMs
-            ? previous
-            : { meetingId: event.meetingId, speakerId: latest.speakerId, endMs: latest.endMs },
-        );
-      }),
-    [backend],
-  );
+  useEffect(() => {
+    // Only the recording this window shows counts; another meeting's events (a final pass, say)
+    // must neither blank the indicator nor lend it a name, as speaker IDs can repeat across meetings.
+    setHeard(null);
+    setSpeakers({});
+    if (meetingId === null) return undefined;
+    return backend.on('transcriptChanged', (event) => {
+      if (event.meetingId !== meetingId) return;
+      if (event.speakers.length > 0) {
+        setSpeakers((known) => ({
+          ...known,
+          ...Object.fromEntries(event.speakers.map((speaker) => [speaker.id, speaker])),
+        }));
+      }
+      if (event.change.kind === 'realign') return;
+      const latest = event.change.segments.reduce<{ speakerId: SpeakerId; endMs: number } | null>(
+        (best, segment) => (best && best.endMs >= segment.endMs ? best : segment),
+        null,
+      );
+      if (!latest) return;
+      setHeard((previous) =>
+        previous && previous.endMs > latest.endMs
+          ? previous
+          : { meetingId, speakerId: latest.speakerId, endMs: latest.endMs },
+      );
+    });
+  }, [backend, meetingId]);
   const current = heard && heard.meetingId === meetingId ? heard : null;
   return {
     heard: current,
