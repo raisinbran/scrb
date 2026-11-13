@@ -6,6 +6,7 @@ because a switch to headphones can leave the mute behind. Reports each track's c
 Usage: device_case.py <helper> <work dir> [devices|sleep|permission|reopen|service|restart|call]
 """
 import json, math, os, struct, subprocess, sys, threading, time, wave
+from tone import play_tone
 
 helper, work = sys.argv[1:3]
 mode = sys.argv[3] if len(sys.argv) > 3 else "devices"
@@ -75,7 +76,7 @@ def show(status, big, action, following, step=-1, button=None):
 show("Not started", "Ready", READY, "The window tells you each step.")
 print("Press Start in the floating window.", flush=True)
 window.stdout.readline()
-player = subprocess.Popen(["afplay", "-v", "0.05", tone_file]) if mode != "call" else None
+player = play_tone(tone_file, override=True, default_volume="0.05") if mode != "call" else None
 time.sleep(0.5)
 worker = subprocess.Popen([helper], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 acks = {}

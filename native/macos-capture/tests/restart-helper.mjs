@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { clearTimeout } from 'node:timers';
 import { spawn } from 'node:child_process';
+import { playTone } from '../scripts/tone.mjs';
 import { createInterface } from 'node:readline';
 import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -97,7 +98,7 @@ async function start(origin) {
     },
   };
 }
-const player = spawn('afplay', [tone], { stdio: 'ignore' });
+const player = playTone(tone);
 let run;
 try {
   run = await start();

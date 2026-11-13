@@ -7,6 +7,7 @@ Usage: pause_case.py <helper> <ffmpeg> <work dir> [pause seconds]
 A device that starts playing late needs a longer pause, or the marker outlasts it and fails the check.
 """
 import json, math, os, struct, subprocess, sys, time, wave
+from tone import play_tone
 
 helper, ffmpeg, work = sys.argv[1:4]
 pause_seconds = float(sys.argv[4]) if len(sys.argv) > 4 else 7.5
@@ -19,7 +20,7 @@ with wave.open(tone_file, "wb") as w:
         f = 2000 if 6 <= second < 12 else 880
         w.writeframes(struct.pack("<%dh" % RATE, *(int(9000 * math.sin(2 * math.pi * f * i / RATE)) for i in range(RATE))))
 
-player = subprocess.Popen(["afplay", tone_file])
+player = play_tone(tone_file)
 worker = subprocess.Popen([helper], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 
 def send(id_, **fields):

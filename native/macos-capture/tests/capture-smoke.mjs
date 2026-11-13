@@ -6,13 +6,14 @@ import { createInterface } from 'node:readline';
 import { readFile, mkdir, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { playTone } from '../scripts/tone.mjs';
 import { clearTimeout } from 'node:timers';
 import { setTimeout as delay } from 'node:timers/promises';
 const [helper, compiled, tone, root] = process.argv.slice(2).map((p) => resolve(p));
 const { PcmFrameDecoder, pcmEndNs } = await import(
   pathToFileURL(join(compiled, 'livePcmProtocol.js')).href
 );
-const player = spawn('afplay', [tone], { stdio: 'ignore' });
+const player = playTone(tone);
 try {
   for (const mode of ['off', 'read', 'stalled', 'closed']) {
     const work = join(root, mode);
