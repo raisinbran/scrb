@@ -31,17 +31,23 @@ Out of scope: whisper `-mc` (prompt context). That is a quality versus repeated-
 
 Keep `transcriptionQuality` as the preset and wire it. Rename the label to "Performance" in the UI only: Fast / Balanced / Best quality. Presets change only knobs that already exist. No new model ships.
 
-|                                    | Fast                                    | Balanced                     | Best quality                                                               |
-| ---------------------------------- | --------------------------------------- | ---------------------------- | -------------------------------------------------------------------------- |
-| Live text                          | Off (text appears after Stop)           | On, small.en-q5_1, `-ac 768` | On, large-v3-turbo if the benchmark says the PC keeps up, else as Balanced |
-| Live whisper threads               | n/a                                     | min(4, cores/2)              | min(8, cores-2)                                                            |
-| Live speaker threads               | n/a                                     | 2                            | 4                                                                          |
-| Final threads (whisper and sherpa) | max(2, cores/4), so the PC stays usable | 4 (today)                    | min(8, cores-2)                                                            |
-| GPU                                | on if present                           | on if present                | on if present                                                              |
+|                                    | Fast                                                | Balanced                     | Best quality                                                |
+| ---------------------------------- | --------------------------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| Live text                          | Off (text appears after Stop)                       | On, small.en-q5_1, `-ac 768` | On, large-v3-turbo if eligible (see 2.1a), else as Balanced |
+| Live whisper threads               | n/a                                                 | clamp(floor(cores/2), 2, 4)  | clamp(cores-2, 2, 8)                                        |
+| Live speaker threads               | n/a                                                 | 2                            | 4                                                           |
+| Final threads (whisper and sherpa) | clamp(floor(cores/4), 2, 8), so the PC stays usable | 4 (today)                    | clamp(cores-2, 2, 8)                                        |
+| GPU                                | on if present                                       | on if present                | on if present                                               |
 
-Plus a separate "Live text while recording" switch, so a user can turn the heaviest part off under any preset. This replaces today's dev-only environment switch. The switch is the actual fix for the colleague's complaint. Thread counts are provisional until measured on the owner's Mac (section 3).
+Plus a separate "Live text while recording" switch, so a user can turn the heaviest part off under any preset. This replaces today's dev-only environment switch. The switch is the actual fix for the colleague's complaint. Every thread count is an integer: `floor` for halves and quarters, then `clamp(n, lo, hi)`, so 1, 3, 5, 7 and 9 cores give whole numbers inside 2 to 8 (the live-config loader accepts integers from 1 to 64 only). Thread counts are provisional until measured on the owner's Mac (section 3).
 
 Hardware facts come from Node (`os.cpus()`, `os.totalmem()`, arch, platform). GPU presence: Metal on Apple silicon; on Windows, unknown without a probe, so the benchmark's measured speed decides, not a GPU name.
+
+### 2.1a Live model choice, precedence and fallback
+
+The resolver also picks the live model path, because `LiveSetup.models.speechLive` is set separately from the whisper options. The live config file gains an optional `models.speechLiveAccurate` (turbo). Eligible for Best means: that file exists, a GPU path is likely (Apple silicon, or a passing benchmark with live RTF at or below 0.4), and live text is on. Otherwise Best uses `models.speechLive` as Balanced does.
+
+Order of precedence, highest first: (1) an explicit `whisper.*` or `models.speechLive` value in the live config file (dev override, unchanged from today); (2) the resolver's choice from preset, switch and hardware; (3) built-in defaults. A missing or unreadable model file falls back one step (turbo → small.en → live off with a visible note), never to a crash. The resolved choice is logged at recording start.
 
 ### 2.2 Recommendation without a benchmark (step 1)
 
@@ -95,7 +101,7 @@ Main-process side: a resolver turns (preset, switch, hardware) into `LiveSetup.w
 
 Tests, all generated or AMI data, each under 20 minutes total:
 
-1. Unit: resolver table (presets × core counts × RAM × platform); live switch off builds no live setup.
+1. Unit: resolver table (presets × core counts including odd ones: 1, 2, 3, 5, 7, 9, 10, 12 × RAM × platform), every thread count an integer inside its clamp; live switch off builds no live setup; Best picks `speechLiveAccurate` when eligible and `speechLive` when the file is missing, the GPU path is unlikely or live is off; config-file values beat the resolver; a missing model falls back as in 2.1a.
 2. Unit: settings merge with the new fields, old settings, invalid values.
 3. Unit: benchmark decision function from fixed RTF numbers, including borderline and timeout.
 4. Unit/integration: refusal while recording, cancel, start-recording-during-check, with a stub whisper that sleeps.
