@@ -16,7 +16,7 @@
   | --- | --- | --- |
   | capture helper `scrb-capture` | `native/macos-capture/build/` (Swift + libopus, `build.sh`) | small |
   | `whisper-cli`, `whisper-server`, `whisper-vad-speech-segments` | `~/scrb-dev-assets/upstream/whisper.cpp/build/bin`, **dynamically linked** to `@rpath` `libwhisper`, `libggml*` dylibs | ~1 MB each + dylibs |
-  | `scrb-sherpa`, `ffmpeg`, `ffprobe` | `packages/transcription/.bin/` (gitignored; absent in this worktree) | few MB |
+  | `scrb-sherpa`, `ffmpeg`, `ffprobe` | `packages/transcription/.bin/` (gitignored; absent in this worktree). `scrb-sherpa` is dynamically linked to `libsherpa-onnx-c-api` from `upstream/sherpa-onnx/build/install` (a development-directory path) and that library pulls in **ONNX Runtime** dylibs | few MB + libs |
   | models: `ggml-large-v3-turbo-q5_0` (final), `ggml-small.en-q5_1` (live), silero VAD, sherpa segmentation + embedding | `~/scrb-dev-assets/models/` | ~574 + 190 + 1 + 2 + 40 ≈ **810 MB** |
 
 - **Library and settings:** library root is read from a pointer file in `app.getPath('userData')` (today `~/Library/Application Support/@scrb/desktop`), default `~/Documents/Meeting Scribe`. Settings live in the library's `index.sqlite` (node's built-in SQLite, no native npm module to rebuild). So recordings and settings are outside the app and survive replacing it.
@@ -31,8 +31,9 @@ Why: it adds one build config and one resolver. Models stay out of git and out o
 ### Steps
 
 1. **Build config.** Add electron-builder at an exact pinned version (check `npm view` at implementation time; `npm install -E`). `apps/desktop/electron-builder.yml`: `appId` e.g. `local.meetingscribe`, `productName: Meeting Scribe`, `files`: `dist/**` (renderer), `dist-electron/**`, `package.json`; `mac.target: dir`, `arch: arm64`, `hardenedRuntime: false` (not notarizing, so no entitlements and no library-validation trouble), `mac.identity: null` here and signing done in step 4. `extendInfo`: `NSMicrophoneUsageDescription`, `NSAudioCaptureUsageDescription` (see §4). Check that `electron-builder` does not pull the whole monorepo into the app; the main and worker bundles are already self-contained esbuild outputs.
-2. **Bundle the tools.** `extraResources` copies into `Contents/Resources/bin/`: `scrb-capture`, `whisper-cli`, `whisper-server`, `whisper-vad-speech-segments`, `scrb-sherpa`, `ffmpeg`, `ffprobe`, plus the whisper/ggml `.dylib`s in `Resources/bin/lib/`. A small `scripts/package-mac.sh` stages these from the existing build outputs, fails if any is missing, fixes the rpath with `install_name_tool -add_rpath @loader_path/lib` where needed, and verifies each runs (`--help`). Binaries stay gitignored. Notices for ffmpeg/whisper/sherpa/opus are already audited by `scripts/audit-notices.mjs`; include them in the bundle.
-3. **Models outside the app.** Packaged app looks in `~/Library/Application Support/Meeting Scribe/models/` (one folder, fixed file names, as in the table). `package-mac.sh --install-models` copies them from `~/scrb-dev-assets/models` once and checks SHA-256 against `third_party/MANIFEST.md`. If a model is missing, the app starts but shows a clear "models missing, run …" message and refuses to record rather than silently using the mock. A first-run download (Task 31) is deferred: HTTPS downloader, pinned URLs and checksums are real work and the owner only has one Mac to set up.
+2. **Bundle the tools and their full library chain.** `extraResources` copies into `Contents/Resources/bin/`: `scrb-capture`, `whisper-cli`, `whisper-server`, `whisper-vad-speech-segments`, `scrb-sherpa`, `ffmpeg`, `ffprobe`, and into `Resources/bin/lib/` **every** dynamic library they load: `libwhisper`, `libggml*`, `libsherpa-onnx-c-api`, the ONNX Runtime dylib(s) and anything else `otool -L` lists outside `/usr/lib` and `/System`. `scripts/package-mac.sh` walks `otool -L` recursively for each executable to build that list (fails on any library it cannot place), rewrites install names and rpaths with `install_name_tool` (`-add_rpath @loader_path/lib`, `-change` for absolute development paths, `-delete_rpath` for any `~/scrb-dev-assets` rpath), and then asserts no remaining reference to a path outside the bundle, system or `/usr/lib`. Binaries stay gitignored. Notices for ffmpeg/whisper/sherpa/onnxruntime/opus are covered by `scripts/audit-notices.mjs`; include them in the bundle.
+3. **Models outside the app, one canonical directory: `<userData>/models/` = `~/Library/Application Support/@scrb/desktop/models/`.** Everything below (installer script, resolver, missing-model message, tests) uses this one path and nothing else. Fixed file names as in the table. `package-mac.sh --install-models` copies the files from `~/scrb-dev-assets/models` and verifies each against its **full 64-character SHA-256**. The complete hashes are the ones in `scripts/dev-assets.sh` (its `fetch <dest> <sha256> <url>` calls; `third_party/MANIFEST.md` only has abbreviated hashes and is not used). The staging script reads them from that file, so there is one source. A file whose hash differs is refused (not copied, not used), and the app re-checks size and hash of the five model files at start and treats a mismatch as missing. If a model is missing, the app starts but shows a clear "models missing, run …" message and refuses to record rather than silently using the mock. A first-run download (Task 31) is deferred.
+   **`userData` and the library-location pointer.** The packaged app calls `app.setPath('userData', <home>/Library/Application Support/@scrb/desktop)` as its first statement (before the single-instance lock and before anything reads `userData`), so the folder is the same one the dev build uses and the saved library-location pointer is found unchanged: **no migration, nothing moved**. electron-builder's `productName` therefore never decides where data lives. This is covered by test 5b below.
 4. **Signing.** After build, `codesign --force --deep --sign "<identity>"` over the whole app including `Resources/bin/*` and dylibs (inside-out: dylibs and helpers first). Identity `-` (ad-hoc) first. See §3.
 5. **Env gates replaced by a resolver** (§5), in one reviewed change with a test.
 6. **Replace the app:** quit, copy `dist/mac-arm64/Meeting Scribe.app` over `/Applications/Meeting Scribe.app`. Library untouched.
@@ -79,9 +80,9 @@ Not needed. Update = rebuild and copy over `/Applications`. Library and settings
 | Risk | Mitigation |
 | --- | --- |
 | Child helper's permission prompt not attributed to the app | Test 3 first; fallback in §4 |
-| whisper dylib `@rpath` wrong inside the bundle → tool fails to start | staging script verifies each binary runs from the staged folder |
+| A tool or library still points at a development path (whisper, ggml, sherpa, ONNX Runtime) → tool fails to start on a clean machine | recursive `otool -L` walk, install-name/rpath rewrite and a no-outside-reference assertion in the staging script; test 2 runs with dev assets hidden |
 | Ad-hoc re-sign invalidates permissions every rebuild | switch to self-signed certificate |
-| Packaged app's `userData` folder name differs from dev's (`@scrb/desktop`) so the saved library-location pointer is not found and the default `Documents/Meeting Scribe` is used | set `app.setPath('userData', …)` to the existing path, or keep the old name; decide and test in step 1 (the default location equals today's library, so low impact unless the owner moved it) |
+| Library-location pointer lost if `userData` changed | `userData` is pinned to the existing `@scrb/desktop` path (§2 step 3); test 5b |
 | Packaged app and dev app run together | single-instance lock shares userData if the path matches; `m1.sh` already refuses a running copy; quit one first |
 | electron-builder drags in monorepo `node_modules` and bloats/breaks the app | check app size and `app.asar` contents; main/worker are esbuild bundles so only `electron` and `files` are needed |
 | Performance of a packaged build differs | none expected; same binaries and models |
@@ -89,11 +90,12 @@ Not needed. Update = rebuild and copy over `/Applications`. Library and settings
 
 ## 8. Test plan (invented or AMI data only; every test under 20 minutes)
 
-1. **Resolver unit tests** (§5): full layout, each missing piece, env vars ignored when packaged. Seconds.
-2. **Bundle check:** script asserts the 7 executables, dylibs and notice files exist and each starts; `codesign --verify --deep --strict` passes. ~2 min.
+1. **Resolver unit tests** (§5): full layout, each missing piece, env vars ignored when packaged. Seconds. Also: a corrupted (one byte changed) model file is rejected by the installer script and by the start-up check; the models directory used by the script and by the resolver is the same constant.
+2. **Bundle check, no dev assets:** asserts the 7 executables, the full library chain and notice files exist, `otool -L` shows no path outside the bundle/system, `codesign --verify --deep --strict` passes, and then **runs every tool (`--help`/version) from the built `.app` with `~/scrb-dev-assets` temporarily renamed away** (e.g. `HOME`-independent: run as a copy of the app in a temp folder; the models directory is set up from the script). ~3 min.
 3. **Permission test (~10 min, owner at the Mac):** launch the `.app`, start a recording with the dev test tone (`docs/dev-test-tone.md`, `SCRB_TEST_TONE_FILE` with an AMI clip) playing through system audio and the owner speaking invented lines. Confirm both prompts show the usage strings, then grant, and the recording has both tracks.
 4. **End-to-end ≤ 10 min:** record 3 minutes (tone plus invented speech), stop, wait for final pass, check transcript, speakers, playback and DOCX/PDF export. Then import a 5-minute AMI ES2004a clip.
 5. **Restart and replace:** quit, reopen (library and settings persisted), rebuild and replace the app, reopen, confirm the library is still there and note whether permissions are re-asked.
+   5b. **Pointer and models together:** set a non-default library location in the dev build, quit, launch the packaged app: it opens that same library, finds the models in `<userData>/models`, and the settings are unchanged. Repeat with the pointer file absent (default `~/Documents/Meeting Scribe`).
 6. **Missing models:** move the models folder away; app must show the message and refuse to record, not use the mock.
 7. `npm run check` and `npm run test:smoke` stay green (unpackaged path unchanged).
 
@@ -103,7 +105,7 @@ No long test is planned; none needs the 20-minute approval. Do not use the owner
 
 1. **Approve the plan** (touches launch and helper paths), after independent review.
 2. **Signing:** ad-hoc now, free self-signed certificate if re-prompts annoy (recommended), or pay US$99/yr for Developer ID (not recommended for one Mac).
-3. **Models:** copy from the dev-assets folder into `~/Library/Application Support/Meeting Scribe/models/` (recommended), or bundle inside the app (about 1 GB per build), or build the download screen (later).
+3. **Models:** copy from the dev-assets folder into `~/Library/Application Support/@scrb/desktop/models/` (recommended), or bundle inside the app (about 1 GB per build), or build the download screen (later).
 4. **Installing:** plain `.app` copied to `/Applications` (recommended) vs a DMG (only useful when sharing).
 5. **App id and name:** `Meeting Scribe`, `local.meetingscribe` OK?
 6. **Windows** packaging: separate plan later.
@@ -111,3 +113,4 @@ No long test is planned; none needs the 20-minute approval. Do not use the owner
 ## 10. Out of scope
 
 Notarization, DMG, auto-update, first-run model download, Windows, removing the mock sample meetings, any contract change.
+
