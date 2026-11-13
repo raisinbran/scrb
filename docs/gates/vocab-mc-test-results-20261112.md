@@ -4,14 +4,14 @@ Plan: `docs/plans/vocabulary-hint-context-fix.md` (owner-approved to run). AMI o
 
 ## Verdict: INCONCLUSIVE by the plan's rules, owner decides. Neither value passes.
 
-| Measure (hint on) | `-mc 0` (shipped) | `-mc 64` | `-mc 128` |
-| --- | --- | --- | --- |
-| Held-out TS3003a term recall (30 occurrences) | 8 | 15 | 16 |
-| Held-out WER | 23.91% | 23.60% | 23.05% |
-| Held-out false replacements | 0 | 0 | 1 (see below) |
-| Negative-control events (7 files, 3.643 h) | 0 | 1 (benign) | 1 (benign) |
-| Table rate / exact 95% upper bound (4.062 h) | 0 / 0.74 per h | 0.25 / 1.17 per h | 0.49 / 1.55 per h |
-| Loop/skip flags | none | 4 files | 1 file |
+| Measure (hint on)                             | `-mc 0` (shipped) | `-mc 64`          | `-mc 128`         |
+| --------------------------------------------- | ----------------- | ----------------- | ----------------- |
+| Held-out TS3003a term recall (30 occurrences) | 8                 | 15                | 16                |
+| Held-out WER                                  | 23.91%            | 23.60%            | 23.05%            |
+| Held-out false replacements                   | 0                 | 0                 | 1 (see below)     |
+| Negative-control events (7 files, 3.643 h)    | 0                 | 1 (benign)        | 1 (benign)        |
+| Table rate / exact 95% upper bound (4.062 h)  | 0 / 0.74 per h    | 0.25 / 1.17 per h | 0.49 / 1.55 per h |
+| Loop/skip flags                               | none              | 4 files           | 1 file            |
 
 The plan's table passes only on zero events; 1 to 3 is inconclusive. The loop/skip rule (new repeated 4+ word phrase 3+ times, or WER worse by more than 1 point absolute) is not met at either value.
 
