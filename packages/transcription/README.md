@@ -23,7 +23,7 @@ Tools are found through `toolsIn(dir, overrides)`.  The real-decoder tests in
 Without them they skip and print one `SKIPPED` warning per file; with
 `SCRB_REQUIRE_DECODER=1` (set by macOS CI) a missing decoder fails the run.
 The video-rejection test also needs `SCRB_VIDEO_FIXTURE` (any small MP4), so
-CI runs 19 of the 20 unless it is set.  The build script is macOS and Linux only.  Decoder license: see `THIRD_PARTY_NOTICES.md`.
+CI runs 19 of the 20 unless it is set.  The build script is macOS and Linux only.  Decoder license: see `third_party/THIRD_PARTY_NOTICES.md`.
 
 ## What is here
 
@@ -39,7 +39,7 @@ CI runs 19 of the 20 unless it is set.  The build script is macOS and Linux only
 ## AMI results
 
 Apple M5, Metal whisper, sherpa on CPU with 4 threads, background priority,
-during the 8-hour capture test.  Scored with `phase0/scripts/score_ami_wer.py`
+during the 8-hour capture test.  Scored with `scripts/eval/score_ami_wer.py`
 and `score_der.py`; reproduce with `scripts/e2e-ami.ts`.
 
 **Final pass, imported WAV** (decoded straight from the source file):
