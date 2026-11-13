@@ -24,7 +24,7 @@ export function TitleBar() {
   const lagText = active && lag ? LAG_TEXT[lag.status] : undefined;
   return (
     <header className={styles.bar}>
-      <span className={styles.name}>Meeting Scribe</span>
+      <span className={styles.name}>Scribe</span>
       <div className={styles.status}>
         {mockMode && (
           <span

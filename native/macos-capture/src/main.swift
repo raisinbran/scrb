@@ -275,7 +275,7 @@ final class Session {
     private func preventIdleSleep() {
         guard sleepAssertion == 0 else { return }
         IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
-                                    IOPMAssertionLevel(kIOPMAssertionLevelOn), "Meeting Scribe recording" as CFString,
+                                    IOPMAssertionLevel(kIOPMAssertionLevelOn), "Scribe recording" as CFString,
                                     &sleepAssertion)
     }
 

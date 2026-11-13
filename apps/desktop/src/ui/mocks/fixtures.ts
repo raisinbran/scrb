@@ -346,7 +346,7 @@ export const MODEL_UPDATES: ModelUpdate[] = [
 ];
 
 export const APP_INFO: AppInfo = {
-  name: 'Meeting Scribe',
+  name: 'Scribe',
   version: '0.1.0 (mock backend)',
   buildDate: '2026-10-30',
   copyright: '© 2026 BJC, all rights reserved; personal use only',

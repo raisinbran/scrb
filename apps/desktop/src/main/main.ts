@@ -19,6 +19,11 @@ import {
   serveRenderer,
 } from './security.ts';
 import { secureWebPreferences } from './web-preferences.ts';
+import { pinUserData } from './packaged-setup.ts';
+
+// The app was renamed to Scribe, but its data stays where the saved library location and settings
+// already are. Pinned before anything reads userData; a test's --user-data-dir still wins.
+if (!app.commandLine.hasSwitch('user-data-dir')) pinUserData(app);
 
 // Ignored in packaged builds, so the environment can never point the app at another page.
 const devServerUrl = app.isPackaged ? undefined : process.env['SCRB_DEV_SERVER_URL'];
@@ -34,7 +39,7 @@ let miniWindow: BrowserWindow | null = null;
 
 function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   const mini = new BrowserWindow({
-    title: 'Meeting Scribe recording',
+    title: 'Scribe recording',
     width: 264,
     height: 72,
     // The size is the page area, so the title bar never takes from the two rows.
