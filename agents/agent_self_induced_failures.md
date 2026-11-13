@@ -1063,3 +1063,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
+
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — `npm run check` run before building `packages/summary`
+- **Status / attribution:** Confirmed agent error; no code defect.
+- **What failed:** The first full test run failed `LlamaServerWorker leaves no server behind` because `packages/summary/dist` did not exist in this fresh worktree. The task brief had already said to build it first.
+- **Agent-controlled cause:** I started the run without checking for the dist folder.
+- **Impact:** About two extra full test runs (about 2 minutes each); a second run also hit a load-related 5 s timeout in an unrelated Settings test that passed alone.
+- **Correction / remaining risk:** Built the package and reran. Low. The Settings test is timing-sensitive under load.

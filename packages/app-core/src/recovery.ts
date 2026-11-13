@@ -264,8 +264,10 @@ const KNOWN_LOSS_REASONS = new Set(['device', 'serviceRestarted']);
 // Timing rounds at each pause and packet edge, so a span this close to a pause is that pause.
 const EDGE_TOLERANCE_NS = 100_000_000;
 
-// Normal first chunks start within 30 ms. A later one means the track failed to open at Start.
-const LATE_START_NS = 100_000_000;
+// Both tracks need time to deliver their first buffer after Start (the Mac's system-audio tap and
+// the microphone take a fraction of a second to a second), and nothing was said before it. A first
+// chunk later than this means the track failed to open at Start, which is real missing audio.
+const LATE_START_NS = 2_000_000_000;
 
 function trackGaps(
   track: TrackName,
