@@ -103,6 +103,15 @@ export async function openBackend(
           async () => {
             await imports?.stopForRecording();
           },
+          // Spike: opt-in until output ducking and meeting-track health are measured (docs/plans/mic-echo-handling.md).
+          () => {
+            const audio = settings.getSettings().audio;
+            return (
+              process.env.SCRB_VOICE_AEC === '1' &&
+              audio.echoCancellation &&
+              !audio.bypassSystemInputProcessing
+            );
+          },
         )
       : null;
     imports = finalPassConfig

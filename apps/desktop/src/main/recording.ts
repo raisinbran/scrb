@@ -98,6 +98,7 @@ export class RecordingController {
     private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
     private readonly liveSetup: LiveSetup | null = null,
     private readonly beforeCaptureStart: () => Promise<void> = async () => undefined,
+    private readonly echoCancellation: () => boolean = () => false,
   ) {
     this.micCheck = new MicCheckController(
       helper,
@@ -351,6 +352,7 @@ export class RecordingController {
         name: 'open',
         sessionId: meeting.id,
         outputDir: dirname(this.library.meetingPaths(meeting.id).audio),
+        echoCancellation: this.echoCancellation(),
         ...sources,
       });
     } catch (failure) {

@@ -20,6 +20,8 @@ export interface OpenCommand {
   followApp?: string;
   /** A device ID, or `default`. */
   mic: string;
+  /** Spike: record the mic through macOS voice processing. The helper falls back to the raw mic if it cannot start. */
+  echoCancellation?: boolean;
   /**
    * Set when a restarted worker joins a running meeting: the `clockOriginNs` the first worker
    * reported. Times then continue on that meeting's timeline.
