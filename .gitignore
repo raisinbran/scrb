@@ -12,7 +12,8 @@ coverage/
 *.gguf
 *.onnx
 *.bin
-phase0/artifacts/capture/macos/long4h*
+# Local leftovers of the removed phase0/ folder (archived at tag phase0-archive); delete this line once they are gone.
+/phase0/
 
 # Python bytecode
 __pycache__/

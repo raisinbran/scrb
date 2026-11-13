@@ -1,5 +1,5 @@
 // Replays synthetic and logged packets through TrackPipeline (contract section 6).
-// Usage: PipelineTests.exe [path to phase0 sleep-wake-timing.csv]
+// Usage: PipelineTests.exe [path to sleep-wake-timing.csv, archived at tag phase0-archive]
 #include <cmath>
 #include <cstdio>
 #include <fstream>
