@@ -34,7 +34,7 @@ describe('findBadUsageRows', () => {
   });
   it('grandfathers the two real 11-column rows by full-row hash only', () => {
     const real = readFileSync('agents/usage-log.md', 'utf8')
-      .split('\n')
+      .split(/\r?\n/)
       .filter((l) =>
         l.startsWith('| 2026-11-12 | Codex / GPT-6 / Windows desktop | PHASE0-STEP2-WINDOWS'),
       );
@@ -43,5 +43,17 @@ describe('findBadUsageRows', () => {
     for (const r of real) expect(findBadUsageRows(r.replace('Codex', 'Codex2'))).toHaveLength(1);
     expect(findBadUsageRows(`${real[0]} `)).toHaveLength(1);
     expect(findBadUsageRows(row('other', 11))).toHaveLength(1);
+  });
+  it('handles CRLF checkouts: the real rows still pass, a changed one still fails', () => {
+    const real = readFileSync('agents/usage-log.md', 'utf8')
+      .split(/\r?\n/)
+      .filter((l) =>
+        l.startsWith('| 2026-11-12 | Codex / GPT-6 / Windows desktop | PHASE0-STEP2-WINDOWS'),
+      );
+    expect(findBadUsageRows(`${real.join('\r\n')}\r\n`)).toEqual([]);
+    expect(
+      findBadUsageRows(real.map((r) => r.replace('Codex', 'Codex2')).join('\r\n')),
+    ).toHaveLength(2);
+    expect(findDuplicateIds('| A-001 | x |\r\n### A-001 — y\r\n')).toEqual(['A-001']);
   });
 });

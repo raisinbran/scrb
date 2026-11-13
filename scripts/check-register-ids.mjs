@@ -16,7 +16,7 @@ export const KNOWN_SHORT_ROW_HASHES = new Set([
 
 export function findDuplicateIds(text) {
   const counts = new Map();
-  for (const line of text.split('\n')) {
+  for (const line of text.split(/\r?\n/)) {
     const m = /^\| (A-\d+) \|/.exec(line) ?? /^#{2,4} (A-\d+) [—-] /.exec(line);
     if (m) counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
   }
@@ -31,7 +31,7 @@ const columns = (line) => line.split(/(?<!\\)\|/).length - 2;
 export function findBadUsageRows(text) {
   const problems = [];
   const seen = new Set();
-  text.split('\n').forEach((line, i) => {
+  text.split(/\r?\n/).forEach((line, i) => {
     if (!/^\| 20\d\d-\d\d-\d\d /.test(line)) return;
     const n = columns(line);
     const grandfathered = KNOWN_SHORT_ROW_HASHES.has(

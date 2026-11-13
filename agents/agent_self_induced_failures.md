@@ -1133,3 +1133,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I chained `commit && push` after `npm run check` and a vitest run had both shown a failure; the new "one field changed" test mutated a trailing cell that does not exist in the real rows. The earlier grandfathering by prefix was also review-found as too loose.
 - **Impact:** One commit with a red test on the PR branch; fixed in the next commit.
 - **Correction / remaining risk:** Test now changes a named field; `npm run check` passes before this push. Low.
+
+### A-334 — 2026-11-13 — Claude Code / Mac — usage-log check hashed rows with a trailing carriage return on Windows
+- **What failed:** `scripts/check-register-ids.mjs` split the registers on `\n` only, so a Windows CRLF checkout left a trailing `\r` on each line; the full-row hashes of the two grandfathered rows no longer matched and Windows CI failed (review-found). I had only run the check on the Mac.
+- **Impact:** One more review round and a red Windows check on a7b3783.
+- **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
