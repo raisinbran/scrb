@@ -1063,3 +1063,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
+
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — usage not read at task start; stray tool and path slips (test-tone override)
+- **Status / attribution:** Confirmed agent errors; no code defect.
+- **What failed:** I did not call `get_usage` before starting, so the start percentages are unrecorded. I also called a tool with the wrong name (`bash`) and chained `cd` into a folder I was already in, which skipped the edits in that command until I reran them.
+- **Agent-controlled cause:** Skipping the start-of-task checklist; not checking the working directory first.
+- **Impact:** Start allowance unknown; two wasted tool calls. The failed chain did not apply its edits, so nothing was half-applied.
+- **Correction / remaining risk:** End reading logged in the usage table. Low. A-number taken from origin/main at 756d31f; other in-flight PRs may collide.

@@ -3,6 +3,7 @@
 // the only sound and watches for a false stream death. Plays its own tone, so run under run-muted.sh.
 // Usage: node --experimental-transform-types stream_stop_case.mjs <fault helper> <work dir> <tone file>
 import { spawn } from 'node:child_process';
+import { playTone } from './tone.mjs';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -17,7 +18,7 @@ async function run(name, source, act) {
   const work = join(base, name);
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
-  const player = spawn('afplay', [tone], { stdio: 'ignore' });
+  const player = playTone(tone);
   await sleep(1000);
   const worker = spawn(helper, [], { stdio: ['pipe', 'pipe', 'inherit'] });
   const events = [];

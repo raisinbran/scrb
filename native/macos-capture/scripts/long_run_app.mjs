@@ -5,6 +5,7 @@
 //        <tone file> <seconds> <other input> <usual input>
 // The tone file must outlast the run: the meeting track follows that one player.
 import { execFile, spawn } from 'node:child_process';
+import { playGeneratedTone } from './tone.mjs';
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { constants, cpus, setPriority } from 'node:os';
 import { join } from 'node:path';
@@ -50,7 +51,7 @@ burn.on('exit', (code, signal) => note({ loadExit: code ?? signal }));
 setPriority(burn.pid, constants.priority.PRIORITY_BELOW_NORMAL);
 note({ load: `${burners} spinning threads of ${cpus().length} logical cores, below normal` });
 
-const player = spawn('afplay', [tone], { stdio: 'ignore' });
+const player = playGeneratedTone(tone);
 player.on('exit', (code, signal) => note({ playerExit: code ?? signal }));
 await sleep(2000);
 // Loudest level since the last report, so a track that went silent shows within a minute.
