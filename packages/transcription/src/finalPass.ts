@@ -259,33 +259,48 @@ const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g,
 
 /**
  * Removes mic words that re-capture the meeting audio from the speakers: runs of at least
- * ECHO_MIN_RUN consecutive mic words that each match a meeting word of the same text within
- * ECHO_WINDOW_MS.  Not an echo canceller; the user repeating a phrase at the same moment is lost.
+ * ECHO_MIN_RUN mic words, each at most TURN_GAP_MS after the previous, that match distinct
+ * meeting words of the same text, within ECHO_WINDOW_MS, in the same order.  Not an echo
+ * canceller; the user repeating a phrase at the same moment is lost.
  */
 export function dropRoomEcho<W extends { text: string; startMs: number }>(
   mic: W[],
   meeting: { text: string; startMs: number }[],
 ): W[] {
-  const starts = new Map<string, number[]>();
-  for (const w of meeting) {
-    const key = bare(w.text);
-    if (key) starts.set(key, [...(starts.get(key) ?? []), w.startMs]);
-  }
-  const matched = mic.map((w) =>
-    (starts.get(bare(w.text)) ?? []).some((t) => Math.abs(t - w.startMs) <= ECHO_WINDOW_MS),
-  );
-  const keep = mic.map(() => true);
-  for (let i = 0; i < mic.length;) {
-    if (!matched[i]) {
-      i++;
+  const heard = [...meeting].sort((a, b) => a.startMs - b.startMs);
+  const own = [...mic].sort((a, b) => a.startMs - b.startMs);
+  const heardAfter = (w: W, after: number): number =>
+    heard.findIndex(
+      (m, k) =>
+        k > after &&
+        bare(m.text) === bare(w.text) &&
+        Math.abs(m.startMs - w.startMs) <= ECHO_WINDOW_MS,
+    );
+  const echo = new Set<W>();
+  let run: W[] = [];
+  let last = -1;
+  const endRun = (): void => {
+    if (run.length >= ECHO_MIN_RUN) for (const w of run) echo.add(w);
+    run = [];
+    last = -1;
+  };
+  for (const w of own) {
+    if (run.length > 0 && w.startMs - run.at(-1)!.startMs > TURN_GAP_MS) endRun();
+    if (!bare(w.text)) {
+      endRun();
       continue;
     }
-    let j = i;
-    while (j < mic.length && matched[j]) j++;
-    if (j - i >= ECHO_MIN_RUN) for (let k = i; k < j; k++) keep[k] = false;
-    i = j;
+    let k = heardAfter(w, last);
+    if (k < 0 && run.length > 0) {
+      endRun();
+      k = heardAfter(w, -1);
+    }
+    if (k < 0) continue;
+    run.push(w);
+    last = k;
   }
-  return mic.filter((_, i) => keep[i]);
+  endRun();
+  return own.filter((w) => !echo.has(w));
 }
 
 function speechOf(words: WhisperWord[]): number {

@@ -178,6 +178,35 @@ describe('final-pass assembly', () => {
     expect(dropRoomEcho(mic, meeting).map((w) => w.text)).toEqual(['um', 'yeah', 'my', 'turn']);
   });
 
+  it('does not let one meeting word justify deleting several mic words', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const mic = [at('yeah', 200), at('yeah', 600)];
+    expect(dropRoomEcho(mic, [at('yeah', 0)])).toHaveLength(2);
+  });
+
+  it('keeps a reversed phrase', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const mic = [at('okay', 100), at('fine', 500)];
+    expect(dropRoomEcho(mic, [at('fine', 0), at('okay', 400)])).toHaveLength(2);
+  });
+
+  it('does not join matches that are far apart, and sorts unsorted mic words', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = [at('yeah', 0), at('okay', 60_000), at('right', 60_400), at('so', 60_800)];
+    expect(dropRoomEcho([at('okay', 60_100), at('yeah', 100)], meeting)).toHaveLength(2);
+    const unsorted = [at('so', 60_900), at('right', 60_500), at('okay', 60_100)];
+    expect(dropRoomEcho(unsorted, meeting)).toHaveLength(0);
+  });
+
+  it('drops every word of a delayed copy and none of an independent track', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const words = Array.from({ length: 200 }, (_, i) => at(`w${i % 37}`, i * 450));
+    const copy = words.map((w) => at(w.text, w.startMs + 400));
+    const other = Array.from({ length: 200 }, (_, i) => at(`w${(i * 7 + 3) % 37}`, i * 450 + 100));
+    expect(dropRoomEcho(copy, words)).toHaveLength(0);
+    expect(dropRoomEcho(other, words).length).toBeGreaterThan(190);
+  });
+
   it('removes the echoed mic words from the assembled transcript', () => {
     const say = (text: string, startMs: number) => ({
       text,
