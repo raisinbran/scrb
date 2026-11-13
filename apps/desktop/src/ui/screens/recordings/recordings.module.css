@@ -465,6 +465,10 @@
   cursor: pointer;
 }
 
+.wordsFollowing {
+  color: var(--color-word-idle);
+}
+
 .wordProvisional {
   font-style: italic;
   color: var(--color-text-muted);
@@ -473,6 +477,11 @@
 .wordCorrected {
   text-decoration: underline dotted var(--color-accent);
   text-underline-offset: 3px;
+}
+
+/* After the state classes, so the current word wins for every state. */
+.wordCurrent {
+  color: var(--color-word-current);
 }
 
 .gapRow {

@@ -10,7 +10,7 @@ import {
 } from 'react';
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
-import { buildRows, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
+import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
 import type { TranscriptData } from './use-transcript.ts';
 import styles from './recordings.module.css';
 
@@ -39,6 +39,8 @@ interface SegmentRowProps {
   segment: TranscriptSegment;
   speaker: string;
   active: boolean;
+  following: boolean;
+  currentWord: string | undefined;
   onPlay(ms: number): void;
   ref: Ref<HTMLDivElement>;
   rowKey: string;
@@ -48,6 +50,8 @@ const SegmentRow = memo(function SegmentRow({
   segment,
   speaker,
   active,
+  following,
+  currentWord,
   onPlay,
   ref,
   rowKey,
@@ -76,10 +80,21 @@ const SegmentRow = memo(function SegmentRow({
         </button>
       </div>
       {/* The timestamp button is the keyboard route to the same action. */}
-      <p className={styles.words} onClick={onClick}>
+      <p
+        className={following ? `${styles.words} ${styles.wordsFollowing}` : styles.words}
+        onClick={onClick}
+      >
         {segment.words.map((word) => (
           <span key={word.id}>
-            <span data-ms={word.startMs} className={WORD_CLASSES[word.state]}>
+            <span
+              data-ms={word.startMs}
+              className={
+                word.id === currentWord
+                  ? [WORD_CLASSES[word.state], styles.wordCurrent].filter(Boolean).join(' ')
+                  : WORD_CLASSES[word.state]
+              }
+              aria-current={word.id === currentWord ? 'true' : undefined}
+            >
               {word.text}
             </span>{' '}
           </span>
@@ -256,6 +271,12 @@ export function TranscriptTab(props: TranscriptTabProps) {
                   segment={row.segment}
                   speaker={labels.get(row.segment.speakerId) ?? 'Unknown speaker'}
                   active={first + index === activeIndex}
+                  following={showPosition}
+                  currentWord={
+                    showPosition && first + index === activeIndex
+                      ? currentWordId(row.segment, positionMs)
+                      : undefined
+                  }
                   onPlay={onPlay}
                 />
               ),
