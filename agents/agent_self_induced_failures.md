@@ -432,6 +432,8 @@ Session labels are file-local: `review-usage-logging.md:S-01` below abbreviates 
 
 Use the next unused `A-` identifier when adding a confirmed incident; never reuse an ID. Provisional `P-` identifiers are separate.
 
+**Parallel sessions:** before choosing an ID, run `git fetch` and take the highest `A-` number across `origin/main` and every open PR branch, plus one. If two PRs still collide at merge time, the PR that merges second renumbers only its own entries (and any references to them); never renumber an entry already on `main`.
+
 ```markdown
 ### A-NNN — YYYY-MM-DD — Agent / environment
 - **Status / attribution:** Confirmed | Provisional; agent/test tooling vs application vs unknown
