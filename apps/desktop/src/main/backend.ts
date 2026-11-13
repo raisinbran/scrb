@@ -1,4 +1,4 @@
-import { app, dialog, shell } from 'electron';
+import { app, dialog, shell, systemPreferences } from 'electron';
 import path from 'node:path';
 import {
   createConfiguredImportRunner,
@@ -172,7 +172,16 @@ export async function openBackend(
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        getSetupStatus: createSetupStatusHandler(settings.getSettings),
+        getSetupStatus: createSetupStatusHandler({
+          readSettings: settings.getSettings,
+          helper,
+          finalPassConfig,
+          liveConfig,
+          microphoneStatus:
+            process.platform === 'darwin' || process.platform === 'win32'
+              ? () => systemPreferences.getMediaAccessStatus('microphone')
+              : undefined,
+        }),
         ...playback.wrap(
           createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ),

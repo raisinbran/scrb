@@ -1144,6 +1144,12 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** One more review round and a red Windows check on a7b3783.
 - **Correction / remaining risk:** Split on `\r?\n`, plus a CRLF regression test on the real rows. `.gitattributes` has no eol rule that adds CRLF (only the existing fixtures `-text` and my union lines); CRLF comes from the Windows checkout's git autocrlf default. Low.
 
+### A-337 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — real setup status: usage not read at start, test-fixture slip
+- **Status / attribution:** Confirmed agent errors; no application defect.
+- **What failed:** (1) I did not read `get_usage` before starting, against the measure-at-start rule. (2) My first "no location" test reused the library saved by the previous case in the same temp directory, so it failed for a fixture reason, not a code one.
+- **Impact:** Start-of-task allowance is unavailable; one extra `npm run check` run.
+- **Correction / remaining risk:** Test order fixed. Also noted: `@scrb/summary` worker test fails in a fresh worktree because `packages/summary/dist` is not built (environment, not this change). Low.
+- **A-337 addendum (review-found):** the required-tools list omitted ffprobe, so setup could report `complete: true` while imports (which refuse to run without ffprobe) could not. Cause: I copied the final pass's key list without checking `scripts/m1.sh` and the import runner. Fixed with ffprobe in the list and a test; I also first mis-edited my test fixture (prettier had reflowed the line my scripted replace targeted) and reran `npm run check` once for that.
 #### A-335 — 2026-11-13 — usage not read at task start
 - **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
 - **Impact:** The usage row has an end reading only; no consumption figure.
