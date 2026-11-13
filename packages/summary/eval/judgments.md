@@ -1,7 +1,7 @@
 # Summary judgments (Phase 6 build)
 
 Judge: Claude Code (Opus 5.5), 2026-10-30, by the rules in
-`phase0/artifacts/summary/judgments.md`: a reference item scores 1 if any output
+`phase0-archive:phase0/artifacts/summary/judgments.md`: a reference item scores 1 if any output
 action or decision conveys its main content, 0.5 if only partly. The same model
 session designed the prompts and judged them, so treat these as one judge's
 estimate. Sheets are in `eval/results/<meeting>.judging.md`.

@@ -8,7 +8,7 @@ Status: **Approved by the owner on 2026-10-30, with every recommendation accepte
 
 Date: 2026-10-30. Base commit: `4abe340`. First of the initial plans in the Development Process, followed by `windows-capture-adapter.md` and `macos-capture-adapter.md`.
 
-Sources: `phase0/design/capture-contract-draft.md`, `phase0/evidence/gate-0.md`, `phase0/HANDOFF-WINDOWS.md`, Development Plan v2.0 (Gate 2), V1 Requirements v1.2, the contract in `packages/contracts/`, and the unmerged `windows-capture` branch (tip `cac61df`).
+Sources: `phase0-archive:phase0/design/capture-contract-draft.md`, `phase0-archive:phase0/evidence/gate-0.md`, `phase0-archive:phase0/HANDOFF-WINDOWS.md`, Development Plan v2.0 (Gate 2), V1 Requirements v1.2, the contract in `packages/contracts/`, and the unmerged `windows-capture` branch (tip `cac61df`).
 
 ## In short
 

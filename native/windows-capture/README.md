@@ -2,7 +2,7 @@
 
 Status: **device cases and the 4 h long run done on this PC; real meeting apps
 are not done.**  Design source:
-`phase0/design/capture-contract-draft.md` (still a draft).
+`phase0-archive:phase0/design/capture-contract-draft.md` (still a draft).
 
 ## Build
 
@@ -13,7 +13,9 @@ in `C:\BuildTools`, Windows SDK 10.0.26100, libopus
 ```
 pwsh -File scripts\fetch-opus.ps1
 build.cmd
-build\bin\PipelineTests.exe ..\..\phase0\artifacts\capture\devices\sleep-wake-timing.csv
+# cmd keeps the bytes; PowerShell 5.1 ">" writes UTF-16, which PipelineTests cannot parse.
+cmd /c "git show phase0-archive:phase0/artifacts/capture/devices/sleep-wake-timing.csv > sleep-wake-timing.csv"
+build\bin\PipelineTests.exe sleep-wake-timing.csv
 ```
 
 The helper links the dynamic C runtime (`/MD`) to match the libopus build; a
@@ -333,7 +335,7 @@ unplug (no USB mic).
    silence holding 1.69 s fewer frames than its stamps cover.  So D1 (stamps)
    finds it, and D2 is only a defence.  The pipeline drops that burst, so the
    span is recorded as asleep and not as silence.  F11, D2 and T3 in
-   `phase0/design/capture-contract-draft.md` need updating (not changed here).
+   `phase0-archive:phase0/design/capture-contract-draft.md` need updating (not changed here).
    That draft is separate from `packages/contracts/`, which these do not touch.
 2. **A reader-only stall lost meeting audio.**  The 3.98 s loss differs from F4,
    where the app track lost nothing in real whole-process stalls.  The hook
