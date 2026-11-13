@@ -3,7 +3,12 @@ import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
-import { createMiniController, restoreMain, withoutMini } from './mini-window.ts';
+import {
+  createMiniController,
+  miniWindowOpenHandler,
+  restoreMain,
+  withoutMini,
+} from './mini-window.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
@@ -30,8 +35,10 @@ let miniWindow: BrowserWindow | null = null;
 function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   const mini = new BrowserWindow({
     title: 'Meeting Scribe recording',
-    width: 280,
-    height: 120,
+    width: 264,
+    height: 72,
+    // The size is the page area, so the title bar never takes from the two rows.
+    useContentSize: true,
     alwaysOnTop: true,
     resizable: false,
     maximizable: false,
@@ -44,6 +51,7 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
+  mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.()));
   // It carries status only; it must not take the keyboard from the app being used.
   mini.once('ready-to-show', () => mini.showInactive());
   mini.on('closed', () => {

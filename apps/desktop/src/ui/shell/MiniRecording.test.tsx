@@ -130,6 +130,145 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    expect(document.body.textContent).toBe('Recording 01:05');
+    expect(document.body.textContent).toBe('Recording 01:05Show Scribe');
+  });
+
+  it('keeps the status row and one fixed slot when the warning comes and goes', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording'),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const shape = () =>
+      Array.from(document.querySelector('[role=status]')!.children).map((c) => c.tagName);
+    const before = shape();
+    expect(before).toHaveLength(2);
+    act(() => fake.emit('recordingHealth', warned));
+    expect(screen.getByText('Microphone changed')).toBeTruthy();
+    expect(shape()).toEqual(before);
+    act(() => fake.emit('recordingHealth', { level: 'ok', warnings: [], diskFreeBytes: 1e10 }));
+    expect(shape()).toEqual(before);
+  });
+
+  it('shows who spoke last, highlighted while recent, without their words', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 10_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const words = [
+      {
+        id: 'w',
+        text: 'secretwords',
+        startMs: 8000,
+        endMs: 9000,
+        state: 'final',
+        correctionId: null,
+      },
+    ];
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'invented-meeting',
+        revision: 1,
+        change: {
+          kind: 'append',
+          segments: [{ id: 's', speakerId: 'a', track: 'mic', startMs: 8000, endMs: 9000, words }],
+        },
+        speakers: [{ id: 'a', label: 'You', kind: 'you', profileId: null }],
+      }),
+    );
+    const slot = screen.getByText('You');
+    expect(slot.getAttribute('data-active')).toBe('true');
+    expect(document.body.textContent).not.toContain('secretwords');
+  });
+
+  it('dims the speaker once they have been quiet a while', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 60_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'invented-meeting',
+        revision: 1,
+        change: {
+          kind: 'append',
+          segments: [
+            { id: 's', speakerId: 'a', track: 'mic', startMs: 1000, endMs: 2000, words: [] },
+          ],
+        },
+        speakers: [{ id: 'a', label: 'Speaker 2', kind: 'unknown', profileId: null }],
+      }),
+    );
+    expect(screen.getByText('Speaker 2').getAttribute('data-active')).toBe('false');
+  });
+
+  it('opens the show-main address when Show Scribe is pressed', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording'),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    screen.getByRole('button', { name: 'Show Scribe' }).click();
+    expect(open).toHaveBeenCalledWith('scrb-app://show-main');
+    open.mockRestore();
+  });
+
+  it('ignores another meeting’s events, even with a reused speaker ID', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording', 10_000),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    const event = (meetingId: string, endMs: number, label: string) => ({
+      meetingId,
+      revision: 1,
+      change: {
+        kind: 'append',
+        segments: [
+          { id: `s${endMs}`, speakerId: 'a', track: 'mic', startMs: endMs - 500, endMs, words: [] },
+        ],
+      },
+      speakers: [{ id: 'a', label, kind: 'unknown', profileId: null }],
+    });
+    act(() => fake.emit('transcriptChanged', event('invented-meeting', 9000, 'Ana')));
+    act(() => fake.emit('transcriptChanged', event('other-meeting', 9500, 'Ben')));
+    act(() =>
+      fake.emit('transcriptChanged', {
+        meetingId: 'other-meeting',
+        revision: 2,
+        change: { kind: 'replace', segments: [], removedSegmentIds: ['x'] },
+        speakers: [{ id: 'a', label: 'Ben', kind: 'named', profileId: null }],
+      }),
+    );
+    expect(screen.getByText('Ana')).toBeTruthy();
+    expect(screen.queryByText('Ben')).toBeNull();
   });
 });

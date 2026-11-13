@@ -1105,3 +1105,16 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Designing the key and click rules from the brief's wording without trying overlapping turns, focus after a click, or the real column layout.
 - **Impact:** The owner hit four problems in the first real use of the merged build.
 - **Correction / remaining risk:** Fixed with regression tests for each (overlapping turns, focused-button Space and arrows, click while playing, tab-press back navigation). Still not checked by eye in the real app. Medium.
+
+
+### A-330 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — mini window PR #148: cross-meeting speaker bug, stale docs, lint error pushed
+- **Status / attribution:** Confirmed agent errors; the first two found by independent (ChatGPT) review, the third by my own check run. Not merged.
+- **What failed:** (1) The speaker indicator listened to `transcriptChanged` for every meeting, so another meeting's event could blank it or lend it a name through a reused speaker ID; (2) the plan and PR body said 240x72 and "not implemented" after I widened the window to 264 and built the button; (3) I committed and pushed a version whose `npm run check` had printed a lint error (setState in an effect), because the check and the commit ran in one command.
+- **Agent-controlled cause:** No multi-meeting case thought through; docs not re-read after changing the code; commit chained after an unread check.
+- **Impact:** One rejected review round and one extra push; no user-visible defect shipped.
+- **Correction / remaining risk:** Events filtered by the shown meeting, state carries its meeting, interleaved-meeting test added, docs corrected, lint fixed. The mini window was not viewed in real Electron. Low.
+
+#### A-330 addendum — 2026-11-13 — height clip found by review; unread smoke result pushed
+- **What failed:** (1) The 72 px mini height was the outer window, so macOS title-bar chrome could clip the rows (review-found; fixed with `useContentSize: true`); (2) I again chained commit and push after `npm run check` and `test:smoke` without reading the result, and the first smoke run had one failed playback e2e (no change in the mini window; a single rerun passed 11/11, cause not diagnosed, likely a flaky timing test).
+- **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
+- **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
