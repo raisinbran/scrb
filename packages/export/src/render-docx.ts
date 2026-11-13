@@ -71,11 +71,26 @@ export async function renderDocx(
     title: document.title ?? 'Meeting export',
     styles: {
       default: {
-        document: { run: { font: FONT, size: 21 }, paragraph: { spacing: { after: 120, line: 276 } } },
-        title: { run: { font: FONT, size: 44, bold: true, color: '1A1A1A' }, paragraph: { spacing: { after: 160 } } },
-        heading1: { run: { font: FONT, size: 32, bold: true, color: '1A1A1A' }, paragraph: { spacing: { before: 360, after: 120 } } },
-        heading2: { run: { font: FONT, size: 26, bold: true, color: '1A1A1A' }, paragraph: { spacing: { before: 280, after: 80 } } },
-        heading3: { run: { font: FONT, size: 22, bold: true, color: '1A1A1A' }, paragraph: { spacing: { before: 200, after: 60 } } },
+        document: {
+          run: { font: FONT, size: 21 },
+          paragraph: { spacing: { after: 120, line: 276 } },
+        },
+        title: {
+          run: { font: FONT, size: 44, bold: true, color: '1A1A1A' },
+          paragraph: { spacing: { after: 160 } },
+        },
+        heading1: {
+          run: { font: FONT, size: 32, bold: true, color: '1A1A1A' },
+          paragraph: { spacing: { before: 360, after: 120 } },
+        },
+        heading2: {
+          run: { font: FONT, size: 26, bold: true, color: '1A1A1A' },
+          paragraph: { spacing: { before: 280, after: 80 } },
+        },
+        heading3: {
+          run: { font: FONT, size: 22, bold: true, color: '1A1A1A' },
+          paragraph: { spacing: { before: 200, after: 60 } },
+        },
       },
     },
     sections: [section],
@@ -165,15 +180,11 @@ function run(span: Span, defaults: IRunOptions): TextRun {
 
 function renderTable(table: TableBlock, contentWidth: number): Table {
   const total = table.columns.reduce((sum, column) => sum + column.weight, 0);
-  const widths = table.columns.map((column) =>
-    Math.floor((column.weight / total) * contentWidth),
-  );
+  const widths = table.columns.map((column) => Math.floor((column.weight / total) * contentWidth));
   const header = new TableRow({
     tableHeader: true,
     cantSplit: true,
-    children: table.columns.map((column, index) =>
-      cell(column.header, widths[index] ?? 0, true),
-    ),
+    children: table.columns.map((column, index) => cell(column.header, widths[index] ?? 0, true)),
   });
   const rows = table.rows.map(
     (row) =>

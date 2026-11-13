@@ -8,10 +8,13 @@ import path from 'node:path';
 
 const [out, capture, whisperDir, toolsDir, ...extraLibDirs] = process.argv.slice(2);
 if (!out || !capture || !whisperDir || !toolsDir) {
-  console.error('usage: stage-mac-tools.mjs <out> <capture> <whisper-bin-dir> <tools-dir> [lib-dir...]');
+  console.error(
+    'usage: stage-mac-tools.mjs <out> <capture> <whisper-bin-dir> <tools-dir> [lib-dir...]',
+  );
   process.exit(2);
 }
-const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const run = (cmd, args) =>
+  execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const isSystem = (p) => p.startsWith('/usr/lib/') || p.startsWith('/System/');
 
 const tools = {
@@ -30,9 +33,15 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(lib, { recursive: true });
 
 const deps = (file) =>
-  run('otool', ['-L', file]).split('\n').slice(1).map((l) => l.trim().split(' (')[0]).filter(Boolean);
+  run('otool', ['-L', file])
+    .split('\n')
+    .slice(1)
+    .map((l) => l.trim().split(' (')[0])
+    .filter(Boolean);
 const rpaths = (file) =>
-  [...run('otool', ['-l', file]).matchAll(/cmd LC_RPATH\n\s+cmdsize \d+\n\s+path (.+?) \(offset/g)].map((m) => m[1]);
+  [
+    ...run('otool', ['-l', file]).matchAll(/cmd LC_RPATH\n\s+cmdsize \d+\n\s+path (.+?) \(offset/g),
+  ].map((m) => m[1]);
 
 function locate(ref, from) {
   const name = path.basename(ref);
@@ -80,12 +89,18 @@ for (const base of libs.keys()) {
   fix(staged, '@loader_path');
   run('install_name_tool', ['-id', `@rpath/${base}`, staged]);
 }
-for (const file of [...Object.keys(tools).map((n) => path.join(bin, n)), ...readdirSync(lib).map((n) => path.join(lib, n))])
+for (const file of [
+  ...Object.keys(tools).map((n) => path.join(bin, n)),
+  ...readdirSync(lib).map((n) => path.join(lib, n)),
+])
   run('codesign', ['--force', '--sign', '-', file]);
 
 // Nothing may still point at a development folder, and every @rpath name must resolve.
 const problems = [];
-for (const file of [...Object.keys(tools).map((n) => path.join(bin, n)), ...readdirSync(lib).map((n) => path.join(lib, n))]) {
+for (const file of [
+  ...Object.keys(tools).map((n) => path.join(bin, n)),
+  ...readdirSync(lib).map((n) => path.join(lib, n)),
+]) {
   const paths = rpaths(file);
   for (const r of paths) if (!r.startsWith('@loader_path')) problems.push(`${file}: rpath ${r}`);
   for (const ref of deps(file)) {
