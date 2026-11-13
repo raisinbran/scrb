@@ -23,6 +23,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - uses: astral-sh/setup-uv@v6
       - run: npm ci
       - name: Check Prettier on changed TypeScript
         shell: bash
@@ -40,5 +41,7 @@ jobs:
       - run: npm run build -w @scrb/summary
       - run: npm test
       - run: npm run check:boundaries
+      - name: Test transcribe script
+        run: uv run --no-project --python 3.12 --with pytest==9.2.0 --with av==19.0.2 --with numpy==2.3.4 pytest -q scripts/test_transcribe_meeting.py
       - run: npm run build
       - run: npm run test:smoke
