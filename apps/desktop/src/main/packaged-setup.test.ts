@@ -91,10 +91,9 @@ describe('resolvePackagedSetup', () => {
   });
 
   it('keeps the pinned data folder and the models folder apart from the app name', () => {
-    expect(userDataFor('/h/Library/Application Support')).toBe(
-      '/h/Library/Application Support/@scrb/desktop',
-    );
-    expect(modelsDirFor('/h')).toBe('/h/Library/Application Support/Scribe/models');
+    const appData = join('h', 'Library', 'Application Support');
+    expect(userDataFor(appData)).toBe(join(appData, '@scrb', 'desktop'));
+    expect(modelsDirFor('h')).toBe(join(appData, 'Scribe', 'models'));
   });
 
   it('creates a fresh macOS-style profile folder before pinning, and keeps an existing Windows-style one', () => {
