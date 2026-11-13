@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toExportMeeting } from '@scrb/app-core';
 import {
@@ -13,6 +13,7 @@ import { errorFields, resolveDisplay, type Library, type MeetingMeta } from '@sc
 import type { CallHandlers } from './dispatch.ts';
 import type { DocxRenderer } from './export-worker.ts';
 import type { PrintJobRunner } from './export-print.ts';
+import { isOurTempName, tempPartName } from './print-guard.ts';
 import { requireMeeting, timelineGaps } from './meetings.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
@@ -47,9 +48,11 @@ class PdfFailure extends Error {}
 async function sweepStale(folder: string): Promise<void> {
   try {
     for (const name of await readdir(folder)) {
-      if (!name.endsWith('.part') && !name.startsWith('.print-')) continue;
-      const info = await stat(path.join(folder, name));
-      if (Date.now() - info.mtimeMs > STALE_MS) await rm(path.join(folder, name), { force: true });
+      if (!isOurTempName(name)) continue;
+      const file = path.join(folder, name);
+      // lstat: a symlink with our name is not ours to follow or delete.
+      const info = await lstat(file);
+      if (info.isFile() && Date.now() - info.mtimeMs > STALE_MS) await rm(file, { force: true });
     }
   } catch {
     // Nothing to sweep.
@@ -64,7 +67,7 @@ async function writeUnique(
   bytes: Uint8Array,
   exportId: string,
 ): Promise<string> {
-  const part = path.join(folder, `.${exportId}.part`);
+  const part = path.join(folder, tempPartName(exportId));
   try {
     await writeFile(part, bytes, { flag: 'wx' });
     for (let n = 1; ; n += 1) {

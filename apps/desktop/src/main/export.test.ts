@@ -1,5 +1,15 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -212,6 +222,30 @@ describe('createExportHandlers', () => {
       message: 'The PDF could not be created. Try DOCX.',
     });
     expect(exportsOf(id)).toEqual([]);
+  });
+
+  it('sweeps only its own stale temporary files and never user files', async () => {
+    const id = await seed();
+    const folder = library.meetingPaths(id).exports;
+    mkdirSync(folder, { recursive: true });
+    const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const uuid = '123e4567-e89b-42d3-a456-426614174000';
+    const ours = [`.scrb-export-${uuid}.part`, `.scrb-print-${uuid}.html`];
+    const theirs = ['x.part', 'notes.print-1', '.print-abc.html', '.abc.part', 'keep.docx'];
+    for (const name of [...ours, ...theirs]) {
+      writeFileSync(join(folder, name), 'data');
+      utimesSync(join(folder, name), old, old);
+    }
+    const outside = join(folder, '..', 'outside.txt');
+    writeFileSync(outside, 'secret');
+    const linkName = `.scrb-export-123e4567-e89b-42d3-a456-426614174001.part`;
+    symlinkSync(outside, join(folder, linkName));
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    await settled();
+    const left = readdirSync(folder);
+    for (const name of ours) expect(left).not.toContain(name);
+    for (const name of [...theirs, linkName]) expect(left).toContain(name);
+    expect(readFileSync(outside, 'utf8')).toBe('secret');
   });
 
   it('keeps the original text of a corrected word when corrections are shown', async () => {

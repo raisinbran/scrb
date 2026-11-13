@@ -1015,3 +1015,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Not following the AGENTS.md Node path note, writing the fixture before reading the escaping rule, and skipping the usage read.
 - **Impact:** A few wasted tool calls; start usage figures are `unavailable`.
 - **Correction / remaining risk:** All fixed before commit. Low.
+
+### A-317 — 2026-11-12 — Claude Code (Sonnet 5.5) / Mac desktop — export cleanup could delete user files; print window not adversarially tested (PR #139)
+- **Status / attribution:** Confirmed agent errors, found by ChatGPT review (REJECT at a26ac77); not caused by the application's design.
+- **What failed:** (1) The stale-file sweep in an exports folder deleted any file named `*.part` or `.print-*` older than a day, including a user's own files. (2) The approved plan required an adversarial test of the print window, but I shipped only a DOCX/PDF round trip and a throwaway manual check, so "another local file is refused" was inferred, not asserted. While adding the test I also lost time to a flaky spec: the probe app quit when its only window was destroyed, before it wrote the result.
+- **Agent-controlled cause:** Writing a convenience sweep with a loose name filter and following `stat`, and not turning a plan line into a test.
+- **Impact:** One review round; no user data was lost (not released).
+- **Correction / remaining risk:** Temp names are now `.scrb-export-<uuid>.part` / `.scrb-print-<uuid>.html`, matched by a strict pattern, regular files only (`lstat`), with tests that user files and symlinks survive. New `print-window-security.spec.ts` runs the real print function in Electron and asserts the session refused another local file and the network (0 server hits); it fails if the guard is made permissive. Low.

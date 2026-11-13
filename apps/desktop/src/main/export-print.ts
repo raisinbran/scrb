@@ -3,7 +3,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { PdfPrintOptions } from '@scrb/export';
-import { allowPrintNavigation, allowPrintRequest } from './print-guard.ts';
+import { allowPrintNavigation, allowPrintRequest, tempPrintName } from './print-guard.ts';
 import { printWebPreferences } from './web-preferences.ts';
 
 export interface PrintJob {
@@ -12,6 +12,8 @@ export interface PrintJob {
   /** The meeting's exports folder; the temporary page lives here and is deleted afterwards. */
   folder: string;
   exportId: string;
+  /** Sees every request the print session decides on; used by the real-Electron security test. */
+  onRequest?: (url: string, allowed: boolean) => void;
 }
 
 export type PrintJobRunner = (job: PrintJob) => Promise<Uint8Array>;
@@ -23,17 +25,25 @@ const PRINT_TIMEOUT_MS = 60_000;
  * request except the one page, so the transcript cannot leave the machine and no other local
  * file can be read into the PDF.
  */
-export const printHtmlToPdf: PrintJobRunner = async ({ html, options, folder, exportId }) => {
-  const file = path.join(folder, `.print-${exportId}.html`);
+export const printHtmlToPdf: PrintJobRunner = async ({
+  html,
+  options,
+  folder,
+  exportId,
+  onRequest,
+}) => {
+  const file = path.join(folder, tempPrintName(exportId));
   let win: BrowserWindow | null = null;
   let timer: NodeJS.Timeout | undefined;
   try {
     await writeFile(file, html, 'utf8');
     const pageUrl = pathToFileURL(file).toString();
     const ses = session.fromPartition(`print-${exportId}`);
-    ses.webRequest.onBeforeRequest((details, callback) =>
-      callback({ cancel: !allowPrintRequest(details.url, pageUrl) }),
-    );
+    ses.webRequest.onBeforeRequest((details, callback) => {
+      const allowed = allowPrintRequest(details.url, pageUrl);
+      onRequest?.(details.url, allowed);
+      callback({ cancel: !allowed });
+    });
     ses.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     ses.setPermissionCheckHandler(() => false);
     win = new BrowserWindow({
