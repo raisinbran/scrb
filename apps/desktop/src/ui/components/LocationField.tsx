@@ -65,7 +65,7 @@ export function LocationField({
         )}
         {outside && (
           <p className={styles.note}>
-            Meeting Scribe uses your computer&apos;s country setting to decide whether to show the
+            Scribe uses your computer&apos;s country setting to decide whether to show the
             privacy banner.
           </p>
         )}

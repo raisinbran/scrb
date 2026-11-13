@@ -24,6 +24,14 @@ import { createExportHandlers } from './export.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
 import { createSetupStatusHandler } from './setup-status.ts';
+import {
+  missingMessage,
+  modelsDirFor,
+  resolvePackagedSetup,
+  type PackagedSetup,
+} from './packaged-setup.ts';
+import { ContractError } from '@scrb/contracts';
+import os from 'node:os';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -58,10 +66,21 @@ export async function openBackend(
         speakerCount: 0,
       }),
     );
-    // Real recording is opt-in until packaging ships the helper; otherwise the mock answers.
-    const helper = app.isPackaged ? undefined : process.env['SCRB_CAPTURE_HELPER'];
-    // Same rule for the final pass: it needs models and tools that packaging does not ship yet.
-    const finalPassConfig = app.isPackaged ? undefined : process.env['SCRB_FINAL_PASS_CONFIG'];
+    // Unpackaged: real mode is opt-in through the environment, otherwise the mock answers.
+    // Packaged: paths come only from the bundle and the models folder, never the environment.
+    const packaged: PackagedSetup | null = app.isPackaged
+      ? await resolvePackagedSetup({
+          resourcesPath: process.resourcesPath,
+          userDataPath: app.getPath('userData'),
+          modelsDir: modelsDirFor(os.homedir()),
+        })
+      : null;
+    if (packaged && packaged.missing.length > 0)
+      library.logger.log('error', 'packaged-setup-incomplete', { count: packaged.missing.length });
+    const helper = packaged ? (packaged.helper ?? undefined) : process.env['SCRB_CAPTURE_HELPER'];
+    const finalPassConfig = packaged
+      ? (packaged.finalPassConfig ?? undefined)
+      : process.env['SCRB_FINAL_PASS_CONFIG'];
     const finalPasses =
       helper && finalPassConfig
         ? new FinalPassQueue(
@@ -72,8 +91,9 @@ export async function openBackend(
             (before, after) => publishEdit(before, after, emit),
           )
         : null;
-    // Live inference stays opt-in and disabled in packaged builds.
-    const liveConfig = app.isPackaged ? undefined : process.env['SCRB_LIVE_CONFIG'];
+    const liveConfig = packaged
+      ? (packaged.liveConfig ?? undefined)
+      : process.env['SCRB_LIVE_CONFIG'];
     const livePlatform = process.platform === 'darwin' || process.platform === 'win32';
     const liveSetup =
       livePlatform && helper && liveConfig
@@ -172,7 +192,7 @@ export async function openBackend(
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
-        getSetupStatus: createSetupStatusHandler(settings.getSettings),
+        getSetupStatus: createSetupStatusHandler(settings.getSettings, packaged),
         ...playback.wrap(
           createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ),
@@ -183,12 +203,25 @@ export async function openBackend(
           renderDocx: createDocxRenderer(path.join(__dirname, 'exportWorkerEntry.mjs')),
         }),
         ...recording?.handlers,
+        // A packaged app without its tools or models must say so, not fall back to the mock.
+        ...(packaged && packaged.missing.length > 0
+          ? {
+              startRecording: async () => {
+                throw new ContractError({
+                  code: 'notImplemented',
+                  message: missingMessage(packaged.missing),
+                });
+              },
+            }
+          : {}),
       },
       warning: library.retainedIndexSnapshot
         ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
-        : library.replacedCorruptIndex === null
-          ? null
-          : 'The index needs review; all original files were preserved.',
+        : library.replacedCorruptIndex !== null
+          ? 'The index needs review; all original files were preserved.'
+          : packaged && packaged.missing.length > 0
+            ? missingMessage(packaged.missing)
+            : null,
       close: async () => {
         playback.stop();
         stopRetention();

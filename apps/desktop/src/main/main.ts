@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
+import os from 'node:os';
 import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
@@ -19,6 +20,11 @@ import {
   serveRenderer,
 } from './security.ts';
 import { secureWebPreferences } from './web-preferences.ts';
+import { userDataFor } from './packaged-setup.ts';
+
+// The app was renamed to Scribe, but its data stays where the saved library location and settings
+// already are. Pinned before anything reads userData; a test's --user-data-dir still wins.
+if (!app.commandLine.hasSwitch('user-data-dir')) app.setPath('userData', userDataFor(os.homedir()));
 
 // Ignored in packaged builds, so the environment can never point the app at another page.
 const devServerUrl = app.isPackaged ? undefined : process.env['SCRB_DEV_SERVER_URL'];
@@ -34,7 +40,7 @@ let miniWindow: BrowserWindow | null = null;
 
 function openMiniWindow(onClosedByUser: () => void): { close(): void } {
   const mini = new BrowserWindow({
-    title: 'Meeting Scribe recording',
+    title: 'Scribe recording',
     width: 264,
     height: 72,
     // The size is the page area, so the title bar never takes from the two rows.

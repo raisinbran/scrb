@@ -66,8 +66,8 @@ export async function renderDocx(
 
   const file = new Document({
     // The library writes "Un-named" unless told otherwise.
-    creator: 'Meeting Scribe',
-    lastModifiedBy: 'Meeting Scribe',
+    creator: 'Scribe',
+    lastModifiedBy: 'Scribe',
     title: document.title ?? 'Meeting export',
     styles: {
       default: {

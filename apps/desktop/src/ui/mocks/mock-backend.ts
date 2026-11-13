@@ -881,7 +881,7 @@ export class MockBackend implements Backend {
       if (this.armed.delete('startDenied')) {
         throw new ContractError({
           code: 'permissionDenied',
-          message: 'Meeting Scribe does not have permission to use the microphone.',
+          message: 'Scribe does not have permission to use the microphone.',
         });
       }
       this.stopImportsForRecording();
