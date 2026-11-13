@@ -91,13 +91,58 @@ describe('createMiniController', () => {
   });
 });
 
+describe('rapid focus changes', () => {
+  it('shows the window still fading out again instead of opening a second one', () => {
+    const reopen = vi.fn(() => true);
+    const close = vi.fn();
+    const open = vi.fn(() => ({ close, reopen }));
+    const controller = createMiniController(open);
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(reopen).toHaveBeenCalledTimes(1);
+    controller.setMainInFront(true);
+    expect(close).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens a new window when the fading one is already gone', () => {
+    const open = vi.fn(() => ({ close: vi.fn(), reopen: () => false }));
+    const controller = createMiniController(open);
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it('a user close of the reused window still keeps it closed', () => {
+    const userCloses: (() => void)[] = [];
+    const open = vi.fn((onClosed: () => void) => {
+      userCloses.push(onClosed);
+      return { close: vi.fn(), reopen: () => true };
+    });
+    const controller = createMiniController(open);
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    userCloses[0]!();
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('withoutMini', () => {
   it('leaves no main window when only the mini one is open, so the dock can recreate it', () => {
     const mini = { id: 'mini' };
-    expect(withoutMini([mini], mini)).toEqual([]);
+    expect(withoutMini([mini], new Set([mini]))).toEqual([]);
     const main = { id: 'main' };
-    expect(withoutMini([mini, main], mini)).toEqual([main]);
-    expect(withoutMini([main], null)).toEqual([main]);
+    expect(withoutMini([mini, main], new Set([mini]))).toEqual([main]);
+    expect(withoutMini([main], new Set())).toEqual([main]);
   });
 });
 
@@ -106,7 +151,7 @@ describe('restoreMain', () => {
     const mini = { id: 'mini' };
     const focus = vi.fn();
     const create = vi.fn();
-    restoreMain(withoutMini([mini], mini), focus, create);
+    restoreMain(withoutMini([mini], new Set([mini])), focus, create);
     expect(create).toHaveBeenCalledTimes(1);
     expect(focus).not.toHaveBeenCalled();
   });
@@ -116,7 +161,7 @@ describe('restoreMain', () => {
     const mini = { id: 'mini' };
     const focus = vi.fn();
     const create = vi.fn();
-    restoreMain(withoutMini([mini, main], mini), focus, create);
+    restoreMain(withoutMini([mini, main], new Set([mini])), focus, create);
     expect(focus).toHaveBeenCalledWith(main);
     expect(create).not.toHaveBeenCalled();
   });

@@ -1,14 +1,31 @@
-import { app, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  screen,
+  shell,
+  systemPreferences,
+  type IpcMainInvokeEvent,
+} from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
 import {
   createMiniController,
+  type MiniHandle,
   miniWindowOpenHandler,
   restoreMain,
   withoutMini,
 } from './mini-window.ts';
+import { fadeOpacity } from './mini-fade.ts';
+import {
+  choosePosition,
+  parsePlacement,
+  serializePlacement,
+  type DisplayInfo,
+} from './mini-placement.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
@@ -35,9 +52,43 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   return url !== undefined && new URL(url).origin === appOrigin;
 }
 
-let miniWindow: BrowserWindow | null = null;
+// Every mini window that exists, including one fading out; none may stand in for the main window.
+const miniWindows = new Set<BrowserWindow>();
 
-function openMiniWindow(onClosedByUser: () => void): { close(): void } {
+const miniPlacementFile = (): string => path.join(app.getPath('userData'), 'mini-window.json');
+
+function displayInfos(): DisplayInfo[] {
+  return screen.getAllDisplays().map(({ id, workArea }) => ({ id, workArea }));
+}
+
+function readMiniPlacement() {
+  try {
+    return parsePlacement(fs.readFileSync(miniPlacementFile(), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function saveMiniPlacement(mini: BrowserWindow): void {
+  const bounds = mini.getBounds();
+  try {
+    fs.writeFileSync(
+      miniPlacementFile(),
+      serializePlacement({
+        x: bounds.x,
+        y: bounds.y,
+        displayId: screen.getDisplayMatching(bounds).id,
+      }),
+    );
+  } catch {
+    // Losing the remembered spot only costs the default position next time.
+  }
+}
+
+const prefersReducedMotion = (): boolean =>
+  systemPreferences.getAnimationSettings().prefersReducedMotion;
+
+function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   const mini = new BrowserWindow({
     title: 'Scribe recording',
     width: 264,
@@ -52,25 +103,68 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
     show: false,
     webPreferences: secureWebPreferences(__dirname),
   });
-  miniWindow = mini;
+  miniWindows.add(mini);
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
   mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.()));
+  let opacity = 0;
+  let cancelFade: () => void = () => undefined;
+  const fadeTo = (to: number, done?: () => void): void => {
+    cancelFade();
+    cancelFade = fadeOpacity({
+      from: opacity,
+      to,
+      reducedMotion: prefersReducedMotion(),
+      setOpacity: (value) => {
+        opacity = value;
+        if (!mini.isDestroyed()) mini.setOpacity(value);
+      },
+      ...(done ? { done } : {}),
+    });
+  };
   // It carries status only; it must not take the keyboard from the app being used.
-  mini.once('ready-to-show', () => mini.showInactive());
+  mini.once('ready-to-show', () => {
+    // Placed with the real outer size (title bar included), then shown transparent and faded in.
+    const { width, height } = mini.getBounds();
+    const primary = screen.getPrimaryDisplay();
+    const { x, y } = choosePosition(
+      readMiniPlacement(),
+      displayInfos(),
+      { id: primary.id, workArea: primary.workArea },
+      { width, height },
+    );
+    mini.setPosition(x, y);
+    mini.setOpacity(0);
+    mini.showInactive();
+    fadeTo(1);
+    // Only after the placement above, so the default is not saved as if the user chose it.
+    mini.on('moved', () => saveMiniPlacement(mini));
+  });
   mini.on('closed', () => {
-    if (miniWindow === mini) miniWindow = null;
+    cancelFade();
+    miniWindows.delete(mini);
     onClosedByUser();
   });
   void mini.loadURL(`${appUrl}#mini`);
-  return { close: () => mini.close() };
+  return {
+    close: () => {
+      if (mini.isDestroyed()) return;
+      if (!mini.isVisible()) mini.close();
+      else fadeTo(0, () => mini.close());
+    },
+    reopen: () => {
+      if (mini.isDestroyed() || !mini.isVisible()) return false;
+      fadeTo(1);
+      return true;
+    },
+  };
 }
 
 const mini = createMiniController(openMiniWindow);
 
 function mainWindows(): BrowserWindow[] {
-  return withoutMini(BrowserWindow.getAllWindows(), miniWindow);
+  return withoutMini(BrowserWindow.getAllWindows(), miniWindows);
 }
 
 /** Any main window that is visible and has the keyboard. */
