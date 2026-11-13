@@ -1,4 +1,5 @@
 # Fixture hashes depend on exact bytes, so Windows checkouts must not convert line endings.
 packages/*/test/fixtures/** -text
+# Legacy registers keep union merging until the open PRs that append to them have merged (freeze enforced in a follow-up).
 agents/usage-log.md merge=union
 agents/agent_self_induced_failures.md merge=union
