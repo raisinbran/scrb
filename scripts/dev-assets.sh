@@ -2,7 +2,7 @@
 # Creates the development assets that are too large for git: pinned upstream
 # clones, models, AMI audio, the CMake/Ninja tools and, on macOS, the
 # whisper.cpp, llama.cpp and sherpa-onnx builds. Every download is checked against its
-# SHA-256. Versions and licenses are listed in phase0/MANIFEST.md.
+# SHA-256. Versions and licenses are listed in third_party/MANIFEST.md.
 #
 # Usage (Terminal on macOS, Git Bash on Windows):
 #   scripts/dev-assets.sh [all|upstream|asr|diarization|ami|ami-series|summary|tools|build]

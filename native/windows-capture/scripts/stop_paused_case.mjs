@@ -13,8 +13,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = resolve(root, '..', '..');
 const helper = join(root, 'build', 'bin', 'scrb-capture.exe');
 const verify = join(root, 'build', 'bin', 'ChunkVerify.exe');
-const mute = join(repo, 'phase0', 'probes', 'windows-mute', 'Mute.exe');
-const tone = process.env.SCRB_TONE ?? join(repo, 'phase0', 'probes', 'windows-tone-player', 'TonePlayer.exe');
+const mute = join(repo, 'native', 'windows-capture', 'tools', 'windows-mute', 'Mute.exe');
+const tone = process.env.SCRB_TONE ?? join(repo, 'native', 'windows-capture', 'tools', 'windows-tone-player', 'TonePlayer.exe');
 
 const work = resolve(process.argv[2]);
 const rounds = Number(process.argv[3]);

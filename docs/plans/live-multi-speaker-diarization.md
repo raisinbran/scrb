@@ -4,7 +4,7 @@
 
 ## Proven foundation and current gap
 
-V1 requirements v1.2 line 36 requires true live speaker grouping, provisional until final. Phase 0's `phase0/probes/live-diarization/LiveDiarize.cpp` (`inc`), `phase0/scripts/score_der.py`, and `phase0/evidence/gate-0.md` proved a **10 s window / 5 s hop**, >=1.5 s embedding region, cosine join **0.50**, centroid merges and **"Speaker ?" until 30 s cumulative speech**. Three AMI meetings scored live DER **25.3-29.1% Windows**, **25.5-32.3% Mac**; overlap remains weak. Earlier whole-window matching failed (51-56% DER). `packages/transcription/src/livePass.ts` already uses `LiveClusterer` (`speakers.ts`); its AMI replay is **not** the active native pipeline.
+V1 requirements v1.2 line 36 requires true live speaker grouping, provisional until final. Phase 0's `phase0/probes/live-diarization/LiveDiarize.cpp` (`inc`), `scripts/eval/score_der.py`, and `phase0/evidence/gate-0.md` proved a **10 s window / 5 s hop**, >=1.5 s embedding region, cosine join **0.50**, centroid merges and **"Speaker ?" until 30 s cumulative speech**. Three AMI meetings scored live DER **25.3-29.1% Windows**, **25.5-32.3% Mac**; overlap remains weak. Earlier whole-window matching failed (51-56% DER). `packages/transcription/src/livePass.ts` already uses `LiveClusterer` (`speakers.ts`); its AMI replay is **not** the active native pipeline.
 
 Active path: `apps/desktop/src/main/live-feed.ts` -> `packages/transcription/src/liveAudioWorker.ts` -> `liveWorkerEntry.ts` / `livePcmEngine.ts` -> `apps/desktop/src/main/live-transcript.ts`. The engine (~396-397), supervisor (~553-555), **and** sink (~105) each force `you`/`meeting`; `readLiveSetup` has no speaker-model paths.
 
