@@ -1,0 +1,60 @@
+[project]
+name = "scrb-engine"
+version = "0.1.0"
+description = "Meeting Scribe's speech models behind a JSON-lines protocol"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "numpy==2.5.4",
+    "silero-vad==6.2.3",
+    "soundfile==0.14.0",
+    "torch==2.14.0",
+]
+
+# Each extra is named after the model that needs it, and models.toml names
+# it, so `scrb models fetch --model M` installs only M's packages.
+[project.optional-dependencies]
+"parakeet-tdt-0.6b-v3" = ["sherpa-onnx==2.0.1"]
+whisper-large-v3-turbo = ["faster-whisper==1.2.1"]
+granite-speech-2b = ["torchaudio==2.11.0", "transformers==5.22.2"]
+pyannote-community-1 = ["pyannote.audio==4.0.7", "torchaudio==2.11.0"]
+
+[project.scripts]
+scrb-engine = "scrb_engine.main:main"
+
+[dependency-groups]
+dev = ["pytest==9.2.0", "ruff==0.17.5"]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+# Linux gets CPU-only PyTorch. Windows gets the CUDA 13.0 build, which needs
+# NVIDIA driver 580 or newer, and macOS gets PyPI's build.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+torchaudio = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
