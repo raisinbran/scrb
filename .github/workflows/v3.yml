@@ -16,6 +16,16 @@ jobs:
       - run: rustup toolchain install
       - name: Run the v3 checks
         run: SCRB_ENGINE_DIR="$PWD/engine" bash scripts/v3-check.sh
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.5.9"
+      # The path keeps pytest out of v1's Python tests at the root.
+      - name: Check the engine
+        run: |
+          uv lock --locked --project engine
+          uv run --project engine --locked ruff check engine
+          uv run --project engine --locked ruff format --check engine
+          uv run --project engine --locked pytest -q engine/tests
 
   macos:
     runs-on: macos-latest

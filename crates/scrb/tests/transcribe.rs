@@ -1,6 +1,6 @@
-//! `scrb transcribe`, run the way an agent runs it, with the fake engine in
-//! place of the speech models. The fake answers with the words and turns of
-//! `tests/data/two-speakers.ref.json`.
+//! `scrb transcribe` and `scrb models list`, run the way an agent runs them,
+//! with the fake engine in place of the speech models. The fake answers with
+//! the words and turns of `tests/data/two-speakers.ref.json`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use scrb::dev::write_sample_meeting;
 use scrb::library::{Library, MeetingState};
 use scrb::transcript::{fix_passage, read_transcript};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tempfile::TempDir;
 
 /// A file in `tests/data/`.
@@ -365,6 +365,33 @@ fn transcribe_import_failure_returns_meeting_id() {
         .unwrap();
     assert_eq!(meetings.len(), 1);
     assert_eq!(result["meeting_id"], meetings[0].id.as_str());
+}
+
+/// A missing model's error carries the command that fetches it, so an agent
+/// or user can recover without reading the docs.
+#[test]
+fn transcribe_model_missing_hints_models_fetch() {
+    let library_dir = TempDir::new().unwrap();
+    let failing_engine = fake_engine(&["--fault", "load:model_missing"]);
+
+    let output = transcribe_clip(library_dir.path(), &failing_engine, "60");
+
+    let result = result_line(&output);
+    assert_eq!(result["error"]["hint"], "run scrb models fetch");
+}
+
+/// `scrb models list` passes on the catalog of the engine's `hello`, which
+/// is how a user learns which models still need `scrb models fetch`.
+#[test]
+fn models_list_returns_engine_catalog() {
+    let output = run_scrb(&["models", "list"], &fake_engine(&[]), "60");
+
+    let result = result_line(&output);
+    assert_eq!(result["ok"], true);
+    assert_eq!(
+        result["models"],
+        json!([{ "name": "fake-asr", "kind": "asr", "present": true }])
+    );
 }
 
 /// `--out` transcribes a file with nothing in the library, even before the

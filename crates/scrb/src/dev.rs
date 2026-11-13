@@ -268,7 +268,8 @@ fn fake_reply(
     match (op, reference) {
         ("hello", _) => json!({
             "id": id, "ok": true, "engine_version": "0.0.0-fake",
-            "models": [], "devices": ["cpu"],
+            "models": [{ "name": "fake-asr", "kind": "asr", "present": true }],
+            "devices": ["cpu"],
         }),
         ("load", _) => json!({ "id": id, "ok": true, "device": "cpu", "load_s": 0.0 }),
         ("diarize", Some(reference)) => {
