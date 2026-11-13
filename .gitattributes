@@ -1,4 +1,2 @@
 # Fixture hashes depend on exact bytes, so Windows checkouts must not convert line endings.
 packages/*/test/fixtures/** -text
-agents/usage-log.md merge=union
-agents/agent_self_induced_failures.md merge=union

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { findBadUsageRows, findDuplicateIds } from './check-register-ids.mjs';
+import {
+  checkIncidentFile,
+  checkUsageRowFile,
+  findBadUsageRows,
+  findDuplicateIds,
+} from './check-register-ids.mjs';
 
 const row = (task, cols = 12) => `| 2026-11-13 | a | ${task} ${'| x '.repeat(cols - 3)}|`;
 
@@ -55,5 +60,31 @@ describe('findBadUsageRows', () => {
       findBadUsageRows(real.map((r) => r.replace('Codex', 'Codex2')).join('\r\n')),
     ).toHaveLength(2);
     expect(findDuplicateIds('| A-001 | x |\r\n### A-001 — y\r\n')).toEqual(['A-001']);
+  });
+});
+
+describe('per-file scheme', () => {
+  it('accepts a one-row usage file and rejects zero, two or malformed rows', () => {
+    expect(checkUsageRowFile(`${row('t1')}\n`)).toEqual([]);
+    expect(checkUsageRowFile('prose only')).toHaveLength(1);
+    expect(checkUsageRowFile(`${row('t1')}\n${row('t2')}`)).toHaveLength(1);
+    expect(checkUsageRowFile(row('t1', 11))).toHaveLength(1);
+  });
+  it('accepts an incident file whose name matches its heading and rejects others', () => {
+    expect(
+      checkIncidentFile('A-400-x.md', '### A-400 — 2026-11-13 — t\n- **Status:** y\n'),
+    ).toEqual([]);
+    expect(checkIncidentFile('A-401-x.md', '### A-400 — t\n')).toHaveLength(1);
+    expect(checkIncidentFile('A-400-x.md', 'no heading')).toHaveLength(1);
+    expect(checkIncidentFile('A-400-x.md', '### A-400 — a\n### A-401 — b\n')).toHaveLength(1);
+  });
+  it('flags the same A-number in the legacy register and a folder file, or in two folder files', () => {
+    const legacy = '### A-341 — old\n';
+    expect(findDuplicateIds(`${legacy}\n### A-341 — new\n`)).toEqual(['A-341']);
+    expect(findDuplicateIds('### A-400 — a\n\n### A-400 — b\n')).toEqual(['A-400']);
+    expect(findDuplicateIds(`${legacy}\n### A-342 — new\n`)).toEqual([]);
+  });
+  it('flags an identical usage row repeated across files', () => {
+    expect(findBadUsageRows(`${row('t1')}\n${row('t1')}`)).toEqual(['line 2: duplicate row']);
   });
 });
