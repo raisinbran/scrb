@@ -53,12 +53,26 @@ Each item carries the line it was read from. `sourceMs` is that line's start in 
 
 Already: `edited: true` items and sections are kept by `mergeRegeneratedSummary`; `outdated` is set by transcript or speaker edits and shown as "May be outdated, regenerate?". Verified gaps, all inside `packages/storage` (no contract change):
 
-Both fixes below use one rule, **matching by evidence, not by wording**: two items are "the same" when they are the same kind and cite the same transcript segment (the segment containing `sourceMs`, or one containing any `alsoAtMs`). Wording is never compared, so a paraphrase still matches. If several same-kind items cite one segment, the pairing goes to the one sharing the most words, and the rest are left alone, so two real actions from one sentence are not collapsed.
+Both fixes below use one pairing rule, **evidence first, then a content-word check**, so wording may change but two different items from one segment are never confused.
 
-1. **Duplicates.** `keepEdited` keeps an edited item and drops a fresh one only when both id and `sourceMs` match; the engine numbers ids per run and rewords, so a regenerated twin of an edited item usually appears beside it. Fix: a fresh item that matches an edited one by evidence is dropped; the edited one wins.
-2. **Deleted items return.** An item the user removed comes back on regeneration. Fix: when the user removes an item, store a small `dismissed` entry in `summary.json` (kind, the cited segment's time range, any merged `alsoAtMs` segments; **no text hash**), schema v4 with an upgrade from v3. Fresh items matching a dismissed entry by evidence are filtered out. If the transcript is re-run and the segment no longer exists, the entry no longer matches and the item may reappear, which is acceptable and shown as a normal new item. V1-only.
+**Item key.** For each item: its kind; the transcript segments it cites (the segment containing `sourceMs` and each `alsoAtMs`); and a token set built from its main text (action: action plus owner; decision: decision; question: question). Tokens are lower-cased words with punctuation and a fixed English stop-word list removed and a trailing `s`, `es`, `ed` or `ing` stripped, keeping at most 12. A dismissed record stores this key (kind, segment time ranges, tokens), never the full text.
 
-Tests (invented items): a reworded regenerated twin of an edited item (no duplicate); a reworded regenerated twin of a deleted item (stays gone); two different actions from one segment with one deleted (the other stays); a dismissed segment that no longer exists.
+**Match rule** between a stored key (edited item or dismissed record) and a fresh item:
+- (a) Same kind and at least one shared cited segment. Otherwise no match.
+- (b) Score = shared tokens / the smaller of the two token sets. The pair is a match at **score of at least 0.5** (both sets have at least 3 tokens; with fewer, the sets must be equal).
+- (c) Pairing is one-to-one: take all matching pairs, best score first, and assign each stored key and each fresh item at most once. A fresh item that is not assigned stays as a normal new item.
+- (d) **Ambiguity never loses data:** if a stored key's best and second-best fresh candidates are within 0.15 of each other, or a fresh item matches two stored keys within 0.15, that pairing is not made. The result is then one extra visible item (an edited item shown beside a fresh twin, or a deleted item shown again), never a hidden or overwritten one.
+
+1. **Duplicates.** `keepEdited` keeps an edited item and drops a fresh one only when both id and `sourceMs` match; the engine numbers ids per run and rewords, so a regenerated twin of an edited item usually appears beside it. Fix: a fresh item paired with an edited one by the match rule is dropped; the edited one wins.
+2. **Deleted items return.** An item the user removed comes back on regeneration. Fix: when the user removes an item, store a `dismissed` record (the item key above) in `summary.json`, schema v4 with an upgrade from v3. A fresh item paired with a dismissed record by the match rule is filtered out. Not matched, for example because the segment no longer exists after a re-run or the paraphrase shares under half its content words, means the item may reappear; that is accepted and shown as a normal new item the user can delete again. V1-only.
+
+Tests (invented items, `packages/storage`):
+- Two actions from one segment ("Priya sends the budget estimate", "Sam books the review room"); the user deletes the second; regeneration returns paraphrases ("Book a room for the review, Sam" and "Priya to send an estimate of the budget") in either order: the Sam item is filtered, the Priya item stays.
+- The same two, both deleted: neither returns. Neither deleted: both stay.
+- Same setup, user edits the first instead: the edited item stays and its paraphrased twin is dropped; the other action is untouched.
+- A paraphrase sharing fewer than half its tokens returns as a new item (documented limit).
+- Ambiguous case: two near-identical fresh items for one dismissed record are both shown.
+- A dismissed segment that no longer exists; a v3 file upgrades to v4 with no dismissed records.
 3. **Hand-added items** (`kind: 'add'`) are created `edited: true` today, so they are already kept.
 4. Narrative: an edited section is kept only if its slot has the same id and heading; otherwise it is appended after the new text, so nothing the user wrote is lost. The UI should say "Your edited text is kept" (UI note, no contract change).
 
@@ -121,4 +135,4 @@ Estimates are rough; the owner's Mac has not run the full pipeline yet.
 
 ## Independent review
 
-Round 1 (ChatGPT) rejected the first draft with four blockers: dead links kept with a flag, recording abort deferred, stale summary saved as current, text-hash tombstones. All four are revised (sections 2, 3, 4, 5, slice table). Round 2 pending. Not approved; do not start slice 1 until approved.
+Round 1 (ChatGPT) rejected the first draft with four blockers: dead links kept with a flag, recording abort deferred, stale summary saved as current, text-hash tombstones. All four are revised (sections 2, 3, 4, 5, slice table). Round 2: three resolved; the fourth (two items from one segment) is now answered by an item key and an exact pairing rule in section 5. Round 3 pending. Not approved; do not start slice 1 until approved.
