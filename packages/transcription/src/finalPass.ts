@@ -307,7 +307,8 @@ type EchoWord = { text: string; startMs: number; endMs?: number };
  * Loudness rule (needs `audio`): once the recording shows echo at a steady delay, a mic word
  * whose loudness pattern follows the meeting's at that delay is echo, if it sits in a chain
  * with text-matched echo or in a chain of ENV_ALONE_RUN such words.  The user's own words
- * over the meeting do not follow its pattern and stay.  Not an echo canceller.
+ * over the meeting usually do not follow its pattern and are kept, but some are lost when
+ * they are no louder than the echo.  Not an echo canceller.
  */
 export function dropRoomEcho<W extends EchoWord>(
   mic: W[],
