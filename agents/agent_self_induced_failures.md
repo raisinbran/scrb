@@ -1064,6 +1064,12 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
 
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — renamed a UI label without searching all tests for it
+- **Status / attribution:** Confirmed agent error, caught by `npm run check` before commit.
+- **What failed:** I changed the "Final pass running" label and only updated the Recordings test file; `App.integration.test.tsx` matched `/final pass/i` and failed. I also first misread the failing run as load flake, and used GNU `sed -i` syntax on macOS.
+- **Agent-controlled cause:** Searched only part of the tree for the old text; assumed flake without reading the failing names.
+- **Impact:** About two extra check runs (about 2 minutes each). `packages/summary` `worker.test.ts` failed once without its `dist` built; passed after building, unrelated to this change.
+- **Correction / remaining risk:** Test updated; full check passes. Low.
 ### A-326 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — `npm run check` run before building `packages/summary`
 - **Status / attribution:** Confirmed agent error; no code defect.
 - **What failed:** The first full test run failed `LlamaServerWorker leaves no server behind` because `packages/summary/dist` did not exist in this fresh worktree. The task brief had already said to build it first.
