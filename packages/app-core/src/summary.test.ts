@@ -3,8 +3,10 @@ import { ContractError, isValidRequest, type SummaryItemUpdate } from '@scrb/con
 import { mergeRegeneratedSummary, SUMMARY_FORMAT, type SummaryFile } from '@scrb/storage';
 import type { BaseItem, MeetingSummary } from '../../summary/src/types.ts';
 import {
+  DROPPED_ITEMS_WARNING,
   IMPACTS_HEADING,
   applySummaryUpdate,
+  guardSummaryLinks,
   toGeneratedSummary,
   toSummaryDoc,
 } from './summary.ts';
@@ -409,5 +411,119 @@ describe('applySummaryUpdate', () => {
       item: { id: 'gone', heading: null, text: 'x', edited: false },
     };
     expect(() => applySummaryUpdate(file, update)).toThrow(ContractError);
+  });
+});
+
+describe('link guard', () => {
+  // Invented transcript: segments at 0-10 s, 20-30 s and 60-70 s.
+  const segments = [
+    { startMs: 0, endMs: 10_000 },
+    { startMs: 20_000, endMs: 30_000 },
+    { startMs: 60_000, endMs: 70_000 },
+  ];
+  const evidence = { alsoAtMs: [] as number[], needsReview: false, edited: false };
+  const action = (id: string, sourceMs: number, alsoAtMs: number[] = []) => ({
+    id,
+    action: id,
+    owner: null,
+    ownerUnconfirmed: false,
+    deadline: null,
+    deadlineUnconfirmed: false,
+    status: 'agreed' as const,
+    sourceMs,
+    ...evidence,
+    alsoAtMs,
+  });
+  const generated = (items: ReturnType<typeof action>[]) => ({
+    generatedAt: AT,
+    brief: null,
+    full: null,
+    actionItems: items,
+    decisions: [],
+    openQuestions: [
+      { id: 'q-1', question: 'Why?', sourceMs: null, ...evidence },
+      { id: 'q-2', question: 'When?', sourceMs: 65_000, ...evidence },
+    ],
+    warnings: [],
+  });
+
+  it('keeps links inside a segment, including the ends', () => {
+    const out = guardSummaryLinks(generated([action('a', 5000), action('b', 30_000)]), segments);
+    expect(out.actionItems.map((item) => [item.sourceMs, item.needsReview])).toEqual([
+      [5000, false],
+      [30_000, false],
+    ]);
+    expect(out.warnings).toEqual([]);
+  });
+
+  it('moves a link in a short gap to the closest segment edge and flags the item', () => {
+    // 3 s after the end of the 20-30 s segment: the end, not the start 13 s away.
+    const after = guardSummaryLinks(generated([action('a', 33_000)]), segments);
+    expect(after.actionItems[0]).toMatchObject({ sourceMs: 30_000, needsReview: true });
+    // 2 s before the start of the 60-70 s segment.
+    const before = guardSummaryLinks(generated([action('b', 58_000)]), segments);
+    expect(before.actionItems[0]).toMatchObject({ sourceMs: 60_000, needsReview: true });
+  });
+
+  it('drops an item whose own time is far from any segment, or past the end, and says so', () => {
+    const out = guardSummaryLinks(
+      generated([action('gap', 45_000), action('late', 90_000), action('ok', 1000)]),
+      segments,
+    );
+    expect(out.actionItems.map((item) => item.id)).toEqual(['ok']);
+    expect(out.warnings).toEqual([`2 ${DROPPED_ITEMS_WARNING}.`]);
+  });
+
+  it('removes a bad alsoAtMs entry but keeps the item', () => {
+    const out = guardSummaryLinks(
+      generated([action('a', 5000, [25_000, 90_000, 45_000, 5000])]),
+      segments,
+    );
+    expect(out.actionItems[0]).toMatchObject({ alsoAtMs: [25_000], needsReview: false });
+  });
+
+  it('allows an open question with no time and checks the rest', () => {
+    const out = guardSummaryLinks(generated([]), segments);
+    expect(out.openQuestions.map((item) => item.sourceMs)).toEqual([null, 65_000]);
+  });
+
+  it('drops everything with a time when there is no transcript text', () => {
+    const out = guardSummaryLinks(generated([action('a', 0)]), []);
+    expect(out.actionItems).toEqual([]);
+    expect(out.openQuestions.map((item) => item.id)).toEqual(['q-1']);
+  });
+
+  it('rejects a user-added or re-timed item outside the transcript', () => {
+    const file = stored(engineSummary());
+    const item = {
+      action: 'New',
+      owner: null,
+      ownerUnconfirmed: false,
+      deadline: null,
+      deadlineUnconfirmed: false,
+      status: 'proposed' as const,
+      sourceMs: 45_000,
+    };
+    expect(() =>
+      applySummaryUpdate(file, { kind: 'add', collection: 'actionItems', item }, segments),
+    ).toThrow(expect.objectContaining({ code: 'invalidRequest' }));
+    const ok = applySummaryUpdate(
+      file,
+      { kind: 'add', collection: 'actionItems', item: { ...item, sourceMs: 5000 } },
+      segments,
+    );
+    expect(ok.actionItems.at(-1)?.sourceMs).toBe(5000);
+    const existing = file.actionItems[0]!;
+    expect(() =>
+      applySummaryUpdate(
+        file,
+        { kind: 'actionItem', item: { ...existing, sourceMs: 45_000 } },
+        segments,
+      ),
+    ).toThrow(expect.objectContaining({ code: 'invalidRequest' }));
+    // An unchanged old link is not re-checked.
+    expect(() =>
+      applySummaryUpdate(file, { kind: 'actionItem', item: existing }, segments),
+    ).not.toThrow();
   });
 });
