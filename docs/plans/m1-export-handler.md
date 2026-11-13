@@ -30,11 +30,13 @@ A real meeting's Export button writes a DOCX or PDF transcript into the meeting'
 
 Not touched: `packages/contracts/`, `ipc.ts`, `dispatch.ts`, `security.ts`, `preload`, anything under `src/ui/`, `scripts/` other than the build script. No new IPC channel or name.
 
+Also new: `apps/desktop/src/main/exportWorkerEntry.ts` (the DOCX worker, below).
+
 ## Handler flow
 
-1. `exportMeeting(request)` runs these checks before returning, so the dialog shows them as a failed start: meeting exists (`requireMeeting`, else `notFound`); `content` is `transcript` (else `conflict`, "Summaries can't be exported yet."); status is not `transcriptionFailed` and a transcript is readable (else `conflict`, "This meeting has no transcript to export yet.").
+1. `exportMeeting(request)` runs these checks before returning, so the dialog shows them as a failed start: meeting exists (`requireMeeting`, else `notFound`); `content` is `transcript` (else `conflict`, "Summaries can't be exported yet."); status is `ready`, `recovered` or `finalPassRunning` (not `recording`, `importing` or `transcriptionFailed`); then read the transcript and require at least one displayed word (else `conflict`, "This meeting has no transcript to export yet."). The word check is needed because `library.readTranscript` returns an empty transcript, not an error, when no transcript file exists (`library.ts:372-375`), so a status check alone would export an empty document. A `finalPassRunning` meeting with live text still exports, marked provisional.
 2. Make `exportId` (`crypto.randomUUID()`), start the job, return `{ exportId }` at once. The dialog already copes with the event arriving before the response.
-3. Job: read `library.readTranscript(id)` and the meeting; map to `ExportMeeting`; `buildExportDocument(meeting, { scope: 'transcript', transcript: request.transcript })`; `renderDocx` or `renderPdf`.
+3. Job: using the transcript read in step 1; map to `ExportMeeting`; `buildExportDocument(meeting, { scope: 'transcript', transcript: request.transcript })`; `renderDocx` (in a worker, below) or `renderPdf`.
    - `title`, `startedAt` (`meeting.date`), `durationMs`.
    - `speakers`: `activeSpeakers(t)` as `{ id, name: name ?? label }`.
    - `segments`: `resolveDisplay(t)`, ordered by first token `startMs` across both tracks; each token becomes `{ text, original: originalText }` (`original` only when set). Check the spacing rule (parts are concatenated verbatim) against a real transcript before coding.
@@ -48,12 +50,13 @@ Not touched: `packages/contracts/`, `ipc.ts`, `dispatch.ts`, `security.ts`, `pre
 `export-print.ts`:
 
 - Write the HTML to `exports/.print-<exportId>.html` (not `data:`, per the package README); delete it in `finally`, even on failure.
-- `new BrowserWindow({ show: false, webPreferences: printWebPreferences() })`: context isolation on, sandbox on, node integration off, webview off, JavaScript off, **no preload** (so no bridge to the backend).
-- A private in-memory session (`session.fromPartition('print-<id>')`, no `persist:`): `webRequest.onBeforeRequest` cancels everything except the one `file://` URL; permission handlers deny all; `will-navigate` prevented; `setWindowOpenHandler` denies; `will-attach-webview` prevented. `lockDownContents` in `security.ts` covers the last three, so reuse it with the file's origin.
-- `loadFile`, `webContents.printToPDF(options)`, `window.destroy()` in `finally`; a 60 s timeout fails the export.
-- A test greps the generated HTML for `http:`, `https:`, `<script`, `<link` and `<img src=`; the package should already produce none, and the test makes that a promise.
+- Create the restricted session first: `const ses = session.fromPartition('print-<exportId>')` (no `persist:`, so in memory). On it: `webRequest.onBeforeRequest` cancels every request except the one page URL (exact string match to the `file://` URL of the temp file, so other `file://`, `http(s)`, `data:` and `ws:` are all cancelled); permission request and check handlers deny all.
+- Bind it explicitly: `new BrowserWindow({ show: false, webPreferences: { ...printWebPreferences(), session: ses } })`, then throw if `win.webContents.session !== ses`. (`session` is a documented `webPreferences` option; without it the window would use the default session and the filters above would not apply.) `printWebPreferences()`: context isolation on, sandbox on, node integration off, webview off, JavaScript off, **no preload**.
+- Navigation: `will-navigate` and `will-redirect` always `preventDefault` (stricter than `lockDownContents`, which allows same-origin and would allow other local files); `setWindowOpenHandler` denies; `will-attach-webview` prevented. Not reusing `lockDownContents` for that reason.
+- `loadURL(pageUrl)`, `webContents.printToPDF(options)`, `window.destroy()` in `finally`; a 60 s timeout fails the export.
+- Tests: the request filter and navigation guards are small pure functions with unit tests (page URL allowed; any other `file://`, `http(s)`, `data:` denied). The e2e prints an HTML fixture containing a remote `<img>` and a second local file reference and asserts neither loads. A test also greps the generated HTML for `http:`, `https:`, `<script`, `<link` and `<img src=`; the package should already produce none, and the test makes that a promise.
 
-DOCX: `renderDocx` is CPU work; the package says to keep it out of the main process. For M1 it runs in main. The package's performance test covers an 8-hour meeting, and the e2e measures a real one. If it blocks the window for more than about a second on a normal meeting, move it to a `utilityProcess` as a follow-up; do not build that now.
+DOCX: `packages/export` says `renderDocx` is CPU work to keep out of the main process, so it runs in a **`worker_threads` worker**, not main. Decision: worker thread rather than `utilityProcess`, because it needs no Electron API, is unit-testable under Node, and the build script already bundles `liveWorkerEntry.mjs` the same way. New entry `apps/desktop/src/main/exportWorkerEntry.ts`, bundled to `exportWorkerEntry.mjs` by `build-electron.mjs` with the alias, takes `{ meeting, request, pageSize }`, calls `buildExportDocument` + `renderDocx`, and transfers the bytes back. `export.ts` takes the renderer as an injected function, so unit tests use a fake and one test runs the real worker on a generated 1-hour transcript (about 10,000 segments, invented) to check bytes come back and the main thread's event loop keeps ticking (a 50 ms timer must never be late by more than 250 ms). A 60 s timeout terminates the worker and fails the export. PDF HTML is built in main (string work, small next to docx); if the e2e shows a stall, move that into the same worker.
 
 ## Errors
 
@@ -61,7 +64,7 @@ All after-start failures become `exportFinished { ok: false, message }` with pla
 
 ## Tests
 
-- **Unit** (`export.test.ts`, fake `print`, temp-directory library like `meetings.test.ts`): file lands in `exports` with a DOCX header (`PK`) or the fake PDF bytes; event carries `ok: true` and the base name; hostile title (`../../x`, slashes, empty) stays inside `exports`; two exports of one meeting do not overwrite; missing meeting gives `notFound`; `summary` and `both` give `conflict`; failed meeting gives `conflict`; `print` throwing gives `ok: false`, no `.part`, no temp HTML; mapping keeps the original text of a corrected word when `showCorrections` is on; gaps become markers; `exportFinished` fires after the response resolves or before, both fine.
+- **Unit** (`export.test.ts`, fake `print`, temp-directory library like `meetings.test.ts`): file lands in `exports` with a DOCX header (`PK`) or the fake PDF bytes; event carries `ok: true` and the base name; hostile title (`../../x`, slashes, empty) stays inside `exports`; two exports of one meeting do not overwrite; missing meeting gives `notFound`; **no transcript file, a transcript with no words, and `recording`/`importing`/`transcriptionFailed` status each give `conflict` and no file or event**; `summary` and `both` give `conflict`; failed meeting gives `conflict`; `print` throwing gives `ok: false`, no `.part`, no temp HTML; mapping keeps the original text of a corrected word when `showCorrections` is on; gaps become markers; `exportFinished` fires after the response resolves or before, both fine.
 - **Unit**: `printWebPreferences()` has the four locked values, no preload, JavaScript off; generated HTML has no remote references.
 - **E2E** (`real-export.spec.ts`, same opt-in env and AMI fixture as `real-import-playback.spec.ts`): import, open Export, choose DOCX then PDF; assert both files exist in the meeting's `exports`, `%PDF-` and `PK` headers, and that Open folder still works. Skipped where the real-mode variables are unset, like the other real specs. If the import fixture makes it too slow for CI, it stays owner-run.
 - The existing `ExportDialog` UI test is unchanged and stays valid (the contract and UI do not change).
@@ -77,7 +80,7 @@ All after-start failures become `exportFinished { ok: false, message }` with pla
 
 ## Size
 
-About 6 to 7 hours: bundling spike 1, handler and mapping 2, PDF window and preferences 1.5, unit tests 1, e2e 1, review fixes 0.5. One PR, backend only.
+About 7 to 8 hours: bundling spike 1, handler and mapping 2, docx worker 1, PDF window and preferences 1.5, unit tests 1, e2e 1, review fixes 0.5. One PR, backend only.
 
 ## Owner decisions needed
 
