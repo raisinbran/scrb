@@ -2,7 +2,7 @@
 # Builds the import decoder: FFmpeg 9.0 with only what the app needs, LGPL
 # (no --enable-gpl, no --enable-nonfree), plus static libopus (BSD).
 # Output: packages/transcription/.bin/ffmpeg and ffprobe (git-ignored).
-# macOS and Linux only; see THIRD_PARTY_NOTICES.md for Windows.
+# macOS and Linux only; see third_party/THIRD_PARTY_NOTICES.md for Windows.
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$here/.work/ffmpeg"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds build/scrb-capture. Needs libopus at the commit pinned in phase0/MANIFEST.md and the CMake
+# Builds build/scrb-capture. Needs libopus at the commit pinned in third_party/MANIFEST.md and the CMake
 # in tools/venv, both from scripts/dev-assets.sh under SCRB_DEV_ASSETS (default ~/scrb-dev-assets).
 # Run from native/macos-capture/. SWIFT_FLAGS=-DFAULT_HOOKS adds the
 # test-only faultStopStream command.
