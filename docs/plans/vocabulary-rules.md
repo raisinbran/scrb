@@ -1,6 +1,9 @@
 # Plan: vocabulary rules and recognition hints
 
 **Task:** ChatGPT work-split #2. **Status:** Approved by owner on 2026-10-31; code not started.
+
+**Hint status (2026-11-12):** the offline final pass and import now pass the hint with `-mc 128` (it was inert at `-mc 0`). Measured on one AMI meeting and one 10-term set, result inconclusive (`docs/gates/vocab-mc-test-results-20261112.md`); Gate 5 is not passed.
+
 **Base:** `raisinbran/scrb` `main` commit `09ab9f52e3202e7c799c1d1cb3e9de26aab16c0a` (2026-10-30).
 **Intended path:** `docs/plans/vocabulary-rules.md`.
 **Scope:** Remembered corrections, editable terms and safe recognition hints. Task #1 owns frozen corrections; tasks #3 and #5 own proposed index/contract changes.
