@@ -11,7 +11,7 @@
 #
 # SCRB_DEV_ASSETS is the destination (default ~/scrb-dev-assets).
 # SCRB_DEV_ASSETS_SEED names an existing folder with the same layout, such as an
-# old phase0/. Files are copied from it instead of downloaded, but are still
+# old phase0/ checkout (archived at tag phase0-archive). Files are copied from it instead of downloaded, but are still
 # hash-checked. Build folders are never copied: their library paths point at the
 # seed, so the build group rebuilds them in place.
 
