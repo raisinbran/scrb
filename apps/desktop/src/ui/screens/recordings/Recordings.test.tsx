@@ -229,6 +229,52 @@ describe('Recordings', () => {
       expect(await button('Pause')).toBeTruthy();
     });
 
+    it('toggles play and pause with Space without scrolling', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const call = vi.spyOn(backend, 'call');
+      expect(fireEvent.keyDown(document.body, { key: ' ' })).toBe(false);
+      expect(call).toHaveBeenCalledWith('seekAudio', expect.anything());
+      fireEvent.click(await button('Pause'));
+      call.mockClear();
+      fireEvent.click(await button('Play'));
+      call.mockClear();
+      expect(fireEvent.keyDown(document.body, { key: ' ' })).toBe(false);
+      expect(call).toHaveBeenCalledWith('pauseAudio', expect.anything());
+    });
+
+    it('leaves Space and arrows to text fields and buttons', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
+      const input = (await screen.findByRole('dialog')).querySelector('input') as HTMLElement;
+      const call = vi.spyOn(backend, 'call');
+      expect(fireEvent.keyDown(input, { key: ' ' })).toBe(true);
+      expect(fireEvent.keyDown(input, { key: 'ArrowRight' })).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      const export_ = screen.getByRole('button', { name: 'Export' });
+      expect(fireEvent.keyDown(export_, { key: ' ' })).toBe(true);
+      expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+    });
+
+    it('skips 15 seconds with the arrow keys, but the tabs keep their arrows', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const time = () => screen.getByRole('group', { name: 'Audio player' }).textContent;
+      fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+      expect(time()).toMatch(/00:15/);
+      fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+      expect(time()).toMatch(/00:00/);
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'Transcript' }), { key: 'ArrowRight' });
+      expect(time()).toMatch(/00:00/);
+      expect(screen.getByRole('tab', { name: 'Summary' }).getAttribute('aria-selected')).toBe(
+        'true',
+      );
+    });
+
     it('renders only part of the 8-hour transcript', async () => {
       renderScreen();
       const started = performance.now();

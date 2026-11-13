@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
@@ -21,14 +21,55 @@ const SKIP_MS = 15_000;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
 
+function movePlayback(playback: Playback, durationMs: number, target: number) {
+  const clamped = Math.min(durationMs, Math.max(0, target));
+  if (playback.isPlaying) playback.play(clamped);
+  else playback.setPosition(clamped);
+}
+
+/** Keys that belong to the focused control, so the player shortcuts must leave them alone. */
+function ownsKeys(target: EventTarget | null, key: string): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target.closest('[role="dialog"], [role="tablist"]')) return true;
+  const tag = target.tagName;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag === 'INPUT') return true;
+  // Space presses a focused button; arrows do not, so they stay usable after a button click.
+  return tag === 'BUTTON' && key === ' ';
+}
+
+/** Space plays or pauses; Left and Right skip by 15 s. */
+function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: boolean) {
+  const latest = useRef({ meeting, playback });
+  useEffect(() => {
+    latest.current = { meeting, playback };
+  });
+  useEffect(() => {
+    if (!enabled || !meeting.hasAudio) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      const { key } = event;
+      if (key !== ' ' && key !== 'ArrowLeft' && key !== 'ArrowRight') return;
+      if (ownsKeys(event.target, key)) return;
+      const { meeting: current, playback: audio } = latest.current;
+      event.preventDefault();
+      if (key === ' ') {
+        if (audio.isPlaying) audio.pause();
+        else audio.play(audio.positionMs);
+      } else {
+        const delta = key === 'ArrowRight' ? SKIP_MS : -SKIP_MS;
+        movePlayback(audio, current.durationMs, audio.positionMs + delta);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enabled, meeting.hasAudio]);
+}
+
 function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Playback }) {
-  const { positionMs, isPlaying, play, pause, setPosition } = playback;
+  const { positionMs, isPlaying, play, pause } = playback;
   const { durationMs } = meeting;
-  const move = (target: number) => {
-    const clamped = Math.min(durationMs, Math.max(0, target));
-    if (isPlaying) play(clamped);
-    else setPosition(clamped);
-  };
+  const move = (target: number) => movePlayback(playback, durationMs, target);
   return (
     <div className={styles.player} role="group" aria-label="Audio player">
       <button
@@ -326,6 +367,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   };
 
   const live = meeting.status === 'recording' || meeting.status === 'paused';
+  usePlayerKeys(meeting, playback, !live && dialog === null);
   const unfinished = isUnfinished(meeting.status);
   const status = STATUS_LABELS[meeting.status];
   const summaryLabel = SUMMARY_STATE_LABELS[meeting.summaryState];
@@ -471,6 +513,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             showPosition={playback.isPlaying || playback.positionMs > 0}
             jump={jump}
             onPlay={playback.play}
+            onPlace={playback.isPlaying ? undefined : playback.setPosition}
           />
         )}
         {tab === 'Summary' && (
