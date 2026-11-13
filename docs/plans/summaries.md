@@ -26,15 +26,15 @@ Memory (owner's Mac: Apple M5, 16 GB; this repo's own measure): the worker comme
 
 Rules that follow from it:
 
-1. The model never runs while a recording is active. "Generate" is disabled during recording, and **starting a recording aborts a running summary** (the user is told, and reruns it). Recording must never wait on AI.
+1. The model never runs while a recording is active, and this is **part of slice 1**, not a later guard. The handler gets the recording controller's state from `backend.ts` (the same state behind `getRecordingSnapshot`) and: refuses to start unless it is `idle`; re-checks after the wait for the gate and before saving; and aborts the run (an `AbortController` passed to `LargeModelGate.run` and the worker, which stops the server) the moment `recordingStateChanged` leaves `idle`. The user sees "Summary stopped because a recording started. Run it again after." (stage `failed`; previous summary untouched). Recording must never wait on AI.
 2. It runs through the existing `LargeModelGate` (one big model at a time, abortable), after the final pass, never beside it. The server starts for the job and stops when it ends (the worker already does this); the gate is released only after the process exits.
 3. Context size stays at the worker default unless slice 1 shows a 16k context (about half the KV memory) gives the same results; then use it.
 
 ## 3. Pipeline in the app (what slice 1 wires)
 
-1. `generateSummary` handler (new, `apps/desktop/src/main`): require a final transcript (meeting not recording or processing); read the **current corrected** transcript (includes corrections, speaker names and typed-note fills); map segments to engine lines `{startSec, speaker, text}`.
+1. `generateSummary` handler (new, `apps/desktop/src/main`): require a final transcript (meeting not recording or processing, and no recording active, section 2); read the **current corrected** transcript (includes corrections, speaker names and typed-note fills) and **remember its `revision`**; map segments to engine lines `{startSec, speaker, text}`.
 2. Run the engine inside the gate: `extractItems` once, then `writeSummary` for **both** lengths. This is one decision to confirm: both lengths cost about 1 extra minute (engine measure under load), and the toggle then never needs a rerun. The request's `length` only chooses which tab opens.
-3. Map with `toGeneratedSummary`, save with `saveGeneratedSummary` (atomic; clears `outdated`; keeps edited items).
+3. Map with `toGeneratedSummary`, save with `saveGeneratedSummary` (atomic; clears `outdated`; keeps edited items). **Stale guard (verified gap):** today `saveGeneratedSummary` stamps `transcriptRevision` from the transcript as read *at save time* and sets `outdated: false`, and an edit made during a first generation flags nothing because no `summary.json` exists yet. So a summary of old text could be saved as current. Fix in `packages/storage` (no contract change): the call takes the revision read in step 1 and, under the same meeting lock, compares it with the current one. If they differ the summary is **not saved**; the run ends `failed` with "The transcript changed while the summary ran. Run it again." and any earlier summary stays (and stays flagged outdated). Any revision change counts, including a final-pass relink, because the text the summary read is no longer the text shown. Tested with a transcript edit between read and save, for a first summary and a regeneration.
 4. Emit `summaryProgress` (extracting, coverageCheck, writing, done/failed). `fraction` comes from sections done over sections total, which the engine's stats already count.
 5. Meeting list and `meetingChanged` read the real `summaryState` from `summary.json` (replace the hard-coded value).
 
@@ -47,14 +47,18 @@ Rules that follow from it:
 Each item carries the line it was read from. `sourceMs` is that line's start in the same clock as the transcript and playback, and `alsoAtMs` holds merged duplicates. The Summary tab's `TimeLink` seeks playback and scrolls the transcript. Two checks keep the "100% valid links" target:
 
 - The engine already drops an item whose cited line does not exist or lacks supporting words, and flags repaired timestamps.
-- Slice 1 adds one app-side test and runtime guard: every `sourceMs` falls inside the meeting duration and on a transcript segment; otherwise the item is kept but flagged `needsReview` (never a dead link).
+- Slice 1 adds an app-side guard before saving (mapping step, `app-core`), so **no saved link is ever dead**: every `sourceMs` and every `alsoAtMs` entry must fall inside a transcript segment of the meeting. One that lies inside the meeting but between segments is remapped to the nearest segment start within a few seconds and the item gets `needsReview`. Otherwise an `alsoAtMs` entry is removed, and an item whose own `sourceMs` is invalid is **dropped**, with a warning in `warnings` ("N items were left out because their place in the recording could not be found"). Open questions with a null `sourceMs` are allowed. User-added items go through the same check in `applySummaryUpdate`, which rejects an out-of-range time. Tests with invented transcripts for each case.
 
 ## 5. Edits survive regeneration
 
 Already: `edited: true` items and sections are kept by `mergeRegeneratedSummary`; `outdated` is set by transcript or speaker edits and shown as "May be outdated, regenerate?". Verified gaps, all inside `packages/storage` (no contract change):
 
-1. **Duplicates.** `keepEdited` keeps an edited item and drops a fresh one only when both id and `sourceMs` match; the engine numbers ids per run and rewords, so a regenerated twin of an edited item usually appears beside it. Fix: match a fresh item to an edited one when `sourceMs` (or any `alsoAtMs`) is within a small window and the text is similar; the edited one wins. Tests with invented items.
-2. **Deleted items return.** An item the user removed comes back on regeneration. Fix: keep a small `dismissed` list (kind, `sourceMs`, text hash) in `summary.json` (schema v4 with an upgrade from v3) and filter fresh items against it. V1-only.
+Both fixes below use one rule, **matching by evidence, not by wording**: two items are "the same" when they are the same kind and cite the same transcript segment (the segment containing `sourceMs`, or one containing any `alsoAtMs`). Wording is never compared, so a paraphrase still matches. If several same-kind items cite one segment, the pairing goes to the one sharing the most words, and the rest are left alone, so two real actions from one sentence are not collapsed.
+
+1. **Duplicates.** `keepEdited` keeps an edited item and drops a fresh one only when both id and `sourceMs` match; the engine numbers ids per run and rewords, so a regenerated twin of an edited item usually appears beside it. Fix: a fresh item that matches an edited one by evidence is dropped; the edited one wins.
+2. **Deleted items return.** An item the user removed comes back on regeneration. Fix: when the user removes an item, store a small `dismissed` entry in `summary.json` (kind, the cited segment's time range, any merged `alsoAtMs` segments; **no text hash**), schema v4 with an upgrade from v3. Fresh items matching a dismissed entry by evidence are filtered out. If the transcript is re-run and the segment no longer exists, the entry no longer matches and the item may reappear, which is acceptable and shown as a normal new item. V1-only.
+
+Tests (invented items): a reworded regenerated twin of an edited item (no duplicate); a reworded regenerated twin of a deleted item (stays gone); two different actions from one segment with one deleted (the other stays); a dismissed segment that no longer exists.
 3. **Hand-added items** (`kind: 'add'`) are created `edited: true` today, so they are already kept.
 4. Narrative: an edited section is kept only if its slot has the same id and heading; otherwise it is appended after the new text, so nothing the user wrote is lost. The UI should say "Your edited text is kept" (UI note, no contract change).
 
@@ -81,7 +85,7 @@ Needed: **`cancelSummary: { request: { meetingId }; response: void }`**, a call,
 ## 9. Tests (invented data or AMI only)
 
 - Engine: existing suite (fake server and recording) stays; add no new model run in `npm run check`.
-- App wiring: handler tests against the fake llama-server (success, bad output, server down, abort, recording starts mid-run, final pass not done, gate shared with a final-pass job), plus `summaryState` in list and `meetingChanged`.
+- App wiring: handler tests against the fake llama-server (success, bad output, server down, abort, recording active at start, recording starts while waiting for the gate and mid-run, final pass not done, gate shared with a final-pass job), transcript edited between read and save (not saved, earlier summary kept), invalid `sourceMs`/`alsoAtMs` (remapped or dropped), plus `summaryState` in list and `meetingChanged`.
 - Storage: merge tests for sections 5.1 and 5.2, v3 to v4 upgrade.
 - Link validity: transcript segments map to `sourceMs` within bounds.
 - Real-model checks (not CI): run `eval/run-batch.sh` on AMI fixtures only, one 60-minute-class AMI meeting for time and peak memory. **Any run expected to exceed 20 minutes needs owner approval first**, and the owner's real recordings are never read.
@@ -95,9 +99,9 @@ An accepted typed fill is an ordinary `applyCorrection`, so it flags the summary
 
 | # | Slice | Side | Size | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | **Real `generateSummary` on the dev build**: handler through `LargeModelGate`, config keys, mapping, progress, failure, real `summaryState`, quit cleanup; measure time and peak memory on one AMI meeting | Backend (`main`, `app-core`) | about 8-12 h | **First slice.** No contract change. Needs only the dev-assets files. M1-optional if the owner wants it early. |
-| 2 | Regeneration safety: merge matching, `dismissed`, v4 upgrade, tests | Backend (`storage`) | about 4-6 h | Independent of slice 1 files. |
-| 3 | Link guard, offline/loopback test, recording-aborts-summary rule, "May be outdated" end-to-end test on a real meeting | Backend (+ tiny UI text) | about 3-4 h | After 1. |
+| 1 | **Real `generateSummary` on the dev build**: handler through `LargeModelGate`, config keys, mapping, progress, failure, real `summaryState`, quit cleanup; **plus the safety rules that make it safe to turn on**: recording checks and abort (section 2), the stale-transcript guard (section 3 step 3, small `storage` change) and the link guard (section 4); measure time and peak memory on one AMI meeting | Backend (`main`, `app-core`, small `storage`) | about 12-16 h | **First slice.** No contract change. Needs only the dev-assets files. M1-optional if the owner wants it early. Generation is not enabled for anyone before all of these are in. |
+| 2 | Regeneration safety: evidence matching, `dismissed`, v4 upgrade, tests | Backend (`storage`) | about 4-6 h | Independent of slice 1 files (slice 1's storage change is only the save-time revision check). |
+| 3 | Offline/loopback test, "May be outdated" end-to-end test on a real meeting | Backend (+ tiny UI text) | about 2-3 h | After 1. |
 | 4 | `cancelSummary` (contract, handler, button) | Contract + both | about 3 h | Only after owner approval. |
 | 5 | Optional summary model in setup status and the real download, shipped llama.cpp | Backend | with packaged-app work | V1-only. |
 | 6 | Quality work toward Gate 6 (precision, cross-section check, model comparison) | Backend | open | Only if the measured Gate 6 run misses the target. |
@@ -117,4 +121,4 @@ Estimates are rough; the owner's Mac has not run the full pipeline yet.
 
 ## Independent review
 
-Pending (ChatGPT). Not approved. Do not start slice 1 until approved.
+Round 1 (ChatGPT) rejected the first draft with four blockers: dead links kept with a flag, recording abort deferred, stale summary saved as current, text-hash tombstones. All four are revised (sections 2, 3, 4, 5, slice table). Round 2 pending. Not approved; do not start slice 1 until approved.
