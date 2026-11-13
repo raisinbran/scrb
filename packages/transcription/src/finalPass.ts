@@ -269,13 +269,26 @@ export function dropRoomEcho<W extends { text: string; startMs: number }>(
 ): W[] {
   const heard = [...meeting].sort((a, b) => a.startMs - b.startMs);
   const own = [...mic].sort((a, b) => a.startMs - b.startMs);
-  const heardAfter = (w: W, after: number): number =>
-    heard.findIndex(
-      (m, k) =>
-        k > after &&
-        bare(m.text) === bare(w.text) &&
-        Math.abs(m.startMs - w.startMs) <= ECHO_WINDOW_MS,
-    );
+  const heardText = heard.map((m) => bare(m.text));
+  // First meeting word that starts inside the window; only the window is scanned after it.
+  const firstInWindow = (from: number): number => {
+    let lo = 0;
+    let hi = heard.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (heard[mid]!.startMs < from) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  const heardAfter = (w: W, after: number): number => {
+    const text = bare(w.text);
+    const k0 = Math.max(after + 1, firstInWindow(w.startMs - ECHO_WINDOW_MS));
+    for (let k = k0; k < heard.length && heard[k]!.startMs <= w.startMs + ECHO_WINDOW_MS; k++) {
+      if (heardText[k] === text) return k;
+    }
+    return -1;
+  };
   const echo = new Set<W>();
   let run: W[] = [];
   let last = -1;
