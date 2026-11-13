@@ -97,7 +97,10 @@ describe('Recordings', () => {
       renderScreen();
       await screen.findByText('Processing final transcript');
       backend.finishFinalPass();
-      await waitFor(() => expect(screen.queryByText('Processing final transcript')).toBeNull(), SLOW);
+      await waitFor(
+        () => expect(screen.queryByText('Processing final transcript')).toBeNull(),
+        SLOW,
+      );
     });
   });
 
@@ -107,7 +110,7 @@ describe('Recordings', () => {
       await openMeeting(/Budget review/);
       expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
       expect(screen.getByLabelText('Final transcript processing')).toBeTruthy();
-      expect(screen.getByText(/since recording stopped/)).toBeTruthy();
+      expect(screen.getByText(/Time since you opened this view/)).toBeTruthy();
       backend.finishFinalPass();
       await waitFor(
         () => expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull(),

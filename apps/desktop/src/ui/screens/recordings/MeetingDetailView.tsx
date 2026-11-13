@@ -507,7 +507,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             {retryError && <p role="alert">{retryError}</p>}
           </div>
         )}
-        {meeting.status === 'finalPassRunning' && <ProcessingBanner meeting={meeting} />}
+        {meeting.status === 'finalPassRunning' && <ProcessingBanner />}
         {live && (
           <p role="status" className={styles.bannerInfo}>
             This meeting is still recording. Controls are on the Live screen.
