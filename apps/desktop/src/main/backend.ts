@@ -23,6 +23,7 @@ import { ImportCoordinator } from './imports.ts';
 import { createExportHandlers } from './export.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
+import { createSetupStatusHandler } from './setup-status.ts';
 
 export interface OpenedBackend {
   handlers: CallHandlers;
@@ -171,6 +172,7 @@ export async function openBackend(
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
+        getSetupStatus: createSetupStatusHandler(settings.getSettings),
         ...playback.wrap(
           createMeetingHandlers(library, emit, (folder) => shell.openPath(folder), finalPasses),
         ),
