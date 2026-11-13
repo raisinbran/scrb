@@ -26,3 +26,14 @@ This session had no meeting-track (audio tap) permission (`permissionLost: meeti
 ## Recommendation
 
 **Do not ship yet; keep the spike code opt-in.** The format and timing preconditions look met, but the three acceptance blockers (zero ducking, meeting-track health, voice fidelity) need a run on the owner's Mac with tap permission and speaker volume up (about 10 minutes, invented/AMI audio only, per the plan's test section; `native/macos-capture/scripts/echo_spike.mjs` drives the helper). If any fails, drop A and do option C. Keep `dropRoomEcho` either way.
+
+## Follow-up 2026-11-13: why the rest needs the owner's Mac
+
+Re-checked after the merge of #154: this session's helper reports `systemAudio: denied` (no meeting-audio tap permission) and the Mac's output is muted at volume 0. Granting the permission and unmuting are the owner's settings, so none of the echo, ducking, meeting-track or fidelity numbers could be taken. The same plan checks, as a ready run (about 10 minutes, invented or AMI audio only, nothing committed):
+
+1. In System Settings > Privacy & Security > Screen & System Audio Recording, allow the app you run the commands from (Terminal). Set output volume to a fixed, normal level (say 50%) on the built-in speakers, quiet room, no headset.
+2. In Terminal, folder `native/macos-capture`, no admin: `export PATH=$HOME/.local/share/scrb-node/current/bin:$PATH; bash build.sh`
+3. Run each mode (`off`, `on`) with the same AMI clip (`CLIP`, a wav or mp3 you chose, 60 s or less) playing at the same volume:
+   `(sleep 1; afplay CLIP) & node scripts/echo_spike.mjs build/scrb-capture /tmp/echo/off off 60` then the same with `on` and `/tmp/echo/on`.
+4. Compare, per mode: `for t in microphone meeting; do cat /tmp/echo/MODE/audio/$t/*.opus | ffmpeg -i - -af volumedetect -f null - 2>&1 | grep -E 'mean_volume|max_volume'; done`. Pass: mic mean level with `on` at least 10 dB lower than `off` (echo reduction) and meeting-track mean/max level unchanged within 0.5 dB (no ducking or tap disturbance). Also confirm in the script output there is no `permissionLost`, and that `chunks.log` of `meeting` has the same `rate` and no gaps in both modes.
+5. Fidelity: speak a fixed invented sentence at the mic while the clip plays, in each mode; transcribe both mic tracks and compare word recall (accuracy may not fall by more than 3 points).
