@@ -405,6 +405,20 @@ describe('sealAudio', () => {
       endNs: start,
     });
 
+    it('still leaves a first chunk at 1.99 s unmarked', async () => {
+      put('microphone', '000000.opus', chunk(0, 1.99 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([]);
+    });
+
+    it('marks a first chunk past 2 s, the line between start-up and failure', async () => {
+      put('microphone', '000000.opus', chunk(0, 2 * SECOND, 2, 'start'));
+      events([{ event: 'open', seq: 1 }]);
+      const { gaps } = await sealAudio(audio, dead);
+      expect(gaps).toEqual([late(2 * SECOND)]);
+    });
+
     it('is marked with no restart', async () => {
       put('microphone', '000000.opus', chunk(0, 4.6 * SECOND, 2, 'device'));
       events([{ event: 'open', seq: 1 }]);
@@ -412,8 +426,8 @@ describe('sealAudio', () => {
       expect(gaps).toEqual([late(4.6 * SECOND)]);
     });
 
-    it('leaves a normal start unmarked, up to 99 ms', async () => {
-      put('microphone', '000000.opus', chunk(0, 0.099 * SECOND, 2, 'start'));
+    it('leaves a normal start unmarked, including 1 s of capture start-up', async () => {
+      put('microphone', '000000.opus', chunk(0, 1 * SECOND, 2, 'start'));
       events([{ event: 'open', seq: 1 }]);
       const { gaps } = await sealAudio(audio, dead);
       expect(gaps).toEqual([]);

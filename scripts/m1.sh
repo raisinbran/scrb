@@ -53,6 +53,17 @@ if ((${#missing[@]} > 0)); then
   exit 1
 fi
 
+# The app allows one running copy. A second launch hands over to the old one and quits, so a
+# copy left running from before a pull would silently show old code. Refuse instead.
+# Matches the dev app's main process (not helpers) and an installed Meeting Scribe.
+running="$(ps -axo pid=,command= 2>/dev/null | grep -E '/node_modules/electron/dist/Electron\.app/Contents/MacOS/Electron( |$)|/Meeting Scribe\.app/Contents/MacOS/' | grep -v grep || true)"
+if [[ -n "$running" ]]; then
+  echo "Meeting Scribe is already running, so a new start would just reopen the old copy." >&2
+  echo "Quit it first: click the Meeting Scribe window, press Cmd+Q, then run this again." >&2
+  echo "If it will not quit, run: pkill -f 'node_modules/electron/dist/Electron.app'" >&2
+  exit 1
+fi
+
 export SCRB_CAPTURE_HELPER="$helper"
 export SCRB_LIVE_CONFIG="$live"
 export SCRB_FINAL_PASS_CONFIG="$final"
