@@ -1,4 +1,4 @@
-# Meeting Scribe: instructions for coding agents
+# Scribe (repo scrb): instructions for coding agents
 
 **Ownership rule:** UI code lives in `apps/desktop/src/ui/`, backend code lives everywhere else, and `packages/contracts/` changes only with the owner's approval.
 

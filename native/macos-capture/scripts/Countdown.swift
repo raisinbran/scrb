@@ -8,7 +8,7 @@ app.setActivationPolicy(.accessory)
 
 let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 430),
                     styleMask: [.titled, .nonactivatingPanel, .utilityWindow], backing: .buffered, defer: false)
-panel.title = "Meeting Scribe test"
+panel.title = "Scribe test"
 panel.level = .screenSaver
 panel.isFloatingPanel = true
 panel.hidesOnDeactivate = false

@@ -2,6 +2,8 @@
 
 **Status:** plan only, 2026-11-13. Owner approval needed first (it touches launch security and where helpers run). **Independent review: pending.** Nothing was built or run; facts below come from reading the code and the owner's dev-assets folder. No recordings were read.
 
+> **Implemented 2026-11-13 (owner decisions applied):** the app is named **Scribe** (`com.raisinbran.scribe`), ad-hoc signed, plain `.app`, no DMG. Models are copied once to `~/Library/Application Support/Scribe/models/` by `scripts/package-mac.sh --install-models`; `userData` stays pinned to `~/Library/Application Support/@scrb/desktop` (saved library location and settings are unchanged; the default library folder is still `~/Documents/Meeting Scribe`). Build and install: `scripts/package-mac.sh [--install]`. Where this note and the text below differ, this note wins.
+
 **Goal:** `Meeting Scribe.app` in `/Applications`, started by double-click, recording, live text and final pass working like `scripts/m1.sh` does today. Personal use, Apple Silicon Mac, no installer for anyone else. Windows is out of scope here.
 
 ## 1. What the repo does today
