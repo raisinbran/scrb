@@ -124,8 +124,26 @@ export const MINI_WINDOW_OPTIONS = {
   alwaysOnTop: true,
   resizable: false,
   minimizable: true,
+  // Only the app closes it (when the recording ends or the app quits); see `createCloseGate`.
+  closable: false,
   maximizable: false,
   fullscreenable: false,
   autoHideMenuBar: true,
   show: false,
 } as const;
+
+/**
+ * The mini window cannot be closed by the user: the OS close control is off, and any close that
+ * still arrives (Cmd+W, a menu, the keyboard) is cancelled unless the app opened the gate first
+ * (the recording ended, the main window went away, or the app is quitting).
+ */
+export function createCloseGate() {
+  let open = false;
+  return {
+    allow(): void {
+      open = true;
+    },
+    /** True when a close event must be cancelled. */
+    blocks: (): boolean => !open,
+  };
+}
