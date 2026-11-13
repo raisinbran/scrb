@@ -1063,3 +1063,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Writing the UI before the layout and per-row cases were thought through.
 - **Impact:** Two extra check runs; no user-visible defect shipped.
 - **Correction / remaining risk:** Fixed with tests (one rename form per row, `flex-wrap` on the tab bar, typed result). The edit UI was not looked at in the real app, only in jsdom and the headless smoke run. Low to medium.
+
+### A-324 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — owner-found defects in my merged Recordings UI (#141, #145)
+- **Status / attribution:** Confirmed agent errors, found by the owner's first run of the merged build; not application defects.
+- **What failed:** (1) A word click highlighted nothing, or the wrong word, when speakers overlap, because the active row was "last row that started before now" and a clicked word in a longer turn lost to a short later turn; while audio played a word click did nothing at all. (2) I excluded focused buttons from the Space shortcut, so after clicking a timestamp button Space replayed from it instead of pausing. (3) The edit hint had no content-column padding. (4) My first tests used one-speaker fixtures and `fireEvent.click` without focus, so none of these showed.
+- **Agent-controlled cause:** Designing the key and click rules from the brief's wording without trying overlapping turns, focus after a click, or the real column layout.
+- **Impact:** The owner hit four problems in the first real use of the merged build.
+- **Correction / remaining risk:** Fixed with regression tests for each (overlapping turns, focused-button Space and arrows, click while playing, tab-press back navigation). Still not checked by eye in the real app. Medium.

@@ -145,6 +145,19 @@ describe('screens working together on the mock', () => {
     expect(screen.getAllByText('Renamed Person').length).toBeGreaterThan(0);
   });
 
+  it('returns to the Recordings list when the Recordings tab is pressed again', async () => {
+    await renderApp();
+    await openMeeting(/Weekly project sync/);
+    await advance(0);
+    expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
+    await goTo('Recordings');
+    expect(screen.queryByRole('tab', { name: 'Transcript' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Weekly project sync/ })).toBeTruthy();
+    // On the list already, pressing it again changes nothing.
+    await goTo('Recordings');
+    expect(screen.getByRole('button', { name: /Weekly project sync/ })).toBeTruthy();
+  });
+
   it('stops a Recordings import when Live starts recording', async () => {
     await renderApp();
     await goTo('Recordings');
