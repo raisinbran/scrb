@@ -971,3 +971,10 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** A blanket regex rewrite without checking each match's meaning, an exclusion I did not recheck, and a count written from memory.
 - **Impact:** One review round on #122; no code behavior affected (the Mac check and the W10 crash case both passed).
 - **Correction / remaining risk:** All four fixed on the branch; remaining `phase0/` references are historical docs scheduled for step 4. Low.
+
+### A-312 — 2026-11-12 — Claude Code (Opus 5.5) / Mac desktop — Windows prompt omitted a required script argument
+- **Status / attribution:** Confirmed agent error, self-reported; not an application defect.
+- **What failed:** The PR #122 Windows prompt told Codex to run `node native\windows-capture\scripts\crash_case.mjs` with no arguments. The script requires a work-directory argument and exited with a `TypeError` at line 18.
+- **Agent-controlled cause:** I wrote the command without reading the script's argument handling.
+- **Impact:** One failed run and one rerun on BCHEN-W10 (about a minute); no results affected.
+- **Correction / remaining risk:** Codex reran with a fresh temporary directory and the case passed. Rule: read a script's argument handling before putting its command in a prompt. Low.
