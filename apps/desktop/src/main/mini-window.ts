@@ -57,3 +57,8 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
     },
   };
 }
+
+/** The app's own windows, without the mini one, which must never stand in for the main window. */
+export function withoutMini<T>(windows: T[], mini: T | null): T[] {
+  return windows.filter((window) => window !== mini);
+}

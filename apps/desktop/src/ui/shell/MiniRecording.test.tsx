@@ -1,5 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Backend,
   EventName,
@@ -85,6 +85,38 @@ describe('MiniRecording', () => {
     );
     expect(screen.getByText(/Recording/)).toBeTruthy();
     expect(screen.getByText('Microphone changed')).toBeTruthy();
+  });
+
+  it('counts on only from the resume, not through a long pause', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = fakeBackend();
+      show(fake);
+      await act(async () =>
+        fake.snapshot({
+          state: recording('recording', 10_000),
+          pauseSpans: [],
+          health: null,
+          transcription: null,
+        }),
+      );
+      act(() => {
+        fake.emit('recordingStateChanged', recording('paused', 10_000));
+      });
+      act(() => {
+        vi.advanceTimersByTime(10 * 60_000);
+      });
+      expect(screen.getByText('00:10')).toBeTruthy();
+      act(() => {
+        fake.emit('recordingStateChanged', recording('recording', 10_000));
+      });
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      expect(screen.getByText('00:11')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows no transcript text', async () => {

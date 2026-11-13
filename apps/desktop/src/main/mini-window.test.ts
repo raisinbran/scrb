@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMiniController, shouldShowMini } from './mini-window.ts';
+import { createMiniController, shouldShowMini, withoutMini } from './mini-window.ts';
 
 describe('shouldShowMini', () => {
   it.each([
@@ -79,5 +79,15 @@ describe('createMiniController', () => {
     expect(closes[0]).toHaveBeenCalledTimes(1);
     controller.setStatus('paused');
     expect(closes).toHaveLength(1);
+  });
+});
+
+describe('withoutMini', () => {
+  it('leaves no main window when only the mini one is open, so the dock can recreate it', () => {
+    const mini = { id: 'mini' };
+    expect(withoutMini([mini], mini)).toEqual([]);
+    const main = { id: 'main' };
+    expect(withoutMini([mini, main], mini)).toEqual([main]);
+    expect(withoutMini([main], null)).toEqual([main]);
   });
 });

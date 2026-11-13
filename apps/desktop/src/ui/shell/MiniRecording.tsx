@@ -5,11 +5,8 @@ import styles from './MiniRecording.module.css';
 
 /** The small window shown over other apps: status and time only, never transcript text. */
 export function MiniRecording() {
-  const { recording, health, lag } = useRecordingStatus();
+  const { recording, recordingAt, health, lag } = useRecordingStatus();
   const [now, setNow] = useState(() => Date.now());
-  // Elapsed time counts on from the clock reading when the state last changed.
-  const [basis, setBasis] = useState({ state: recording, at: now });
-  if (basis.state !== recording) setBasis({ state: recording, at: now });
   useEffect(() => {
     if (recording.status !== 'recording') return undefined;
     const timer = setInterval(() => setNow(Date.now()), 500);
@@ -25,7 +22,7 @@ export function MiniRecording() {
     );
   }
   const elapsed =
-    recording.elapsedMs + (recording.status === 'recording' ? Math.max(0, now - basis.at) : 0);
+    recording.elapsedMs + (recording.status === 'recording' ? Math.max(0, now - recordingAt) : 0);
   const warning =
     health && health.level !== 'ok'
       ? (health.warnings[0]?.message ?? 'Recording needs attention')

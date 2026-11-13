@@ -3,7 +3,7 @@ import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
-import { createMiniController } from './mini-window.ts';
+import { createMiniController, withoutMini } from './mini-window.ts';
 import { closeBeforeQuit } from './quit.ts';
 import {
   APP_ORIGIN,
@@ -56,12 +56,15 @@ function openMiniWindow(onClosedByUser: () => void): { close(): void } {
 
 const mini = createMiniController(openMiniWindow);
 
-/** Any app window other than the mini one that is visible and has the keyboard. */
+function mainWindows(): BrowserWindow[] {
+  return withoutMini(BrowserWindow.getAllWindows(), miniWindow);
+}
+
+/** Any main window that is visible and has the keyboard. */
 function refreshMainInFront(): void {
   mini.setMainInFront(
-    BrowserWindow.getAllWindows().some(
-      (window) =>
-        window !== miniWindow && window.isVisible() && !window.isMinimized() && window.isFocused(),
+    mainWindows().some(
+      (window) => window.isVisible() && !window.isMinimized() && window.isFocused(),
     ),
   );
 }
@@ -147,7 +150,7 @@ registerAppScheme();
 if (!app.requestSingleInstanceLock()) app.quit();
 
 app.on('second-instance', () => {
-  const [window] = BrowserWindow.getAllWindows();
+  const [window] = mainWindows();
   if (window?.isMinimized()) window.restore();
   window?.focus();
 });
@@ -168,7 +171,8 @@ void app.whenReady().then(async () => {
   closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning, backend.recovery, stopPlayback);
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    // The mini window does not count: with only it open, the dock must bring the app back.
+    if (mainWindows().length === 0) {
       createMainWindow(backend.warning, backend.recovery, stopPlayback);
     }
   });
