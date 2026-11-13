@@ -382,6 +382,24 @@ describe('Recordings', () => {
         expect(call).not.toHaveBeenCalledWith('renameSpeaker', expect.anything());
       });
 
+      it('ends a rename when its row scrolls out of the rendered range, and the keys work again', async () => {
+        renderScreen();
+        await openMeeting(/Depot rollout/);
+        await firstWord();
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /^Rename speaker/ })[0] as HTMLElement,
+        );
+        await screen.findByRole('form', { name: 'Rename speaker' });
+        const region = screen.getByRole('region', { name: 'Transcript' });
+        region.scrollTop = 200_000;
+        fireEvent.scroll(region);
+        await waitFor(() =>
+          expect(screen.queryByRole('form', { name: 'Rename speaker' })).toBeNull(),
+        );
+        fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+        expect(screen.getByRole('group', { name: 'Audio player' }).textContent).toMatch(/00:15/);
+      });
+
       it('keeps Undo per meeting when switching between meetings', async () => {
         renderScreen();
         await openMeeting(/Weekly project sync/);

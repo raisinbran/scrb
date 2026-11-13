@@ -377,9 +377,25 @@ export function TranscriptTab(props: TranscriptTabProps) {
     scroller.current.scrollTop = offsets[rowIndexAt(rows, jump.ms)] ?? 0;
   }, [jump, lastStart, loading, offsets, rows]);
 
+  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
+  const contentHeight = (offsets[rows.length] as number) + unloaded;
+  const first = firstRowAt(offsets, scrollTop - OVERSCAN_PX);
+  let end = first;
+  while (end < rows.length && (offsets[end] as number) < scrollTop + viewportPx + OVERSCAN_PX) {
+    end += 1;
+  }
   const [editWord, setEditWord] = useState<{ id: string; text: string } | null>(null);
   const [renaming, setRenaming] = useState<{ speakerId: string; rowKey: string } | null>(null);
   const renamingId = renaming?.speakerId ?? null;
+  // The rename form lives in its row; when that row is scrolled out of the rendered range the
+  // form is gone, so the rename ends instead of silently keeping the playback keys off.
+  const renamingRowKey = renaming?.rowKey;
+  const renamingRendered =
+    renamingRowKey === undefined ||
+    rows.slice(first, end).some((row) => row.key === renamingRowKey);
+  useEffect(() => {
+    if (!renamingRendered) setRenaming(null);
+  }, [renamingRendered]);
   const editorOpen = editWord !== null || renamingId !== null;
   useEffect(() => {
     onEditorOpenChange?.(editorOpen);
@@ -419,13 +435,6 @@ export function TranscriptTab(props: TranscriptTabProps) {
     return <p className={styles.muted}>There is no transcript text yet.</p>;
   }
 
-  const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
-  const contentHeight = (offsets[rows.length] as number) + unloaded;
-  const first = firstRowAt(offsets, scrollTop - OVERSCAN_PX);
-  let end = first;
-  while (end < rows.length && (offsets[end] as number) < scrollTop + viewportPx + OVERSCAN_PX) {
-    end += 1;
-  }
   const activeIndex = showPosition ? rowIndexAt(rows, positionMs) : -1;
 
   return (
