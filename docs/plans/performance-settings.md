@@ -51,7 +51,7 @@ Order of precedence, highest first: (1) a deliberate developer override: the env
 
 ### 2.2 Recommendation without a benchmark (step 1)
 
-A fixed rule, no timing: under 8 GB RAM or fewer than 4 cores → Fast. 8 to 15 GB → Balanced. 16 GB or more with 8 or more cores → Balanced (Best quality is never the default, because it is the heaviest and the gain is unmeasured). The recommended option is marked "(Recommended for this PC)". New installs start on it. Existing saved choices are never changed.
+A fixed rule, no timing: under 8 GB RAM or fewer than 4 cores → Fast. 8 to 15 GB → Balanced. 16 GB or more with any 4 or more cores → Balanced (Best quality is never the default, because it is the heaviest and the gain is unmeasured). The recommended option is marked "(Recommended for this PC)". New installs start on it. Existing saved choices are never changed.
 
 ### 2.3 Short benchmark (step 2)
 
