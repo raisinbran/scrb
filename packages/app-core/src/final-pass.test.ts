@@ -22,6 +22,8 @@ import {
   sealedTracks,
   toModelReplacement,
   WORKER_FAILED_MESSAGE,
+  overallProgress,
+  type FinalPassReport,
   type RunFinalPass,
 } from './final-pass.ts';
 
@@ -153,6 +155,94 @@ describe('final pass after Stop', () => {
     expect((await library.getMeeting(id)).status).toBe('ready');
     expect((await library.readTranscript(id)).segments).toHaveLength(2);
     expect(workDir.startsWith(library.meetingPaths(id).folder)).toBe(false);
+  });
+
+  it('reports monotonic real progress and ends with finishing at 1', async () => {
+    const { id } = await sealedMeeting();
+    const reports: FinalPassReport[] = [];
+    const queue = new FinalPassQueue(
+      library,
+      async ({ onProgress }) => {
+        onProgress?.({ phase: 'assembling', fraction: 0.5 });
+        onProgress?.({ phase: 'transcribing', fraction: 0.5 });
+        onProgress?.({ phase: 'transcribing', fraction: 0.3 });
+        onProgress?.({ phase: 'diarizing', fraction: 1 });
+        onProgress?.({ phase: 'done', fraction: 1 });
+        return TRANSCRIPT;
+      },
+      undefined,
+      undefined,
+      undefined,
+      (report) => reports.push(report),
+    );
+    queue.enqueue(id);
+    await queue.idle();
+    const fractions = reports.map((r) => r.fraction);
+    expect(fractions).toEqual([...fractions].sort((a, b) => a - b));
+    expect(reports[0]).toMatchObject({ meetingId: id, stage: 'queued', fraction: 0 });
+    expect(reports.at(-1)).toMatchObject({ stage: 'finishing', fraction: 1 });
+    expect(reports.map((r) => r.stage)).toContain('diarizing');
+    expect(new Set(reports.map((r) => r.startedAt)).size).toBe(1);
+  });
+
+  it('stops reporting when the pass fails', async () => {
+    const { id } = await sealedMeeting();
+    const reports: FinalPassReport[] = [];
+    const queue = new FinalPassQueue(
+      library,
+      async ({ onProgress }) => {
+        onProgress?.({ phase: 'transcribing', fraction: 0.5 });
+        throw new Error('boom');
+      },
+      undefined,
+      undefined,
+      undefined,
+      (report) => reports.push(report),
+    );
+    queue.enqueue(id);
+    await queue.idle();
+    expect(reports.map((r) => r.stage)).toEqual(['queued', 'transcribing']);
+    expect((await library.getMeeting(id)).status).toBe('transcriptionFailed');
+  });
+
+  it('stops reporting when the pass is cancelled', async () => {
+    const { id } = await sealedMeeting();
+    const reports: FinalPassReport[] = [];
+    let late: (() => void) | undefined;
+    const queue = new FinalPassQueue(
+      library,
+      ({ signal, onProgress }) =>
+        new Promise((_, reject) => {
+          onProgress?.({ phase: 'transcribing', fraction: 0.2 });
+          late = () => onProgress?.({ phase: 'transcribing', fraction: 0.9 });
+          signal.addEventListener('abort', () => reject(new Error('stopped')));
+        }),
+      undefined,
+      undefined,
+      undefined,
+      (report) => reports.push(report),
+    );
+    queue.enqueue(id);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await queue.shutdown();
+    late?.();
+    expect(reports.map((r) => r.stage)).toEqual(['queued', 'transcribing']);
+    expect(reports.at(-1)!.fraction).toBeLessThan(0.9);
+  });
+
+  it('maps every phase inside 0..1 and in order', () => {
+    const points = [
+      overallProgress('assembling', 0),
+      overallProgress('transcribing', 0),
+      overallProgress('transcribing', 1),
+      overallProgress('diarizing', 0),
+      overallProgress('diarizing', 1),
+      overallProgress('done', 1),
+    ].map((p) => p.fraction);
+    expect(points).toEqual([...points].sort((a, b) => a - b));
+    expect(points[0]).toBe(0);
+    expect(points.at(-1)!).toBeLessThan(1);
+    expect(overallProgress('transcribing', Number.NaN).fraction).toBe(0.05);
   });
 
   it('runs meetings one at a time', async () => {

@@ -372,6 +372,19 @@ export class MockBackend implements Backend {
     this.updatedModels.clear();
   }
 
+  private finalPassStarts = new Map<string, string>();
+
+  private emitFinalPassProgress(
+    meetingId: string,
+    stage: 'queued' | 'transcribing' | 'diarizing' | 'finishing',
+    fraction: number,
+  ): void {
+    const startedAt = this.finalPassStarts.get(meetingId) ?? new Date().toISOString();
+    this.finalPassStarts.set(meetingId, startedAt);
+    this.emit('finalPassProgress', { meetingId, stage, fraction, startedAt });
+    if (stage === 'finishing' && fraction === 1) this.finalPassStarts.delete(meetingId);
+  }
+
   /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
   finishFinalPass(): void {
     for (const meeting of this.library) {
@@ -380,6 +393,7 @@ export class MockBackend implements Backend {
       if (segments) this.transcripts.set(meeting.id, segments.map(finalized));
       this.rewriteHistory(meeting.id, finalized);
       this.updateMeetingStatus(meeting.id, { status: 'ready', transcriptionFailure: null });
+      this.emitFinalPassProgress(meeting.id, 'finishing', 1);
       this.emit('meetingChanged', toListItem(this.findMeeting(meeting.id)));
     }
   }
@@ -937,6 +951,7 @@ export class MockBackend implements Backend {
           status: 'finalPassRunning',
           durationMs: this.recording.elapsedMs,
         });
+        this.emitFinalPassProgress(meetingId, 'transcribing', 0.1);
       }
       this.setRecording({
         status: 'idle',
@@ -1295,10 +1310,17 @@ export class MockBackend implements Backend {
         transcriptionFailure: null,
       });
       this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      this.emitFinalPassProgress(meetingId, 'queued', 0);
+      setTimeout(() => {
+        if (this.library.find((item) => item.id === meetingId)?.status === 'finalPassRunning') {
+          this.emitFinalPassProgress(meetingId, 'transcribing', 0.5);
+        }
+      }, 500);
       setTimeout(() => {
         const current = this.library.find((item) => item.id === meetingId);
         if (current?.status !== 'finalPassRunning') return;
         this.updateMeetingStatus(meetingId, { status: 'ready' });
+        this.emitFinalPassProgress(meetingId, 'finishing', 1);
         this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
       }, 1000);
     },

@@ -553,6 +553,17 @@ describe('MockBackend', () => {
       return { segment, range: { firstWordId: wordId, lastWordId: wordId } };
     };
 
+    it('emits final-pass progress that ends at finishing', async () => {
+      const seen: { stage: string; fraction: number }[] = [];
+      backend.on('finalPassProgress', ({ stage, fraction }) => seen.push({ stage, fraction }));
+      await backend.call('startRecording', {});
+      vi.advanceTimersByTime(3000);
+      await backend.call('stopRecording');
+      backend.finishFinalPass();
+      expect(seen.at(-1)).toEqual({ stage: 'finishing', fraction: 1 });
+      expect(seen.length).toBeGreaterThan(1);
+    });
+
     it('keeps a live correction through the final pass and in search', async () => {
       const { meetingId } = await backend.call('startRecording', {});
       vi.advanceTimersByTime(3000);
