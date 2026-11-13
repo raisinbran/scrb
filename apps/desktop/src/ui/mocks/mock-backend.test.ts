@@ -632,7 +632,9 @@ describe('MockBackend', () => {
 
     it('does nothing when cancelling a summary that is not running, and rejects an unknown meeting', async () => {
       await backend.call('cancelSummary', { meetingId: LONG_MEETING_ID });
-      await expect(backend.call('cancelSummary', { meetingId: 'meeting-999' })).rejects.toMatchObject({
+      await expect(
+        backend.call('cancelSummary', { meetingId: 'meeting-999' }),
+      ).rejects.toMatchObject({
         code: 'notFound',
       });
     });

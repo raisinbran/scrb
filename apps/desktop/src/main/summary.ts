@@ -1,7 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
-import { basename } from 'node:path';
 import { promisify } from 'node:util';
 import {
   guardSummaryLinks,
@@ -78,9 +77,21 @@ const FAILED_MESSAGE = 'The summary could not be generated. Your audio and trans
 const EXTRACTION_SHARE = 0.7;
 const SMALL_CONTEXT = 16384;
 const OUT_OF_MEMORY = /out of memory|failed to allocate|cudaMalloc|insufficient memory/i;
-const SAME_SERVER = /llama-server/;
 
 const execFileAsync = promisify(execFile);
+
+interface ServerRecord {
+  pid: number;
+  startedAt: string;
+  serverPath: string;
+}
+
+async function processField(pid: number, field: 'lstart' | 'command'): Promise<string | null> {
+  const { stdout } = await execFileAsync('ps', ['-p', String(pid), '-o', `${field}=`], {
+    env: { ...process.env, LC_ALL: 'C' },
+  });
+  return stdout.trim() || null;
+}
 
 /** Both tools and the model must exist; the message says which is missing. */
 export async function readSummaryPaths(configPath: string | undefined): Promise<SummaryPaths> {
@@ -146,18 +157,31 @@ export class SummaryController {
     await Promise.all(all.map((run) => run.done));
   }
 
-  /** At startup: a server left by a crash holds about 8 GB, so it is stopped. */
+  /**
+   * At startup: a server left by a crash holds about 8 GB, so it is stopped. The record holds the
+   * process's start time and our server path, and both must match: a recycled process id, even
+   * of another `llama-server`, is left alone.
+   */
   async stopStaleServer(): Promise<void> {
     const { pidFile } = this.deps;
     if (!pidFile || process.platform === 'win32') return;
     try {
-      const pid = Number((await readFile(pidFile, 'utf8')).trim());
-      if (Number.isInteger(pid) && pid > 1) {
-        const { stdout } = await execFileAsync('ps', ['-p', String(pid), '-o', 'comm=']);
-        if (SAME_SERVER.test(basename(stdout.trim()))) process.kill(pid, 'SIGKILL');
+      const record = JSON.parse(await readFile(pidFile, 'utf8')) as ServerRecord;
+      const [startedAt, command] = await Promise.all([
+        processField(record.pid, 'lstart'),
+        processField(record.pid, 'command'),
+      ]);
+      if (
+        Number.isInteger(record.pid) &&
+        record.pid > 1 &&
+        startedAt !== null &&
+        startedAt === record.startedAt &&
+        command?.includes(record.serverPath)
+      ) {
+        process.kill(record.pid, 'SIGKILL');
       }
     } catch {
-      // No file, no such process or no ps: nothing to stop.
+      // No file, an old-format file, no such process or no ps: nothing safe to stop.
     }
     await rm(pidFile, { force: true });
   }
@@ -326,7 +350,13 @@ export class SummaryController {
     signal.addEventListener('abort', onAbort, { once: true });
     try {
       await server.start();
-      if (pidFile && server.pid !== undefined) await writeFile(pidFile, String(server.pid));
+      if (pidFile && server.pid !== undefined && process.platform !== 'win32') {
+        const startedAt = await processField(server.pid, 'lstart').catch(() => null);
+        if (startedAt) {
+          const record: ServerRecord = { pid: server.pid, startedAt, serverPath: paths.serverPath };
+          await writeFile(pidFile, JSON.stringify(record));
+        }
+      }
       const extraction = await engine.extractItems(transcript, server, {
         signal,
         onProgress: (done, total, sections) =>

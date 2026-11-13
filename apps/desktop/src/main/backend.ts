@@ -199,9 +199,11 @@ export async function openBackend(
         })
       : null;
     if (imports) await imports.recoverInterrupted();
-    const stopRetention = library.startAutoDeleteSchedule(undefined, (meetingId) =>
-      playback.revokeMeeting(meetingId),
-    );
+    // A running summary is stopped, and its server has exited, before the meeting is deleted.
+    const stopRetention = library.startAutoDeleteSchedule(undefined, async (meetingId) => {
+      await summaries.stopAndWait(meetingId, 'deleted');
+      playback.revokeMeeting(meetingId);
+    });
     return {
       playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,

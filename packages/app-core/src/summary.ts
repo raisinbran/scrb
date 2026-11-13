@@ -157,7 +157,7 @@ export interface SegmentSpan {
   endMs: number;
 }
 
-/** An item between segments is moved to the nearest segment start only within this distance. */
+/** An item between segments is moved to the closest segment edge only within this distance. */
 export const LINK_REMAP_WINDOW_MS = 5000;
 export const DROPPED_ITEMS_WARNING =
   'items were left out because their place in the recording could not be found';
@@ -171,11 +171,13 @@ function resolveLink(ms: number, segments: readonly SegmentSpan[]): Resolved {
   const first = Math.min(...segments.map((span) => span.startMs));
   const last = Math.max(...segments.map((span) => span.endMs));
   if (!(ms >= first && ms <= last)) return null;
-  const distance = (span: SegmentSpan) =>
-    Math.min(Math.abs(span.startMs - ms), Math.abs(span.endMs - ms));
-  const nearest = segments.reduce((best, span) => (distance(span) < distance(best) ? span : best));
-  if (distance(nearest) > LINK_REMAP_WINDOW_MS) return null;
-  return { ms: nearest.startMs, remapped: true };
+  // The closest segment edge, so a link just after a long segment lands at its end, not its start.
+  const edges = segments.flatMap((span) => [span.startMs, span.endMs]);
+  const nearest = edges.reduce((best, edge) =>
+    Math.abs(edge - ms) < Math.abs(best - ms) ? edge : best,
+  );
+  if (Math.abs(nearest - ms) > LINK_REMAP_WINDOW_MS) return null;
+  return { ms: nearest, remapped: true };
 }
 
 function guardItems<
@@ -206,7 +208,7 @@ function guardItems<
 
 /**
  * Makes every saved link point at real transcript text. A link inside a segment stays. One in a
- * gap close to a segment moves to that segment's start and the item is marked for review. A bad
+ * gap close to a segment moves to the closest segment edge and the item is marked for review. A bad
  * `alsoAtMs` entry is removed; an item whose own time is bad is dropped and the user is told.
  * An open question with no time (null) is allowed.
  */

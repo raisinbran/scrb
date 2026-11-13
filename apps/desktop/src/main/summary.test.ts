@@ -1,5 +1,7 @@
 // @vitest-environment node
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,6 +70,7 @@ function engineSummary(length: 'brief' | 'full', times: number[]): MeetingSummar
 
 describe('SummaryController', () => {
   let library: Library;
+  let clock: { t: number };
   let meetingId: string;
   let seen: Seen[];
   let recording: boolean;
@@ -110,7 +113,11 @@ describe('SummaryController', () => {
   const last = () => progress().at(-1);
 
   beforeEach(async () => {
-    library = await Library.open({ root: mkdtempSync(join(tmpdir(), 'scrb-summary-')) });
+    clock = { t: new Date('2026-11-13T10:00:00Z').getTime() };
+    library = await Library.open({
+      root: mkdtempSync(join(tmpdir(), 'scrb-summary-')),
+      now: () => new Date(clock.t),
+    });
     const meeting = await library.createMeeting({
       title: 'Invented sync',
       date: '2026-11-13T10:00:00Z',
@@ -331,7 +338,7 @@ describe('SummaryController', () => {
     await runToEnd();
     const file = await library.readSummary(meetingId);
     expect(file?.actionItems.map((item) => [item.sourceMs, item.needsReview])).toEqual([
-      [0, true],
+      [2400, true],
       [1000, false],
     ]);
     expect(file?.warnings.at(-1)).toMatch(/1 items were left out/);
@@ -455,6 +462,27 @@ describe('SummaryController', () => {
     await controller.stopAndWait(meetingId, 'deleted');
     expect(controller.isRunning(meetingId)).toBe(false);
     expect(progress().some((event) => event.stage === 'failed')).toBe(false);
+  });
+
+  it('stops a running summary, and waits for its server, before scheduled retention deletes the meeting', async () => {
+    const order: string[] = [];
+    hooks.extract = (signal) =>
+      new Promise((_resolve, reject) =>
+        signal?.addEventListener('abort', () => reject(new Error('x'))),
+      );
+    await dispatchCall(handlers, 'generateSummary', { meetingId, length: 'brief' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const stopsBefore = hooks.stops;
+    library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
+    clock.t += 31 * 86_400_000;
+    const run = await library.runAutoDelete(async (id) => {
+      await controller.stopAndWait(id, 'deleted');
+      order.push(`stopped:${hooks.stops > stopsBefore}`);
+    });
+    expect(run.results[0]?.ok).toBe(true);
+    expect(order).toEqual(['stopped:true']);
+    expect(controller.isRunning(meetingId)).toBe(false);
+    expect(library.listMeetings()).toHaveLength(0);
   });
 
   it('is not started twice for one meeting', async () => {
@@ -581,12 +609,52 @@ describe.skipIf(process.platform === 'win32')('with a real server process', () =
     expect(existsSync(pidFile)).toBe(false);
   });
 
-  it('does not stop an unrelated process named by a stale pid file', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'scrb-summary-pid-'));
-    const pidFile = join(dir, 'server.pid');
-    writeFileSync(pidFile, String(process.pid));
-    await controllerWith(async () => ({}) as Extraction, pidFile).stopStaleServer();
-    expect(alive(process.pid)).toBe(true);
-    expect(existsSync(pidFile)).toBe(false);
+  describe('stale server cleanup', () => {
+    const spawned: ChildProcess[] = [];
+    afterEach(() => {
+      for (const child of spawned.splice(0)) child.kill('SIGKILL');
+    });
+    const startFake = async () => {
+      const child = spawn(fake, ['--port', '0'], { stdio: 'ignore' });
+      spawned.push(child);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const startedAt = (
+        await promisify(execFile)('ps', ['-p', String(child.pid), '-o', 'lstart='], {
+          env: { ...process.env, LC_ALL: 'C' },
+        })
+      ).stdout.trim();
+      return { child, pid: child.pid!, startedAt };
+    };
+    const cleanWith = async (record: unknown) => {
+      const pidFile = join(mkdtempSync(join(tmpdir(), 'scrb-summary-pid-')), 'server.pid');
+      writeFileSync(pidFile, typeof record === 'string' ? record : JSON.stringify(record));
+      await controllerWith(async () => ({}) as Extraction, pidFile).stopStaleServer();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(existsSync(pidFile)).toBe(false);
+    };
+
+    it('stops our own leftover server', async () => {
+      const { pid, startedAt } = await startFake();
+      await cleanWith({ pid, startedAt, serverPath: fake });
+      expect(alive(pid)).toBe(false);
+    });
+
+    it('leaves a same-name server alone when the process id was recycled (other start time)', async () => {
+      const { pid } = await startFake();
+      await cleanWith({ pid, startedAt: 'Mon Jan  1 00:00:00 2001', serverPath: fake });
+      expect(alive(pid)).toBe(true);
+    });
+
+    it('leaves a process alone when it is not our server path', async () => {
+      const { pid, startedAt } = await startFake();
+      await cleanWith({ pid, startedAt, serverPath: '/somewhere/else/llama-server' });
+      expect(alive(pid)).toBe(true);
+    });
+
+    it('leaves an unrelated process alone for an old-format or damaged pid file', async () => {
+      await cleanWith(String(process.pid));
+      await cleanWith('not json');
+      expect(alive(process.pid)).toBe(true);
+    });
   });
 });

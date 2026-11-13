@@ -456,9 +456,13 @@ describe('link guard', () => {
     expect(out.warnings).toEqual([]);
   });
 
-  it('moves a link in a short gap to the nearest segment start and flags the item', () => {
-    const out = guardSummaryLinks(generated([action('a', 32_000)]), segments);
-    expect(out.actionItems[0]).toMatchObject({ sourceMs: 20_000, needsReview: true });
+  it('moves a link in a short gap to the closest segment edge and flags the item', () => {
+    // 3 s after the end of the 20-30 s segment: the end, not the start 13 s away.
+    const after = guardSummaryLinks(generated([action('a', 33_000)]), segments);
+    expect(after.actionItems[0]).toMatchObject({ sourceMs: 30_000, needsReview: true });
+    // 2 s before the start of the 60-70 s segment.
+    const before = guardSummaryLinks(generated([action('b', 58_000)]), segments);
+    expect(before.actionItems[0]).toMatchObject({ sourceMs: 60_000, needsReview: true });
   });
 
   it('drops an item whose own time is far from any segment, or past the end, and says so', () => {

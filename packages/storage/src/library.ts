@@ -1172,7 +1172,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
+  runAutoDelete(
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
+  ): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
     const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
@@ -1185,7 +1187,7 @@ export class Library {
   }
 
   private async runAutoDeleteOnce(
-    beforeDelete?: (meetingId: string) => void,
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
   ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
@@ -1194,7 +1196,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
-        beforeDelete?.(row.id);
+        await beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -1211,7 +1213,7 @@ export class Library {
   /** Runs now and then on a timer. Returns a stop function. */
   startAutoDeleteSchedule(
     intervalMs = 6 * 3_600_000,
-    beforeDelete?: (meetingId: string) => void,
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
   ): () => void {
     let running = false;
     const tick = (): void => {
