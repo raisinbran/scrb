@@ -4,6 +4,7 @@ import { SpeakerSuggestionsProvider } from './components/speakers/SpeakerSuggest
 import { AppShell } from './shell/AppShell.tsx';
 import { SCREENS, type ScreenId } from './screens/index.ts';
 import { readStored, writeStored } from './lib/stored-value.ts';
+import { OPEN_MEETING_KEY } from './screens/RecordingsScreen.tsx';
 
 const SCREEN_KEY = 'scrb.screen';
 
@@ -15,6 +16,7 @@ function restoreScreen(): ScreenId {
 export function App() {
   const [screenId, setScreenId] = useState<ScreenId>(restoreScreen);
   const [setupRound, setSetupRound] = useState(0);
+  const [backRound, setBackRound] = useState(0);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -28,6 +30,12 @@ export function App() {
   }, []);
 
   const selectScreen = (id: ScreenId) => {
+    // Pressing the tab of the screen you are on leaves a meeting and shows the list again.
+    // Recordings is the only screen with a page of its own; the others use dialogs.
+    if (id === screenId && id === 'recordings' && readStored<string>(OPEN_MEETING_KEY)) {
+      writeStored(OPEN_MEETING_KEY, null);
+      setBackRound((round) => round + 1);
+    }
     setScreenId(id);
     writeStored(SCREEN_KEY, id);
   };
@@ -36,7 +44,7 @@ export function App() {
   return (
     <SpeakerSuggestionsProvider>
       <AppShell screenId={screenId} onSelectScreen={selectScreen}>
-        {Screen && <Screen key={setupRound} />}
+        {Screen && <Screen key={`${setupRound}-${backRound}`} />}
       </AppShell>
       <FirstLaunchLocation onAnswered={() => setSetupRound((round) => round + 1)} />
     </SpeakerSuggestionsProvider>

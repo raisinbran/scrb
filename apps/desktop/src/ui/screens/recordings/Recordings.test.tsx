@@ -291,9 +291,87 @@ describe('Recordings', () => {
       expect(fireEvent.keyDown(input, { key: ' ' })).toBe(true);
       expect(fireEvent.keyDown(input, { key: 'ArrowRight' })).toBe(true);
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-      const export_ = screen.getByRole('button', { name: 'Export' });
-      expect(fireEvent.keyDown(export_, { key: ' ' })).toBe(true);
       expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+    });
+
+    it('plays and pauses with Space even when a button has the focus', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const links = await screen.findAllByRole('button', { name: /Play from/ });
+      const link = links[1] as HTMLElement;
+      fireEvent.click(link);
+      link.focus();
+      await button('Pause');
+      const call = vi.spyOn(backend, 'call');
+      // Space on the timestamp button must pause, not play from that timestamp again.
+      expect(fireEvent.keyDown(link, { key: ' ' })).toBe(false);
+      expect(fireEvent.keyUp(link, { key: ' ' })).toBe(false);
+      expect(call).toHaveBeenCalledWith('pauseAudio', expect.anything());
+      expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+      for (const control of [
+        screen.getByRole('button', { name: 'Back 15 seconds' }),
+        screen.getByRole('tab', { name: 'Transcript' }),
+        screen.getByRole('slider', { name: 'Playback position' }),
+      ]) {
+        call.mockClear();
+        expect(fireEvent.keyDown(control, { key: ' ' })).toBe(false);
+        expect(call).toHaveBeenCalled();
+      }
+    });
+
+    it('toggles once per Space press; a held key does not repeat the toggle', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const call = vi.spyOn(backend, 'call');
+      fireEvent.keyDown(document.body, { key: ' ' });
+      expect(fireEvent.keyDown(document.body, { key: ' ', repeat: true })).toBe(false);
+      fireEvent.keyDown(document.body, { key: ' ', repeat: true });
+      fireEvent.keyUp(document.body, { key: ' ' });
+      const toggles = call.mock.calls.filter(
+        ([name]) => name === 'seekAudio' || name === 'pauseAudio',
+      );
+      expect(toggles).toHaveLength(1);
+    });
+
+    it('skips with the arrow keys after a click on a button or the slider', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      await screen.findAllByRole('button', { name: /Play from/ });
+      const time = () => screen.getByRole('group', { name: 'Audio player' }).textContent;
+      const forward = screen.getByRole('button', { name: 'Forward 15 seconds' });
+      fireEvent.click(forward);
+      expect(time()).toMatch(/00:15/);
+      expect(fireEvent.keyDown(forward, { key: 'ArrowRight' })).toBe(false);
+      expect(time()).toMatch(/00:30/);
+      const slider = screen.getByRole('slider', { name: 'Playback position' });
+      expect(fireEvent.keyDown(slider, { key: 'ArrowLeft' })).toBe(false);
+      expect(time()).toMatch(/00:15/);
+    });
+
+    it('a word click seeks without pausing while audio plays, and only moves the playhead when stopped', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const links = await screen.findAllByRole('button', { name: /Play from/ });
+      const words = [...document.querySelectorAll<HTMLElement>('[data-ms]')];
+      const target = words[words.length - 1] as HTMLElement;
+      const call = vi.spyOn(backend, 'call');
+      fireEvent.click(target);
+      expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
+      expect(target.getAttribute('aria-current')).toBe('true');
+      const clicked = Number(target.dataset['ms']);
+      expect(screen.getByRole('group', { name: 'Audio player' }).textContent).toContain(
+        `${Math.floor(clicked / 60000)
+          .toString()
+          .padStart(2, '0')}:`,
+      );
+      fireEvent.click(links[1] as HTMLElement);
+      await button('Pause');
+      call.mockClear();
+      fireEvent.click(words[1] as HTMLElement);
+      expect(call).toHaveBeenCalledWith('seekAudio', expect.anything());
+      expect(call).not.toHaveBeenCalledWith('pauseAudio', expect.anything());
+      expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
     });
 
     it('skips 15 seconds with the arrow keys, but the tabs keep their arrows', async () => {
