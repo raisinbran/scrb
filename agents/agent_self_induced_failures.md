@@ -1160,7 +1160,7 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
 - **Impact:** The usage row has an end reading only; no consumption figure.
 - **Correction / remaining risk:** Logged as unavailable. Low.
-### A-338 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — summaries plan: usage not read at start
+### A-340 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — summaries plan: usage not read at start
 - **What failed:** I did not call `get_usage` before starting the summaries plan, against the start/end measurement rule.
 - **Impact:** The usage row has an end reading only (5h 3% left, weekly 2% left); no consumption figure, and the session finished near the quota limit.
 
