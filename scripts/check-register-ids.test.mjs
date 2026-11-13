@@ -70,6 +70,11 @@ describe('per-file scheme', () => {
     expect(checkUsageRowFile(`${row('t1')}\n${row('t2')}`)).toHaveLength(1);
     expect(checkUsageRowFile(row('t1', 11))).toHaveLength(1);
   });
+  it('rejects a valid row followed by a malformed table row, but allows a separator', () => {
+    expect(checkUsageRowFile(`${row('t1')}\n| 2026-13 | bad |\n`)).toHaveLength(1);
+    expect(checkUsageRowFile(`${row('t1')}\n| not a date | x |\n`)).toHaveLength(1);
+    expect(checkUsageRowFile(`${row('t1')}\n| --- | --- |\n`)).toEqual([]);
+  });
   it('accepts an incident file whose name matches its heading and rejects others', () => {
     expect(
       checkIncidentFile('A-400-x.md', '### A-400 — 2026-11-13 — t\n- **Status:** y\n'),

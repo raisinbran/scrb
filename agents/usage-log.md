@@ -1,6 +1,6 @@
 # SRCB Per-task usage log
 
-Frozen as of 2026-11-13: new rows are one file each in [usage-log/](usage-log/README.md); do not append here. The policy (what to record, how to compute and label observed consumption, quota rules) is in [agent_task_allocation.md](agent_task_allocation.md). Add new rows at the **end of this file** (an append command or a tail-only read is enough; do not read the whole file). `.gitattributes` merges this file as a union, so concurrent appends do not conflict. **Rows are append-only and never edited in place:** a union merge can silently combine concurrent edits of one row. Correct an existing row only in a normal PR, where a conflict is acceptable. `npm run check` fails on a row without 12 columns (two older 11-column rows are grandfathered by identity) and on a duplicated row. Keep each row to one line and cite A-numbers from [the failure register](agent_self_induced_failures.md) instead of retelling incidents.
+Rows up to 2026-11-13 live here. New rows are one file each in [usage-log/](usage-log/README.md). Until the PRs already open against this file have merged, a row appended here is still accepted (`.gitattributes` keeps the union merge for that); a follow-up will then enforce the freeze. The policy (what to record, how to compute and label observed consumption, quota rules) is in [agent_task_allocation.md](agent_task_allocation.md). Do not read this file in full.
 
 ### Per-task log
 

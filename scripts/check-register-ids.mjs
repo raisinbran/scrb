@@ -1,6 +1,7 @@
 // Register integrity: no repeated A-number across the legacy failures register and agents/incidents/, and
 // well-formed, unique rows across the legacy usage log and agents/usage-log/. New rows and incidents are one
-// file each, so parallel PRs never conflict; this catches what that scheme allows (a clashing A-number).
+// file each, so parallel PRs never conflict; rows appended to the legacy files by already-open PRs are still
+// accepted until the follow-up that enforces the freeze; this catches what that scheme allows (a clashing A-number).
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +54,13 @@ const HEADING = /^#{2,4} (A-\d+) [—-] /;
 export function checkUsageRowFile(text) {
   const rows = text.split(/\r?\n/).filter((l) => ROW.test(l));
   if (rows.length !== 1) return [`expected exactly one usage row, found ${rows.length}`];
-  return findBadUsageRows(rows[0]).map((p) => p.replace(/^line 1: /, ''));
+  const stray = text
+    .split(/\r?\n/)
+    .filter((l) => l.startsWith('|') && !ROW.test(l) && !/^\|[\s:|-]+$/.test(l));
+  return [
+    ...findBadUsageRows(rows[0]).map((p) => p.replace(/^line 1: /, '')),
+    ...stray.map((l) => `stray table line (bad date or extra row): ${l.slice(0, 40)}`),
+  ];
 }
 
 // An incident file holds one `### A-nnn — title` heading and its number must match the file name.
