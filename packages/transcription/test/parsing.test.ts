@@ -216,6 +216,15 @@ describe('final-pass assembly', () => {
     expect(performance.now() - began).toBeLessThan(500);
   });
 
+  it('stays fast when nothing matches', () => {
+    const at = (text: string, startMs: number) => ({ text, startMs });
+    const meeting = Array.from({ length: 5000 }, (_, i) => at(`m${i}`, i * 450));
+    const mic = Array.from({ length: 5000 }, (_, i) => at(`u${i}`, i * 450 + 100));
+    const began = performance.now();
+    expect(dropRoomEcho(mic, meeting)).toHaveLength(5000);
+    expect(performance.now() - began).toBeLessThan(250);
+  });
+
   it('removes the echoed mic words from the assembled transcript', () => {
     const say = (text: string, startMs: number) => ({
       text,
