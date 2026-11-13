@@ -42,7 +42,7 @@ describe('Recordings', () => {
   describe('library', () => {
     it('shows each in-progress state', async () => {
       renderScreen();
-      expect(await screen.findByText('Final pass running')).toBeTruthy();
+      expect(await screen.findByText('Processing final transcript')).toBeTruthy();
       expect(screen.getByText('Recovered after crash')).toBeTruthy();
       expect(screen.getByText('May be outdated')).toBeTruthy();
     });
@@ -95,9 +95,31 @@ describe('Recordings', () => {
 
     it('notices a final pass finishing, which has no event', async () => {
       renderScreen();
-      await screen.findByText('Final pass running');
+      await screen.findByText('Processing final transcript');
       backend.finishFinalPass();
-      await waitFor(() => expect(screen.queryByText('Final pass running')).toBeNull(), SLOW);
+      await waitFor(() => expect(screen.queryByText('Processing final transcript')).toBeNull(), SLOW);
+    });
+  });
+
+  describe('final processing indicator', () => {
+    it('shows a provisional-text banner in the meeting and removes it when processing ends', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+      expect(screen.getByLabelText('Final transcript processing')).toBeTruthy();
+      expect(screen.getByText(/since recording stopped/)).toBeTruthy();
+      backend.finishFinalPass();
+      await waitFor(
+        () => expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull(),
+        SLOW,
+      );
+      expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
+    });
+
+    it('marks the library row as changing', async () => {
+      renderScreen();
+      await screen.findByText('Processing final transcript');
+      expect(screen.getByText('Text will change')).toBeTruthy();
     });
   });
 
