@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   choosePosition,
   defaultPosition,
+  expandedBounds,
   parsePlacement,
   serializePlacement,
   validPlacement,
@@ -44,5 +45,20 @@ describe('mini window placement', () => {
     expect(parsePlacement('not json')).toBeNull();
     expect(parsePlacement('{"x":1,"y":"2","displayId":1}')).toBeNull();
     expect(parsePlacement('null')).toBeNull();
+  });
+});
+
+describe('expandedBounds', () => {
+  const area = { x: 0, y: 25, width: 1440, height: 850 };
+  it('keeps the top edge when the taller window fits', () => {
+    expect(expandedBounds({ x: 10, y: 100, width: 280, height: 36 }, 100, area)).toEqual({
+      x: 10,
+      y: 100,
+      width: 280,
+      height: 100,
+    });
+  });
+  it('moves up when it would pass the bottom of the work area', () => {
+    expect(expandedBounds({ x: 10, y: 840, width: 280, height: 36 }, 100, area).y).toBe(775);
   });
 });

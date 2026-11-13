@@ -7,6 +7,9 @@ import styles from './MiniRecording.module.css';
 
 /** Opening this address asks the main process to bring the app forward; it matches `SHOW_MAIN_URL` in main. */
 const SHOW_MAIN_URL = 'scrb-app://show-main';
+/** Likewise `COMPACT_URL` and `EXPAND_URL`: they shrink the window to its status row and back. */
+const COMPACT_URL = 'scrb-app://mini-compact';
+const EXPAND_URL = 'scrb-app://mini-expand';
 
 /** A speaker counts as talking while their latest transcribed words end within this of the clock. */
 const ACTIVE_WITHIN_MS = 4000;
@@ -63,6 +66,11 @@ export function MiniRecording() {
   const { recording, recordingAt, health, lag } = useRecordingStatus();
   const { heard, label } = useLastSpeaker(recording.meetingId);
   const [now, setNow] = useState(() => Date.now());
+  const [compact, setCompact] = useState(false);
+  const toggleCompact = (): void => {
+    window.open(compact ? EXPAND_URL : COMPACT_URL);
+    setCompact(!compact);
+  };
   useEffect(() => {
     if (recording.status !== 'recording') return undefined;
     const timer = setInterval(() => setNow(Date.now()), 500);
@@ -92,13 +100,49 @@ export function MiniRecording() {
         <span className={styles.dot} data-state={recording.status} aria-hidden="true" />
         {recording.status === 'recording' ? 'Recording' : 'Paused'}{' '}
         <span className={styles.elapsed}>{formatElapsed(elapsed)}</span>
-        <button type="button" className={styles.show} onClick={() => window.open(SHOW_MAIN_URL)}>
-          Show Scribe
-        </button>
+        {compact && warning ? (
+          <span className={styles.flag} role="img" aria-label={warning} title={warning}>
+            !
+          </span>
+        ) : null}
+        <span className={styles.buttons}>
+          <button
+            type="button"
+            className={styles.icon}
+            aria-label={compact ? 'Make larger' : 'Make smaller'}
+            title={compact ? 'Make larger' : 'Make smaller'}
+            onClick={toggleCompact}
+          >
+            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+              <path
+                d={compact ? 'M2 8l4-4 4 4' : 'M2 6h8'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={styles.icon}
+            aria-label="Show Scribe"
+            title="Show Scribe"
+            onClick={() => window.open(SHOW_MAIN_URL)}
+          >
+            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+              <path
+                d="M2 10L10 2M4.5 2H10v5.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </svg>
+          </button>
+        </span>
       </span>
       {/* One fixed-height slot: a warning takes it over, so the row above never moves. */}
-      {warning ? (
-        <span className={styles.slot} data-kind="warning">
+      {compact ? null : warning ? (
+        <span className={styles.slot} data-kind="warning" title={warning}>
           {warning}
         </span>
       ) : (

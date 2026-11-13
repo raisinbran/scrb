@@ -60,8 +60,8 @@ const PERIOD_OPTIONS: { value: AutoDeletePeriod; label: string }[] = [
 ];
 
 const SCOPE_OPTIONS: { value: AutoDeleteScope; label: string }[] = [
-  { value: 'audioOnly', label: 'Audio only' },
-  { value: 'wholeMeeting', label: 'The whole meeting' },
+  { value: 'audioOnly', label: 'Audio' },
+  { value: 'wholeMeeting', label: 'Audio & Transcript' },
 ];
 
 type Draft = Pick<
@@ -88,8 +88,8 @@ const sameDraft = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b
 function autoDeleteSentence({ period, scope }: Draft['autoDelete']): string {
   const age = PERIOD_OPTIONS.find((option) => option.value === period)?.label.toLowerCase();
   return scope === 'audioOnly'
-    ? `Audio from meetings older than ${age} will be deleted. Transcripts and summaries stay.`
-    : `Meetings older than ${age} will be deleted in full, including transcripts and summaries.`;
+    ? `The audio of meetings older than ${age} will be permanently deleted. Transcripts and summaries stay.`
+    : `Meetings older than ${age} will be permanently deleted: the audio, the transcript, and the summary and exports.`;
 }
 
 function Select<T extends string>({
