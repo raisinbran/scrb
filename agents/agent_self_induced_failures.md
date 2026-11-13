@@ -1118,3 +1118,8 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** (1) The 72 px mini height was the outer window, so macOS title-bar chrome could clip the rows (review-found; fixed with `useContentSize: true`); (2) I again chained commit and push after `npm run check` and `test:smoke` without reading the result, and the first smoke run had one failed playback e2e (no change in the mini window; a single rerun passed 11/11, cause not diagnosed, likely a flaky timing test).
 - **Impact:** One more review round; the pushed head had an unconfirmed smoke result until the rerun.
 - **Correction / remaining risk:** Fix and rerun done. The mini window height was not measured in real Electron. Low to medium.
+
+### A-331 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — vocabulary note: first check run without building packages/summary
+- **What failed:** Ran `npm run check` before building `packages/summary`; one unrelated worker test failed with ERR_MODULE_NOT_FOUND. The task brief had said to build it if needed.
+- **Impact:** One wasted check run (about 30 s); no code defect.
+- **Correction / remaining risk:** Built it, check and smoke passed. None.

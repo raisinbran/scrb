@@ -139,6 +139,17 @@ function TermRow({
   );
 }
 
+function UsageNote({ terms }: { terms: VocabularyTerm[] }) {
+  const enabled = terms.filter((term) => term.enabled).length;
+  return (
+    <p className={styles.note}>
+      <strong>{enabled} enabled, about 40 used.</strong> Only the most recently updated enabled
+      terms (about 40, and at most 512 characters) are used for transcription. Disabling terms you
+      do not need frees room.
+    </p>
+  );
+}
+
 function Terms({ terms, onChanged }: { terms: VocabularyTerm[]; onChanged(): void }) {
   const backend = useBackend();
   const [editing, setEditing] = useState<VocabularyTerm | null>(null);
@@ -159,6 +170,7 @@ function Terms({ terms, onChanged }: { terms: VocabularyTerm[]; onChanged(): voi
 
   return (
     <>
+      <UsageNote terms={terms} />
       {error && (
         <p role="alert" className={styles.error}>
           {error}
