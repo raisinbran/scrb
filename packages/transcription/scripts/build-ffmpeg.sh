@@ -2,7 +2,8 @@
 # Builds the import decoder: FFmpeg 9.0 with only what the app needs, LGPL
 # (no --enable-gpl, no --enable-nonfree), plus static libopus (BSD).
 # Output: packages/transcription/.bin/ffmpeg and ffprobe (git-ignored).
-# macOS and Linux only; see third_party/THIRD_PARTY_NOTICES.md for Windows.
+# macOS and Linux, and Windows from an MSYS2 UCRT64 shell (CI does this; see
+# .github/workflows/ci.yml); see third_party/THIRD_PARTY_NOTICES.md for licences.
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$here/.work/ffmpeg"
@@ -14,8 +15,10 @@ cd "$work"
 
 [ -f ffmpeg-9.0.tar.xz ] || curl -sSfL -o ffmpeg-9.0.tar.xz https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz
 [ -f opus-1.6.1.tar.gz ] || curl -sSfL -o opus-1.6.1.tar.gz https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz
-echo "$ffmpeg_sha  ffmpeg-9.0.tar.xz" | shasum -a 256 -c -
-echo "$opus_sha  opus-1.6.1.tar.gz" | shasum -a 256 -c -
+# MSYS2 has sha256sum but no shasum.
+if command -v sha256sum >/dev/null; then sum=(sha256sum -c -); else sum=(shasum -a 256 -c -); fi
+echo "$ffmpeg_sha  ffmpeg-9.0.tar.xz" | "${sum[@]}"
+echo "$opus_sha  opus-1.6.1.tar.gz" | "${sum[@]}"
 
 if [ ! -f prefix/lib/libopus.a ]; then
   rm -rf opus-1.6.1 && tar xzf opus-1.6.1.tar.gz
@@ -54,6 +57,8 @@ if grep -qE '^CONFIG_(GPL|NONFREE)=yes' ffbuild/config.mak; then
   echo "refusing: build is not LGPL" >&2
   exit 1
 fi
-make -j4 ffmpeg ffprobe >/dev/null
-cp ffmpeg ffprobe "$out/"
-"$out/ffmpeg" -hide_banner -version | head -3
+# Windows (MSYS2/MinGW) names the programs ffmpeg.exe and ffprobe.exe.
+x=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) x=.exe ;; esac
+make -j4 "ffmpeg$x" "ffprobe$x" >/dev/null
+cp "ffmpeg$x" "ffprobe$x" "$out/"
+"$out/ffmpeg$x" -hide_banner -version | head -3
