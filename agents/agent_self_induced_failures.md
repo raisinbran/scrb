@@ -1145,3 +1145,7 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **Agent-controlled cause:** Did not check the owner's memory rule before committing; chained commit and push.
 - **Impact:** One abandoned remote branch and a re-created branch (`-v2`); force-push was not allowed, so no history rewrite.
 - **Correction / remaining risk:** Re-committed without the trailer on a new branch; old branch deleted. Low.
+#### A-335 — 2026-11-13 — usage not read at task start
+- **What failed:** I did not call `get_usage` before starting the voice-profile routing task, against the start/end measurement rule.
+- **Impact:** The usage row has an end reading only; no consumption figure.
+- **Correction / remaining risk:** Logged as unavailable. Low.
