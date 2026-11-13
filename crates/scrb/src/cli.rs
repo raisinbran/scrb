@@ -15,7 +15,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::{Value, json};
 
 use crate::dev::{Fault, run_fake_engine};
-use crate::engine::Engine;
+use crate::engine::{Engine, fetch_model};
 use crate::library::{Library, MeetingState, write_file_safely};
 use crate::pass::{PassModels, import_file, transcribe_file, transcribe_meeting};
 use crate::transcript::{read_summary, read_transcript, to_markdown, to_text};
@@ -71,6 +71,11 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// List the speech models, or fetch one.
+    Models {
+        #[command(subcommand)]
+        action: ModelsAction,
+    },
     #[command(hide = true)]
     Dev {
         #[command(subcommand)]
@@ -101,6 +106,18 @@ enum MeetingsAction {
     List,
     /// One meeting's meeting.json.
     Show { id: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum ModelsAction {
+    /// Every model, and whether its files are present.
+    List,
+    /// Install a model's packages, then download its files and check them.
+    Fetch {
+        /// The model, such as parakeet-tdt-0.6b-v3.
+        #[arg(long, value_name = "M")]
+        model: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -151,8 +168,13 @@ pub fn run(args: impl IntoIterator<Item = OsString>) -> ExitCode {
 
 /// Runs one parsed command and returns its result fields as a JSON object.
 fn run_command(args: Args) -> Result<Value, Error> {
+    // Models live in the data folder, so `models` opens no library.
+    let command = match args.command {
+        Command::Models { action } => return run_models(action),
+        command => command,
+    };
     let library = Library::open(&library_root(args.library)?)?;
-    match args.command {
+    match command {
         Command::Meetings {
             action: None | Some(MeetingsAction::List),
         } => Ok(json!({ "meetings": library.list_meetings()? })),
@@ -168,7 +190,22 @@ fn run_command(args: Args) -> Result<Value, Error> {
             out,
             force,
         } => transcribe(&library, &input, model, diarizer, out, force),
+        Command::Models { .. } => unreachable!("models returns before the library opens"),
         Command::Dev { .. } => unreachable!("run returns before the library opens"),
+    }
+}
+
+/// `scrb models list` asks the engine, and `scrb models fetch` runs `uv`.
+fn run_models(action: ModelsAction) -> Result<Value, Error> {
+    match action {
+        ModelsAction::List => {
+            let mut engine = Engine::new(Box::new(|_: &str, _: u64, _: u64| {}))?;
+            Ok(json!({ "models": engine.list_models()? }))
+        }
+        ModelsAction::Fetch { model } => {
+            let fetched = fetch_model(&model)?;
+            Ok(json!({ "model": fetched.model, "path": fetched.path }))
+        }
     }
 }
 

@@ -6,7 +6,11 @@
 //! or `SCRB_ENGINE_TIMEOUT_S` seconds. When the worker dies, hangs past that
 //! time or writes a malformed line, the client kills it, starts a new one,
 //! sends the last `load` again and retries the request once.
+//!
+//! [`fetch_model`] runs `uv` on the engine folder instead of a worker.
 
+use std::collections::HashMap;
+use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -58,6 +62,14 @@ enum Failure {
     Refused(Error),
 }
 
+/// The result of [`fetch_model`]. `path` is the model's folder, or `None`
+/// for Silero VAD, whose weights come with the engine.
+#[derive(Debug, Deserialize)]
+pub struct Fetched {
+    pub model: String,
+    pub path: Option<String>,
+}
+
 /// One speaker turn from `diarize`, in seconds.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Turn {
@@ -98,6 +110,17 @@ impl Engine {
         }
         let reply: Hello = self.request(json!({ "op": "hello" }), 0.0)?;
         Ok(reply.engine_version)
+    }
+
+    /// Every model in the engine's catalog, each with its `name`, `kind` and
+    /// whether its files are `present`.
+    pub fn list_models(&mut self) -> Result<Vec<Value>, Error> {
+        #[derive(Deserialize)]
+        struct Hello {
+            models: Vec<Value>,
+        }
+        let reply: Hello = self.request(json!({ "op": "hello" }), 0.0)?;
+        Ok(reply.models)
     }
 
     /// Loads the ASR model `asr` and, unless it is `None`, the diarizer.
@@ -295,6 +318,74 @@ impl Drop for Engine {
     }
 }
 
+/// Installs model `name`'s uv extra, when `models.toml` names one, then has
+/// the engine download the model's files and check their SHA-256.
+///
+/// Both steps run `uv` on the engine folder, so `$SCRB_ENGINE` does not
+/// apply. Installing one extra keeps the others.
+pub fn fetch_model(name: &str) -> Result<Fetched, Error> {
+    let engine_dir = engine_dir()?;
+    let environment = engine_environment()?;
+    if let Some(extra) = read_model_extra(&engine_dir, name)? {
+        let status = uv_command("sync", &engine_dir, &environment)
+            .args(["--frozen", "--inexact", "--extra", &extra])
+            .status()
+            .map_err(|cause| engine_failed(format!("could not start uv: {cause}")))?;
+        if !status.success() {
+            return Err(engine_failed(format!("uv sync failed ({status})")));
+        }
+    }
+    let output = uv_command("run", &engine_dir, &environment)
+        .args(["--frozen", "scrb-engine", "fetch", name])
+        .output()
+        .map_err(|cause| engine_failed(format!("could not start uv: {cause}")))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(line) = stdout.lines().last() else {
+        return Err(engine_failed(format!(
+            "scrb-engine fetch printed no result ({})",
+            output.status
+        )));
+    };
+    let reply: Value = serde_json::from_str(line)
+        .map_err(|cause| engine_failed(format!("scrb-engine fetch printed {line:?}: {cause}")))?;
+    if reply["ok"] != json!(true) {
+        return Err(reply_error(&reply));
+    }
+    serde_json::from_value(reply)
+        .map_err(|cause| engine_failed(format!("unexpected result of scrb-engine fetch: {cause}")))
+}
+
+/// The uv extra that the engine folder's `models.toml` names for model
+/// `name`, if any. Silero VAD, a base dependency, has none.
+fn read_model_extra(engine_dir: &Path, name: &str) -> Result<Option<String>, Error> {
+    #[derive(Deserialize)]
+    struct Catalog {
+        models: HashMap<String, CatalogModel>,
+    }
+    #[derive(Deserialize)]
+    struct CatalogModel {
+        extra: Option<String>,
+    }
+    let path = engine_dir.join("models.toml");
+    let text = fs::read_to_string(&path).map_err(|cause| Error::file(&path, cause))?;
+    let mut catalog: Catalog = toml::from_str(&text).map_err(|cause| Error::file(&path, cause))?;
+    Ok(catalog.models.remove(name).and_then(|model| model.extra))
+}
+
+/// `uv <subcommand> --project <engine folder>`, run in the engine's
+/// environment with no stdin. Its stderr is scrb's.
+fn uv_command(subcommand: &str, engine_dir: &Path, environment: &Path) -> Command {
+    let mut command = Command::new("uv");
+    command
+        .arg(subcommand)
+        .arg("--project")
+        .arg(engine_dir)
+        .env("UV_PROJECT_ENVIRONMENT", environment)
+        .stdin(Stdio::null())
+        .stderr(Stdio::inherit());
+    command
+}
+
 /// Splits `$SCRB_ENGINE` the way a POSIX shell would. Backslashes outside
 /// quotes are dropped, so a Windows path in it must be quoted.
 fn split_engine_command(line: &str) -> Result<Vec<String>, Error> {
@@ -321,7 +412,12 @@ fn uv_engine_command() -> Result<(Vec<String>, PathBuf), Error> {
         engine_dir.display().to_string(),
         "scrb-engine".to_string(),
     ];
-    Ok((command, data_dir()?.join("scrb").join("engine-venv")))
+    Ok((command, engine_environment()?))
+}
+
+/// `<data dir>/scrb/engine-venv`, the engine's uv environment.
+fn engine_environment() -> Result<PathBuf, Error> {
+    Ok(data_dir()?.join("scrb").join("engine-venv"))
 }
 
 /// `$SCRB_ENGINE_DIR`, else `engine/` beside the binary, else the app
@@ -379,4 +475,33 @@ fn reply_error(reply: &Value) -> Error {
 
 fn engine_failed(message: impl Into<String>) -> Error {
     Error::new(ErrorCode::EngineFailed, message)
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::*;
+
+    /// `scrb models fetch` installs the extra this returns. Parakeet's name
+    /// holds dots, so its table key is quoted, and Silero VAD must give
+    /// `None`, since it has no extra to install.
+    #[test]
+    fn read_model_extra_reads_extra_or_none() {
+        let engine_dir = TempDir::new().expect("a temporary folder");
+        let catalog = r#"
+[models."parakeet-tdt-0.6b-v3"]
+extra = "parakeet-tdt-0.6b-v3"
+
+[models.silero-vad]
+kind = "vad"
+"#;
+        fs::write(engine_dir.path().join("models.toml"), catalog).unwrap();
+
+        let parakeet = read_model_extra(engine_dir.path(), "parakeet-tdt-0.6b-v3").unwrap();
+        let silero = read_model_extra(engine_dir.path(), "silero-vad").unwrap();
+
+        assert_eq!(parakeet.as_deref(), Some("parakeet-tdt-0.6b-v3"));
+        assert_eq!(silero, None);
+    }
 }
