@@ -26,7 +26,6 @@ const TAB_KEY = 'scrb.recordings.tab';
 const TABS = ['Transcript', 'Summary', 'Audio'] as const;
 type Tab = (typeof TABS)[number];
 const SKIP_MS = 15_000;
-const DEFAULT_UNMUTE_VOLUME = 0.5;
 const MIN_FONT_PX = 11;
 const MAX_FONT_PX = 28;
 const HINT_KEY = 'scrb.recordings.editHintDismissed';
@@ -145,10 +144,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         type="button"
         className={styles.button}
         aria-pressed={muted}
-        onClick={() => {
-          if (muted && volume === 0) playback.setVolume(DEFAULT_UNMUTE_VOLUME);
-          playback.setMuted(!muted);
-        }}
+        onClick={playback.toggleMute}
       >
         {muted ? 'Unmute' : 'Mute'}
       </button>

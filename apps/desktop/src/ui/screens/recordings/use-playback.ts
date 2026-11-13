@@ -6,6 +6,8 @@ import { readStored, writeStored } from '../../lib/stored-value.ts';
 
 const VOLUME_KEY = 'scrb.playback.volume';
 const MUTED_KEY = 'scrb.playback.muted';
+const AUDIBLE_KEY = 'scrb.playback.lastAudibleVolume';
+const DEFAULT_AUDIBLE_VOLUME = 0.5;
 
 function storedVolume(): number {
   const value = readStored<number>(VOLUME_KEY);
@@ -24,7 +26,8 @@ export interface Playback {
   volume: number;
   muted: boolean;
   setVolume(volume: number): void;
-  setMuted(muted: boolean): void;
+  /** Silent: muted, or at zero volume. Unmuting restores an audible level. */
+  toggleMute(): void;
 }
 
 /** The backend keeps the clock; this mirrors its position for every tab of one meeting. */
@@ -37,10 +40,14 @@ export function usePlayback(meetingId: MeetingId): Playback {
   const engine = useRef<PlaybackEngine | null>(null);
   const [volume, setVolumeState] = useState(storedVolume);
   const [muted, setMutedState] = useState(() => readStored<boolean>(MUTED_KEY) === true);
+  const [lastAudible, setLastAudible] = useState(() => {
+    const value = readStored<number>(AUDIBLE_KEY);
+    return typeof value === 'number' && value > 0 && value <= 1 ? value : DEFAULT_AUDIBLE_VOLUME;
+  });
   const level = useRef({ volume, muted });
   useEffect(() => {
-    level.current = { volume, muted };
-    engine.current?.setVolume(volume, muted);
+    level.current = { volume, muted: muted || volume === 0 };
+    engine.current?.setVolume(volume, muted || volume === 0);
   }, [volume, muted]);
 
   useEffect(() => {
@@ -85,12 +92,21 @@ export function usePlayback(meetingId: MeetingId): Playback {
     if (clamped > 0) {
       setMutedState(false);
       writeStored(MUTED_KEY, false);
+      setLastAudible(clamped);
+      writeStored(AUDIBLE_KEY, clamped);
     }
   }, []);
-  const setMuted = useCallback((next: boolean) => {
-    setMutedState(next);
-    writeStored(MUTED_KEY, next);
-  }, []);
+  const toggleMute = useCallback(() => {
+    if (muted || volume === 0) {
+      // A zero level counts as muted, so unmuting must bring back something audible.
+      if (volume === 0) setVolume(lastAudible);
+      setMutedState(false);
+      writeStored(MUTED_KEY, false);
+    } else {
+      setMutedState(true);
+      writeStored(MUTED_KEY, true);
+    }
+  }, [muted, volume, lastAudible, setVolume]);
 
   return {
     positionMs,
@@ -100,8 +116,8 @@ export function usePlayback(meetingId: MeetingId): Playback {
     pause,
     setPosition: setPositionMs,
     volume,
-    muted,
+    muted: muted || volume === 0,
     setVolume,
-    setMuted,
+    toggleMute,
   };
 }

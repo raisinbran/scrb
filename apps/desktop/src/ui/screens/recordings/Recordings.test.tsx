@@ -381,6 +381,31 @@ describe('Recordings', () => {
       expect(screen.getByRole('button', { name: 'Unmute' })).toBeTruthy();
     });
 
+    it('treats zero volume as muted and unmute brings back the last audible volume', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const volume = screen.getByRole('slider', { name: 'Volume' }) as HTMLInputElement;
+      fireEvent.change(volume, { target: { value: '30' } });
+      fireEvent.change(volume, { target: { value: '0' } });
+      expect(screen.getByRole('button', { name: 'Unmute' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(volume.getAttribute('aria-valuetext')).toBe('Muted');
+      // Still zero after reopening: the button must still say Unmute.
+      cleanup();
+      backend.dispose();
+      renderScreen();
+      try {
+        await openMeeting(/Weekly project sync/);
+      } catch {
+        // The screen may reopen the last meeting by itself.
+      }
+      fireEvent.click(await screen.findByRole('button', { name: 'Unmute' }));
+      const again = screen.getByRole('slider', { name: 'Volume' }) as HTMLInputElement;
+      expect(again.value).toBe('30');
+      expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
+    });
+
     it('keeps the arrow keys for the focused volume slider while Space still plays', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);

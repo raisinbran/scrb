@@ -30,6 +30,12 @@ const GAP_LABELS: Record<TimelineGap['kind'], string> = {
   computerAsleep: 'Computer asleep',
 };
 
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target.closest(`[${EDITOR_MARK}]`)) return true;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
 export function gapLabel(gap: TimelineGap): string {
   return `${GAP_LABELS[gap.kind]}, ${formatElapsed(gap.startMs)} to ${formatElapsed(gap.endMs)}`;
 }
@@ -529,7 +535,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
           if (event.target === event.currentTarget) stopFollowing();
         }}
         onKeyDown={(event) => {
-          if (SCROLL_KEYS.has(event.key) && event.target === event.currentTarget) stopFollowing();
+          // Keys bubble from a focused timestamp or speaker button too, and they scroll the list.
+          if (SCROLL_KEYS.has(event.key) && !isTextEntry(event.target)) stopFollowing();
         }}
       >
         <div style={{ height: contentHeight }}>

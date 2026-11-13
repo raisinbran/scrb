@@ -136,6 +136,17 @@ describe('TranscriptTab follow-along', () => {
     expect(banner()).toBeTruthy();
   });
 
+  it('stops following on a scroll key from a focused timestamp button', () => {
+    render(tab(atRow(0), true));
+    const link = screen.getAllByRole('button', { name: /Play from/ })[0] as HTMLElement;
+    link.focus();
+    fireEvent.keyDown(link, { key: ' ' });
+    fireEvent.keyDown(link, { key: 'ArrowLeft' });
+    expect(banner()).toBeNull();
+    fireEvent.keyDown(link, { key: 'ArrowDown' });
+    expect(banner()).toBeTruthy();
+  });
+
   it('follows again when playback restarts', () => {
     const { rerender } = render(tab(atRow(0), true));
     fireEvent.wheel(screen.getByRole('region', { name: 'Transcript' }));
