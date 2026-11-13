@@ -1166,3 +1166,9 @@ The owner subsequently authorized moving the former local A-272 (now A-289) into
 - **What failed:** I did not call `get_usage` before starting, against the measure-at-start rule, and only read it after most of the code reading.
 - **Impact:** Start-of-task allowance is unavailable; the usage row has end values only. The weekly allowance was already at 98% used when read.
 - **Correction / remaining risk:** Logged as unavailable. Low.
+
+### A-342 — 2026-11-13 — Claude Code (Sonnet 5.5) / Mac desktop — stale-health-warning fix: forbidden trailers added, usage not read
+- **Status / attribution:** Confirmed agent error; no application defect.
+- **What failed:** I followed the harness attribution reminder over the task and memory rule, so the commit message got a Co-Authored-By trailer and the PR body a "Generated with Claude Code" line. I also did not read `get_usage` at start or end.
+- **Impact:** The commit on `cuc/stale-health-warning-d48e10` carries the trailer (no force-push allowed, so it stays unless the owner approves a rewrite or squash merge drops it). The PR body line was removed. Usage figures are unavailable.
+- **Correction / remaining risk:** PR body fixed; trailer remains in history. Low.
