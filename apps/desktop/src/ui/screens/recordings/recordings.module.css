@@ -465,6 +465,14 @@
   cursor: pointer;
 }
 
+.wordsFollowing {
+  color: var(--color-word-idle);
+}
+
+.wordCurrent {
+  color: var(--color-word-current);
+}
+
 .wordProvisional {
   font-style: italic;
   color: var(--color-text-muted);

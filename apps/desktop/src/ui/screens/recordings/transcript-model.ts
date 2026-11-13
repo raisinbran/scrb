@@ -75,3 +75,14 @@ export function rowIndexAt(rows: TranscriptRow[], ms: number): number {
   }
   return found;
 }
+
+/** The word being spoken at `ms`: the last one that has started, until the segment ends. */
+export function currentWordId(segment: TranscriptSegment, ms: number): string | undefined {
+  if (ms < segment.startMs || ms > segment.endMs) return undefined;
+  let found: string | undefined;
+  for (const word of segment.words) {
+    if (word.startMs > ms) break;
+    found = word.id;
+  }
+  return found;
+}

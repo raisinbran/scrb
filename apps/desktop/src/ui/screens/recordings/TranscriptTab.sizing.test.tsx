@@ -62,6 +62,24 @@ describe('TranscriptTab sizing', () => {
     expect(observed).toEqual(expect.arrayContaining([...rows]));
   });
 
+  it('marks only the word being spoken, and only while a position is shown', () => {
+    const transcript = data(2);
+    transcript.segments[0]!.words = ['one', 'two'].map((text, i) => ({
+      id: `w${i}`,
+      text,
+      startMs: i * 2000,
+      endMs: i * 2000 + 1500,
+      state: 'final' as const,
+      correctionId: null,
+    }));
+    const { container, rerender } = render(<TranscriptTab transcript={transcript} {...props} />);
+    expect(container.querySelector('[data-ms][aria-current]')).toBeNull();
+    rerender(<TranscriptTab transcript={transcript} {...props} showPosition positionMs={2100} />);
+    const current = container.querySelectorAll('[data-ms][aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]!.textContent).toBe('two');
+  });
+
   it('measures the viewport when the first text arrives after an empty start', () => {
     const { container, rerender } = render(<TranscriptTab transcript={data(0)} {...props} />);
     rerender(<TranscriptTab transcript={data(3)} {...props} />);
