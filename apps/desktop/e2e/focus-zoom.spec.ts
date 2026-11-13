@@ -120,7 +120,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       console.log('window', JSON.stringify(window));
       const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
       console.log('viewport', JSON.stringify(viewport));
-      // Runner displays clamp the window; the app's own minimum (main.ts) is 1024×640 DIP.
+      // Runner displays clamp the window; the app opens at 1280×800 DIP (its minimum in main.ts is 800×560, below these asserted sizes).
       const dimensions = `Effective Electron window ${window.bounds.width}×${window.bounds.height} DIP; CSS viewport ${viewport.width}×${viewport.height} at ${zoom * 100}%`;
       expect(window.bounds.width, dimensions).toBeGreaterThanOrEqual(1024);
       expect(window.bounds.height, dimensions).toBeGreaterThanOrEqual(600);

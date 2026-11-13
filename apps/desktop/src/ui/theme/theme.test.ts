@@ -29,6 +29,8 @@ function contrast(a: string, b: string): number {
 const TEXT_TOKENS = [
   '--color-text',
   '--color-text-muted',
+  '--color-word-idle',
+  '--color-word-current',
   '--color-accent',
   '--color-warning',
   '--color-danger',
