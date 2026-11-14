@@ -751,6 +751,37 @@ describe('search', () => {
     await library.close();
   });
 
+  it('reads only indexed meetings, not transcript files elsewhere under the root', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const a = await seeded(library, 'Inside', 'hello zebrafish');
+    const stray = path.join(root, 'stray-folder');
+    await mkdir(stray);
+    await writeFile(
+      path.join(stray, path.basename(library.meetingPaths(a.id).transcript)),
+      await readFile(library.meetingPaths(a.id).transcript),
+    );
+    const found = await library.search('zebrafish');
+    expect(found.results.map((r) => r.meeting.id)).toEqual([a.id]);
+    await library.close();
+  });
+
+  it('stays fast across 120 hour-long meetings', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const filler = Array.from({ length: 9000 }, (_, i) => `word${i % 400}`).join(' ');
+    for (let i = 0; i < 120; i += 1) {
+      const text = i % 10 === 0 ? `${filler} needlephrase ${filler}` : filler;
+      await seeded(library, `Meeting ${i}`, text, '2026-03-01');
+    }
+    const started = performance.now();
+    const found = await library.search('needlephrase', { hitsPerMeeting: 5 });
+    const elapsedMs = performance.now() - started;
+    console.log(`search over 120 meetings of ~9000 words: ${Math.round(elapsedMs)} ms`);
+    expect(found.results).toHaveLength(12);
+    expect(elapsedMs).toBeLessThan(10_000);
+    await library.close();
+  });
+
   it('stops when cancelled, and leaves unfinished imports out', async () => {
     const library = await Library.open({ root: await tempDir() });
     await seeded(library, 'One', 'hello');

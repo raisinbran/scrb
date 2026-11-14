@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Search audit; storage search tests (scope, 120-meeting timing); UI highlight fix | 92% | 60% | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | start: 8% of 5-hour and 40% of weekly used, 2026-11-14; end not read. |
