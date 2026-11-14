@@ -585,7 +585,10 @@ describe('LiveScreen', () => {
 
 describe('Live row alignment', () => {
   it('gives the dropdowns, Test mic and the meters one shared height', () => {
-    const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8');
+    const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8').replace(
+      /\r\n/g,
+      '\n',
+    );
     const heightOf = (selector: string) =>
       new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{[^}]*height:\\s*([^;]+);`).exec(
         css,

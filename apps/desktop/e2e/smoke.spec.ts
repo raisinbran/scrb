@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const SCREENS = ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Settings', 'Help'];
+const SCREENS = ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Help'];
 const screenshotDir = process.env['SCRB_SCREENSHOT_DIR'];
 
 /** Keeps tests out of the real `Documents/Meeting Scribe`. */
@@ -13,6 +13,19 @@ function pointAtTestLibrary(userData: string, root = join(userData, 'library')):
 }
 
 /** The real settings start with no location, so the first-launch question opens. */
+/** Settings is a modal overlay, not a screen: open it from the gear and close it again with Escape. */
+async function openSettings(page: Page) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function closeSettings(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
+}
+
 async function answerFirstLaunch(page: Page): Promise<void> {
   await page.evaluate(() =>
     window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
@@ -28,7 +41,7 @@ test('settings survive a restart and go to the real library', async () => {
   const first = await launch();
   const page = await first.firstWindow();
   await answerFirstLaunch(page);
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page);
   await page.getByRole('radio', { name: 'Dark' }).check();
   await expect
     .poll(() => page.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)))
@@ -40,7 +53,7 @@ test('settings survive a restart and go to the real library', async () => {
 
   const second = await launch();
   const reopened = await second.firstWindow();
-  await reopened.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(reopened);
   await expect(reopened.getByRole('radio', { name: 'Dark' })).toBeChecked();
   await second.close();
 });
@@ -53,7 +66,7 @@ test('a library that cannot open leaves the app usable', async () => {
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   const page = await app.firstWindow();
   await answerFirstLaunch(page);
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page);
   await page.getByRole('radio', { name: 'Dark' }).check();
   await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
   await app.close();
@@ -138,8 +151,9 @@ test('launches and shows every screen against the mock backend', async () => {
 
   await answerFirstLaunch(page);
   for (const theme of ['Dark', 'Light']) {
-    await page.getByRole('button', { name: 'Settings' }).click();
+    await openSettings(page);
     await page.getByRole('radio', { name: theme }).check();
+    await closeSettings(page);
     for (const screen of SCREENS) {
       await page.getByRole('button', { name: screen, exact: true }).click();
       await expect(page.getByRole('heading', { level: 1, name: screen })).toBeVisible();
