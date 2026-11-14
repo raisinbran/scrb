@@ -262,7 +262,7 @@ describe('the main window keeps denying every open', () => {
       on: () => undefined,
       setWindowOpenHandler: (next: typeof handler) => (handler = next),
     } as unknown as WebContents;
-    lockDownContents(contents, 'scrb://app');
+    lockDownContents(contents, 'scribe://app/index.html');
     expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
   });
 });
