@@ -52,52 +52,43 @@ Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes 
 
 # Update 2026-11-14: reconcile step, and what it did not fix
 
-**Result: neither target met. Recall 68% held-out (unchanged), precision still unknown to within a wide margin.** A reconcile step was added and measured; on these meetings it removes at most 1 item per meeting and changes no score. A capped version lowered recall and was left switched off. Links stay 100%.
+**Result: neither target met, and the reconcile step changed nothing on these meetings.** Recall is 74% tuning and 68% held-out, exactly as before; the outputs of all six meetings are byte-identical to the unreconciled outputs. Links stay 100%. A capped version lowered recall and is switched off.
 
-## What was added (`packages/summary/src/reconcile.ts`, called when an extraction is finished)
+## What is in the code (`packages/summary/src/reconcile.ts`, run when an extraction is finished)
 
-1. **Near-duplicate merge**: same kind, same polarity (narrow negation test), within 5 minutes, at least 2 shared content words, word overlap (Jaccard) of 0.4, and the shorter wording's content words must all appear in the longer, so "iOS build" and "Android build" are not merged. Two owners stay two tasks. The better-supported item survives and keeps the other's cited line in `alsoAt`. This stage is new in this PR (the first dedupe in `dedupe.ts` is untouched).
-2. **Later change overrides earlier** (deliberately narrow after five review rounds): an earlier action is dropped only when a later action at least 60 seconds on has the **same named owner** and exactly the same words in the same order, differing only by a negation word ("not", "never", "no longer", "cannot", or a contraction such as "won't"). Items without a named owner (all decisions, and actions with an unspecified or collective owner) are never overridden: removal needs positive evidence. "Remove" and "drop" are ordinary verbs, and a hyphenated compound such as "no-show" is not a negation. A reversal that is reworded, comes within 60 seconds, is a short statement, or uses a double negation is not handled.
-3. **Cap**: kept items per meeting limited to a rate per minute, best-supported first (cited by several passes, settled status, first pass). Sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default**, see below.
+1. **Later change overrides earlier**, deliberately narrow after review: an earlier action is dropped only when a later action at least 60 seconds on has the **same named owner** and exactly the same words in the same order, differing only by a negation word ("not", "never", "no longer", "cannot", or a contraction such as "won't"). Decisions and ownerless actions are never overridden, since removal needs positive evidence; "remove", "drop" and compounds such as "no-show" are not negation. Not handled: reworded reversals, reversals within 60 seconds, short statements, double negation, a changed owner or deadline, and reversed decisions (the usual case in a final-design meeting). On these six meetings it never fired.
+2. **Cap** (per-meeting item limit, best-supported first), sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default.**
+
+A near-duplicate merge was written and removed in review: it merged two different tasks by the same owner ("Test deployment" and "Test deployment rollback"), and a lexical rule cannot reliably tell a repeat from a related task. The existing first dedupe in `dedupe.ts` stays as it was, with one known problem: [handoff note](../handoffs/summary-dedupe-merges-different-builds.md).
 
 Every kept item keeps its own cited line and time; no link is rewritten.
 
 ## Numbers (same scorer and 50% matching rule as above; AMI only)
 
-| Set                | Meeting | Items before | Items after |   Recall before |    Recall after | Reference-matched precision before |        after | Links after |
-| ------------------ | ------- | -----------: | ----------: | --------------: | --------------: | ---------------------------------: | -----------: | ----------: |
-| tuning             | ES2016b |           51 |          50 |           14/16 |           14/16 |                              42/51 |        41/50 |       57/57 |
-| tuning             | ES2008b |           59 |          59 |           13/17 |           13/17 |                              21/59 |        21/59 |       67/67 |
-| tuning             | IS1009d |           59 |          59 |             4/9 |             4/9 |                               4/59 |         4/59 |       61/61 |
-| **tuning total**   |         |      **169** |     **168** | **31/42 (74%)** | **31/42 (74%)** |                       67/169 (40%) | 66/168 (39%) |     185/185 |
-| held-out (once)    | TS3005b |           62 |          61 |           11/15 |           11/15 |                              37/62 |        36/61 |       67/67 |
-| held-out (once)    | ES2015c |           58 |          58 |           11/13 |           11/13 |                              26/58 |        26/58 |       63/63 |
-| held-out (once)    | IS1004d |           51 |          51 |            5/12 |            5/12 |                              18/51 |        18/51 |       58/58 |
-| **held-out total** |         |      **171** |     **170** | **27/40 (68%)** | **27/40 (68%)** |                       81/171 (47%) | 80/170 (47%) |     188/188 |
+| Set      | Items | Recall      | Reference-matched precision | Links        |
+| -------- | ----: | ----------- | --------------------------: | ------------ |
+| tuning   |   169 | 31/42 (74%) |                67/169 (40%) | 186/186 real |
+| held-out |   171 | 27/40 (68%) |                81/171 (47%) | 189/189 real |
 
-The "before" rows reproduce the earlier results exactly (31/42 and 27/40), from the saved extractions of that run. The step is deterministic, so no model run was needed to score it; the held-out set was first scored once, after the settings were fixed on the tuning set. One held-out item is 2.5 points: the held-out recall did not move at all. Reference-matched precision is a lower bound (the reference lists are short summaries) and fell slightly because items that each matched the same reference sentence were merged. That is a counting effect, not a gain. Secondary (alsoAt) links: 34/34 held-out, 24/24 tuning. Held-out was scored a second time in this update, after review narrowed the merge and override rules; the rules were not chosen using held-out results, and held-out recall did not change.
+Before and after are identical. One held-out item is 2.5 points. Reference-matched precision is a lower bound because the reference lists are short summaries. Held-out was scored once earlier and not rescored for the final state, since the outputs did not change from the unreconciled ones.
 
 ## The cap, on the tuning set only
 
-| Cap (items per minute) | Items kept of 169 |      Recall | Reference-matched precision |
-| ---------------------- | ----------------: | ----------: | --------------------------: |
-| none                   |               168 | 31/42 (74%) |                         40% |
+| Cap (items per minute) | Items kept of 169 | Recall      | Reference-matched precision |
+| ---------------------- | ----------------: | ----------- | --------------------------: |
+| none                   |               169 | 31/42 (74%) |                         40% |
 | 1.2                    |               133 | 29/42 (69%) |                         46% |
-| 1.0                    |               112 | 28/42 (67%) |                         46% |
+| 1.0                    |               112 | 28/42 (67%) |                         47% |
 | 0.8                    |                89 | 25/42 (60%) |                         47% |
 
-The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of recall, and the precision stops improving below 1.2 a minute. The signals available to rank items (several passes agree, "Decided" or "Agreed", first pass) are weak: in the tuning output, 37% of single-pass items match a reference sentence against 57% of items two passes agreed on, and the status fields range only from 18% to 46%. A cap therefore removes wanted items as often as unwanted ones. It was not tried on the held-out set. The cap stays in the code as an option (`itemsPerMinute`), off.
-
-## Does the data support "later overrides earlier"?
-
-Not shown here. The step is tested (unit tests cover a same-owner reversal and many cases that must not override), but on these six AMI meetings the override never fired: the removed items are all merges, and the narrow rule was checked by comparing outputs before and after each tightening. Overrides are now limited to actions with a named owner, so a reversed decision (the usual case in a final-design meeting) is not handled at all. The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since the settings were fixed before held-out scoring.
+The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of recall. The signals available to rank items (several passes agree, "Decided" or "Agreed", first pass) are weak: in the tuning output, 37% of single-pass items match a reference sentence against 57% of items two passes agreed on, and the status fields range only from 18% to 46%. A cap therefore removes wanted items as often as unwanted ones. Not tried on held-out.
 
 ## State of the targets and what remains
 
-- **Recall 80%: not met.** Held-out 27/40 (68%), tuning 31/42 (74%). Misses are details the model does not extract; no pass or reconcile step recovered them.
-- **Precision 80%: not measured honestly yet.** Reference-matched is 40% tuning and 47% held-out, a lower bound. The earlier judged figure (about 30%) is the model grading itself and is not used. The output still has 49 to 57 items per meeting for 9 to 17 reference items; deduplication cannot close that gap because the items are mostly different points, not repeats.
-- **Next, in order of value**: (1) someone fills in [the hand-check pack](gate-6-hand-check-pack.md) (60 items, about 20 minutes) so precision is known; if most items are correct, the target should be restated against a hand-judged set rather than the short AMI reference lists; (2) only then consider a larger local model, which is the one lever not tried; (3) lowering the 70% to 80% recall target for local 9B-class models is the owner's decision.
+- **Recall 80%: not met.** Held-out 27/40 (68%), tuning 31/42 (74%). The misses are details the model does not extract; no extra pass, merge, override or cap recovered them.
+- **Precision 80%: not measured honestly yet.** Reference-matched is 40% tuning and 47% held-out, a lower bound. The earlier judged figure (about 30%) is the model grading itself and is not used. The output still has 51 to 62 items per meeting for 9 to 17 reference items, mostly different points rather than repeats.
+- **Next, in order of value**: (1) someone fills in [the hand-check pack](gate-6-hand-check-pack.md) (60 items, about 20 minutes) so precision is known; if most items are correct, restate the target against a hand-judged set rather than the short AMI reference lists; (2) only then consider a larger local model, the one lever not tried; (3) lowering the recall target for local 9B-class models is the owner's decision; (4) a reliable "later change overrides earlier" for decisions needs the model to say which earlier decision a later one replaces, which is a prompt and schema change.
 
 ## Process
 
-No new model run for scoring. One narrative re-record of the ES2016b test recording (94 seconds) because the narrative now sees fewer items. Each scoring command ran in seconds; nothing approached 20 minutes. Own errors logged in A-359.
+No model run for scoring (the step is deterministic and runs on saved extractions). Each command ran in seconds; nothing approached 20 minutes. My own errors are logged in A-359 and A-360.

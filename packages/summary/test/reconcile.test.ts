@@ -32,39 +32,6 @@ const action = (text: string, owner: string, second: number): ActionItem => ({
 });
 
 describe('reconcileItems', () => {
-  it('merges a paraphrase raised a few minutes later and keeps both lines reachable', () => {
-    const kept = reconcileItems(
-      [
-        decision('The remote will have a speech recognition chip', 100),
-        decision('Speech recognition chip is included in the remote', 220, 'Tentatively agreed'),
-      ],
-      10,
-    );
-    expect(kept).toHaveLength(1);
-    expect(kept[0]!.alsoAt).toHaveLength(1);
-  });
-
-  it('keeps the same task for two owners and distant repeats apart', () => {
-    expect(
-      reconcileItems(
-        [
-          action('Prepare the prototype slides', 'B', 100),
-          action('Prepare the prototype slides', 'C', 110),
-        ],
-        10,
-      ),
-    ).toHaveLength(2);
-    expect(
-      reconcileItems(
-        [
-          decision('The remote will have a speech recognition chip', 100),
-          decision('The remote will have a speech recognition chip', 2000),
-        ],
-        50,
-      ),
-    ).toHaveLength(2);
-  });
-
   it('drops an earlier action that a later one reverses, and keeps the later link to it', () => {
     const early = action('The remote will include an LCD screen for channel display', 'Alice', 100);
     const late = action(
@@ -155,6 +122,15 @@ describe('reconcileItems', () => {
     expect(reconcileItems([first, back], 20)).toEqual([back]);
   });
 
+  it('keeps both of two related tasks for the same owner, with no merging', () => {
+    const test = action('Test deployment', 'Alice', 100);
+    const rollback = action('Test deployment rollback', 'Alice', 200);
+    expect(reconcileItems([test, rollback], 20)).toEqual([test, rollback]);
+    const ios = action('Alice will ship the iOS build for review', 'Alice', 100);
+    const android = action('Alice will ship the Android build for review', 'Alice', 160);
+    expect(reconcileItems([ios, android], 20)).toEqual([ios, android]);
+  });
+
   it('never overrides when neither item has a named owner', () => {
     const first = decision('The team will launch Alpha before Beta.', 100);
     const back = decision('The team will not launch Alpha before Beta.', 900);
@@ -180,12 +156,6 @@ describe('reconcileItems', () => {
     const first = action('Alice will prepare the prototype slides for Monday', 'Alice', 100);
     const back = action("Alice won't prepare the prototype slides for Monday", 'Alice', 900);
     expect(reconcileItems([first, back], 20)).toEqual([back]);
-  });
-
-  it('does not merge near-duplicates that differ in the word that matters', () => {
-    const ios = action('Alice will ship the iOS build for review', 'Alice', 100);
-    const android = action('Alice will ship the Android build for review', 'Alice', 160);
-    expect(reconcileItems([ios, android], 20)).toEqual([ios, android]);
   });
 
   it('removes nothing for a negation about a different matter', () => {

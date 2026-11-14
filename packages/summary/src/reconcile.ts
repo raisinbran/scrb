@@ -1,4 +1,4 @@
-import { contentTokens, coverage, hasNegation, jaccard } from './text.js';
+import { contentTokens } from './text.js';
 import type { ActionItem, DecisionItem, Extraction } from './types.js';
 import { EVERYONE, NOT_SPECIFIED, UNCONFIRMED } from './types.js';
 
@@ -17,10 +17,7 @@ export interface ReconcileOptions {
  */
 export const DEFAULTS = { itemsPerMinute: 0, minCap: 10 };
 
-const MERGE_JACCARD = 0.4;
-const MERGE_WINDOW_SECONDS = 300;
 const MIN_SHARED = 3;
-const MERGE_MIN_SHARED = 2;
 /** A later item must come this long after the one it overrides. */
 const OVERRIDE_GAP_SECONDS = 60;
 
@@ -61,17 +58,10 @@ function polarity(text: string): { negated: boolean; rest: string } {
   return { negated, rest: out.join(' ') };
 }
 
-/** Either reading of negation: a pair that differs in either is not the same statement. */
-const negated = (text: string): boolean => hasNegation(text) || polarity(text).negated;
-
 const ownerOf = (item: Pooled): string | null =>
   item.kind !== 'action' || [NOT_SPECIFIED, UNCONFIRMED, EVERYONE].includes(item.owner)
     ? null
     : item.owner.toLowerCase();
-
-function sharedCount(a: Set<string>, b: Set<string>): number {
-  return coverage(a, b) * a.size;
-}
 
 /** Support for keeping an item: raised by several passes, firmly settled, found by the first pass. */
 export function weight(item: Pooled): number {
@@ -88,55 +78,6 @@ export function weight(item: Pooled): number {
     Math.min(contentTokens(item.text).size, 12) / 12 -
     (item.flags.includes('weak_evidence') ? 2 : 0)
   );
-}
-
-/** Merges the lesser of two items into the better; the better is the higher weight, then the longer. */
-function absorb(winner: Pooled, loser: Pooled): void {
-  winner.alsoAt.push(loser.evidence, ...loser.alsoAt);
-  if (
-    winner.kind === 'action' &&
-    loser.kind === 'action' &&
-    ownerOf(winner) === null &&
-    ownerOf(loser) !== null
-  ) {
-    winner.owner = loser.owner;
-    winner.flags = winner.flags.filter((flag) => flag !== 'owner_unconfirmed');
-  }
-}
-
-/** Looser repeat merge than the first dedupe: same kind, same polarity, close in the meeting. */
-function mergeNearDuplicates(items: Pooled[]): Pooled[] {
-  const kept: Pooled[] = [];
-  const cache = new Map<Pooled, Set<string>>();
-  const tokens = (item: Pooled) =>
-    cache.get(item) ?? cache.set(item, contentTokens(item.text)).get(item)!;
-  for (const item of items) {
-    const at = kept.findIndex((other) => {
-      if (other.kind !== item.kind || negated(other.text) !== negated(item.text)) return false;
-      if (Math.abs(other.evidence.timestampSec - item.evidence.timestampSec) > MERGE_WINDOW_SECONDS)
-        return false;
-      const a = tokens(other);
-      const b = tokens(item);
-      if (sharedCount(a, b) < MERGE_MIN_SHARED || jaccard(a, b) < MERGE_JACCARD) return false;
-      // The shorter wording must sit entirely inside the longer: "iOS build" and "Android build" differ in the word that matters.
-      if (coverage(a.size <= b.size ? a : b, a.size <= b.size ? b : a) < 1) return false;
-      const owners = [ownerOf(other), ownerOf(item)];
-      return !(owners[0] && owners[1] && owners[0] !== owners[1]);
-    });
-    if (at === -1) {
-      kept.push(item);
-      continue;
-    }
-    const other = kept[at]!;
-    const [winner, loser] =
-      weight(item) > weight(other) ||
-      (weight(item) === weight(other) && tokens(item).size > tokens(other).size)
-        ? [item, other]
-        : [other, item];
-    absorb(winner, loser);
-    kept[at] = winner;
-  }
-  return kept;
 }
 
 /**
@@ -182,14 +123,14 @@ function capItems(items: Pooled[], cap: number): Pooled[] {
   return items.filter((item) => keep.has(item));
 }
 
-/** Reduces an item list in meeting order; links are never changed, only items removed or merged. */
+/** Reduces an item list in meeting order; links are never changed, only items removed. */
 export function reconcileItems(
   items: Pooled[],
   minutes: number,
   options: ReconcileOptions = {},
 ): Pooled[] {
   const { itemsPerMinute, minCap } = { ...DEFAULTS, ...options };
-  let out = mergeNearDuplicates(items);
+  let out = items;
   out = dropOverridden(out);
   if (itemsPerMinute > 0)
     out = capItems(out, Math.max(minCap, Math.ceil(minutes * itemsPerMinute)));
