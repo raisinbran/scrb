@@ -31,6 +31,7 @@
 .startButton,
 .stopButton {
   width: 88px;
+  height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   font-weight: 600;
   color: var(--color-text);
@@ -94,30 +95,33 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
-  align-items: flex-end;
-  padding-block: var(--space-2);
+  align-items: flex-start;
+  padding-block: var(--space-1) var(--space-2);
 }
 
 .pickers {
   display: flex;
-  flex: 1 1 340px;
+  flex: 1 1 420px;
   gap: var(--space-3);
   min-width: 0;
 }
 
 .picker {
-  display: flex;
+  display: grid;
+  grid-auto-rows: min-content;
   flex: 1;
-  flex-direction: column;
-  gap: 2px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--space-2);
+  align-items: center;
   min-width: 0;
-  max-width: 300px;
+  max-width: 360px;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
 .picker select {
   width: 100%;
+  height: var(--control-height);
   padding: var(--space-1) var(--space-2);
   color: var(--color-text);
   background: var(--color-surface-raised);
@@ -126,6 +130,7 @@ button:disabled {
 }
 
 .hint {
+  grid-column: 1 / -1;
   margin: 0;
   font-size: var(--text-xs);
 }
@@ -142,9 +147,9 @@ button:disabled {
 
 .meters {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 180px;
+  gap: var(--space-4);
+  align-items: center;
+  height: var(--control-height);
 }
 
 .meterRow {
@@ -156,11 +161,12 @@ button:disabled {
 }
 
 .meterLabel {
-  width: 52px;
+  width: auto;
 }
 
 .meter {
-  flex: 1;
+  width: 64px;
+  flex: none;
   height: 8px;
   overflow: hidden;
   background: var(--color-surface-selected);
