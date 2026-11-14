@@ -1,4 +1,4 @@
-# Windows M1 first run (dev build, Windows 10)
+# Windows M1 first run (dev build, Windows PC)
 
 **Status:** procedure, 2026-11-13. Written on a Mac from reading the repo; **nothing here was run on a Windows PC, and `scripts/m1.ps1` and `scripts/m1.test.ps1` were not executed (no PowerShell on the author's machine).** Anything marked (unverified) was not checked. Independent review pending. No recordings were read; the test uses invented speech.
 
@@ -19,7 +19,7 @@ Everything the Mac gets from `scripts/dev-assets.sh build` or a Swift build has 
 
 Not blockers but expect them:
 
-- **Windows version.** Dev M1 does not require Windows 11. Per-app (process-tree) loopback needs a recent Windows 10 build (the exact minimum is unverified); `winver` is step 0. The first test uses **Whole computer audio**, which does not need it.
+- **Windows version.** Regiurn is Windows 11 Home (build 26300, owner report); BCHEN-W10 is Windows 10. Record `winver` rather than assuming. Dev M1 does not require Windows 11. Per-app (process-tree) loopback needs a recent Windows 10 build (the exact minimum is unverified); `winver` is step 0. The first test uses **Whole computer audio**, which does not need it.
 - **Live speed on a CPU-only PC.** Live text uses `small.en` with `audioContext` 768 (`packages/transcription/src/config.ts` comment). Gate 3 Windows is still open, so late or missing live text is a finding, not a setup error.
 - **Final pass is slow without a GPU.** large-v3-turbo on CPU may take several times the clip length. The test clip is 2 minutes; allow up to 20 minutes for the final pass. Do not quit the app meanwhile.
 - **Start-up gap warning.** Windows keeps the original 100 ms late-start limit (`lateStartNsFor('win32')`); the Mac got 2 s. A warning about a gap at the very start is a known finding to report, not a failure.
@@ -35,7 +35,7 @@ Not blockers but expect them:
 | ffmpeg, ffprobe | `packages/transcription/.bin/` | `packages\transcription\.bin\ffmpeg.exe`, `ffprobe.exe` |
 | Models | `~/scrb-dev-assets/models/whisper` and `models/sherpa-onnx` | the same, from `dev-assets.sh asr` and `diarization` run in Git Bash (hash-checked, ~2 GB; the Windows sherpa release is fetched in the `diarization` group) |
 | Configs | `~/scrb-dev-assets/config/live.json`, `final-pass.json` | `%USERPROFILE%\scrb-dev-assets\config\live.json` and `final-pass.json` (step 7) |
-| Node | `~/.local/share/scrb-node/current/bin` | Node 22.12 or newer on `PATH` (`package.json` engines); location on the PCs is unverified |
+| Node | `~/.local/share/scrb-node/current/bin` | Node 22.23.4 (`.nvmrc`) on `PATH`; it works on Regiurn, where `npm install` and `npm run check` pass (real-decoder tests skip until ffmpeg exists) and `scripts\package-win.ps1` runs directly in PowerShell |
 | Library | `~/Documents/Meeting Scribe` | `%USERPROFILE%\Documents\Meeting Scribe` (OneDrive may redirect Documents; check in Settings) |
 
 Existing Windows setup docs: only the Gate 3 runbook (`docs/gates/gate-3-windows-scored-run-runbook-20261110.md`, uses `C:\Users\bchen\Documents\GitHub\scrb-run-pin` and a ChatGPT folder for Python/evidence) and `native/windows-capture/README.md` (helper build). **No document describes the whisper, sherpa or ffmpeg Windows builds**; that is B1-B3.
@@ -56,7 +56,7 @@ Pick the PC. **PC for steps 0-9: the one that has `C:\BuildTools` (check in step
 winver; hostname; Test-Path C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat; node -v; git --version; Test-Path "$env:USERPROFILE\scrb-dev-assets"; Test-Path 'C:\msys64'
 ```
 
-Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 22.12+, Git present. Build steps need `vcvars64.bat` = True (else B5). `scrb-dev-assets` = True means a seed exists: step 2 skips what it has. MSYS2 is only needed for step 6.
+Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 22.23.4, Git present. Build steps need `vcvars64.bat` = True (else B5). `scrb-dev-assets` = True means a seed exists: step 2 skips what it has. MSYS2 is only needed for step 6.
 
 **Step 1. Get the code and install.** Folder: where you keep repos, e.g. `C:\Users\<you>\Documents\GitHub`. Admin: no. Use the branch of this PR (or `main` once merged).
 
