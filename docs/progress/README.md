@@ -6,11 +6,19 @@
 
 ## Git commit counts and gate pass dates
 
-![SRCB cumulative commit and gate timeline through November 11, with the November 9 snapshot preserved for comparison](commit-gate-timeline.svg)
+![SRCB cumulative commit and gate timeline through November 13, with earlier dated snapshots preserved for comparison](commit-gate-timeline.svg)
 
 [Machine-readable daily timeline](commit-gate-timeline.csv) · [Current `main` commit history](https://github.com/raisinbran/scrb/commits/main/)
 
-### November 11, 2026 (current)
+### November 13, 2026 (current)
+
+- **November 13, 2026, 5:18 PM PST:** **896** unique commits reachable from pinned `main` at [`d3824f94`](https://github.com/raisinbran/scrb/commit/d3824f94c632632dfbfb3acbd6057d0166b7d337). GitHub's commit API returned 100 commits on each of pages 1–8, 96 on page 9, and no entries on page 10. **+138 commits** since the observed November 11 snapshot (758), including earlier-dated commits newly reachable following merges. Today's reconstructed November 11 date total is 766, not the prior snapshot's 758.
+- **Full gate count remains 3/9.** Mac Gate 3 was approved November 2. On November 10 the owner accepted the Windows live-latency criterion by risk decision (not a measured protocol pass). On November 12 the owner accepted two [Windows Wave 1 playback/capture evidence substitutions](../gates/gate-3-windows-wave1-evidence-owner-decision-20261112.md); neither decision alone marks the full Windows Gate 3 as passed.
+- **November 13 phase-gate policy:** [AGENTS.md](../../AGENTS.md) now explicitly relaxes sequential gate prerequisites for parallel phase development, and Windows/Mac gate evidence is not required for work outside M1. This is not retrospective approval of unpassed gates.
+- **Implementation advancing without formal gate approval:** [PR #185](https://github.com/raisinbran/scrb/pull/185) merged real summary generation (Phase 6); [PR #161](https://github.com/raisinbran/scrb/pull/161) merged packaged macOS app work (Phase 8). Neither establishes Gate 6 or Gate 8 approval.
+- **Archives:** [November 9 commit/gate chart](commit-gate-timeline-20261109.svg), [November 11 commit/gate chart](commit-gate-timeline-20261111.svg), [November 9 phase bar chart](phase-progress-comparison-20261109.svg), and [November 11 phase bar chart](phase-progress-comparison-20261111.svg) remain separate. The current SVGs are refreshed, and both source CSVs preserve all dated snapshots.
+
+### November 11, 2026 (preserved snapshot)
 
 - **November 11, 2026, 1:12 PM PST:** **758** unique commits reachable from pinned `main` at [`f072dac2`](https://github.com/raisinbran/scrb/commit/f072dac254fd95d033dd35644bd85b1bea9b98f9). Eight paginated GitHub API pages yielded 100+100+100+100+100+100+100+58 unique commits; page 9 was empty. **+306 commits** since the November 9 observed snapshot (452); these include old-dated commits later merged into `main`, so historical date counts have changed in the reconstruction.
 - **Full gate approvals remain 3/9:** Gate 0 and Gate 1 (Oct 30), Gate 2 (Nov 1). macOS Gate 3 approval (Nov 2) is a platform milestone. The [signed Nov 10 Windows live-latency decision](../gates/gate-3-windows-latency-owner-decision-record-20261110.md) is **owner risk acceptance for latency only**, explicitly **not** a measured protocol PASS or a full Windows Gate 3 approval. Other Windows criteria remain open.
@@ -25,36 +33,36 @@
 - **Evidence:** [Gate 0](../../phase0/evidence/gate-0.md), [Gate 1](../gates/gate-1.md), [Gate 2](../gates/gate-2.md), [Mac Gate 3 approval on PR #47](https://github.com/raisinbran/scrb/blob/1eda6eb0fae5b672e23250a3d0782da24d4e8624/docs/gates/gate-3-macos.md), and the unapproved Windows [retest PR #74](https://github.com/raisinbran/scrb/pull/74).
 - **Interpretation:** commit totals include every reachable commit (including merge commits, tests and documentation), but exclude unmerged PRs. Daily grouping uses each commit's **committer timestamp** in `America/Los_Angeles`. The timeline is **not** a measurement of feature completion or person-hours.
 
-**Update practice:** Do not overwrite the November 9 or November 11 observations. For each later report, append another complete dated `snapshot_time_pacific` series to `commit-gate-timeline.csv`, pin its `snapshot_main_head`, and update the SVG to display the new snapshot with clear dates and gate distinctions. If the current `main` history has changed through branch merges, explain why its retrospective date counts differ from prior snapshots.
+**Update practice:** Do not overwrite any of the November 9, November 11 or November 13 observations. For each later report, append another complete dated `snapshot_time_pacific` series to `commit-gate-timeline.csv`, pin its `snapshot_main_head`, and update the SVG to display the new snapshot with clear dates and gate distinctions. If the current `main` history has changed through branch merges, explain why its retrospective date counts differ from prior snapshots.
 
 ## Historical chart and data
 
-**Latest phase snapshot:** November 11, 2026, 1:12 PM PST (America/Los_Angeles), pinned to `main` at `f072dac254fd95d033dd35644bd85b1bea9b98f9`. The earlier November 9 and November 3 observations and the independent commit/gate timelines are preserved, not replaced.
+**Latest phase snapshot:** November 13, 2026, 5:18 PM PST (America/Los_Angeles), pinned to `main` at `d3824f94c632632dfbfb3acbd6057d0166b7d337`. The prior six phase snapshots and independent commit/gate histories are preserved, not replaced.
 
-![Six-snapshot grouped phase bar chart with dated color series and explicit unassessed phase markers](phase-progress-comparison.svg)
+![Seven-snapshot grouped phase bar chart with dated color series and explicit unassessed phase markers](phase-progress-comparison.svg)
 
-The chart uses six dated colors for historic phase estimates through the November 11 update. Blank/unassessed categories are not graphed as measured 0% completion. The archived numeric zeroes are retained for continuity and labeled `not_assessed` in the CSV.
+The chart uses seven dated colors for historic phase estimates through the November 13 update. Blank/unassessed categories are not graphed as measured 0% completion. The archived numeric zeroes are retained for continuity and labeled `not_assessed` in the CSV.
 
 The source-of-truth chart data is [phase-progress-history.csv](phase-progress-history.csv). **Do not retroactively overwrite** previous estimates; append subsequent observations. The times on the first three rows were shown in earlier conversation charts and are *approximate labels*, not audited fetch times. Oct 31/Nov 1 spans a Pacific daylight-saving switch.
 
-| Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST | Nov 9 2:52 PM PST | Nov 11 1:12 PM PST |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 — Feasibility | 100% | 100% | 100% | 100%  100%  100% |
-| 1 — Foundation | 100% | 100% | 100% | 100%  100%  100% |
-| 2 — Recording | 65% | 100% | 100% | 100%  100%  100% |
-| 3 — Transcription | 0%† | 0%† | 35% | **70%**  **70%**  **80%** |
-| 4 — Speakers | 0%† | 0%† | 0%† | 0%†  0%†  0%† |
-| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%†  0%†  0%† |
-| 6 — Summaries | 0%† | 0%† | 0%† | 0%†  0%†  0%† |
-| 7 — Library and export | 0%† | 0%† | 0%† | 0%†  0%†  0%† |
-| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%†  0%†  0%† |
-| **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** |
+| Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST | Nov 9 2:52 PM PST | Nov 11 1:12 PM PST | Nov 13 5:18 PM PST |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 — Feasibility | 100% | 100% | 100% | 100%  100%  100%  100% |
+| 1 — Foundation | 100% | 100% | 100% | 100%  100%  100%  100% |
+| 2 — Recording | 65% | 100% | 100% | 100%  100%  100%  100% |
+| 3 — Transcription | 0%† | 0%† | 35% | **70%**  **70%**  **80%**  **85%** |
+| 4 — Speakers | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| 6 — Summaries | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| 7 — Library and export | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** |
 
 † **Unassessed:** zero is a historical chart placeholder, *not* an observation of 0% engineering work or no progress. The CSV's corresponding `phase_N_assessment_status` is `not_assessed`; consumers should treat that cell as missing data in percentage analyses. Formally approved gates and subjective readiness estimates have different meanings.
 
 ### Historical November 3 snapshot, bar view (retained)
 
-Each `#` is approximately 5 percentage points. This is an **archived November 3 single-snapshot text bar chart**; the six-series visual comparison above is the current chart.
+Each `#` is approximately 5 percentage points. This is an **archived November 3 single-snapshot text bar chart**; the seven-series visual comparison above is the current chart.
 
 ```text
 Phase 0  #################### 100  approved
@@ -67,6 +75,16 @@ Phase 6                          0  gate unapproved; preliminary code exists
 Phase 7                          0  gate unapproved; preliminary code exists
 Phase 8                          0  gate unapproved; preliminary code exists
 ```
+
+## November 13 phase assessment
+
+**Gate validation:** Gate 0–2 formally approved, Mac Gate 3 approved on its platform, but Windows Gate 3 as a whole still lacks formal approval; overall **3/9 gates**. This report reflects the owner's relaxed sequencing policy of November 13: phases can move in parallel without treating pending gates as closed.
+
+- **Phase 3 = 85% (subjective readiness, +5 points since November 11).** This modest estimate reflects the November 12 owner acceptance of two Windows Wave 1 evidence substitutions, additional final-pass work and smaller gaps in the Windows Gate 3 checklist. It is *not a measured completion percentage*. The November 10 latency acceptance was a risk decision, not a measured pass, and the full Windows Gate 3 remains open.
+- **Phase 4/5 = N/A (not numerically assessed).** Speaker attribution, voice profiles and correction features have substantial source code, but no Gate 4 or Gate 5 acceptance. The historical 0 placeholders are not evidence of zero development.
+- **Phase 6 = N/A (not numerically assessed).** [PR #185](https://github.com/raisinbran/scrb/pull/185) has merged the first real summary generation/cancellation backend slice, but Gate 6 requires independent evaluation against recall, precision and source-link thresholds. Do not infer a percentage from the existence of an implementation slice.
+- **Phase 8 = N/A (not numerically assessed).** [PR #161](https://github.com/raisinbran/scrb/pull/161) added the packaged macOS app; Windows packaging [PR #188](https://github.com/raisinbran/scrb/pull/188) remains in progress. Gate 8 requires release-grade cross-platform acceptance, not merely packaging source code.
+- **Snapshot source pins:** `main@d3824f94c632632dfbfb3acbd6057d0166b7d337`, [PR #153](https://github.com/raisinbran/scrb/pull/153) `241f52dc` for phase gate policy, [PR #161](https://github.com/raisinbran/scrb/pull/161) `daab84df` for macOS packaging, and [PR #185](https://github.com/raisinbran/scrb/pull/185) `3ed6515e` for summaries, plus both dated Windows owner decisions. See the November 13 CSV row for full head hashes.
 
 ## November 11 phase assessment
 
