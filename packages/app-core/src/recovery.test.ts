@@ -125,9 +125,9 @@ describe('sealAudio', () => {
     ]);
   });
 
-  it('still reports a rollover gap of 250 ms or more', async () => {
+  it.each([50, 100, 200, 250])('still reports a %i ms gap between rollover chunks', async (ms) => {
     put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
-    put('meeting', '000001.opus', chunk(1, 2 * SECOND + 250_000_000, 2, 'rollover'));
+    put('meeting', '000001.opus', chunk(1, 2 * SECOND + ms * 1_000_000, 2, 'rollover'));
     logLine('meeting', [{ file: '000000.opus', closeReason: 'rollover' }]);
     const { gaps } = await sealAudio(audio, dead);
     expect(gaps).toHaveLength(1);
