@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon concept C: pen nib with sound waves (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#d9dcf0"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#4149b840" stroke-width="6"/>
+  <g transform="rotate(-24 440 540)"><path fill="#3a41a8" d="M440 790L350 640C326 580 332 500 372 430V330c0-14 10-24 24-24h88c14 0 24 10 24 24v100c40 70 46 150 22 210z"/>
+  <path d="M440 580v190" stroke="#fbfaf6" stroke-width="22" stroke-linecap="round" fill="none"/><circle cx="440" cy="560" r="30" fill="#fbfaf6"/><path d="M378 408h124" stroke="#fbfaf6" stroke-width="16" stroke-linecap="round"/></g>
+  <g fill="none" stroke="#6a73e6" stroke-width="40" stroke-linecap="round"><path d="M650 410a140 140 0 0 1 0 210"/><path d="M736 340a250 250 0 0 1 0 350"/></g>
+  </g>
+</svg>
