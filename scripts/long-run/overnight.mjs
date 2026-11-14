@@ -27,7 +27,7 @@ import {
 import { createInterface } from 'node:readline';
 import { dirname, join, resolve } from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
-import { LOST_AUDIO_LIMITS, assertEvidenceDir, chooseSeconds, judgeLostAudio } from './guards.mjs';
+import { LOST_AUDIO_LIMITS, assertEvidenceDir, checkChunkFrames, chooseSeconds, judgeLostAudio } from './guards.mjs';
 import { performance } from 'node:perf_hooks';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,8 +57,8 @@ const LIMITS = {
   // The helper records a gap only past this (README finding 12): smaller differences between chunk
   // boundaries are timestamp jitter, not lost audio. The 5-minute smoke on a USB mic summed 0.3 ms.
   gapToleranceMs: 2,
-  // Lost-audio limits live in guards.mjs (LOST_AUDIO_LIMITS): provisional, chosen after seeing three runs, not
-  // calibrated. See docs/handoffs/2026-11-14-lost-audio-rule-proposal.md.
+  // Lost-audio limits live in guards.mjs (LOST_AUDIO_LIMITS): provisional, chosen after one smoke run and the one
+  // Regiurn 8-hour run, not calibrated. See docs/handoffs/2026-11-14-lost-audio-rule-proposal.md.
   ...LOST_AUDIO_LIMITS,
 };
 
@@ -66,9 +66,14 @@ if (flag('--report')) {
   const work = resolve(arg('--report'));
   const lines = await verify(work);
   console.log(lines.join('\n'));
-  process.exit(lines.at(-1) === 'RESULT: PASS' ? 0 : 1);
+  process.exit(exitCodeFor(lines.at(-1)));
 } else {
   await main();
+}
+
+/** 0 = PASS, 2 = INCONCLUSIVE (sample evidence missing or disagreeing), 1 = FAIL. */
+function exitCodeFor(resultLine) {
+  return resultLine === 'RESULT: PASS' ? 0 : resultLine === 'RESULT: INCONCLUSIVE' ? 2 : 1;
 }
 
 async function main() {
@@ -257,7 +262,7 @@ async function main() {
   writeFileSync(join(work, 'REPORT.txt'), `${report.join('\n')}\n`);
   say(`\n${report.join('\n')}`);
   say(`evidence folder: ${work}`);
-  process.exit(report.at(-1) === 'RESULT: PASS' ? 0 : 1);
+  process.exit(exitCodeFor(report.at(-1)));
 }
 
 async function startPlayer(work, seconds, say) {
@@ -366,7 +371,7 @@ async function verify(work) {
   const results = [];
   const check = (name, passed, detail) => {
     results.push(passed);
-    out.push(`${passed ? 'PASS' : 'FAIL'}  ${name}: ${detail}`);
+    out.push(`${passed === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : passed ? 'PASS' : 'FAIL'}  ${name}: ${detail}`);
   };
   const ms = (ns) => ns / 1e6;
   const s = (ns) => (ns / 1e9).toFixed(3);
@@ -407,14 +412,17 @@ async function verify(work) {
       `${logged} chunks, ${broken} numbering breaks, ${left} .part/.tmp left, ${damaged} damaged, ${recovered} recovered after a crash`,
     );
     const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
+    const logFile = join(logs, `${track}.chunks.log`);
+    const frames = checkChunkFrames(existsSync(logFile) ? readFileSync(logFile, 'utf8') : '', chunks.length);
     const verdict = judgeLostAudio({
+      frames,
       chunks,
       timelineEndNs: sealed.endNs,
       markedCount: marked.length,
       isMarked: (from) => marked.some((span) => span.startNs === from),
     });
     perTrack[track] = { chunks, audioNs: verdict.audioNs, lossNs: verdict.lossNs };
-    check(`${track} no lost audio`, verdict.passed, verdict.detail);
+    check(`${track} no lost audio`, verdict.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : verdict.passed, verdict.detail);
     if (verdict.warning) out.push(`WARN  ${track}: ${verdict.warning}`);
   }
 
@@ -500,7 +508,13 @@ async function verify(work) {
     check('memory bounded (helper)', false, `only ${samples.length} samples`);
   }
   out.push('final pass: not applicable (recorder only, no transcription)');
-  out.push(results.every(Boolean) ? 'RESULT: PASS' : 'RESULT: FAIL');
+  out.push(
+    results.some((r) => r === false)
+      ? 'RESULT: FAIL'
+      : results.some((r) => r === 'INCONCLUSIVE')
+        ? 'RESULT: INCONCLUSIVE'
+        : 'RESULT: PASS',
+  );
   return out;
 }
 

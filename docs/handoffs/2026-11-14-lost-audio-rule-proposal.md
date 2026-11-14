@@ -2,7 +2,7 @@
 
 **Status: written AFTER seeing the Regiurn result, and still needs independent review of its limits before any Gate 8 verdict relies on it.** An independent review of the first version found two serious problems and three smaller ones; this revision addresses them. No evidence has been re-scored with it. The verifier that scored the Regiurn 8-hour run (RESULT: FAIL) is not the one described here.
 
-**All limits below are provisional: chosen after seeing three runs (the 5-minute smoke, and the Regiurn 8-hour microphone and meeting tracks), not calibrated.** The report line for each track says so.
+**All limits below are provisional and not calibrated.** The evidence behind them is one 5-minute smoke run and the one Regiurn 8-hour run (two tracks). The BCHEN-W10 8-hour run is not used. The report line for each track says so. The measured numbers are in `2026-11-14-regiurn-jitter-numbers.md`.
 
 ## The problem
 
@@ -23,11 +23,19 @@ On Regiurn's microphone track the check failed because sub-2 ms boundary differe
 
 ## What netting does and does not show
 
-**Netting is a measurement of timestamp jitter only. It is not proof of continuous audio.** Matching positive and negative differences of the same size cancel in the sum whether they are clock jitter or a real lost span followed by a real duplicate. Only the net shortfall (timeline against summed chunk lengths, which are fixed-size) bounds that. So when the positive and negative sub-2 ms totals are each over 100 ms while the net passes, the check still PASSES but the report adds the visible line `WARN  <track>: large cancelling jitter, continuity not independently shown`. The Regiurn microphone track would produce it. Nothing here shows the audio was continuous; only listening or a sample-level check could.
+**Netting is a measurement of timestamp jitter only. It is not proof of continuous audio.** Matching positive and negative differences of the same size cancel in the sum whether they are clock jitter or a real lost span followed by a real duplicate. So timestamps alone can no longer give a PASS. Each track also needs independent sample evidence from its chunk log (frame counts are counted samples, not stamps):
+
+- every chunk holds the frame count its own stamped span implies (within one frame);
+- every chunk closed by a rollover holds the same count as the others (240,000 at 48 kHz);
+- no chunk has a padded span or a missingCause.
+
+If any chunk fails that, the track result is **INCONCLUSIVE** (report line `INCONCLUSIVE  <track> no lost audio`, final `RESULT: INCONCLUSIVE`, exit code 2). If the chunk log is absent, unreadable or does not match the chunk count, the result is also INCONCLUSIVE. A timestamp failure is still FAIL, and any FAIL wins over INCONCLUSIVE. Overall Gate 8 cannot be PASS with an INCONCLUSIVE track.
+
+When the evidence agrees, the track PASSES. If the positive and negative sub-2 ms totals are each over 100 ms while the net passes, the report also adds `WARN  <track>: large cancelling jitter, continuity not independently shown`. Frame counts show every chunk received the expected samples; they do not show the audio was continuous in time, which only listening or a sample-level check could.
 
 ## Code and tests
 
-`scripts/long-run/guards.mjs`: `scanGaps` (never nets a difference of 2 ms or more), `judgeLostAudio` (the pass/fail decision and the warning) and `LOST_AUDIO_LIMITS`. `scripts/long-run/overnight.mjs` calls `judgeLostAudio`. Tests in `scripts/long-run-guards.test.mjs` run the decision on synthetic chunk logs: 50 x +1.9 ms plus one -95 ms overlap FAILS; alternating +/-1.9 ms PASSES with the warning; one 8 ms gap FAILS; marked and unmarked are reported separately; accumulating small loss and a large net shortfall FAIL.
+`scripts/long-run/guards.mjs`: `scanGaps` (never nets a difference of 2 ms or more), `checkChunkFrames` (the sample evidence), `judgeLostAudio` (the PASS / FAIL / INCONCLUSIVE decision and the warning) and `LOST_AUDIO_LIMITS`. `scripts/long-run/overnight.mjs` calls `judgeLostAudio`. Tests in `scripts/long-run-guards.test.mjs` run the decision on synthetic chunk logs, and `scripts/long-run-report.test.mjs` runs `overnight.mjs --report` end to end (real exit code and RESULT line: cancelling jitter with correct frame counts PASSES with the warning, with a wrong frame count is INCONCLUSIVE, a marked 8 ms gap FAILS): 50 x +1.9 ms plus one -95 ms overlap FAILS; alternating +/-1.9 ms PASSES with the warning; one 8 ms gap FAILS; marked and unmarked are reported separately; accumulating small loss and a large net shortfall FAIL.
 
 ## Not verified
 

@@ -7,6 +7,7 @@ import {
   DEFAULT_SECONDS,
   LOST_AUDIO_LIMITS,
   assertEvidenceDir,
+  checkChunkFrames,
   chooseSeconds,
   judgeLostAudio,
   scanGaps,
@@ -148,7 +149,7 @@ describe('judgeLostAudio (the "no lost audio" decision)', () => {
     return out;
   };
   const judge = (chunks, markedCount = 0, isMarked = () => false) =>
-    judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs, markedCount, isMarked });
+    judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs, markedCount, isMarked, frames: { status: 'ok', detail: 'test' } });
 
   it('FAILS 50 gaps of +1.9 ms plus one -95 ms overlap', () => {
     const v = judge(chunksWithGaps([...Array(50).fill(1.9e6), -95e6]));
@@ -171,6 +172,15 @@ describe('judgeLostAudio (the "no lost audio" decision)', () => {
     expect(v.warning).toBeNull();
   });
 
+  it('is INCONCLUSIVE, not PASS, when the timestamps look fine but the frame evidence is absent or disagrees', () => {
+    const chunks = chunksWithGaps([0.5e6, -0.5e6]);
+    const base = { chunks, timelineEndNs: chunks.at(-1).endNs, markedCount: 0, isMarked: () => false };
+    expect(judgeLostAudio({ ...base, frames: { status: 'absent', detail: 'no chunk log' } }).status).toBe('INCONCLUSIVE');
+    expect(judgeLostAudio({ ...base, frames: { status: 'bad', detail: 'x' } }).status).toBe('INCONCLUSIVE');
+    expect(judgeLostAudio(base).status).toBe('INCONCLUSIVE');
+    expect(judgeLostAudio({ ...base, frames: { status: 'ok', detail: '' } }).status).toBe('PASS');
+  });
+
   it('FAILS one 8 ms gap, unmarked, and reports it separately from a marked one', () => {
     const chunks = chunksWithGaps([8e6]);
     const unmarked = judge(chunks);
@@ -188,7 +198,7 @@ describe('judgeLostAudio (the "no lost audio" decision)', () => {
   it('FAILS an accumulating small loss and a large net shortfall', () => {
     expect(judge(chunksWithGaps(Array(300).fill(0.5e6))).passed).toBe(false);
     const chunks = chunksWithGaps([0.1e6]);
-    const v = judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs + 150e6, markedCount: 0, isMarked: () => false });
+    const v = judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs + 150e6, markedCount: 0, isMarked: () => false, frames: { status: 'ok', detail: 'test' } });
     expect(v.passed).toBe(false);
   });
 });
@@ -200,5 +210,34 @@ describe('tone-check --chunks', () => {
     const r = run(value);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('--chunks must be a whole number');
+  });
+});
+
+describe('checkChunkFrames', () => {
+  const line = (o = {}) =>
+    JSON.stringify({ seq: 0, startNs: 0, endNs: 5e9, frames: 240000, rate: 48000, closeReason: 'rollover', paddedSpans: [], missingCause: '', ...o });
+  const log = (...rows) => rows.join(String.fromCharCode(10));
+
+  it('accepts chunks whose frame counts match their spans and each other', () => {
+    expect(checkChunkFrames(log(line(), line({ startNs: 5e9, endNs: 10e9 })), 2).status).toBe('ok');
+  });
+
+  it('accepts a short chunk closed by a discontinuity if its frames match its own span', () => {
+    const short = line({ startNs: 5e9, endNs: 5e9 + 1e9, frames: 48000, closeReason: 'discontinuity' });
+    expect(checkChunkFrames(log(line(), short), 2).status).toBe('ok');
+  });
+
+  it('flags a wrong frame count, a padded span and a missingCause', () => {
+    expect(checkChunkFrames(log(line(), line({ frames: 239000 })), 2).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), line({ closeReason: 'rollover', frames: 239000, endNs: 5e9 - 20833333 })), 2).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), line({ paddedSpans: [{ startNs: 1, endNs: 2 }] })), 2).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), line({ missingCause: 'unknown' })), 2).status).toBe('bad');
+  });
+
+  it('is absent when the log is empty, unreadable or does not match the chunk count', () => {
+    expect(checkChunkFrames('', 2).status).toBe('absent');
+    expect(checkChunkFrames(undefined, 2).status).toBe('absent');
+    expect(checkChunkFrames('not json', 1).status).toBe('absent');
+    expect(checkChunkFrames(line(), 2).status).toBe('absent');
   });
 });
