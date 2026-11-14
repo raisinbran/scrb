@@ -157,6 +157,46 @@ describe('final pass after Stop', () => {
     expect(workDir.startsWith(library.meetingPaths(id).folder)).toBe(false);
   });
 
+  it('calls onReady once the meeting is ready, and a throwing listener does not fail the pass', async () => {
+    const { id } = await sealedMeeting();
+    const seen: string[] = [];
+    const queue = new FinalPassQueue(
+      library,
+      async () => TRANSCRIPT,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (meetingId) => {
+        seen.push(meetingId);
+        throw new Error('listener failed');
+      },
+    );
+    queue.enqueue(id);
+    await queue.idle();
+    expect(seen).toEqual([id]);
+    expect((await library.getMeeting(id)).status).toBe('ready');
+  });
+
+  it('does not call onReady when the pass fails', async () => {
+    const { id } = await sealedMeeting();
+    const seen: string[] = [];
+    const queue = new FinalPassQueue(
+      library,
+      async () => {
+        throw new Error('boom');
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (meetingId) => seen.push(meetingId),
+    );
+    queue.enqueue(id);
+    await queue.idle();
+    expect(seen).toEqual([]);
+  });
+
   it('reports monotonic real progress and ends with finishing at 1', async () => {
     const { id } = await sealedMeeting();
     const reports: FinalPassReport[] = [];

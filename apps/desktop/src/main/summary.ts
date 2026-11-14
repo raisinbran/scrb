@@ -117,6 +117,39 @@ export async function readSummaryPaths(configPath: string | undefined): Promise<
   return { serverPath, modelPath };
 }
 
+/**
+ * Starts the model server for one job and always stops it, and removes its pid record, before
+ * returning. Aborting the signal stops it early.
+ */
+export async function withModelServer<T>(
+  deps: Pick<SummaryDeps, 'engine' | 'pidFile'>,
+  paths: SummaryPaths,
+  contextTokens: number | undefined,
+  signal: AbortSignal,
+  job: (server: ModelServer) => Promise<T>,
+): Promise<T> {
+  const { engine, pidFile } = deps;
+  const server = engine.server(paths, contextTokens === undefined ? {} : { contextTokens });
+  const onAbort = () => void server.stop();
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    await server.start();
+    if (pidFile && server.pid !== undefined && process.platform !== 'win32') {
+      const startedAt = await processField(server.pid, 'lstart').catch(() => null);
+      if (startedAt) {
+        const record: ServerRecord = { pid: server.pid, startedAt, serverPath: paths.serverPath };
+        await writeFile(pidFile, JSON.stringify(record));
+      }
+    }
+    return await job(server);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    // The gate is released only after the process has exited.
+    await server.stop();
+    if (pidFile) await rm(pidFile, { force: true });
+  }
+}
+
 interface Run {
   abort: AbortController;
   reason: StopReason | null;
@@ -344,19 +377,8 @@ export class SummaryController {
     signal: AbortSignal,
     contextTokens: number | undefined,
   ): Promise<GeneratedSummary> {
-    const { engine, pidFile } = this.deps;
-    const server = engine.server(paths, contextTokens === undefined ? {} : { contextTokens });
-    const onAbort = () => void server.stop();
-    signal.addEventListener('abort', onAbort, { once: true });
-    try {
-      await server.start();
-      if (pidFile && server.pid !== undefined && process.platform !== 'win32') {
-        const startedAt = await processField(server.pid, 'lstart').catch(() => null);
-        if (startedAt) {
-          const record: ServerRecord = { pid: server.pid, startedAt, serverPath: paths.serverPath };
-          await writeFile(pidFile, JSON.stringify(record));
-        }
-      }
+    const { engine } = this.deps;
+    return withModelServer(this.deps, paths, contextTokens, signal, async (server) => {
       const extraction = await engine.extractItems(transcript, server, {
         signal,
         onProgress: (done, total, sections) =>
@@ -378,11 +400,6 @@ export class SummaryController {
         full: second.full,
         warnings: [...new Set([...first.warnings, ...second.warnings])],
       };
-    } finally {
-      signal.removeEventListener('abort', onAbort);
-      // The gate is released only after the process has exited.
-      await server.stop();
-      if (pidFile) await rm(pidFile, { force: true });
-    }
+    });
   }
 }

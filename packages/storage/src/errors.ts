@@ -25,7 +25,10 @@ export class UnsupportedVersionError extends StorageError {
   readonly supported: number;
 
   constructor(what: string, found: number, supported: number) {
-    super('UNSUPPORTED_VERSION', `${what} is version ${found}; this build reads up to ${supported}`);
+    super(
+      'UNSUPPORTED_VERSION',
+      `${what} is version ${found}; this build reads up to ${supported}`,
+    );
     this.found = found;
     this.supported = supported;
   }
