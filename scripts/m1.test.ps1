@@ -110,6 +110,14 @@ WriteJson 'final-pass.json' (Json $bad)
 Run
 ExpectFail '"tools.ffmpeg" points to a missing file', 'no-such-ffmpeg'
 
+# A folder where a file belongs is not a valid tool path.
+$dirTool = Join-Path $fake 'a-folder'
+New-Item -ItemType Directory -Path $dirTool | Out-Null
+$bad = @{ tools = @{ ffmpeg = $dirTool; ffprobe = $p; whisperCli = $p; sherpaSidecar = $p }; models = $goodFinal.models }
+WriteJson 'final-pass.json' (Json $bad)
+Run
+ExpectFail '"tools.ffmpeg" points to a missing file', 'a-folder'
+
 WriteJson 'live.json' 'not json'
 Run
 ExpectFail 'live config is not valid JSON'

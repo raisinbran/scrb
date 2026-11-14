@@ -51,7 +51,7 @@ function Get-ConfigProblems([string]$Config, [string[]]$Keys) {
     $section = $c.$group
     $v = if ($null -ne $section) { $section.$name } else { $null }
     if ($v -isnot [string] -or $v -eq '') { $out += "lacks a non-empty `"$key`"" }
-    elseif (-not (Test-Path -LiteralPath $v)) { $out += "`"$key`" points to a missing file: $v" }
+    elseif (-not (Test-Path -LiteralPath $v -PathType Leaf)) { $out += "`"$key`" points to a missing file: $v" }
   }
   return $out
 }

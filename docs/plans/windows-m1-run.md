@@ -21,7 +21,7 @@ Not blockers but expect them:
 
 - **Windows version.** Regiurn is Windows 11 Home (build 26300, owner report); BCHEN-W10 is Windows 10. Record `winver` rather than assuming. Dev M1 does not require Windows 11. Per-app (process-tree) loopback needs a recent Windows 10 build (the exact minimum is unverified); `winver` is step 0. The first test uses **Whole computer audio**, which does not need it.
 - **Live speed on a CPU-only PC.** Live text uses `small.en` with `audioContext` 768 (`packages/transcription/src/config.ts` comment). Gate 3 Windows is still open, so late or missing live text is a finding, not a setup error.
-- **Final pass is slow without a GPU.** large-v3-turbo on CPU may take several times the clip length. The test clip is 2 minutes; allow up to 20 minutes for the final pass. Do not quit the app meanwhile.
+- **Final pass is slow without a GPU.** large-v3-turbo on CPU may take several times the clip length. The test clip is 2 minutes; the whole test, final pass included, must stay within 20 minutes (section 2), so stop and ask if it is not done by then. Do not quit the app meanwhile.
 - **Start-up gap warning.** Windows keeps the original 100 ms late-start limit (`lateStartNsFor('win32')`); the Mac got 2 s. A warning about a gap at the very start is a known finding to report, not a failure.
 - **BCHEN-W10's random screen/speaker shutoff (about 2 minutes).** It would cut the played speech mid-test. Prefer **Regiurn for the recording test** if it can have the build outputs; on BCHEN-W10 a shutoff during the test means "note it, rerun on the other PC", not a fail.
 
@@ -44,7 +44,7 @@ Existing Windows setup docs: only the Gate 3 runbook (`docs/gates/gate-3-windows
 
 - PowerShell, **not as administrator**, except the one-time Build Tools install in B5. Every block names its folder. Use one PowerShell window and leave it open.
 - Files are never deleted. Keep the test recording; do not delete it (gate-evidence policy). Do not use a real confidential meeting.
-- Budget: setup and builds are not tests. The recording test is 2 minutes of speech plus the final pass, under 20 minutes of active test time. Stop and ask before anything longer.
+- **Time limit:** the whole test, from starting the app in step 8 through the final pass and your checks in step 10, including setup of the test and cleanup, must stay within 20 minutes. That is a 2-minute recording plus a final pass that may take up to about 15 minutes. If the final pass is still running at 20 minutes, stop and ask before waiting longer; do not quit the app or start another test. One-time builds (steps 2-7) are setup, not the test.
 
 ## 3. Procedure
 
@@ -53,7 +53,31 @@ Pick the PC. **PC for steps 0-9: the one that has `C:\BuildTools` (check in step
 **Step 0. Check the PC.** Folder: any. Admin: no.
 
 ```powershell
-winver; hostname; Test-Path C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat; node -v; git --version; Test-Path "$env:USERPROFILE\scrb-dev-assets"; Test-Path 'C:\msys64'
+winver
+```
+
+```powershell
+hostname
+```
+
+```powershell
+Test-Path C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+```
+
+```powershell
+node -v
+```
+
+```powershell
+git --version
+```
+
+```powershell
+Test-Path "$env:USERPROFILE\scrb-dev-assets"
+```
+
+```powershell
+Test-Path 'C:\msys64'
 ```
 
 Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 22.23.4, Git present. Build steps need `vcvars64.bat` = True (else B5). `scrb-dev-assets` = True means a seed exists: step 2 skips what it has. MSYS2 is only needed for step 6.
@@ -61,7 +85,11 @@ Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 2
 **Step 1. Get the code and install.** Folder: where you keep repos, e.g. `C:\Users\<you>\Documents\GitHub`. Admin: no. Use the branch of this PR (or `main` once merged).
 
 ```powershell
-git clone https://github.com/raisinbran/scrb.git scrb; cd scrb
+git clone https://github.com/raisinbran/scrb.git scrb
+```
+
+```powershell
+cd scrb
 ```
 
 ```powershell
@@ -89,7 +117,11 @@ Pass: each ends with `done (<group>) in ...\scrb-dev-assets` and no `SHA-256 mis
 **Step 3. Capture helper.** Folder: `native\windows-capture`. Admin: no.
 
 ```powershell
-cd native\windows-capture; powershell -NoProfile -File scripts\fetch-opus.ps1
+cd native\windows-capture
+```
+
+```powershell
+powershell -NoProfile -File scripts\fetch-opus.ps1
 ```
 
 ```powershell
@@ -99,7 +131,11 @@ cmd /c build.cmd
 Pass: `build\bin\scrb-capture.exe` exists. Then run its unit tests:
 
 ```powershell
-cmd /c "git show phase0-archive:phase0/artifacts/capture/devices/sleep-wake-timing.csv > sleep-wake-timing.csv"; .\build\bin\PipelineTests.exe sleep-wake-timing.csv
+cmd /c "git show phase0-archive:phase0/artifacts/capture/devices/sleep-wake-timing.csv > sleep-wake-timing.csv"
+```
+
+```powershell
+.\build\bin\PipelineTests.exe sleep-wake-timing.csv
 ```
 
 Pass: ends without a failure line (the README does not quote the exact success text; report the last line). If `phase0-archive` is missing, skip this command and say so; the helper build is the pass condition.
@@ -108,8 +144,17 @@ Pass: ends without a failure line (the README does not quote the exact success t
 
 ```powershell
 cd "$env:USERPROFILE\scrb-dev-assets\upstream\whisper.cpp"
+```
+
+```powershell
 $cm = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+```
+
+```powershell
 $nj = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
+```
+
+```powershell
 cmd /c "call C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat >nul && `"$cm`" -S . -B build -G Ninja -DCMAKE_MAKE_PROGRAM=`"$nj`" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && `"$cm`" --build build"
 ```
 
@@ -119,6 +164,9 @@ Pass: `build\bin\whisper-cli.exe`, `whisper-server.exe` and `whisper-vad-speech-
 
 ```powershell
 $s = (Get-ChildItem "$env:USERPROFILE\scrb-dev-assets\tools\sherpa-onnx" -Directory | Select-Object -First 1).FullName
+```
+
+```powershell
 Get-ChildItem $s -Recurse -Include sherpa-onnx-c-api.lib, sherpa-onnx-c-api.dll, onnxruntime.dll | Select-Object FullName
 ```
 
@@ -126,8 +174,17 @@ Pass: the `.lib` and both `.dll` files are listed (note their folders). Then com
 
 ```powershell
 New-Item -ItemType Directory -Force packages\transcription\.bin | Out-Null
+```
+
+```powershell
 cmd /c "call C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat >nul && cl /nologo /EHsc /O2 /MD /std:c++17 /I`"$s\include`" packages\transcription\native\scrb-sherpa.cpp `"$s\lib\sherpa-onnx-c-api.lib`" /Fe:packages\transcription\.bin\scrb-sherpa.exe"
+```
+
+```powershell
 Copy-Item "$s\lib\*.dll", "$s\bin\*.dll" packages\transcription\.bin -ErrorAction SilentlyContinue
+```
+
+```powershell
 .\packages\transcription\.bin\scrb-sherpa.exe
 ```
 
@@ -149,14 +206,29 @@ Pass: `packages\transcription\.bin\ffmpeg.exe` and `ffprobe.exe` exist and `.\pa
 
 ```powershell
 $a = "$env:USERPROFILE\scrb-dev-assets"; $b = (Resolve-Path packages\transcription\.bin).Path; $w = "$a\upstream\whisper.cpp\build\bin"; $m = "$a\models"
+```
+
+```powershell
 New-Item -ItemType Directory -Force "$a\config" | Out-Null
+```
+
+```powershell
 $live = @{ tools = @{ whisperServer = "$w\whisper-server.exe"; whisperVad = "$w\whisper-vad-speech-segments.exe" }
   models = @{ speechLive = "$m\whisper\ggml-small.en-q5_1.bin"; vad = "$m\whisper\ggml-silero-v6.2.0.bin" }
   whisper = @{ audioContext = 768; useGpu = $false } }
+```
+
+```powershell
 $final = @{ tools = @{ ffmpeg = "$b\ffmpeg.exe"; ffprobe = "$b\ffprobe.exe"; whisperCli = "$w\whisper-cli.exe"; sherpaSidecar = "$b\scrb-sherpa.exe" }
   models = @{ speechFinal = "$m\whisper\ggml-large-v3-turbo-q5_0.bin"; speechLive = "$m\whisper\ggml-small.en-q5_1.bin"; vad = "$m\whisper\ggml-silero-v6.2.0.bin"
     segmentation = "$m\sherpa-onnx\sherpa-onnx-pyannote-segmentation-3-0\model.int8.onnx"; embedding = "$m\sherpa-onnx\3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" } }
+```
+
+```powershell
 [IO.File]::WriteAllText("$a\config\live.json", ($live | ConvertTo-Json -Depth 5))
+```
+
+```powershell
 [IO.File]::WriteAllText("$a\config\final-pass.json", ($final | ConvertTo-Json -Depth 5))
 ```
 
@@ -170,7 +242,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\m1.ps1
 
 Pass: the Scribe window opens (first start builds, a minute or more) and the Live screen lists your real microphone. Fail: the script prints `Cannot start real mode. Missing:` with a list; fix each line (that is the check working). If it says Scribe is already running, close that window first. Do not trust the Recordings list: it always includes mock sample meetings.
 
-**Step 9. Record a 2-minute test (under 20 minutes).** Use headphones so the microphone does not hear the played speech. In the app: Live screen, microphone = your headset or default mic, source = **Whole computer audio**, press Start. If Windows asks about the microphone, allow it (Settings, Privacy & security, Microphone, "Let desktop apps access your microphone" must be on). Then, in a **second** PowerShell window, play invented speech with two voices (about 90 seconds); say a few sentences into the mic yourself at the same time or between lines.
+**Step 9. Record a 2-minute test (whole test within 20 minutes, see section 2).** Use headphones so the microphone does not hear the played speech. In the app: Live screen, microphone = your headset or default mic, source = **Whole computer audio**, press Start. If Windows asks about the microphone, allow it (Settings, Privacy & security, Microphone, "Let desktop apps access your microphone" must be on). Then, in a **second** PowerShell window, play invented speech with two voices (about 90 seconds); say a few sentences into the mic yourself at the same time or between lines.
 
 ```powershell
 Add-Type -AssemblyName System.Speech
