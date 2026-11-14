@@ -116,7 +116,7 @@ function mergeNearDuplicates(items: Pooled[]): Pooled[] {
 
 /**
  * "Later change overrides earlier": an earlier item is dropped when a later one on the same
- * subject says the opposite (one has a negation, the other does not). The later item stays
+ * subject, with the same owner or both ownerless, says the opposite (one has a negation, the other does not). The later item stays
  * and keeps the earlier one's line in `alsoAt`, so the history is still reachable.
  */
 function dropOverridden(items: Pooled[], topic: Set<string>): Pooled[] {
@@ -130,6 +130,8 @@ function dropOverridden(items: Pooled[], topic: Set<string>): Pooled[] {
       if (later.evidence.timestampSec - earlier.evidence.timestampSec < OVERRIDE_GAP_SECONDS)
         continue;
       if (hasNegation(later.text) === hasNegation(earlier.text)) continue;
+      // Only the same person (or nobody) can take back a task; Bob declining Alice's task overrides nothing.
+      if (ownerOf(later) !== ownerOf(earlier)) continue;
       const b = bare(later);
       if (sharedCount(a, b) < MIN_SHARED || jaccard(a, b) < OVERRIDE_JACCARD) continue;
       later.alsoAt.push(earlier.evidence);

@@ -57,7 +57,7 @@ Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes 
 ## What was added (`packages/summary/src/reconcile.ts`, called when an extraction is finished)
 
 1. **Near-duplicate merge**: same kind, same polarity, within 5 minutes, at least 2 shared content words and word overlap (Jaccard) of 0.4. The better-supported item survives and keeps the other's cited line in `alsoAt`; two owners stay two tasks.
-2. **Later change overrides earlier**: an earlier item is dropped when an item of the same kind at least 60 seconds later shares at least 3 distinctive words (overlap 0.35, topic words removed) and says the opposite by negation. It is a wording test only: a revision with no negation word (use X, then use Y instead) is not caught.
+2. **Later change overrides earlier**: an earlier item is dropped when an item of the same kind at least 60 seconds later shares at least 3 distinctive words (overlap 0.35, topic words removed) and says the opposite by negation, and both items have the same owner or neither has one (a different person declining a task overrides nothing; added after review). It is a wording test only: a revision with no negation word (use X, then use Y instead) is not caught.
 3. **Cap**: kept items per meeting limited to a rate per minute, best-supported first (cited by several passes, settled status, first pass). Sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default**, see below.
 
 Every kept item keeps its own cited line and time; no link is rewritten.
@@ -90,7 +90,7 @@ The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of 
 
 ## Does the data support "later overrides earlier"?
 
-Only weakly. The step is correct and tested (unit tests: reversal dropped and the earlier line kept in `alsoAt`; two quick opposite statements kept apart), but on these six AMI meetings it changed no score. I did not separate how many of the 20 items removed overall were merges and how many were overrides. The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since held-out scoring was done once with settings fixed first.
+Only weakly. The step is correct and tested (unit tests: reversal dropped and the earlier line kept in `alsoAt`; two quick opposite statements kept apart), but on these six AMI meetings it changed no score. After the owner rule was added, all six meetings' outputs came out byte-identical to before it, so the override step removed nothing on these meetings and all 20 removed items were merges. The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since held-out scoring was done once with settings fixed first.
 
 ## State of the targets and what remains
 

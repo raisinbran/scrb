@@ -79,6 +79,24 @@ describe('reconcileItems', () => {
     expect(reconcileItems([early, late], 20)).toEqual([late]);
   });
 
+  it("does not let another person declining a task remove the earlier owner's action", () => {
+    const alice = action('Prepare the prototype presentation slides', 'Alice', 100);
+    const bob = action('Will not prepare the prototype presentation slides', 'Bob', 900);
+    expect(reconcileItems([alice, bob], 20)).toEqual([alice, bob]);
+  });
+
+  it('still drops an action its own owner takes back later', () => {
+    const first = action('Prepare the prototype presentation slides', 'Alice', 100);
+    const back = action('Will not prepare the prototype presentation slides', 'Alice', 900);
+    expect(reconcileItems([first, back], 20)).toEqual([back]);
+  });
+
+  it('removes nothing for a negation about a different matter', () => {
+    const a = decision('The remote will include an LCD screen for channel display', 100);
+    const b = decision('The remote will not include a speech recognition chip', 900);
+    expect(reconcileItems([a, b], 20)).toEqual([a, b]);
+  });
+
   it('does not treat two quick opposite statements as an override', () => {
     const items = [
       decision('The remote will include an LCD screen for channel display', 100),
