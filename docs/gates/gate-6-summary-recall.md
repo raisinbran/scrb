@@ -50,18 +50,17 @@ Judged precision (the local model checks each item against its cited lines; a mo
 
 Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes each from saved answers; three held-out runs 4 to 5 minutes each; judge runs 12 minutes and about 12 minutes. Each ran as a separate process, none over 20 minutes.
 
-# Update 2026-11-14: reconcile step, and what it did not fix
+# Update 2026-11-14: reconcile step tried and removed; hand-check pack added
 
-**Result: neither target met, and the reconcile step changed nothing on these meetings.** Recall is 74% tuning and 68% held-out, exactly as before; the outputs of all six meetings are byte-identical to the unreconciled outputs. Links stay 100%. A capped version lowered recall and is switched off.
+**Result: neither target met, and no production code changed.** A reconcile step (merge near-duplicates, drop earlier items a later one reverses, cap the item count) was built, measured and then removed. It did not raise recall or precision, and repeated independent review found cases where it deleted real items. Pipeline behaviour is as in PR #196 and #204: recall 74% tuning and 68% held-out, links 100%.
 
-## What is in the code (`packages/summary/src/reconcile.ts`, run when an extraction is finished)
+## What was tried, and why it was removed
 
-1. **Later change overrides earlier**, deliberately narrow after review: an earlier action is dropped only when a later action at least 60 seconds on has the **same named owner** and exactly the same words in the same order, differing only by a negation word ("not", "never", "no longer", "cannot", or a contraction such as "won't"). Decisions and ownerless actions are never overridden, since removal needs positive evidence; "remove", "drop" and compounds such as "no-show" are not negation. Not handled: reworded reversals, reversals within 60 seconds, short statements, double negation, a changed owner or deadline, and reversed decisions (the usual case in a final-design meeting). On these six meetings it never fired.
-2. **Cap** (per-meeting item limit, best-supported first), sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default.**
+1. **Near-duplicate merge** (looser than the first dedupe): removed. It merged two different tasks by one owner ("Test deployment" and "Test deployment rollback"); wording similarity cannot tell a repeat from a related task. Depending on its settings it removed 0 to 8 items per meeting and moved no recall score.
+2. **Later change overrides earlier**: removed after five consecutive review rounds each found a way for it to delete a real item. It never fired on any of the six meetings, so it has no measured benefit. Failure families, for any future attempt: another person declining a task; a different verb; a different object; a different due date or qualifier; changed word order; a negation word inside a compound ("no-show") or an ordinary verb read as negation ("remove", "drop"); ownerless items; negation in a relative clause ("devices that are not supported" against "devices that are supported", two separate tasks). A safe version needs the model to say which earlier decision a later one replaces (a prompt and schema change), not a wording test.
+3. **Cap** on items per minute: removed; the result is kept below as evidence.
 
-A near-duplicate merge was written and removed in review: it merged two different tasks by the same owner ("Test deployment" and "Test deployment rollback"), and a lexical rule cannot reliably tell a repeat from a related task. The existing first dedupe in `dedupe.ts` stays as it was, with one known problem: [handoff note](../handoffs/summary-dedupe-merges-different-builds.md).
-
-Every kept item keeps its own cited line and time; no link is rewritten.
+The existing first dedupe in `dedupe.ts` has one known problem, written up in [the handoff note](../handoffs/summary-dedupe-merges-different-builds.md). Guard tests in `test/units.test.ts` now check that related tasks and a task against its negation are kept apart.
 
 ## Numbers (same scorer and 50% matching rule as above; AMI only)
 
@@ -70,9 +69,9 @@ Every kept item keeps its own cited line and time; no link is rewritten.
 | tuning   |   169 | 31/42 (74%) |                67/169 (40%) | 186/186 real |
 | held-out |   171 | 27/40 (68%) |                81/171 (47%) | 189/189 real |
 
-Before and after are identical. One held-out item is 2.5 points. Reference-matched precision is a lower bound because the reference lists are short summaries. Held-out was scored once earlier and not rescored for the final state, since the outputs did not change from the unreconciled ones.
+These are the unchanged pipeline's numbers (no reconcile step was left in). One held-out item is 2.5 points. Reference-matched precision is a lower bound because the reference lists are short summaries. Held-out was scored once earlier and not rescored for the final state, since the outputs did not change from the unreconciled ones.
 
-## The cap, on the tuning set only
+## The cap, on the tuning set only (measured before it was removed)
 
 | Cap (items per minute) | Items kept of 169 | Recall      | Reference-matched precision |
 | ---------------------- | ----------------: | ----------- | --------------------------: |
@@ -81,14 +80,14 @@ Before and after are identical. One held-out item is 2.5 points. Reference-match
 | 1.0                    |               112 | 28/42 (67%) |                         47% |
 | 0.8                    |                89 | 25/42 (60%) |                         47% |
 
-The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of recall. The signals available to rank items (several passes agree, "Decided" or "Agreed", first pass) are weak: in the tuning output, 37% of single-pass items match a reference sentence against 57% of items two passes agreed on, and the status fields range only from 18% to 46%. A cap therefore removes wanted items as often as unwanted ones. Not tried on held-out.
+The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of recall. The signals available to rank items (several passes agree, "Decided" or "Agreed", first pass) are weak: in the tuning output, 37% of single-pass items match a reference sentence against 57% of items two passes agreed on, and the status fields range only from 18% to 46%. A cap therefore removes wanted items as often as unwanted ones. Not tried on held-out. The ranking signals were too weak for any cap to be safe.
 
 ## State of the targets and what remains
 
 - **Recall 80%: not met.** Held-out 27/40 (68%), tuning 31/42 (74%). The misses are details the model does not extract; no extra pass, merge, override or cap recovered them.
 - **Precision 80%: not measured honestly yet.** Reference-matched is 40% tuning and 47% held-out, a lower bound. The earlier judged figure (about 30%) is the model grading itself and is not used. The output still has 51 to 62 items per meeting for 9 to 17 reference items, mostly different points rather than repeats.
-- **Next, in order of value**: (1) someone fills in [the hand-check pack](gate-6-hand-check-pack.md) (60 items, about 20 minutes) so precision is known; if most items are correct, restate the target against a hand-judged set rather than the short AMI reference lists; (2) only then consider a larger local model, the one lever not tried; (3) lowering the recall target for local 9B-class models is the owner's decision; (4) a reliable "later change overrides earlier" for decisions needs the model to say which earlier decision a later one replaces, which is a prompt and schema change.
+- **Next, in order of value**: (1) someone fills in [the hand-check pack](gate-6-hand-check-pack.md) (60 items, about 20 minutes) so precision is known; if most items are correct, restate the target against a hand-judged set rather than the short AMI reference lists; (2) only then consider a larger local model, the one lever not tried; (3) lowering the recall target for local 9B-class models is the owner's decision; (4) "later change overrides earlier" needs the model to name the earlier decision a later one replaces (a prompt and schema change); see the failure families above.
 
 ## Process
 
-No model run for scoring (the step is deterministic and runs on saved extractions). Each command ran in seconds; nothing approached 20 minutes. My own errors are logged in A-359 and A-360.
+No model run for scoring (the experiments ran on saved extractions). Each command ran in seconds; nothing approached 20 minutes. My own errors are logged in A-359 and A-360.
