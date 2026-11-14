@@ -6,21 +6,21 @@ Read-only analysis of the completed 8-hour recorder-only run (started 2026-11-14
 
 | | Microphone | Meeting |
 | --- | --- | --- |
-| Verifier marked gaps | 144 | 27 |
-| Discontinuities with `missingMs` of 2 ms or more (events and chunk logs agree) | 165 | 26 |
+| Reported by the verifier (`overnight.mjs --report`): marked gaps | 144 | 27 |
+| My scan of `events.jsonl` and the chunk logs: discontinuities with `missingMs` of 2 ms or more (the two sources agree) | 165 | 26 |
 | Total missing audio in those | 3,281 ms | 1,140 ms |
 | Over 50 ms | 20 | 6 |
 | Over 150 ms | 14 | 3 |
 | Cause field | `unknown` on all 165 | `unknown` on all 26 |
 
-The verifier counts (144 and 27) differ from the raw counts (165 and 26); I did not work out why, and no numbers here rest on that difference. Also: no all-zero chunk, no padded span, no chunk gap or `.part` file; 168 `flag` events with 0 ms missing were not counted.
+The verifier reported 144 and 27; my log scan found 165 and 26. **The difference is unexplained.** I did not work out how the verifier counts, and no conclusion below rests on the difference. Also: no all-zero chunk, no padded span, no missing chunk sequence numbers and no `.part` file left; 168 microphone `flag` events with 0 ms missing were not counted.
 
 ## Pattern
 
 1. **Every gap over 50 ms on the microphone (20 of 20) happens at one wall-clock moment: about 18 s past a minute ending in 1 or 6** (02:11:18, 02:21:18, 02:36:18, 02:51:18, 03:16:18, 05:36:18, 05:46:18, 06:26:18, 06:31:18, 06:51:18, 07:26:18, 07:36:18, 07:41:18, 07:46:18, 08:01:18, 08:11:18, 08:26:18, 08:31:18, 08:51:18, 09:11:18). That is a 5-minute cycle with a fixed phase of 1 min 18 s.
 2. **The meeting track shows the same slot:** 25 of its 26 gaps are at that same time of the cycle (one other, 190.356 ms, at 01:40:29, 25 s into the run), and 25 of 26 fall in the same second as a microphone gap. So the two tracks stall together, which points at the helper process or the machine, not at one audio device.
 3. **Only part of the cycles are hit:** 22 of about 95 slots on the microphone. Hits are spread over all hours (microphone 5, 19, 18, 23, 13, 26, 25, 21, 15 gaps per hour from 01:00 to 09:00), with no time of day that is worse.
-4. **A second, small pattern on the microphone only:** about 84 gaps of 2 to 3 ms (about 233 ms in total) in the last 30 s of each 5-minute cycle (270 to 299 s). They are the sub-tolerance gaps behind the verifier's "444.9 ms in gaps under 2 ms" line. Not seen on the meeting track.
+4. **A second, small pattern on the microphone only:** about 84 gaps of 2 to 3 ms (about 233 ms in total) in the last 30 s of each 5-minute cycle (270 to 299 s). Not seen on the meeting track. Separately, the verifier's report line for the microphone says "444.9 ms in gaps under 2 ms (budget 100 ms)". That is a different measurement from the 2 to 3 ms discontinuities above (a different size range and total), and I did not show that they share a cause or even overlap.
 5. **Biggest gaps:** microphone 192.645 ms at 02:21:18, then 176.7 ms at 02:36:18, 174.5 ms at 02:11:18, 173.7 ms at 08:31:18; meeting 210 ms at 05:46:18, 190.4 ms at 01:40:29, 180 ms at 08:51:18. Arrival gaps on the larger ones are about 245 to 275 ms against the normal 10 ms spacing, which fits a delivery stall of about a quarter second, not data lost inside the device.
 
 ## Windows event logs (read-only)
@@ -32,4 +32,6 @@ Between 01:39 and 09:45 the System log has 62 events and the Application log 166
 - **Can tell:** the loss comes in 50 to 210 ms stalls, on both tracks at once, at one fixed point of a 5-minute clock cycle, in about a quarter of the cycles, for the whole run. Nothing in the Windows logs explains them. The helper labels every cause `unknown`.
 - **Most likely cause:** a periodic every-5-minutes event on this PC (something on a 5-minute timer that briefly stalls the machine or the helper's audio threads). Confidence: **moderate** that it is periodic and host-level (the fixed phase and the simultaneous hits are strong); **low** on what the source is. Nothing in this evidence names it.
 - **Cannot tell:** which program or driver; whether the stall is in the helper or in Windows audio; whether the verifier's count difference matters.
-- **One measurement that would settle it:** a 30-minute run (inside the 20-minute rule it would need owner approval, or two 15-minute runs) of the same recorder with a process and interrupt trace on (Windows Performance Recorder CPU/DPC and process-start tracing, or Process Monitor with a boot-less short capture) covering the :x1:18 slots; the trace shows which process or DPC is active at each stall. A cheaper first step that needs no recording: list what starts at `:01:18` and `:06:18` every cycle (Task Scheduler history, and process start times in the Security or Sysmon log if enabled). The test must not be rerun automatically.
+- **Next measurement, in two tiers.** Neither tier has been run.
+  - **(a) Read-only, now:** look at Task Scheduler history (Event Viewer, Task Scheduler Operational log; if that log is off there is no history, and nothing should be switched on for this read-only step) and list every task, service or program that starts or fires at :01:18 and :06:18 of each clock-minute cycle (minutes ending in 1 or 6, second 18) between 01:39 and 09:40 PST. Compare their start times with the stall times listed above. This reads existing logs only and records nothing.
+  - **(b) Short trace over the stall slot:** one run of **about 12 minutes** (under the 20-minute limit, including setup and cleanup) of the same recorder, started so that it covers two or three :x1:18 / :x6:18 slots, with a Windows Performance Recorder CPU and DPC/interrupt trace plus process-start events running alongside. It would show which process or driver is active at each stall. It needs the machine otherwise idle, and it must not be started or repeated automatically. Anything longer than 20 minutes needs the owner's approval first.
