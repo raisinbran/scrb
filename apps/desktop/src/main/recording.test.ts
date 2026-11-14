@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import type { FinalPassQueue } from '@scrb/app-core';
 import { RecordingController, recoverInterrupted } from './recording.ts';
@@ -125,6 +125,11 @@ function completion() {
   });
   return { promise, resolve };
 }
+
+afterEach(() => {
+  // The platform spy from the source-switch tests must not leak into the Windows launch test.
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
