@@ -7,13 +7,14 @@ Why not merge: the backend rewrite is ~33,000-39,000 lines, changes `packages/co
 ## 1. Delete rules (PR #95): use for SP-02 and the delete dialog
 
 Behaviours worth copying in the TypeScript library, with tests:
+
 - Delete refuses a meeting that is recording, paused, importing or being transcribed.
 - Rename the folder to `.deleting-<id>` first, so a failure before the rename changes nothing; then remove the list entry, the folder and cached files.
 - After deleting, check for leftovers (a folder another program held, a copy of the meeting) and tell the user audio may still be on disk.
 - On opening the library, finish a delete a crash interrupted; ignore a `.deleting-` folder whose name is not a meeting id.
 - A save refuses a folder outside `meetings/` or one that now holds a different meeting.
 - A meeting whose `meeting.json` cannot be read can still be deleted.
-Not tested in the source: retries on Windows while another program holds a file.
+  Not tested in the source: retries on Windows while another program holds a file.
 
 ## 2. Speaker-labelling script (PR #138): use as a benchmark only
 
