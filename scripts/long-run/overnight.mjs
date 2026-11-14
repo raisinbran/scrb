@@ -54,6 +54,9 @@ const LIMITS = {
   helperGrowthMb: 50,
   helperGrowthPercent: 10,
   timelineSlackMs: 1500,
+  // The helper records a gap only past this (README finding 12): smaller differences between chunk
+  // boundaries are timestamp jitter, not lost audio. The 5-minute smoke on a USB mic summed 0.3 ms.
+  gapToleranceMs: 2,
 };
 
 if (flag('--report')) {
@@ -410,10 +413,10 @@ async function verify(work) {
       if (i === 0 && chunks[0].startNs < 100e6) continue;
       const gap = chunks[i].startNs - from;
       if (gap < 0) overlaps += 1;
-      if (gap <= 0) continue;
+      if (gap < LIMITS.gapToleranceMs * 1e6) continue;
       lossNs += gap;
       longest = Math.max(longest, gap);
-      if (gap >= 2e6 && !marked.some((span) => span.startNs === from)) unmarked += 1;
+      if (!marked.some((span) => span.startNs === from)) unmarked += 1;
     }
     const audioNs = chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
     perTrack[track] = { chunks, audioNs, lossNs };
