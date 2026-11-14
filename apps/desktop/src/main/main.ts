@@ -133,7 +133,12 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     miniWindowOpenHandler(
       () => restoreApp?.(),
       setCompact,
-      () => mini.hide(),
+      () => {
+        hideMini();
+        // Clicking the mini window made Scribe the active app, and without it the OS hands the
+        // keyboard to the main window. Hiding the app gives it back to the app used before.
+        if (process.platform === 'darwin') app.hide();
+      },
     ),
   );
   let opacity = 0;
@@ -201,6 +206,9 @@ let miniHidden = false;
 function sendMiniHidden(window: BrowserWindow): void {
   window.webContents.send(IPC_EVENT_CHANNEL, 'miniWindowHiddenChanged', { hidden: miniHidden });
 }
+
+// The window opened below names itself `mini`, so the controller is reached through this name.
+const hideMini = (): void => mini.hide();
 
 const mini = createMiniController(openMiniWindow, (hidden) => {
   miniHidden = hidden;

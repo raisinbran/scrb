@@ -166,7 +166,7 @@ export function miniWindowOpenHandler(
  * keyboard to the app's next window and raise it, and that could not be verified or fixed (see the
  * PR). The compact button shrinks the window to its status row instead and touches no other window.
  */
-export const MINI_WINDOW_SIZE = { width: 320, height: 72 } as const;
+export const MINI_WINDOW_SIZE = { width: 352, height: 72 } as const;
 /** Content height of the compact strip: the status row only. */
 export const MINI_COMPACT_HEIGHT = 40;
 
