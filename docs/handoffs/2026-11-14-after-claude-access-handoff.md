@@ -31,3 +31,9 @@ Windows steps 9 and 10 (2-minute recording test) are a hands-on owner test; M1 i
 - **Inspector panel:** removed (PR #228).
 - **Typed outline feature:** wanted if effort allows; plan in PR #229 (`docs/plans/outline-organised-transcript.md`), needs owner approval and a contract change approval before any code.
 - **Fable model:** not wanted unless something fails without it.
+
+## Codex usage guidance (owner observation, 2026-11-14)
+At the lightest Codex settings (owner reports "GPT 6 Luna", high effort) work costs very little, but only for straightforward, well-specified tasks with little open-ended reasoning. Raising the Codex model or effort made usage climb drastically; the project stalled on Windows Gate 3 from 2026-11-03 to 2026-11-09 for that reason, until Claude access returned. Measured today at the light setting: security review about 3 weekly points; flaky-test fix about 3; dependency bumps about 2 (see usage-log rows dated 2026-11-14). After Claude access ends, write Codex tasks as explicit, step-by-step briefs with the files named, the failing test first and the done criteria stated; give design-heavy work to a written plan (already in `docs/plans/`) rather than asking Codex to design it.
+
+## Long-run status
+Gate 8 8-hour recorder-only runs: Windows PCs started 2026-11-14 (see above). A Mac 8-hour run (`scripts/long-run/overnight-mac.sh --hours 8`, runbook `docs/plans/long-run-overnight.md`) is prepared and was smoke-tested for 5 minutes but not run for 8 hours; run it on a night when the Mac is otherwise idle (a heavily loaded Mac produced false gaps in an earlier 5-minute smoke), after the owner gives the approval sentence in section 7 of the runbook.
