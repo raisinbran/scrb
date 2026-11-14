@@ -1,10 +1,16 @@
-import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { activeSpeakers, resolveDisplay } from '../src/corrections.ts';
 import { MeetingNotFoundError, StaleRevisionError } from '../src/errors.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
-import { Library, readLibraryLocation, writeLibraryLocation } from '../src/library.ts';
+import {
+  assessRootPrivacy,
+  Library,
+  readLibraryLocation,
+  writeLibraryLocation,
+  type RootPrivacyProbes,
+} from '../src/library.ts';
 import { Logger } from '../src/logs.ts';
 import { foldText } from '../src/search.ts';
 import { segment, speaker, tempDir, words } from './helpers.ts';
@@ -28,6 +34,96 @@ async function seeded(
 
 // chmod cannot make a folder read-only on Windows; those failure paths are checked on the Mac.
 const itPosix = it.skipIf(process.platform === 'win32');
+
+describe('private library storage', () => {
+  itPosix('creates a new library root with private permissions', async () => {
+    const parent = await tempDir();
+    const root = path.join(parent, 'new-library');
+    const library = await Library.open({ root });
+    expect((await stat(root)).mode & 0o777).toBe(0o700);
+    expect(library.rootMayBeShared).toBe(false);
+    await library.close();
+  });
+
+  itPosix('privatizes app-managed paths while preserving an existing chosen root', async () => {
+    const root = await tempDir();
+    await chmod(root, 0o755);
+    const library = await Library.open({ root });
+    const meeting = await library.createMeeting({ title: 'Invented permission probe' });
+    const paths = library.meetingPaths(meeting.id);
+    const directories = [
+      path.join(root, 'meetings'),
+      path.join(root, 'models'),
+      path.join(root, 'logs'),
+      path.join(root, 'cache'),
+      paths.folder,
+      paths.audio,
+      paths.audioMicrophone,
+      paths.audioMeeting,
+      paths.exports,
+    ];
+    for (const dir of directories) expect((await stat(dir)).mode & 0o777, dir).toBe(0o700);
+    for (const file of [paths.meta, path.join(root, 'index.sqlite')])
+      expect((await stat(file)).mode & 0o777, file).toBe(0o600);
+    expect((await stat(root)).mode & 0o777).toBe(0o755);
+    expect(library.rootMayBeShared).toBe(true);
+    await library.close();
+    const [logName] = await readdir(path.join(root, 'logs'));
+    expect(logName).toBeDefined();
+    expect((await stat(path.join(root, 'logs', logName as string))).mode & 0o777).toBe(0o600);
+  });
+});
+
+describe('Windows library root privacy', () => {
+  const probes = (overrides: Partial<RootPrivacyProbes> = {}): RootPrivacyProbes => ({
+    platform: 'win32',
+    isMappedNetworkDrive: async () => false,
+    realpath: async (root) => root,
+    effectiveAccessIsPrivate: async () => true,
+    ...overrides,
+  });
+
+  it('marks a mapped drive letter as potentially shared', async () => {
+    const result = await assessRootPrivacy(
+      'R:\\Shared\\Library',
+      true,
+      probes({ isMappedNetworkDrive: async () => true }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, mappedNetworkDrive: true });
+  });
+
+  it('marks a root redirected through a junction or reparse point as potentially shared', async () => {
+    const result = await assessRootPrivacy(
+      'C:\\Users\\owner\\Library',
+      true,
+      probes({ realpath: async () => 'D:\\Shared\\Library' }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, redirected: true });
+  });
+
+  it('warns when Windows effective access cannot be verified', async () => {
+    const result = await assessRootPrivacy(
+      'C:\\Users\\owner\\Library',
+      false,
+      probes({ effectiveAccessIsPrivate: async () => null }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, windowsAccessVerified: false });
+  });
+
+  it('allows an explicitly verified private local root', async () => {
+    const result = await assessRootPrivacy('C:\\Users\\owner\\Library', true, probes());
+
+    expect(result).toMatchObject({
+      mayBeShared: false,
+      mappedNetworkDrive: false,
+      redirected: false,
+      windowsAccessVerified: true,
+    });
+  });
+});
 
 describe('crash during save', () => {
   it.each(['temp-created', 'temp-partly-written', 'temp-synced'] as const)(
@@ -366,6 +462,135 @@ describe('delete', () => {
     const bytes = await readFile(path.join(root, 'index.sqlite'), 'latin1');
     expect(bytes).not.toContain('Secret plans');
     expect(bytes).not.toContain(id);
+  });
+
+  it('removes only learned data this meeting alone supports, and only when asked', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id, ids } = await seeded(library, 'Secret plans');
+    const { id: other } = await seeded(library, 'Other');
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'Kiwi',
+      remember: true,
+    });
+    const sole = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const shared = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([3, 4]),
+      meetingId: id,
+    });
+    library.voiceProfiles.grow(shared.id, new Float32Array([3, 4]), 1, other);
+
+    const report = await library.deleteMeeting(id, false, true);
+
+    expect(report.ok).toBe(true);
+    expect(report.learned).toMatchObject({ profiles: 1, terms: 1 });
+    expect(library.voiceProfiles.get(sole.id)).toBeNull();
+    expect(library.voiceProfiles.get(shared.id)?.meetingIds).toEqual([other]);
+    expect(library.vocabulary.list()).toEqual([]);
+    await library.close();
+  });
+
+  it('keeps a term that another meeting also taught, and drops the deleting meeting from it', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const first = await seeded(library, 'First');
+    const second = await seeded(library, 'Second');
+    for (const m of [first, second]) {
+      await library.applyCorrection(m.id, {
+        wordIds: m.ids.slice(0, 1),
+        replacement: 'Kiwi',
+        remember: true,
+      });
+    }
+    expect(library.vocabulary.list()).toHaveLength(1);
+
+    const report = await library.deleteMeeting(first.id, false, true);
+
+    expect(report.learned).toMatchObject({ profiles: 0, terms: 0 });
+    const kept = library.vocabulary.list();
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.contexts.map((c) => c.meetingId)).toEqual([second.id]);
+    await library.close();
+  });
+
+  it('does not deadlock when a profile assignment holds the global lock and wants this meeting', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library, 'Secret plans');
+    const profile = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const locked = library as unknown as {
+      withLock<T>(key: string, work: () => Promise<T>): Promise<T>;
+    };
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held!: () => void;
+    const holding = new Promise<void>((resolve) => (held = resolve));
+    // Same order as profile matching: global lock first, then this meeting's lock.
+    const assignment = locked.withLock('voice-profile-assignments', async () => {
+      held();
+      await gate;
+      await locked.withLock(id, async () => undefined);
+    });
+    await holding;
+    const deleting = library.deleteMeeting(id, false, true);
+    release();
+    const outcome = await Promise.race([
+      Promise.all([assignment, deleting]).then(([, report]) => report),
+      new Promise<'deadlock'>((resolve) => setTimeout(() => resolve('deadlock'), 5000)),
+    ]);
+
+    expect(outcome).not.toBe('deadlock');
+    expect(library.voiceProfiles.get(profile.id)).toBeNull();
+    await library.close();
+  });
+
+  it('reports a requested profile removal that could not finish', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library, 'Secret plans');
+    library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const failing = library as unknown as { unlinkVoiceProfile: () => Promise<never> };
+    vi.spyOn(failing, 'unlinkVoiceProfile').mockRejectedValue(new Error('busy'));
+
+    const report = await library.deleteMeeting(id, false, true);
+
+    expect(report.learned).toMatchObject({ profiles: 0, profilesFailed: 1 });
+    await library.close();
+  });
+
+  it('keeps learned data by default and reports nothing about it', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id, ids } = await seeded(library, 'Secret plans');
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'Kiwi',
+      remember: true,
+    });
+    const profile = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const report = await library.deleteMeeting(id);
+    expect(report.learned).toBeUndefined();
+    expect(library.voiceProfiles.get(profile.id)).not.toBeNull();
+    expect(library.vocabulary.list()).toHaveLength(1);
+    await library.close();
   });
 
   it.each(['undo', 'redo'] as const)(

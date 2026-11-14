@@ -535,6 +535,8 @@ export interface DeleteResult {
   verified: boolean;
   /** Plain-language names of anything left behind. */
   remaining: string[];
+  /** Present only when learned data was removed on request. Items other meetings also support are kept. */
+  learnedDataRemoved?: { profiles: number; terms: number };
 }
 
 export type MeetingFolder = 'meeting' | 'audio' | 'exports';

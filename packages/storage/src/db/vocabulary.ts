@@ -134,6 +134,17 @@ export class VocabularyStore {
     return deletedKeys(term).some((key) => isMarked(this.db, key));
   }
 
+  /** Ids of learned terms whose every example comes from this meeting. Hand-edited terms are never listed. */
+  termsOnlyFrom(meetingId: string): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT term_id FROM vocabulary_contexts GROUP BY term_id
+         HAVING SUM(CASE WHEN meeting_id = ? THEN 0 ELSE 1 END) = 0`,
+      )
+      .all(meetingId) as unknown as { term_id: string }[];
+    return rows.map((row) => row.term_id).filter((id) => !this.isUserEdited(id));
+  }
+
   isUserEdited(id: string): boolean {
     return isMarked(this.db, `vocabulary.edited.${id}`);
   }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { AtomicWriteOptions } from './atomic.ts';
@@ -95,6 +96,15 @@ export interface DeleteReport {
   ok: boolean;
   /** What is still there: file paths for the UI, or `index:<table>`. Never log these. */
   remaining: string[];
+  /** Set when the caller asked for learned data to go: only items this meeting alone supported. */
+  learned?: {
+    profiles: number;
+    terms: number;
+    /** Voice profiles that should have gone but could not be removed. */
+    profilesFailed: number;
+    /** Transcript edits made while unlinking removed profiles, for the caller to announce. */
+    transcriptChanges: { before: TranscriptFile; after: TranscriptFile }[];
+  };
 }
 
 export interface AutoDeleteRun {
@@ -147,6 +157,20 @@ export interface LibraryOptions {
   logger?: Logger;
 }
 
+export interface RootPrivacyAssessment {
+  mayBeShared: boolean;
+  mappedNetworkDrive: boolean | null;
+  redirected: boolean | null;
+  windowsAccessVerified: boolean;
+}
+
+export interface RootPrivacyProbes {
+  platform?: NodeJS.Platform;
+  isMappedNetworkDrive?: (root: string) => Promise<boolean | null>;
+  realpath?: (root: string) => Promise<string | null>;
+  effectiveAccessIsPrivate?: (root: string) => Promise<boolean | null>;
+}
+
 async function exists(target: string): Promise<boolean> {
   try {
     await fs.lstat(target);
@@ -155,6 +179,113 @@ async function exists(target: string): Promise<boolean> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
     throw error;
   }
+}
+
+async function privateDirectory(target: string): Promise<void> {
+  try {
+    const info = await fs.lstat(target);
+    if (info.isDirectory() && !info.isSymbolicLink()) await fs.chmod(target, 0o700);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+async function detectMappedNetworkDrive(root: string): Promise<boolean | null> {
+  const drive = /^([a-z]:)[\\/]/i.exec(path.win32.resolve(root))?.[1]?.toUpperCase();
+  if (!drive) return false;
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        'net.exe',
+        ['use'],
+        { encoding: 'utf8', timeout: 3_000, windowsHide: true },
+        (error, output) => {
+          if (error) reject(error);
+          else resolve(output);
+        },
+      );
+    });
+    return stdout.split(/\r?\n/).some((line) => {
+      const fields = line.trim().split(/\s+/);
+      return fields.some(
+        (field, index) => field.toUpperCase() === drive && fields[index + 1]?.startsWith('\\\\'),
+      );
+    });
+  } catch {
+    return null;
+  }
+}
+
+function windowsPathKey(value: string): string {
+  return path.win32
+    .normalize(value)
+    .replace(/^\\\\\?\\UNC\\/i, '\\\\')
+    .replace(/^\\\\\?\\/, '')
+    .replace(/[\\/]+$/, '')
+    .toLowerCase();
+}
+
+/**
+ * Evaluate the selected root conservatively. Node does not expose effective Windows ACL checks,
+ * so an unverified Windows root is reported as potentially shared. Probe overrides let tests
+ * exercise the same production decision with simulated Windows path and permission results.
+ */
+export async function assessRootPrivacy(
+  root: string,
+  existed: boolean,
+  probes: RootPrivacyProbes = {},
+): Promise<RootPrivacyAssessment> {
+  const platform = probes.platform ?? process.platform;
+  if (platform !== 'win32') {
+    if (!existed) {
+      return {
+        mayBeShared: false,
+        mappedNetworkDrive: false,
+        redirected: false,
+        windowsAccessVerified: true,
+      };
+    }
+    return {
+      mayBeShared: ((await fs.stat(root)).mode & 0o077) !== 0,
+      mappedNetworkDrive: false,
+      redirected: false,
+      windowsAccessVerified: true,
+    };
+  }
+
+  const resolvedRoot = path.win32.resolve(root);
+  const publicRoot = path.win32.resolve(process.env['PUBLIC'] ?? 'C:\\Users\\Public');
+  const isPublicRoot =
+    windowsPathKey(resolvedRoot) === windowsPathKey(publicRoot) ||
+    windowsPathKey(resolvedRoot).startsWith(`${windowsPathKey(publicRoot)}\\`);
+  const [mappedNetworkDrive, realpath, effectiveAccessIsPrivate] = await Promise.all([
+    probes.isMappedNetworkDrive
+      ? probes.isMappedNetworkDrive(root)
+      : detectMappedNetworkDrive(root),
+    probes.realpath ? probes.realpath(root) : fs.realpath(root).catch(() => null),
+    // Node core has no effective-access ACL query. Until one is available, fail closed.
+    probes.effectiveAccessIsPrivate ? probes.effectiveAccessIsPrivate(root) : Promise.resolve(null),
+  ]);
+  const redirected =
+    realpath === null ? null : windowsPathKey(realpath) !== windowsPathKey(resolvedRoot);
+  const isUncPath = windowsPathKey(resolvedRoot).startsWith('\\\\');
+  const mayBeShared =
+    isUncPath ||
+    isPublicRoot ||
+    mappedNetworkDrive !== false ||
+    redirected !== false ||
+    effectiveAccessIsPrivate !== true;
+
+  return {
+    mayBeShared,
+    mappedNetworkDrive,
+    redirected,
+    windowsAccessVerified: effectiveAccessIsPrivate !== null,
+  };
+}
+
+async function looksShared(root: string, existed: boolean): Promise<boolean> {
+  return (await assessRootPrivacy(root, existed)).mayBeShared;
 }
 
 async function hasAnyFile(dir: string): Promise<boolean> {
@@ -177,6 +308,8 @@ function isAlive(correction: Correction | undefined): boolean {
  */
 export class Library {
   readonly paths: LibraryPaths;
+  /** True when the user-selected root appears readable by other local users. */
+  readonly rootMayBeShared: boolean;
   readonly settings: SettingsStore;
   readonly vocabulary: VocabularyStore;
   readonly voiceProfiles: VoiceProfileStore;
@@ -201,6 +334,7 @@ export class Library {
     clock: () => Date,
     replacedCorruptIndex: string | null,
     retainedIndexSnapshot: boolean,
+    rootMayBeShared: boolean,
   ) {
     this.paths = paths;
     this.db = db;
@@ -208,6 +342,7 @@ export class Library {
     this.clock = clock;
     this.replacedCorruptIndex = replacedCorruptIndex;
     this.retainedIndexSnapshot = retainedIndexSnapshot;
+    this.rootMayBeShared = rootMayBeShared;
     const now = (): string => clock().toISOString();
     this.settings = new SettingsStore(db);
     this.vocabulary = new VocabularyStore(db, now);
@@ -226,20 +361,51 @@ export class Library {
 
   static async open(options: LibraryOptions): Promise<Library> {
     const paths = libraryPaths(options.root);
+    const rootExisted = await exists(paths.root);
+    await fs.mkdir(paths.root, {
+      recursive: true,
+      mode: process.platform === 'win32' ? undefined : 0o700,
+    });
     await Promise.all(
       [paths.meetings, paths.models, paths.logs, paths.cache].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
+    const rootMayBeShared = await looksShared(paths.root, rootExisted);
+    if (process.platform !== 'win32') {
+      await Promise.all(
+        [paths.meetings, paths.models, paths.logs, paths.cache].map(privateDirectory),
+      );
+    }
     const clock = options.now ?? (() => new Date());
     const logger = options.logger ?? new Logger(paths.logs, clock);
     const { db, replacedCorruptIndex, retainedSnapshot } = await openIndex(paths.index);
-    const library = new Library(paths, db, logger, clock, replacedCorruptIndex, retainedSnapshot);
+    const library = new Library(
+      paths,
+      db,
+      logger,
+      clock,
+      replacedCorruptIndex,
+      retainedSnapshot,
+      rootMayBeShared,
+    );
     Object.assign(library.openReport, await library.reconcile());
+    if (process.platform !== 'win32') await library.secureMeetingDirectories();
     await library.repairVocabulary();
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
+  }
+
+  private async secureMeetingDirectories(): Promise<void> {
+    for (const row of this.listMeetings()) {
+      const files = this.meetingPaths(row.id);
+      await Promise.all(
+        [files.folder, files.audio, files.audioMicrophone, files.audioMeeting, files.exports].map(
+          privateDirectory,
+        ),
+      );
+    }
   }
 
   setMeetingChangedListener(listener: ((meeting: MeetingMeta) => void) | null): void {
@@ -320,7 +486,7 @@ export class Library {
     const files = meetingPaths(meetingFolderPath(this.paths, folder));
     await Promise.all(
       [files.audioMicrophone, files.audioMeeting, files.exports].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
     await saveDocument(files.meta, meta, null);
@@ -334,7 +500,9 @@ export class Library {
     for (let attempt = 1; ; attempt += 1) {
       const name = attempt === 1 ? base : `${base} (${attempt})`;
       try {
-        await fs.mkdir(meetingFolderPath(this.paths, name));
+        await fs.mkdir(meetingFolderPath(this.paths, name), {
+          mode: process.platform === 'win32' ? undefined : 0o700,
+        });
         return name;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
@@ -1029,18 +1197,75 @@ export class Library {
    * `.deleting-` folder that the next open finishes, never a half-deleted meeting in the list.
    * On failure nothing is reported as gone: `ok` is false and `remaining` says what is left.
    */
-  deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
-    return this.withLock(meetingId, async () => {
-      const row = this.requireRow(meetingId);
-      await this.assertDeletionIdle(row, importCleanup);
-      const remaining = await this.removeMeeting(meetingId, row.folder);
-      const ok = remaining.length === 0;
-      this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
-        meetingId,
-        ok,
-        leftCount: remaining.length,
-      });
-      return { meetingId, ok, remaining };
+  async deleteMeeting(
+    meetingId: string,
+    importCleanup = false,
+    removeLearnedData = false,
+  ): Promise<DeleteReport> {
+    const { report, soleProfiles } = await this.withLock(meetingId, () =>
+      this.deleteMeetingLocked(meetingId, importCleanup, removeLearnedData),
+    );
+    if (!report.learned) return report;
+    // Lock order is always the global profile lock first, never taken while a meeting lock is
+    // held here: profile matching holds the global lock and then waits for a meeting lock.
+    for (const id of soleProfiles) {
+      try {
+        const changes = await this.removeOrphanProfile(id);
+        if (changes) {
+          report.learned.transcriptChanges.push(...changes);
+          report.learned.profiles += 1;
+        }
+      } catch (error) {
+        report.learned.profilesFailed += 1;
+        this.logger.log('warn', 'learned-profile-not-removed', errorFields(error));
+      }
+    }
+    return report;
+  }
+
+  private async deleteMeetingLocked(
+    meetingId: string,
+    importCleanup: boolean,
+    removeLearnedData: boolean,
+  ): Promise<{ report: DeleteReport; soleProfiles: string[] }> {
+    const row = this.requireRow(meetingId);
+    await this.assertDeletionIdle(row, importCleanup);
+    // Chosen before the index links go. Anything another meeting also supports is kept.
+    const soleTerms = removeLearnedData ? this.vocabulary.termsOnlyFrom(meetingId) : [];
+    const soleProfiles = removeLearnedData
+      ? this.voiceProfiles
+          .list()
+          .filter((p) => p.meetingIds.length === 1 && p.meetingIds[0] === meetingId)
+          .map((p) => p.id)
+      : [];
+    const remaining = await this.removeMeeting(meetingId, row.folder, soleTerms);
+    const ok = remaining.length === 0;
+    this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
+      meetingId,
+      ok,
+      leftCount: remaining.length,
+    });
+    const gone = removeLearnedData && getMeetingRow(this.db, meetingId) === null;
+    const report: DeleteReport = { meetingId, ok, remaining };
+    if (gone) {
+      report.learned = {
+        profiles: 0,
+        terms: soleTerms.length,
+        profilesFailed: 0,
+        transcriptChanges: [],
+      };
+    }
+    return { report, soleProfiles: gone ? soleProfiles : [] };
+  }
+
+  /** Removes a profile only if no meeting still links it, checked under the global lock. */
+  private removeOrphanProfile(
+    profileId: string,
+  ): Promise<{ before: TranscriptFile; after: TranscriptFile }[] | null> {
+    return this.withLock('voice-profile-assignments', async () => {
+      const profile = this.voiceProfiles.get(profileId);
+      if (!profile || profile.meetingIds.length > 0) return null;
+      return this.unlinkVoiceProfile(profileId);
     });
   }
 
@@ -1064,7 +1289,11 @@ export class Library {
     return this.deleteMeeting(meetingId, true);
   }
 
-  private async removeMeeting(meetingId: string, folderName: string): Promise<string[]> {
+  private async removeMeeting(
+    meetingId: string,
+    folderName: string,
+    termIdsToForget: string[] = [],
+  ): Promise<string[]> {
     const folder = meetingFolderPath(this.paths, folderName);
     const trash = path.join(this.paths.meetings, `${DELETING_PREFIX}${meetingId}`);
     const cache = meetingCachePath(this.paths, meetingId);
@@ -1089,6 +1318,8 @@ export class Library {
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
     if (movedFromLibrary) {
+      // Before the history sweep below, so the undo entries that mention this meeting go too.
+      for (const id of termIdsToForget) this.vocabulary.delete(id);
       deleteMeetingRows(this.db, meetingId);
       this.vocabulary.discardMeetingHistory(meetingId);
       this.settings.delete(`vocabulary.pending.${meetingId}`);

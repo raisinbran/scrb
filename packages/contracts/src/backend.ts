@@ -207,7 +207,11 @@ export interface BackendCalls {
     response: MeetingDetail;
   };
   searchMeetings: { request: { query: string; filter?: MeetingFilter }; response: SearchResult[] };
-  deleteMeeting: { request: { meetingId: MeetingId }; response: DeleteResult };
+  deleteMeeting: {
+    /** `removeLearnedData` true also removes voice profiles and vocabulary terms this meeting alone supports. Absent or false keeps them. */
+    request: { meetingId: MeetingId; removeLearnedData?: boolean };
+    response: DeleteResult;
+  };
   openMeetingFolder: { request: { meetingId: MeetingId; folder: MeetingFolder }; response: void };
   exportMeeting: { request: ExportRequest; response: { exportId: ExportId } };
 

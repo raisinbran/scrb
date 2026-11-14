@@ -21,6 +21,17 @@ describe('isValidRequest', () => {
     }
   });
 
+  it('accepts deleteMeeting with an optional learned-data flag only as a boolean', () => {
+    expect(isValidRequest('deleteMeeting', { meetingId: 'm-1' })).toBe(true);
+    expect(isValidRequest('deleteMeeting', { meetingId: 'm-1', removeLearnedData: true })).toBe(
+      true,
+    );
+    expect(isValidRequest('deleteMeeting', { meetingId: 'm-1', removeLearnedData: 'yes' })).toBe(
+      false,
+    );
+    expect(isValidRequest('deleteMeeting', { meetingId: 'm-1', extra: true })).toBe(false);
+  });
+
   it('validates in-memory import listing with no arguments', () => {
     expect(isValidRequest('listImports', undefined)).toBe(true);
     expect(isValidRequest('listImports', { token: 'private' })).toBe(false);

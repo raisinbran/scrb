@@ -26,7 +26,8 @@ $arguments += @('--seconds', $seconds)
 
 Add-Type -Namespace Scrb -Name Awake -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);'
 # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
-[void][Scrb.Awake]::SetThreadExecutionState(0x80000003)
+# Windows PowerShell 5.1 parses 0x80000003 as a negative Int32, which cannot convert to uint; pass uint32 literals.
+[void][Scrb.Awake]::SetThreadExecutionState([uint32]2147483651)
 $wasMuted = (& $mute status) -match 'muted=1'
 Write-Host "helper:   $helper"
 Write-Host "evidence: $Out"
@@ -37,6 +38,6 @@ try {
   $code = $LASTEXITCODE
 } finally {
   if (-not $wasMuted) { & $mute off }
-  [void][Scrb.Awake]::SetThreadExecutionState(0x80000000)
+  [void][Scrb.Awake]::SetThreadExecutionState([uint32]2147483648)
 }
 exit $code

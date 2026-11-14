@@ -325,13 +325,21 @@ export async function openBackend(
             }
           : {}),
       },
-      warning: library.retainedIndexSnapshot
-        ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
-        : library.replacedCorruptIndex !== null
-          ? 'The index needs review; all original files were preserved.'
-          : packaged && packaged.missing.length > 0
-            ? missingMessage(packaged.missing)
+      warning:
+        [
+          library.retainedIndexSnapshot
+            ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
+            : library.replacedCorruptIndex !== null
+              ? 'The index needs review; all original files were preserved.'
+              : packaged && packaged.missing.length > 0
+                ? missingMessage(packaged.missing)
+                : null,
+          library.rootMayBeShared
+            ? 'The library folder may be accessible to other people who use this device. Review its folder permissions if it contains sensitive recordings.'
             : null,
+        ]
+          .filter((message): message is string => message !== null)
+          .join('\n\n') || null,
       close: async () => {
         modelDownloader?.cancel();
         playback.stop();
