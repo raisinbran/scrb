@@ -214,8 +214,8 @@ describe('the main window keeps denying every open', () => {
 });
 
 describe('MINI_WINDOW_OPTIONS', () => {
-  it('can be minimized', () => {
-    expect(MINI_WINDOW_OPTIONS.minimizable).toBe(true);
+  it('has no OS minimize, which can raise the main window; the compact button replaces it', () => {
+    expect(MINI_WINDOW_OPTIONS.minimizable).toBe(false);
   });
 
   it('keeps the content-size, always-on-top and hidden-until-ready settings', () => {

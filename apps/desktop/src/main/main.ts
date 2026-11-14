@@ -22,7 +22,6 @@ import {
   restoreMain,
   withoutMini,
 } from './mini-window.ts';
-import { createMinimizeGuard } from './mini-minimize-guard.ts';
 import { fadeOpacity } from './mini-fade.ts';
 import {
   choosePosition,
@@ -59,7 +58,6 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
 
 // Every mini window that exists, including one fading out; none may stand in for the main window.
 const miniWindows = new Set<BrowserWindow>();
-const minimizeGuard = createMinimizeGuard();
 
 // A quit closes every window, so the mini one must let it.
 app.on('before-quit', () => {
@@ -112,7 +110,6 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   mini.on('close', (event) => {
     if (closeGate.blocks()) event.preventDefault();
   });
-  mini.on('minimize', () => minimizeGuard.minimized());
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
@@ -233,11 +230,7 @@ function createMainWindow(
   });
   window.webContents.on('render-process-gone', stopPlayback);
   window.on('closed', stopPlayback);
-  window.on('focus', () => {
-    // Focus that only follows the mini window minimizing was not asked for by the user.
-    if (minimizeGuard.shouldBlurMain()) window.blur();
-    else refreshMainInFront();
-  });
+  window.on('focus', refreshMainInFront);
   window.on('blur', refreshMainInFront);
   window.on('show', refreshMainInFront);
   window.on('hide', refreshMainInFront);
@@ -324,9 +317,7 @@ void app.whenReady().then(async () => {
       },
       () => createMainWindow(backend.warning, backend.recovery, stopPlayback),
     );
-  app.on('activate', () => {
-    if (!minimizeGuard.shouldIgnoreActivate()) restoreApp?.();
-  });
+  app.on('activate', restoreApp);
 });
 
 app.on('window-all-closed', () => {
