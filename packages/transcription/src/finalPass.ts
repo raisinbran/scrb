@@ -37,8 +37,6 @@ import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 
 /** Sherpa runs under the usable band on purpose; speakers are merged afterwards. */
 export const OVERSPLIT_THRESHOLD = 1.0;
-// TS3003a: distinct sub-30 s voices far from every larger cluster were wrongly absorbed.
-const FINAL_RELABEL_DEFAULTS: RelabelOptions = { minSpeakerMs: 13_000 };
 const TURN_GAP_MS = 1500;
 /** A mic word counts as room echo when the meeting track has the same word this close in time. */
 const ECHO_WINDOW_MS = 1000;
@@ -159,7 +157,7 @@ async function diarizeTrack(
     const embedded = toEmbed.flatMap((s, i) =>
       vectors[i] ? [{ segment: s, vector: vectors[i] }] : [],
     );
-    return decideSpeakers(raw, embedded, { ...FINAL_RELABEL_DEFAULTS, ...o.relabel });
+    return decideSpeakers(raw, embedded, o.relabel);
   } catch (err) {
     sherpa.kill();
     throw err;
@@ -252,8 +250,7 @@ export function decideSpeakers(
   }
   for (const c of clusters.values()) if (c.sum) c.embedding = unit(c.sum);
 
-  const options = { ...FINAL_RELABEL_DEFAULTS, ...relabel };
-  const map = relabelClusters([...clusters.values()], options);
+  const map = relabelClusters([...clusters.values()], relabel);
   const id = (index: number): string => `speaker-${index + 1}`;
   const spans: SpeakerSpan[] = raw
     .map((s) => ({
@@ -295,12 +292,12 @@ export function decideSpeakers(
     closestFinalSimilarity: closestSimilarity(
       speakers.flatMap((s) => (s.embedding ? [s.embedding] : [])),
     ),
-    mergeLine: options.mergeLine ?? RELABEL_DEFAULTS.mergeLine,
-    minSpeakerSeconds: (options.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs) / 1000,
-    shortSpeakerSeconds: Number.isFinite(options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs)
-      ? (options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs) / 1000
+    mergeLine: relabel.mergeLine ?? RELABEL_DEFAULTS.mergeLine,
+    minSpeakerSeconds: (relabel.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs) / 1000,
+    shortSpeakerSeconds: Number.isFinite(relabel.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs)
+      ? (relabel.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs) / 1000
       : -1,
-    shortMergeLine: options.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine,
+    shortMergeLine: relabel.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine,
   };
   return { spans, speakers, diagnostics };
 }

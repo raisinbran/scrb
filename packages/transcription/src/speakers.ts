@@ -179,11 +179,18 @@ export interface RelabelOptions {
   mergeLine?: number;
 }
 
+/**
+ * Final-pass speaker rules, chosen on AMI (docs/research/ami-short-speaker-sweep-20261114.md).
+ * A cluster of at least `minSpeakerMs` is a speaker. A cluster of `shortSpeakerMs` up to that
+ * stays its own speaker unless its voice is at or above `shortMergeLine` to a bigger speaker,
+ * in which case it joins that speaker. Anything shorter is always absorbed.
+ */
 export const RELABEL_DEFAULTS = {
   minSpeakerMs: NAMED_AFTER_MS,
-  /** No short-speaker rescue: everything under `minSpeakerMs` is absorbed. */
-  shortSpeakerMs: Infinity,
-  shortMergeLine: 0.65,
+  /** Under 10 s a voice is too noisy to call new; 3 and 5 s added false speakers on AMI. */
+  shortSpeakerMs: 10_000,
+  /** 0.4 gave no false extra speakers on AMI; 0.5 and above did, and 0.65 was worst. */
+  shortMergeLine: 0.4,
   mergeLine: 0.65,
 } as const;
 
