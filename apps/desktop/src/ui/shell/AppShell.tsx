@@ -44,21 +44,34 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
   const inspectorOpen = inspectorWanted && !narrow;
 
   const workspace = useRef<HTMLElement>(null);
-  const leave = (id: ScreenId) => {
-    if (workspace.current) remember(`scroll.${screenId}`, workspace.current.scrollTop);
-    onSelectScreen(id);
+  // Only the reader's own scrolling is remembered: the browser's clamping while a screen is
+  // empty or still loading must not overwrite the place. This also covers every way of changing
+  // screens, such as F1.
+  const userScrolled = useRef(false);
+  const noteUserScroll = () => {
+    userScrolled.current = true;
   };
-  // A screen's data can arrive after it opens, so the place is set again once it has laid out.
+  // A screen's data can arrive after it opens, so the place is set once the content is tall
+  // enough, for at most a few seconds and never after the reader has scrolled.
   useLayoutEffect(() => {
     const element = workspace.current;
+    userScrolled.current = false;
     const saved = recall<number>(`scroll.${screenId}`) ?? 0;
     if (!element) return;
     element.scrollTop = saved;
     if (!saved) return;
-    const frame = requestAnimationFrame(() => {
-      if (element.scrollTop !== saved) element.scrollTop = saved;
-    });
-    return () => cancelAnimationFrame(frame);
+    const place = () => {
+      if (userScrolled.current) return;
+      if (element.scrollHeight - element.clientHeight >= saved) element.scrollTop = saved;
+    };
+    place();
+    const observer = new MutationObserver(place);
+    observer.observe(element, { childList: true, subtree: true });
+    const giveUp = setTimeout(() => observer.disconnect(), 5000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(giveUp);
+    };
   }, [screenId]);
 
   const toggleInspector = () => {
@@ -72,7 +85,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <PrivacyBanner />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: sidebarWidth }}>
-          <Sidebar selected={screenId} onSelect={leave} />
+          <Sidebar selected={screenId} onSelect={onSelectScreen} />
         </div>
         <ResizeHandle
           label="Resize sidebar"
@@ -82,7 +95,17 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
           direction={1}
           onResize={setSidebarWidth}
         />
-        <main ref={workspace} className={styles.workspace}>
+        <main
+          ref={workspace}
+          className={styles.workspace}
+          onScroll={(event) => {
+            if (userScrolled.current) remember(`scroll.${screenId}`, event.currentTarget.scrollTop);
+          }}
+          onWheel={noteUserScroll}
+          onTouchMove={noteUserScroll}
+          onPointerDown={noteUserScroll}
+          onKeyDown={noteUserScroll}
+        >
           <button
             type="button"
             className={styles.inspectorToggle}

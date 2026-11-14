@@ -193,12 +193,72 @@ describe('leaving a tab and coming back', () => {
     fireEvent.change(search, { target: { value: 'budget' } });
     await advance(500);
     const workspace = screen.getByRole('main');
+    fireEvent.wheel(workspace);
     workspace.scrollTop = 120;
+    fireEvent.scroll(workspace);
     await goTo('Vocabulary');
     expect(workspace.scrollTop).toBe(0);
     await goTo('Recordings');
     expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('budget');
     expect(screen.getByRole('main').scrollTop).toBe(120);
+  });
+
+  describe('scroll position', () => {
+    // jsdom does no layout, so the workspace is given a height that can change and clamps like a browser.
+    function limitScroll(workspace: HTMLElement) {
+      const state = { height: 1000, top: 0 };
+      Object.defineProperty(workspace, 'scrollHeight', { get: () => state.height });
+      Object.defineProperty(workspace, 'clientHeight', { get: () => 400 });
+      Object.defineProperty(workspace, 'scrollTop', {
+        configurable: true,
+        get: () => state.top,
+        set: (value: number) => {
+          state.top = Math.min(Math.max(0, value), Math.max(0, state.height - 400));
+        },
+      });
+      return state;
+    }
+    const readerScrollsTo = (workspace: HTMLElement, top: number) => {
+      fireEvent.wheel(workspace);
+      workspace.scrollTop = top;
+      fireEvent.scroll(workspace);
+    };
+    const grow = async (workspace: HTMLElement) => {
+      workspace.appendChild(document.createElement('div'));
+      await advance(0);
+    };
+
+    it('waits for a slow screen to become tall enough, also after F1', async () => {
+      await renderApp();
+      await goTo('Recordings');
+      const workspace = screen.getByRole('main');
+      const state = limitScroll(workspace);
+      readerScrollsTo(workspace, 120);
+      fireEvent.keyDown(window, { key: 'F1' });
+      await advance(0);
+      expect(screen.getByRole('heading', { level: 1, name: 'Help' })).toBeTruthy();
+      state.height = 300;
+      await goTo('Recordings');
+      expect(state.top).toBe(0);
+      state.height = 1000;
+      await grow(workspace);
+      expect(state.top).toBe(120);
+    });
+
+    it('stops placing once the reader scrolls', async () => {
+      await renderApp();
+      await goTo('Recordings');
+      const workspace = screen.getByRole('main');
+      const state = limitScroll(workspace);
+      readerScrollsTo(workspace, 120);
+      await goTo('Vocabulary');
+      state.height = 300;
+      await goTo('Recordings');
+      readerScrollsTo(workspace, 0);
+      state.height = 1000;
+      await grow(workspace);
+      expect(state.top).toBe(0);
+    });
   });
 
   it('returns to the open meeting and its tab', async () => {

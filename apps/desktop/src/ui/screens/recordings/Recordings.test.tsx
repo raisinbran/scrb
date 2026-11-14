@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
+import type { FinalPassStage } from '@scrb/contracts';
 import { RecordingsScreen } from '../RecordingsScreen.tsx';
 
 const SLOW = { timeout: 5000 };
@@ -136,6 +137,57 @@ describe('Recordings', () => {
       expect(bar.getAttribute('aria-valuenow')).toBe('60');
       expect(screen.getByText('Working out who spoke')).toBeTruthy();
       expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
+    });
+
+    it('ignores progress that goes backwards, and starts over for a new pass', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      const report = (stage: FinalPassStage, fraction: number, startedAt: string) =>
+        act(() =>
+          backend.emit('finalPassProgress', {
+            meetingId: 'meeting-final-pass',
+            stage,
+            fraction,
+            startedAt,
+          }),
+        );
+      const value = () =>
+        screen
+          .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow');
+      // The first report can be any value: earlier ones may have been missed.
+      await report('diarizing', 0.9, 'a');
+      expect(value()).toBe('90');
+      await report('transcribing', 0.2, 'a');
+      expect(value()).toBe('90');
+      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      await report('diarizing', 0.9, 'a');
+      expect(value()).toBe('90');
+      await report('finishing', 1, 'a');
+      expect(value()).toBe('100');
+      await report('diarizing', 0.95, 'a');
+      expect(value()).toBe('100');
+      expect(screen.getByText('Finishing up')).toBeTruthy();
+      await report('queued', 0, 'b');
+      expect(value()).toBe('0');
+    });
+
+    it('other meetings progress does not touch this banner', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      act(() =>
+        backend.emit('finalPassProgress', {
+          meetingId: 'someone-else',
+          stage: 'finishing',
+          fraction: 0.8,
+          startedAt: 'a',
+        }),
+      );
+      expect(
+        screen
+          .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow'),
+      ).toBeNull();
     });
 
     it('lets the banner be dismissed with an X', async () => {

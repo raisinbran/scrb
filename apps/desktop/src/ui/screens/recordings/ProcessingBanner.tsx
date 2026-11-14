@@ -7,6 +7,18 @@ import { useRemembered } from '../../lib/tab-memory.ts';
 import { formatElapsed } from '../../lib/format.ts';
 import styles from './recordings.module.css';
 
+const STAGE_ORDER: FinalPassStage[] = ['queued', 'transcribing', 'diarizing', 'finishing'];
+
+/** Reports can arrive late or out of order; one that goes backwards within a pass is ignored. A new `startedAt` is a new pass. */
+export function nextProgress(
+  current: FinalPassProgress | null,
+  report: FinalPassProgress,
+): FinalPassProgress | null {
+  if (!current || report.startedAt !== current.startedAt) return report;
+  const earlier = STAGE_ORDER.indexOf(report.stage) < STAGE_ORDER.indexOf(current.stage);
+  return earlier || report.fraction < current.fraction ? current : report;
+}
+
 const STAGE_LABELS: Record<FinalPassStage, string> = {
   queued: 'Waiting to start',
   transcribing: 'Transcribing',
@@ -22,7 +34,7 @@ export function ProcessingBanner({ meetingId }: { meetingId: string }) {
   useEffect(
     () =>
       backend.on('finalPassProgress', (report) => {
-        if (report.meetingId === meetingId) setProgress(report);
+        if (report.meetingId === meetingId) setProgress((current) => nextProgress(current, report));
       }),
     [backend, meetingId],
   );
