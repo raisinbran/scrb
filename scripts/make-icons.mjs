@@ -1,5 +1,5 @@
 // Builds the app icon set from one concept's SVGs in docs/design/icons. No network.
-//   node scripts/make-icons.mjs [bubble|wave|nib]     (default: bubble)
+//   node scripts/make-icons.mjs <name>     (default: r1ai, the shipped icon)
 // Output: apps/desktop/assets/icons/{icon.icns (macOS only), icon.ico, icon.png, icon-win.png}.
 // To swap the icon, rerun with another concept name and commit the result.
 // Rendering uses the Electron already installed (scripts/make-icons-render.cjs), so no other tool is needed.
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const concept = process.argv[2] ?? 'bubble';
+const concept = process.argv[2] ?? 'r1ai';
 const outDir = path.join(root, 'apps/desktop/assets/icons');
 const svgDir = path.join(root, 'docs/design/icons');
 
