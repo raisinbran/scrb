@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { activeSpeakers, resolveDisplay } from '../src/corrections.ts';
 import { MeetingNotFoundError, StaleRevisionError } from '../src/errors.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
-import { Library, readLibraryLocation, writeLibraryLocation } from '../src/library.ts';
+import {
+  assessRootPrivacy,
+  Library,
+  readLibraryLocation,
+  writeLibraryLocation,
+  type RootPrivacyProbes,
+} from '../src/library.ts';
 import { Logger } from '../src/logs.ts';
 import { foldText } from '../src/search.ts';
 import { segment, speaker, tempDir, words } from './helpers.ts';
@@ -65,6 +71,57 @@ describe('private library storage', () => {
     const [logName] = await readdir(path.join(root, 'logs'));
     expect(logName).toBeDefined();
     expect((await stat(path.join(root, 'logs', logName as string))).mode & 0o777).toBe(0o600);
+  });
+});
+
+describe('Windows library root privacy', () => {
+  const probes = (overrides: Partial<RootPrivacyProbes> = {}): RootPrivacyProbes => ({
+    platform: 'win32',
+    isMappedNetworkDrive: async () => false,
+    realpath: async (root) => root,
+    effectiveAccessIsPrivate: async () => true,
+    ...overrides,
+  });
+
+  it('marks a mapped drive letter as potentially shared', async () => {
+    const result = await assessRootPrivacy(
+      'R:\\Shared\\Library',
+      true,
+      probes({ isMappedNetworkDrive: async () => true }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, mappedNetworkDrive: true });
+  });
+
+  it('marks a root redirected through a junction or reparse point as potentially shared', async () => {
+    const result = await assessRootPrivacy(
+      'C:\\Users\\owner\\Library',
+      true,
+      probes({ realpath: async () => 'D:\\Shared\\Library' }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, redirected: true });
+  });
+
+  it('warns when Windows effective access cannot be verified', async () => {
+    const result = await assessRootPrivacy(
+      'C:\\Users\\owner\\Library',
+      false,
+      probes({ effectiveAccessIsPrivate: async () => null }),
+    );
+
+    expect(result).toMatchObject({ mayBeShared: true, windowsAccessVerified: false });
+  });
+
+  it('allows an explicitly verified private local root', async () => {
+    const result = await assessRootPrivacy('C:\\Users\\owner\\Library', true, probes());
+
+    expect(result).toMatchObject({
+      mayBeShared: false,
+      mappedNetworkDrive: false,
+      redirected: false,
+      windowsAccessVerified: true,
+    });
   });
 });
 

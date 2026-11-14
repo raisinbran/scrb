@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { AtomicWriteOptions } from './atomic.ts';
@@ -147,6 +148,20 @@ export interface LibraryOptions {
   logger?: Logger;
 }
 
+export interface RootPrivacyAssessment {
+  mayBeShared: boolean;
+  mappedNetworkDrive: boolean | null;
+  redirected: boolean | null;
+  windowsAccessVerified: boolean;
+}
+
+export interface RootPrivacyProbes {
+  platform?: NodeJS.Platform;
+  isMappedNetworkDrive?: (root: string) => Promise<boolean | null>;
+  realpath?: (root: string) => Promise<string | null>;
+  effectiveAccessIsPrivate?: (root: string) => Promise<boolean | null>;
+}
+
 async function exists(target: string): Promise<boolean> {
   try {
     await fs.lstat(target);
@@ -166,18 +181,102 @@ async function privateDirectory(target: string): Promise<void> {
   }
 }
 
-async function looksShared(root: string, existed: boolean): Promise<boolean> {
-  if (!existed) return false;
-  if (process.platform === 'win32') {
-    const normalized = path.resolve(root).toLowerCase();
-    const publicRoot = path.resolve(process.env['PUBLIC'] ?? 'C:\\Users\\Public').toLowerCase();
-    return (
-      normalized.startsWith('\\\\') ||
-      normalized === publicRoot ||
-      normalized.startsWith(`${publicRoot}${path.sep}`)
-    );
+async function detectMappedNetworkDrive(root: string): Promise<boolean | null> {
+  const drive = /^([a-z]:)[\\/]/i.exec(path.win32.resolve(root))?.[1]?.toUpperCase();
+  if (!drive) return false;
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        'net.exe',
+        ['use'],
+        { encoding: 'utf8', timeout: 3_000, windowsHide: true },
+        (error, output) => {
+          if (error) reject(error);
+          else resolve(output);
+        },
+      );
+    });
+    return stdout.split(/\r?\n/).some((line) => {
+      const fields = line.trim().split(/\s+/);
+      return fields.some(
+        (field, index) => field.toUpperCase() === drive && fields[index + 1]?.startsWith('\\\\'),
+      );
+    });
+  } catch {
+    return null;
   }
-  return ((await fs.stat(root)).mode & 0o077) !== 0;
+}
+
+function windowsPathKey(value: string): string {
+  return path.win32
+    .normalize(value)
+    .replace(/^\\\\\?\\UNC\\/i, '\\\\')
+    .replace(/^\\\\\?\\/, '')
+    .replace(/[\\/]+$/, '')
+    .toLowerCase();
+}
+
+/**
+ * Evaluate the selected root conservatively. Node does not expose effective Windows ACL checks,
+ * so an unverified Windows root is reported as potentially shared. Probe overrides let tests
+ * exercise the same production decision with simulated Windows path and permission results.
+ */
+export async function assessRootPrivacy(
+  root: string,
+  existed: boolean,
+  probes: RootPrivacyProbes = {},
+): Promise<RootPrivacyAssessment> {
+  const platform = probes.platform ?? process.platform;
+  if (platform !== 'win32') {
+    if (!existed) {
+      return {
+        mayBeShared: false,
+        mappedNetworkDrive: false,
+        redirected: false,
+        windowsAccessVerified: true,
+      };
+    }
+    return {
+      mayBeShared: ((await fs.stat(root)).mode & 0o077) !== 0,
+      mappedNetworkDrive: false,
+      redirected: false,
+      windowsAccessVerified: true,
+    };
+  }
+
+  const resolvedRoot = path.win32.resolve(root);
+  const publicRoot = path.win32.resolve(process.env['PUBLIC'] ?? 'C:\\Users\\Public');
+  const isPublicRoot =
+    windowsPathKey(resolvedRoot) === windowsPathKey(publicRoot) ||
+    windowsPathKey(resolvedRoot).startsWith(`${windowsPathKey(publicRoot)}\\`);
+  const [mappedNetworkDrive, realpath, effectiveAccessIsPrivate] = await Promise.all([
+    probes.isMappedNetworkDrive
+      ? probes.isMappedNetworkDrive(root)
+      : detectMappedNetworkDrive(root),
+    probes.realpath ? probes.realpath(root) : fs.realpath(root).catch(() => null),
+    // Node core has no effective-access ACL query. Until one is available, fail closed.
+    probes.effectiveAccessIsPrivate ? probes.effectiveAccessIsPrivate(root) : Promise.resolve(null),
+  ]);
+  const redirected =
+    realpath === null ? null : windowsPathKey(realpath) !== windowsPathKey(resolvedRoot);
+  const isUncPath = windowsPathKey(resolvedRoot).startsWith('\\\\');
+  const mayBeShared =
+    isUncPath ||
+    isPublicRoot ||
+    mappedNetworkDrive !== false ||
+    redirected !== false ||
+    effectiveAccessIsPrivate !== true;
+
+  return {
+    mayBeShared,
+    mappedNetworkDrive,
+    redirected,
+    windowsAccessVerified: effectiveAccessIsPrivate !== null,
+  };
+}
+
+async function looksShared(root: string, existed: boolean): Promise<boolean> {
+  return (await assessRootPrivacy(root, existed)).mayBeShared;
 }
 
 async function hasAnyFile(dir: string): Promise<boolean> {
