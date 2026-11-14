@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
-  <title>Scribe icon option R-7: red dot, descending bars, a scribble</title>
+  <title>Scribe icon option R-1a: red dot, then sound bars, enlarged</title>
   <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
   <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/></filter>
@@ -7,8 +7,7 @@
   <g>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
   <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
-  <circle cx="220" cy="512" r="62" fill="#ff4d4d" stroke="#fff" stroke-width="14"/>
-  <g fill="#fff"><rect x="330" y="362" width="52" height="300" rx="26"/><rect x="404" y="412" width="52" height="200" rx="26"/><rect x="478" y="457" width="52" height="110" rx="26"/></g>
-  <path d="M580 540c22-80 56-80 70 0s40 70 62 0 40-60 70-10" fill="none" stroke="#fff" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(512 512) scale(1.2144) translate(-416.5 -512)"><circle cx="230" cy="512" r="70" fill="#ff4d4d" stroke="#fff" stroke-width="14"/>
+  <g fill="#fff"><rect x="350" y="427" width="60" height="170" rx="30"/><rect x="440" y="347" width="60" height="330" rx="30"/><rect x="530" y="397" width="60" height="230" rx="30"/><rect x="620" y="452" width="60" height="120" rx="30"/></g></g>
   </g>
 </svg>

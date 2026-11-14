@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
-  <title>Scribe icon option R-4: red dot above a speech-to-writing hook (Windows)</title>
+  <title>Scribe icon option J-1 b: tighter curves and a taller scribble (Windows)</title>
   <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
   
@@ -7,7 +7,7 @@
   <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
   <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
-  <circle cx="400" cy="270" r="74" fill="#ff4d4d" stroke="#fff" stroke-width="14"/>
-  <path d="M400 440V620c0 90 90 100 140 30s70-90 110-20 60 40 90-10" fill="none" stroke="#fff" stroke-width="62" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(512 512) scale(1.1658) translate(-465.5 -560)"><g fill="none" stroke="#fff" stroke-width="56" stroke-linecap="round"><path d="M219 502A90 90 0 0 1 219 618"/><path d="M288 444A180 180 0 0 1 288 676"/></g>
+  <path d="M380 560c30-130 76-130 94 0s56 110 86 0 50-140 88 0 44 70 66 0" fill="none" stroke="#fff" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/></g>
   </g>
 </svg>
