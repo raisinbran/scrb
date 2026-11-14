@@ -42,7 +42,7 @@ Existing Windows setup docs: only the Gate 3 runbook (`docs/gates/gate-3-windows
 
 ## 2. Rules for every command below
 
-- Windows blocks `.ps1` files by default ("running scripts is disabled", seen on Regiurn). Run every `.ps1` as `powershell -NoProfile -ExecutionPolicy Bypass -File <script>`; this changes no setting and needs no admin.
+- Windows blocks `.ps1` files by default ("running scripts is disabled", seen on Regiurn). Run each script through its `.cmd` launcher next to it (`scripts\m1.cmd`, `scripts\m1.test.cmd`, `scripts\package-win.cmd`, `native\windows-capture\scripts\fetch-opus.cmd`). A launcher runs the `.ps1` with the policy bypass for that one process: no setting changes, no admin, arguments and exit code pass through. The `.ps1` files still work directly with `powershell -NoProfile -ExecutionPolicy Bypass -File <script>`.
 - PowerShell, **not as administrator**, except the one-time Build Tools install in B5. Every block names its folder. Use one PowerShell window and leave it open.
 - Files are never deleted. Keep the test recording; do not delete it (gate-evidence policy). Do not use a real confidential meeting.
 - **Time limit:** the whole test, from starting the app in step 8 through the final pass and your checks in step 10, including setup of the test and cleanup, must stay within 20 minutes. That is a 2-minute recording plus a final pass that may take up to about 15 minutes. If the final pass is still running at 20 minutes, stop and ask before waiting longer; do not quit the app or start another test. One-time builds (steps 2-7) are setup, not the test.
@@ -128,7 +128,7 @@ cd native\windows-capture
 ```
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-opus.ps1
+scripts\fetch-opus.cmd
 ```
 
 ```powershell
@@ -244,7 +244,7 @@ Pass: step 8 reports nothing missing. (Live uses `small.en`, the CPU setting; th
 **Step 8. Start the app in real mode.** Folder: the `scrb` folder. Admin: no. This fails loudly, before launching, listing every missing file.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\m1.ps1
+scripts\m1.cmd
 ```
 
 Pass: the Scribe window opens (first start builds, a minute or more) and the Live screen lists your real microphone. Fail: the script prints `Cannot start real mode. Missing:` with a list; fix each line (that is the check working). If it says Scribe is already running, close that window first. Do not trust the Recordings list: it always includes mock sample meetings.
@@ -286,7 +286,7 @@ If a voice name is rejected, run `$v.GetInstalledVoices() | % { $_.VoiceInfo.Nam
 
 - `scripts/m1.sh`, `native/macos-capture/build.sh` and the Mac permission prompts have no counterpart except `m1.ps1` and the Windows microphone switch (step 9). Windows system audio needs no permission.
 - `dev-assets.sh` skips CMake/Ninja, whisper, llama and sherpa builds on Windows; steps 4-5 replace them by hand.
-- `scripts\m1.test.ps1` is not run by CI (neither is `m1.test.sh`); run it on the PC with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\m1.test.ps1` (expects `ok`).
+- `scripts\m1.test.ps1` is not run by CI (neither is `m1.test.sh`); run it on the PC with `scripts\m1.test.cmd` (expects `ok`).
 - Per-app meeting capture on Windows: Teams fixed, Zoom and browser targets unrun, Communications-type streams silent in per-app mode (BUG-1, `docs/bug-tracker.md`). Use Whole computer audio until those are checked.
 - The mock "Mock backend" title-bar marker and `m1.ps1` do not detect a bad live config beyond the file check; the live feed silently stays off if `readLiveSetup` rejects it (the log has `live-config-unavailable`).
 - Packaged Windows app: slice 1 only (unpacked shell, no tools staged); install on Windows 11 is a separate plan.
