@@ -7,6 +7,7 @@ import {
   type EventName,
   type MeetingId,
   type MeetingListItem,
+  type SearchResult,
 } from '@scrb/contracts';
 
 const NOT_REAL: ReadonlySet<ContractErrorCode> = new Set(['notFound', 'notImplemented']);
@@ -139,9 +140,24 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
     }
   };
 
+  const searchRealMeetings = async (request: unknown): Promise<SearchResult[]> => {
+    try {
+      return (await callReal('searchMeetings', request)) as SearchResult[];
+    } catch (error) {
+      if (error instanceof ContractError && error.code === 'notImplemented') return [];
+      throw error;
+    }
+  };
+
   return {
     call: (async (name: CallName, request?: unknown) => {
       const callMock = mock.call as (name: CallName, request?: unknown) => Promise<unknown>;
+      // Real meetings are searched on the real side, like the list, so a real meeting can be found.
+      if (name === 'searchMeetings') {
+        const found = await searchRealMeetings(request);
+        await synced;
+        return [...found, ...((await callMock(name, request)) as SearchResult[])];
+      }
       if (name === 'listMeetings') {
         const meetings = await listRealMeetings(request);
         await synced;
