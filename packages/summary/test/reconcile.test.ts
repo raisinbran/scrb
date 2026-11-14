@@ -65,17 +65,25 @@ describe('reconcileItems', () => {
     ).toHaveLength(2);
   });
 
-  it('drops an earlier decision that a later one reverses, and keeps the later link to it', () => {
-    const early = decision('The remote will include an LCD screen for channel display', 100);
-    const late = decision('The remote will not include an LCD screen for channel display', 900);
+  it('drops an earlier action that a later one reverses, and keeps the later link to it', () => {
+    const early = action('The remote will include an LCD screen for channel display', 'Alice', 100);
+    const late = action(
+      'The remote will not include an LCD screen for channel display',
+      'Alice',
+      900,
+    );
     const kept = reconcileItems([early, late], 20);
     expect(kept).toEqual([late]);
     expect(late.alsoAt).toEqual([early.evidence]);
   });
 
   it('keeps a reversal that comes before the item (the later one stands)', () => {
-    const early = decision('The remote will not include an LCD screen for channel display', 100);
-    const late = decision('The remote will include an LCD screen for channel display', 900);
+    const early = action(
+      'The remote will not include an LCD screen for channel display',
+      'Alice',
+      100,
+    );
+    const late = action('The remote will include an LCD screen for channel display', 'Alice', 900);
     expect(reconcileItems([early, late], 20)).toEqual([late]);
   });
 
@@ -135,16 +143,49 @@ describe('reconcileItems', () => {
     expect(reconcileItems([monday, plain], 20)).toEqual([monday, plain]);
   });
 
-  it('does not treat swapped word order as taking the decision back', () => {
-    const first = decision('The team will launch Alpha before Beta.', 100);
-    const swapped = decision('The team will not launch Beta before Alpha.', 900);
+  it('does not treat swapped word order as taking the task back', () => {
+    const first = action('The team will launch Alpha before Beta.', 'Alice', 100);
+    const swapped = action('The team will not launch Beta before Alpha.', 'Alice', 900);
     expect(reconcileItems([first, swapped], 20)).toEqual([first, swapped]);
   });
 
-  it('drops a decision that a later one reverses in identical wording', () => {
+  it('drops an action that a later one reverses in identical wording', () => {
+    const first = action('The team will launch Alpha before Beta.', 'Alice', 100);
+    const back = action('The team will not launch Alpha before Beta.', 'Alice', 900);
+    expect(reconcileItems([first, back], 20)).toEqual([back]);
+  });
+
+  it('never overrides when neither item has a named owner', () => {
     const first = decision('The team will launch Alpha before Beta.', 100);
     const back = decision('The team will not launch Alpha before Beta.', 900);
+    expect(reconcileItems([first, back], 20)).toEqual([first, back]);
+    const a = action('Prepare the prototype slides', 'Not specified', 100);
+    const b = action('Not prepare the prototype slides', 'Not specified', 900);
+    expect(reconcileItems([a, b], 20)).toEqual([a, b]);
+  });
+
+  it('does not read a hyphenated compound such as no-show as a negation', () => {
+    const show = action('Alice will track the show list for the event', 'Alice', 100);
+    const noShow = action('Alice will track the no-show list for the event', 'Alice', 900);
+    expect(reconcileItems([show, noShow], 20)).toEqual([show, noShow]);
+  });
+
+  it('does not read ordinary verbs such as remove or drop as a negation', () => {
+    const keep = action('Alice will update the login page for the release', 'Alice', 100);
+    const drop = action('Alice will drop update the login page for the release', 'Alice', 900);
+    expect(reconcileItems([keep, drop], 20)).toEqual([keep, drop]);
+  });
+
+  it("treats a contraction such as won't as a reversal by the same owner", () => {
+    const first = action('Alice will prepare the prototype slides for Monday', 'Alice', 100);
+    const back = action("Alice won't prepare the prototype slides for Monday", 'Alice', 900);
     expect(reconcileItems([first, back], 20)).toEqual([back]);
+  });
+
+  it('does not merge near-duplicates that differ in the word that matters', () => {
+    const ios = action('Alice will ship the iOS build for review', 'Alice', 100);
+    const android = action('Alice will ship the Android build for review', 'Alice', 160);
+    expect(reconcileItems([ios, android], 20)).toEqual([ios, android]);
   });
 
   it('removes nothing for a negation about a different matter', () => {
@@ -155,8 +196,8 @@ describe('reconcileItems', () => {
 
   it('does not treat two quick opposite statements as an override', () => {
     const items = [
-      decision('The remote will include an LCD screen for channel display', 100),
-      decision('The remote will not include an LCD screen for channel display', 120),
+      action('Alice will include an LCD screen for channel display', 'Alice', 100),
+      action('Alice will not include an LCD screen for channel display', 'Alice', 120),
     ];
     expect(reconcileItems(items, 20)).toHaveLength(2);
   });

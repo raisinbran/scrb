@@ -1,4 +1,4 @@
-import { contentTokens, coverage, hasNegation, jaccard, NEGATIONS, words } from './text.js';
+import { contentTokens, coverage, hasNegation, jaccard } from './text.js';
 import type { ActionItem, DecisionItem, Extraction } from './types.js';
 import { EVERYONE, NOT_SPECIFIED, UNCONFIRMED } from './types.js';
 
@@ -25,6 +25,44 @@ const MERGE_MIN_SHARED = 2;
 const OVERRIDE_GAP_SECONDS = 60;
 
 type Pooled = ActionItem | DecisionItem;
+
+/**
+ * Words as written, hyphenated compounds and contractions kept whole ("no-show", "won't"), so
+ * "no-show" is one word and is not negation. Curly apostrophes are normalised.
+ */
+const spoken = (text: string): string[] =>
+  text
+    .toLowerCase()
+    .replace(/[\u2019]/g, "'")
+    .match(/[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)*/gu) ?? [];
+
+/** Narrow on purpose: "remove" and "drop" are ordinary verbs, not a statement that something is off. */
+const NEGATING = /^(?:not|never|cannot|[a-z]+n't)$/;
+
+const CONTRACTED: Record<string, string> = { wo: 'will', ca: 'can', sha: 'shall' };
+
+/** Words with negation taken out ("no longer" counts as one negation) and whether any was found. */
+function polarity(text: string): { negated: boolean; rest: string } {
+  const out: string[] = [];
+  let negated = false;
+  const all = spoken(text);
+  for (let i = 0; i < all.length; i += 1) {
+    const word = all[i]!;
+    if (word === 'no' && all[i + 1] === 'longer') {
+      negated = true;
+      i += 1;
+    } else if (NEGATING.test(word)) {
+      negated = true;
+      // The contraction also carries its verb: "won't" is "will not", so "will" stays in the wording.
+      if (word.endsWith("n't")) out.push(CONTRACTED[word.slice(0, -3)] ?? word.slice(0, -3));
+      else if (word === 'cannot') out.push('can');
+    } else out.push(word);
+  }
+  return { negated, rest: out.join(' ') };
+}
+
+/** Either reading of negation: a pair that differs in either is not the same statement. */
+const negated = (text: string): boolean => hasNegation(text) || polarity(text).negated;
 
 const ownerOf = (item: Pooled): string | null =>
   item.kind !== 'action' || [NOT_SPECIFIED, UNCONFIRMED, EVERYONE].includes(item.owner)
@@ -74,13 +112,14 @@ function mergeNearDuplicates(items: Pooled[]): Pooled[] {
     cache.get(item) ?? cache.set(item, contentTokens(item.text)).get(item)!;
   for (const item of items) {
     const at = kept.findIndex((other) => {
-      if (other.kind !== item.kind || hasNegation(other.text) !== hasNegation(item.text))
-        return false;
+      if (other.kind !== item.kind || negated(other.text) !== negated(item.text)) return false;
       if (Math.abs(other.evidence.timestampSec - item.evidence.timestampSec) > MERGE_WINDOW_SECONDS)
         return false;
       const a = tokens(other);
       const b = tokens(item);
       if (sharedCount(a, b) < MERGE_MIN_SHARED || jaccard(a, b) < MERGE_JACCARD) return false;
+      // The shorter wording must sit entirely inside the longer: "iOS build" and "Android build" differ in the word that matters.
+      if (coverage(a.size <= b.size ? a : b, a.size <= b.size ? b : a) < 1) return false;
       const owners = [ownerOf(other), ownerOf(item)];
       return !(owners[0] && owners[1] && owners[0] !== owners[1]);
     });
@@ -102,17 +141,11 @@ function mergeNearDuplicates(items: Pooled[]): Pooled[] {
 
 /**
  * "Later change overrides earlier", deliberately narrow: an earlier item is dropped only when a
- * later one at least a minute on has the same kind and owner (or neither has one) and exactly the
+ * later one at least a minute on has the same kind and the same named owner (two ownerless items are never overridden) and exactly the
  * same content words, the negation being the only difference. A different verb, object, date or
  * qualifier is therefore never a reversal. The later item stays and keeps the earlier one's line
  * in `alsoAt`, so the history is still reachable.
  */
-/** The words in their order with the negation words taken out: "will not launch B before A" is "will launch b before a". */
-const wording = (item: Pooled): string =>
-  words(item.text)
-    .filter((word) => !NEGATIONS.has(word))
-    .join(' ');
-
 function dropOverridden(items: Pooled[]): Pooled[] {
   const dropped = new Set<Pooled>();
   for (const earlier of items) {
@@ -121,9 +154,13 @@ function dropOverridden(items: Pooled[]): Pooled[] {
       if (later === earlier || later.kind !== earlier.kind || dropped.has(later)) continue;
       if (later.evidence.timestampSec - earlier.evidence.timestampSec < OVERRIDE_GAP_SECONDS)
         continue;
-      if (hasNegation(later.text) === hasNegation(earlier.text)) continue;
-      if (ownerOf(later) !== ownerOf(earlier)) continue;
-      if (a.size < MIN_SHARED || wording(later) !== wording(earlier)) continue;
+      // A removal needs positive evidence: the same named person on both.
+      const owner = ownerOf(earlier);
+      if (owner === null || ownerOf(later) !== owner) continue;
+      const before = polarity(earlier.text);
+      const after = polarity(later.text);
+      if (before.negated === after.negated || before.rest !== after.rest) continue;
+      if (a.size < MIN_SHARED) continue;
       later.alsoAt.push(earlier.evidence);
       dropped.add(earlier);
       break;

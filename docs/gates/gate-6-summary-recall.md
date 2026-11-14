@@ -52,12 +52,12 @@ Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes 
 
 # Update 2026-11-14: reconcile step, and what it did not fix
 
-**Result: neither target met. Recall 68% held-out (unchanged), precision still unknown to within a wide margin.** A reconcile step was added and measured; it removes some duplicates and changes no score. A capped version lowered recall and was left switched off. Links stay 100%.
+**Result: neither target met. Recall 68% held-out (unchanged), precision still unknown to within a wide margin.** A reconcile step was added and measured; on these meetings it removes at most 1 item per meeting and changes no score. A capped version lowered recall and was left switched off. Links stay 100%.
 
 ## What was added (`packages/summary/src/reconcile.ts`, called when an extraction is finished)
 
-1. **Near-duplicate merge**: same kind, same polarity, within 5 minutes, at least 2 shared content words and word overlap (Jaccard) of 0.4. The better-supported item survives and keeps the other's cited line in `alsoAt`; two owners stay two tasks.
-2. **Later change overrides earlier** (deliberately narrow after four review rounds): an earlier item is dropped only when an item of the same kind at least 60 seconds later has the same owner (or neither has one) and exactly the same words in the same order, the negation words being the only difference. A different person, verb, object, date or qualifier is never a reversal. It is a wording test only: a revision that rewords the item, or has no negation word (use X, then use Y instead), is not caught.
+1. **Near-duplicate merge**: same kind, same polarity (narrow negation test), within 5 minutes, at least 2 shared content words, word overlap (Jaccard) of 0.4, and the shorter wording's content words must all appear in the longer, so "iOS build" and "Android build" are not merged. Two owners stay two tasks. The better-supported item survives and keeps the other's cited line in `alsoAt`. This stage is new in this PR (the first dedupe in `dedupe.ts` is untouched).
+2. **Later change overrides earlier** (deliberately narrow after five review rounds): an earlier action is dropped only when a later action at least 60 seconds on has the **same named owner** and exactly the same words in the same order, differing only by a negation word ("not", "never", "no longer", "cannot", or a contraction such as "won't"). Items without a named owner (all decisions, and actions with an unspecified or collective owner) are never overridden: removal needs positive evidence. "Remove" and "drop" are ordinary verbs, and a hyphenated compound such as "no-show" is not a negation. A reversal that is reworded, comes within 60 seconds, is a short statement, or uses a double negation is not handled.
 3. **Cap**: kept items per meeting limited to a rate per minute, best-supported first (cited by several passes, settled status, first pass). Sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default**, see below.
 
 Every kept item keeps its own cited line and time; no link is rewritten.
@@ -66,22 +66,22 @@ Every kept item keeps its own cited line and time; no link is rewritten.
 
 | Set                | Meeting | Items before | Items after |   Recall before |    Recall after | Reference-matched precision before |        after | Links after |
 | ------------------ | ------- | -----------: | ----------: | --------------: | --------------: | ---------------------------------: | -----------: | ----------: |
-| tuning             | ES2016b |           51 |          49 |           14/16 |           14/16 |                              42/51 |        40/49 |       56/56 |
-| tuning             | ES2008b |           59 |          57 |           13/17 |           13/17 |                              21/59 |        21/57 |       65/65 |
-| tuning             | IS1009d |           59 |          55 |             4/9 |             4/9 |                               4/59 |         4/55 |       57/57 |
-| **tuning total**   |         |      **169** |     **161** | **31/42 (74%)** | **31/42 (74%)** |                       67/169 (40%) | 65/161 (40%) |     178/178 |
-| held-out (once)    | TS3005b |           62 |          54 |           11/15 |           11/15 |                              37/62 |        30/54 |       60/60 |
-| held-out (once)    | ES2015c |           58 |          56 |           11/13 |           11/13 |                              26/58 |        25/56 |       61/61 |
-| held-out (once)    | IS1004d |           51 |          49 |            5/12 |            5/12 |                              18/51 |        17/49 |       56/56 |
-| **held-out total** |         |      **171** |     **159** | **27/40 (68%)** | **27/40 (68%)** |                       81/171 (47%) | 72/159 (45%) |     177/177 |
+| tuning             | ES2016b |           51 |          50 |           14/16 |           14/16 |                              42/51 |        41/50 |       57/57 |
+| tuning             | ES2008b |           59 |          59 |           13/17 |           13/17 |                              21/59 |        21/59 |       67/67 |
+| tuning             | IS1009d |           59 |          59 |             4/9 |             4/9 |                               4/59 |         4/59 |       61/61 |
+| **tuning total**   |         |      **169** |     **168** | **31/42 (74%)** | **31/42 (74%)** |                       67/169 (40%) | 66/168 (39%) |     185/185 |
+| held-out (once)    | TS3005b |           62 |          61 |           11/15 |           11/15 |                              37/62 |        36/61 |       67/67 |
+| held-out (once)    | ES2015c |           58 |          58 |           11/13 |           11/13 |                              26/58 |        26/58 |       63/63 |
+| held-out (once)    | IS1004d |           51 |          51 |            5/12 |            5/12 |                              18/51 |        18/51 |       58/58 |
+| **held-out total** |         |      **171** |     **170** | **27/40 (68%)** | **27/40 (68%)** |                       81/171 (47%) | 80/170 (47%) |     188/188 |
 
-The "before" rows reproduce the earlier results exactly (31/42 and 27/40), from the saved extractions of that run. The step is deterministic, so no model run was needed to score it; the held-out set was scored once, after the settings were fixed on the tuning set. One held-out item is 2.5 points: the held-out recall did not move at all. Reference-matched precision is a lower bound (the reference lists are short summaries) and fell slightly because two near-identical items that each matched the same reference sentence are now one. That drop is a counting effect, not a loss of real content, but it is also not a gain. Secondary (alsoAt) links: 45/45 held-out, 31/31 tuning.
+The "before" rows reproduce the earlier results exactly (31/42 and 27/40), from the saved extractions of that run. The step is deterministic, so no model run was needed to score it; the held-out set was first scored once, after the settings were fixed on the tuning set. One held-out item is 2.5 points: the held-out recall did not move at all. Reference-matched precision is a lower bound (the reference lists are short summaries) and fell slightly because items that each matched the same reference sentence were merged. That is a counting effect, not a gain. Secondary (alsoAt) links: 34/34 held-out, 24/24 tuning. Held-out was scored a second time in this update, after review narrowed the merge and override rules; the rules were not chosen using held-out results, and held-out recall did not change.
 
 ## The cap, on the tuning set only
 
 | Cap (items per minute) | Items kept of 169 |      Recall | Reference-matched precision |
 | ---------------------- | ----------------: | ----------: | --------------------------: |
-| none                   |               161 | 31/42 (74%) |                         40% |
+| none                   |               168 | 31/42 (74%) |                         40% |
 | 1.2                    |               133 | 29/42 (69%) |                         46% |
 | 1.0                    |               112 | 28/42 (67%) |                         46% |
 | 0.8                    |                89 | 25/42 (60%) |                         47% |
@@ -90,7 +90,7 @@ The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of 
 
 ## Does the data support "later overrides earlier"?
 
-Only weakly. The step is correct and tested (unit tests: reversal dropped and the earlier line kept in `alsoAt`; two quick opposite statements kept apart), but on these six AMI meetings it changed no score. After the owner rule was added, all six meetings' outputs came out byte-identical to before it, so the override step removed nothing on these meetings and all 20 removed items were merges. The narrow rule was also checked: outputs stayed byte-identical, so it lost no override that the earlier looser rule had made here (zero). The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since held-out scoring was done once with settings fixed first.
+Not shown here. The step is tested (unit tests cover a same-owner reversal and many cases that must not override), but on these six AMI meetings the override never fired: the removed items are all merges, and the narrow rule was checked by comparing outputs before and after each tightening. Overrides are now limited to actions with a named owner, so a reversed decision (the usual case in a final-design meeting) is not handled at all. The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since the settings were fixed before held-out scoring.
 
 ## State of the targets and what remains
 
