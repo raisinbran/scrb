@@ -445,7 +445,7 @@ final class Session {
             DispatchQueue.main.async { [self] in
                 guard !stopping else { return }
                 // A stream stays zeros after access returns, so only a reopen can hear it. Drain clears the block.
-                if blocked { reopen(track, reason: "permission") } else { track.block() }
+                if blocked { _ = reopen(track, reason: "permission") } else { track.block() }
             }
             return
         }
@@ -456,7 +456,7 @@ final class Session {
                 if access == "denied" && !blocked { track.block() }
                 if access == "granted" && blocked {
                     track.unblock()
-                    reopen(track, reason: "permission")
+                    _ = reopen(track, reason: "permission")
                 }
             }
         }
@@ -466,11 +466,11 @@ final class Session {
     func rebuild(reason: String, track only: Track? = nil) {
         for track in only.map({ [$0] }) ?? [micTrack, meetingTrack] {
             say(["type": "event", "event": reason, "track": track.name])
-            reopen(track, reason: reason)
+            _ = reopen(track, reason: reason)
         }
     }
 
-    private func reopen(_ track: Track, reason: String) {
+    private func reopen(_ track: Track, reason: String, quiet: Bool = false) -> String? {
         track.close(reason: reason)
         let error: String?
         if track === micTrack {
@@ -483,8 +483,10 @@ final class Session {
         rt_touch(track.ring)
         rt_heard_now(track.ring)
         track.active = error == nil
+        if quiet && error != nil { return error }
         if let error { say(["type": "event", "event": "streamDead", "track": track.name, "message": error]) }
         else { say(["type": "event", "event": "streamReopened", "track": track.name]) }
+        return error
     }
 
     private func watch() {
@@ -501,7 +503,11 @@ final class Session {
             guard mic == "default" else { return }
             // Debounced: a headset can flip the default several times as it connects (Q7).
             micChange?.cancel()
-            let change = DispatchWorkItem { [self] in rebuild(reason: "deviceChanged", track: micTrack) }
+            let change = DispatchWorkItem { [self] in
+                // A mic picked inside the 5 s must not be rebuilt a second time.
+                guard mic == "default" else { return }
+                rebuild(reason: "deviceChanged", track: micTrack)
+            }
             micChange = change
             DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: change)
         }
@@ -543,14 +549,29 @@ final class Session {
         }
     }
 
-    func selectMic(_ next: String) {
+    /// Switches the mic. A failed open puts the previous mic back, so the pick never costs the recording.
+    func selectMic(_ next: String) -> (Bool, String?) {
+        micChange?.cancel()
+        guard next != mic else { return (true, nil) }
+        let previous = mic
         mic = next
-        rebuild(reason: "deviceChanged", track: micTrack)
+        say(["type": "event", "event": "deviceChanged", "track": micTrack.name])
+        if reopen(micTrack, reason: "deviceChanged", quiet: true) == nil { return (true, nil) }
+        mic = previous
+        _ = reopen(micTrack, reason: "deviceChanged")
+        return (false, "kept the previous microphone")
     }
 
-    func selectSource(_ next: [Int32]) {
+    /// Same as `selectMic`, for the meeting app.
+    func selectSource(_ next: [Int32]) -> (Bool, String?) {
+        guard next != source else { return (true, nil) }
+        let previous = source
         source = next
-        rebuild(reason: "sourceChanged", track: meetingTrack)
+        say(["type": "event", "event": "sourceChanged", "track": meetingTrack.name])
+        if reopen(meetingTrack, reason: "sourceChanged", quiet: true) == nil { return (true, nil) }
+        source = previous
+        _ = reopen(meetingTrack, reason: "sourceChanged")
+        return (false, "kept the previous meeting app")
     }
 
     var activeTracks: [String] { [micTrack, meetingTrack].filter(\.active).map(\.name) }
@@ -581,8 +602,8 @@ func handle(_ command: [String: Any]) -> [String: Any] {
         ok = result.1
         if !ok { error = "stop could not be fully saved" }
     case "checkPermission": permission = checkSystemAudioPermission()
-    case "selectMic": session.selectMic(command["mic"] as? String ?? "default")
-    case "selectSource": session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
+    case "selectMic": (ok, error) = session.selectMic(command["mic"] as? String ?? "default")
+    case "selectSource": (ok, error) = session.selectSource((command["source"] as? [NSNumber])?.map(\.int32Value) ?? [])
     case "listMics": return listingAck(id, "mics", listMics())
 #if FAULT_HOOKS
     case "faultStopStream":

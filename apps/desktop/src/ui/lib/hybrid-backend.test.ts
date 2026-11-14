@@ -435,4 +435,23 @@ describe('createHybridBackend', () => {
     });
     expect(mockCall).not.toHaveBeenCalledWith('startRecording', expect.anything());
   });
+
+  it('with setup blocked: no sample meetings, and the idle snapshot comes from the mock', async () => {
+    const real = {
+      call: vi.fn(async (name: string) => {
+        if (name === 'listMeetings') return [];
+        if (name === 'getRecordingSnapshot')
+          throw new ContractError({ code: 'conflict', message: 'Scribe cannot record yet.' });
+        return {};
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const backend = createHybridBackend(real, mock, { setupBlocked: true });
+    expect(await backend.call('listMeetings', {})).toEqual([]);
+    expect((await backend.call('getRecordingSnapshot')).state.status).toBe('idle');
+    // Unblocked, the same real conflict is not swallowed.
+    await expect(createHybridBackend(real, mock).call('getRecordingSnapshot')).rejects.toThrow(
+      'cannot record yet',
+    );
+  });
 });

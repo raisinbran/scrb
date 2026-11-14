@@ -96,7 +96,13 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
  * Real settings, real meetings and, when a capture helper is set up, real recording, with everything else on the mock, until each phase connects its screens. The mock
  * gets a copy of the settings because its privacy banner rule reads them.
  */
-export function createHybridBackend(real: Backend, mock: Backend): Backend {
+export function createHybridBackend(
+  real: Backend,
+  mock: Backend,
+  /** A packaged app that cannot record yet: no sample meetings, and the idle snapshot stays. */
+  options: { setupBlocked?: boolean } = {},
+): Backend {
+  const blocked = options.setupBlocked === true;
   const callReal = async (name: CallName, request: unknown): Promise<unknown> => {
     const call = real.call as (name: CallName, request?: unknown) => Promise<unknown>;
     const value = await call(name, request);
@@ -146,6 +152,7 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
       const callMock = mock.call as (name: CallName, request?: unknown) => Promise<unknown>;
       if (name === 'listMeetings') {
         const meetings = await listRealMeetings(request);
+        if (blocked) return meetings;
         await synced;
         return [...meetings, ...((await callMock(name, request)) as MeetingListItem[])];
       }
@@ -167,6 +174,8 @@ export function createHybridBackend(real: Backend, mock: Backend): Backend {
         if (error instanceof ContractError && error.code === 'notImplemented') {
           return callMock(name, request);
         }
+        // Blocked: the idle snapshot comes from the mock; recording itself stays refused.
+        if (blocked && name === 'getRecordingSnapshot') return callMock(name, request);
         throw error;
       }
     }) as Backend['call'],

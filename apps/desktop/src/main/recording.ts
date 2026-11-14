@@ -82,6 +82,7 @@ export class RecordingController {
   private health: RecordingHealth | null = null;
   private session: RecordingSession | null = null;
   private starting = false;
+  private switching = false;
   private ticker: ReturnType<typeof setInterval> | undefined;
   private lastTick = 0;
   private finishing: Promise<void> | null = null;
@@ -400,19 +401,65 @@ export class RecordingController {
     });
   }
 
-  /** The helper cannot switch sources mid-recording, so a change waits for Stop. */
+  /**
+   * Idle: saves the choice. Recording or paused: switches one source live, and saves it only after
+   * the helper confirms. See `docs/plans/switch-sources-while-recording.md`.
+   */
   private select = async (selection: SourceSelection): Promise<void> => {
     const current = this.sources.read();
-    const changed =
-      selection.micDeviceId !== current.micDeviceId ||
-      selection.meetingAppId !== current.meetingAppId;
-    if (changed && (this.session || this.starting)) {
-      throw new ContractError({
-        code: 'conflict',
-        message: 'Stop the recording to change the meeting app or microphone.',
-      });
+    const micChanged = selection.micDeviceId !== current.micDeviceId;
+    const appChanged = selection.meetingAppId !== current.meetingAppId;
+    if (!micChanged && !appChanged) return;
+    if (!this.session && !this.starting) {
+      this.sources.save(selection);
+      return;
     }
-    this.sources.save(selection);
+    const conflict = (message: string) => new ContractError({ code: 'conflict', message });
+    const session = this.session;
+    if (this.starting || !session || process.platform === 'win32') {
+      throw conflict('Stop the recording to change the meeting app or microphone.');
+    }
+    if (micChanged && appChanged) {
+      throw conflict('Change the microphone and the meeting app one at a time while recording.');
+    }
+    if (this.switching) throw conflict('Still switching. Try again in a moment.');
+    this.switching = true;
+    try {
+      const resolved = await resolveSources(this.helper, selection);
+      if (this.session !== session) throw conflict('Not recording.');
+      let change: Parameters<RecordingSession['switchSource']>[0];
+      if (micChanged) {
+        if (resolved.micFellBack) throw conflict('That microphone is not available.');
+        change = { mic: resolved.mic };
+      } else {
+        if (Array.isArray(resolved.source) && resolved.source.includes(-1)) {
+          throw conflict('That app is not playing audio yet.');
+        }
+        change = {
+          source: resolved.source,
+          ...(resolved.followApp ? { followApp: resolved.followApp } : {}),
+        };
+      }
+      const what = micChanged ? 'microphone' : 'meeting app';
+      const ack = await session.switchSource(change).catch((failure: unknown) => {
+        if (failure instanceof ContractError) throw failure;
+        throw conflict(`Could not switch the ${what}. Still recording with the previous one.`);
+      });
+      if (!ack.ok) {
+        throw conflict(`Could not switch the ${what}. Still recording with the previous one.`);
+      }
+      this.sources.save(selection);
+      this.warn(
+        {
+          kind: 'deviceChanged',
+          track: micChanged ? 'microphone' : 'meeting',
+          message: `Switched the ${what}. About a second of audio may be missing.`,
+        },
+        this.health?.level ?? 'ok',
+      );
+    } finally {
+      this.switching = false;
+    }
   };
 
   private snapshot = async (): Promise<RecordingSnapshot> => ({

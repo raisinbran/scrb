@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  missingMessage,
   modelsDirFor,
+  toolFileName,
   resolvePackagedSetup,
   pinUserData,
   userDataFor,
@@ -55,6 +57,7 @@ describe('resolvePackagedSetup', () => {
       userDataPath: userData,
       modelsDir: models,
       digests: table,
+      platform: 'darwin',
     });
 
   it('writes both configs with absolute bundle and model paths when all is in place', async () => {
@@ -93,7 +96,42 @@ describe('resolvePackagedSetup', () => {
   it('keeps the pinned data folder and the models folder apart from the app name', () => {
     const appData = join('h', 'Library', 'Application Support');
     expect(userDataFor(appData)).toBe(join(appData, '@scrb', 'desktop'));
-    expect(modelsDirFor('h')).toBe(join(appData, 'Scribe', 'models'));
+    expect(modelsDirFor('h', 'darwin')).toBe(join(appData, 'Scribe', 'models'));
+  });
+
+  it('uses .exe tool names and a local models folder on Windows', async () => {
+    expect(toolFileName('ffmpeg', 'win32')).toBe('ffmpeg.exe');
+    expect(toolFileName('ffmpeg', 'darwin')).toBe('ffmpeg');
+    expect(
+      modelsDirFor('C:\\Users\\o', 'win32', { LOCALAPPDATA: 'C:\\Users\\o\\AppData\\Local' }),
+    ).toBe('C:\\Users\\o\\AppData\\Local\\Scribe\\models');
+    expect(modelsDirFor('C:\\Users\\o', 'win32', {})).toBe(
+      'C:\\Users\\o\\AppData\\Local\\Scribe\\models',
+    );
+    const bin = join(resources, 'bin');
+    for (const tool of TOOLS) rmSync(join(bin, tool));
+    for (const tool of TOOLS.filter((t) => t !== 'ffprobe'))
+      writeFileSync(join(bin, `${tool}.exe`), 'x');
+    const setup = await resolvePackagedSetup({
+      resourcesPath: resources,
+      userDataPath: userData,
+      modelsDir: models,
+      digests: table,
+      platform: 'win32',
+    });
+    expect(setup.missing).toEqual(['tool ffprobe.exe']);
+    expect(missingMessage(setup.missing, 'win32')).toContain('%LOCALAPPDATA%');
+    expect(missingMessage(setup.missing, 'darwin')).toContain('package-mac.sh');
+  });
+
+  it("stages each platform's tools only into its own build (no top-level extraResources)", () => {
+    const yml = readFileSync(join(__dirname, '../../electron-builder.yml'), 'utf8');
+    expect(yml).not.toMatch(/^extraResources:/m);
+    const section = (name: string) => yml.split(new RegExp(`^${name}:`, 'm'))[1]!.split(/^\S/m)[0]!;
+    expect(section('mac')).toContain('from: build/mac-stage/bin');
+    expect(section('mac')).not.toContain('win-stage');
+    expect(section('win')).toContain('from: build/win-stage/bin');
+    expect(section('win')).not.toContain('mac-stage');
   });
 
   it('creates a fresh macOS-style profile folder before pinning, and keeps an existing Windows-style one', () => {

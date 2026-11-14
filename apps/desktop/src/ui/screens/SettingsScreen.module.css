@@ -155,11 +155,6 @@
   margin-top: var(--space-1);
 }
 
-.progress progress {
-  width: 100%;
-  accent-color: var(--color-accent);
-}
-
 .error {
   margin: var(--space-1) 0;
   color: var(--color-danger);

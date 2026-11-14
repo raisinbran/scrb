@@ -165,19 +165,20 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     await handlers.stopRecording?.(undefined);
   });
 
-  it('refuses a source change during a recording and keeps the choice', async () => {
+  it('switches the meeting app during a recording, but not the app and mic together', async () => {
     const sources = store(WHOLE);
     const { handlers } = controller(helper().path, sources);
     await start(handlers);
     await expect(
-      handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null }),
+      handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: MIC.id }),
     ).rejects.toMatchObject({ code: 'conflict' });
-    await handlers.selectSources?.({ meetingAppId: WHOLE, micDeviceId: null });
     expect(sources.read().meetingAppId).toBe(WHOLE);
+    await handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null });
+    expect(sources.read().meetingAppId).toBe('us.zoom.xos');
     await handlers.stopRecording?.(undefined);
   });
 
-  it('refuses a microphone switch during recording, but accepts unchanged settings', async () => {
+  it('refuses a missing microphone during recording, but accepts unchanged settings', async () => {
     const sources = store(WHOLE, MIC.id);
     const { handlers } = controller(helper().path, sources);
     await start(handlers);
@@ -204,16 +205,13 @@ describe.skipIf(process.platform === 'win32')('recording with chosen sources', (
     await handlers.stopRecording?.(undefined);
   });
 
-  it('rejects a changed meeting app during Pause and allows the same selection', async () => {
+  it('switches the meeting app during Pause and saves it once the helper acks', async () => {
     const sources = store(WHOLE);
     const { handlers } = controller(helper().path, sources);
     await start(handlers);
     await handlers.pauseRecording?.(undefined);
-    await expect(
-      handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null }),
-    ).rejects.toMatchObject({ code: 'conflict' });
-    expect(sources.read().meetingAppId).toBe(WHOLE);
-    await handlers.selectSources?.(sources.read());
+    await handlers.selectSources?.({ meetingAppId: 'us.zoom.xos', micDeviceId: null });
+    expect(sources.read().meetingAppId).toBe('us.zoom.xos');
     await handlers.stopRecording?.(undefined);
   });
 

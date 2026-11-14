@@ -12,6 +12,7 @@ import { useBackend } from '../../lib/backend-context.tsx';
 import { useAction } from '../../lib/use-action.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView } from '../Screen.tsx';
+import { Progress } from '../../components/Progress.tsx';
 import styles from '../SettingsScreen.module.css';
 
 const load = (backend: Backend) => backend.call('getSetupStatus');
@@ -81,10 +82,11 @@ function ModelRow({ model, update, progress, disabled, onInstall, onRevert }: Mo
       {active && (
         <div className={styles.progress} role="status">
           <span className={styles.help}>{progressText(progress)}</span>
-          <progress
-            value={progress.bytesDone}
-            max={progress.bytesTotal}
-            aria-label={`${model.name} download`}
+          <Progress
+            label={`${model.name} download`}
+            fraction={
+              progress.bytesTotal > 0 ? progress.bytesDone / progress.bytesTotal : undefined
+            }
           />
         </div>
       )}

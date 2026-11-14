@@ -1,4 +1,5 @@
 import { SCREENS, type ScreenEntry, type ScreenId } from '../screens/index.ts';
+import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -7,6 +8,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ selected, onSelect }: SidebarProps) {
+  const { recording } = useRecordingStatus();
+  const dot =
+    recording.status === 'recording' || recording.status === 'paused' ? recording.status : null;
   const item = (screen: ScreenEntry) => (
     <button
       key={screen.id}
@@ -19,6 +23,14 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
         <path d={screen.icon} />
       </svg>
       {screen.label}
+      {screen.id === 'live' && dot && (
+        <span
+          role="img"
+          className={styles.dot}
+          data-state={dot}
+          aria-label={dot === 'paused' ? 'Recording paused' : 'Recording in progress'}
+        />
+      )}
     </button>
   );
 

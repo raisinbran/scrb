@@ -102,6 +102,47 @@ describe('sealAudio', () => {
     ]);
   });
 
+  it('does not report 32 ms of ordinary chunk rollover jitter', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000001.opus', chunk(1, 2 * SECOND + 32_000_000, 2, 'rollover'));
+    logLine('meeting', [{ file: '000000.opus', closeReason: 'rollover' }]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([]);
+  });
+
+  it('still reports a rollover-sized gap when the chunk closed for another reason', async () => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000001.opus', chunk(1, 2 * SECOND + 32_000_000, 2, 'rollover'));
+    logLine('meeting', [{ file: '000000.opus', closeReason: 'permission' }]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      {
+        kind: 'audioMissing',
+        track: 'meeting',
+        startNs: 2 * SECOND,
+        endNs: 2 * SECOND + 32_000_000,
+      },
+    ]);
+  });
+
+  it.each([50, 100, 200, 250])('still reports a %i ms gap between rollover chunks', async (ms) => {
+    put('meeting', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('meeting', '000001.opus', chunk(1, 2 * SECOND + ms * 1_000_000, 2, 'rollover'));
+    logLine('meeting', [{ file: '000000.opus', closeReason: 'rollover' }]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toHaveLength(1);
+  });
+
+  it('still reports a 25 s microphone gap closed by permission', async () => {
+    put('microphone', '000000.opus', chunk(0, 0, 2, 'start'));
+    put('microphone', '000001.opus', chunk(1, 27 * SECOND, 2, 'permission'));
+    logLine('microphone', [{ file: '000000.opus', closeReason: 'permission' }]);
+    const { gaps } = await sealAudio(audio, dead);
+    expect(gaps).toEqual([
+      { kind: 'audioMissing', track: 'microphone', startNs: 2 * SECOND, endNs: 27 * SECOND },
+    ]);
+  });
+
   it('T13: preserves two confirmed pauses as separate spans', async () => {
     put('meeting', '000000.opus', chunk(0, 0, 1, 'start'));
     put('meeting', '000001.opus', chunk(1, 3 * SECOND, 1, 'resume'));

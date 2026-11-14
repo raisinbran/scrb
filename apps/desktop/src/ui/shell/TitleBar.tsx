@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { RecordingHealth, TranscriptionLag } from '@scrb/contracts';
 import { formatElapsed } from '../lib/format.ts';
-import { useMockMode } from '../lib/mock-mode.tsx';
+import { useMockMode, useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './TitleBar.module.css';
@@ -34,6 +34,7 @@ export function TitleBar() {
   const mockMode = useMockMode();
   const backend = useBackend();
   const miniHidden = useMiniHidden();
+  const setupBlocked = useSetupBlocked();
   const active = recording.status === 'recording' || recording.status === 'paused';
   const warning = active ? healthText(health) : null;
   const lagText = active && lag ? LAG_TEXT[lag.status] : undefined;
@@ -41,6 +42,11 @@ export function TitleBar() {
     <header className={styles.bar}>
       <span className={styles.name}>Scribe</span>
       <div className={styles.status}>
+        {setupBlocked && (
+          <span className={styles.mock} data-testid="setup-incomplete-marker" title={setupBlocked}>
+            Setup incomplete
+          </span>
+        )}
         {mockMode && (
           <span
             className={styles.mock}
