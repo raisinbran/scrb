@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon option J-3: sound curves and a longer scribble, steeper nib with grip (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
+  <g fill="none" stroke="#fff" stroke-width="52" stroke-linecap="round"><path d="M227 496A100 100 0 0 1 227 624"/><path d="M303 431A200 200 0 0 1 303 689"/></g>
+  <path d="M410 600c20-70 54-70 66 0s34 60 56 0 36-60 60-10" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(640 610) rotate(-62) scale(0.8)"><path fill="#fff" d="M0 0L200-58C268-70 318-70 360-52V52C318 70 268 70 200 58z"/><path d="M0 0H206" stroke="#4a50b6" stroke-width="18" stroke-linecap="round"/><circle cx="228" cy="0" r="22" fill="#4a50b6"/><rect x="372" y="-46" width="170" height="92" rx="40" fill="#fff"/></g>
+  </g>
+</svg>

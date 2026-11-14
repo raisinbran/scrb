@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon option W-3: five symmetrical bars, then an I-beam</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/></filter>
+  </defs>
+  <g>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
+  <g fill="#fff"><rect x="184" y="452" width="56" height="120" rx="28"/><rect x="262" y="397" width="56" height="230" rx="28"/><rect x="340" y="342" width="56" height="340" rx="28"/><rect x="418" y="397" width="56" height="230" rx="28"/><rect x="496" y="452" width="56" height="120" rx="28"/></g>
+  <g fill="#fff"><rect x="674" y="320" width="52" height="380" rx="26"/><rect x="625" y="320" width="150" height="41.6" rx="20.8"/><rect x="625" y="658.4" width="150" height="41.6" rx="20.8"/></g>
+  </g>
+</svg>

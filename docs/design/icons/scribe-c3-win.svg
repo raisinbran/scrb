@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon option C-3: three sound curves flowing into a thick caret (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
+  <g fill="none" stroke="#fff" stroke-width="50" stroke-linecap="round"><path d="M247 448A100 100 0 0 1 247 576"/><path d="M316 390A190 190 0 0 1 316 634"/><path d="M384 332A280 280 0 0 1 384 692"/></g>
+  <rect x="628" y="300" width="64" height="424" rx="32" fill="#fff"/>
+  </g>
+</svg>
