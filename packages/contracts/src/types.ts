@@ -636,8 +636,16 @@ export interface ModelDownloadProgress {
   state: 'downloading' | 'verifying' | 'done' | 'failed';
   bytesDone: number;
   bytesTotal: number;
+  /** Bytes finished across every model of this download run, for one overall bar. */
+  overallBytesDone?: number;
+  overallBytesTotal?: number;
+  /** Set with `failed`: why, so the screen can offer the right next step. */
+  reason?: ModelDownloadFailure;
   message?: string;
 }
+
+export type ModelDownloadFailure =
+  'offline' | 'checksum' | 'size' | 'diskSpace' | 'insecure' | 'http';
 
 export type PermissionKind = 'microphone' | 'meetingAudio';
 /** `unknown`: the OS offers no way to read it, as with System Audio Recording on macOS. */

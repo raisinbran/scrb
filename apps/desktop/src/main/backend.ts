@@ -29,12 +29,16 @@ import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
 import { createSetupStatusHandler } from './setup-status.ts';
 import {
+  DIGESTS,
+  MODELS,
   missingMessage,
   modelsDirFor,
+  verified,
   resolvePackagedSetup,
   type PackagedSetup,
 } from './packaged-setup.ts';
 import { ContractError } from '@scrb/contracts';
+import { createModelDownloader, extractWithTar, sourcesFor } from './model-download.ts';
 import os from 'node:os';
 
 export interface OpenedBackend {
@@ -105,6 +109,28 @@ export async function openBackend(
           resourcesPath: process.resourcesPath,
           userDataPath: app.getPath('userData'),
           modelsDir: modelsDirFor(os.homedir()),
+        })
+      : null;
+    const modelsDir = modelsDirFor(os.homedir());
+    const modelDownloader = packaged
+      ? createModelDownloader({
+          dir: modelsDir,
+          sources: sourcesFor(MODELS, DIGESTS),
+          extract: extractWithTar,
+          isInstalled: (source) =>
+            verified(
+              path.join(modelsDir, source.file),
+              source.file,
+              path.join(app.getPath('userData'), 'config', 'model-verified.json'),
+              DIGESTS,
+            ),
+          onProgress: (progress) =>
+            emit('modelDownloadProgress', {
+              ...progress,
+              ...(progress.state === 'done'
+                ? { message: 'Reopen Scribe when all models are done.' }
+                : {}),
+            }),
         })
       : null;
     if (packaged && packaged.missing.length > 0)
@@ -274,6 +300,12 @@ export async function openBackend(
           renderDocx: createDocxRenderer(path.join(__dirname, 'exportWorkerEntry.mjs')),
         }),
         ...recording?.handlers,
+        ...(packaged && packaged.models.some((m) => !m.installed) && modelDownloader
+          ? {
+              startModelDownload: async () => modelDownloader.start(),
+              cancelModelDownload: async () => modelDownloader.cancel(),
+            }
+          : {}),
         // A packaged app without its tools or models must say so, not fall back to the mock.
         ...(packaged && packaged.missing.length > 0
           ? {
@@ -301,6 +333,7 @@ export async function openBackend(
             ? missingMessage(packaged.missing)
             : null,
       close: async () => {
+        modelDownloader?.cancel();
         playback.stop();
         stopRetention();
         await summaries.shutdown();
