@@ -38,7 +38,7 @@ export const toolFileName = (name: string, platform: NodeJS.Platform = process.p
 export const userDataFor = (appData: string): string => path.join(appData, USER_DATA_FOLDER);
 
 export type DigestTable = Record<string, { sha256: string; bytes: number }>;
-const DIGESTS = digests as DigestTable;
+export const DIGESTS = digests as DigestTable;
 
 const TOOLS = [
   'scrb-capture',
@@ -50,12 +50,12 @@ const TOOLS = [
   'ffprobe',
 ] as const;
 
-interface ModelRow {
+export interface ModelRow {
   file: string;
   role: ModelInfo['role'];
   label: string;
 }
-const MODELS: ModelRow[] = [
+export const MODELS: ModelRow[] = [
   { file: 'ggml-large-v3-turbo-q5_0.bin', role: 'finalSpeech', label: 'Final-pass speech model' },
   { file: 'ggml-small.en-q5_1.bin', role: 'liveSpeech', label: 'Live speech model' },
   { file: 'ggml-silero-v6.2.0.bin', role: 'liveSpeech', label: 'Voice activity model' },
@@ -81,7 +81,7 @@ function sha256(file: string): Promise<string> {
  * True when the file has the pinned size and hash. A passing result is remembered by size and
  * modification time, so the 800 MB are hashed once, not at every launch.
  */
-async function verified(
+export async function verified(
   file: string,
   name: string,
   cacheFile: string,

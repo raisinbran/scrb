@@ -1,0 +1,1 @@
+| 2026-11-13 | Claude Code / Sonnet 5.5 / Mac desktop | Backend: model download manager in main process, plan docs/plans/model-download.md, unit tests pass; independent review pending | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | get_usage not read; other sessions run. |
