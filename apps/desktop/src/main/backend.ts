@@ -272,6 +272,13 @@ export async function openBackend(
                   message: missingMessage(packaged.missing),
                 });
               },
+              // The UI reads this refusal to show the setup-incomplete state instead of the mock.
+              getRecordingSnapshot: async () => {
+                throw new ContractError({
+                  code: 'conflict',
+                  message: missingMessage(packaged.missing),
+                });
+              },
             }
           : {}),
       },
