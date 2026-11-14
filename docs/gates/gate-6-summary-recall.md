@@ -49,3 +49,55 @@ Judged precision (the local model checks each item against its cited lines; a mo
 ## Process
 
 Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes each from saved answers; three held-out runs 4 to 5 minutes each; judge runs 12 minutes and about 12 minutes. Each ran as a separate process, none over 20 minutes.
+
+# Update 2026-11-14: reconcile step, and what it did not fix
+
+**Result: neither target met. Recall 68% held-out (unchanged), precision still unknown to within a wide margin.** A reconcile step was added and measured; it removes some duplicates and changes no score. A capped version lowered recall and was left switched off. Links stay 100%.
+
+## What was added (`packages/summary/src/reconcile.ts`, called when an extraction is finished)
+
+1. **Near-duplicate merge**: same kind, same polarity, within 5 minutes, at least 2 shared content words and word overlap (Jaccard) of 0.4. The better-supported item survives and keeps the other's cited line in `alsoAt`; two owners stay two tasks.
+2. **Later change overrides earlier**: an earlier item is dropped when an item of the same kind at least 60 seconds later shares at least 3 distinctive words (overlap 0.35, topic words removed) and says the opposite by negation. It is a wording test only: a revision with no negation word (use X, then use Y instead) is not caught.
+3. **Cap**: kept items per meeting limited to a rate per minute, best-supported first (cited by several passes, settled status, first pass). Sized from the tuning reference lists only: 42 reference items over 107 minutes is 0.39 a minute; about two extracted items per reference sentence gives 0.8 a minute. **Off by default**, see below.
+
+Every kept item keeps its own cited line and time; no link is rewritten.
+
+## Numbers (same scorer and 50% matching rule as above; AMI only)
+
+| Set                | Meeting | Items before | Items after |   Recall before |    Recall after | Reference-matched precision before |        after | Links after |
+| ------------------ | ------- | -----------: | ----------: | --------------: | --------------: | ---------------------------------: | -----------: | ----------: |
+| tuning             | ES2016b |           51 |          49 |           14/16 |           14/16 |                              42/51 |        40/49 |       56/56 |
+| tuning             | ES2008b |           59 |          57 |           13/17 |           13/17 |                              21/59 |        21/57 |       65/65 |
+| tuning             | IS1009d |           59 |          55 |             4/9 |             4/9 |                               4/59 |         4/55 |       57/57 |
+| **tuning total**   |         |      **169** |     **161** | **31/42 (74%)** | **31/42 (74%)** |                       67/169 (40%) | 65/161 (40%) |     178/178 |
+| held-out (once)    | TS3005b |           62 |          54 |           11/15 |           11/15 |                              37/62 |        30/54 |       60/60 |
+| held-out (once)    | ES2015c |           58 |          56 |           11/13 |           11/13 |                              26/58 |        25/56 |       61/61 |
+| held-out (once)    | IS1004d |           51 |          49 |            5/12 |            5/12 |                              18/51 |        17/49 |       56/56 |
+| **held-out total** |         |      **171** |     **159** | **27/40 (68%)** | **27/40 (68%)** |                       81/171 (47%) | 72/159 (45%) |     177/177 |
+
+The "before" rows reproduce the earlier results exactly (31/42 and 27/40), from the saved extractions of that run. The step is deterministic, so no model run was needed to score it; the held-out set was scored once, after the settings were fixed on the tuning set. One held-out item is 2.5 points: the held-out recall did not move at all. Reference-matched precision is a lower bound (the reference lists are short summaries) and fell slightly because two near-identical items that each matched the same reference sentence are now one. That drop is a counting effect, not a loss of real content, but it is also not a gain. Secondary (alsoAt) links: 45/45 held-out, 31/31 tuning.
+
+## The cap, on the tuning set only
+
+| Cap (items per minute) | Items kept of 169 |      Recall | Reference-matched precision |
+| ---------------------- | ----------------: | ----------: | --------------------------: |
+| none                   |               161 | 31/42 (74%) |                         40% |
+| 1.2                    |               133 | 29/42 (69%) |                         46% |
+| 1.0                    |               112 | 28/42 (67%) |                         46% |
+| 0.8                    |                89 | 25/42 (60%) |                         47% |
+
+The cap buys 6 to 7 points of reference-matched precision for 5 to 14 points of recall, and the precision stops improving below 1.2 a minute. The signals available to rank items (several passes agree, "Decided" or "Agreed", first pass) are weak: in the tuning output, 37% of single-pass items match a reference sentence against 57% of items two passes agreed on, and the status fields range only from 18% to 46%. A cap therefore removes wanted items as often as unwanted ones. It was not tried on the held-out set. The cap stays in the code as an option (`itemsPerMinute`), off.
+
+## Does the data support "later overrides earlier"?
+
+Only weakly. The step is correct and tested (unit tests: reversal dropped and the earlier line kept in `alsoAt`; two quick opposite statements kept apart), but on these six AMI meetings it changed no score. I did not separate how many of the 20 items removed overall were merges and how many were overrides. The stale misses recorded above (solar cells, turbo button) were not recovered on the held-out set; they were not asked to be, since held-out scoring was done once with settings fixed first.
+
+## State of the targets and what remains
+
+- **Recall 80%: not met.** Held-out 27/40 (68%), tuning 31/42 (74%). Misses are details the model does not extract; no pass or reconcile step recovered them.
+- **Precision 80%: not measured honestly yet.** Reference-matched is 40% tuning and 47% held-out, a lower bound. The earlier judged figure (about 30%) is the model grading itself and is not used. The output still has 49 to 57 items per meeting for 9 to 17 reference items; deduplication cannot close that gap because the items are mostly different points, not repeats.
+- **Next, in order of value**: (1) someone fills in [the hand-check pack](gate-6-hand-check-pack.md) (60 items, about 20 minutes) so precision is known; if most items are correct, the target should be restated against a hand-judged set rather than the short AMI reference lists; (2) only then consider a larger local model, which is the one lever not tried; (3) lowering the 70% to 80% recall target for local 9B-class models is the owner's decision.
+
+## Process
+
+No new model run for scoring. One narrative re-record of the ES2016b test recording (94 seconds) because the narrative now sees fewer items. Each scoring command ran in seconds; nothing approached 20 minutes. Own errors logged in A-359.

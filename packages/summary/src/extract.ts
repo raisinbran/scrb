@@ -1,5 +1,6 @@
 import { flagConflicts, dedupe } from './dedupe.js';
 import { resolveEvidence } from './evidence.js';
+import { reconcileExtraction } from './reconcile.js';
 import { nonItemReason } from './filter.js';
 import { completeStructured, type LlmClient } from './llm.js';
 import { transcriptHash } from './outdated.js';
@@ -263,19 +264,23 @@ class Extractor {
       item.id = `${item.kind}-${this.nextId}`;
       this.nextId += 1;
     }
-    return {
-      sourceHash: transcriptHash(this.transcript),
-      actions: merged.filter((item): item is ActionItem => item.kind === 'action'),
-      decisions: merged.filter((item): item is DecisionItem => item.kind === 'decision'),
-      impacts: merged.filter((item): item is ImpactItem => item.kind === 'impact'),
-      openQuestions: merged.filter(
-        (item): item is OpenQuestionItem => item.kind === 'openQuestion',
-      ),
-      gists: [...this.gists.entries()].sort((a, b) => a[0] - b[0]).map(([, gist]) => gist),
-      rejected: this.rejected,
-      warnings: this.warnings,
-      stats: this.stats,
-    };
+    const minutes = (this.transcript.lines.at(-1)?.startSec ?? 0) / 60;
+    return reconcileExtraction(
+      {
+        sourceHash: transcriptHash(this.transcript),
+        actions: merged.filter((item): item is ActionItem => item.kind === 'action'),
+        decisions: merged.filter((item): item is DecisionItem => item.kind === 'decision'),
+        impacts: merged.filter((item): item is ImpactItem => item.kind === 'impact'),
+        openQuestions: merged.filter(
+          (item): item is OpenQuestionItem => item.kind === 'openQuestion',
+        ),
+        gists: [...this.gists.entries()].sort((a, b) => a[0] - b[0]).map(([, gist]) => gist),
+        rejected: this.rejected,
+        warnings: this.warnings,
+        stats: this.stats,
+      },
+      minutes,
+    );
   }
 
   get speakerList(): string[] {
