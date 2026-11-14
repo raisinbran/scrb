@@ -837,20 +837,41 @@ export function createMeetingHandlers(
       }
     },
     deleteMeeting: async (request) => {
-      const { meetingId } = request as { meetingId: string };
+      const { meetingId, removeLearnedData } = request as {
+        meetingId: string;
+        removeLearnedData?: boolean;
+      };
       await requireMeeting(library, meetingId);
       try {
-        const result = await library.deleteMeeting(meetingId);
+        const result = await library.deleteMeeting(meetingId, false, removeLearnedData === true);
+        for (const { before, after } of result.learned?.transcriptChanges ?? []) {
+          publishEdit(before, after, emit);
+        }
         const cache = meetingCachePath(library.paths, meetingId);
         const prefix = `${library.paths.index}.upgrade-`;
-        const names = result.remaining.map((left) =>
+        const names: string[] = result.remaining.map((left) =>
           left === cache
             ? 'Temporary files'
             : left.startsWith(prefix)
               ? 'Index recovery copy'
               : 'Meeting files',
         );
-        return { verified: result.ok, remaining: [...new Set(names)] };
+        if (result.learned && result.learned.profilesFailed > 0) {
+          names.push('Voice profiles that could not be removed');
+        }
+        const summary = {
+          verified: result.ok && !(result.learned && result.learned.profilesFailed > 0),
+          remaining: [...new Set(names)],
+        };
+        return result.learned
+          ? {
+              ...summary,
+              learnedDataRemoved: {
+                profiles: result.learned.profiles,
+                terms: result.learned.terms,
+              },
+            }
+          : summary;
       } catch (error) {
         if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
           throw new ContractError({ code: 'conflict', message: error.message });

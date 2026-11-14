@@ -1382,7 +1382,7 @@ export class MockBackend implements Backend {
         return matches.length > 0 ? [{ meeting: toListItem(meeting), matches }] : [];
       });
     },
-    deleteMeeting: async ({ meetingId }): Promise<DeleteResult> => {
+    deleteMeeting: async ({ meetingId, removeLearnedData }): Promise<DeleteResult> => {
       this.findMeeting(meetingId);
       if (this.armed.delete('deleteSlow')) {
         this.updateMeetingStatus(meetingId, { status: 'deleting' });
@@ -1396,7 +1396,10 @@ export class MockBackend implements Backend {
       this.summaries.delete(meetingId);
       this.history.delete(meetingId);
       this.meetingSpeakers.delete(meetingId);
-      return { verified: true, remaining: [] };
+      // The mock does not track which meeting taught each profile or term, so nothing is removed.
+      return removeLearnedData
+        ? { verified: true, remaining: [], learnedDataRemoved: { profiles: 0, terms: 0 } }
+        : { verified: true, remaining: [] };
     },
     openMeetingFolder: () => undefined,
     exportMeeting: ({ meetingId, format }) => {
