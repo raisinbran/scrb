@@ -19,7 +19,9 @@ describe('HelpScreen', () => {
   it('shows the name, version, data statement, credits and manual location', async () => {
     const backend = new MockBackend();
     show(backend);
-    expect(await screen.findByText(new RegExp(`${APP_INFO.version.replace(/[().]/g, '\\$&')}`))).toBeTruthy();
+    expect(
+      await screen.findByText(new RegExp(`${APP_INFO.version.replace(/[().]/g, '\\$&')}`)),
+    ).toBeTruthy();
     expect(screen.getByText(/All of your data stays on this computer/)).toBeTruthy();
     expect(screen.getByText(/whisper\.cpp \(MIT\)/)).toBeTruthy();
     expect(screen.getByText('docs/user-manual')).toBeTruthy();

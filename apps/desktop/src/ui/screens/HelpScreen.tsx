@@ -21,8 +21,8 @@ export function HelpScreen() {
     <Screen title="Help">
       <h2>User Manual</h2>
       <p>
-        The User Manual is in the <code>docs/user-manual</code> folder of the Scribe project, with
-        a Known issues page. It is not shown inside the app.
+        The User Manual is in the <code>docs/user-manual</code> folder of the Scribe project, with a
+        Known issues page. It is not shown inside the app.
       </p>
       <h2>About</h2>
       <DataView state={state}>
