@@ -24,3 +24,10 @@ Gate 6 target or model; final app icon design (current icon is a placeholder; do
 
 ## Known unverified or not done
 Windows steps 9 and 10 (2-minute recording test) are a hands-on owner test; M1 is not accepted end to end. Speaker-merge cause in the owner's meetings is unconfirmed until a real meeting's `final-pass-speakers` log line is read. Windows whisper builds CPU-only (RTX 3080 CUDA build not done). BUG-1 Zoom and browser targets untested.
+
+## Owner decisions made 2026-11-14 (after the section above was written)
+- **Deleting a whole meeting (security review SP-02):** the app must ASK whether to also remove what it learned from that meeting (voice profiles, vocabulary); default answer is keep. Not built yet; needs a delete-dialog change (UI) and a backend path; check whether the contract needs a field and get owner approval if so.
+- **Overlapped speech order:** paragraphs may run up to about one minute; interjections break a paragraph only where they genuinely happened; the app needs an in-app option to re-process an existing recording (especially after a model update). The plan `docs/plans/overlap-chronological-order.md` is being revised to this; implement only from the revised, owner-approved version.
+- **Inspector panel:** removed (PR #228).
+- **Typed outline feature:** wanted if effort allows; plan in PR #229 (`docs/plans/outline-organised-transcript.md`), needs owner approval and a contract change approval before any code.
+- **Fable model:** not wanted unless something fails without it.
