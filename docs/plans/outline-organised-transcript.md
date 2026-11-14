@@ -120,7 +120,7 @@ calls:
   saveOutline:   { request: { meetingId; items: OutlineItem[] }; response: void }                    // starts a sort
   getOutline:    { request: { meetingId }; response: OutlineView | null }
   placeBlocks:   { request: { meetingId; firstWordId: WordId; lastWordId: WordId; itemId: string | null }; response: OutlineView } // creates a pin
-  splitBlock:    { request: { meetingId; atMs: number }; response: OutlineView }
+  splitBlock:    { request: { meetingId; atWordId: WordId }; response: OutlineView }
   clearOutline:  { request: { meetingId }; response: void }
   cancelSort:    { request: { meetingId }; response: void }
 events:
