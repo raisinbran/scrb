@@ -6,6 +6,8 @@ import {
   startProfileMatching,
   LargeModelGate,
   createSettingsHandlers,
+  recommendQuality,
+  resolvePerformance,
   FinalPassQueue,
   resumeFinalPasses,
   needsPrivacyBanner,
@@ -19,7 +21,7 @@ import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers, publishEdit, readSummaryState } from './meetings.ts';
 import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
-import { readLiveSetup } from './live-feed.ts';
+import { applyLivePerformance, readLiveSetup, readWhisperOverride } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
 import { createExportHandlers } from './export.ts';
 import { readSummaryPaths, SummaryController, type SummaryEngine } from './summary.ts';
@@ -54,7 +56,9 @@ export async function openBackend(
     const root = await readLibraryLocation(app.getPath('userData'), fallback);
     const library = await Library.open({ root });
     const playback = new PlaybackMedia(library, emit);
-    const settings = createSettingsHandlers(library.settings, root);
+    const hardware = { cores: os.availableParallelism(), memoryBytes: os.totalmem() };
+    const settings = createSettingsHandlers(library.settings, root, recommendQuality(hardware));
+    const plan = () => resolvePerformance(settings.getSettings().transcriptionQuality, hardware);
     const modelGate = new LargeModelGate();
     // Recording always wins: a recording that starts stops any running summary.
     let recording: RecordingController | null = null;
@@ -113,7 +117,7 @@ export async function openBackend(
       helper && finalPassConfig
         ? new FinalPassQueue(
             library,
-            createFinalPassRunner(finalPassConfig),
+            createFinalPassRunner(finalPassConfig, () => plan().finalThreads),
             modelGate,
             undefined,
             (before, after) => publishEdit(before, after, emit),
@@ -124,11 +128,18 @@ export async function openBackend(
       ? (packaged.liveConfig ?? undefined)
       : process.env['SCRB_LIVE_CONFIG'];
     const livePlatform = process.platform === 'darwin' || process.platform === 'win32';
-    const liveSetup =
+    const baseLiveSetup =
       livePlatform && helper && liveConfig
         ? await readLiveSetup(liveConfig, path.join(__dirname, 'liveWorkerEntry.mjs'))
         : null;
-    if (liveConfig && !liveSetup && livePlatform)
+    const whisperOverride = liveConfig ? await readWhisperOverride(liveConfig) : false;
+    const liveSetup = () => {
+      const resolved = plan();
+      const setup = applyLivePerformance(baseLiveSetup, resolved, whisperOverride);
+      library.logger.log('info', 'performance-plan', { ...resolved, whisperOverride });
+      return setup;
+    };
+    if (liveConfig && !baseLiveSetup && livePlatform)
       library.logger.log('error', 'live-config-unavailable', {});
     if (helper) await recoverInterrupted(library, helper, finalPasses);
     await resumeFinalPasses(library, finalPasses);

@@ -41,9 +41,9 @@ const THEME_OPTIONS: { value: ThemeSetting; label: string }[] = [
 ];
 
 const QUALITY_OPTIONS: { value: TranscriptionQuality; label: string }[] = [
-  { value: 'fast', label: 'Fast' },
+  { value: 'fast', label: 'Fast (no live text)' },
   { value: 'balanced', label: 'Balanced' },
-  { value: 'accurate', label: 'Accurate' },
+  { value: 'accurate', label: 'Best quality' },
 ];
 
 const LENGTH_OPTIONS: { value: SummaryLength; label: string }[] = [
@@ -186,7 +186,7 @@ function SettingsForm({
         </h2>
         <div className={styles.fields}>
           <Select
-            label="Transcription quality"
+            label="Performance"
             value={draft.transcriptionQuality}
             options={QUALITY_OPTIONS}
             onChange={(transcriptionQuality) => change({ transcriptionQuality })}
@@ -198,6 +198,10 @@ function SettingsForm({
             onChange={(summaryDefaultLength) => change({ summaryDefaultLength })}
           />
         </div>
+        <p className={styles.help}>
+          Fast turns live text off: the text appears after Stop. A change applies to the next
+          recording. The final transcript is not affected by live text.
+        </p>
       </section>
 
       <ModelsSection />
