@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { LlamaServerWorker } from '../src/index.js';
 import { contentTokens, coverage } from '../src/text.js';
-import type { Extraction, SummaryItem, Transcript } from '../src/types.js';
+import type { EvidenceLink, Extraction, SummaryItem, Transcript } from '../src/types.js';
 import { parseTranscript } from './fixture.js';
 
 const MATCH = 0.5;
@@ -41,6 +41,13 @@ interface Reference {
 const isNa = (s: string): boolean => /^\W*NA\W*$/i.test(s.trim());
 const matches = (ref: string, item: SummaryItem): boolean =>
   coverage(contentTokens(ref), contentTokens(item.text)) >= MATCH;
+
+/** A secondary (alsoAt) link must point at a real line with its stored time. */
+export function secondaryProblem(link: EvidenceLink, transcript: Transcript): string | null {
+  const line = transcript.lines[link.lineIndex];
+  if (!line) return 'line missing';
+  return line.startSec === link.timestampSec ? null : 'time differs from line';
+}
 
 export function linkProblem(item: SummaryItem, transcript: Transcript): string | null {
   const { lineIndex, timestampSec } = item.evidence;
@@ -134,6 +141,8 @@ async function main(): Promise<void> {
       const recPooled = [...refA, ...refD].filter((r) => pooled.some((i) => matches(r, i)));
       const refMatched = pooled.filter((i) => [...refA, ...refD].some((r) => matches(r, i)));
       const linked = [...pooled, ...extraction.openQuestions];
+      const secondary = linked.flatMap((i) => i.alsoAt);
+      const secondaryBroken = secondary.filter((l) => secondaryProblem(l, transcript)).length;
       const problems = linked.map((i) => ({ i, p: linkProblem(i, transcript) })).filter((x) => x.p);
       let judged: { genuine: number; total: number } | undefined;
       if (worker) {
@@ -154,6 +163,8 @@ async function main(): Promise<void> {
         referencePrecision: pooled.length ? refMatched.length / pooled.length : null,
         judgedPrecision: judged && judged.total ? judged.genuine / judged.total : null,
         linkChecked: linked.length,
+        secondaryChecked: secondary.length,
+        secondaryBroken,
         linkProblems: problems.length,
         linkBroken: problems.filter((x) => x.p !== 'words not found nearby').length,
         linkProblemList: problems.map((x) => `${x.i.kind} ${x.i.evidence.timestampSec}s: ${x.p}`),
@@ -165,7 +176,7 @@ async function main(): Promise<void> {
         `${meeting}: recall ${recPooled.length}/${refA.length + refD.length} (${pct(recPooled.length, refA.length + refD.length)}; actions ${recA.length}/${refA.length}, decisions ${recD.length}/${refD.length}); ` +
           `reference-precision ${refMatched.length}/${pooled.length} (${pct(refMatched.length, pooled.length)}); ` +
           `judged-precision ${judged ? `${judged.genuine}/${judged.total} (${pct(judged.genuine, judged.total)})` : 'not run'}; ` +
-          `links: ${linked.length - brokenCount(problems)}/${linked.length} point at a real line with its stored time; ${linked.length - problems.length}/${linked.length} also share 30% of their words with the nearby lines`,
+          `links: ${linked.length - brokenCount(problems)}/${linked.length} point at a real line with its stored time; secondary (alsoAt) links ${secondary.length - secondaryBroken}/${secondary.length} real; ${linked.length - problems.length}/${linked.length} also share 30% of their words with the nearby lines`,
       );
     }
   } finally {
@@ -174,7 +185,7 @@ async function main(): Promise<void> {
   const sum = (k: string): number => rows.reduce((a, r) => a + (r[k] as number), 0);
   const refTotal = sum('refActions') + sum('refDecisions');
   console.log(
-    `TOTAL: recall ${sum('recoveredPooled')}/${refTotal} (${pct(sum('recoveredPooled'), refTotal)}); links real ${sum('linkChecked') - sum('linkBroken')}/${sum('linkChecked')}; word-supported ${sum('linkChecked') - sum('linkProblems')}/${sum('linkChecked')}`,
+    `TOTAL: recall ${sum('recoveredPooled')}/${refTotal} (${pct(sum('recoveredPooled'), refTotal)}); links real: primary ${sum('linkChecked') - sum('linkBroken')}/${sum('linkChecked')}, secondary ${sum('secondaryChecked') - sum('secondaryBroken')}/${sum('secondaryChecked')}; word-supported ${sum('linkChecked') - sum('linkProblems')}/${sum('linkChecked')}`,
   );
   if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows, null, 1));
 }

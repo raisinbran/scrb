@@ -11,6 +11,8 @@
   "referencePrecision": 0.35294117647058826,
   "judgedPrecision": null,
   "linkChecked": 58,
+  "secondaryChecked": 9,
+  "secondaryBroken": 0,
   "linkProblems": 25,
   "linkBroken": 0,
   "linkProblemList": [
@@ -63,6 +65,8 @@
   "referencePrecision": 0.4482758620689655,
   "judgedPrecision": null,
   "linkChecked": 63,
+  "secondaryChecked": 8,
+  "secondaryBroken": 0,
   "linkProblems": 21,
   "linkBroken": 0,
   "linkProblemList": [
@@ -106,6 +110,8 @@
   "referencePrecision": 0.5967741935483871,
   "judgedPrecision": null,
   "linkChecked": 68,
+  "secondaryChecked": 16,
+  "secondaryBroken": 0,
   "linkProblems": 22,
   "linkBroken": 0,
   "linkProblemList": [

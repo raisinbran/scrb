@@ -1,6 +1,6 @@
 # Gate 6 evidence: summary recall, precision and links (2026-11-13)
 
-**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (189/189); judged precision was **not run**. The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
+**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (primary 189/189, secondary 33/33); judged precision was **not run**. The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
 
 ## What was run
 
@@ -23,7 +23,7 @@ A reference sentence is **recovered** when one output action or decision contain
 
 - **Recall** below 80% in total and in two of three meetings. IS1004d is a final-design meeting full of small physical details, as in the earlier judging.
 - **Precision**: "output matching a reference" is only a **lower bound** (AMI references are short; most unmatched output items are probably true but unannotated). A real precision figure needs the `--judge` option (the same local model checks each item against its cited lines; a model grading itself) or a human; **neither was run**. Earlier hand reading found about 16% non-items and 22% repeats.
-- **Links**: every item (actions, decisions, open questions) cites a line that exists with its stored time (189/189). The stricter proxy (item shares 30% of its words with the nearby lines) passes 121/189; the failures I sampled (4 of 68) were correct paraphrases of the cited lines ("do more research on it" cited for "conduct further research on the kinetic energy source"), so that proxy undercounts. The engine's own quote check, which the scorer cannot see (quotes are not stored), is the real support test. Gate 6's "valid source text" is therefore met structurally and unproven by an independent semantic check.
+- **Links**: every item (actions, decisions, open questions) cites a primary line that exists with its stored time (189/189), and every extra "also raised at" link of merged duplicates does too (33/33: IS1004d 9, ES2015c 8, TS3005b 16). The first version of the scorer checked primary links only; independent review caught it and the same saved extractions were rescored, with no new model run. The stricter proxy (item shares 30% of its words with the nearby lines) passes 121/189; the failures I sampled (4 of 68) were correct paraphrases of the cited lines ("do more research on it" cited for "conduct further research on the kinetic energy source"), so that proxy undercounts. The engine's own quote check, which the scorer cannot see (quotes are not stored), is the real support test. Gate 6's "valid source text" is therefore met structurally and unproven by an independent semantic check.
 
 ## Cost
 
