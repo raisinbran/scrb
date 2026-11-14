@@ -3,8 +3,28 @@ import { ContractError, type Backend } from '@scrb/contracts';
 
 const MockModeContext = createContext(false);
 
-export function MockModeProvider({ mock, children }: { mock: boolean; children: ReactNode }) {
-  return <MockModeContext.Provider value={mock}>{children}</MockModeContext.Provider>;
+const SetupBlockedContext = createContext<string | null>(null);
+
+export function MockModeProvider({
+  mock,
+  blocked = null,
+  children,
+}: {
+  mock: boolean;
+  /** Why a packaged app cannot record yet (missing tools or models), or null. */
+  blocked?: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <MockModeContext.Provider value={mock && !blocked}>
+      <SetupBlockedContext.Provider value={blocked}>{children}</SetupBlockedContext.Provider>
+    </MockModeContext.Provider>
+  );
+}
+
+/** The packaged app's "cannot record yet" message, or null when recording is set up. */
+export function useSetupBlocked(): string | null {
+  return useContext(SetupBlockedContext);
 }
 
 /** True when part of the app is simulated: recording or the final pass is not set up. */
@@ -34,4 +54,17 @@ export async function detectMockMode(real: Backend): Promise<boolean> {
     isUnsupported(real, () => real.call('cancelImport', { importId: 'mock-mode-probe' })),
   ]);
   return unsupported.some(Boolean);
+}
+
+/**
+ * A packaged app with missing tools or models answers the recording snapshot with a `conflict`
+ * carrying its message (a set-up recording never does), so the UI shows that state, not the mock.
+ */
+export async function detectSetupBlocked(real: Backend): Promise<string | null> {
+  try {
+    await real.call('getRecordingSnapshot');
+    return null;
+  } catch (error) {
+    return error instanceof ContractError && error.code === 'conflict' ? error.message : null;
+  }
 }

@@ -13,7 +13,11 @@ New-Item -ItemType Directory -Force -Path 'build\win-stage\bin' | Out-Null
 npm run build
 if ($LASTEXITCODE -ne 0) { throw 'npm run build failed' }
 if (Test-Path 'release') { Remove-Item -Recurse -Force 'release' }
-npx electron-builder --win dir --x64 --publish never
+# Run electron-builder's own script with node, not through npx: npx refuses (EUSAGE) when this
+# script is started from a launcher that passes npm options, and it needs no network here.
+$cli = (node -e "console.log(require.resolve('electron-builder/cli.js'))").Trim()
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $cli)) { throw 'electron-builder is not installed: run npm install in the scrb folder first' }
+node $cli --win dir --x64 --publish never
 if ($LASTEXITCODE -ne 0) { throw 'electron-builder failed' }
 
 $exe = Join-Path $PWD 'release\win-unpacked\Scribe.exe'

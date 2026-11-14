@@ -4,6 +4,7 @@ import { formatFileSize, formatMeetingDate } from '../../lib/format.ts';
 import { IMPORT_STAGE_LABELS } from './labels.ts';
 import { Modal } from './Modal.tsx';
 import { useImports, type ImportEntry } from './import-tracker.ts';
+import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
 interface ImportDialogProps {
@@ -119,12 +120,7 @@ function ImportRow({ entry, onOpen }: { entry: ImportEntry; onOpen(id: string): 
             <span className={styles.muted}>
               {entry.cancelling ? 'Cancelling…' : IMPORT_STAGE_LABELS[entry.stage]}
             </span>
-            <progress
-              className={styles.progress}
-              aria-label={`Importing ${entry.fileName}`}
-              max={1}
-              value={entry.fraction}
-            />
+            <Progress label={`Importing ${entry.fileName}`} fraction={entry.fraction} />
           </>
         )}
         {entry.state === 'finished' && <span className={styles.muted}>Imported</span>}

@@ -97,6 +97,35 @@ export class RecordingSession {
     }
   }
 
+  /**
+   * Switches the microphone or the meeting app while recording or paused. The restart command
+   * changes only after an `ok` ack, so a worker restart reopens the choice that is really running.
+   */
+  async switchSource(
+    change: { mic: string } | { source: number[] | 'wholeComputer'; followApp?: string },
+  ): Promise<CaptureAck> {
+    if (this.status !== 'recording' && this.status !== 'paused') throw conflict('Not recording.');
+    if (this.pending || this.restarting || !this.adapter) {
+      throw conflict('Recording is busy. Try again in a moment.');
+    }
+    const command: CaptureCommand =
+      'mic' in change
+        ? { name: 'selectMic', mic: change.mic }
+        : { name: 'selectSource', source: change.source };
+    const ack = await this.untilExit(command);
+    if (ack.ok && this.openCommand && !this.ending) {
+      const open = { ...this.openCommand };
+      if ('mic' in change) open.mic = change.mic;
+      else {
+        open.source = change.source;
+        if (change.followApp === undefined) delete open.followApp;
+        else open.followApp = change.followApp;
+      }
+      this.openCommand = open;
+    }
+    return ack;
+  }
+
   /** One retry with the same ID: a lost reply is not a failed pause. */
   private async confirmPause(): Promise<CaptureAck | null> {
     const id = this.options.newCommandId();

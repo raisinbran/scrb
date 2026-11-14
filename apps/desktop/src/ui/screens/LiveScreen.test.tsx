@@ -128,6 +128,29 @@ describe('LiveScreen', () => {
       expect((await backend.call('getSettings')).audio.meetingAppId).toBe('whole-computer');
     });
 
+    it('keeps the pickers enabled while recording and applies a change', async () => {
+      await startMeeting();
+      const mic = screen.getByLabelText<HTMLSelectElement>('Microphone');
+      expect(mic.disabled).toBe(false);
+      fireEvent.change(mic, { target: { value: 'mic-usb' } });
+      expect(mic.disabled).toBe(true);
+      expect(screen.getByText('Switching…')).toBeTruthy();
+      await advance(0);
+      expect(mic.disabled).toBe(false);
+      expect(mic.value).toBe('mic-usb');
+      expect((await backend.call('getSettings')).audio.micDeviceId).toBe('mic-usb');
+    });
+
+    it('reverts the picker and shows the reason when the switch is refused', async () => {
+      await startMeeting();
+      const app = screen.getByLabelText<HTMLSelectElement>('Meeting app');
+      fireEvent.change(app, { target: { value: 'app-zoom' } });
+      await advance(0);
+      expect(screen.getByText(/not playing audio yet/)).toBeTruthy();
+      expect(app.value).toBe('app-teams');
+      expect(app.disabled).toBe(false);
+    });
+
     it('warns that browser capture takes every tab', async () => {
       await renderLive();
       fireEvent.change(screen.getByLabelText('Meeting app'), { target: { value: 'app-browser' } });
@@ -160,7 +183,18 @@ describe('LiveScreen', () => {
       await advance(0);
       expect(notice()).toContain('final pass is running');
       await trigger('finish-final-pass');
-      expect(notice()).toContain('final transcript is ready');
+      // A final transcript needs no notice, and the old "ready" message is gone for good.
+      expect(screen.queryByText(/^Recording stopped\./)).toBeNull();
+      expect(screen.queryByText(/final transcript is ready/)).toBeNull();
+    });
+
+    it('can be dismissed with an X', async () => {
+      await startMeeting();
+      fireEvent.click(button('Stop'));
+      await advance(0);
+      expect(notice()).toContain('final pass is running');
+      fireEvent.click(button('Dismiss notice'));
+      expect(screen.queryByText(/^Recording stopped\./)).toBeNull();
     });
 
     it('says when the transcript could not be finished', async () => {

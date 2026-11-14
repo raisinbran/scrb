@@ -11,6 +11,7 @@ import {
 } from 'react';
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
+import { recall, remember } from '../../lib/tab-memory.ts';
 import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
 import type { TranscriptData } from './use-transcript.ts';
@@ -335,6 +336,8 @@ interface TranscriptTabProps {
   /** Present only when the meeting can be edited. */
   editing?: TranscriptEditing | undefined;
   onEditorOpenChange?(open: boolean): void;
+  /** Names the meeting whose reading position is kept while another tab is open. */
+  restoreKey?: string;
 }
 
 export interface TranscriptEditing {
@@ -355,6 +358,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
     onPlace,
     editing,
     onEditorOpenChange,
+    restoreKey,
   } = props;
   const { segments, speakers, totalSegments, loading, error } = transcript;
   const scroller = useRef<HTMLDivElement>(null);
@@ -450,6 +454,14 @@ export function TranscriptTab(props: TranscriptTabProps) {
     scroller.current.scrollTop = offsets[rowIndexAt(rows, jump.ms)] ?? 0;
   }, [jump, lastStart, loading, offsets, rows]);
 
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !scroller.current || loading) return;
+    restored.current = true;
+    const saved = restoreKey && !jump ? recall<number>(`scroll.${restoreKey}`) : undefined;
+    if (saved) scroller.current.scrollTop = saved;
+  }, [jump, loading, restoreKey, showList]);
+
   // Overlapping speakers make the time alone ambiguous, so the clicked word itself stays current
   // for as long as the playhead is where the click put it.
   const [placed, setPlaced] = useState<{ wordId: string; rowKey: string; ms: number } | null>(null);
@@ -542,7 +554,11 @@ export function TranscriptTab(props: TranscriptTabProps) {
         tabIndex={0}
         role="region"
         aria-label="Transcript"
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onScroll={(event) => {
+          setScrollTop(event.currentTarget.scrollTop);
+          if (restoreKey && restored.current)
+            remember(`scroll.${restoreKey}`, event.currentTarget.scrollTop);
+        }}
         onWheel={stopFollowing}
         onTouchMove={stopFollowing}
         onPointerDown={(event) => {

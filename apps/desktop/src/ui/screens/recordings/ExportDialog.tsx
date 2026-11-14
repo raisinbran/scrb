@@ -11,6 +11,7 @@ import type {
 } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { Modal } from './Modal.tsx';
+import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
 const TRANSCRIPT_OPTIONS: [keyof TranscriptExportOptions, string][] = [
@@ -165,7 +166,7 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
     return (
       <Modal title="Export meeting">
         <p role="status">Exporting…</p>
-        <progress className={styles.progress} aria-label="Export progress" />
+        <Progress label="Export progress" />
       </Modal>
     );
   }

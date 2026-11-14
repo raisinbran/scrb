@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  justify-content: center;
+  justify-content: flex-start;
   box-sizing: border-box;
   height: 100vh;
   margin: 0;
@@ -16,16 +16,18 @@
   display: flex;
   white-space: nowrap;
   gap: var(--space-2);
+  flex-shrink: 0;
   align-items: center;
+  /* Fixed to the buttons' height so the row never moves when the line below comes or goes. */
+  height: 24px;
   font-weight: 600;
 }
 
 .elapsed {
-  /* Room for H:MM:SS and beyond from the first second, so the row never changes width. */
+  /* Same face and size as the label; tabular digits and room for H:MM:SS keep the row from shifting. */
   min-width: 8ch;
-  text-align: right;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .dot {
@@ -98,6 +100,11 @@
   flex-shrink: 0;
   font-weight: 700;
   color: var(--color-warning);
+}
+
+.icon:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .icon:focus-visible {
