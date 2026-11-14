@@ -1,0 +1,28 @@
+{
+  "name": "@scrb/outline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure outline parser and transcript-to-outline matcher (Level A, offline). No I/O.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "eval": "tsx eval/run.ts"
+  },
+  "dependencies": {
+    "@scrb/summary": "*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
