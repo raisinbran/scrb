@@ -556,10 +556,7 @@ final class Session {
         let previous = mic
         mic = next
         say(["type": "event", "event": "deviceChanged", "track": micTrack.name])
-        if reopen(micTrack, reason: "deviceChanged", quiet: true) == nil {
-            say(["type": "event", "event": "streamReopened", "track": micTrack.name])
-            return (true, nil)
-        }
+        if reopen(micTrack, reason: "deviceChanged", quiet: true) == nil { return (true, nil) }
         mic = previous
         _ = reopen(micTrack, reason: "deviceChanged")
         return (false, "kept the previous microphone")
@@ -571,10 +568,7 @@ final class Session {
         let previous = source
         source = next
         say(["type": "event", "event": "sourceChanged", "track": meetingTrack.name])
-        if reopen(meetingTrack, reason: "sourceChanged", quiet: true) == nil {
-            say(["type": "event", "event": "streamReopened", "track": meetingTrack.name])
-            return (true, nil)
-        }
+        if reopen(meetingTrack, reason: "sourceChanged", quiet: true) == nil { return (true, nil) }
         source = previous
         _ = reopen(meetingTrack, reason: "sourceChanged")
         return (false, "kept the previous meeting app")
