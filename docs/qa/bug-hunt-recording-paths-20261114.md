@@ -1,0 +1,27 @@
+# Recording path bug hunt — 2026-11-14
+
+**Scope:** Read-only review of the recording, recovery, transcript, retention, import/export, library location, and Windows/macOS capture paths at `origin/main` commit `2eee5d8686915045b30a907dd6d41db9d4311557`. No app code was changed and no real recordings were read or used. This is a source and test review; no tests or app/hardware runs were performed.
+
+## Findings, ranked by real risk
+
+| Rank | Finding and location | User trigger | Effect | Likelihood in a real meeting | Smallest fix |
+|---|---|---|---|---|---|
+| 1 | **Windows fallback to the system microphone is silent.** The helper emits `micFallback` after a selected microphone remains unavailable for five seconds and the system default opens ([`Session.cpp:677`](../../native/windows-capture/src/Session.cpp#L677)). The event is absent from the `CaptureEvent` union ([`index.ts:86`](../../packages/capture/src/index.ts#L86)) and the controller ignores it; its event handler handles write, stream, and permission errors only ([`recording.ts:314`](../../apps/desktop/src/main/recording.ts#L314)). | User records with a selected USB/Bluetooth mic; it disconnects or fails to reopen for five seconds; the OS default mic is available. | The meeting continues with another microphone without the warning that the requested source changed. The user may believe the selected microphone captured their side when it did not. Audio may still exist on the fallback track, so this is primarily a silent source/quality failure, not necessarily total audio loss. | **Moderate.** Headset disconnects and device resets occur in ordinary meetings; the helper’s Windows regression notes record picked-mic disconnect/fallback scenarios ([`README.md:273`](../../native/windows-capture/README.md#L273)). | Add a typed `micFallback` event and turn it into a persistent, visible recording-health warning naming the fallback device. Keep that warning after `streamReopened` clears the transient reconnect warning. |
+
+## Checked and found clean in source/tests
+
+- **Crash-safe chunks and recovery:** `docs/plans/crash-safe-chunks.md`, `packages/app-core/src/recovery.ts`, storage atomic-write/indexed recovery code, and associated recovery/index tests. The plans and implementation preserve `.part` audio, gate recovery on writer ownership, and preserve ambiguous/corrupt index copies instead of silently rebuilding them.
+- **Pause/resume and Stop while paused:** `packages/app-core/src/recording.ts`, native pause gates, `docs/plans/pause-resume.md`, and `packages/app-core/src/recording.test.ts`. Stop is allowed during pause; the tests exercise gate closure, pause failure, and stop completion. No specific data-loss trigger found in the reviewed paths.
+- **Source switching:** `apps/desktop/src/main/recording.ts`, `packages/app-core/src/recording.ts`, macOS command handling, and Windows helper source-change paths. Successful switches update the restart command; failed switches retain the previous selection. Switch warnings are generated on the main path. Windows rejects live switching at the app boundary.
+- **Final-pass queue/restart and corrections:** `packages/app-core/src/final-pass.ts`, `packages/storage/src/library.ts`, `packages/storage/src/corrections.ts`, and final-pass/library tests. Interrupted `finalPassRunning` meetings are requeued; transcript edits serialize through the per-meeting lock and atomically persist; frozen corrections and undo/redo are exercised across finalization/reopen.
+- **Delete and auto-delete:** `packages/storage/src/library.ts` and library tests. Active recording/import/final-pass states are excluded or rejected; deletion uses a tombstone and reports incomplete cleanup; auto-delete only selects retained terminal states.
+- **Import/export:** `apps/desktop/src/main/imports.ts`, `apps/desktop/src/main/export.ts`, and their tests. Import retains the source file, marks incomplete imports for cleanup, and reports incomplete cleanup. Export writes to a unique temporary file and emits success only after rename.
+- **Index recovery:** `docs/plans/index-recovery.md`, `packages/storage/src/db/database.ts`, and `packages/storage/test/index-db.test.ts`. Failed verification blocks library use while preserving source/snapshot files; corrupt index data is not silently discarded.
+- **Library relocation:** the reviewed code stores/reads `library-location.json`; storage tests cover reopening after an external directory rename. I found no app-side implementation of the Settings “Change location…” handler in `apps/desktop/src/main/backend.ts`, so an actual user-initiated move/relocation flow could not be assessed as a functioning path.
+- **Other capture errors:** Windows `writeError`, `streamDead`, permission, and meeting-silence events and macOS stream rebuild/permission paths are connected to visible recording health warnings. This does not establish real-device reliability.
+
+## Not verified
+
+- Device disconnect/reconnect, permission revocation, system-audio restart, real disk-full/stall, sleep/wake, and user-visible warning timing on physical Windows and macOS hardware.
+- Whether actual Settings navigation exposes or disables the unimplemented storage-location action in the installed app; source review found the renderer call but no registered main-process handler.
+- Long-duration, crash/power-loss, and installed-app behavior. No tests were run under this task, and no recording was made.
