@@ -208,6 +208,29 @@ final class Session {
     let micTrack = Track(name: "microphone")
     let meetingTrack = Track(name: "meeting")
     lazy var micStream = MicStream(ring: micTrack.ring)
+    lazy var voiceMic = VoiceMicStream(ring: micTrack.ring)
+    var echoCancellation = false
+    private var voiceActive = false
+
+    /// Voice-processing path when asked for; any failure there falls back to the raw HAL path.
+    func openMic() -> String? {
+        if echoCancellation {
+            if let failure = voiceMic.open(mic: mic) {
+                voiceMic.close()
+                record(["event": "voiceProcessingUnavailable", "message": failure])
+            } else {
+                voiceActive = true
+                record(["event": "voiceProcessing", "rate": voiceMic.deliveredRate, "channels": voiceMic.deliveredChannels, "ducking": voiceMic.duckingReport])
+                return nil
+            }
+        }
+        return micStream.open(mic: mic)
+    }
+
+    func closeMic() {
+        if voiceActive { voiceMic.close(); voiceActive = false }
+        micStream.close()
+    }
     lazy var meetingStream = MeetingStream(ring: meetingTrack.ring)
     private var sessionLog: UnsafeMutablePointer<FILE>?
     private var lockFd: Int32 = -1
@@ -232,6 +255,7 @@ final class Session {
         outputDir = command["outputDir"] as? String ?? ""
         source = (command["source"] as? [NSNumber])?.map(\.int32Value) ?? []
         mic = command["mic"] as? String ?? "default"
+        echoCancellation = command["echoCancellation"] as? Bool ?? false
         let audio = outputDir + "/audio"
         try? FileManager.default.createDirectory(atPath: audio, withIntermediateDirectories: true)
         lockFd = Darwin.open(audio + "/writer.lock", O_CREAT | O_RDWR, 0o600)
@@ -261,7 +285,7 @@ final class Session {
         }
         micTrack.writer = ChunkWriter(directory: audio + "/microphone")
         meetingTrack.writer = ChunkWriter(directory: audio + "/meeting")
-        let micError = micStream.open(mic: mic)
+        let micError = openMic()
         let meetingError = meetingStream.open(source: source)
         micTrack.active = micError == nil
         meetingTrack.active = meetingError == nil
@@ -313,7 +337,7 @@ final class Session {
         writerThread?.cancel()
         micTrack.drain(session: self)
         meetingTrack.drain(session: self)
-        micStream.close()
+        closeMic()
         meetingStream.close()
         liveFeed?.stop()
         let chunksSaved = !micTrack.hasWriteError && !meetingTrack.hasWriteError
@@ -450,8 +474,8 @@ final class Session {
         track.close(reason: reason)
         let error: String?
         if track === micTrack {
-            micStream.close()
-            error = micStream.open(mic: mic)
+            closeMic()
+            error = openMic()
         } else {
             meetingStream.close()
             error = meetingStream.open(source: source)
