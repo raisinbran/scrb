@@ -99,7 +99,8 @@ export class PlaybackMedia {
       grants: new Map(),
     };
     Object.assign(this.session, { anchorMs: spot.positionMs, anchorAt: this.now(), timeline });
-    this.timer ??= setInterval(() => void this.tick(), TICK_MS);
+    // A failed send to the window must not become an unhandled rejection.
+    this.timer ??= setInterval(() => void this.tick().catch(() => undefined), TICK_MS);
     this.emit('playbackPosition', { meetingId, positionMs: spot.positionMs, isPlaying: true });
   }
 
