@@ -865,6 +865,34 @@ describe('Recordings', () => {
       expect(screen.queryByRole('button', { name: /Vendor call/ })).toBeNull();
     });
 
+    it('keeps learned data by default and removes it only when ticked', async () => {
+      renderScreen();
+      const call = vi.spyOn(backend, 'call');
+      await openMeeting(/Vendor call/);
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Delete meeting' });
+      const box = within(dialog).getByRole('checkbox', {
+        name: /Also remove voice profiles and vocabulary/,
+      }) as HTMLInputElement;
+      expect(box.checked).toBe(false);
+      fireEvent.click(box);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      expect(await screen.findByText('Deleted Vendor call.')).toBeTruthy();
+      expect(call).toHaveBeenCalledWith(
+        'deleteMeeting',
+        expect.objectContaining({ removeLearnedData: true }),
+      );
+    });
+
+    it('sends no learned-data option when the box is left alone', async () => {
+      renderScreen();
+      const call = vi.spyOn(backend, 'call');
+      await openMeeting(/Vendor call/);
+      await confirm();
+      expect(await screen.findByText('Deleted Vendor call.')).toBeTruthy();
+      expect(call).toHaveBeenCalledWith('deleteMeeting', { meetingId: expect.any(String) });
+    });
+
     it('names what was left behind and offers a retry', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
