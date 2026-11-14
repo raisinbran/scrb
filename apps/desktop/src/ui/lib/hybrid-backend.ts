@@ -15,6 +15,9 @@ const SETTINGS_CALLS: ReadonlySet<CallName> = new Set(['getSettings', 'updateSet
 const REAL_CALLS: ReadonlySet<CallName> = new Set([
   ...SETTINGS_CALLS,
   'getSetupStatus',
+  // Version and notices must be the real build's, never the mock's placeholders.
+  'getAppInfo',
+  'getLicenses',
   'startRecording',
   'pauseRecording',
   'resumeRecording',

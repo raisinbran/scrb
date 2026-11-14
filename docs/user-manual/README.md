@@ -7,9 +7,9 @@ Checked against the app on `main` on 2026-11-13 by reading the app's screens and
 ## 1. Before you start
 
 - **Setup.** The app needs its helper tools and speech models on the computer. If something is missing, the title bar shows **Setup incomplete** (hover it for the reason) and recording is blocked. A build that is not set up for real recording shows a simulated mode and says so in the title bar; do not use it for real meetings.
-- **Models** are installed separately from the app. **Settings > Models** shows what is installed, offers updates and lets you revert to the previous version. Downloading is the only thing that needs the internet.
+- **Models** are installed separately from the app. **Settings > Models** is simulated today: its model list, update check, install and revert do not work on real models yet. Do not rely on them.
 - **Permissions.** Allow the microphone, and on Mac the system-audio permission, when asked. If you refused, change it in the system settings and try again. **(unverified on a clean install)**
-- **Where files go.** The first time, you choose a library folder. All meetings, exports and voice profiles live there.
+- **Where files go.** The first time, you choose a library folder. All meetings, exports and voice profiles live there. If you pick a folder that is synced to the cloud (for example iCloud Drive, OneDrive or Dropbox), your operating system or that service may upload the files even though Scribe itself never does.
 
 ## 2. Record a meeting (Live)
 

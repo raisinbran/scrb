@@ -2,15 +2,6 @@ import type { Backend } from '@scrb/contracts';
 import { useBackendData } from '../lib/use-backend-data.ts';
 import { DataView, Item, ItemList, Screen } from './Screen.tsx';
 
-/** Components named in third_party/THIRD_PARTY_NOTICES.md that Scribe uses. */
-const CREDITS = [
-  'whisper.cpp (MIT)',
-  'sherpa-onnx (Apache-2.0)',
-  'Electron (MIT)',
-  'React (MIT)',
-  'Microsoft Windows audio capture samples (Microsoft sample license)',
-];
-
 const load = (backend: Backend) => backend.call('getAppInfo');
 const loadLicenses = (backend: Backend) => backend.call('getLicenses');
 
@@ -48,8 +39,8 @@ export function HelpScreen() {
       </DataView>
       <h2>Credits</h2>
       <p>
-        Scribe is built with these open-source components: {CREDITS.join(', ')}. The full notices
-        are listed below when this build includes them.
+        Scribe includes third-party software. Only notices that have been verified for this build
+        are listed below; the project's development-only sources are not part of the app.
       </p>
       <h2>Third-party notices</h2>
       <DataView state={licenses}>

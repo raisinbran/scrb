@@ -23,7 +23,7 @@ describe('HelpScreen', () => {
       await screen.findByText(new RegExp(`${APP_INFO.version.replace(/[().]/g, '\\$&')}`)),
     ).toBeTruthy();
     expect(screen.getByText(/All of your data stays on this computer/)).toBeTruthy();
-    expect(screen.getByText(/whisper\.cpp \(MIT\)/)).toBeTruthy();
+    expect(screen.getByText(/development-only sources are not part of the app/)).toBeTruthy();
     expect(screen.getByText('docs/user-manual')).toBeTruthy();
     expect(await screen.findByText(/Electron 45\.1\.0 \(MIT\)/)).toBeTruthy();
     backend.dispose();
