@@ -1,6 +1,6 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { CorruptFileError, UnsupportedVersionError } from '../src/errors.ts';
+import { CorruptFileError, StaleRevisionError, UnsupportedVersionError } from '../src/errors.ts';
 import { MEETING_FORMAT } from '../src/formats/meeting.ts';
 import {
   mergeRegeneratedSummary,
@@ -504,6 +504,44 @@ describe('summary regeneration', () => {
     const after = await library.readSummary(id);
     expect(after).toMatchObject({ outdated: false, transcriptRevision: 2 });
     expect(after?.brief?.sections[0]?.text).toBe('edited');
+    await library.close();
+  });
+
+  it('refuses to save a summary made from a transcript that has since changed', async () => {
+    const { library, id } = await libraryWithMeeting();
+    const generated = {
+      generatedAt: null,
+      brief: body('first'),
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    };
+    await library.appendSegments(
+      id,
+      [{ id: 's', speakerId: 'a', track: 'meeting', pass: 'final', words: words('hi', 0) }],
+      [{ id: 'a', label: 'S', name: null, profileId: null, userNamed: false, mergedInto: null }],
+    );
+    const readRevision = (await library.readTranscript(id)).revision;
+
+    // First summary: no file exists yet, so only the revision check can catch the edit.
+    await library.renameSpeaker(id, 'a', 'Alice');
+    await expect(library.saveGeneratedSummary(id, generated, readRevision)).rejects.toBeInstanceOf(
+      StaleRevisionError,
+    );
+    expect(await library.readSummary(id)).toBeNull();
+
+    // Regeneration: the earlier summary stays, flagged outdated.
+    const current = (await library.readTranscript(id)).revision;
+    await library.saveGeneratedSummary(id, generated, current);
+    await library.renameSpeaker(id, 'a', 'Bob');
+    await expect(
+      library.saveGeneratedSummary(id, { ...generated, brief: body('second') }, current),
+    ).rejects.toBeInstanceOf(StaleRevisionError);
+    const kept = await library.readSummary(id);
+    expect(kept?.brief?.sections[0]?.text).toBe('first');
+    expect(kept?.outdated).toBe(true);
     await library.close();
   });
 });

@@ -62,6 +62,7 @@ const MEETING_CALLS: ReadonlySet<CallName> = new Set([
   'answerSpeakerSuggestion',
   'getSummary',
   'generateSummary',
+  'cancelSummary',
   'updateSummaryItem',
   'updateMeeting',
   'retryFinalPass',
@@ -86,6 +87,7 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'importFinished',
   'importFailed',
   'importCancelled',
+  'finalPassProgress',
 ]);
 
 /**

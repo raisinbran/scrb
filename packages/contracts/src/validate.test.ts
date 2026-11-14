@@ -13,7 +13,7 @@ describe('isValidRequest', () => {
   });
 
   it('validates retry and undo state requests and allowlists both calls', () => {
-    for (const name of ['getUndoState', 'retryFinalPass'] as const) {
+    for (const name of ['getUndoState', 'retryFinalPass', 'cancelSummary'] as const) {
       expect(isValidRequest(name, { meetingId: 'm-1' })).toBe(true);
       expect(isValidRequest(name, { meetingId: '../secret' })).toBe(false);
       expect(isValidRequest(name, { meetingId: 'm-1', path: '/tmp' })).toBe(false);
