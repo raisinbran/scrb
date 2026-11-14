@@ -45,3 +45,31 @@ describe('final speaker absorption', () => {
     expect(decideSpeakers(raw, embedded, o.relabel).speakers).toHaveLength(speakers);
   });
 });
+
+describe('final speaker diagnostics', () => {
+  it('reports counts, seconds and similarities and nothing else', () => {
+    const { raw, embedded } = fixture(14);
+    const { diagnostics } = decideSpeakers(raw, embedded);
+    expect(diagnostics).toEqual({
+      clustersBefore: 2,
+      clustersAfter: 2,
+      clusterSecondsBefore: '60:14',
+      clusterSecondsAfter: '60:14',
+      closestRawSimilarity: 0,
+      closestFinalSimilarity: 0,
+      mergeLine: 0.65,
+      minSpeakerSeconds: expect.any(Number),
+      shortSpeakerSeconds: expect.any(Number),
+      shortMergeLine: expect.any(Number),
+    });
+  });
+
+  it('shows the collapse: two clusters before, one after, with their closeness', () => {
+    const { raw, embedded } = fixture(10);
+    const { diagnostics } = decideSpeakers(raw, embedded);
+    expect(diagnostics.clustersBefore).toBe(2);
+    expect(diagnostics.clustersAfter).toBe(1);
+    expect(diagnostics.clusterSecondsAfter).toBe('70');
+    expect(diagnostics.closestRawSimilarity).toBe(0);
+  });
+});

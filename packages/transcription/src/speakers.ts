@@ -165,14 +165,25 @@ export interface RawCluster {
 export interface RelabelOptions {
   /** The user told us how many people spoke. */
   knownSpeakers?: number;
-  /** Clusters under this are absorbed into their nearest real speaker. */
+  /** Clusters of at least this much speech are real speakers on their own. */
   minSpeakerMs?: number;
+  /**
+   * Clusters between this and `minSpeakerMs` stay their own speaker unless their voice is
+   * at or above `shortMergeLine` to a real speaker; under this they are always absorbed.
+   * At or above `minSpeakerMs` this has no effect.
+   */
+  shortSpeakerMs?: number;
+  /** Cosine similarity at or above which a short cluster is absorbed into a real speaker. */
+  shortMergeLine?: number;
   /** Merge clusters at or above this cosine similarity. */
   mergeLine?: number;
 }
 
 export const RELABEL_DEFAULTS = {
   minSpeakerMs: NAMED_AFTER_MS,
+  /** No short-speaker rescue: everything under `minSpeakerMs` is absorbed. */
+  shortSpeakerMs: Infinity,
+  shortMergeLine: 0.65,
   mergeLine: 0.65,
 } as const;
 
@@ -220,6 +231,8 @@ export function relabelClusters(
 ): Map<number, number> {
   const minSpeakerMs = options.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs;
   const mergeLine = options.mergeLine ?? RELABEL_DEFAULTS.mergeLine;
+  const shortSpeakerMs = options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs;
+  const shortMergeLine = options.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine;
 
   const voiced = clusters.filter((c) => c.embedding);
   const voiceless = clusters.filter((c) => !c.embedding);
@@ -252,6 +265,8 @@ export function relabelClusters(
     }
   }
 
+  // Biggest first, so a short cluster kept as its own speaker can take its own fragments.
+  minor.sort((a, b) => b.speechMs - a.speechMs);
   for (const g of minor) {
     const v = groupUnit(g);
     let best = 0;
@@ -263,6 +278,14 @@ export function relabelClusters(
         best = i;
       }
     });
+    if (
+      options.knownSpeakers === undefined &&
+      g.speechMs >= shortSpeakerMs &&
+      bestSim < shortMergeLine
+    ) {
+      major.push(g);
+      continue;
+    }
     const target = major[best]!;
     target.members.push(...g.members);
     target.speechMs += g.speechMs;

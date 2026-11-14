@@ -86,6 +86,47 @@ describe('final pass after Stop', () => {
     expect(hint).toBe('Rosmont');
   });
 
+  it('logs one speaker-diagnostics line per pass, with no text or names', async () => {
+    const { id } = await sealedMeeting('Quarterly budget');
+    await runQueue(id, async (input) => {
+      input.onDiagnostics?.({
+        clustersBefore: 3,
+        clustersAfter: 2,
+        clusterSecondsBefore: '120:45:8',
+        clusterSecondsAfter: '120:53',
+        closestRawSimilarity: 0.71,
+        closestFinalSimilarity: 0.46,
+        mergeLine: 0.65,
+        minSpeakerSeconds: 30,
+        shortSpeakerSeconds: -1,
+        shortMergeLine: 0.65,
+        speechModel: 'ggml-large-v3-turbo-q5_0.bin',
+        segmentationModel: 'model.int8.onnx',
+        embeddingModel: 'eres2net.onnx',
+      });
+      return TRANSCRIPT;
+    });
+    await library.logger.flush();
+    const dir = join(root, 'library', 'logs');
+    const body = readdirSync(dir)
+      .map((f) => readFileSync(join(dir, f), 'utf8'))
+      .join('');
+    const lines = body
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as Record<string, unknown>)
+      .filter((l) => l['event'] === 'final-pass-speakers');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      clustersBefore: 3,
+      clustersAfter: 2,
+      clusterSecondsBefore: '120:45:8',
+      closestFinalSimilarity: 0.46,
+      embeddingModel: 'eres2net.onnx',
+    });
+    expect(body).not.toContain('Quarterly');
+  });
+
   let root: string;
   let library: Library;
 

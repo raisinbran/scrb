@@ -13,7 +13,9 @@ import type { ModelPaths, ToolPaths } from './config.js';
 import { SherpaWorker, type RawSegment } from './sherpa.js';
 import {
   assignSpeakers,
+  dot,
   embeddingSpans,
+  RELABEL_DEFAULTS,
   relabelClusters,
   unit,
   type RawCluster,
@@ -55,6 +57,8 @@ export interface FinalPassOptions {
   language?: string;
   vocabularyHint?: string;
   relabel?: RelabelOptions;
+  /** Called once per pass with counts and similarities only: no audio, text or names. */
+  onDiagnostics?: (fields: FinalPassDiagnostics) => void;
   signal?: AbortSignal;
   onProgress?: (p: Progress<FinalPhase>) => void;
 }
@@ -111,6 +115,14 @@ export async function runFinalPass(o: FinalPassOptions): Promise<FinalTranscript
     const speakers = meeting
       ? await diarizeTrack(o, meeting.wavPath, threads, (f) => report('diarizing', f))
       : { spans: [], speakers: [] };
+    if (meeting && 'diagnostics' in speakers) {
+      o.onDiagnostics?.({
+        ...speakers.diagnostics,
+        speechModel: basename(o.models.speechFinal),
+        segmentationModel: basename(o.models.segmentation),
+        embeddingModel: basename(o.models.embedding),
+      });
+    }
     const diarizeMs = Date.now() - diarizeStart;
 
     const micTrack = results.find((r) => r.kind === 'mic');
@@ -137,7 +149,7 @@ async function diarizeTrack(
   wavPath: string,
   threads: number,
   onFraction: (fraction: number) => void,
-): Promise<{ spans: SpeakerSpan[]; speakers: FinalSpeaker[] }> {
+): Promise<DecidedSpeakers> {
   const sherpa = await SherpaWorker.start(o.tools, o.models, threads, o.signal);
   try {
     const raw = await sherpa.diarizeFile(wavPath, OVERSPLIT_THRESHOLD, onFraction);
@@ -159,12 +171,62 @@ export interface EmbeddedSegment {
   vector: number[];
 }
 
+export interface DecidedSpeakers {
+  spans: SpeakerSpan[];
+  speakers: FinalSpeaker[];
+  diagnostics: SpeakerDiagnostics;
+}
+
+/** Flat scalars, so the app log can store them as they are. */
+export interface SpeakerDiagnostics {
+  clustersBefore: number;
+  clustersAfter: number;
+  /** Speech seconds per cluster, rounded, biggest first, joined by ":" and cut at 64 characters. */
+  clusterSecondsBefore: string;
+  clusterSecondsAfter: string;
+  /** Closest pair among the raw clusters; -1 when fewer than two have a voice. */
+  closestRawSimilarity: number;
+  /** Closest pair among the final speakers: how near two kept speakers came to merging. */
+  closestFinalSimilarity: number;
+  mergeLine: number;
+  minSpeakerSeconds: number;
+  /** -1 when short speakers are never kept. */
+  shortSpeakerSeconds: number;
+  shortMergeLine: number;
+}
+
+export type FinalPassDiagnostics = SpeakerDiagnostics & {
+  speechModel: string;
+  segmentationModel: string;
+  embeddingModel: string;
+};
+
+function joinSeconds(ms: number[]): string {
+  let out = '';
+  for (const v of [...ms].sort((a, b) => b - a)) {
+    const next = `${out ? `${out}:` : ''}${Math.round(v / 1000)}`;
+    if (next.length > 64) break;
+    out = next;
+  }
+  return out;
+}
+
+function closestSimilarity(vectors: readonly (readonly number[])[]): number {
+  let best = -1;
+  for (let i = 0; i < vectors.length; i++) {
+    for (let j = i + 1; j < vectors.length; j++) {
+      best = Math.max(best, dot(vectors[i]!, vectors[j]!));
+    }
+  }
+  return Math.round(best * 100) / 100;
+}
+
 /** Pure final relabel: raw diarization plus embeddings to named-by-number speakers. */
 export function decideSpeakers(
   raw: RawSegment[],
   embedded: EmbeddedSegment[],
   relabel: RelabelOptions = {},
-): { spans: SpeakerSpan[]; speakers: FinalSpeaker[] } {
+): DecidedSpeakers {
   const clusters = new Map<number, RawCluster & { sum: number[] | null }>();
   for (const s of raw) {
     const c = clusters.get(s.speaker);
@@ -190,7 +252,8 @@ export function decideSpeakers(
   }
   for (const c of clusters.values()) if (c.sum) c.embedding = unit(c.sum);
 
-  const map = relabelClusters([...clusters.values()], { ...FINAL_RELABEL_DEFAULTS, ...relabel });
+  const options = { ...FINAL_RELABEL_DEFAULTS, ...relabel };
+  const map = relabelClusters([...clusters.values()], options);
   const id = (index: number): string => `speaker-${index + 1}`;
   const spans: SpeakerSpan[] = raw
     .map((s) => ({
@@ -221,7 +284,25 @@ export function decideSpeakers(
       ...(t.sum ? { embedding: unit(t.sum) } : {}),
       embeddingSegments: t.segments,
     }));
-  return { spans, speakers };
+  const diagnostics: SpeakerDiagnostics = {
+    clustersBefore: clusters.size,
+    clustersAfter: speakers.length,
+    clusterSecondsBefore: joinSeconds([...clusters.values()].map((c) => c.speechMs)),
+    clusterSecondsAfter: joinSeconds(speakers.map((s) => s.speechMs)),
+    closestRawSimilarity: closestSimilarity(
+      [...clusters.values()].flatMap((c) => (c.embedding ? [c.embedding] : [])),
+    ),
+    closestFinalSimilarity: closestSimilarity(
+      speakers.flatMap((s) => (s.embedding ? [s.embedding] : [])),
+    ),
+    mergeLine: options.mergeLine ?? RELABEL_DEFAULTS.mergeLine,
+    minSpeakerSeconds: (options.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs) / 1000,
+    shortSpeakerSeconds: Number.isFinite(options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs)
+      ? (options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs) / 1000
+      : -1,
+    shortMergeLine: options.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine,
+  };
+  return { spans, speakers, diagnostics };
 }
 
 export function assemble(
