@@ -5,13 +5,14 @@ import {
   screen,
   shell,
   systemPreferences,
-  type IpcMainInvokeEvent,
+  type WebContents,
 } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { IPC_EVENT_CHANNEL, type RecordingState } from '@scrb/contracts';
 import { openBackend } from './backend.ts';
 import { registerCallHandlers } from './ipc.ts';
+import { isTrustedSenderEvent, type AppTrust } from './app-trust.ts';
 import {
   MINI_COMPACT_HEIGHT,
   MINI_WINDOW_OPTIONS,
@@ -49,12 +50,11 @@ if (!app.commandLine.hasSwitch('user-data-dir')) pinUserData(app);
 // Ignored in packaged builds, so the environment can never point the app at another page.
 const devServerUrl = app.isPackaged ? undefined : process.env['SCRB_DEV_SERVER_URL'];
 const appUrl = devServerUrl ?? `${APP_ORIGIN}/index.html`;
-const appOrigin = new URL(appUrl).origin;
-
-function isTrustedSender(event: IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url;
-  return url !== undefined && new URL(url).origin === appOrigin;
-}
+const appTrust: AppTrust = { appUrl: new URL(appUrl), owned: new Set<number>() };
+const ownWindow = (contents: WebContents): void => {
+  (appTrust.owned as Set<number>).add(contents.id);
+  contents.once('destroyed', () => (appTrust.owned as Set<number>).delete(contents.id));
+};
 
 // Every mini window that exists, including one fading out; none may stand in for the main window.
 const miniWindows = new Set<BrowserWindow>();
@@ -120,7 +120,8 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   });
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
-  lockDownContents(mini.webContents, appOrigin);
+  ownWindow(mini.webContents);
+  lockDownContents(mini.webContents, appUrl);
   let compact = false;
   let fullHeight = 0;
   const setCompact = (next: boolean): void => {
@@ -254,7 +255,8 @@ function createMainWindow(
       : { titleBarOverlay: { color: '#00000000', symbolColor: '#808080', height: 40 } }),
     webPreferences: secureWebPreferences(__dirname),
   });
-  lockDownContents(window.webContents, appOrigin);
+  ownWindow(window.webContents);
+  lockDownContents(window.webContents, appUrl);
   // A reloaded or lost page cannot release what it was granted, so grants end here.
   window.webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
     if (isMainFrame && !isSameDocument) stopPlayback();
@@ -344,7 +346,7 @@ void app.whenReady().then(async () => {
     mini.show();
     return Promise.resolve();
   };
-  registerCallHandlers(backend.handlers, isTrustedSender);
+  registerCallHandlers(backend.handlers, (event) => isTrustedSenderEvent(event, appTrust));
   closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning, backend.recovery, stopPlayback);
   // The mini window does not count as the app: with only it open, a second launch or the dock
