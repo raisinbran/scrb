@@ -165,14 +165,32 @@ export interface RawCluster {
 export interface RelabelOptions {
   /** The user told us how many people spoke. */
   knownSpeakers?: number;
-  /** Clusters under this are absorbed into their nearest real speaker. */
+  /** Clusters of at least this much speech are real speakers on their own. */
   minSpeakerMs?: number;
+  /**
+   * Clusters between this and `minSpeakerMs` stay their own speaker unless their voice is
+   * at or above `shortMergeLine` to a real speaker; under this they are always absorbed.
+   * At or above `minSpeakerMs` this has no effect.
+   */
+  shortSpeakerMs?: number;
+  /** Cosine similarity at or above which a short cluster is absorbed into a real speaker. */
+  shortMergeLine?: number;
   /** Merge clusters at or above this cosine similarity. */
   mergeLine?: number;
 }
 
+/**
+ * Final-pass speaker rules, chosen on AMI (docs/research/ami-short-speaker-sweep-20261114.md).
+ * A cluster of at least `minSpeakerMs` is a speaker. A cluster of `shortSpeakerMs` up to that
+ * stays its own speaker unless its voice is at or above `shortMergeLine` to a bigger speaker,
+ * in which case it joins that speaker. Anything shorter is always absorbed.
+ */
 export const RELABEL_DEFAULTS = {
   minSpeakerMs: NAMED_AFTER_MS,
+  /** Under 10 s a voice is too noisy to call new; 3 and 5 s added false speakers on AMI. */
+  shortSpeakerMs: 10_000,
+  /** 0.4 gave no false extra speakers on AMI; 0.5 and above did, and 0.65 was worst. */
+  shortMergeLine: 0.4,
   mergeLine: 0.65,
 } as const;
 
@@ -220,6 +238,8 @@ export function relabelClusters(
 ): Map<number, number> {
   const minSpeakerMs = options.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs;
   const mergeLine = options.mergeLine ?? RELABEL_DEFAULTS.mergeLine;
+  const shortSpeakerMs = options.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs;
+  const shortMergeLine = options.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine;
 
   const voiced = clusters.filter((c) => c.embedding);
   const voiceless = clusters.filter((c) => !c.embedding);
@@ -229,10 +249,11 @@ export function relabelClusters(
     speechMs: c.speechMs,
   });
   let major = voiced.filter((c) => c.speechMs >= minSpeakerMs).map(toGroup);
-  let minor = voiced.filter((c) => c.speechMs < minSpeakerMs).map(toGroup);
-  if (major.length === 0) {
-    major = [...major, ...minor];
-    minor = [];
+  const minor = voiced.filter((c) => c.speechMs < minSpeakerMs).map(toGroup);
+  if (major.length === 0 && minor.length > 0) {
+    // Every cluster is short: the biggest anchors, and the rest follow the short-speaker rule.
+    minor.sort((a, b) => b.speechMs - a.speechMs);
+    major = [minor.shift()!];
   }
 
   if (options.knownSpeakers !== undefined) {
@@ -252,6 +273,8 @@ export function relabelClusters(
     }
   }
 
+  // Biggest first, so a short cluster kept as its own speaker can take its own fragments.
+  minor.sort((a, b) => b.speechMs - a.speechMs);
   for (const g of minor) {
     const v = groupUnit(g);
     let best = 0;
@@ -263,6 +286,14 @@ export function relabelClusters(
         best = i;
       }
     });
+    if (
+      options.knownSpeakers === undefined &&
+      g.speechMs >= shortSpeakerMs &&
+      bestSim < shortMergeLine
+    ) {
+      major.push(g);
+      continue;
+    }
     const target = major[best]!;
     target.members.push(...g.members);
     target.speechMs += g.speechMs;
