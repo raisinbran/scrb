@@ -15,7 +15,11 @@ Optional arguments after `--`: meetings folder, then output file. Defaults: fold
 One sub-folder per meeting: `outline.md`, `transcript.txt`, `final-notes.md`.
 
 - `transcript.txt`: plain text. Optional per-line `[mm:ss]` or `[hh:mm:ss]` prefix and optional `Name:` speaker prefix. Without times, each line is a separate turn (2.5 s apart, 0.4 s per word). Times affect block cutting and the time-weighted score.
-- `final-notes.md`: the notes under the outline headings. A heading line is any non-bullet line about as short as an outline item whose content words match that item's (all of them, or 75% overlap); markdown `#`, numbering and `**bold**` are stripped. Bullets and other lines are the section body.
+- `final-notes.md`: the notes under the outline headings. A heading line is any non-bullet line about as short as an outline item whose content words match that item's (all of them, or 75% overlap); markdown `#`, numbering and `**bold**` are stripped. Bullets and other lines are the section body. Any other heading-like line (markdown `#`, `2.`, `2)`, `2.1`, `A.`, all bold, all capitals, or a short line ending in a colon) ends the current section, so text under a heading the outline lacks is never filed above it. A plain unmarked heading cannot be told from a sentence and is not seen.
+
+## Output safety and errors
+
+The output path is refused (error `E_OUTPUT_UNSAFE`) when it is inside the repository (also through a symlinked parent), is a symlink itself (including a dangling one), is a directory, is the same file as anything inside a meeting folder (also by hard link), or is an existing file that does not start with the runner's header line. Only a previous results file is overwritten. Failures print one fixed line (`E_INPUT_MISSING`, `E_OUTPUT_UNSAFE`, `E_PARSE`, `E_UNKNOWN`) and exit 1; no path, folder name or exception text is printed.
 
 ## Output (numbers only)
 

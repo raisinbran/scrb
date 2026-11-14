@@ -59,8 +59,6 @@ export function parseTranscript(text: string): TranscriptWord[] {
   return words;
 }
 
-/** A markdown heading or a line that is only bold: a section start, whether or not the outline has it. */
-const SECTION_HEADING = /^\s*(?:#{1,6}\s|(?:\*\*|__).+(?:\*\*|__)\s*:?\s*$)/;
 const BULLET = /^\s*[-*•+]\s+/;
 
 function headingCandidate(raw: string): string | null {
@@ -74,6 +72,22 @@ function headingCandidate(raw: string): string | null {
     .replace(/:\s*$/, '')
     .trim();
   return t.length > 0 ? t : null;
+}
+
+/**
+ * A line that looks like a section heading, whether or not the outline has it: markdown #, numbered
+ * ("2." "2)" "2.1"), lettered ("A."), all bold, all capitals, or short and ending in a colon.
+ * Bullets are body text. A plain unmarked heading ("Risks") cannot be told from a sentence and is not seen.
+ */
+export function looksLikeHeading(raw: string): boolean {
+  const t = raw.trim();
+  if (t === '' || BULLET.test(raw)) return false;
+  if (/^#{1,6}\s/.test(t)) return true;
+  if (/^\(?(?:\d+(?:\.\d+)*|[A-Za-z])[.)]\s*\S/.test(t) || /^\d+(?:\.\d+)+\s+\S/.test(t))
+    return true;
+  if (/^(?:\*\*|__).+(?:\*\*|__)\s*:?$/.test(t)) return true;
+  if (/\p{L}{3}/u.test(t) && t === t.toUpperCase() && t !== t.toLowerCase()) return true;
+  return /:$/.test(t) && t.split(/\s+/).length <= 12;
 }
 
 function matchScore(item: OutlineItem, line: string): number {
@@ -93,7 +107,7 @@ function matchScore(item: OutlineItem, line: string): number {
  * Splits final notes into one body per outline item. A line starts a section when it is not a bullet,
  * is about as short as an outline item, and its content words match that item's (all of them, or
  * Jaccard 0.75). Each item is used once; the next unmatched item in outline order wins ties.
- * A markdown heading or all-bold line that matches no item ends the current section, so its text is
+ * A heading-like line (see looksLikeHeading) that matches no item ends the current section, so its text is
  * never filed under the section above. Returns bodies indexed like `items`; an item with no heading found is null.
  */
 export function splitNotes(notes: string, items: readonly OutlineItem[]): (string | null)[] {
@@ -119,7 +133,7 @@ export function splitNotes(notes: string, items: readonly OutlineItem[]): (strin
       bodies[best] = [];
       current = best;
       last = best;
-    } else if (SECTION_HEADING.test(raw)) current = -1;
+    } else if (looksLikeHeading(raw)) current = -1;
     else if (current >= 0 && raw.trim()) bodies[current]!.push(raw.replace(BULLET, '').trim());
   }
   return bodies.map((b) => (b === null ? null : b.join('\n')));

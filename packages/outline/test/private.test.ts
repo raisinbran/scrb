@@ -1,7 +1,17 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { alignNotes } from '../eval/private/align.js';
@@ -53,6 +63,28 @@ describe('splitNotes', () => {
     );
     expect(b[0]).toBe('spend up');
     expect(b[1]).toBe('hires');
+  });
+  it.each([
+    ['numbered', '2. Risks'],
+    ['numbered paren', '2) Risks'],
+    ['dotted number', '2.1 Risks'],
+    ['markdown', '### Risks'],
+    ['bold', '**Risks**'],
+    ['bold with colon', '**Risks:**'],
+    ['all caps', 'RISKS AND ISSUES'],
+    ['colon', 'Risks and issues:'],
+    ['lettered', 'B. Risks'],
+  ])('ends the section at an unmatched %s heading', (_name, heading) => {
+    const b = splitNotes(
+      `## Budget review\n- spend up\n${heading}\n- stray point\nmore stray\n## Hiring plan\n- hires`,
+      items,
+    );
+    expect(b[0]).toBe('spend up');
+    expect(b[1]).toBe('hires');
+  });
+  it('still files plain lines and bullets under the section', () => {
+    const b = splitNotes('Budget review\nspend up\n- more spend\nsome sentence here.', items);
+    expect(b[0]).toBe('spend up\nmore spend\nsome sentence here.');
   });
   it('leaves an item null when its heading is missing, and ignores bullets that repeat a heading', () => {
     const b = splitNotes('## Budget review\n- Hiring plan\n- text\n## Launch date\nx', items);
@@ -134,6 +166,82 @@ describe('runner', () => {
       expect(run(fixtures, join(dir, 'dirlink', 'sub', 'out.txt')).status).toBe(1);
       expect(readFileSync(repoFile, 'utf8')).toBe(before);
       expect(existsSync(join(pkg, 'sub'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('refuses a dangling symlink, an input file, a non-results file and a directory', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'outline-private-'));
+    try {
+      const meetings = join(dir, 'm');
+      cpSync(fixtures, meetings, { recursive: true });
+      const input = join(meetings, 'meeting-a', 'final-notes.md');
+      const inputBefore = readFileSync(input, 'utf8');
+      const other = join(dir, 'other.txt');
+      writeFileSync(other, 'not a results file');
+      expect(run(meetings, input).status).toBe(1);
+      expect(run(meetings, other).status).toBe(1);
+      expect(run(meetings, dir).status).toBe(1);
+      expect(readFileSync(input, 'utf8')).toBe(inputBefore);
+      expect(readFileSync(other, 'utf8')).toBe('not a results file');
+      try {
+        symlinkSync(join(dir, 'missing-target.txt'), join(dir, 'dangling.txt'));
+        expect(run(meetings, join(dir, 'dangling.txt')).status).toBe(1);
+        expect(existsSync(join(dir, 'missing-target.txt'))).toBe(false);
+        symlinkSync(dir, join(dir, 'linkdir'), 'junction');
+        expect(run(meetings, join(dir, 'linkdir', 'new.txt')).status).toBe(0);
+      } catch {
+        // symlinks not permitted on this machine
+      }
+      // A previous results file may be overwritten.
+      const out = join(dir, 'prev.txt');
+      expect(run(meetings, out).status).toBe(0);
+      expect(run(meetings, out).status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('refuses a hard link to an input file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'outline-private-'));
+    try {
+      const meetings = join(dir, 'm');
+      cpSync(fixtures, meetings, { recursive: true });
+      const input = join(meetings, 'meeting-a', 'final-notes.md');
+      try {
+        linkSync(input, join(dir, 'hard.txt'));
+      } catch {
+        return;
+      }
+      const before = readFileSync(input, 'utf8');
+      expect(run(meetings, join(dir, 'hard.txt')).status).toBe(1);
+      expect(readFileSync(input, 'utf8')).toBe(before);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('prints only fixed codes: no folder names, paths or exception text', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'outline-private-'));
+    try {
+      const missing = join(dir, 'zzdistinctive-missing');
+      const r1 = run(missing, join(dir, 'o.txt'));
+      expect(r1.status).toBe(1);
+      expect(r1.stderr.trim()).toBe('Error E_INPUT_MISSING: Meetings folder not found.');
+      const meetings = join(dir, 'm');
+      mkdirSync(join(meetings, 'zzdistinctive-name'), { recursive: true });
+      writeFileSync(join(meetings, 'zzdistinctive-name', 'outline.md'), '1. A\n');
+      const r2 = run(meetings, join(dir, 'o2.txt'));
+      expect(r2.status).toBe(0);
+      for (const text of [
+        r1.stdout,
+        r1.stderr,
+        r2.stdout,
+        r2.stderr,
+        readFileSync(join(dir, 'o2.txt'), 'utf8'),
+      ]) {
+        expect(text).not.toContain(basename(dir));
+        expect(text).not.toMatch(/zzdistinctive|\/tmp|\/var|at \w+ \(/);
+      }
+      expect(r2.stdout).toContain('skipped (noTranscript)');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
