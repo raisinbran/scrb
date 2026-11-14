@@ -165,4 +165,18 @@ describe('LiveEchoFilter', () => {
     r.advance(500);
     expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
   });
+
+  it('does not publish a newer queued segment early when resolving an older carried word', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
+    r.f.push(seg('mic', 'm1', 5100, 'ship'));
+    r.advance(1900);
+    r.f.push(seg('mic', 'm2', 5400, 'it and then I disagree')); // 'it' echoes, the rest is the user
+    r.advance(100); // m1 deadline: echo word dropped, m2 must keep waiting
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+    r.advance(1800);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+    r.advance(100); // m2 own deadline
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:and then I disagree']);
+  });
 });

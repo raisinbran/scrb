@@ -81,11 +81,9 @@ export class LiveEchoFilter {
       this.emit(segment, arrivedAt);
     }
     while (this.carry && (force || now - this.carry.arrivedAt >= this.holdMs)) {
-      const queued = this.held.shift();
-      if (queued) {
-        // The next queued segment may complete a run with the carried word; match it first.
-        this.emit(queued.segment, queued.arrivedAt);
-      } else {
+      const queued = this.held[0];
+      if (queued && !force) this.resolveCarry(queued);
+      else {
         const { segment } = this.carry;
         this.carry = null;
         this.out(segment);
@@ -100,6 +98,32 @@ export class LiveEchoFilter {
         },
         Math.max(0, this.holdMs - (now - next.arrivedAt)),
       );
+  }
+
+  /**
+   * The carried word reached its deadline: test it against the next queued segment, but never
+   * publish that segment early.  A matched word is removed from the queued segment in place;
+   * the queued words keep waiting for their own deadline.
+   */
+  private resolveCarry(queued: Held): void {
+    const carried = this.carry!.segment;
+    this.carry = null;
+    const word = carried.words[0]!;
+    const meetingWords = [...this.meeting.values()].flatMap((s) => s.words);
+    const kept = new Set(
+      dropRoomEcho([...this.context, word, ...queued.segment.words], meetingWords),
+    );
+    this.context = [...this.context, word].slice(-CONTEXT_WORDS);
+    if (kept.has(word)) return this.out(carried);
+    const words = queued.segment.words.filter((w) => kept.has(w));
+    if (!words.length) return void this.held.shift();
+    queued.segment = {
+      ...queued.segment,
+      words,
+      text: words.map((w) => w.text).join(' '),
+      startMs: words[0]!.startMs,
+      endMs: words.at(-1)!.endMs,
+    };
   }
 
   private emit(incoming: TimedLiveSegment, arrivedAt: number): void {
