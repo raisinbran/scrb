@@ -7,6 +7,7 @@ import type {
   SourceSelection,
 } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
+import { useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
@@ -126,6 +127,7 @@ export function LiveScreen() {
   });
 
   const meetingId = recording.meetingId ?? lastMeetingId;
+  const setupBlocked = useSetupBlocked();
 
   return (
     <div className={styles.live}>
@@ -184,8 +186,12 @@ export function LiveScreen() {
         />
       ) : (
         <div className={styles.idle}>
-          <p className={styles.idleTitle}>Ready to record</p>
-          <p className={styles.idleBody}>Choose your sources, then press Start.</p>
+          <p className={styles.idleTitle}>
+            {setupBlocked ? 'Cannot record yet' : 'Ready to record'}
+          </p>
+          <p className={styles.idleBody}>
+            {setupBlocked ?? 'Choose your sources, then press Start.'}
+          </p>
         </div>
       )}
     </div>
