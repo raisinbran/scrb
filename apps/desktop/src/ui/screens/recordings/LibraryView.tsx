@@ -6,6 +6,7 @@ import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/form
 import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
+import { Highlight } from './highlight.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
@@ -13,18 +14,6 @@ import styles from './recordings.module.css';
 const SEARCH_DELAY_MS = 200;
 
 type Origin = NonNullable<MeetingFilter['origin']> | '';
-
-function Snippet({ text, query }: { text: string; query: string }) {
-  const at = text.toLowerCase().indexOf(query.toLowerCase());
-  if (at < 0) return <>{text}</>;
-  return (
-    <>
-      {text.slice(0, at)}
-      <mark className={styles.mark}>{text.slice(at, at + query.length)}</mark>
-      {text.slice(at + query.length)}
-    </>
-  );
-}
 
 interface RowProps {
   result: SearchResult;
@@ -44,7 +33,9 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
       >
-        <span className={styles.rowTitle}>{meeting.title}</span>
+        <span className={styles.rowTitle}>
+          <Highlight text={meeting.title} query={query} />
+        </span>
         <span className={styles.muted}>
           {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
           {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
@@ -84,7 +75,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
         >
           <span className={styles.time}>{formatElapsed(match.startMs as number)}</span>
           <span>
-            <Snippet text={match.snippet as string} query={query} />
+            <Highlight text={match.snippet as string} query={query} />
           </span>
         </button>
       ))}
