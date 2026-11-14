@@ -18,7 +18,8 @@ function renderScreen() {
   return backend;
 }
 
-const button = (name: string | RegExp) => screen.findByRole('button', { name });
+const button = (name: string | RegExp, options = {}) =>
+  screen.findByRole('button', { name }, options);
 
 async function openMeeting(title: RegExp) {
   fireEvent.click(await button(title));
@@ -938,7 +939,7 @@ describe('Recordings', () => {
       fireEvent.click(within(dialog).getByRole('radio', { name: 'Both' }));
       fireEvent.click(within(dialog).getByRole('radio', { name: 'PDF' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
-      fireEvent.click(await button('Open folder'));
+      fireEvent.click(await button('Open folder', SLOW));
       expect(call).toHaveBeenCalledWith(
         'exportMeeting',
         expect.objectContaining({
@@ -966,9 +967,9 @@ describe('Recordings', () => {
       const dialog = await openExport(/Depot rollout/);
       backend.arm('exportFails');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
-      expect(await screen.findByText('The export could not be saved.')).toBeTruthy();
+      expect(await screen.findByText('The export could not be saved.', {}, SLOW)).toBeTruthy();
       fireEvent.click(await button('Try again'));
-      expect(await button('Open folder')).toBeTruthy();
+      expect(await button('Open folder', SLOW)).toBeTruthy();
     });
 
     it('closes with Escape', async () => {
