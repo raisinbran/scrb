@@ -52,3 +52,25 @@ export function chooseSeconds(explicit) {
   if (!(seconds >= 60)) throw new Error('--seconds must be a number of at least 60');
   return seconds;
 }
+
+/**
+ * Walks one track's chunks. Gaps at or past toleranceMs count as lost audio; smaller ones are timestamp
+ * jitter, but they are summed (smallNs) so the caller can bound the total. gap is relative to the previous end.
+ */
+export function scanGaps(chunks, toleranceMs, isMarked) {
+  const out = { overlaps: 0, unmarked: 0, lossNs: 0, longestNs: 0, smallNs: 0 };
+  for (let i = 0; i < chunks.length; i += 1) {
+    const from = i === 0 ? 0 : chunks[i - 1].endNs;
+    if (i === 0 && chunks[0].startNs < 100e6) continue;
+    const gap = chunks[i].startNs - from;
+    if (gap < 0) out.overlaps += 1;
+    if (gap < toleranceMs * 1e6) {
+      if (gap > 0) out.smallNs += gap;
+      continue;
+    }
+    out.lossNs += gap;
+    out.longestNs = Math.max(out.longestNs, gap);
+    if (!isMarked(from)) out.unmarked += 1;
+  }
+  return out;
+}

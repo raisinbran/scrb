@@ -18,6 +18,10 @@ if (!folder) {
 }
 const ffmpeg = resolve(opt('--ffmpeg', 'packages/transcription/.bin/ffmpeg.exe'));
 const want = Number(opt('--chunks', '5'));
+if (!Number.isInteger(want) || want < 1) {
+  console.error(`--chunks must be a whole number of at least 1 (got "${opt('--chunks', '5')}")`);
+  process.exit(2);
+}
 const dir = join(resolve(folder), 'audio', 'meeting');
 if (!existsSync(dir)) { console.error(`no meeting folder: ${dir}`); process.exit(2); }
 const files = readdirSync(dir).filter((f) => f.endsWith('.opus')).sort();
