@@ -67,4 +67,33 @@ describe('parseOutline', () => {
   it('gives ids in order', () => {
     expect(parseOutline('A\nB').items.map((i) => i.id)).toEqual(['o1', 'o2']);
   });
+
+  describe('stable ids across revisions', () => {
+    const v1 = parseOutline('Budget\nHiring\nRoadmap').items;
+    const id = (items: typeof v1, text: string) => items.find((i) => i.text === text)!.id;
+
+    it('keeps ids when a heading is inserted ahead of a pinned one', () => {
+      const v2 = parseOutline('Budget\nTravel\nHiring\nRoadmap', v1).items;
+      expect(id(v2, 'Hiring')).toBe(id(v1, 'Hiring'));
+      expect(id(v2, 'Roadmap')).toBe(id(v1, 'Roadmap'));
+      expect(new Set(v2.map((i) => i.id)).size).toBe(4);
+      expect(v1.map((i) => i.id)).not.toContain(id(v2, 'Travel'));
+    });
+    it('keeps ids when headings are reordered', () => {
+      const v2 = parseOutline('Roadmap\nBudget\nHiring', v1).items;
+      for (const t of ['Budget', 'Hiring', 'Roadmap']) expect(id(v2, t)).toBe(id(v1, t));
+    });
+    it('never reuses the id of a deleted or edited heading', () => {
+      const v2 = parseOutline('Budget\nRoadmap', v1).items;
+      const v3 = parseOutline('Budget\nHiring plan\nRoadmap', v2).items;
+      expect(id(v3, 'Hiring plan')).not.toBe(id(v1, 'Hiring'));
+      expect(v3.map((i) => i.id)).not.toContain(id(v1, 'Hiring'));
+    });
+    it('tells apart the same subheading under different parents', () => {
+      const a = parseOutline('# A\n## Plan\n# B\n## Plan').items;
+      expect(new Set(a.map((i) => i.id)).size).toBe(4);
+      const b = parseOutline('# B\n## Plan\n# A\n## Plan', a).items;
+      expect(b.map((i) => i.id)).toEqual([a[2]!.id, a[3]!.id, a[0]!.id, a[1]!.id]);
+    });
+  });
 });

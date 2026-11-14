@@ -1,5 +1,5 @@
 import { PIN_CONTEXT_WORDS, PIN_SEARCH_WINDOW_MS } from './constants.js';
-import type { LocatedPin, Pin, TranscriptWord } from './types.js';
+import type { LocatedPin, OutlineItem, Pin, TranscriptWord } from './types.js';
 
 function norm(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
@@ -74,11 +74,19 @@ function contextScore(
  * (a repeated phrase, changed or missing words) the pin is kept as needsRecheck and is not
  * applied to any words. A pin is never dropped and never applied to different text.
  */
-export function locatePins(pins: readonly Pin[], words: readonly TranscriptWord[]): LocatedPin[] {
+export function locatePins(
+  pins: readonly Pin[],
+  words: readonly TranscriptWord[],
+  items?: readonly OutlineItem[],
+): LocatedPin[] {
+  const known = items ? new Set(items.map((i) => i.id)) : null;
   const indexById = new Map<string, number>();
   words.forEach((w, i) => indexById.set(w.id, i));
 
   return pins.map((pin): LocatedPin => {
+    // A pin whose heading no longer exists is flagged, never turned into another placement.
+    if (known && pin.itemId !== null && !known.has(pin.itemId))
+      return { pin, status: 'needsRecheck' };
     const fp = pin.fingerprint.words;
     if (fp.length === 0) return { pin, status: 'needsRecheck' };
 

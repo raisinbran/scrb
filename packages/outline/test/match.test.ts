@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseOutline } from '../src/parse.js';
 import { matchOutline } from '../src/match.js';
 import { locatePins, makePin } from '../src/pins.js';
 import { BUDGET, HIRING, OUTLINE, ROADMAP, transcript } from './helpers.js';
@@ -201,5 +202,32 @@ describe('matchOutline', () => {
     const placed = matchOutline(words, items);
     expect(performance.now() - start).toBeLessThan(2000);
     expect(placed.length).toBe(500);
+  });
+
+  it('does not turn a pin on a deleted heading into a confirmed placement', () => {
+    const words = transcript([
+      ['A', BUDGET],
+      ['B', HIRING],
+    ]);
+    const pin = makePin('p1', words, 0, 4, 'o9');
+    const located = locatePins([pin], words, OUTLINE);
+    expect(located[0]!.status).toBe('needsRecheck');
+    const placed = matchOutline(words, OUTLINE, { pins: locatePins([pin], words) });
+    expect(placed.some((b) => b.pin || b.confidence === 'confirmed')).toBe(false);
+    expect(placed[0]!.itemId).toBe('o1');
+  });
+
+  it('keeps a pin on the same heading after an insertion above it', () => {
+    const words = transcript([
+      ['A', BUDGET],
+      ['B', HIRING],
+    ]);
+    const hiring = words.findIndex((w) => w.speaker === 'B');
+    const pin = makePin('p1', words, hiring, hiring + 4, 'o2');
+    const items = parseOutline('Budget\nHiring plan\nProduct roadmap', OUTLINE).items;
+    const withNew = parseOutline('Intro\nBudget\nHiring plan\nProduct roadmap', items).items;
+    const placed = matchOutline(words, withNew, { pins: locatePins([pin], words, withNew) });
+    expect(placed.find((b) => b.pin)).toMatchObject({ itemId: 'o2', confidence: 'confirmed' });
+    expect(withNew.find((i) => i.id === 'o2')!.text).toBe('Hiring plan');
   });
 });
