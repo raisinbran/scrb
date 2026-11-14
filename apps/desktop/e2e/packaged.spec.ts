@@ -32,6 +32,14 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
   const call = (name: string, request?: unknown) =>
     page.evaluate(([n, r]) => window.scribeBridge?.invoke(n as never, r as never), [name, request]);
 
+  expect(page.url()).toMatch(/^scribe:\/\/app\//);
+  // The window refuses to leave the app address.
+  await page.evaluate(() => {
+    location.href = 'file:///etc/hosts';
+  });
+  await page.waitForTimeout(500);
+  expect(page.url()).toMatch(/^scribe:\/\/app\//);
+
   expect(await call('getSettings')).toMatchObject({
     ok: true,
     value: { storageLocation: library },

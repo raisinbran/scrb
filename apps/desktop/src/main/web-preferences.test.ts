@@ -9,6 +9,7 @@ describe('secureWebPreferences', () => {
       sandbox: true,
       nodeIntegration: false,
       webviewTag: false,
+      navigateOnDragDrop: false,
     });
   });
 });
