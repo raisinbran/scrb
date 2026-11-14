@@ -95,6 +95,13 @@ export interface DeleteReport {
   ok: boolean;
   /** What is still there: file paths for the UI, or `index:<table>`. Never log these. */
   remaining: string[];
+  /** Set when the caller asked for learned data to go: only items this meeting alone supported. */
+  learned?: {
+    profiles: number;
+    terms: number;
+    /** Transcript edits made while unlinking removed profiles, for the caller to announce. */
+    transcriptChanges: { before: TranscriptFile; after: TranscriptFile }[];
+  };
 }
 
 export interface AutoDeleteRun {
@@ -1029,18 +1036,43 @@ export class Library {
    * `.deleting-` folder that the next open finishes, never a half-deleted meeting in the list.
    * On failure nothing is reported as gone: `ok` is false and `remaining` says what is left.
    */
-  deleteMeeting(meetingId: string, importCleanup = false): Promise<DeleteReport> {
+  deleteMeeting(
+    meetingId: string,
+    importCleanup = false,
+    removeLearnedData = false,
+  ): Promise<DeleteReport> {
     return this.withLock(meetingId, async () => {
       const row = this.requireRow(meetingId);
       await this.assertDeletionIdle(row, importCleanup);
-      const remaining = await this.removeMeeting(meetingId, row.folder);
+      // Chosen before the index links go. Anything another meeting also supports is kept.
+      const soleTerms = removeLearnedData ? this.vocabulary.termsOnlyFrom(meetingId) : [];
+      const soleProfiles = removeLearnedData
+        ? this.voiceProfiles
+            .list()
+            .filter((p) => p.meetingIds.length === 1 && p.meetingIds[0] === meetingId)
+            .map((p) => p.id)
+        : [];
+      const remaining = await this.removeMeeting(meetingId, row.folder, soleTerms);
       const ok = remaining.length === 0;
+      let learned: DeleteReport['learned'];
+      if (removeLearnedData && getMeetingRow(this.db, meetingId) === null) {
+        learned = { profiles: 0, terms: soleTerms.length, transcriptChanges: [] };
+        for (const id of soleProfiles) {
+          try {
+            learned.transcriptChanges.push(...(await this.deleteVoiceProfile(id)));
+            learned.profiles += 1;
+          } catch (error) {
+            // A busy meeting still links it. Keep the profile; the user can delete it themselves.
+            this.logger.log('warn', 'learned-profile-kept', errorFields(error));
+          }
+        }
+      }
       this.logger.log(ok ? 'info' : 'error', 'meeting-deleted', {
         meetingId,
         ok,
         leftCount: remaining.length,
       });
-      return { meetingId, ok, remaining };
+      return learned ? { meetingId, ok, remaining, learned } : { meetingId, ok, remaining };
     });
   }
 
@@ -1064,7 +1096,11 @@ export class Library {
     return this.deleteMeeting(meetingId, true);
   }
 
-  private async removeMeeting(meetingId: string, folderName: string): Promise<string[]> {
+  private async removeMeeting(
+    meetingId: string,
+    folderName: string,
+    termIdsToForget: string[] = [],
+  ): Promise<string[]> {
     const folder = meetingFolderPath(this.paths, folderName);
     const trash = path.join(this.paths.meetings, `${DELETING_PREFIX}${meetingId}`);
     const cache = meetingCachePath(this.paths, meetingId);
@@ -1089,6 +1125,8 @@ export class Library {
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
     if (movedFromLibrary) {
+      // Before the history sweep below, so the undo entries that mention this meeting go too.
+      for (const id of termIdsToForget) this.vocabulary.delete(id);
       deleteMeetingRows(this.db, meetingId);
       this.vocabulary.discardMeetingHistory(meetingId);
       this.settings.delete(`vocabulary.pending.${meetingId}`);

@@ -837,10 +837,16 @@ export function createMeetingHandlers(
       }
     },
     deleteMeeting: async (request) => {
-      const { meetingId } = request as { meetingId: string };
+      const { meetingId, removeLearnedData } = request as {
+        meetingId: string;
+        removeLearnedData?: boolean;
+      };
       await requireMeeting(library, meetingId);
       try {
-        const result = await library.deleteMeeting(meetingId);
+        const result = await library.deleteMeeting(meetingId, false, removeLearnedData === true);
+        for (const { before, after } of result.learned?.transcriptChanges ?? []) {
+          publishEdit(before, after, emit);
+        }
         const cache = meetingCachePath(library.paths, meetingId);
         const prefix = `${library.paths.index}.upgrade-`;
         const names = result.remaining.map((left) =>
@@ -850,7 +856,16 @@ export function createMeetingHandlers(
               ? 'Index recovery copy'
               : 'Meeting files',
         );
-        return { verified: result.ok, remaining: [...new Set(names)] };
+        const summary = { verified: result.ok, remaining: [...new Set(names)] };
+        return result.learned
+          ? {
+              ...summary,
+              learnedDataRemoved: {
+                profiles: result.learned.profiles,
+                terms: result.learned.terms,
+              },
+            }
+          : summary;
       } catch (error) {
         if (error instanceof StorageError && error.code === 'ACTIVE_MEETING') {
           throw new ContractError({ code: 'conflict', message: error.message });

@@ -370,23 +370,41 @@ type DeleteStep =
   | { step: 'incomplete'; remaining: string[] }
   | { step: 'failed'; message: string };
 
+function deletedNotice(
+  title: string,
+  removed: { profiles: number; terms: number } | undefined,
+): string {
+  const base = `Deleted ${title}.`;
+  if (!removed || removed.profiles + removed.terms === 0) return base;
+  const parts = [
+    removed.profiles > 0 &&
+      `${removed.profiles} voice ${removed.profiles === 1 ? 'profile' : 'profiles'}`,
+    removed.terms > 0 && `${removed.terms} vocabulary ${removed.terms === 1 ? 'term' : 'terms'}`,
+  ].filter(Boolean);
+  return `${base} Also removed ${parts.join(' and ')}.`;
+}
+
 function DeleteDialog({
   meeting,
   onDeleted,
   onClose,
 }: {
   meeting: MeetingDetail;
-  onDeleted(title: string): void;
+  onDeleted(notice: string): void;
   onClose(): void;
 }) {
   const backend = useBackend();
   const [state, setState] = useState<DeleteStep>({ step: 'confirming' });
+  const [removeLearned, setRemoveLearned] = useState(false);
 
   const run = async () => {
     setState({ step: 'deleting' });
     try {
-      const result = await backend.call('deleteMeeting', { meetingId: meeting.id });
-      if (result.verified) onDeleted(meeting.title);
+      const result = await backend.call('deleteMeeting', {
+        meetingId: meeting.id,
+        ...(removeLearned ? { removeLearnedData: true } : {}),
+      });
+      if (result.verified) onDeleted(deletedNotice(meeting.title, result.learnedDataRemoved));
       else setState({ step: 'incomplete', remaining: result.remaining });
     } catch (failure) {
       setState({
@@ -412,6 +430,22 @@ function DeleteDialog({
           Delete <strong>{meeting.title}</strong>? This permanently removes its audio, transcript,
           summary and exports from this computer.
         </p>
+      )}
+      {state.step === 'confirming' && (
+        <>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={removeLearned}
+              onChange={(event) => setRemoveLearned(event.target.checked)}
+            />
+            Also remove voice profiles and vocabulary learned only from this recording
+          </label>
+          <p>
+            Voices and words the app learned from this recording stay for use in other recordings
+            unless you tick this. Anything another recording also supports is kept either way.
+          </p>
+        </>
       )}
       {state.step === 'incomplete' && (
         <div role="alert">
@@ -770,7 +804,7 @@ function LoadedDetail(props: LoadedDetailProps) {
       {dialog === 'delete' && (
         <DeleteDialog
           meeting={meeting}
-          onDeleted={(title) => onBack(`Deleted ${title}.`)}
+          onDeleted={(notice) => onBack(notice)}
           onClose={() => setDialog(null)}
         />
       )}
