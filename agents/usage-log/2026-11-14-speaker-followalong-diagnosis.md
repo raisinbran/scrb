@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Diagnosis of remote-speaker collapse and playback follow-along on two owner recordings; tiny follow-along fix with test | unavailable | unavailable | unavailable | unavailable | unavailable | Diagnosis / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
