@@ -90,6 +90,19 @@ describe('component styles', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('use the one radius token, or a true circle', () => {
+    const files = readdirSync(uiDir, { recursive: true, encoding: 'utf8' }).filter(
+      (file) => file.endsWith('.css') && !/MiniRecording|tokens\.css/.test(file),
+    );
+    const bad = files.flatMap((file) =>
+      [...readFileSync(join(uiDir, file), 'utf8').matchAll(/border-radius:\s*([^;]+);/g)]
+        .map((m) => m[1] as string)
+        .filter((value) => !['var(--radius)', '50%', '0'].includes(value.trim()))
+        .map((value) => `${file}: ${value}`),
+    );
+    expect(bad).toEqual([]);
+  });
+
   it('hides the focus ring only on code-focused headings', () => {
     const rule = /([^{}]*:focus-visible)\s*\{\s*outline:\s*none;\s*\}/g;
     const selectors = [...tokensCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(rule)].map((m) =>
