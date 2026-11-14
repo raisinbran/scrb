@@ -1,6 +1,7 @@
 import { contentTokens } from '@scrb/summary';
 import { buildBlocks, type PinAssignment } from './blocks.js';
 import { DEFAULT_TUNING, SHORT_BLOCK_TOKENS, type Tuning } from './constants.js';
+import { cosine } from './embed.js';
 import type {
   Block,
   Confidence,
@@ -15,6 +16,12 @@ export interface MatchOptions {
   speakerNames?: Record<string, string>;
   pins?: readonly LocatedPin[];
   tuning?: Partial<Tuning>;
+  /**
+   * Level B (experiment, off by default): unit-length sentence vectors computed outside this
+   * package, one per block (in buildBlocks order, no pins) and one per item. Used only when
+   * tuning.semanticWeight > 0.
+   */
+  semantic?: { blocks: readonly Float32Array[]; items: readonly Float32Array[] };
 }
 
 interface WeightedTokens {
@@ -102,6 +109,9 @@ export function matchOutline(
   const owners = items.map((it) => it.ownerName?.toLowerCase());
   const names = options.speakerNames ?? {};
 
+  const sem = options.semantic;
+  if (sem && (sem.blocks.length !== blocks.length || sem.items.length !== n))
+    throw new Error('semantic vectors do not match blocks and items');
   const ownTokens = items.map((it) => contentTokens(it.text));
   const blockTokens = blocks.map((b) => contentTokens(b.text));
   const short = blockTokens.map((t, i) => t.size < SHORT_BLOCK_TOKENS && !blocks[i]!.pin);
@@ -112,7 +122,13 @@ export function matchOutline(
         base += k.specificBonus;
       const owner = owners[ii];
       const name = names[blocks[bi]!.speaker]?.toLowerCase();
-      return base > 0 && owner !== undefined && name === owner ? base + k.ownerBonus : base;
+      if (base > 0 && owner !== undefined && name === owner) base += k.ownerBonus;
+      if (sem && k.semanticWeight > 0) {
+        const cos = cosine(sem.blocks[bi]!, sem.items[ii]!);
+        const b = Math.max(0, cos - k.cosineFloor) / (1 - k.cosineFloor);
+        base = (1 - k.semanticWeight) * base + k.semanticWeight * b;
+      }
+      return base;
     }),
   );
 

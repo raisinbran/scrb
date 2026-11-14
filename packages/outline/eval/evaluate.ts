@@ -1,3 +1,5 @@
+import { buildBlocks } from '../src/blocks.js';
+import { itemEmbeddingTexts } from '../src/embed.js';
 import { matchOutline } from '../src/match.js';
 import { parseOutline } from '../src/parse.js';
 import type { Tuning } from '../src/constants.js';
@@ -163,6 +165,8 @@ export function evaluate(
   dir: string,
   tuning: Partial<Tuning> = {},
   only?: (position: number) => boolean,
+  /** Level B: looks up the sentence vector of a text (from a precomputed cache). */
+  vec?: (text: string) => Float32Array,
 ): EvalResult {
   const results = new Map<string, Tally>();
   const tally = (k: string): Tally => results.get(k) ?? (results.set(k, empty()), results.get(k)!);
@@ -188,7 +192,13 @@ export function evaluate(
       const variant = makeVariant(ref, name);
       if (!variant) continue;
       const items = parseOutline(outlineText(variant.entries)).items;
-      const placed = matchOutline(meeting.words, items, { tuning });
+      const semantic = vec
+        ? {
+            blocks: buildBlocks(meeting.words).map((b) => vec(b.text)),
+            items: itemEmbeddingTexts(items).map(vec),
+          }
+        : undefined;
+      const placed = matchOutline(meeting.words, items, { tuning, semantic });
       const ids = items.map((i) => i.id);
       for (const key of [`${name}|all`, `${name}|${kind}`])
         score(meeting, ref, variant, placed, ids, tally(key));

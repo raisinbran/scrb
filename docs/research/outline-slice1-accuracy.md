@@ -41,3 +41,56 @@ Parser (markdown, numbering, bullets, indentation, owners, limits), blocks (paus
 ## Recommendation
 
 Do not build slices 2 to 4 on Level A as it stands. Options for the owner: (1) approve evaluating Level B (about 12 hours plus a model approval) and re-measure with this harness; (2) first try the same harness with richer, user-style headings to see whether the low score is a label problem; (3) stop.
+
+# Level B experiment (sentence vectors)
+
+Experiment only: nothing ships, no contract or UI change. Code is behind an option (`semantic` in `matchOutline` plus `semanticWeight` in the tuning; default 0, so Level A is unchanged). Raw tables come from `eval/run-b.ts`; vectors are cached outside git.
+
+## Model
+
+| Item    | Value                                                                                                                                                                                                                                                                                                          |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model   | `Xenova/paraphrase-multilingual-MiniLM-L12-v2`, 8-bit quantised ONNX (`onnx/model_quantized.onnx`); 384-number vectors, 50+ languages including English                                                                                                                                                        |
+| Licence | Apache-2.0 (base model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` is Apache-2.0; the ONNX conversion repo has no separate licence text and points to it). Allows commercial redistribution with a notice. Not legal advice; the chosen model's licence should be re-checked before shipping |
+| Source  | https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2 (commit `2c4055b12046f11709e9df2c122e59ffbdc2f900`)                                                                                                                                                                                        |
+| Size    | 118,308,126 bytes (about 113 MiB) plus a 17 MB tokenizer file                                                                                                                                                                                                                                                  |
+| SHA-256 | `66fc00f5f29afcaff34092e1bdd20008ca3918265a82fb9695a551e510cc4ebc`, equal to the host's published LFS checksum                                                                                                                                                                                                 |
+| Stored  | `~/Library/Application Support/scrb-experiments/minilm/` (outside git)                                                                                                                                                                                                                                         |
+
+Runtime: the existing sherpa-onnx is a C++ sidecar for speech and speaker models and has no sentence-embedding entry point, so it cannot run this model. The experiment uses `@huggingface/transformers` 4.3.2 (exact pin, devDependency of `@scrb/outline` only), which brings `onnxruntime-node` 1.30.0 (about 290 MB on disk in `node_modules`, native, per platform). Shipping would add that runtime plus the model to the installer and needs packaging work for Windows and Mac.
+
+## How it works
+
+Each block and each item (with its parent headings, "Parent: Child") is turned into a vector. Score = (1 - w) x wording score + w x rescaled cosine, where rescaled cosine = max(0, cosine - floor) / (1 - floor). The same ordered-path step then runs. Block text is cut at the model's 128-token limit.
+
+## Result (held-out odd-numbered meetings, 64 meetings; weights tuned on the 62 even-numbered)
+
+Average over the four variants:
+
+| Matcher                                |   Correct | Correct where a heading exists | Likely precision | Likely share | Not placed share |
+| -------------------------------------- | --------: | -----------------------------: | ---------------: | -----------: | ---------------: |
+| Level A, package defaults              |     18.6% |                           8.8% |            31.7% |        16.6% |            71.9% |
+| Level A, AMI-tuned                     |     27.6% |                          33.0% |            30.7% |        33.8% |             0.0% |
+| Level B alone (weight 1, defaults)     |     17.2% |                           2.8% |            42.7% |         1.7% |            93.7% |
+| A+B, tuned from defaults               |     30.4% |                          36.3% |            32.0% |        27.6% |             0.0% |
+| **A+B, tuned from the AMI-tuned base** | **31.1%** |                      **37.1%** |        **32.4%** |    **28.1%** |         **0.0%** |
+
+Best A+B values: weight 0.7, cosine floor 0.3 (defaults base) and the Level A tuned values plus weight 0.7 (tuned base). On the tuning half the best A+B scored 34.4%, so the gain holds on unseen meetings.
+
+**Verdict: Level B adds about 3.5 points over tuned Level A (27.6% to 31.1%) and about 12 points over the defaults (18.6% to 30.4%), but it is still far below the 70% accuracy bar, and "Likely" precision (32%) is far below the 90% bar.** The best settings again place everything and never say Not placed, so the plan's "refuse weak matches" behaviour is not met either. Level B alone is poor: AMI topic labels ("costing", "look and usability") are not close in meaning to the dialog in the sentence-vector space, and a 30 to 60 second block mixes several ideas.
+
+## Cost
+
+- Embedding speed on this Mac (CPU, M-series): 31,900 texts (all blocks and items for 126 meetings) in 279 s, about 114 texts per second; 100 long blocks take about 1.1 s. A 2-hour meeting has roughly 500 to 900 blocks, so about 5 to 9 s, one-off per sort (estimate from these rates; no 2-hour meeting was run). Matcher time after embedding is under 1 s for 64 meetings.
+- Model load 0.7 s warm; process memory about 850 MB while running (not tuned; the 8-bit model itself is 113 MiB).
+- Windows speed was not measured.
+
+## Caveats
+
+- AMI reference headings are short generic labels, the same proxy limit as slice 1. Real outlines with descriptive headings may show a larger gain; that is exactly what tomorrow's real-outline test would show, and it cannot be inferred here.
+- One small model was tried. Other models (for example a larger one, or one fine-tuned for topic labels) were not.
+- Only the weight and a few thresholds were tuned, as the task asked.
+
+## Recommendation (updated)
+
+Do **not** ship Level B on this evidence: the gain is small (about 3 points over tuned Level A), the bar is missed by a wide margin, and shipping adds a roughly 290 MB native runtime plus a 113 MiB model. Wait for the real-outline test with the owner's samples; if real headings score well with Level A or A+B there, revisit. If real outlines also stay far below 70%, stop pure matching and consider a different approach (for example, the user pins section starts and the matcher only fills between pins, or a local language model, which needs its own plan).
