@@ -40,6 +40,11 @@ export interface MeetingMeta {
   transcriptionFailure?: string | null;
   /** Set while a finished meeting is being re-processed: the status to restore if the run fails. */
   statusBeforeReprocess?: 'ready' | 'recovered' | null;
+  /**
+   * Set when the app wrote the title itself. A `fallback` may be improved on a later final pass;
+   * a `generated` one is final. A title the user changed no longer matches `text` and is left alone.
+   */
+  autoTitle?: { kind: 'generated' | 'fallback'; text: string };
 }
 
 function validateMeeting(doc: JsonObject): MeetingMeta {
@@ -61,6 +66,12 @@ function validateMeeting(doc: JsonObject): MeetingMeta {
   assertFormat(
     before == null || before === 'ready' || before === 'recovered',
     'statusBeforeReprocess',
+  );
+  const auto = doc['autoTitle'] as { kind?: unknown; text?: unknown } | null | undefined;
+  assertFormat(
+    auto == null ||
+      ((auto.kind === 'generated' || auto.kind === 'fallback') && typeof auto.text === 'string'),
+    'autoTitle',
   );
   return doc as unknown as MeetingMeta;
 }

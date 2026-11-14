@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Auto-generated meeting titles after the final pass (date plus short local-model title, fallback, tests) | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |

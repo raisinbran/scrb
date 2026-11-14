@@ -252,6 +252,8 @@ export class FinalPassQueue {
     private readonly startMatching = startProfileMatching,
     private readonly onProfileAssignment?: (before: TranscriptFile, after: TranscriptFile) => void,
     private readonly onProgress?: (report: FinalPassReport) => void,
+    /** Called once the meeting is ready; must not block and its failure never fails the pass. */
+    private readonly onReady?: (meetingId: string) => void,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -349,6 +351,11 @@ export class FinalPassQueue {
         transcriptionFailure: null,
         statusBeforeReprocess: null,
       });
+      try {
+        this.onReady?.(meetingId);
+      } catch {
+        // A follow-up such as a title must never fail a finished pass.
+      }
       report('finishing', 1);
       if (transcript && matching) {
         let edit: ProfileAssignmentEdit | undefined;

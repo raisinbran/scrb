@@ -93,6 +93,7 @@ export type MeetingChanges = Partial<
     | 'buildVoiceProfiles'
     | 'transcriptionFailure'
     | 'statusBeforeReprocess'
+    | 'autoTitle'
   >
 >;
 
