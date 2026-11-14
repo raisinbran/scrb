@@ -155,21 +155,27 @@ describe('Recordings', () => {
         screen
           .getByRole('progressbar', { name: 'Final transcript processing' })
           .getAttribute('aria-valuenow');
+      const A = '2026-11-13T10:00:00.000Z';
+      const B = '2026-11-13T10:05:00.000Z';
       // The first report can be any value: earlier ones may have been missed.
-      await report('diarizing', 0.9, 'a');
+      await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
-      await report('transcribing', 0.2, 'a');
+      await report('transcribing', 0.2, A);
       expect(value()).toBe('90');
       expect(screen.getByText('Working out who spoke')).toBeTruthy();
-      await report('diarizing', 0.9, 'a');
+      await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
-      await report('finishing', 1, 'a');
+      await report('finishing', 1, A);
       expect(value()).toBe('100');
-      await report('diarizing', 0.95, 'a');
+      await report('diarizing', 0.95, A);
       expect(value()).toBe('100');
       expect(screen.getByText('Finishing up')).toBeTruthy();
-      await report('queued', 0, 'b');
+      await report('queued', 0, B);
       expect(value()).toBe('0');
+      // A late report from the older pass must not undo the newer one.
+      await report('finishing', 1, A);
+      expect(value()).toBe('0');
+      expect(screen.getByText('Waiting to start')).toBeTruthy();
     });
 
     it('other meetings progress does not touch this banner', async () => {
@@ -180,7 +186,7 @@ describe('Recordings', () => {
           meetingId: 'someone-else',
           stage: 'finishing',
           fraction: 0.8,
-          startedAt: 'a',
+          startedAt: '2026-11-13T10:00:00.000Z',
         }),
       );
       expect(

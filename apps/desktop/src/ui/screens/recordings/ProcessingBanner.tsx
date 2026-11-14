@@ -9,12 +9,16 @@ import styles from './recordings.module.css';
 
 const STAGE_ORDER: FinalPassStage[] = ['queued', 'transcribing', 'diarizing', 'finishing'];
 
-/** Reports can arrive late or out of order; one that goes backwards within a pass is ignored. A new `startedAt` is a new pass. */
+/** Reports can arrive late or out of order; one that goes backwards within a pass is ignored. A later `startedAt` is a new pass; an earlier one is a late report from an old pass. */
 export function nextProgress(
   current: FinalPassProgress | null,
   report: FinalPassProgress,
 ): FinalPassProgress | null {
-  if (!current || report.startedAt !== current.startedAt) return report;
+  if (!current) return report;
+  const started = Date.parse(report.startedAt);
+  const currentStarted = Date.parse(current.startedAt);
+  if (started > currentStarted) return report;
+  if (started < currentStarted) return current;
   const earlier = STAGE_ORDER.indexOf(report.stage) < STAGE_ORDER.indexOf(current.stage);
   return earlier || report.fraction < current.fraction ? current : report;
 }
