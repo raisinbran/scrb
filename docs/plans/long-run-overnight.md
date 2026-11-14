@@ -15,7 +15,7 @@
 | Disk   | see section 2                                                                               | see section 2                                                         |
 | Room   | Quiet. The mic records the room for 8 hours.                                                | Same. Speakers are muted by the script (restored after)               |
 
-Do not log out, close the lid, or start another recording app. Run one machine per night, one at a time (the two Windows PCs may run the same night, each on its own).
+Close other apps and leave the machine alone overnight: a busy Mac stalls capture and the report shows it as marked gaps (see section 10). Do not log out, close the lid, or start another recording app. Run one machine per night, one at a time (the two Windows PCs may run the same night, each on its own).
 
 Windows prerequisites (unverified here): `node` on PATH; `native\windows-capture\build\bin\scrb-capture.exe` built with `build.cmd`; `TonePlayer.exe` and `Mute.exe` present under `native\windows-capture\tools\`. The README notes Windows keeps per-app volume-mixer mute by path, so confirm in the smoke that the meeting track has sound. On BCHEN-W10 the random screen and speaker shutoff may show up as marked gaps; a failure there counts as a finding, not a script bug, so write down the time you notice it.
 
@@ -26,23 +26,9 @@ Windows prerequisites (unverified here): `node` on PATH; `native\windows-capture
 
 ## 3. Smoke first (5 minutes, safe, needs no approval)
 
+Both scripts default to a 5-minute run. A longer run happens only when you pass an explicit duration (section 4). Every run needs a new or empty evidence folder outside the repo; the script refuses the repo, anything under it, and a folder that already holds files, so a past run is never overwritten. Without `--out` it picks a new timestamped folder.
+
 Mac:
-
-```bash
-scripts/long-run/overnight-mac.sh --smoke
-```
-
-Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\long-run\overnight-win.ps1 -Smoke
-```
-
-Expect `RESULT: PASS` at the end. It is labelled SMOKE and is not Gate 8 evidence.
-
-## 4. The real run (needs the approval in section 7)
-
-Mac (finishes in about 8 hours; prints a line every minute):
 
 ```bash
 scripts/long-run/overnight-mac.sh
@@ -54,7 +40,23 @@ Windows:
 powershell -ExecutionPolicy Bypass -File scripts\long-run\overnight-win.ps1
 ```
 
-Other length: `--hours 4` (Mac) or `-Hours 4` (Windows). Any run expected to exceed 20 minutes still needs your approval first.
+Expect `RESULT: PASS` at the end. It is labelled SMOKE and is not Gate 8 evidence.
+
+## 4. The real run (needs the approval in section 7)
+
+Only after the approval in section 7. Mac (finishes in about 8 hours; prints a line every minute):
+
+```bash
+scripts/long-run/overnight-mac.sh --hours 8
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\long-run\overnight-win.ps1 -Hours 8
+```
+
+Other length: change the number. Any run expected to exceed 20 minutes still needs your approval first.
 
 ## 5. Stop early, safely
 
@@ -120,3 +122,5 @@ PASS  CPU average under 10% (helper, recording only): 3.03% of one core, highest
 final pass: not applicable (recorder only, no transcription)
 RESULT: PASS
 ```
+
+Two later 5-minute smokes with the 5-minute default: the first (Mac under heavy load from other work, load average about 10) **failed** the lost-audio check with about 1 s lost per track in short marked gaps, mostly at 29-31 s on both tracks at once, which fits a host stall; the rerun on a quieter Mac passed (`RESULT: PASS`, no gaps, drift 0.00 ms, helper 14.5 MB peak, 2.4% of a core). The cause of the first failure is not proven. Treat any gap in the real run as a finding and note what else the machine was doing.

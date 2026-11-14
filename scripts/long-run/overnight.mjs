@@ -3,12 +3,12 @@
 // then sealed and checked against the Development Plan targets. Called by overnight-mac.sh and
 // overnight-win.ps1, which add the keep-awake and mute steps. Nothing here starts on import of the repo.
 //
-// Usage: node --experimental-transform-types overnight.mjs --helper <exe> --work <dir>
-//          [--seconds N | --smoke] [--sample-seconds N] [--tone-file <m4a>] [--tone-player <exe>]
+// Usage: node --experimental-transform-types overnight.mjs --helper <exe> --work <fresh empty dir>
+//          [--seconds N]   (default 300; anything longer must be asked for) [--sample-seconds N] [--tone-file <m4a>] [--tone-player <exe>]
 //        node --experimental-transform-types overnight.mjs --report <work dir>   (re-run the checks)
 // Stop early and safely: create a file named STOP in the work dir, or press Ctrl+C once.
 import { Buffer } from 'node:buffer';
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { clearTimeout } from 'node:timers';
 import {
   appendFileSync,
@@ -27,6 +27,7 @@ import {
 import { createInterface } from 'node:readline';
 import { dirname, join, resolve } from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
+import { assertEvidenceDir, chooseSeconds } from './guards.mjs';
 import { performance } from 'node:perf_hooks';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -66,13 +67,10 @@ if (flag('--report')) {
 
 async function main() {
   const helper = resolve(arg('--helper'));
-  const work = resolve(arg('--work'));
-  const smoke = flag('--smoke');
-  const seconds = smoke ? 300 : Number(arg('--seconds', String(8 * 3600)));
+  const work = assertEvidenceDir(arg('--work'), repoRoots());
+  const seconds = chooseSeconds(arg('--seconds'));
+  const smoke = seconds <= 300;
   const sampleSeconds = Number(arg('--sample-seconds', smoke ? '15' : '60'));
-  if (!(seconds >= 60)) throw new Error('--seconds must be at least 60');
-  if (smoke && seconds > 300) throw new Error('smoke mode is 5 minutes at most');
-  if (existsSync(join(work, 'audio'))) throw new Error(`${work} already holds a recording`);
   mkdirSync(join(work, 'logs'), { recursive: true });
   const stopFile = join(work, 'STOP');
   const logPath = join(work, 'run.log');
@@ -518,4 +516,15 @@ async function verify(work) {
 
 function pathToUrl(path) {
   return new URL(`file://${path.startsWith('/') ? '' : '/'}${path.replace(/\\/g, '/')}`).href;
+}
+
+/** This checkout and the main checkout a worktree belongs to. */
+function repoRoots() {
+  const roots = [resolve(here, '..', '..')];
+  const common = spawnSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: roots[0],
+    encoding: 'utf8',
+  });
+  if (common.status === 0) roots.push(dirname(resolve(roots[0], common.stdout.trim())));
+  return roots;
 }
