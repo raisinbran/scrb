@@ -307,6 +307,33 @@ void app.whenReady().then(async () => {
       window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
     }
   });
+  // TEST BRANCH ONLY (never merge): SCRB_MINI_DEMO=1 fakes a recording so the mini window can be tried by hand.
+  if (process.env['SCRB_MINI_DEMO'] === '1' && !app.isPackaged) {
+    let state: RecordingState = {
+      status: 'recording',
+      meetingId: 'demo-meeting',
+      elapsedMs: 3_725_000,
+      pauseReason: null,
+      privacyBannerRequired: false,
+    };
+    const send = (name: string, payload: unknown): void => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+      }
+    };
+    const change = (status: RecordingState['status']): Promise<void> => {
+      state = { ...state, status, meetingId: status === 'idle' ? null : 'demo-meeting' };
+      mini.setStatus(status);
+      send('recordingStateChanged', state);
+      return Promise.resolve();
+    };
+    backend.handlers.getRecordingSnapshot = () =>
+      Promise.resolve({ state, pauseSpans: [], health: null, transcription: null });
+    backend.handlers.pauseRecording = () => change('paused');
+    backend.handlers.resumeRecording = () => change('recording');
+    backend.handlers.stopRecording = () => change('idle');
+    setTimeout(() => void change('recording'), 2000);
+  }
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();
