@@ -41,6 +41,16 @@ describe('App', () => {
     },
   );
 
+  it('has no inspector panel or toggle, and ignores old saved inspector state', async () => {
+    window.localStorage.setItem('scrb.inspector.open', 'true');
+    window.localStorage.setItem('scrb.inspector.width', '300');
+    renderApp();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Live' })).toBeTruthy();
+    expect(screen.queryByLabelText(/inspector/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /inspector/i })).toBeNull();
+    expect(screen.getByRole('main')).toBeTruthy();
+  });
+
   it('opens Help with F1', async () => {
     renderApp();
     fireEvent.keyDown(window, { key: 'F1' });
