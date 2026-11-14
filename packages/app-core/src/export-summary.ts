@@ -161,6 +161,8 @@ export function toExportMeeting(
       startMs: segment.tokens[0]?.startMs ?? 0,
       parts: segment.tokens.map((token, index) => ({
         text: `${index > 0 ? ' ' : ''}${token.text}`,
+        startMs: token.startMs,
+        endMs: token.endMs,
         ...(token.originalText === null ? {} : { original: token.originalText }),
       })),
     })),

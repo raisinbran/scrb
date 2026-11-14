@@ -166,7 +166,12 @@ describe('corrected transcript export adapter', () => {
     ];
     transcript.gaps = [{ id: 'gap', kind: 'paused', startMs: 400, endMs: 600 }];
     const adapted = toExportMeeting(meeting, transcript, null);
-    expect(adapted.segments[0]?.parts[0]).toEqual({ text: 'Corrected', original: 'invented' });
+    expect(adapted.segments[0]?.parts[0]).toEqual({
+      text: 'Corrected',
+      original: 'invented',
+      startMs: 100,
+      endMs: 300,
+    });
     expect(adapted.markers).toMatchObject([
       { kind: 'pause', startMs: 400, endMs: 600 },
       { kind: 'recording-ended', startMs: 1000 },
