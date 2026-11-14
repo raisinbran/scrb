@@ -1,4 +1,4 @@
-### A-360 — 2026-11-14 — Claude Code (Sonnet) — UI polish PRs pushed with CI red on both platforms
+### A-387 — 2026-11-14 — Claude Code (Sonnet) — UI polish PRs pushed with CI red on both platforms
 
 - **Status / attribution:** Agent error (PRs #215 and #216).
 - **What happened:** The Settings overlay change left the macOS smoke test treating Settings as a tab, a new CSS test matched `\n` only (fails on Windows CRLF checkouts), and an export test waited 1 s for a 0.9 s mock delay (flaky on slow Windows). The e2e smoke tests were not run locally before pushing, and #216's focus test still expected the old meeting-title heading and "← Recordings" button.
