@@ -4,7 +4,7 @@ import { mkdir, rename, rm, stat, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import type { ModelDownloadProgress, ModelRole } from '@scrb/contracts';
+import type { ModelDownloadFailure, ModelDownloadProgress, ModelRole } from '@scrb/contracts';
 
 export type DownloadFailure =
   'cancelled' | 'offline' | 'checksum' | 'size' | 'diskSpace' | 'insecure' | 'http';
@@ -189,9 +189,19 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
       `Not enough free disk space: about ${Math.ceil(needed / 1e6)} MB are needed.`,
     );
 
+  const overallTotal = todo.reduce((sum, item) => sum + item.bytes, 0);
+  let finished = 0;
   for (const source of todo) {
-    const report = (state: ModelDownloadProgress['state'], done: number, message?: string) =>
+    const report = (
+      state: ModelDownloadProgress['state'],
+      done: number,
+      message?: string,
+      reason?: ModelDownloadFailure,
+    ) =>
       options.onProgress?.({
+        overallBytesDone: finished + (state === 'done' ? 0 : done),
+        overallBytesTotal: overallTotal,
+        ...(reason ? { reason } : {}),
         role: source.role,
         modelName: source.label,
         state,
@@ -205,9 +215,15 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
       const message =
         error instanceof DownloadError ? error.message : 'The download failed unexpectedly.';
       if (!(error instanceof DownloadError && error.code === 'cancelled'))
-        report('failed', 0, message);
+        report(
+          'failed',
+          0,
+          message,
+          error instanceof DownloadError ? (error.code as ModelDownloadFailure) : undefined,
+        );
       throw error;
     }
+    finished += source.bytes;
     report('done', source.bytes);
   }
 }

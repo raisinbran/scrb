@@ -227,6 +227,8 @@ export interface BackendCalls {
   getSetupStatus: { request: void; response: SetupStatus };
   /** @addition */
   startModelDownload: { request: void; response: void };
+  /** @addition Stops a running model download and keeps the partial files so a retry resumes. Idle or repeated: does nothing. */
+  cancelModelDownload: { request: void; response: void };
   /** @addition */
   requestPermission: { request: { permission: PermissionKind }; response: PermissionState };
 
@@ -398,6 +400,7 @@ const CALL_TABLE: Record<CallName, true> = {
   revertModel: true,
   getSetupStatus: true,
   startModelDownload: true,
+  cancelModelDownload: true,
   requestPermission: true,
   getAppInfo: true,
   getLicenses: true,

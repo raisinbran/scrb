@@ -290,7 +290,10 @@ export async function openBackend(
         }),
         ...recording?.handlers,
         ...(packaged && packaged.models.some((m) => !m.installed) && modelDownloader
-          ? { startModelDownload: async () => modelDownloader.start() }
+          ? {
+              startModelDownload: async () => modelDownloader.start(),
+              cancelModelDownload: async () => modelDownloader.cancel(),
+            }
           : {}),
         // A packaged app without its tools or models must say so, not fall back to the mock.
         ...(packaged && packaged.missing.length > 0

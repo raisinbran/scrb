@@ -84,7 +84,12 @@ describe('downloadModels', () => {
     expect(await readFile(join(dir, 'm.bin'))).toEqual(body);
     await expect(stat(join(dir, 'm.bin.part'))).rejects.toThrow();
     expect(events.map((e) => e.state)).toContain('verifying');
-    expect(events.at(-1)).toMatchObject({ state: 'done', bytesDone: body.length });
+    expect(events.at(-1)).toMatchObject({
+      state: 'done',
+      bytesDone: body.length,
+      overallBytesDone: body.length,
+      overallBytesTotal: body.length,
+    });
   });
 
   it('rejects a checksum mismatch and leaves no file or part', async () => {
@@ -96,7 +101,7 @@ describe('downloadModels', () => {
     );
     await expect(stat(join(dir, 'm.bin'))).rejects.toThrow();
     await expect(stat(join(dir, 'm.bin.part'))).rejects.toThrow();
-    expect(events.at(-1)?.state).toBe('failed');
+    expect(events.at(-1)).toMatchObject({ state: 'failed', reason: 'checksum' });
   });
 
   it('rejects an oversize file', async () => {

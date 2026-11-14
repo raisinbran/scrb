@@ -1494,6 +1494,7 @@ export class MockBackend implements Backend {
         ...(fails ? { message: 'The download stopped. Check your connection and retry.' } : {}),
       });
     },
+    cancelModelDownload: () => undefined,
     requestPermission: ({ permission }) => {
       void permission;
       return this.armed.has('permissionDenied') ? 'denied' : 'granted';

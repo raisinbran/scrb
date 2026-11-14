@@ -36,10 +36,10 @@ Storage is the existing `modelsDirFor`: macOS `~/Library/Application Support/Scr
 - `getSetupStatus`: models turn `installed` as files verify.
 - Retry = call `startModelDownload` again (resumes).
 
-## Contract changes needing owner approval (not implemented)
+## Contract changes (owner approved 2026-11-13, implemented)
 
-1. **`cancelModelDownload`** (void → void, idempotent), mirroring `cancelSummary`. Without it the UI has no cancel; the manager's `cancel()` is ready and only app close calls it today.
-2. **`ModelDownloadProgress` overall figures** (optional `overallBytesDone` / `overallBytesTotal`, and a failure `reason` enum such as `offline|checksum|diskSpace|http`) so one bar and a specific message can be drawn. Optional; per-file bytes work without it.
+1. `cancelModelDownload` (void → void, idempotent), wired in packaged builds and in the mock (no-op).
+2. `ModelDownloadProgress` gains optional `overallBytesDone`, `overallBytesTotal` and, on `failed`, `reason` (`offline|checksum|size|diskSpace|insecure|http`).
 3. Not needed now: `checkModelUpdates`, `installModelUpdate`, `revertModel` (update and revert confirmations) are separate work that reuses this manager.
 
 ## Tests

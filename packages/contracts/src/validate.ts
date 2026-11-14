@@ -333,6 +333,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
 
   getSetupStatus: nothing,
   startModelDownload: nothing,
+  cancelModelDownload: nothing,
   requestPermission: shape({ permission: oneOf('microphone', 'meetingAudio') }),
 
   getAppInfo: nothing,
