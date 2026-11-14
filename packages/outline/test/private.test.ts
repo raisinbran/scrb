@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,14 @@ describe('splitNotes', () => {
     expect(b[1]).toBe('two hires');
     expect(b[2]).toBe('April');
   });
+  it('stops at a heading the outline does not have', () => {
+    const b = splitNotes(
+      '## Budget review\n- spend up\n## Extra topic\n- stray point\n**Another**\nmore\n## Hiring plan\n- hires',
+      items,
+    );
+    expect(b[0]).toBe('spend up');
+    expect(b[1]).toBe('hires');
+  });
   it('leaves an item null when its heading is missing, and ignores bullets that repeat a heading', () => {
     const b = splitNotes('## Budget review\n- Hiring plan\n- text\n## Launch date\nx', items);
     expect(b[1]).toBeNull();
@@ -90,7 +98,7 @@ describe('loader', () => {
 
 describe('runner', () => {
   const run = (...args: string[]) =>
-    spawnSync(join(pkg, '../../node_modules/.bin/tsx'), ['eval/private/run.ts', ...args], {
+    spawnSync(process.execPath, ['--import', 'tsx', 'eval/private/run.ts', ...args], {
       cwd: pkg,
       encoding: 'utf8',
     });
@@ -107,6 +115,25 @@ describe('runner', () => {
       for (const leak of ['budget', 'Budget', 'hosting', 'meeting-a', 'Pat', 'Sam', 'fixtures'])
         expect(text).not.toContain(leak);
       expect(text).toMatch(/Overall: 1 meetings scored, 1 skipped/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('refuses an output reached through a symlink into the repo', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'outline-private-'));
+    try {
+      const repoFile = join(pkg, 'package.json');
+      const before = readFileSync(repoFile, 'utf8');
+      try {
+        symlinkSync(pkg, join(dir, 'dirlink'), 'junction');
+        symlinkSync(repoFile, join(dir, 'filelink.txt'));
+      } catch {
+        return; // symlinks not permitted on this machine
+      }
+      expect(run(fixtures, join(dir, 'filelink.txt')).status).toBe(1);
+      expect(run(fixtures, join(dir, 'dirlink', 'sub', 'out.txt')).status).toBe(1);
+      expect(readFileSync(repoFile, 'utf8')).toBe(before);
+      expect(existsSync(join(pkg, 'sub'))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

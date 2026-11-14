@@ -59,6 +59,8 @@ export function parseTranscript(text: string): TranscriptWord[] {
   return words;
 }
 
+/** A markdown heading or a line that is only bold: a section start, whether or not the outline has it. */
+const SECTION_HEADING = /^\s*(?:#{1,6}\s|(?:\*\*|__).+(?:\*\*|__)\s*:?\s*$)/;
 const BULLET = /^\s*[-*•+]\s+/;
 
 function headingCandidate(raw: string): string | null {
@@ -91,7 +93,8 @@ function matchScore(item: OutlineItem, line: string): number {
  * Splits final notes into one body per outline item. A line starts a section when it is not a bullet,
  * is about as short as an outline item, and its content words match that item's (all of them, or
  * Jaccard 0.75). Each item is used once; the next unmatched item in outline order wins ties.
- * Returns bodies indexed like `items`; an item with no heading found is null.
+ * A markdown heading or all-bold line that matches no item ends the current section, so its text is
+ * never filed under the section above. Returns bodies indexed like `items`; an item with no heading found is null.
  */
 export function splitNotes(notes: string, items: readonly OutlineItem[]): (string | null)[] {
   const bodies: (string[] | null)[] = items.map(() => null);
@@ -116,7 +119,8 @@ export function splitNotes(notes: string, items: readonly OutlineItem[]): (strin
       bodies[best] = [];
       current = best;
       last = best;
-    } else if (current >= 0 && raw.trim()) bodies[current]!.push(raw.replace(BULLET, '').trim());
+    } else if (SECTION_HEADING.test(raw)) current = -1;
+    else if (current >= 0 && raw.trim()) bodies[current]!.push(raw.replace(BULLET, '').trim());
   }
   return bodies.map((b) => (b === null ? null : b.join('\n')));
 }

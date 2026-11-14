@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Tuning } from '../../src/constants.js';
 import { matchOutline } from '../../src/match.js';
@@ -13,11 +14,29 @@ import { listPrivateMeetings, loadPrivateMeeting } from './load.js';
  * Prints numbers only: no text, headings, names or folder names. Meetings are numbered in name order.
  * The output file must be outside the repository.
  */
-const home = process.env.HOME ?? '';
-const root = resolve(process.argv[2] ?? `${home}/Documents/scrb-private-samples/outline-fill`);
-const outFile = resolve(process.argv[3] ?? join(root, '_results.txt'));
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-if (outFile === repoRoot || outFile.startsWith(repoRoot + sep)) {
+const root = resolve(
+  process.argv[2] ?? join(homedir(), 'Documents', 'scrb-private-samples', 'outline-fill'),
+);
+const repoRoot = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../..'));
+
+/** Real location of a path that may not exist yet: the target if present, else its deepest existing parent plus the rest. */
+function realTarget(path: string): string {
+  const tail: string[] = [];
+  let p = resolve(path);
+  for (;;) {
+    try {
+      return join(realpathSync(p), ...tail.reverse());
+    } catch {
+      const parent = dirname(p);
+      if (parent === p) return resolve(path);
+      tail.push(basename(p));
+      p = parent;
+    }
+  }
+}
+const outFile = realTarget(process.argv[3] ?? join(root, '_results.txt'));
+const rel = relative(repoRoot, outFile);
+if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
   console.error('Refusing to write results inside the repository.');
   process.exit(1);
 }
