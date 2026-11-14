@@ -28,8 +28,13 @@
   position: absolute;
   inset-block-start: var(--space-3);
   inset-inline-end: var(--space-3);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-xs);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   color: var(--color-text-muted);
   background: none;
   border: 1px solid var(--color-border);
@@ -39,4 +44,13 @@
 .inspectorToggle:hover {
   color: var(--color-text);
   background: var(--color-surface-hover);
+}
+
+.toggleIcon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
 }

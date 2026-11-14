@@ -5,6 +5,7 @@ import type {
   RecordingWarningKind,
   TranscriptionLag,
 } from '@scrb/contracts';
+import { LAG_NOTICE_MS } from '../../lib/lag.ts';
 import { formatElapsed } from '../../lib/format.ts';
 import styles from '../LiveScreen.module.css';
 
@@ -45,13 +46,10 @@ function lagText(lag: TranscriptionLag | null): { text: string; level: string } 
     case 'ok':
       return { text: 'Transcript: live', level: 'ok' };
     case 'lagging':
-      return {
-        text:
-          lag.lagMs < 1000
-            ? 'Transcript: catching up'
-            : `Transcript: ${Math.round(lag.lagMs / 1000)} s behind`,
-        level: 'warning',
-      };
+      // A short delay is normal, so only a sustained one is mentioned, and calmly.
+      return lag.lagMs >= LAG_NOTICE_MS
+        ? { text: 'Catching up', level: 'idle' }
+        : { text: 'Transcript: live', level: 'ok' };
     case 'restarting':
       return { text: 'Transcript: restarting', level: 'warning' };
     case 'failed':

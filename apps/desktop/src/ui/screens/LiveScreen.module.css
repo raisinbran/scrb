@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-5) var(--space-6);
 }
 
 .header {
@@ -11,7 +11,7 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-5);
   align-items: center;
-  padding-inline-end: 120px;
+  padding-inline-end: var(--space-7);
 }
 
 .title {
@@ -31,6 +31,7 @@
 .startButton,
 .stopButton {
   width: 88px;
+  height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   font-weight: 600;
   color: var(--color-text);
@@ -93,32 +94,34 @@ button:disabled {
 .sources {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-5);
+  gap: var(--space-2) var(--space-4);
   align-items: flex-start;
-  padding-block: var(--space-3) var(--space-2);
+  padding-block: var(--space-1) var(--space-2);
 }
 
 .pickers {
   display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-4);
-  min-width: min(320px, 100%);
+  flex: 1 1 420px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .picker {
-  display: flex;
+  display: grid;
+  grid-auto-rows: min-content;
   flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: min(180px, 100%);
-  max-width: 300px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--space-2);
+  align-items: center;
+  min-width: 0;
+  max-width: 360px;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
 .picker select {
   width: 100%;
+  height: var(--control-height);
   padding: var(--space-1) var(--space-2);
   color: var(--color-text);
   background: var(--color-surface-raised);
@@ -127,6 +130,7 @@ button:disabled {
 }
 
 .hint {
+  grid-column: 1 / -1;
   margin: 0;
   font-size: var(--text-xs);
 }
@@ -143,10 +147,9 @@ button:disabled {
 
 .meters {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 220px;
-  padding-block-start: var(--space-1);
+  gap: var(--space-4);
+  align-items: center;
+  height: var(--control-height);
 }
 
 .meterRow {
@@ -158,11 +161,12 @@ button:disabled {
 }
 
 .meterLabel {
-  width: 52px;
+  width: auto;
 }
 
 .meter {
-  flex: 1;
+  width: 64px;
+  flex: none;
   height: 8px;
   overflow: hidden;
   background: var(--color-surface-selected);
@@ -181,7 +185,7 @@ button:disabled {
 .indicators {
   display: flex;
   gap: var(--space-4);
-  padding-block-end: var(--space-1);
+  margin-inline-start: auto;
   font-size: var(--text-sm);
 }
 
@@ -201,10 +205,21 @@ button:disabled {
   color: var(--color-danger);
 }
 
+/* Notices float over the top of the transcript, so they never push it down. */
+.alertsSlot {
+  position: relative;
+  z-index: 5;
+  height: 0;
+}
+
 .alerts {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  max-width: min(560px, 100%);
 }
 
 .banner {
@@ -214,6 +229,7 @@ button:disabled {
   border: 1px solid var(--color-border);
   border-inline-start: 3px solid var(--color-text-muted);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
 }
 
 .banner[data-level='warning'] {

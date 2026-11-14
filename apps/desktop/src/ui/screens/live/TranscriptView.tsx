@@ -13,6 +13,7 @@ import {
   type Ref,
 } from 'react';
 import type { MeetingId } from '@scrb/contracts';
+import { IconButton } from '../../components/IconButton.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
 import { CorrectionEditor } from './CorrectionEditor.tsx';
@@ -69,6 +70,9 @@ function wordAt(target: EventTarget | null): { segmentId: string; wordId: string
   const segmentId = row?.dataset['segmentId'];
   return wordId && segmentId ? { wordId, segmentId } : null;
 }
+
+const STYLE_HELP =
+  'Provisional: text just heard, which may still change.\nFinal: text that has settled.\nCorrected: words you edited.';
 
 export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: TranscriptViewProps) {
   const backend = useBackend();
@@ -417,17 +421,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   return (
     <section className={styles.transcript} aria-label="Transcript">
       <div className={styles.toolbar}>
-        <div className={styles.legend} aria-label="Text styles">
-          <span className={styles.word} data-state="provisional">
-            Provisional
-          </span>
-          <span className={styles.word} data-state="final">
-            Final
-          </span>
-          <span className={styles.word} data-state="corrected">
-            Corrected
-          </span>
-        </div>
+        <IconButton label="Text styles" tip={STYLE_HELP} icon="info" className={styles.toolIcon} />
         {playback.positionMs !== null && (
           <span className={styles.playing} role="status">
             Playing {formatElapsed(playback.positionMs)}
@@ -437,40 +431,34 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           </span>
         )}
         <div className={styles.tools}>
-          <button
-            type="button"
-            className={styles.toolButton}
+          <IconButton
+            label="Undo"
+            icon="undo"
+            className={styles.toolIcon}
             disabled={!undoState.canUndo}
             onClick={undoState.undo}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
+          />
+          <IconButton
+            label="Redo"
+            icon="redo"
+            className={styles.toolIcon}
             disabled={!undoState.canRedo}
             onClick={undoState.redo}
-          >
-            Redo
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-label="Smaller transcript text"
+          />
+          <IconButton
+            label="Smaller transcript text"
+            icon="textSmaller"
+            className={styles.toolIcon}
             disabled={fontPx <= MIN_FONT_PX}
             onClick={() => onFontChange(fontPx - 1)}
-          >
-            A−
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-label="Larger transcript text"
+          />
+          <IconButton
+            label="Larger transcript text"
+            icon="textLarger"
+            className={styles.toolIcon}
             disabled={fontPx >= MAX_FONT_PX}
             onClick={() => onFontChange(fontPx + 1)}
-          >
-            A+
-          </button>
+          />
         </div>
       </div>
       {error && (

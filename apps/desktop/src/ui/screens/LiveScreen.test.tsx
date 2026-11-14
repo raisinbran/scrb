@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
@@ -266,16 +268,12 @@ describe('LiveScreen', () => {
       expect(screen.getByRole('alert').textContent).toContain('not affected');
     });
 
-    it('shows how far behind transcription is', async () => {
+    it('says "Catching up" only once the delay has reached 10 seconds', async () => {
       await startMeeting();
       await trigger('lagging');
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: 14 s behind');
-    });
-
-    it('says transcription is catching up when the delay is under a second', async () => {
-      await startMeeting();
-      act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 0 }));
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: catching up');
+      expect(screen.getByTestId('transcript-lag').textContent).toBe('Catching up');
+      act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 9_000 }));
+      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
     });
 
     it('shows the privacy banner until dismissed, and again at the next recording', async () => {
@@ -582,5 +580,42 @@ describe('LiveScreen', () => {
 
       expect(selected()).toEqual([word.textContent]);
     });
+  });
+});
+
+describe('Live row alignment', () => {
+  it('gives the dropdowns, Test mic and the meters one shared height', () => {
+    const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8').replace(
+      /\r\n/g,
+      '\n',
+    );
+    const heightOf = (selector: string) =>
+      new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{[^}]*height:\\s*([^;]+);`).exec(
+        css,
+      )?.[1];
+    expect(heightOf('.picker select')).toBe('var(--control-height)');
+    expect(heightOf('.button,\n.startButton,\n.stopButton')).toBe('var(--control-height)');
+    expect(heightOf('.meters')).toBe('var(--control-height)');
+  });
+});
+
+describe('Live text styles help', () => {
+  it('explains the three styles through a named info button', async () => {
+    const backend = new MockBackend();
+    await backend.call('startRecording', {});
+    render(
+      <BackendProvider backend={backend}>
+        <LiveScreen />
+      </BackendProvider>,
+    );
+    const info = await screen.findByRole('button', { name: 'Text styles' });
+    expect(screen.queryByText('Provisional')).toBeNull();
+    info.focus();
+    fireEvent.focus(info);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip.textContent).toContain('Provisional: text just heard');
+    expect(tip.textContent).toContain('Final: text that has settled');
+    expect(tip.textContent).toContain('Corrected: words you edited');
+    cleanup();
   });
 });

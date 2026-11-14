@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Tooltip } from '../components/Tooltip.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { readStored, writeStored } from '../lib/stored-value.ts';
@@ -27,11 +28,19 @@ function useIsNarrowWindow(): boolean {
 
 interface AppShellProps {
   screenId: ScreenId;
+  settingsOpen: boolean;
   onSelectScreen(id: ScreenId): void;
+  onOpenSettings(): void;
   children: ReactNode;
 }
 
-export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) {
+export function AppShell({
+  screenId,
+  settingsOpen,
+  onSelectScreen,
+  onOpenSettings,
+  children,
+}: AppShellProps) {
   const [sidebarWidth, setSidebarWidth] = usePanelSize('scrb.sidebar.width', SIDEBAR_LIMITS);
   const [inspectorWidth, setInspectorWidth] = usePanelSize(
     'scrb.inspector.width',
@@ -85,7 +94,12 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <PrivacyBanner />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: sidebarWidth }}>
-          <Sidebar selected={screenId} onSelect={onSelectScreen} />
+          <Sidebar
+            selected={screenId}
+            settingsOpen={settingsOpen}
+            onSelect={onSelectScreen}
+            onOpenSettings={onOpenSettings}
+          />
         </div>
         <ResizeHandle
           label="Resize sidebar"
@@ -106,14 +120,19 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
           onPointerDown={noteUserScroll}
           onKeyDown={noteUserScroll}
         >
-          <button
-            type="button"
-            className={styles.inspectorToggle}
-            aria-expanded={inspectorOpen}
-            onClick={toggleInspector}
-          >
-            {inspectorOpen ? 'Hide inspector' : 'Show inspector'}
-          </button>
+          <Tooltip label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}>
+            <button
+              type="button"
+              className={styles.inspectorToggle}
+              aria-label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}
+              aria-expanded={inspectorOpen}
+              onClick={toggleInspector}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toggleIcon}>
+                <path d="M4 5h16v14H4zM15 5v14" />
+              </svg>
+            </button>
+          </Tooltip>
           {children}
         </main>
         {inspectorOpen && (
