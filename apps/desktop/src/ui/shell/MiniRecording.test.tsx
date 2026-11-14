@@ -448,4 +448,13 @@ describe('MiniRecording', () => {
     expect(css).toMatch(/\.body,\s*\.idle \{[^}]*justify-content: flex-start/);
     expect(rule('elapsed')).not.toMatch(/font-family|font-size/);
   });
+
+  it('uses only the shared corner radius token, which tokens.css defines', () => {
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const tokens = readFileSync(path.resolve(__dirname, '../theme/tokens.css'), 'utf8');
+    const used = new Set(css.match(/var\(--radius[\w-]*\)/g));
+    expect([...used]).toEqual(['var(--radius)']);
+    expect(tokens).toMatch(/--radius:/);
+    expect(css).not.toMatch(/border-radius: \d+px/);
+  });
 });

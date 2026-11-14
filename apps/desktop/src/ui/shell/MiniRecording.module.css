@@ -103,7 +103,7 @@
   pointer-events: none;
   content: attr(data-tip);
   background: var(--color-text);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   opacity: 0;
   transition: opacity 80ms linear 0s;
 }
@@ -213,7 +213,7 @@
   cursor: pointer;
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .flag {
