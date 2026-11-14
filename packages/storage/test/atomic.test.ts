@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -9,6 +9,16 @@ import { tempDir } from './helpers.ts';
 const STEPS: WriteStep[] = ['temp-created', 'temp-partly-written', 'temp-synced', 'renamed'];
 
 describe('atomicWriteFile', () => {
+  it.skipIf(process.platform === 'win32')(
+    'creates sensitive documents with private POSIX mode',
+    async () => {
+      const dir = await tempDir();
+      const file = path.join(dir, 'transcript.json');
+      await atomicWriteFile(file, 'invented transcript');
+      expect((await stat(file)).mode & 0o777).toBe(0o600);
+    },
+  );
+
   it('replaces the file and leaves no temp file', async () => {
     const dir = await tempDir();
     const file = path.join(dir, 'transcript.json');

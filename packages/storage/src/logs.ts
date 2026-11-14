@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { appendFile, chmod, mkdir, readdir, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 
 export const LOG_RETENTION_DAYS = 14;
@@ -58,12 +58,19 @@ export class Logger {
     const day = at.toISOString().slice(0, 10);
     this.queue = this.queue
       .then(async () => {
-        await mkdir(this.dir, { recursive: true });
+        await mkdir(this.dir, {
+          recursive: true,
+          mode: process.platform === 'win32' ? undefined : 0o700,
+        });
         if (day !== this.currentDay) {
           this.currentDay = day;
           await this.prune();
         }
-        await appendFile(path.join(this.dir, `scrb-${day}.log`), line);
+        const file = path.join(this.dir, `scrb-${day}.log`);
+        await appendFile(file, line, {
+          mode: process.platform === 'win32' ? undefined : 0o600,
+        });
+        if (process.platform !== 'win32') await chmod(file, 0o600);
       })
       .catch(() => undefined);
   }
