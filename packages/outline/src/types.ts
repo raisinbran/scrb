@@ -12,6 +12,8 @@ export interface OutlineItem {
 export interface ParseResult {
   items: OutlineItem[];
   notes: string[];
+  /** Next unused id number. The caller saves it and passes it back, so an id is never reissued. */
+  nextId: number;
   /** Set when the text is rejected as a whole; items is then empty. */
   error?: 'empty' | 'tooLong' | 'tooManyItems';
 }

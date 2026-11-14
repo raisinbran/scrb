@@ -230,4 +230,20 @@ describe('matchOutline', () => {
     expect(placed.find((b) => b.pin)).toMatchObject({ itemId: 'o2', confidence: 'confirmed' });
     expect(withNew.find((i) => i.id === 'o2')!.text).toBe('Hiring plan');
   });
+
+  it('flags a pin on a deleted last heading and does not confirm it under a new heading', () => {
+    const words = transcript([
+      ['A', BUDGET],
+      ['B', ROADMAP],
+    ]);
+    const road = words.findIndex((w) => w.speaker === 'B');
+    const first = parseOutline('Budget\nHiring plan\nProduct roadmap');
+    const pin = makePin('p1', words, road, road + 4, first.items[2]!.id);
+    const without = parseOutline('Budget\nHiring plan', first.items, first.nextId);
+    const added = parseOutline('Budget\nHiring plan\nTravel', without.items, without.nextId);
+    const located = locatePins([pin], words, added.items);
+    expect(located[0]!.status).toBe('needsRecheck');
+    const placed = matchOutline(words, added.items, { pins: located });
+    expect(placed.some((b) => b.pin || b.confidence === 'confirmed')).toBe(false);
+  });
 });
