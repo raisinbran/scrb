@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scribe icon concepts</title>
+    <style>
+      body {
+        font:
+          14px system-ui,
+          sans-serif;
+        margin: 24px;
+        background: #888;
+        color: #111;
+      }
+      h1 {
+        font-size: 20px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 24px 0 8px;
+      }
+      .row {
+        display: flex;
+        gap: 0;
+        margin-bottom: 6px;
+        align-items: stretch;
+      }
+      .label {
+        flex: 0 0 70px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+      }
+      .panel {
+        padding: 14px 18px;
+        display: flex;
+        align-items: flex-end;
+        gap: 18px;
+        flex: 0 0 300px;
+      }
+      .big {
+        flex: 0 0 580px;
+        justify-content: center;
+      }
+      .light {
+        background: #f4f4f6;
+        color: #111;
+      }
+      .dark {
+        background: #1a1b1e;
+        color: #f2f3f5;
+      }
+      figure {
+        margin: 0;
+        text-align: center;
+        font-size: 11px;
+      }
+      figure img {
+        display: block;
+        margin: 0 auto 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Scribe app icon concepts</h1>
+    <p>
+      Sizes 16, 32 and 128 px on light and dark backgrounds, then 512 px. The macOS version has the
+      Big Sur margin and shadow; the Windows version fills the canvas.
+    </p>
+    <h2>A. Speech bubble with text lines</h2>
+    <div class="row">
+      <div class="label">macOS</div>
+      <div class="panel light">
+        <figure><img src="scribe-bubble.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-bubble.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-bubble.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-bubble.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-bubble.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-bubble.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">Windows</div>
+      <div class="panel light">
+        <figure><img src="scribe-bubble-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-bubble-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-bubble-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-bubble-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-bubble-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-bubble-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">512</div>
+      <div class="panel big light">
+        <figure><img src="scribe-bubble.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+      <div class="panel big dark">
+        <figure><img src="scribe-bubble-win.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+    </div>
+    <h2>B. Waveform turning into text lines</h2>
+    <div class="row">
+      <div class="label">macOS</div>
+      <div class="panel light">
+        <figure><img src="scribe-wave.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-wave.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-wave.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-wave.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-wave.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-wave.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">Windows</div>
+      <div class="panel light">
+        <figure><img src="scribe-wave-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-wave-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-wave-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-wave-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-wave-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-wave-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">512</div>
+      <div class="panel big light">
+        <figure><img src="scribe-wave.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+      <div class="panel big dark">
+        <figure><img src="scribe-wave-win.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+    </div>
+    <h2>C. Pen nib with sound waves</h2>
+    <div class="row">
+      <div class="label">macOS</div>
+      <div class="panel light">
+        <figure><img src="scribe-nib.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-nib.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-nib.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-nib.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-nib.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-nib.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">Windows</div>
+      <div class="panel light">
+        <figure><img src="scribe-nib-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-nib-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-nib-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+      <div class="panel dark">
+        <figure><img src="scribe-nib-win.svg" width="16" height="16" alt="" />16</figure>
+        <figure><img src="scribe-nib-win.svg" width="32" height="32" alt="" />32</figure>
+        <figure><img src="scribe-nib-win.svg" width="128" height="128" alt="" />128</figure>
+      </div>
+    </div>
+    <div class="row">
+      <div class="label">512</div>
+      <div class="panel big light">
+        <figure><img src="scribe-nib.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+      <div class="panel big dark">
+        <figure><img src="scribe-nib-win.svg" width="512" height="512" alt="" />512</figure>
+      </div>
+    </div>
+  </body>
+</html>

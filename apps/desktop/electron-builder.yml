@@ -12,6 +12,7 @@ files:
 # Tools and libraries are staged per platform (scripts/package-mac.sh, scripts/package-win.ps1);
 # models are installed separately.
 mac:
+  icon: assets/icons/icon.icns
   extraResources:
     - from: build/mac-stage/bin
       to: bin
@@ -25,6 +26,7 @@ mac:
     NSMicrophoneUsageDescription: Scribe records your microphone so it can transcribe your meetings on this Mac. Nothing leaves your computer.
     NSAudioCaptureUsageDescription: Scribe records the sound of your meeting app (the other participants) so it can transcribe it on this Mac. Nothing leaves your computer.
 win:
+  icon: assets/icons/icon.ico
   target:
     - target: dir
       arch: x64
