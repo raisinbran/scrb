@@ -6,8 +6,11 @@ import { join } from 'node:path';
 const executable = process.env['SCRB_PACKAGED_APP'];
 
 // Runs the built Scribe.app against an invented HOME. Set SCRB_PACKAGED_APP to
-// .../Scribe.app/Contents/MacOS/Scribe.
+// .../Scribe.app/Contents/MacOS/Scribe (macOS) or ...\win-unpacked\Scribe.exe (Windows).
 test.skip(!executable, 'set SCRB_PACKAGED_APP to run');
+
+// Both platforms' refusals start with this; macOS also names its install command.
+const refusal = process.platform === 'darwin' ? '--install-models' : 'Scribe cannot record yet';
 
 test('packaged app keeps the saved library, is named Scribe, and refuses to record without models', async () => {
   const home = mkdtempSync(join(tmpdir(), 'scrb-home-'));
@@ -20,7 +23,10 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
   const app = await electron.launch({
     executablePath: executable!,
     args: [`--user-data-dir=${userData}`],
-    env: { ...process.env, HOME: home } as Record<string, string>,
+    env: { ...process.env, HOME: home, LOCALAPPDATA: join(home, 'AppData', 'Local') } as Record<
+      string,
+      string
+    >,
   });
   const page = await app.firstWindow();
   const call = (name: string, request?: unknown) =>
@@ -34,7 +40,7 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
   expect(await call('getSetupStatus')).toMatchObject({ ok: true, value: { complete: false } });
   expect(await call('startRecording', {})).toMatchObject({
     ok: false,
-    error: { message: expect.stringContaining('--install-models') },
+    error: { message: expect.stringContaining(refusal) },
   });
   // Through the UI's hybrid backend: the Live screen must show the refusal, not simulate recording.
   await page.evaluate(() =>
@@ -44,6 +50,6 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
   await page.getByRole('button', { name: 'Live', exact: true }).click();
   await page.getByRole('button', { name: 'Start' }).click();
   await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-  await expect(page.getByText(/--install-models/).first()).toBeVisible();
+  await expect(page.getByText(refusal).first()).toBeVisible();
   await app.close();
 });
