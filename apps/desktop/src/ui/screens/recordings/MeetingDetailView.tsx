@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
-import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
+import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, useFocusFallback } from '../Screen.tsx';
+import screenStyles from '../Screen.module.css';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
@@ -20,6 +28,7 @@ import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
+import { IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
@@ -141,14 +150,12 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
       <span className={`${styles.time} ${styles.playerTime}`}>
         {formatElapsed(positionMs)} / {formatElapsed(durationMs)}
       </span>
-      <button
-        type="button"
-        className={`${styles.button} ${styles.toggleButton}`}
+      <IconButton
+        label={muted ? 'Unmute' : 'Mute'}
+        icon={muted ? 'speakerOff' : 'speaker'}
         aria-pressed={muted}
         onClick={playback.toggleMute}
-      >
-        {muted ? 'Unmute' : 'Mute'}
-      </button>
+      />
       <input
         type="range"
         className={styles.volume}
@@ -211,6 +218,81 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
         )}
       </section>
     </div>
+  );
+}
+
+/** The page title is "Recordings", as on the list; the chevron beside it goes back to the list. */
+function DetailTitle({
+  headingRef,
+  onBack,
+}: {
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  onBack(): void;
+}) {
+  return (
+    <div className={styles.pageTitle}>
+      <span className={styles.backSlot}>
+        <IconButton label="Back to Recordings" icon="back" onClick={onBack} />
+      </span>
+      <h1 ref={headingRef} className={screenStyles.title} tabIndex={-1}>
+        Recordings
+      </h1>
+    </div>
+  );
+}
+
+/** Looks like a heading; click to edit in place. Enter or leaving the field saves, Escape cancels. */
+function MeetingTitle({
+  title,
+  readOnly,
+  onSave,
+}: {
+  title: string;
+  readOnly: boolean;
+  onSave(title: string): Promise<void>;
+}) {
+  const [draft, setDraft] = useState(title);
+  const [error, setError] = useState<string | null>(null);
+  const cancelled = useRef(false);
+
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(title);
+      return;
+    }
+    const next = draft.trim();
+    if (!next || next === title) {
+      setDraft(title);
+      return;
+    }
+    setError(null);
+    onSave(next).catch((failure: unknown) => {
+      setDraft(title);
+      setError(failure instanceof Error ? failure.message : 'The title could not be saved.');
+    });
+  };
+
+  return (
+    <>
+      <input
+        className={styles.meetingTitle}
+        aria-label="Meeting title"
+        value={draft}
+        readOnly={readOnly}
+        maxLength={200}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+          else if (event.key === 'Escape') {
+            cancelled.current = true;
+            event.currentTarget.blur();
+          }
+        }}
+        onBlur={commit}
+      />
+      {error && <p role="alert">{error}</p>}
+    </>
   );
 }
 
@@ -477,44 +559,49 @@ function LoadedDetail(props: LoadedDetailProps) {
   return (
     <div className={styles.detail}>
       <header className={styles.detailHead}>
-        <button type="button" className={styles.back} onClick={() => onBack()}>
-          ← Recordings
-        </button>
-        <h1 ref={heading} className={styles.detailTitle} tabIndex={-1}>
-          {meeting.title}
-        </h1>
+        <DetailTitle headingRef={heading} onBack={() => onBack()} />
+        <MeetingTitle
+          key={meeting.title}
+          title={meeting.title}
+          readOnly={!canEdit}
+          onSave={async (title) => {
+            await backend.call('updateMeeting', { meetingId, title });
+            onChanged();
+          }}
+        />
         <p className={styles.muted}>
-          {formatMeetingDate(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
+          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
           {meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
           {status ? ` · ${status}` : ''}
           {summaryLabel ? ` · ${summaryLabel}` : ''}
         </p>
         <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.button}
+          <IconButton
+            label="Export"
+            icon="export"
             disabled={unfinished}
             onClick={() => setDialog('export')}
-          >
-            Export
-          </button>
-          <button type="button" className={styles.button} onClick={() => openFolder('meeting')}>
-            Open meeting folder
-          </button>
-          <button type="button" className={styles.button} onClick={() => openFolder('audio')}>
-            Open audio folder
-          </button>
+          />
+          <IconButton
+            label="Open meeting folder"
+            icon="folder"
+            onClick={() => openFolder('meeting')}
+          />
+          <IconButton
+            label="Open audio folder"
+            icon="audioFolder"
+            onClick={() => openFolder('audio')}
+          />
           <button type="button" className={styles.button} onClick={() => setDialog('edit')}>
             Edit details
           </button>
-          <button
-            type="button"
-            className={styles.dangerQuiet}
+          <IconButton
+            label="Delete"
+            icon="trash"
+            danger
             disabled={unfinished || meeting.status === 'deleting'}
             onClick={() => setDialog('delete')}
-          >
-            Delete
-          </button>
+          />
         </div>
         {folderError && <p role="alert">{folderError}</p>}
         {meeting.status === 'recovered' && (
@@ -578,22 +665,18 @@ function LoadedDetail(props: LoadedDetailProps) {
           <span className={styles.fontControls}>
             {canEdit && (
               <>
-                <button
-                  type="button"
-                  className={styles.button}
+                <IconButton
+                  label="Undo"
+                  icon="undo"
                   disabled={!undoState.canUndo}
                   onClick={undoState.undo}
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  className={styles.button}
+                />
+                <IconButton
+                  label="Redo"
+                  icon="redo"
                   disabled={!undoState.canRedo}
                   onClick={undoState.redo}
-                >
-                  Redo
-                </button>
+                />
               </>
             )}
             <button
@@ -724,9 +807,7 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
   if (state.status === 'failed') {
     return (
       <div className={styles.detailHead}>
-        <button type="button" className={styles.back} onClick={() => onBack()}>
-          ← Recordings
-        </button>
+        <DetailTitle onBack={() => onBack()} />
         <p role="alert">{state.message}</p>
       </div>
     );

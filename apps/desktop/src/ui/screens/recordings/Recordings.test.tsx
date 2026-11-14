@@ -68,9 +68,7 @@ describe('Recordings', () => {
       (await button(/Weekly project sync/)).focus();
       await openMeeting(/Weekly project sync/);
       await waitFor(() =>
-        expect(document.activeElement).toBe(
-          screen.getByRole('heading', { name: 'Weekly project sync' }),
-        ),
+        expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Recordings' })),
       );
     });
 
@@ -278,7 +276,9 @@ describe('Recordings', () => {
       await startImport();
       expect(await screen.findByRole('progressbar', { name: /Importing/ })).toBeTruthy();
       fireEvent.click(await screen.findByRole('button', { name: 'Open' }, SLOW));
-      expect(await screen.findByRole('heading', { name: 'Client interview.m4a' })).toBeTruthy();
+      expect(((await screen.findByLabelText('Meeting title')) as HTMLInputElement).value).toBe(
+        'Client interview.m4a',
+      );
     });
 
     it('cancels and leaves no meeting', async () => {
@@ -773,9 +773,57 @@ describe('Recordings', () => {
       fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'New name' } });
       fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-10-01' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(await screen.findByRole('heading', { name: 'New name' })).toBeTruthy();
+      await waitFor(() =>
+        expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe('New name'),
+      );
       const meeting = await backend.call('getMeeting', { meetingId: 'meeting-recovered' });
       expect(meeting.startedAt).toBe('2026-10-01T18:00:00Z');
+    });
+
+    it('renames the meeting in place: Enter saves, Escape cancels', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      const title = (await screen.findByLabelText('Meeting title')) as HTMLInputElement;
+      title.focus();
+      fireEvent.change(title, { target: { value: 'Dropped name' } });
+      fireEvent.keyDown(title, { key: 'Escape' });
+      expect(title.value).toBe('Vendor call');
+      title.focus();
+      fireEvent.change(title, { target: { value: 'Quick rename' } });
+      fireEvent.keyDown(title, { key: 'Enter' });
+      await waitFor(async () =>
+        expect((await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).title).toBe(
+          'Quick rename',
+        ),
+      );
+    });
+
+    it('keeps the Recordings title and a named back button', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      expect(screen.getByRole('heading', { level: 1, name: 'Recordings' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
+      expect(await screen.findByLabelText('Search recordings')).toBeTruthy();
+    });
+
+    it('names every icon button', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      for (const name of [
+        'Export',
+        'Open meeting folder',
+        'Open audio folder',
+        'Delete',
+        'Undo',
+        'Redo',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeTruthy();
+      }
+      const mute = screen.getByRole('button', { name: 'Mute' });
+      fireEvent.click(mute);
+      expect(screen.getByRole('button', { name: 'Unmute' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      );
     });
 
     it('moves between tabs with the arrow keys', async () => {

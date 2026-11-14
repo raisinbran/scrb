@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
 import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
-import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
+import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
@@ -46,7 +46,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
       >
         <span className={styles.rowTitle}>{meeting.title}</span>
         <span className={styles.muted}>
-          {formatMeetingDate(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
+          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
           {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
         </span>
         <span className={styles.badges}>
