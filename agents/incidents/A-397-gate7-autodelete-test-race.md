@@ -1,4 +1,4 @@
-### A-373 — 2026-11-14 — Claude Code (Sonnet 5.5) / Mac desktop — Gate 7 auto-delete test waited for the first step of deletion, not the last
+### A-397 — 2026-11-14 — Claude Code (Sonnet 5.5) / Mac desktop — Gate 7 auto-delete test waited for the first step of deletion, not the last
 - **Status / attribution:** Confirmed agent error in the test I wrote (PR #195); no application defect.
 - **What failed:** The whole-meeting round waited until the meeting folders were gone, then read `listMeetings`. A sweep renames and removes the folder first and deletes the index rows afterwards, so on macOS CI the list still showed "Old alpha" and the test failed on PR #223 and PR #245. Round 1 had the same shape (checked one meeting's audio only). It passed every time on my Mac, and I did not repeat it or read the delete order in `removeMeeting` before calling it done.
 - **Impact:** Two red macOS CI runs on unrelated PRs and owner/agent time to diagnose.
