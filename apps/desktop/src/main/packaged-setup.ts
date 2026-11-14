@@ -9,9 +9,28 @@ import digests from '../../../../scripts/model-digests.json';
 export const USER_DATA_FOLDER = path.join('@scrb', 'desktop');
 export const MODELS_FOLDER_NAME = 'Scribe';
 
-/** The one place models are installed (scripts/package-mac.sh --install-models writes here). */
-export const modelsDirFor = (home: string): string =>
-  path.join(home, 'Library', 'Application Support', MODELS_FOLDER_NAME, 'models');
+/**
+ * The one place models are installed. macOS: `~/Library/Application Support/Scribe/models`
+ * (scripts/package-mac.sh --install-models writes here). Windows: `%LOCALAPPDATA%\\Scribe\\models`,
+ * local rather than roaming so the ~810 MB never syncs with a roaming profile.
+ */
+export function modelsDirFor(
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+  env: { LOCALAPPDATA?: string } = process.env,
+): string {
+  if (platform === 'win32')
+    return path.win32.join(
+      env.LOCALAPPDATA || path.win32.join(home, 'AppData', 'Local'),
+      MODELS_FOLDER_NAME,
+      'models',
+    );
+  return path.join(home, 'Library', 'Application Support', MODELS_FOLDER_NAME, 'models');
+}
+
+/** File name of a bundled tool: Windows tools end in `.exe`. */
+export const toolFileName = (name: string, platform: NodeJS.Platform = process.platform): string =>
+  platform === 'win32' ? `${name}.exe` : name;
 /**
  * The folder Electron used before the rename (the package name `@scrb/desktop` under the
  * platform's application-data folder), so saved library pointers and settings stay found.
@@ -111,15 +130,18 @@ export async function resolvePackagedSetup(options: {
   modelsDir: string;
   /** Tests only: the pinned table is the default. */
   digests?: DigestTable;
+  /** Tests only: the running platform is the default. */
+  platform?: NodeJS.Platform;
 }): Promise<PackagedSetup> {
   const { resourcesPath, userDataPath, modelsDir } = options;
   const table = options.digests ?? DIGESTS;
+  const platform = options.platform ?? process.platform;
   const bin = path.join(resourcesPath, 'bin');
   const configDir = path.join(userDataPath, 'config');
   const missing: string[] = [];
   const tool = (name: (typeof TOOLS)[number]): string => {
-    const file = path.join(bin, name);
-    if (!existsSync(file)) missing.push(`tool ${name}`);
+    const file = path.join(bin, toolFileName(name, platform));
+    if (!existsSync(file)) missing.push(`tool ${toolFileName(name, platform)}`);
     return file;
   };
   const tools = Object.fromEntries(TOOLS.map((name) => [name, tool(name)])) as Record<
@@ -192,6 +214,11 @@ export function pinUserData(
   return dir;
 }
 
-export function missingMessage(missing: string[]): string {
+export function missingMessage(
+  missing: string[],
+  platform: NodeJS.Platform = process.platform,
+): string {
+  if (platform === 'win32')
+    return `Scribe cannot record yet. Missing: ${missing.join(', ')}. The Windows tools and models are not installed (see docs/plans/packaged-windows-app.md); models belong in %LOCALAPPDATA%\\Scribe\\models. Reopen Scribe after installing them.`;
   return `Scribe cannot record yet. Missing: ${missing.join(', ')}. Run scripts/package-mac.sh --install-models from the scrb folder, then reopen Scribe.`;
 }
