@@ -23,9 +23,6 @@ const MIN_SHARED = 3;
 const MERGE_MIN_SHARED = 2;
 /** A later item must come this long after the one it overrides. */
 const OVERRIDE_GAP_SECONDS = 60;
-const OVERRIDE_JACCARD = 0.35;
-const TOPIC_SHARE = 0.15;
-const MIN_ITEMS_FOR_TOPIC = 12;
 
 type Pooled = ActionItem | DecisionItem;
 
@@ -33,17 +30,6 @@ const ownerOf = (item: Pooled): string | null =>
   item.kind !== 'action' || [NOT_SPECIFIED, UNCONFIRMED, EVERYONE].includes(item.owner)
     ? null
     : item.owner.toLowerCase();
-
-/** Words in many of a meeting's items name its topic and say nothing about likeness. */
-function topicWords(items: Pooled[]): Set<string> {
-  const counts = new Map<string, number>();
-  for (const item of items)
-    for (const token of contentTokens(item.text)) counts.set(token, (counts.get(token) ?? 0) + 1);
-  const topic = new Set<string>();
-  if (items.length >= MIN_ITEMS_FOR_TOPIC)
-    for (const [token, count] of counts) if (count / items.length >= TOPIC_SHARE) topic.add(token);
-  return topic;
-}
 
 function sharedCount(a: Set<string>, b: Set<string>): number {
   return coverage(a, b) * a.size;
@@ -78,15 +64,6 @@ function absorb(winner: Pooled, loser: Pooled): void {
     winner.owner = loser.owner;
     winner.flags = winner.flags.filter((flag) => flag !== 'owner_unconfirmed');
   }
-}
-
-const VERB_AFTER =
-  /\b(?:will|shall|should|must|would|can|could|to|won't|wont)\s+(?:not\s+|never\s+|also\s+)*([a-z]+)/i;
-
-/** The stemmed word after "will", "should", "to" and the like, or null when the wording has none. */
-function actionVerb(item: Pooled): string | null {
-  const word = VERB_AFTER.exec(item.text)?.[1];
-  return word ? ([...contentTokens(word)][0] ?? null) : null;
 }
 
 /** Looser repeat merge than the first dedupe: same kind, same polarity, close in the meeting. */
@@ -124,31 +101,24 @@ function mergeNearDuplicates(items: Pooled[]): Pooled[] {
 }
 
 /**
- * "Later change overrides earlier": an earlier item is dropped when a later one on the same
- * subject, with the same owner or both ownerless, says the opposite (one has a negation, the other does not). The later item stays
- * and keeps the earlier one's line in `alsoAt`, so the history is still reachable.
+ * "Later change overrides earlier", deliberately narrow: an earlier item is dropped only when a
+ * later one at least a minute on has the same kind and owner (or neither has one) and exactly the
+ * same content words, the negation being the only difference. A different verb, object, date or
+ * qualifier is therefore never a reversal. The later item stays and keeps the earlier one's line
+ * in `alsoAt`, so the history is still reachable.
  */
-function dropOverridden(items: Pooled[], topic: Set<string>): Pooled[] {
-  const bare = (item: Pooled) =>
-    new Set([...contentTokens(item.text)].filter((t) => !topic.has(t)));
+function dropOverridden(items: Pooled[]): Pooled[] {
   const dropped = new Set<Pooled>();
   for (const earlier of items) {
-    const a = bare(earlier);
+    const a = contentTokens(earlier.text);
     for (const later of items) {
       if (later === earlier || later.kind !== earlier.kind || dropped.has(later)) continue;
       if (later.evidence.timestampSec - earlier.evidence.timestampSec < OVERRIDE_GAP_SECONDS)
         continue;
       if (hasNegation(later.text) === hasNegation(earlier.text)) continue;
-      // Only the same person (or nobody) can take back a task; Bob declining Alice's task overrides nothing.
       if (ownerOf(later) !== ownerOf(earlier)) continue;
-      // Preparing slides and not reviewing them are two obligations: actions must name the same verb.
-      if (
-        later.kind === 'action' &&
-        (!actionVerb(later) || actionVerb(later) !== actionVerb(earlier))
-      )
-        continue;
-      const b = bare(later);
-      if (sharedCount(a, b) < MIN_SHARED || jaccard(a, b) < OVERRIDE_JACCARD) continue;
+      const b = contentTokens(later.text);
+      if (a.size < MIN_SHARED || a.size !== b.size || sharedCount(a, b) !== a.size) continue;
       later.alsoAt.push(earlier.evidence);
       dropped.add(earlier);
       break;
@@ -177,9 +147,8 @@ export function reconcileItems(
   options: ReconcileOptions = {},
 ): Pooled[] {
   const { itemsPerMinute, minCap } = { ...DEFAULTS, ...options };
-  const topic = topicWords(items);
   let out = mergeNearDuplicates(items);
-  out = dropOverridden(out, topic);
+  out = dropOverridden(out);
   if (itemsPerMinute > 0)
     out = capItems(out, Math.max(minCap, Math.ceil(minutes * itemsPerMinute)));
   return out;

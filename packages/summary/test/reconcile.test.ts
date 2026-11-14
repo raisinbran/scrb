@@ -105,6 +105,36 @@ describe('reconcileItems', () => {
     expect(reconcileItems([prepare, review], 20)).toEqual([prepare, review]);
   });
 
+  it('does not treat a different object as taking the task back', () => {
+    const proto = action(
+      'Alice will prepare the prototype presentation slides for Monday',
+      'Alice',
+      100,
+    );
+    const budget = action(
+      'Alice will not prepare the budget presentation slides for Monday',
+      'Alice',
+      900,
+    );
+    expect(reconcileItems([proto, budget], 20)).toEqual([proto, budget]);
+  });
+
+  it('does not treat a different due date or qualifier as taking the task back', () => {
+    const monday = action(
+      'Alice will prepare the prototype presentation slides for Monday',
+      'Alice',
+      100,
+    );
+    const friday = action(
+      'Alice will not prepare the prototype presentation slides for Friday',
+      'Alice',
+      900,
+    );
+    expect(reconcileItems([monday, friday], 20)).toEqual([monday, friday]);
+    const plain = action('Alice will not prepare the prototype presentation slides', 'Alice', 900);
+    expect(reconcileItems([monday, plain], 20)).toEqual([monday, plain]);
+  });
+
   it('removes nothing for a negation about a different matter', () => {
     const a = decision('The remote will include an LCD screen for channel display', 100);
     const b = decision('The remote will not include a speech recognition chip', 900);
