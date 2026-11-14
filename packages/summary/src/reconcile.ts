@@ -80,6 +80,15 @@ function absorb(winner: Pooled, loser: Pooled): void {
   }
 }
 
+const VERB_AFTER =
+  /\b(?:will|shall|should|must|would|can|could|to|won't|wont)\s+(?:not\s+|never\s+|also\s+)*([a-z]+)/i;
+
+/** The stemmed word after "will", "should", "to" and the like, or null when the wording has none. */
+function actionVerb(item: Pooled): string | null {
+  const word = VERB_AFTER.exec(item.text)?.[1];
+  return word ? ([...contentTokens(word)][0] ?? null) : null;
+}
+
 /** Looser repeat merge than the first dedupe: same kind, same polarity, close in the meeting. */
 function mergeNearDuplicates(items: Pooled[]): Pooled[] {
   const kept: Pooled[] = [];
@@ -132,6 +141,12 @@ function dropOverridden(items: Pooled[], topic: Set<string>): Pooled[] {
       if (hasNegation(later.text) === hasNegation(earlier.text)) continue;
       // Only the same person (or nobody) can take back a task; Bob declining Alice's task overrides nothing.
       if (ownerOf(later) !== ownerOf(earlier)) continue;
+      // Preparing slides and not reviewing them are two obligations: actions must name the same verb.
+      if (
+        later.kind === 'action' &&
+        (!actionVerb(later) || actionVerb(later) !== actionVerb(earlier))
+      )
+        continue;
       const b = bare(later);
       if (sharedCount(a, b) < MIN_SHARED || jaccard(a, b) < OVERRIDE_JACCARD) continue;
       later.alsoAt.push(earlier.evidence);

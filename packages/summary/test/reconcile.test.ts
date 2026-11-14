@@ -86,9 +86,23 @@ describe('reconcileItems', () => {
   });
 
   it('still drops an action its own owner takes back later', () => {
-    const first = action('Prepare the prototype presentation slides', 'Alice', 100);
-    const back = action('Will not prepare the prototype presentation slides', 'Alice', 900);
+    const first = action('Alice will prepare the prototype presentation slides', 'Alice', 100);
+    const back = action('Alice will not prepare the prototype presentation slides', 'Alice', 900);
     expect(reconcileItems([first, back], 20)).toEqual([back]);
+  });
+
+  it('does not treat a different verb by the same owner as taking the task back', () => {
+    const prepare = action(
+      'Alice will prepare the prototype presentation slides for Monday',
+      'Alice',
+      100,
+    );
+    const review = action(
+      'Alice will not review the prototype presentation slides for Monday',
+      'Alice',
+      900,
+    );
+    expect(reconcileItems([prepare, review], 20)).toEqual([prepare, review]);
   });
 
   it('removes nothing for a negation about a different matter', () => {
