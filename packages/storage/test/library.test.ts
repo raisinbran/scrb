@@ -1,6 +1,6 @@
 import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { activeSpeakers, resolveDisplay } from '../src/corrections.ts';
 import { MeetingNotFoundError, StaleRevisionError } from '../src/errors.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
@@ -420,6 +420,59 @@ describe('delete', () => {
     const kept = library.vocabulary.list();
     expect(kept).toHaveLength(1);
     expect(kept[0]?.contexts.map((c) => c.meetingId)).toEqual([second.id]);
+    await library.close();
+  });
+
+  it('does not deadlock when a profile assignment holds the global lock and wants this meeting', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library, 'Secret plans');
+    const profile = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const locked = library as unknown as {
+      withLock<T>(key: string, work: () => Promise<T>): Promise<T>;
+    };
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held!: () => void;
+    const holding = new Promise<void>((resolve) => (held = resolve));
+    // Same order as profile matching: global lock first, then this meeting's lock.
+    const assignment = locked.withLock('voice-profile-assignments', async () => {
+      held();
+      await gate;
+      await locked.withLock(id, async () => undefined);
+    });
+    await holding;
+    const deleting = library.deleteMeeting(id, false, true);
+    release();
+    const outcome = await Promise.race([
+      Promise.all([assignment, deleting]).then(([, report]) => report),
+      new Promise<'deadlock'>((resolve) => setTimeout(() => resolve('deadlock'), 5000)),
+    ]);
+
+    expect(outcome).not.toBe('deadlock');
+    expect(library.voiceProfiles.get(profile.id)).toBeNull();
+    await library.close();
+  });
+
+  it('reports a requested profile removal that could not finish', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id } = await seeded(library, 'Secret plans');
+    library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const failing = library as unknown as { unlinkVoiceProfile: () => Promise<never> };
+    vi.spyOn(failing, 'unlinkVoiceProfile').mockRejectedValue(new Error('busy'));
+
+    const report = await library.deleteMeeting(id, false, true);
+
+    expect(report.learned).toMatchObject({ profiles: 0, profilesFailed: 1 });
     await library.close();
   });
 

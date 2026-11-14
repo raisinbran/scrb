@@ -853,7 +853,7 @@ describe('createMeetingHandlers', () => {
       meetingId: meeting.id,
       ok: true,
       remaining: [],
-      learned: { profiles: 1, terms: 2, transcriptChanges: [] },
+      learned: { profiles: 1, terms: 2, profilesFailed: 0, transcriptChanges: [] },
     });
     expect(
       await value('deleteMeeting', { meetingId: meeting.id, removeLearnedData: true }),
@@ -863,6 +863,24 @@ describe('createMeetingHandlers', () => {
       learnedDataRemoved: { profiles: 1, terms: 2 },
     });
     expect(spy).toHaveBeenCalledWith(meeting.id, false, true);
+    spy.mockRestore();
+  });
+
+  it('says so when a requested voice profile removal could not finish', async () => {
+    const meeting = await recorded('Learned', '2026-10-15T10:00:00.000Z');
+    const spy = vi.spyOn(library, 'deleteMeeting').mockResolvedValue({
+      meetingId: meeting.id,
+      ok: true,
+      remaining: [],
+      learned: { profiles: 0, terms: 1, profilesFailed: 1, transcriptChanges: [] },
+    });
+    expect(
+      await value('deleteMeeting', { meetingId: meeting.id, removeLearnedData: true }),
+    ).toEqual({
+      verified: false,
+      remaining: ['Voice profiles that could not be removed'],
+      learnedDataRemoved: { profiles: 0, terms: 1 },
+    });
     spy.mockRestore();
   });
 
