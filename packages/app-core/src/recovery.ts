@@ -257,9 +257,10 @@ function restartTimes(audioDir: string): number[] {
 
 const MIN_GAP_NS = 2_000_000;
 
-// A planned chunk rollover leaves a few tens of milliseconds between chunks (32 ms, the only figure
-// measured, on a real meeting; 50 ms leaves headroom without hiding a truncated chunk tail), which is inaudible. A gap that small between two rollover chunks is not a loss; any
-// other open or close reason, such as permission, device or discontinuity, is still reported.
+// A planned chunk rollover leaves a few tens of milliseconds between chunks: 32 ms, the only
+// figure measured (a real meeting), is inaudible. 50 ms leaves headroom without hiding a
+// truncated chunk tail. A gap that small between two rollover chunks is not a loss; any other
+// reason, such as permission, device or discontinuity, is still reported.
 const ROLLOVER_JITTER_NS = 50_000_000;
 
 // Why a chunk reopened when the stream itself failed. Not the Mac's `streamDead`, which a silent
