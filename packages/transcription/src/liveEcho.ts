@@ -89,14 +89,15 @@ export class LiveEchoFilter {
         this.out(segment);
       }
     }
-    const next = this.held[0] ?? this.carry;
-    if (next)
+    const first = this.held[0]?.arrivedAt ?? Infinity;
+    const next = Math.min(first, this.carry?.arrivedAt ?? Infinity);
+    if (next !== Infinity)
       this.timer = this.setTimer(
         () => {
           this.timer = null;
           this.release(false);
         },
-        Math.max(0, this.holdMs - (now - next.arrivedAt)),
+        Math.max(0, this.holdMs - (now - next)),
       );
   }
 

@@ -179,4 +179,23 @@ describe('LiveEchoFilter', () => {
     r.advance(100); // m2 own deadline
     expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:and then I disagree']);
   });
+
+  it('keeps each deadline when early meeting coverage creates the carry', () => {
+    const r = rig();
+    r.f.push(seg('meeting', 'a1', 5000, 'ship it'));
+    r.f.push(seg('meeting', 'a2', 9000, 'later')); // covers m1 at once
+    r.f.push(seg('mic', 'm1', 5100, 'ship')); // matches a meeting word: carried at t=0
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([]);
+    r.advance(1900);
+    r.f.push(seg('mic', 'm2', 12_000, 'unrelated words')); // not covered yet
+    r.advance(100); // carried word's own deadline
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:ship']);
+    r.advance(1899);
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual(['mic:ship']);
+    r.advance(1); // m2's own deadline (arrived at 1900)
+    expect(r.texts().filter((t) => t.startsWith('mic'))).toEqual([
+      'mic:ship',
+      'mic:unrelated words',
+    ]);
+  });
 });
