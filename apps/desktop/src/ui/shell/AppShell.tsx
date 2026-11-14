@@ -1,30 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Tooltip } from '../components/Tooltip.tsx';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
-import { readStored, writeStored } from '../lib/stored-value.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
 import { usePanelSize, type PanelLimits } from '../lib/use-panel-size.ts';
-import { Inspector } from './Inspector.tsx';
 import { ResizeHandle } from './ResizeHandle.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { TitleBar } from './TitleBar.tsx';
 import styles from './AppShell.module.css';
 
 const SIDEBAR_LIMITS: PanelLimits = { min: 160, max: 320, initial: 200 };
-const INSPECTOR_LIMITS: PanelLimits = { min: 220, max: 480, initial: 280 };
-const INSPECTOR_OPEN_KEY = 'scrb.inspector.open';
-const NARROW_WINDOW_PX = 1100;
-
-function useIsNarrowWindow(): boolean {
-  const [narrow, setNarrow] = useState(() => window.innerWidth < NARROW_WINDOW_PX);
-  useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < NARROW_WINDOW_PX);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  return narrow;
-}
 
 interface AppShellProps {
   screenId: ScreenId;
@@ -42,15 +26,6 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [sidebarWidth, setSidebarWidth] = usePanelSize('scrb.sidebar.width', SIDEBAR_LIMITS);
-  const [inspectorWidth, setInspectorWidth] = usePanelSize(
-    'scrb.inspector.width',
-    INSPECTOR_LIMITS,
-  );
-  const [inspectorWanted, setInspectorWanted] = useState(
-    () => readStored<boolean>(INSPECTOR_OPEN_KEY) ?? true,
-  );
-  const narrow = useIsNarrowWindow();
-  const inspectorOpen = inspectorWanted && !narrow;
 
   const workspace = useRef<HTMLElement>(null);
   // Only the reader's own scrolling is remembered: the browser's clamping while a screen is
@@ -82,11 +57,6 @@ export function AppShell({
       clearTimeout(giveUp);
     };
   }, [screenId]);
-
-  const toggleInspector = () => {
-    setInspectorWanted(!inspectorOpen);
-    writeStored(INSPECTOR_OPEN_KEY, !inspectorOpen);
-  };
 
   return (
     <div className={styles.shell}>
@@ -120,36 +90,8 @@ export function AppShell({
           onPointerDown={noteUserScroll}
           onKeyDown={noteUserScroll}
         >
-          <Tooltip label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}>
-            <button
-              type="button"
-              className={styles.inspectorToggle}
-              aria-label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}
-              aria-expanded={inspectorOpen}
-              onClick={toggleInspector}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toggleIcon}>
-                <path d="M4 5h16v14H4zM15 5v14" />
-              </svg>
-            </button>
-          </Tooltip>
           {children}
         </main>
-        {inspectorOpen && (
-          <>
-            <ResizeHandle
-              label="Resize inspector"
-              size={inspectorWidth}
-              min={INSPECTOR_LIMITS.min}
-              max={INSPECTOR_LIMITS.max}
-              direction={-1}
-              onResize={setInspectorWidth}
-            />
-            <div className={styles.inspector} style={{ width: inspectorWidth }}>
-              <Inspector />
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
