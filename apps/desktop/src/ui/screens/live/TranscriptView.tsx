@@ -71,6 +71,9 @@ function wordAt(target: EventTarget | null): { segmentId: string; wordId: string
   return wordId && segmentId ? { wordId, segmentId } : null;
 }
 
+const STYLE_HELP =
+  'Provisional: text just heard, which may still change.\nFinal: text that has settled.\nCorrected: words you edited.';
+
 export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: TranscriptViewProps) {
   const backend = useBackend();
   const [store] = useState(() => new TranscriptStore(backend, meetingId));
@@ -418,17 +421,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   return (
     <section className={styles.transcript} aria-label="Transcript">
       <div className={styles.toolbar}>
-        <div className={styles.legend} aria-label="Text styles">
-          <span className={styles.word} data-state="provisional">
-            Provisional
-          </span>
-          <span className={styles.word} data-state="final">
-            Final
-          </span>
-          <span className={styles.word} data-state="corrected">
-            Corrected
-          </span>
-        </div>
+        <IconButton label="Text styles" tip={STYLE_HELP} icon="info" className={styles.toolIcon} />
         {playback.positionMs !== null && (
           <span className={styles.playing} role="status">
             Playing {formatElapsed(playback.positionMs)}
