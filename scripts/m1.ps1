@@ -78,23 +78,64 @@ if ($missing.Count -gt 0) {
 # copy left running from before a pull would silently show old code. Refuse instead.
 # Only this checkout's dev app counts (its own node_modules\electron), never other apps or repos.
 $electronMain = Join-Path $repo 'node_modules\electron\dist\electron.exe'
+# Both discovery methods return objects shaped ProcessId, ExecutablePath, CommandLine, HasWindow.
+function Get-ElectronViaCim {
+  if ($env:SCRB_M1_FORCE_CIM_FAIL) { throw 'Access denied (forced by test)' }  # tests only
+  Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'" -ErrorAction Stop | ForEach-Object {
+    [pscustomobject]@{ ProcessId = $_.ProcessId; ExecutablePath = $_.ExecutablePath; CommandLine = $_.CommandLine; HasWindow = $null }
+  }
+}
+function Get-ElectronViaProcess {  # no command line is available here
+  if ($env:SCRB_M1_FALLBACK_LIST) {  # tests only: lines "pid|exe path (may be empty)|1 if it owns a window"
+    foreach ($line in (Get-Content -LiteralPath $env:SCRB_M1_FALLBACK_LIST)) {
+      $f = $line.Split('|', 3)
+      if ($f.Count -eq 3) {
+        [pscustomobject]@{ ProcessId = [int]$f[0]; ExecutablePath = $f[1]; CommandLine = $null; HasWindow = ($f[2] -eq '1') }
+      }
+    }
+    return
+  }
+  Get-Process -Name electron -ErrorAction SilentlyContinue | ForEach-Object {
+    $path = $null
+    try { $path = $_.Path } catch { $path = $null }
+    [pscustomobject]@{ ProcessId = $_.Id; ExecutablePath = $path; CommandLine = $null; HasWindow = ($_.MainWindowHandle -ne 0) }
+  }
+}
+
+$running = @()
+$skipCheck = $false
 if ($env:SCRB_M1_PROCESS_LIST) {  # tests only: lines "pid|exe path|command line"
   $procs = foreach ($line in (Get-Content -LiteralPath $env:SCRB_M1_PROCESS_LIST)) {
     $f = $line.Split('|', 3)
     if ($f.Count -eq 3) { [pscustomobject]@{ ProcessId = $f[0]; ExecutablePath = $f[1]; CommandLine = $f[2] } }
   }
+  $running = @($procs | Where-Object {
+      $_.ExecutablePath -and ($_.ExecutablePath -ieq $electronMain) -and ($_.CommandLine -notmatch '--type=')
+    })
 } else {
-  $procs = Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'"
+  $cimProcs = $null
+  try { $cimProcs = @(Get-ElectronViaCim) } catch { $cimProcs = $null }
+  if ($null -ne $cimProcs) {
+    $running = @($cimProcs | Where-Object {
+        $_.ExecutablePath -and ($_.ExecutablePath -ieq $electronMain) -and ($_.CommandLine -notmatch '--type=')
+      })
+  } else {
+    # The process query was refused. Without a command line, a path match alone could be a GPU or
+    # renderer subprocess, so count only a process that owns a window (Electron's main process does).
+    $fallback = @(Get-ElectronViaProcess)
+    $unreadable = @($fallback | Where-Object { -not $_.ExecutablePath })
+    $ours = @($fallback | Where-Object { $_.ExecutablePath -and ($_.ExecutablePath -ieq $electronMain) })
+    $running = @($ours | Where-Object { $_.HasWindow })
+    if ($running.Count -eq 0 -and ($unreadable.Count -gt 0 -or $ours.Count -gt 0)) { $skipCheck = $true }
+  }
 }
-$running = @($procs | Where-Object {
-    $_.ExecutablePath -and ($_.ExecutablePath -ieq $electronMain) -and ($_.CommandLine -notmatch '--type=')
-  })
 if ($running.Count -gt 0) {
   Write-Host 'Scribe is already running, so a new start would just reopen the old copy.'
   Write-Host 'Quit it first: close the Scribe window (the X, or File > Quit), then run this again.'
   Write-Host "If it will not quit, run: Stop-Process -Id $($running[0].ProcessId) -Force"
   exit 1
 }
+if ($skipCheck) { Write-Host 'Skipped the check for a running copy of Scribe (process details could not be read); starting anyway.' }
 
 $env:SCRB_CAPTURE_HELPER = $helper
 $env:SCRB_LIVE_CONFIG = $live
