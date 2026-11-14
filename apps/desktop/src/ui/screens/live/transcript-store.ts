@@ -15,6 +15,8 @@ export interface WordRef {
   segmentId: string;
   wordId: string;
   startMs: number;
+  /** The text when picked. A rewrite only follows this word to a word with the same text. */
+  text?: string;
 }
 
 export interface WordPosition {
@@ -124,7 +126,9 @@ export class TranscriptStore {
   refAt({ segment, word }: WordPosition): WordRef | null {
     const row = this.segments[segment];
     const item = row?.words[word];
-    return row && item ? { segmentId: row.id, wordId: item.id, startMs: item.startMs } : null;
+    return row && item
+      ? { segmentId: row.id, wordId: item.id, startMs: item.startMs, text: item.text }
+      : null;
   }
 
   /**
@@ -134,21 +138,32 @@ export class TranscriptStore {
   resolve(ref: WordRef): WordRef | null {
     if (this.positionOf(ref)) return ref;
     // The live pass re-times words of a segment that keeps its id, so try that segment first.
+    // Only a word with the same text counts: a rewrite that removed the picked word must not
+    // hand its selection, and any correction typed for it, to a neighbour.
+    const same = (item: { text: string }) => ref.text === undefined || item.text === ref.text;
     const home = this.segments[this.indexById.get(ref.segmentId) ?? -1];
-    const rewritten = home?.words.reduce<(typeof home.words)[number] | undefined>(
-      (best, item) =>
-        !best || Math.abs(item.startMs - ref.startMs) < Math.abs(best.startMs - ref.startMs)
-          ? item
-          : best,
-      undefined,
-    );
+    const rewritten = home?.words
+      .filter(same)
+      .reduce<(typeof home.words)[number] | undefined>(
+        (best, item) =>
+          !best || Math.abs(item.startMs - ref.startMs) < Math.abs(best.startMs - ref.startMs)
+            ? item
+            : best,
+        undefined,
+      );
     if (home && rewritten) {
-      return { segmentId: home.id, wordId: rewritten.id, startMs: rewritten.startMs };
+      return {
+        segmentId: home.id,
+        wordId: rewritten.id,
+        startMs: rewritten.startMs,
+        text: rewritten.text,
+      };
     }
+    if (home) return null;
     const segment = this.loadedSegmentAt(ref.startMs);
-    const word = segment?.words.find((item) => item.endMs > ref.startMs);
+    const word = segment?.words.find((item) => item.endMs > ref.startMs && same(item));
     return segment && word
-      ? { segmentId: segment.id, wordId: word.id, startMs: word.startMs }
+      ? { segmentId: segment.id, wordId: word.id, startMs: word.startMs, text: word.text }
       : null;
   }
 

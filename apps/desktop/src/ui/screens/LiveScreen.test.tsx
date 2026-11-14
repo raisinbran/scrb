@@ -645,6 +645,38 @@ describe('LiveScreen', () => {
         expect(words()[0]?.textContent).toBe('fixed');
       });
 
+      it('never corrects a neighbour when the selected word disappears in a rewrite', async () => {
+        await startMeeting();
+        fireEvent.doubleClick(words()[1] as HTMLElement);
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const kept = segment.words.filter((_, index) => index !== 1);
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: {
+              kind: 'replace',
+              segments: [
+                {
+                  ...segment,
+                  words: kept.map((word) => ({ ...word, id: `${word.id}-v2` })),
+                },
+              ],
+              removedSegmentIds: [],
+            },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+        const call = vi.spyOn(backend, 'call');
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+        expect(screen.getByRole('alert').textContent).toContain('selection was cleared');
+        expect(call).not.toHaveBeenCalledWith('applyCorrection', expect.anything());
+      });
+
       it('clears the selection when the editor is cancelled or the user clicks away', async () => {
         await startMeeting();
         fireEvent.doubleClick(words()[0] as HTMLElement);

@@ -91,7 +91,24 @@ describe('TranscriptStore', () => {
       segments: [makeSegment('c2', 400, ['new', 'words'])],
       removedSegmentIds: ['c'],
     });
-    expect(store.resolve(ref)).toEqual({ segmentId: 'c2', wordId: 'c2-1', startMs: 500 });
+    expect(store.resolve(ref)).toEqual({
+      segmentId: 'c2',
+      wordId: 'c2-1',
+      startMs: 500,
+      text: 'words',
+    });
+  });
+
+  it('does not hand a removed word to a neighbour that the rewrite kept', () => {
+    emit(2, {
+      kind: 'replace',
+      segments: [makeSegment('c', 400, ['one', 'maybe'])],
+      removedSegmentIds: [],
+    });
+    const yes = { segmentId: 'c', wordId: 'gone', startMs: 500, text: 'yes' };
+    expect(store.resolve(yes)).toBeNull();
+    const retimed = { segmentId: 'c', wordId: 'gone', startMs: 530, text: 'maybe' };
+    expect(store.resolve(retimed)).toMatchObject({ wordId: 'c-1', text: 'maybe' });
   });
 
   it('gives up on a word whose moment has no text left', () => {
