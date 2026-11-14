@@ -1,4 +1,4 @@
-# A-357 — 2026-11-13 — Windows setup follow-up — Node runtime PATH prerequisite unavailable
+### A-357 — 2026-11-13 — Windows setup follow-up — Node runtime PATH prerequisite unavailable
 
 - **Status / attribution:** Confirmed execution deviation; no product or build files were changed in the follow-up.
 - **What failed:** The requested `npx --yes --package=node@22.23.4 --call "node -v"` wrapper produced no output and remained active for over 35 seconds before interruption (exit code 1, with no emitted error text). A first wrapper attempt also produced no usable output. The shell PATH contained only Node v26.13.0.
