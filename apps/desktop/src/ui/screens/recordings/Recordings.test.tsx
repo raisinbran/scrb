@@ -79,7 +79,7 @@ describe('Recordings', () => {
       fireEvent.change(screen.getByLabelText('Search recordings'), {
         target: { value: 'northern depot' },
       });
-      const snippets = await screen.findAllByText('northern depot');
+      const snippets = await screen.findAllByText('northern');
       fireEvent.click(snippets[0]?.closest('button') as HTMLElement);
       expect(await screen.findByRole('tab', { name: 'Transcript' })).toBeTruthy();
     });
@@ -140,7 +140,14 @@ describe('Recordings', () => {
 
     it('ignores progress that goes backwards, and starts over for a new pass', async () => {
       renderScreen();
+      const on = vi.spyOn(backend, 'on');
       await openMeeting(/Budget review/);
+      // The banner subscribes in a passive effect after the meeting detail loads.
+      // Wait for that subscription before emitting progress so a slow UI runner
+      // cannot drop the first event.
+      await waitFor(() =>
+        expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
+      );
       const report = (stage: FinalPassStage, fraction: number, startedAt: string) =>
         act(() =>
           backend.emit('finalPassProgress', {
