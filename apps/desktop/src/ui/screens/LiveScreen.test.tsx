@@ -266,16 +266,12 @@ describe('LiveScreen', () => {
       expect(screen.getByRole('alert').textContent).toContain('not affected');
     });
 
-    it('shows how far behind transcription is', async () => {
+    it('says "Catching up" only once the delay has reached 10 seconds', async () => {
       await startMeeting();
       await trigger('lagging');
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: 14 s behind');
-    });
-
-    it('says transcription is catching up when the delay is under a second', async () => {
-      await startMeeting();
-      act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 0 }));
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: catching up');
+      expect(screen.getByTestId('transcript-lag').textContent).toBe('Catching up');
+      act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 9_000 }));
+      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
     });
 
     it('shows the privacy banner until dismissed, and again at the next recording', async () => {

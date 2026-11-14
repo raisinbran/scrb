@@ -2,11 +2,10 @@ import type { ComponentType } from 'react';
 import { HelpScreen } from './HelpScreen.tsx';
 import { LiveScreen } from './LiveScreen.tsx';
 import { RecordingsScreen } from './RecordingsScreen.tsx';
-import { SettingsScreen } from './SettingsScreen.tsx';
 import { SpeakersScreen } from './SpeakersScreen.tsx';
 import { VocabularyScreen } from './VocabularyScreen.tsx';
 
-export type ScreenId = 'live' | 'recordings' | 'speakers' | 'vocabulary' | 'settings' | 'help';
+export type ScreenId = 'live' | 'recordings' | 'speakers' | 'vocabulary' | 'help';
 
 export interface ScreenEntry {
   id: ScreenId;
@@ -41,12 +40,6 @@ export const SCREENS: ScreenEntry[] = [
     label: 'Vocabulary',
     component: VocabularyScreen,
     icon: 'M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    component: SettingsScreen,
-    icon: 'M4 7h10M18 7h2M4 17h2M10 17h10M16 5v4M8 15v4',
   },
   {
     id: 'help',

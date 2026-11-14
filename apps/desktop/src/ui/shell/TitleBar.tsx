@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RecordingHealth, TranscriptionLag } from '@scrb/contracts';
+import { LAG_NOTICE_MS } from '../lib/lag.ts';
 import { formatElapsed } from '../lib/format.ts';
 import { useMockMode, useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
@@ -7,7 +8,7 @@ import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './TitleBar.module.css';
 
 const LAG_TEXT: Partial<Record<TranscriptionLag['status'], string>> = {
-  lagging: 'Transcription behind',
+  lagging: 'Catching up',
   failed: 'Transcription stopped',
   restarting: 'Transcription restarting',
   ok: 'Transcription live',
@@ -37,7 +38,10 @@ export function TitleBar() {
   const setupBlocked = useSetupBlocked();
   const active = recording.status === 'recording' || recording.status === 'paused';
   const warning = active ? healthText(health) : null;
-  const lagText = active && lag ? LAG_TEXT[lag.status] : undefined;
+  const lagText =
+    active && lag && !(lag.status === 'lagging' && lag.lagMs < LAG_NOTICE_MS)
+      ? LAG_TEXT[lag.status]
+      : undefined;
   return (
     <header className={styles.bar}>
       <span className={styles.name}>Scribe</span>
@@ -60,7 +64,7 @@ export function TitleBar() {
           <span
             className={styles.lag}
             data-testid="transcription-status"
-            data-level={lag?.status === 'ok' ? 'ok' : 'warning'}
+            data-level={lag?.status === 'ok' || lag?.status === 'lagging' ? 'ok' : 'warning'}
           >
             {lagText}
           </span>
