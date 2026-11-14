@@ -254,6 +254,11 @@ function toListItem(meeting: MeetingDetail): MeetingListItem {
 export class MockBackend implements Backend {
   private readonly listeners = new Map<EventName, Set<Listener>>();
   private readonly armed = new Set<ArmedFault>();
+  /** Running summaries, with the state to restore if one is cancelled. */
+  private readonly summaryRuns = new Map<
+    string,
+    { run: symbol; previous: MeetingSummaryDoc['state'] }
+  >();
   private readonly prng = createPrng(20261030);
   private readonly transcripts = new Map<string, TranscriptSegment[]>();
   private readonly summaries = new Map<string, MeetingSummaryDoc>();
@@ -372,6 +377,19 @@ export class MockBackend implements Backend {
     this.updatedModels.clear();
   }
 
+  private finalPassStarts = new Map<string, string>();
+
+  private emitFinalPassProgress(
+    meetingId: string,
+    stage: 'queued' | 'transcribing' | 'diarizing' | 'finishing',
+    fraction: number,
+  ): void {
+    const startedAt = this.finalPassStarts.get(meetingId) ?? new Date().toISOString();
+    this.finalPassStarts.set(meetingId, startedAt);
+    this.emit('finalPassProgress', { meetingId, stage, fraction, startedAt });
+    if (stage === 'finishing' && fraction === 1) this.finalPassStarts.delete(meetingId);
+  }
+
   /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
   finishFinalPass(): void {
     for (const meeting of this.library) {
@@ -380,6 +398,7 @@ export class MockBackend implements Backend {
       if (segments) this.transcripts.set(meeting.id, segments.map(finalized));
       this.rewriteHistory(meeting.id, finalized);
       this.updateMeetingStatus(meeting.id, { status: 'ready', transcriptionFailure: null });
+      this.emitFinalPassProgress(meeting.id, 'finishing', 1);
       this.emit('meetingChanged', toListItem(this.findMeeting(meeting.id)));
     }
   }
@@ -654,13 +673,20 @@ export class MockBackend implements Backend {
   }
 
   /** Reports each stage in turn, then writes one length and keeps every edited item. */
-  private runSummaryStages(meetingId: string, length: SummaryLength, step: number): void {
+  private runSummaryStages(
+    meetingId: string,
+    length: SummaryLength,
+    step: number,
+    run: symbol,
+  ): void {
+    if (this.summaryRuns.get(meetingId)?.run !== run) return;
     const next = SUMMARY_STEPS[step];
     if (next) {
       this.emit('summaryProgress', { meetingId, ...next });
-      setTimeout(() => this.runSummaryStages(meetingId, length, step + 1), SUMMARY_STEP_MS);
+      setTimeout(() => this.runSummaryStages(meetingId, length, step + 1, run), SUMMARY_STEP_MS);
       return;
     }
+    this.summaryRuns.delete(meetingId);
     if (!this.library.some((meeting) => meeting.id === meetingId)) return;
     const previous = this.summaryOf(meetingId);
     const fresh = createSummary(meetingId, 'ready');
@@ -937,6 +963,7 @@ export class MockBackend implements Backend {
           status: 'finalPassRunning',
           durationMs: this.recording.elapsedMs,
         });
+        this.emitFinalPassProgress(meetingId, 'transcribing', 0.1);
       }
       this.setRecording({
         status: 'idle',
@@ -1260,12 +1287,27 @@ export class MockBackend implements Backend {
         this.emit('summaryProgress', { meetingId, stage: 'failed', fraction: 0, message });
         return;
       }
+      const run = Symbol('summary');
+      this.summaryRuns.set(meetingId, { run, previous: this.summaryOf(meetingId).state });
       this.setSummaryState(meetingId, 'generating');
       if (this.armed.delete('summaryStalls')) {
         this.emit('summaryProgress', { meetingId, stage: 'extracting', fraction: 0.2 });
         return;
       }
-      this.runSummaryStages(meetingId, length, 0);
+      this.runSummaryStages(meetingId, length, 0, run);
+    },
+    cancelSummary: ({ meetingId }) => {
+      this.findMeeting(meetingId);
+      const running = this.summaryRuns.get(meetingId);
+      if (!running) return;
+      this.summaryRuns.delete(meetingId);
+      this.setSummaryState(meetingId, running.previous);
+      this.emit('summaryProgress', {
+        meetingId,
+        stage: 'failed',
+        fraction: 0,
+        message: 'Summary cancelled.',
+      });
     },
     updateSummaryItem: ({ meetingId, update }) => {
       const summary = this.summaryOf(meetingId);
@@ -1295,10 +1337,17 @@ export class MockBackend implements Backend {
         transcriptionFailure: null,
       });
       this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      this.emitFinalPassProgress(meetingId, 'queued', 0);
+      setTimeout(() => {
+        if (this.library.find((item) => item.id === meetingId)?.status === 'finalPassRunning') {
+          this.emitFinalPassProgress(meetingId, 'transcribing', 0.5);
+        }
+      }, 500);
       setTimeout(() => {
         const current = this.library.find((item) => item.id === meetingId);
         if (current?.status !== 'finalPassRunning') return;
         this.updateMeetingStatus(meetingId, { status: 'ready' });
+        this.emitFinalPassProgress(meetingId, 'finishing', 1);
         this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
       }, 1000);
     },

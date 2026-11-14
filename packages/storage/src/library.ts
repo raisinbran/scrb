@@ -939,18 +939,26 @@ export class Library {
     });
   }
 
-  /** Stores a generated summary. User-edited items carry over and the outdated flag clears. */
+  /**
+   * Stores a generated summary. User-edited items carry over and the outdated flag clears. Pass
+   * `readRevision`, the transcript revision the summary was made from: if the transcript has moved
+   * on, nothing is saved and `StaleRevisionError` is thrown.
+   */
   saveGeneratedSummary(
     meetingId: string,
     generated: Omit<
       SummaryFile,
       'schemaVersion' | 'meetingId' | 'revision' | 'outdated' | 'transcriptRevision'
     >,
+    readRevision?: number,
   ): Promise<SummaryFile> {
     return this.withLock(meetingId, async () => {
       const file = this.meetingPaths(meetingId).summary;
       const loaded = await loadDocument(SUMMARY_FORMAT, file);
       const transcript = await this.readTranscript(meetingId);
+      if (readRevision !== undefined && readRevision !== transcript.revision) {
+        throw new StaleRevisionError(readRevision, transcript.revision);
+      }
       const fresh: SummaryFile = {
         ...generated,
         schemaVersion: 3,
@@ -1164,7 +1172,9 @@ export class Library {
   }
 
   /** Waits out any recording, which has priority over disk work. */
-  runAutoDelete(beforeDelete?: (meetingId: string) => void): Promise<AutoDeleteRun> {
+  runAutoDelete(
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
+  ): Promise<AutoDeleteRun> {
     if (this.autoDeletionInFlight) return this.autoDeletionInFlight;
     const run = this.runAutoDeleteOnce(beforeDelete);
     this.autoDeletionInFlight = run;
@@ -1177,7 +1187,7 @@ export class Library {
   }
 
   private async runAutoDeleteOnce(
-    beforeDelete?: (meetingId: string) => void,
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
   ): Promise<AutoDeleteRun> {
     const { scope } = this.settings.getAutoDelete();
     if (this.listMeetings().some((row) => row.status === 'recording')) {
@@ -1186,7 +1196,7 @@ export class Library {
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
       try {
-        beforeDelete?.(row.id);
+        await beforeDelete?.(row.id);
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
@@ -1203,7 +1213,7 @@ export class Library {
   /** Runs now and then on a timer. Returns a stop function. */
   startAutoDeleteSchedule(
     intervalMs = 6 * 3_600_000,
-    beforeDelete?: (meetingId: string) => void,
+    beforeDelete?: (meetingId: string) => void | Promise<void>,
   ): () => void {
     let running = false;
     const tick = (): void => {

@@ -22,6 +22,7 @@ import type {
   ImportFailed,
   ImportFinished,
   ImportId,
+  FinalPassProgress,
   ImportProgress,
   InputDevice,
   LevelMeter,
@@ -184,6 +185,12 @@ export interface BackendCalls {
   /** @addition */
   getSummary: { request: { meetingId: MeetingId }; response: MeetingSummaryDoc };
   generateSummary: { request: { meetingId: MeetingId; length: SummaryLength }; response: void };
+  /**
+   * Stops a running summary. The run ends with `summaryProgress` stage `failed` ("Summary
+   * cancelled.") and the previous summary is untouched. Cancelling a run that already ended, or
+   * cancelling twice, does nothing.
+   */
+  cancelSummary: { request: { meetingId: MeetingId }; response: void };
   updateSummaryItem: {
     request: { meetingId: MeetingId; update: SummaryItemUpdate };
     response: MeetingSummaryDoc;
@@ -242,6 +249,9 @@ export interface BackendEvents {
   importFailed: ImportFailed;
   /** @addition */
   importCancelled: ImportCancelled;
+
+  /** @addition */
+  finalPassProgress: FinalPassProgress;
 
   // Devices
   deviceChanged: DeviceChange;
@@ -369,6 +379,7 @@ const CALL_TABLE: Record<CallName, true> = {
   redoVocabulary: true,
   getSummary: true,
   generateSummary: true,
+  cancelSummary: true,
   updateSummaryItem: true,
   listMeetings: true,
   getMeeting: true,
@@ -401,6 +412,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   importFinished: true,
   importFailed: true,
   importCancelled: true,
+  finalPassProgress: true,
   deviceChanged: true,
   levelMeter: true,
   audioCheck: true,
