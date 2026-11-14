@@ -85,7 +85,13 @@ export interface CreateMeetingInput {
 export type MeetingChanges = Partial<
   Pick<
     MeetingMeta,
-    'title' | 'date' | 'durationMs' | 'status' | 'buildVoiceProfiles' | 'transcriptionFailure'
+    | 'title'
+    | 'date'
+    | 'durationMs'
+    | 'status'
+    | 'buildVoiceProfiles'
+    | 'transcriptionFailure'
+    | 'autoTitle'
   >
 >;
 

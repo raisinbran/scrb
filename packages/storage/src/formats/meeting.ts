@@ -10,12 +10,7 @@ export type MeetingSource = 'recorded' | 'imported';
  * - `transcriptionFailed`: the final pass could not finish; the audio is kept.
  */
 export type MeetingStatus =
-  | 'recording'
-  | 'importing'
-  | 'ready'
-  | 'recovered'
-  | 'finalPassRunning'
-  | 'transcriptionFailed';
+  'recording' | 'importing' | 'ready' | 'recovered' | 'finalPassRunning' | 'transcriptionFailed';
 
 const STATUSES: readonly string[] = [
   'recording',
@@ -43,6 +38,11 @@ export interface MeetingMeta {
   buildVoiceProfiles: boolean;
   /** Shown to the user. Plain text written by the app, never tool output. */
   transcriptionFailure?: string | null;
+  /**
+   * Set when the app wrote the title itself. A `fallback` may be improved on a later final pass;
+   * a `generated` one is final. A title the user changed no longer matches `text` and is left alone.
+   */
+  autoTitle?: { kind: 'generated' | 'fallback'; text: string };
 }
 
 function validateMeeting(doc: JsonObject): MeetingMeta {
@@ -53,10 +53,19 @@ function validateMeeting(doc: JsonObject): MeetingMeta {
   assertFormat(typeof doc['durationMs'] === 'number', 'durationMs');
   assertFormat(doc['source'] === 'recorded' || doc['source'] === 'imported', 'source');
   assertFormat(STATUSES.includes(doc['status'] as string), 'status');
-  assertFormat(doc['audioDeletedAt'] === null || typeof doc['audioDeletedAt'] === 'string', 'audio');
+  assertFormat(
+    doc['audioDeletedAt'] === null || typeof doc['audioDeletedAt'] === 'string',
+    'audio',
+  );
   assertFormat(typeof doc['buildVoiceProfiles'] === 'boolean', 'buildVoiceProfiles');
   const failure = doc['transcriptionFailure'];
   assertFormat(failure == null || typeof failure === 'string', 'transcriptionFailure');
+  const auto = doc['autoTitle'] as { kind?: unknown; text?: unknown } | null | undefined;
+  assertFormat(
+    auto == null ||
+      ((auto.kind === 'generated' || auto.kind === 'fallback') && typeof auto.text === 'string'),
+    'autoTitle',
+  );
   return doc as unknown as MeetingMeta;
 }
 

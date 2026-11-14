@@ -14,7 +14,8 @@ import {
   privacyJurisdictions,
 } from '@scrb/app-core';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
-import { LlamaServerWorker, extractItems, writeSummary } from '@scrb/summary';
+import { LlamaServerWorker, extractItems, generateTitle, writeSummary } from '@scrb/summary';
+import { AutoTitleController } from './auto-title.ts';
 import type { RecordingState, SettingsPatch } from '@scrb/contracts';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
@@ -81,10 +82,20 @@ export async function openBackend(
       pidFile: path.join(app.getPath('userData'), 'summary-server.pid'),
     });
     await summaries.stopStaleServer();
+    const titles = new AutoTitleController({
+      library,
+      gate: modelGate,
+      engine,
+      recordingActive: () => recording?.isBusy() ?? false,
+      readPaths: () => readSummaryPaths(finalPassConfig),
+      pidFile: path.join(app.getPath('userData'), 'summary-server.pid'),
+      generate: generateTitle,
+    });
     const emitObserved: typeof emit = (name, payload) => {
       emit(name, payload);
       if (name === 'recordingStateChanged' && (payload as RecordingState).status !== 'idle') {
         summaries.recordingStarted();
+        titles.recordingStarted();
       }
     };
     library.setMeetingChangedListener((meeting) => {
@@ -148,6 +159,7 @@ export async function openBackend(
             undefined,
             (before, after) => publishEdit(before, after, emit),
             (report) => emit('finalPassProgress', report),
+            (meetingId) => titles.enqueue(meetingId),
           )
         : null;
     const liveConfig = packaged
@@ -188,6 +200,7 @@ export async function openBackend(
           liveSetup,
           async () => {
             summaries.recordingStarted();
+            titles.recordingStarted();
             await imports?.stopForRecording();
           },
           // Spike: opt-in until output ducking and meeting-track health are measured (docs/plans/mic-echo-handling.md).
@@ -337,6 +350,7 @@ export async function openBackend(
         playback.stop();
         stopRetention();
         await summaries.shutdown();
+        await titles.shutdown();
         await imports?.shutdown();
         // The workers stop first, so a helper that never acks cannot leave one running.
         const passes = finalPasses?.shutdown();

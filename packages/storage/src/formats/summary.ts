@@ -3,12 +3,7 @@ import { assertFormat, type FileFormat, type JsonObject } from './versioned.ts';
 export type ActionStatus = 'agreed' | 'proposed' | 'unconfirmed';
 export type DecisionStatus = 'decided' | 'proposed' | 'tentativelyAgreed' | 'unresolved';
 export type ImpactArea =
-  | 'scope'
-  | 'schedule'
-  | 'cost'
-  | 'risk'
-  | 'deliverables'
-  | 'technicalApproach';
+  'scope' | 'schedule' | 'cost' | 'risk' | 'deliverables' | 'technicalApproach';
 
 /** Provenance every summary item keeps. */
 export interface ItemEvidence {
@@ -92,7 +87,10 @@ function validateSummary(doc: JsonObject): SummaryFile {
   assertFormat(Number.isInteger(doc['revision']), 'revision');
   assertFormat(Number.isInteger(doc['transcriptRevision']), 'transcriptRevision');
   assertFormat(typeof doc['outdated'] === 'boolean', 'outdated');
-  assertFormat(doc['generatedAt'] === null || typeof doc['generatedAt'] === 'string', 'generatedAt');
+  assertFormat(
+    doc['generatedAt'] === null || typeof doc['generatedAt'] === 'string',
+    'generatedAt',
+  );
   assertFormat(Array.isArray(doc['actionItems']), 'actionItems');
   assertFormat(Array.isArray(doc['decisions']), 'decisions');
   assertFormat(Array.isArray(doc['openQuestions']), 'openQuestions');
@@ -248,7 +246,10 @@ function keepEdited<T extends { id: string; edited: boolean; sourceMs: number | 
 }
 
 /** An edited section keeps its place while its slot still holds the same heading. */
-function keepEditedBody(previous: SummaryBody | null, next: SummaryBody | null): SummaryBody | null {
+function keepEditedBody(
+  previous: SummaryBody | null,
+  next: SummaryBody | null,
+): SummaryBody | null {
   const edits = previous?.sections.filter((section) => section.edited) ?? [];
   if (next === null || edits.length === 0) return next;
   const placed = next.sections.map(
