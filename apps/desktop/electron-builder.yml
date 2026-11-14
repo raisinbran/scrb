@@ -9,11 +9,12 @@ files:
   - dist-electron/**
   - package.json
   - '!**/node_modules/**'
-# Tools and libraries are staged by scripts/package-mac.sh; models are installed separately.
-extraResources:
-  - from: build/mac-stage/bin
-    to: bin
+# Tools and libraries are staged per platform (scripts/package-mac.sh, scripts/package-win.ps1);
+# models are installed separately.
 mac:
+  extraResources:
+    - from: build/mac-stage/bin
+      to: bin
   target:
     - target: dir
       arch: arm64
@@ -23,3 +24,10 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: Scribe records your microphone so it can transcribe your meetings on this Mac. Nothing leaves your computer.
     NSAudioCaptureUsageDescription: Scribe records the sound of your meeting app (the other participants) so it can transcribe it on this Mac. Nothing leaves your computer.
+win:
+  target:
+    - target: dir
+      arch: x64
+  extraResources:
+    - from: build/win-stage/bin
+      to: bin
