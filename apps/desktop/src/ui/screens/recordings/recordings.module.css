@@ -315,26 +315,46 @@
   flex-direction: column;
   gap: var(--space-1);
   align-items: flex-start;
-  padding: var(--space-3) var(--space-6) var(--space-2);
+  padding: var(--space-5) var(--space-6) var(--space-2);
 }
 
 .detailHead p {
   margin: 0;
 }
 
-.back {
-  padding: 0;
-  color: var(--color-accent);
-  background: none;
-  border: 0;
+.pageTitle {
+  position: relative;
 }
 
-.detailTitle {
-  margin: 0;
-  padding-inline-end: var(--space-7);
-  font-size: var(--text-xl);
+/* The chevron sits in the page margin so the title stays where every other screen's title is. */
+.backSlot {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline-start: calc(-1 * var(--space-6) + 2px);
+}
+
+.meetingTitle {
+  width: 100%;
+  max-width: 640px;
+  padding: 2px var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  font-size: var(--text-lg);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+
+.meetingTitle:hover:not(:read-only) {
+  border-color: var(--color-border);
+}
+
+.meetingTitle:focus {
+  background: var(--color-surface);
+  border-color: var(--color-focus);
+  outline: none;
 }
 
 .actions,

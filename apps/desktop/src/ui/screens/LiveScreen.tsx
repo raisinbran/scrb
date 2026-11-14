@@ -143,6 +143,10 @@ export function LiveScreen() {
           onResume={resume}
           onStop={stop}
         />
+        <div className={styles.indicators}>
+          <HealthIndicator health={health} active={active} />
+          <LagIndicator lag={lag} active={active} />
+        </div>
       </div>
       <div className={styles.sources}>
         {selection && (
@@ -157,22 +161,20 @@ export function LiveScreen() {
         {status === 'idle' && <MicTest sources={selection} devices={sources.devices} />}
         <LevelMeters active={status === 'recording'} />
       </div>
-      <div className={styles.indicators}>
-        <HealthIndicator health={health} active={active} />
-        <LagIndicator lag={lag} active={active} />
+      <div className={styles.alertsSlot}>
+        <LiveAlerts
+          health={health}
+          lag={lag}
+          active={active}
+          device={device}
+          error={error}
+          onUseDevice={(chosen) => {
+            if (selection) selectSources({ ...selection, micDeviceId: chosen.id });
+            setDevice(null);
+          }}
+          onDismissDevice={() => setDevice(null)}
+        />
       </div>
-      <LiveAlerts
-        health={health}
-        lag={lag}
-        active={active}
-        device={device}
-        error={error}
-        onUseDevice={(chosen) => {
-          if (selection) selectSources({ ...selection, micDeviceId: chosen.id });
-          setDevice(null);
-        }}
-        onDismissDevice={() => setDevice(null)}
-      />
       {status === 'idle' && lastMeetingId && (
         <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
       )}

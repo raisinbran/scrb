@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FirstLaunchLocation } from './components/FirstLaunchLocation.tsx';
 import { SpeakerSuggestionsProvider } from './components/speakers/SpeakerSuggestions.tsx';
+import { Overlay } from './components/Overlay.tsx';
+import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SCREENS, type ScreenId } from './screens/index.ts';
 import { readStored, writeStored } from './lib/stored-value.ts';
@@ -17,6 +19,7 @@ export function App() {
   const [screenId, setScreenId] = useState<ScreenId>(restoreScreen);
   const [setupRound, setSetupRound] = useState(0);
   const [backRound, setBackRound] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -43,9 +46,22 @@ export function App() {
   const Screen = SCREENS.find((screen) => screen.id === screenId)?.component;
   return (
     <SpeakerSuggestionsProvider>
-      <AppShell screenId={screenId} onSelectScreen={selectScreen}>
-        {Screen && <Screen key={`${setupRound}-${backRound}`} />}
-      </AppShell>
+      {/* inert keeps keys and screen readers on the settings panel; nothing behind it is unmounted. */}
+      <div className="app-root" inert={settingsOpen}>
+        <AppShell
+          screenId={screenId}
+          settingsOpen={settingsOpen}
+          onSelectScreen={selectScreen}
+          onOpenSettings={() => setSettingsOpen(true)}
+        >
+          {Screen && <Screen key={`${setupRound}-${backRound}`} />}
+        </AppShell>
+      </div>
+      {settingsOpen && (
+        <Overlay label="Settings" onClose={() => setSettingsOpen(false)}>
+          <SettingsScreen />
+        </Overlay>
+      )}
       <FirstLaunchLocation onAnswered={() => setSetupRound((round) => round + 1)} />
     </SpeakerSuggestionsProvider>
   );

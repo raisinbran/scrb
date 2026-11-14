@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
@@ -32,7 +32,7 @@ describe('App', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Settings', 'Help'])(
+  it.each(['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Help'])(
     'opens %s from the sidebar',
     async (label) => {
       renderApp();
@@ -52,6 +52,39 @@ describe('App', () => {
     backend.setLibrary([]);
     fireEvent.click(screen.getByRole('button', { name: 'Recordings' }));
     expect(await screen.findByText('No recordings yet')).toBeTruthy();
+  });
+
+  it('opens Settings over the app and closes it with Escape, leaving the screen as it was', async () => {
+    renderApp();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Live' })).toBeTruthy();
+    screen.getByRole('button', { name: 'Settings' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Settings' });
+    expect(dialog).toBeTruthy();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('heading', { level: 1, name: 'Live' })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Settings' }));
+  });
+
+  it('keeps recording while Settings is open', async () => {
+    const backend = renderApp();
+    await backend.call('startRecording', {});
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('dialog', { name: 'Settings' });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect((await backend.call('getRecordingSnapshot')).state.status).toBe('recording');
+  });
+
+  it('closes Settings when the dark area outside it is clicked', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Settings' });
+    const backdrop = dialog.parentElement as HTMLElement;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('applies a theme chosen in Settings', async () => {

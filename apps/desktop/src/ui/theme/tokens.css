@@ -20,6 +20,8 @@
   /* The one corner radius for buttons, inputs, selects, panels, cards and popovers. */
   --radius: 4px;
 
+  /* Dropdowns and buttons that share a row are this tall, so they line up. */
+  --control-height: 30px;
   --titlebar-height: 40px;
   --transcript-font-size: 15px;
 }
@@ -80,7 +82,8 @@
 
 html,
 body,
-#root {
+#root,
+.app-root {
   height: 100%;
   margin: 0;
 }

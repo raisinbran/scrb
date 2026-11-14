@@ -3,6 +3,8 @@
   flex: 1;
   flex-direction: column;
   min-height: 260px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
 }
 
 .toolbar {
@@ -11,14 +13,9 @@
   gap: var(--space-2) var(--space-4);
   align-items: center;
   justify-content: space-between;
-  padding-block: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   font-size: var(--text-sm);
-}
-
-.legend {
-  display: flex;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tools,
@@ -70,8 +67,6 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
 }
 
 .scroller {
@@ -234,4 +229,9 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.toolbar .toolIcon {
+  width: 26px;
+  height: 26px;
 }

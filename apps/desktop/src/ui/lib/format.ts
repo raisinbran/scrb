@@ -23,6 +23,15 @@ export function formatMeetingDate(iso: string): string {
   });
 }
 
+/** Hour and minute in the computer's own style, so 12 or 24 hour follows the system setting. */
+export function formatMeetingTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+export function formatMeetingWhen(iso: string): string {
+  return `${formatMeetingDate(iso)}, ${formatMeetingTime(iso)}`;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
   return `${Math.max(1, Math.round(bytes / 1_000_000))} MB`;
