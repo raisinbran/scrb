@@ -111,6 +111,36 @@ describe('TranscriptStore', () => {
     expect(store.resolve(retimed)).toMatchObject({ wordId: 'c-1', text: 'maybe' });
   });
 
+  it('follows a small re-timing, but not a repeat of the word seconds away or an ambiguous pair', () => {
+    const words = (items: [string, number][]) => ({
+      ...makeSegment('c', 400, []),
+      endMs: 5000,
+      words: items.map(([text, startMs], i) => ({
+        id: `n-${i}`,
+        text,
+        startMs,
+        endMs: startMs + 80,
+        state: 'provisional' as const,
+        correctionId: null,
+      })),
+    });
+    const send = (revision: number, items: [string, number][]) =>
+      emit(revision, { kind: 'replace', segments: [words(items)], removedSegmentIds: [] });
+    const ref = { segmentId: 'c', wordId: 'old', startMs: 500, text: 'yes' };
+    send(2, [['yes', 530]]);
+    expect(store.resolve(ref)).toMatchObject({ wordId: 'n-0' });
+    send(3, [
+      ['no', 500],
+      ['yes', 4000],
+    ]);
+    expect(store.resolve(ref)).toBeNull();
+    send(4, [
+      ['yes', 450],
+      ['yes', 600],
+    ]);
+    expect(store.resolve(ref)).toBeNull();
+  });
+
   it('gives up on a word whose moment has no text left', () => {
     const ref = { segmentId: 'c', wordId: 'c-1', startMs: 500 };
     emit(2, { kind: 'replace', segments: [], removedSegmentIds: ['c'] });

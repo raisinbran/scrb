@@ -10,6 +10,13 @@ import { RowHeights } from './row-heights.ts';
 
 export const PAGE_SEGMENTS = 100;
 
+/**
+ * How far a revised live word may start from where it started and still be the same word. The live
+ * pass tolerates 100 ms of drift between audio chunks (livePass.ts), and a word is rarely closer
+ * than that to a repeat of itself, so twice that absorbs re-timing without matching a repeat.
+ */
+export const RETIME_WINDOW_MS = 200;
+
 /** A word that stays identifiable while rows are virtualized or replaced by the backend. */
 export interface WordRef {
   segmentId: string;
@@ -137,31 +144,23 @@ export class TranscriptStore {
    */
   resolve(ref: WordRef): WordRef | null {
     if (this.positionOf(ref)) return ref;
-    // The live pass re-times words of a segment that keeps its id, so try that segment first.
-    // Only a word with the same text counts: a rewrite that removed the picked word must not
-    // hand its selection, and any correction typed for it, to a neighbour.
-    const same = (item: { text: string }) => ref.text === undefined || item.text === ref.text;
+    // The live pass re-times words of a segment that keeps its id. Only one word with the same
+    // text, starting within RETIME_WINDOW_MS of the original, counts. A removed word must not hand
+    // its selection, and any correction typed for it, to a neighbour or a repeat of the word.
+    const near = (item: { text: string; startMs: number }) =>
+      ref.text === undefined
+        ? true
+        : item.text === ref.text && Math.abs(item.startMs - ref.startMs) <= RETIME_WINDOW_MS;
     const home = this.segments[this.indexById.get(ref.segmentId) ?? -1];
-    const rewritten = home?.words
-      .filter(same)
-      .reduce<(typeof home.words)[number] | undefined>(
-        (best, item) =>
-          !best || Math.abs(item.startMs - ref.startMs) < Math.abs(best.startMs - ref.startMs)
-            ? item
-            : best,
-        undefined,
-      );
-    if (home && rewritten) {
-      return {
-        segmentId: home.id,
-        wordId: rewritten.id,
-        startMs: rewritten.startMs,
-        text: rewritten.text,
-      };
+    if (home && ref.text !== undefined) {
+      const found = home.words.filter(near);
+      const only = found.length === 1 ? found[0] : undefined;
+      return only
+        ? { segmentId: home.id, wordId: only.id, startMs: only.startMs, text: only.text }
+        : null;
     }
-    if (home) return null;
     const segment = this.loadedSegmentAt(ref.startMs);
-    const word = segment?.words.find((item) => item.endMs > ref.startMs && same(item));
+    const word = segment?.words.find((item) => item.endMs > ref.startMs && near(item));
     return segment && word
       ? { segmentId: segment.id, wordId: word.id, startMs: word.startMs, text: word.text }
       : null;
