@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+import { isValidRequest } from '@scrb/contracts';
 import { Library, resolveDisplay } from '@scrb/storage';
 import type { TimedLiveSegment } from '@scrb/transcription';
 import { LiveTranscriptSink } from './live-transcript.ts';
@@ -527,4 +528,24 @@ it('retains coalesced merge edges through a full slow-storage segment queue', as
   const saved = await library.readTranscript(id);
   expect(saved.speakers.find((s) => s.id === a)?.mergedInto).toBe(b);
   expect(saved.speakers.find((s) => s.id === b)?.mergedInto).toBe(c);
+});
+
+it('gives live words ids that pass the real applyCorrection request validation', async () => {
+  const { library, id } = await setup();
+  const sink = new LiveTranscriptSink(library, id, vi.fn());
+  sink.offer(segment());
+  sink.offer({ ...segment('other'), track: 'meeting' });
+  await sink.stop();
+  for (const s of (await library.readTranscript(id)).segments) {
+    for (const word of s.words) {
+      expect(
+        isValidRequest('applyCorrection', {
+          meetingId: id,
+          range: { firstWordId: word.id, lastWordId: word.id },
+          text: 'Testing!',
+          remember: false,
+        }),
+      ).toBe(true);
+    }
+  }
 });

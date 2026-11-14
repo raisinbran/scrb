@@ -248,6 +248,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     if (!ref) {
       setSelection(null);
       setEditing(false);
+      setCursor(null);
       return;
     }
     if (event.shiftKey && liveSelection) {
@@ -347,6 +348,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const closeEditor = () => {
     setEditing(false);
     setSelection(null);
+    setCursor(null);
     scrollRef.current?.focus();
   };
 
@@ -389,6 +391,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       }
       setSelection(null);
       setEditing(false);
+      setCursor(null);
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);

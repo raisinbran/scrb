@@ -649,13 +649,17 @@ describe('LiveScreen', () => {
         await startMeeting();
         fireEvent.doubleClick(words()[0] as HTMLElement);
         expect(selected().length).toBe(1);
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(1);
         fireEvent.click(button('Cancel'));
         expect(selected().length).toBe(0);
+        // The purple outline around the word goes too.
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(0);
 
         fireEvent.doubleClick(words()[0] as HTMLElement);
         expect(selected().length).toBe(1);
         fireEvent.pointerDown(button('Undo'));
         expect(selected().length).toBe(0);
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(0);
         expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
 
         fireEvent.doubleClick(words()[0] as HTMLElement);
