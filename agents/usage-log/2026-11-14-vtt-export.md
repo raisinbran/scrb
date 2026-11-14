@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | WebVTT (.vtt) transcript export: renderer, contract value, handler, dialog option, tests | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |

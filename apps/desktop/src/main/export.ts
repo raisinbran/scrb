@@ -8,7 +8,7 @@ import {
   type EventName,
   type ExportRequest as ContractExportRequest,
 } from '@scrb/contracts';
-import { buildExportDocument, renderPdf, type ExportMeeting } from '@scrb/export';
+import { buildExportDocument, renderPdf, renderVtt, type ExportMeeting } from '@scrb/export';
 import { errorFields, resolveDisplay, type Library, type MeetingMeta } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
 import type { DocxRenderer } from './export-worker.ts';
@@ -99,7 +99,7 @@ export interface ExportDeps {
   renderDocx: DocxRenderer;
 }
 
-/** Real transcript export: DOCX from a worker thread, PDF through the hidden print window. */
+/** Real transcript export: DOCX from a worker thread, PDF through the hidden print window, WebVTT as text. */
 export function createExportHandlers(deps: ExportDeps): CallHandlers {
   const { library, emit } = deps;
 
@@ -145,6 +145,10 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     let bytes: Uint8Array;
     if (request.format === 'docx') {
       bytes = await deps.renderDocx({ meeting: data, request: options, pageSize: 'Letter' });
+    } else if (request.format === 'vtt') {
+      bytes = new TextEncoder().encode(
+        renderVtt(data, { speakerNames: request.transcript.speakerNames }),
+      );
     } else {
       try {
         bytes = await renderPdf(
