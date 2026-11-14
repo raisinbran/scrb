@@ -27,7 +27,7 @@ import {
 import { createInterface } from 'node:readline';
 import { dirname, join, resolve } from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
-import { assertEvidenceDir, chooseSeconds } from './guards.mjs';
+import { assertEvidenceDir, chooseSeconds, scanGaps } from './guards.mjs';
 import { performance } from 'node:perf_hooks';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -54,6 +54,13 @@ const LIMITS = {
   helperGrowthMb: 50,
   helperGrowthPercent: 10,
   timelineSlackMs: 1500,
+  // The helper records a gap only past this (README finding 12): smaller differences between chunk
+  // boundaries are timestamp jitter, not lost audio. The 5-minute smoke on a USB mic summed 0.3 ms.
+  gapToleranceMs: 2,
+  // Gaps under the tolerance are ignored one by one, but their sum per track must stay under this budget,
+  // so many tiny gaps cannot hide real loss. 100 ms is about 3x the jitter seen on the smoke run
+  // (0.3 ms per 5 minutes, about 29 ms over 8 hours) and far under the 1.5 s timeline slack.
+  smallGapBudgetMs: 100,
 };
 
 if (flag('--report')) {
@@ -401,20 +408,11 @@ async function verify(work) {
       `${logged} chunks, ${broken} numbering breaks, ${left} .part/.tmp left, ${damaged} damaged, ${recovered} recovered after a crash`,
     );
     const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
-    let unmarked = 0;
-    let overlaps = 0;
-    let lossNs = 0;
-    let longest = 0;
-    for (let i = 0; i < chunks.length; i += 1) {
-      const from = i === 0 ? 0 : chunks[i - 1].endNs;
-      if (i === 0 && chunks[0].startNs < 100e6) continue;
-      const gap = chunks[i].startNs - from;
-      if (gap < 0) overlaps += 1;
-      if (gap <= 0) continue;
-      lossNs += gap;
-      longest = Math.max(longest, gap);
-      if (gap >= 2e6 && !marked.some((span) => span.startNs === from)) unmarked += 1;
-    }
+    const { unmarked, overlaps, lossNs, longestNs: longest, smallNs } = scanGaps(
+      chunks,
+      LIMITS.gapToleranceMs,
+      (from) => marked.some((span) => span.startNs === from),
+    );
     const audioNs = chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
     perTrack[track] = { chunks, audioNs, lossNs };
     check(
@@ -422,8 +420,10 @@ async function verify(work) {
       lossNs === 0 &&
         unmarked === 0 &&
         marked.length === 0 &&
+        smallNs <= LIMITS.smallGapBudgetMs * 1e6 &&
         sealed.endNs - audioNs <= LIMITS.timelineSlackMs * 1e6,
-      `gaps total ${s(lossNs)} s, longest ${s(longest)} s, ${marked.length} marked, ${unmarked} unmarked, ${overlaps} overlaps; ` +
+      `gaps total ${s(lossNs)} s, longest ${s(longest)} s, ${marked.length} marked, ${unmarked} unmarked, ${overlaps} overlaps, ` +
+        `${(smallNs / 1e6).toFixed(1)} ms in gaps under ${LIMITS.gapToleranceMs} ms (budget ${LIMITS.smallGapBudgetMs} ms); ` +
         `audio ${s(audioNs)} s of ${s(sealed.endNs)} s (difference ${s(sealed.endNs - audioNs)} s)`,
     );
   }

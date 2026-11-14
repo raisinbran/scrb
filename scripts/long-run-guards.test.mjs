@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DEFAULT_SECONDS, assertEvidenceDir, chooseSeconds } from './long-run/guards.mjs';
+import { spawnSync } from 'node:child_process';
+import { DEFAULT_SECONDS, assertEvidenceDir, chooseSeconds, scanGaps } from './long-run/guards.mjs';
 
 let base;
 let repo;
@@ -63,5 +64,50 @@ describe('chooseSeconds', () => {
     expect(chooseSeconds('28800')).toBe(28800);
     expect(() => chooseSeconds('10')).toThrow();
     expect(() => chooseSeconds('abc')).toThrow();
+  });
+});
+
+describe('scanGaps', () => {
+  // Invented chunks of 30 s; gapNs is the silence before each chunk after the first.
+  const chunksWith = (gapNs, count) => {
+    const out = [];
+    let at = 0;
+    for (let i = 0; i < count; i += 1) {
+      const start = i === 0 ? 0 : at + gapNs;
+      out.push({ seq: i, startNs: start, endNs: start + 30e9 });
+      at = start + 30e9;
+    }
+    return out;
+  };
+  const none = () => false;
+
+  it('adds up gaps under the tolerance without calling them lost audio', () => {
+    const r = scanGaps(chunksWith(1.9e6, 101), 2, none);
+    expect(r.lossNs).toBe(0);
+    expect(r.unmarked).toBe(0);
+    expect(r.smallNs).toBeCloseTo(100 * 1.9e6, -3);
+    expect(r.smallNs).toBeGreaterThan(100e6); // over the 100 ms budget, so verify() fails the track
+  });
+
+  it('keeps a few tiny gaps under the budget', () => {
+    const r = scanGaps(chunksWith(0.1e6, 6), 2, none);
+    expect(r.smallNs).toBeCloseTo(5 * 0.1e6, -3);
+    expect(r.smallNs).toBeLessThan(100e6);
+  });
+
+  it('counts a gap at the tolerance as lost audio', () => {
+    const r = scanGaps(chunksWith(2e6, 3), 2, none);
+    expect(r.lossNs).toBe(4e6);
+    expect(r.unmarked).toBe(2);
+  });
+});
+
+describe('tone-check --chunks', () => {
+  const run = (value) =>
+    spawnSync(process.execPath, ['scripts/long-run/tone-check.mjs', tmpdir(), '--chunks', value], { encoding: 'utf8' });
+  it.each(['0', '-1', '2.5', 'abc'])('rejects %s before checking any audio', (value) => {
+    const r = run(value);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('--chunks must be a whole number');
   });
 });
