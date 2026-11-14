@@ -1,4 +1,4 @@
-### A-368 — 2026-11-14 — Codex / Mac desktop — runtime and sandbox prerequisites were assumed
+### A-378 — 2026-11-14 — Codex / Mac desktop — runtime and sandbox prerequisites were assumed
 
 - **Status / attribution:** Confirmed agent command-setup errors; no product defect.
 - **What failed:** The first npm call omitted the documented Node directory from `PATH`; the first direct Prettier path was guessed before dependencies existed. Initial install, formatting and test invocations then hit sandbox `EPERM` while creating worktree-local dependency or Vite temporary directories. One metadata query also had a JavaScript syntax typo and was corrected before retry.
