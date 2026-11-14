@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Diagnose macOS CI failure of Gate 7 auto-delete test (test race, not a product defect); fix test | unavailable (not read at start) | unavailable (not read at end) | unavailable | unavailable | not read | Implementation / Sonnet 5.5 / default effort | none | Review pending | Other sessions running. |
