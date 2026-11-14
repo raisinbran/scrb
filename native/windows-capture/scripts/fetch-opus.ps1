@@ -7,7 +7,10 @@ if (-not (Test-Path "$src\.git")) {
     git init -q $src
     git -C $src remote add origin https://github.com/xiph/opus
 }
-if ((git -C $src rev-parse HEAD 2>$null) -ne $commit) {
+# A fresh `git init` has no commits, so HEAD does not exist yet: -q keeps git silent and the exit code decides.
+$head = git -C $src rev-parse --verify -q HEAD
+if ($LASTEXITCODE -ne 0) { $head = $null }
+if ($head -ne $commit) {
     git -C $src fetch -q --depth 1 origin $commit
     git -C $src checkout -q $commit
 }
