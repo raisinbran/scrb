@@ -61,7 +61,7 @@ Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 2
 **Step 1. Get the code and install.** Folder: where you keep repos, e.g. `C:\Users\<you>\Documents\GitHub`. Admin: no. Use the branch of this PR (or `main` once merged).
 
 ```powershell
-git clone https://github.com/<owner>/scrb.git scrb; cd scrb
+git clone https://github.com/raisinbran/scrb.git scrb; cd scrb
 ```
 
 ```powershell
