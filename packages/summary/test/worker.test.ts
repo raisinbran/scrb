@@ -1,11 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { LlamaServerWorker } from "../src/worker.js";
 
 const server = fileURLToPath(new URL("./fixtures/fake-llama-server.mjs", import.meta.url));
 const request = { messages: [{ role: "user" as const, content: "hi" }], schema: { type: "object" }, maxTokens: 10 };
 let worker = new LlamaServerWorker({ serverPath: server, modelPath: "m.gguf" });
+
+beforeAll(() => {
+  const tsc = fileURLToPath(new URL("../../../node_modules/typescript/bin/tsc", import.meta.url));
+  const config = fileURLToPath(new URL("../tsconfig.json", import.meta.url));
+  execFileSync(process.execPath, [tsc, "-p", config]);
+});
 
 afterEach(async () => {
   await worker.stop();
