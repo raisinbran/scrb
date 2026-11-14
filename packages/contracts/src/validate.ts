@@ -319,7 +319,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   retryFinalPass: meeting,
   updateMeeting: shape({ meetingId: id }, { title: filled(MAX_NAME), startedAt: date }),
   searchMeetings: shape({ query: text(MAX_NAME) }, { filter: meetingFilter }),
-  deleteMeeting: meeting,
+  deleteMeeting: shape({ meetingId: id }, { removeLearnedData: flag }),
   openMeetingFolder: shape({ meetingId: id, folder: oneOf('meeting', 'audio', 'exports') }),
   exportMeeting: exportRequest,
 
