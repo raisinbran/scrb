@@ -10,3 +10,4 @@ export * from './vocabulary-hints.ts';
 export * from './large-model-gate.ts';
 
 export * from './profile-matching.ts';
+export * from './performance.ts';

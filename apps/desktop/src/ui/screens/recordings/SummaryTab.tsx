@@ -25,6 +25,7 @@ import {
   SUMMARY_STAGE_LABELS,
   isUnfinished,
 } from './labels.ts';
+import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
 function TimeLink({ ms, onPlay }: { ms: number; onPlay(ms: number): void }) {
@@ -483,12 +484,7 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
                 <p className={styles.fileName}>
                   {progress ? SUMMARY_STAGE_LABELS[progress.stage] : 'Generating the summary'}
                 </p>
-                <progress
-                  className={styles.progress}
-                  aria-label="Summary progress"
-                  max={1}
-                  {...(progress ? { value: progress.fraction } : {})}
-                />
+                <Progress label="Summary progress" fraction={progress?.fraction} />
                 <p className={styles.muted}>
                   You can keep working. The summary appears here when it is ready.
                 </p>

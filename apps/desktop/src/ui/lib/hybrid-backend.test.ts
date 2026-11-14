@@ -147,6 +147,7 @@ describe('createHybridBackend', () => {
       ({
         call: vi.fn(async (name: string, request?: { meetingId?: string }) => {
           if (name === 'listMeetings') return [item];
+          if (name === 'searchMeetings') return [{ meeting: item, matches: [] }];
           if (name === 'getSettings') return mock.call('getSettings');
           if (request?.meetingId !== REAL_ID) {
             throw new ContractError({ code: 'notFound', message: 'Gone.' });
@@ -163,6 +164,13 @@ describe('createHybridBackend', () => {
       const samples = await mock.call('listMeetings', {});
       const listed = await createHybridBackend(realWithMeeting(), mock).call('listMeetings', {});
       expect(listed.map(({ id }) => id)).toEqual([REAL_ID, ...samples.map(({ id }) => id)]);
+    });
+
+    it('searches real meetings as well as the samples', async () => {
+      const found = await createHybridBackend(realWithMeeting(), mock).call('searchMeetings', {
+        query: 'real',
+      });
+      expect(found[0]?.meeting.id).toBe(REAL_ID);
     });
 
     it('passes the filter to both sides', async () => {
@@ -434,5 +442,24 @@ describe('createHybridBackend', () => {
       message: 'Scribe cannot record yet.',
     });
     expect(mockCall).not.toHaveBeenCalledWith('startRecording', expect.anything());
+  });
+
+  it('with setup blocked: no sample meetings, and the idle snapshot comes from the mock', async () => {
+    const real = {
+      call: vi.fn(async (name: string) => {
+        if (name === 'listMeetings') return [];
+        if (name === 'getRecordingSnapshot')
+          throw new ContractError({ code: 'conflict', message: 'Scribe cannot record yet.' });
+        return {};
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const backend = createHybridBackend(real, mock, { setupBlocked: true });
+    expect(await backend.call('listMeetings', {})).toEqual([]);
+    expect((await backend.call('getRecordingSnapshot')).state.status).toBe('idle');
+    // Unblocked, the same real conflict is not swallowed.
+    await expect(createHybridBackend(real, mock).call('getRecordingSnapshot')).rejects.toThrow(
+      'cannot record yet',
+    );
   });
 });

@@ -261,7 +261,7 @@ describe('screens', () => {
 
     it('saves a draft and clears the unsaved state', async () => {
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.change(await screen.findByRole('combobox', { name: 'Transcription quality' }), {
+      fireEvent.change(await screen.findByRole('combobox', { name: 'Performance' }), {
         target: { value: 'accurate' },
       });
       fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
@@ -271,7 +271,7 @@ describe('screens', () => {
 
     it('discards a draft without saving', async () => {
       renderScreen(backend, <SettingsScreen />);
-      const quality = await screen.findByRole('combobox', { name: 'Transcription quality' });
+      const quality = await screen.findByRole('combobox', { name: 'Performance' });
       fireEvent.change(quality, { target: { value: 'fast' } });
       fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
       expect((quality as HTMLSelectElement).value).toBe('balanced');
@@ -280,13 +280,13 @@ describe('screens', () => {
 
     it('keeps an unsaved draft after leaving the screen', async () => {
       const first = renderScreen(backend, <SettingsScreen />);
-      fireEvent.change(await screen.findByRole('combobox', { name: 'Transcription quality' }), {
+      fireEvent.change(await screen.findByRole('combobox', { name: 'Performance' }), {
         target: { value: 'fast' },
       });
       first.unmount();
       renderScreen(backend, <SettingsScreen />);
       expect(await saveBar()).toBeTruthy();
-      const quality = screen.getByRole('combobox', { name: 'Transcription quality' });
+      const quality = screen.getByRole('combobox', { name: 'Performance' });
       expect((quality as HTMLSelectElement).value).toBe('fast');
     });
 

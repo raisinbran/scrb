@@ -7,6 +7,7 @@ import type {
   SourceSelection,
 } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
+import { useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
@@ -42,6 +43,7 @@ export function LiveScreen() {
   const [selection, setSelection] = useState<SourceSelection | null>(null);
   const [fontPx, setFontPx] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceChange | null>(null);
   const [lastMeetingId, setLastMeetingId] = useState<string | null>(null);
@@ -88,12 +90,19 @@ export function LiveScreen() {
   const resume = useCallback(() => run(() => backend.call('resumeRecording')), [backend, run]);
 
   const selectSources = (next: SourceSelection) => {
+    if (switching) return;
     const previous = selection;
     setSelection(next);
-    backend.call('selectSources', next).catch((failure: unknown) => {
-      setSelection(previous);
-      setError(messageOf(failure));
-    });
+    setError(null);
+    // While recording the helper switches live, so the pickers wait for its answer.
+    if (active) setSwitching(true);
+    backend
+      .call('selectSources', next)
+      .catch((failure: unknown) => {
+        setSelection(previous);
+        setError(messageOf(failure));
+      })
+      .finally(() => setSwitching(false));
   };
 
   const changeFont = (next: number) => {
@@ -118,6 +127,7 @@ export function LiveScreen() {
   });
 
   const meetingId = recording.meetingId ?? lastMeetingId;
+  const setupBlocked = useSetupBlocked();
 
   return (
     <div className={styles.live}>
@@ -140,6 +150,7 @@ export function LiveScreen() {
             devices={sources.devices}
             apps={sources.apps}
             selection={selection}
+            switching={switching}
             onSelect={selectSources}
           />
         )}
@@ -175,8 +186,12 @@ export function LiveScreen() {
         />
       ) : (
         <div className={styles.idle}>
-          <p className={styles.idleTitle}>Ready to record</p>
-          <p className={styles.idleBody}>Choose your sources, then press Start.</p>
+          <p className={styles.idleTitle}>
+            {setupBlocked ? 'Cannot record yet' : 'Ready to record'}
+          </p>
+          <p className={styles.idleBody}>
+            {setupBlocked ?? 'Choose your sources, then press Start.'}
+          </p>
         </div>
       )}
     </div>

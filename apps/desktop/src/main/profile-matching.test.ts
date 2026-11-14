@@ -802,13 +802,16 @@ describe('verified profile recognition', () => {
         buildVoiceProfiles: false,
       });
       // Wait for the externally observable terminal event, without cancelling a healthy import.
-      await vi.waitFor(() =>
-        expect(
-          emit.mock.calls.some(
-            ([name]) =>
-              name === (mode === 'cancel before commit' ? 'importCancelled' : 'importFinished'),
-          ),
-        ).toBe(true),
+      // Windows CI took 1.9 s here once; the 1 s default made the test fail without a defect.
+      await vi.waitFor(
+        () =>
+          expect(
+            emit.mock.calls.some(
+              ([name]) =>
+                name === (mode === 'cancel before commit' ? 'importCancelled' : 'importFinished'),
+            ),
+          ).toBe(true),
+        { timeout: 10_000 },
       );
       await abortDone;
       const meetings = library.listMeetings();

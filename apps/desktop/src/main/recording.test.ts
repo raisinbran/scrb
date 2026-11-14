@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import type { FinalPassQueue } from '@scrb/app-core';
 import { RecordingController, recoverInterrupted } from './recording.ts';
@@ -12,6 +12,7 @@ const fake = vi.hoisted(() => ({
   sealAudio: vi.fn(),
   spawnSync: vi.fn(),
   resolveSources: vi.fn(),
+  switchSource: vi.fn(),
   sessions: [] as {
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void;
     launchWorker(): void;
@@ -59,6 +60,10 @@ vi.mock('@scrb/app-core', async (importOriginal) => ({
 
     async stop(): Promise<void> {
       this.end('stopped');
+    }
+
+    async switchSource(change: unknown): Promise<{ ok: boolean }> {
+      return fake.switchSource(change);
     }
 
     end(reason: 'stopped' | 'pauseFailed' | 'workerFailed'): void {
@@ -120,6 +125,11 @@ function completion() {
   });
   return { promise, resolve };
 }
+
+afterEach(() => {
+  // The platform spy from the source-switch tests must not leak into the Windows launch test.
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -562,6 +572,142 @@ describe('Start while the previous recording is finishing', () => {
     });
     expect(health.at(-1)?.[1].warnings).toHaveLength(1);
     await controller.shutdown();
+  });
+});
+
+describe('Changing sources during a recording', () => {
+  const saved = { meetingAppId: 'app.old', micDeviceId: 'mic-old' };
+
+  async function recording(platform: NodeJS.Platform = 'darwin') {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue(platform);
+    const emit = vi.fn();
+    const save = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      emit,
+      { read: () => saved, save },
+    );
+    await controller.handlers.startRecording!({});
+    const select = (selection: unknown) => controller.handlers.selectSources!(selection);
+    return { controller, emit, save, select };
+  }
+
+  const resolved = (over: object) =>
+    fake.resolveSources.mockResolvedValue({
+      source: 'wholeComputer',
+      mic: 'mic-new',
+      micFellBack: false,
+      ...over,
+    });
+
+  it('switches the microphone, saves it only after the ack, and notes it as information', async () => {
+    const { controller, emit, save, select } = await recording();
+    resolved({});
+    fake.switchSource.mockResolvedValue({ ok: true });
+    await select({ ...saved, micDeviceId: 'mic-new' });
+    expect(fake.switchSource).toHaveBeenCalledWith({ mic: 'mic-new' });
+    expect(save).toHaveBeenCalledWith({ ...saved, micDeviceId: 'mic-new' });
+    const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth').at(-1)![1];
+    expect(health).toMatchObject({ level: 'ok', warnings: [{ kind: 'deviceChanged' }] });
+    await controller.shutdown();
+  });
+
+  it('switches the meeting app and sends its process IDs', async () => {
+    const { controller, save, select } = await recording();
+    resolved({ source: [7, 8] });
+    fake.switchSource.mockResolvedValue({ ok: true });
+    await select({ ...saved, meetingAppId: 'app.new' });
+    expect(fake.switchSource).toHaveBeenCalledWith({ source: [7, 8] });
+    expect(save).toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('does not save and says so when the helper rolls back', async () => {
+    const { controller, save, emit, select } = await recording();
+    resolved({});
+    fake.switchSource.mockResolvedValue({ ok: false });
+    await expect(select({ ...saved, micDeviceId: 'mic-new' })).rejects.toThrow(
+      'Still recording with the previous one',
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(emit.mock.calls.some(([name]) => name === 'recordingHealth')).toBe(false);
+    await controller.shutdown();
+  });
+
+  it('does not save when the command itself fails', async () => {
+    const { controller, save, select } = await recording();
+    resolved({});
+    fake.switchSource.mockRejectedValue(new Error('The capture worker stopped.'));
+    await expect(select({ ...saved, micDeviceId: 'mic-new' })).rejects.toThrow('Could not switch');
+    expect(save).not.toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('rejects a missing microphone and an app with no audio process before sending anything', async () => {
+    const { controller, save, select } = await recording();
+    resolved({ micFellBack: true, mic: 'default' });
+    await expect(select({ ...saved, micDeviceId: 'gone' })).rejects.toThrow('not available');
+    resolved({ source: [-1] });
+    await expect(select({ ...saved, meetingAppId: 'quiet' })).rejects.toThrow('not playing audio');
+    expect(fake.switchSource).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('rejects a request that changes both fields before resolving or sending', async () => {
+    const { controller, save, select } = await recording();
+    fake.resolveSources.mockClear();
+    await expect(select({ meetingAppId: 'app.new', micDeviceId: 'mic-new' })).rejects.toThrow(
+      'one at a time',
+    );
+    expect(fake.resolveSources).not.toHaveBeenCalled();
+    expect(fake.switchSource).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('does nothing for an unchanged selection', async () => {
+    const { controller, save, select } = await recording();
+    await select(saved);
+    expect(fake.switchSource).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('refuses on Windows', async () => {
+    const { controller, save, select } = await recording('win32');
+    await expect(select({ ...saved, micDeviceId: 'mic-new' })).rejects.toThrow(
+      'Stop the recording',
+    );
+    expect(fake.switchSource).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    await controller.shutdown();
+  });
+
+  it('refuses a second switch while one is in flight', async () => {
+    const { controller, select } = await recording();
+    resolved({});
+    let finish!: (ack: { ok: boolean }) => void;
+    fake.switchSource.mockReturnValue(new Promise((done) => (finish = done)));
+    const first = select({ ...saved, micDeviceId: 'mic-new' });
+    await vi.waitFor(() => expect(fake.switchSource).toHaveBeenCalled());
+    await expect(select({ ...saved, micDeviceId: 'mic-3' })).rejects.toThrow('Still switching');
+    finish({ ok: true });
+    await first;
+    await controller.shutdown();
+  });
+
+  it('saves the choice while idle', async () => {
+    const save = vi.fn();
+    const controller = new RecordingController(
+      libraryStub() as unknown as Library,
+      'helper',
+      vi.fn(),
+      { read: () => saved, save },
+    );
+    await controller.handlers.selectSources!({ ...saved, micDeviceId: null });
+    expect(save).toHaveBeenCalled();
   });
 });
 

@@ -5,10 +5,16 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Library } from '@scrb/storage';
 import { encodePcmFrame, toolsIn, type LivePcmFrame, type ModelPaths } from '@scrb/transcription';
-import { LiveCaptureSession, readLiveSetup, type LiveSetup } from './live-feed.ts';
+import {
+  applyLivePerformance,
+  LiveCaptureSession,
+  readLiveSetup,
+  readWhisperOverride,
+  type LiveSetup,
+} from './live-feed.ts';
 import { WindowsLivePipePool } from './windows-live-pipe.ts';
 
 const models: ModelPaths = {
@@ -368,4 +374,42 @@ it('keeps capture available after pipe bind failure', async () => {
   expect(session.startWindowsHelper()).toEqual([]);
   expect(emit).toHaveBeenCalledWith('transcriptionLag', { status: 'failed', lagMs: 0 });
   await session.stop();
+});
+
+describe('applyLivePerformance', () => {
+  const base = {
+    tools: {},
+    models: {},
+    workerArgs: ['x'],
+    whisper: { threads: 7, audioContext: 768, language: 'en' },
+  } as unknown as LiveSetup;
+
+  it('returns null when live is off or there is no setup', () => {
+    expect(applyLivePerformance(base, { live: false, liveThreads: 4 }, false)).toBeNull();
+    expect(applyLivePerformance(null, { live: true, liveThreads: 4 }, false)).toBeNull();
+  });
+
+  it('sets threads from the preset and keeps the other whisper values', () => {
+    const out = applyLivePerformance(base, { live: true, liveThreads: 3 }, false);
+    expect(out?.whisper).toEqual({ threads: 3, audioContext: 768, language: 'en' });
+  });
+
+  it('keeps the file as written under a developer override, but Fast still turns live off', () => {
+    expect(applyLivePerformance(base, { live: true, liveThreads: 3 }, true)).toBe(base);
+    expect(applyLivePerformance(base, { live: false, liveThreads: 3 }, true)).toBeNull();
+  });
+});
+
+describe('readWhisperOverride', () => {
+  it('is true only for an explicit true, and false for a missing or bad file', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'scrb-override-'));
+    const on = join(dir, 'on.json');
+    const off = join(dir, 'off.json');
+    await writeFile(on, JSON.stringify({ whisperOverride: true }));
+    await writeFile(off, JSON.stringify({ whisperOverride: 'yes' }));
+    expect(await readWhisperOverride(on)).toBe(true);
+    expect(await readWhisperOverride(off)).toBe(false);
+    expect(await readWhisperOverride(join(dir, 'none.json'))).toBe(false);
+    await rm(dir, { recursive: true, force: true });
+  });
 });

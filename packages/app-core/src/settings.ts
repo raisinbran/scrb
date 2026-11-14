@@ -55,7 +55,12 @@ function merged(saved: SettingsPatch, patch: SettingsPatch): SettingsPatch {
   };
 }
 
-export function createSettingsHandlers(store: SettingsBackingStore, storageLocation: string) {
+export function createSettingsHandlers(
+  store: SettingsBackingStore,
+  storageLocation: string,
+  /** What a install with no saved choice starts on. A saved choice always wins. */
+  defaultQuality: AppSettings['transcriptionQuality'] = DEFAULTS.transcriptionQuality,
+) {
   /** A saved value that fails the request checks is damaged, so the defaults stand in for it. */
   const readSaved = (): SettingsPatch => {
     const saved = store.get<unknown>(APP_SETTINGS_KEY, {});
@@ -67,6 +72,7 @@ export function createSettingsHandlers(store: SettingsBackingStore, storageLocat
     const saved = readSaved();
     return {
       ...DEFAULTS,
+      transcriptionQuality: defaultQuality,
       ...saved,
       audio: { ...DEFAULTS.audio, ...saved.audio },
       location: { ...DEFAULTS.location, ...saved.location },

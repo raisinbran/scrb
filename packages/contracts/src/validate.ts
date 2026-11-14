@@ -338,6 +338,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   getAppInfo: nothing,
   getLicenses: nothing,
   openLogsFolder: nothing,
+  showMiniWindow: nothing,
 };
 
 export function isValidRequest<K extends CallName>(

@@ -86,7 +86,6 @@ button:disabled {
 }
 
 .elapsed {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -226,14 +225,21 @@ button:disabled {
 
 .bannerTime {
   margin-inline-start: var(--space-2);
-  font-family: var(--font-mono);
   color: var(--color-text-muted);
 }
 
 .finished {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+
+.finished p {
+  margin: 0;
 }
 
 .idle {

@@ -14,6 +14,7 @@ import { SpeakerLabel } from '../../components/speakers/SpeakerLabel.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed, formatMeetingDate } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
+import { useRemembered } from '../../lib/tab-memory.ts';
 import { DataView } from '../Screen.tsx';
 import fieldStyles from '../../components/Dialog.module.css';
 import styles from './MeetingSpeakers.module.css';
@@ -187,7 +188,7 @@ export function MeetingSpeakers({
   onChanged(): void;
 }) {
   const available = meetings.filter((meeting) => !UNAVAILABLE.has(meeting.status));
-  const [meetingId, setMeetingId] = useState<MeetingId | null>(null);
+  const [meetingId, setMeetingId] = useRemembered<MeetingId | null>('speakers.meeting', null);
   const selected = available.some((meeting) => meeting.id === meetingId) ? meetingId : null;
   if (available.length === 0) return null;
   return (

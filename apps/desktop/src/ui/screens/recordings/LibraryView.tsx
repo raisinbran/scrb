@@ -3,6 +3,7 @@ import { matchesMeetingFilter } from '@scrb/contracts';
 import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingDate } from '../../lib/format.ts';
+import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
@@ -99,11 +100,11 @@ interface LibraryViewProps {
 export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   const backend = useBackend();
   const searchBox = useRef<HTMLInputElement>(null);
-  const [typed, setTyped] = useState('');
-  const [query, setQuery] = useState('');
-  const [origin, setOrigin] = useState<Origin>('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [typed, setTyped] = useRemembered('library.typed', '');
+  const [query, setQuery] = useState(() => typed.trim());
+  const [origin, setOrigin] = useRemembered<Origin>('library.origin', '');
+  const [from, setFrom] = useRemembered('library.from', '');
+  const [to, setTo] = useRemembered('library.to', '');
   const [picked, setPicked] = useState<PickedAudioFile | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
 

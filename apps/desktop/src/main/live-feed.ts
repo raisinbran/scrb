@@ -102,6 +102,31 @@ export async function readLiveSetup(
   }
 }
 
+/** A developer sets `whisperOverride: true` in the live config to keep its `whisper.*` values as written. */
+export async function readWhisperOverride(configPath: string): Promise<boolean> {
+  try {
+    return (
+      object(JSON.parse(await readFile(configPath, 'utf8')) as unknown)?.whisperOverride === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The preset picks the live thread count over the file's baseline, unless the file forces its own.
+ * Live off (Fast) returns null. Model, GPU, audio context and language stay as the file has them.
+ */
+export function applyLivePerformance(
+  base: LiveSetup | null,
+  plan: { live: boolean; liveThreads: number },
+  override: boolean,
+): LiveSetup | null {
+  if (!base || !plan.live) return null;
+  if (override) return base;
+  return { ...base, whisper: { ...base.whisper, threads: plan.liveThreads } };
+}
+
 /** One sink per meeting, but a fresh worker and decoder for every helper launch. */
 export class LiveCaptureSession {
   private readonly sink: LiveTranscriptSink;
