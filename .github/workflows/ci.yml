@@ -49,8 +49,8 @@ jobs:
       - name: Check Prettier on changed TypeScript
         shell: bash
         run: |
-          # xargs splits the list: all changed files at once overran the Windows command line.
-          git diff --name-only --diff-filter=d -z 444e1ce HEAD -- '*.ts' '*.tsx' | xargs -0 -r npx prettier --check
+          # xargs -n 25 batches the list: all changed files at once overran the Windows command line (npx is a cmd shim, ~8k limit).
+          git diff --name-only --diff-filter=d -z 444e1ce HEAD -- '*.ts' '*.tsx' | xargs -0 -r -n 25 npx prettier --check
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build -w @scrb/summary
