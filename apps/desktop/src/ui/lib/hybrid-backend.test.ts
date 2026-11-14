@@ -147,6 +147,7 @@ describe('createHybridBackend', () => {
       ({
         call: vi.fn(async (name: string, request?: { meetingId?: string }) => {
           if (name === 'listMeetings') return [item];
+          if (name === 'searchMeetings') return [{ meeting: item, matches: [] }];
           if (name === 'getSettings') return mock.call('getSettings');
           if (request?.meetingId !== REAL_ID) {
             throw new ContractError({ code: 'notFound', message: 'Gone.' });
@@ -163,6 +164,13 @@ describe('createHybridBackend', () => {
       const samples = await mock.call('listMeetings', {});
       const listed = await createHybridBackend(realWithMeeting(), mock).call('listMeetings', {});
       expect(listed.map(({ id }) => id)).toEqual([REAL_ID, ...samples.map(({ id }) => id)]);
+    });
+
+    it('searches real meetings as well as the samples', async () => {
+      const found = await createHybridBackend(realWithMeeting(), mock).call('searchMeetings', {
+        query: 'real',
+      });
+      expect(found[0]?.meeting.id).toBe(REAL_ID);
     });
 
     it('passes the filter to both sides', async () => {
