@@ -86,7 +86,6 @@ button:disabled {
 }
 
 .elapsed {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -226,7 +225,6 @@ button:disabled {
 
 .bannerTime {
   margin-inline-start: var(--space-2);
-  font-family: var(--font-mono);
   color: var(--color-text-muted);
 }
 
