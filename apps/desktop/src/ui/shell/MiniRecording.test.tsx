@@ -301,7 +301,7 @@ describe('MiniRecording', () => {
       ['scrb-app://mini-compact'],
       ['scrb-app://mini-hide'],
     ]);
-    expect(screen.getByRole('button', { name: 'Hide mini window' }).title).toBe('Hide mini window');
+    expect(screen.getByRole('button', { name: 'Hide mini window' }).dataset.tip).toBe('Hide');
     fireEvent.click(screen.getByRole('button', { name: 'Make larger' }));
     expect(open).toHaveBeenLastCalledWith('scrb-app://mini-expand');
   });
@@ -361,9 +361,9 @@ describe('MiniRecording', () => {
   it('pauses a recording and stops it through the backend, with tooltips', async () => {
     const calls = showWithCalls('recording');
     const pause = await screen.findByRole('button', { name: 'Pause recording' });
-    expect(pause.getAttribute('title')).toMatch(/Pause/);
-    expect(screen.getByRole('button', { name: 'Stop recording' }).getAttribute('title')).toMatch(
-      /Stop recording/,
+    expect(pause.dataset.tip).toBe('Pause');
+    expect(screen.getByRole('button', { name: 'Stop recording' }).dataset.tip).toBe(
+      'Stop and save',
     );
     fireEvent.click(pause);
     await act(async () => undefined);
@@ -388,19 +388,64 @@ describe('MiniRecording', () => {
 
   it('explains the compact and return buttons in tooltips', async () => {
     await showRecording(65_000);
-    expect(screen.getByRole('button', { name: 'Make smaller' }).getAttribute('title')).toMatch(
-      /status row/,
+    expect(screen.getByRole('button', { name: 'Make smaller' }).dataset.tip).toBe('Make smaller');
+    expect(screen.getByRole('button', { name: 'Show Scribe' }).dataset.tip).toBe('Open Scribe');
+  });
+
+  it('never shows a transcription-behind status, whatever the lag', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('recording'),
+        pauseSpans: [],
+        health: null,
+        transcription: { status: 'lagging', lagMs: 90_000 } as never,
+      }),
     );
-    expect(screen.getByRole('button', { name: 'Show Scribe' }).getAttribute('title')).toMatch(
-      /main Scribe window/,
-    );
+    expect(document.body.textContent).not.toMatch(/behind|catching up/i);
+    expect(screen.queryByText(/Transcription/)).toBeNull();
+  });
+
+  it('puts one Hide control in the title strip, first in the tab order, on the platform side', async () => {
+    for (const [agent, platform] of [
+      ['Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)', 'mac'],
+      ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'other'],
+    ] as const) {
+      vi.stubGlobal('navigator', { userAgent: agent });
+      await showRecording(65_000);
+      const hide = screen.getByRole('button', { name: 'Hide mini window' });
+      expect(hide.parentElement?.getAttribute('data-platform')).toBe(platform);
+      expect(screen.getAllByRole('button')[0]).toBe(hide);
+      expect(screen.getAllByRole('button', { name: 'Hide mini window' })).toHaveLength(1);
+      cleanup();
+    }
+  });
+
+  it('shows tooltips from CSS within 400 ms, with no slow native title on the buttons', async () => {
+    await showRecording(65_000);
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.getAttribute('title')).toBeNull();
+      expect(button.dataset.tip).toBeTruthy();
+    }
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const delay = css.match(/\[data-tip\]:hover::after[^{]*\{[^}]*transition-delay: (\d+)ms/);
+    expect(Number(delay?.[1])).toBeLessThanOrEqual(400);
+    expect(css).toMatch(/\[data-tip\]:focus-visible::after/);
+  });
+
+  it('no button changes size with its state: pause and resume share one box', () => {
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const rule = css.match(/\.icon \{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/width: 24px/);
+    expect(rule).toMatch(/height: 24px/);
   });
 
   it('the top row has a fixed height and the time shares the label font', () => {
     const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
     const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
     expect(rule('line')).toMatch(/height: 24px/);
-    expect(rule('mini')).toMatch(/justify-content: flex-start/);
+    expect(css).toMatch(/\.body,\s*\.idle \{[^}]*justify-content: flex-start/);
     expect(rule('elapsed')).not.toMatch(/font-family|font-size/);
   });
 });

@@ -120,7 +120,7 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     const bounds = mini.getBounds();
     if (next) {
       fullHeight = bounds.height;
-      // Content height, so the title bar is kept; the window keeps its top edge.
+      // Content height (the page's own strip is inside it); the window keeps its top edge.
       const chrome = bounds.height - mini.getContentBounds().height;
       mini.setBounds({ ...bounds, height: MINI_COMPACT_HEIGHT + chrome });
     } else {

@@ -166,14 +166,18 @@ export function miniWindowOpenHandler(
  * keyboard to the app's next window and raise it, and that could not be verified or fixed (see the
  * PR). The compact button shrinks the window to its status row instead and touches no other window.
  */
-export const MINI_WINDOW_SIZE = { width: 352, height: 72 } as const;
-/** Content height of the compact strip: the status row only. */
-export const MINI_COMPACT_HEIGHT = 40;
+/** The page's own title strip (it holds the Hide control and drags the window); the CSS keeps a copy. */
+export const MINI_STRIP_HEIGHT = 20;
+export const MINI_WINDOW_SIZE = { width: 352, height: 72 + MINI_STRIP_HEIGHT } as const;
+/** Content height of the compact window: the title strip and the status row only. */
+export const MINI_COMPACT_HEIGHT = MINI_STRIP_HEIGHT + 40;
 
 export const MINI_WINDOW_OPTIONS = {
   title: 'Scribe recording',
   ...MINI_WINDOW_SIZE,
-  // The size is the page area, so the title bar never takes from the two rows.
+  // No OS title bar: the page draws its own strip with a Hide control, on both platforms. The OS
+  // minimize stays off (see above), so the size is the page area and the strip is part of it.
+  frame: false,
   useContentSize: true,
   alwaysOnTop: true,
   resizable: false,
