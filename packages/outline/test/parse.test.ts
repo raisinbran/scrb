@@ -89,6 +89,13 @@ describe('parseOutline', () => {
       expect(id(v3, 'Hiring plan')).not.toBe(id(v1, 'Hiring'));
       expect(v3.map((i) => i.id)).not.toContain(id(v1, 'Hiring'));
     });
+    it('never reissues the id of a deleted last heading', () => {
+      const first = parseOutline('Budget\nHiring\nRoadmap');
+      const without = parseOutline('Budget\nHiring', first.items, first.nextId);
+      const added = parseOutline('Budget\nHiring\nTravel', without.items, without.nextId);
+      expect(added.items[2]!.id).not.toBe(first.items[2]!.id);
+      expect(added.nextId).toBeGreaterThan(without.nextId);
+    });
     it('tells apart the same subheading under different parents', () => {
       const a = parseOutline('# A\n## Plan\n# B\n## Plan').items;
       expect(new Set(a.map((i) => i.id)).size).toBe(4);

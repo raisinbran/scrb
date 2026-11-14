@@ -44,9 +44,15 @@ function splitOwner(text: string): { text: string; owner?: string } {
 }
 
 /** Pure parser: pasted outline text to a flat, ordered item list with levels. */
-export function parseOutline(input: string, previous: readonly OutlineItem[] = []): ParseResult {
-  if (input.trim() === '') return { items: [], notes: [], error: 'empty' };
-  if (input.length > MAX_TEXT_CHARS) return { items: [], notes: [], error: 'tooLong' };
+export function parseOutline(
+  input: string,
+  previous: readonly OutlineItem[] = [],
+  nextId = 1,
+): ParseResult {
+  const startId = highestIssued(previous, nextId);
+  if (input.trim() === '') return { items: [], notes: [], nextId: startId, error: 'empty' };
+  if (input.length > MAX_TEXT_CHARS)
+    return { items: [], notes: [], nextId: startId, error: 'tooLong' };
 
   const lines: Line[] = [];
   for (const raw of input.split(/\r?\n/)) {
@@ -54,7 +60,8 @@ export function parseOutline(input: string, previous: readonly OutlineItem[] = [
     const line = classify(raw.trim(), indentWidth(raw));
     if (line && line.text.trim() !== '') lines.push(line);
   }
-  if (lines.length > MAX_ITEMS) return { items: [], notes: [], error: 'tooManyItems' };
+  if (lines.length > MAX_ITEMS)
+    return { items: [], notes: [], nextId: startId, error: 'tooManyItems' };
 
   const notes: string[] = [];
   const items: OutlineItem[] = [];
@@ -90,8 +97,8 @@ export function parseOutline(input: string, previous: readonly OutlineItem[] = [
     if (owner) item.ownerName = owner;
     items.push(item);
   }
-  assignIds(items, previous);
-  return { items, notes };
+  const issued = assignIds(items, previous, startId);
+  return { items, notes, nextId: issued };
 }
 
 function pathKeys(items: readonly OutlineItem[]): string[] {
@@ -106,18 +113,23 @@ function pathKeys(items: readonly OutlineItem[]): string[] {
 /**
  * Ids are stable across outline revisions: an item keeps the id of the earlier item with the
  * same heading text under the same parent headings (matched in order). Anything else, including
- * an edited heading, gets a new id that is never reused, so a pin made on an old id can never
+ * an edited heading, gets a new id that is never reused (the caller keeps `nextId`, which also covers deleted headings), so a pin made on an old id can never
  * attach to a different heading.
  */
-function assignIds(items: OutlineItem[], previous: readonly OutlineItem[]): void {
-  const old = pathKeys(previous);
-  const taken = new Set<number>();
-  const keys = pathKeys(items);
-  let next = 1;
+function highestIssued(previous: readonly OutlineItem[], nextId: number): number {
+  let next = Math.max(1, nextId);
   for (const p of previous) {
     const n = /^o(\d+)$/.exec(p.id);
     if (n) next = Math.max(next, Number(n[1]) + 1);
   }
+  return next;
+}
+
+function assignIds(items: OutlineItem[], previous: readonly OutlineItem[], first: number): number {
+  const old = pathKeys(previous);
+  const taken = new Set<number>();
+  const keys = pathKeys(items);
+  let next = first;
   items.forEach((item, i) => {
     const hit = old.findIndex((k, j) => k === keys[i] && !taken.has(j));
     if (hit >= 0) {
@@ -128,4 +140,5 @@ function assignIds(items: OutlineItem[], previous: readonly OutlineItem[]): void
       next += 1;
     }
   });
+  return next;
 }
