@@ -201,6 +201,18 @@ describe('MockBackend', () => {
     ).rejects.toMatchObject({ code: 'notFound' });
   });
 
+  it('accepts the learned-data option on delete and reports it', async () => {
+    const result = await backend.call('deleteMeeting', {
+      meetingId: 'meeting-outdated',
+      removeLearnedData: true,
+    });
+    expect(result).toEqual({
+      verified: true,
+      remaining: [],
+      learnedDataRemoved: { profiles: 0, terms: 0 },
+    });
+  });
+
   it('persists settings across instances', async () => {
     await backend.call('updateSettings', { theme: 'dark' });
     expect((await new MockBackend().call('getSettings')).theme).toBe('dark');
