@@ -154,7 +154,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(page.getByRole('button', { name: /Weekly project sync/ })).toBeVisible();
       await inspectLayout(page, `${zoom}-recordings`);
       await page.getByRole('button', { name: /Weekly project sync/ }).click();
-      await expect(page.getByRole('heading', { name: /Weekly project sync/ })).toBeFocused();
+      await expect(page.getByRole('heading', { level: 1, name: 'Recordings' })).toBeFocused();
       await inspectLayout(page, `${zoom}-detail`);
       await expectPanelHeight(page, '[role="tabpanel"]', 200);
       await page.getByRole('button', { name: 'Edit details', exact: true }).click();
@@ -171,7 +171,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         page,
         page.getByRole('button', { name: 'Play from 00:00', exact: true }),
       );
-      await page.getByRole('button', { name: '← Recordings', exact: true }).click();
+      await page.getByRole('button', { name: 'Back to Recordings', exact: true }).click();
       await inspectLayout(page, `${zoom}-long-list`);
     }
   } finally {
