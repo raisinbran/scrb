@@ -18,6 +18,7 @@ Recordings examined (owner exception, 2026-11-14): R1, a 72-minute meeting, and 
 
 | # | Fix | Contract change | Owner approval | Cost |
 |---|-----|-----------------|----------------|------|
+| 0 | Evaluate sherpa's clustering threshold for the meeting track (`OVERSPLIT_THRESHOLD` in `finalPass.ts`, one constant, now 1.0) at about 0.9 with the 0.65 merge kept. Evidence: on one owner recording the meeting track collapses to a single cluster at 1.0 and splits at 0.9; two AMI meetings are unchanged at 0.8 and one gets worse. Needs a full AMI sweep first. | No | Yes (diarization behavior) | Small to change, 0.5 day to validate |
 | 1 | Write one log line per final pass: clusters before and after relabel, speech seconds per cluster, closest pair similarity, config model file names. No audio or text. Next time a meeting shows one speaker the cause is readable. | No | No (logging only, backend) | Small, under 1 hour |
 | 2 | Lower `minSpeakerMs` from 30 s to about 10 s but keep a similarity guard (absorb only if similarity to the nearest speaker is at or above about 0.5). Evaluate on the three AMI meetings and R1/R2 numbers first. | No | Yes: it changes diarization behavior and needs the AMI run | Medium, 0.5 day |
 | 3 | If #1 shows R2-style collapses with similarity under 0.5, raise sherpa's own clustering sensitivity for the meeting track (it runs at threshold 1.0 and merging is done after). | No | Yes | Medium; needs AMI and real-meeting evaluation |
