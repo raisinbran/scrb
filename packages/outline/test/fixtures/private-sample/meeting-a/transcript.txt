@@ -1,0 +1,7 @@
+Pat: ok lets start with the budget the quarterly spend on cloud hosting is over forecast by ten percent
+Sam: the hosting bills grew because the storage tier changed and we should cut the unused storage budget lines
+Pat: agreed cut unused storage and renegotiate the hosting contract before the quarter ends
+Sam: now hiring we need two engineers and one designer so the headcount request goes to finance
+Pat: the engineers should start in march and the designer recruiting begins with a referral campaign
+Sam: finally the launch date we pick the fifteenth of april pending the security audit and testing sign off
+Pat: launch testing needs two weeks so the audit must finish by the first of april

@@ -65,7 +65,7 @@ export interface Tally {
   meetings: number;
   meetingAcc: number[];
 }
-const empty = (): Tally => ({
+export const emptyTally = (): Tally => ({
   ms: 0,
   correct: 0,
   inOutlineMs: 0,
@@ -80,11 +80,11 @@ const empty = (): Tally => ({
   meetingAcc: [],
 });
 
-function boundaries(labels: (string | null)[], meeting: AmiMeeting): number[] {
+function boundaries(labels: (string | null)[], words: Timed[]): number[] {
   const MIN_RUN_MS = 10_000;
   const runs: { label: string | null; start: number; end: number }[] = [];
   labels.forEach((l, i) => {
-    const w = meeting.words[i]!;
+    const w = words[i]!;
     const last = runs[runs.length - 1];
     if (last && last.label === l) last.end = w.endMs;
     else runs.push({ label: l, start: w.startMs, end: w.endMs });
@@ -96,29 +96,22 @@ function boundaries(labels: (string | null)[], meeting: AmiMeeting): number[] {
   return out;
 }
 
-function score(
-  meeting: AmiMeeting,
-  ref: Reference,
-  variant: Variant,
-  placed: PlacedBlock[],
-  itemOfIndex: string[],
+export interface Timed {
+  startMs: number;
+  endMs: number;
+}
+
+/** Adds one meeting to a tally: per-word found label, confidence and true label. */
+export function scoreLabels(
+  words: Timed[],
+  found: (string | null)[],
+  conf: string[],
+  truth: (string | null)[],
   t: Tally,
 ): void {
-  const found: (string | null)[] = new Array(meeting.words.length).fill(null);
-  const conf: string[] = new Array(meeting.words.length).fill('unsure');
-  for (const b of placed)
-    for (let i = b.first; i <= b.last; i += 1) {
-      found[i] = b.itemId;
-      conf[i] = b.confidence;
-    }
-  const truth: (string | null)[] = ref.wordEntry.map((e) => {
-    if (e === null) return null;
-    const v = variant.map.get(e);
-    return v === undefined ? null : itemOfIndex[v]!;
-  });
   let ms = 0;
   let ok = 0;
-  meeting.words.forEach((w, i) => {
+  words.forEach((w, i) => {
     const d = w.endMs - w.startMs;
     const right = found[i] === truth[i];
     t.ms += d;
@@ -142,14 +135,35 @@ function score(
   });
   t.meetings += 1;
   t.meetingAcc.push(ok / ms);
-  const tb = boundaries(truth, meeting);
-  const fb = boundaries(found, meeting);
+  const tb = boundaries(truth, words);
+  const fb = boundaries(found, words);
   if (fb.length > 0)
     for (const x of tb)
       t.boundaryErrorsSec.push(Math.min(...fb.map((y) => Math.abs(y - x))) / 1000);
-  else
-    for (const x of tb)
-      t.boundaryErrorsSec.push((meeting.words[meeting.words.length - 1]!.endMs - x) / 1000);
+  else for (const x of tb) t.boundaryErrorsSec.push((words[words.length - 1]!.endMs - x) / 1000);
+}
+
+function score(
+  meeting: AmiMeeting,
+  ref: Reference,
+  variant: Variant,
+  placed: PlacedBlock[],
+  itemOfIndex: string[],
+  t: Tally,
+): void {
+  const found: (string | null)[] = new Array(meeting.words.length).fill(null);
+  const conf: string[] = new Array(meeting.words.length).fill('unsure');
+  for (const b of placed)
+    for (let i = b.first; i <= b.last; i += 1) {
+      found[i] = b.itemId;
+      conf[i] = b.confidence;
+    }
+  const truth: (string | null)[] = ref.wordEntry.map((e) => {
+    if (e === null) return null;
+    const v = variant.map.get(e);
+    return v === undefined ? null : itemOfIndex[v]!;
+  });
+  scoreLabels(meeting.words, found, conf, truth, t);
 }
 
 export interface EvalResult {
@@ -165,7 +179,8 @@ export function evaluate(
   only?: (position: number) => boolean,
 ): EvalResult {
   const results = new Map<string, Tally>();
-  const tally = (k: string): Tally => results.get(k) ?? (results.set(k, empty()), results.get(k)!);
+  const tally = (k: string): Tally =>
+    results.get(k) ?? (results.set(k, emptyTally()), results.get(k)!);
   let used = 0;
   let skipped = 0;
   let position = -1;
