@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptChanged, TranscriptSegment } from '@scrb/contracts';
 import { MockBackend } from '../../mocks/index.ts';
 import { RowHeights } from './row-heights.ts';
-import { PAGE_SEGMENTS, TranscriptStore } from './transcript-store.ts';
+import { PAGE_SEGMENTS, TranscriptStore, type WordRef } from './transcript-store.ts';
 
 function makeSegment(id: string, startMs: number, words = ['one', 'two']): TranscriptSegment {
   return {
@@ -91,7 +91,7 @@ describe('TranscriptStore', () => {
       segments: [makeSegment('c2', 400, ['new', 'words'])],
       removedSegmentIds: ['c'],
     });
-    expect(store.resolve(ref)).toEqual({
+    expect(store.resolve(ref)).toMatchObject({
       segmentId: 'c2',
       wordId: 'c2-1',
       startMs: 500,
@@ -139,6 +139,50 @@ describe('TranscriptStore', () => {
       ['yes', 600],
     ]);
     expect(store.resolve(ref)).toBeNull();
+  });
+
+  it('refuses a same-text word 120 ms away when its neighbours differ', () => {
+    const put = (revision: number, items: [string, number][]) =>
+      emit(revision, {
+        kind: 'replace',
+        segments: [
+          {
+            ...makeSegment('c', 400, []),
+            endMs: 3000,
+            words: items.map(([text, startMs], i) => ({
+              id: `m-${i}`,
+              text,
+              startMs,
+              endMs: startMs + 80,
+              state: 'provisional' as const,
+              correctionId: null,
+            })),
+          },
+        ],
+        removedSegmentIds: [],
+      });
+    put(2, [
+      ['say', 300],
+      ['yes', 500],
+      ['and', 700],
+      ['yes', 900],
+    ]);
+    const picked = store.refAt({ segment: 1, word: 1 }) as WordRef;
+    expect(picked).toMatchObject({ text: 'yes', before: 'say', after: 'and' });
+    // The first "yes" is deleted; the other one now sits 120 ms from where it was.
+    put(3, [
+      ['say', 300],
+      ['and', 400],
+      ['yes', 620],
+    ]);
+    expect(store.resolve({ ...picked, wordId: 'gone' })).toBeNull();
+    // The same word, re-timed with the same neighbours, is still followed.
+    put(4, [
+      ['say', 310],
+      ['yes', 540],
+      ['and', 700],
+    ]);
+    expect(store.resolve({ ...picked, wordId: 'gone' })).toMatchObject({ wordId: 'm-1' });
   });
 
   it('gives up on a word whose moment has no text left', () => {
