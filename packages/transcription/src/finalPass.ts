@@ -1,6 +1,14 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { assembleChunks } from './audio.js';
+import {
+  echoLikeness,
+  estimateLagMs,
+  lagRange,
+  readWavEnvelope,
+  similarWord,
+  type EchoLikeness,
+} from './echoEnvelope.js';
 import type { ModelPaths, ToolPaths } from './config.js';
 import { SherpaWorker, type RawSegment } from './sherpa.js';
 import {
@@ -105,7 +113,10 @@ export async function runFinalPass(o: FinalPassOptions): Promise<FinalTranscript
       : { spans: [], speakers: [] };
     const diarizeMs = Date.now() - diarizeStart;
 
-    const transcript = assemble(results, speakers.spans, speakers.speakers);
+    const micTrack = results.find((r) => r.kind === 'mic');
+    const echoAudio =
+      micTrack && meeting ? await readEchoAudio(micTrack.wavPath, meeting.wavPath) : undefined;
+    const transcript = assemble(results, speakers.spans, speakers.speakers, echoAudio);
     report('done', 1);
     return {
       ...transcript,
@@ -217,13 +228,14 @@ export function assemble(
   tracks: TrackResult[],
   spans: Span[],
   speakers: FinalSpeaker[],
+  echoAudio?: EchoAudio,
 ): Pick<FinalTranscript, 'version' | 'durationMs' | 'words' | 'turns' | 'speakers' | 'spans'> {
   const words: Word[] = [];
   const all = [...speakers];
   const meetingWords = tracks.filter((t) => t.kind === 'meeting').flatMap((t) => t.words);
   for (const t of tracks) {
     if (t.kind === 'mic') {
-      t.words = dropRoomEcho(t.words, meetingWords);
+      t.words = dropRoomEcho(t.words, meetingWords, echoAudio);
       for (const w of t.words) words.push({ ...w, track: 'mic', speakerId: YOU_ID });
       if (t.words.length > 0) {
         all.unshift({
@@ -253,19 +265,55 @@ export function assemble(
   };
 }
 
+/** Loudness of both saved tracks; undefined when either is not a plain final-pass WAV. */
+async function readEchoAudio(micPath: string, meetingPath: string): Promise<EchoAudio | undefined> {
+  const [mic, meeting] = await Promise.all([
+    readWavEnvelope(micPath),
+    readWavEnvelope(meetingPath),
+  ]);
+  return mic && meeting ? { mic, meeting } : undefined;
+}
+
 const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
 
 const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
 
+/** Loudness patterns (see echoEnvelope.ts) of the two saved tracks. */
+export interface EchoAudio {
+  mic: Float32Array;
+  meeting: Float32Array;
+}
+
+/** A word whose own loudness follows the meeting's this closely is echo even if the text differs. */
+const ENV_CORR = 0.8;
+const ENV_SPREAD_DB = 5;
+/** Echo has the room's gain; a word this much louder or quieter than that is not the same sound. */
+const ENV_GAIN_DB = 6;
+/** Looser bar for a word whose text already nearly matched. */
+const FUZZY_CORR = 0.6;
+/** Loudness-only echo words need this many in a row when no text-matched echo sits beside them. */
+const ENV_ALONE_RUN = 3;
+
+type EchoWord = { text: string; startMs: number; endMs?: number };
+
 /**
- * Removes mic words that re-capture the meeting audio from the speakers: runs of at least
- * ECHO_MIN_RUN mic words, each at most TURN_GAP_MS after the previous, that match distinct
- * meeting words of the same text, within ECHO_WINDOW_MS, in the same order.  Not an echo
- * canceller; the user repeating a phrase at the same moment is lost.
+ * Removes mic words that re-capture the meeting audio from the speakers.
+ *
+ * Text rule: runs of at least ECHO_MIN_RUN mic words, each at most TURN_GAP_MS after the
+ * previous, that match distinct meeting words, within ECHO_WINDOW_MS, in the same order.
+ * A match is exact, or a near spelling (a word heard slightly differently); a run of only
+ * near spellings counts when `audio` shows their loudness following the meeting's.
+ *
+ * Loudness rule (needs `audio`): once the recording shows echo at a steady delay, a mic word
+ * whose loudness pattern follows the meeting's at that delay is echo, if it sits in a chain
+ * with text-matched echo or in a chain of ENV_ALONE_RUN such words.  The user's own words
+ * over the meeting usually do not follow its pattern and are kept, but some are lost when
+ * they are no louder than the echo.  Not an echo canceller.
  */
-export function dropRoomEcho<W extends { text: string; startMs: number }>(
+export function dropRoomEcho<W extends EchoWord>(
   mic: W[],
   meeting: { text: string; startMs: number }[],
+  audio?: EchoAudio,
 ): W[] {
   const heard = [...meeting].sort((a, b) => a.startMs - b.startMs);
   const own = [...mic].sort((a, b) => a.startMs - b.startMs);
@@ -281,38 +329,93 @@ export function dropRoomEcho<W extends { text: string; startMs: number }>(
     }
     return lo;
   };
-  const heardAfter = (w: W, after: number): number => {
+  const heardAfter = (w: W, after: number): { k: number; near: boolean } | null => {
     const text = bare(w.text);
     const k0 = Math.max(after + 1, firstInWindow(w.startMs - ECHO_WINDOW_MS));
+    let near = -1;
     for (let k = k0; k < heard.length && heard[k]!.startMs <= w.startMs + ECHO_WINDOW_MS; k++) {
-      if (heardText[k] === text) return k;
+      if (heardText[k] === text) return { k, near: false };
+      if (near < 0 && similarWord(heardText[k]!, text)) near = k;
     }
-    return -1;
+    return near < 0 ? null : { k: near, near: true };
   };
-  const echo = new Set<W>();
-  let run: W[] = [];
+  const endOf = (w: W): number => w.endMs ?? w.startMs + 300;
+  const likeness = (w: W, range?: [number, number]): EchoLikeness | null =>
+    audio ? echoLikeness(audio.mic, audio.meeting, w.startMs, endOf(w), ...(range ?? [])) : null;
+
+  type Run = { word: W; near: boolean }[];
+  const runs: Run[] = [];
+  let run: Run = [];
   let last = -1;
   const endRun = (): void => {
-    if (run.length >= ECHO_MIN_RUN) for (const w of run) echo.add(w);
+    if (run.length >= ECHO_MIN_RUN) runs.push(run);
     run = [];
     last = -1;
   };
   for (const w of own) {
-    if (run.length > 0 && w.startMs - run.at(-1)!.startMs > TURN_GAP_MS) endRun();
+    if (run.length > 0 && w.startMs - run.at(-1)!.word.startMs > TURN_GAP_MS) endRun();
     if (!bare(w.text)) {
       endRun();
       continue;
     }
-    let k = heardAfter(w, last);
-    if (k < 0 && run.length > 0) {
+    let hit = heardAfter(w, last);
+    if (!hit && run.length > 0) {
       endRun();
-      k = heardAfter(w, -1);
+      hit = heardAfter(w, -1);
     }
-    if (k < 0) continue;
-    run.push(w);
-    last = k;
+    if (!hit) continue;
+    run.push({ word: w, near: hit.near });
+    last = hit.k;
   }
   endRun();
+
+  const echo = new Set<W>();
+  const certain: W[] = [];
+  const nearOnly: Run[] = [];
+  for (const r of runs) {
+    if (r.some((x) => !x.near)) {
+      for (const x of r) echo.add(x.word);
+      for (const x of r) if (!x.near) certain.push(x.word);
+    } else nearOnly.push(r);
+  }
+  if (!audio) return own.filter((w) => !echo.has(w));
+
+  const room = estimateLagMs(
+    audio.mic,
+    audio.meeting,
+    certain.map((w) => ({ startMs: w.startMs, endMs: endOf(w) })),
+  );
+  if (room === null) return own.filter((w) => !echo.has(w));
+  const range = lagRange(room.lagMs);
+  const follows = (w: W, corr: number): boolean => {
+    const l = likeness(w, range);
+    return (
+      l !== null &&
+      l.corr >= corr &&
+      l.spreadDb <= ENV_SPREAD_DB &&
+      Math.abs(l.offsetDb - room.offsetDb) <= ENV_GAIN_DB
+    );
+  };
+  for (const r of nearOnly) {
+    if (r.every((x) => follows(x.word, FUZZY_CORR))) for (const x of r) echo.add(x.word);
+  }
+  // Chains of consecutive mic words that are text echo or follow the meeting's loudness.
+  let chain: { word: W; text: boolean }[] = [];
+  const endChain = (): void => {
+    const text = chain.filter((c) => c.text).length;
+    const loud = chain.length - text;
+    if (loud > 0 && (text > 0 || loud >= ENV_ALONE_RUN)) {
+      for (const c of chain) echo.add(c.word);
+    }
+    chain = [];
+  };
+  for (const w of own) {
+    if (chain.length > 0 && w.startMs - chain.at(-1)!.word.startMs > TURN_GAP_MS) endChain();
+    if (echo.has(w)) chain.push({ word: w, text: true });
+    else if (bare(w.text) && follows(w, ENV_CORR)) chain.push({ word: w, text: false });
+    else endChain();
+  }
+  endChain();
   return own.filter((w) => !echo.has(w));
 }
 

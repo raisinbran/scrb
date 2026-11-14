@@ -1,7 +1,7 @@
-import { contentTokens, jaccard } from "./text.js";
+import { contentTokens, jaccard } from './text.js';
 
 export interface LlmMessage {
-  role: "system" | "user";
+  role: 'system' | 'user';
   content: string;
 }
 
@@ -10,8 +10,8 @@ export interface LlmRequest {
   schema: object;
   maxTokens: number;
   /** Sampling overrides for a retry; absent means greedy. */
-  sampling?: Record<string, number>;
-  signal?: AbortSignal;
+  sampling?: Record<string, number> | undefined;
+  signal?: AbortSignal | undefined;
 }
 
 export interface LlmResponse {
@@ -29,16 +29,16 @@ export interface LlmClient {
 
 export type LoopVerdict =
   | { ok: true; value: unknown }
-  | { ok: false; reason: "token_limit" | "invalid_json" | "repetition" };
+  | { ok: false; reason: 'token_limit' | 'invalid_json' | 'repetition' };
 
 const REPEATS_FOR_LOOP = 3;
 
 function collectStrings(value: unknown, into: string[]): void {
-  if (typeof value === "string") into.push(value);
+  if (typeof value === 'string') into.push(value);
   else if (Array.isArray(value)) for (const item of value) collectStrings(item, into);
-  else if (value && typeof value === "object") {
+  else if (value && typeof value === 'object') {
     const text = (value as { text?: unknown }).text;
-    if (typeof text === "string") into.push(text);
+    if (typeof text === 'string') into.push(text);
     else for (const item of Object.values(value)) collectStrings(item, into);
   }
 }
@@ -48,12 +48,12 @@ function collectStrings(value: unknown, into: string[]): void {
  * with a grammar and a list cap, as the same item rephrased until the cap.
  */
 export function checkOutput(response: LlmResponse): LoopVerdict {
-  if (response.finishReason === "length") return { ok: false, reason: "token_limit" };
+  if (response.finishReason === 'length') return { ok: false, reason: 'token_limit' };
   let value: unknown;
   try {
     value = JSON.parse(response.content);
   } catch {
-    return { ok: false, reason: "invalid_json" };
+    return { ok: false, reason: 'invalid_json' };
   }
   const texts: string[] = [];
   collectStrings(value, texts);
@@ -63,7 +63,7 @@ export function checkOutput(response: LlmResponse): LoopVerdict {
     for (let j = i + 1; j < tokens.length; j += 1) {
       if (jaccard(tokens[i]!, tokens[j]!) >= 0.9) repeats += 1;
     }
-    if (repeats >= REPEATS_FOR_LOOP) return { ok: false, reason: "repetition" };
+    if (repeats >= REPEATS_FOR_LOOP) return { ok: false, reason: 'repetition' };
   }
   return { ok: true, value };
 }
@@ -86,8 +86,17 @@ export interface StructuredResult {
 }
 
 /** One schema-constrained call with one sampled retry. */
-export async function completeStructured(llm: LlmClient, request: LlmRequest): Promise<StructuredResult> {
-  const result: StructuredResult = { value: null, failure: null, attempts: 0, promptTokens: 0, completionTokens: 0 };
+export async function completeStructured(
+  llm: LlmClient,
+  request: LlmRequest,
+): Promise<StructuredResult> {
+  const result: StructuredResult = {
+    value: null,
+    failure: null,
+    attempts: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+  };
   for (const sampling of [undefined, RETRY_SAMPLING]) {
     const response = await llm.complete({ ...request, sampling });
     result.attempts += 1;
