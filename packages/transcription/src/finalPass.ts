@@ -38,6 +38,22 @@ import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 /** Sherpa runs under the usable band on purpose; speakers are merged afterwards. */
 export const OVERSPLIT_THRESHOLD = 1.0;
 const TURN_GAP_MS = 1500;
+/** A turn longer than this is cut into paragraphs. */
+export const MAX_PARAGRAPH_MS = 60_000;
+/** Each piece around a cut needs at least this much time or this many words. */
+const MIN_PIECE_MS = 2000;
+const MIN_PIECE_WORDS = 3;
+/** Another-track turn longer than this is a parallel turn, not an interjection. */
+const MAX_INTERJECTION_MS = 10_000;
+/** How far after an interjection's start a cut may move to a better boundary. */
+const CUT_WINDOW_MS = 3000;
+/** A pause this long between two words counts as a boundary. */
+const CUT_PAUSE_MS = 400;
+/** The length cap looks for a boundary this far before the cap. */
+const CAP_WINDOW_MS = 15_000;
+/** Option A (owner decision 2026-11-14): one-word backchannels cut. Option B: 2 words or 1000 ms. */
+const MIN_INTERJECTION_WORDS = 1;
+const MIN_INTERJECTION_MS = 0;
 /** A mic word counts as room echo when the meeting track has the same word this close in time. */
 export const ECHO_WINDOW_MS = 1000;
 /** Echo needs this many matched mic words in a row, so a lone "yeah" from the user survives. */
@@ -337,7 +353,7 @@ export function assemble(
     version: 1,
     durationMs: words.reduce((end, w) => Math.max(end, w.endMs), lastSpan),
     words,
-    turns: buildTurns(words).sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs),
+    turns: cutTurns(words, buildTurns(words)),
     speakers: all,
     spans: spans.map(({ startMs, endMs, speakerId }) => ({ startMs, endMs, speakerId })),
   };
@@ -536,4 +552,133 @@ export function buildTurns(words: Word[]): Turn[] {
   });
   close();
   return turns;
+}
+
+const hasLetters = (text: string): boolean => /[\p{L}\p{N}]/u.test(text);
+const SENTENCE_END = /[.?!]["')\]]*$/;
+
+type Range = { first: number; end: number };
+
+const spanMs = (words: Word[], r: Range): number =>
+  words[r.end - 1]!.endMs - words[r.first]!.startMs;
+
+const pieceBigEnough = (words: Word[], r: Range): boolean =>
+  r.end - r.first >= MIN_PIECE_WORDS || spanMs(words, r) >= MIN_PIECE_MS;
+
+const gapBefore = (words: Word[], b: number): number => words[b]!.startMs - words[b - 1]!.endMs;
+
+/**
+ * Cuts base turns where a different track genuinely speaks inside them, and cuts any piece
+ * over MAX_PARAGRAPH_MS, then orders everything by time.  Pieces are contiguous word ranges of
+ * one track, so firstWord and wordCount stay valid.  Cuts use track identity only, never the
+ * speaker label of the other turn, so a wrong diarization label cannot shred a paragraph.
+ */
+export function cutTurns(words: Word[], turns: Turn[]): Turn[] {
+  const out: Turn[] = [];
+  for (const t of turns) {
+    const track = words[t.firstWord]!.track;
+    let pieces: Range[] = [{ first: t.firstWord, end: t.firstWord + t.wordCount }];
+    const inters = turns
+      .filter((u) => {
+        if (words[u.firstWord]!.track === track) return false;
+        if (!(u.startMs > t.startMs && u.startMs < t.endMs)) return false;
+        if (u.endMs - u.startMs > MAX_INTERJECTION_MS) return false;
+        const n = words
+          .slice(u.firstWord, u.firstWord + u.wordCount)
+          .filter((w) => hasLetters(w.text)).length;
+        return (
+          n >= MIN_INTERJECTION_WORDS && (n >= 2 || u.endMs - u.startMs >= MIN_INTERJECTION_MS)
+        );
+      })
+      .sort((a, b) => a.startMs - b.startMs);
+    for (const u of inters) cutAtInterjection(words, pieces, u.startMs);
+    pieces = capPieces(words, pieces);
+    for (const r of pieces) out.push(toTurn(words, t.speakerId, r));
+  }
+  return out.sort(
+    (a, b) =>
+      a.startMs - b.startMs ||
+      a.endMs - b.endMs ||
+      (a.speakerId < b.speakerId ? -1 : a.speakerId > b.speakerId ? 1 : 0),
+  );
+}
+
+function toTurn(words: Word[], speakerId: string, r: Range): Turn {
+  const slice = words.slice(r.first, r.end);
+  return {
+    speakerId,
+    startMs: slice[0]!.startMs,
+    endMs: slice.reduce((e, w) => Math.max(e, w.endMs), 0),
+    text: slice.map((w) => w.text).join(' '),
+    firstWord: r.first,
+    wordCount: r.end - r.first,
+  };
+}
+
+/** Splits the piece holding startMs, in place. The right piece never starts before startMs. */
+function cutAtInterjection(words: Word[], pieces: Range[], startMs: number): void {
+  const idx = pieces.findIndex(
+    (r) => words[r.first]!.startMs < startMs && words[r.end - 1]!.endMs > startMs,
+  );
+  if (idx < 0) return;
+  const p = pieces[idx]!;
+  let best = -1;
+  let bestRank = 9;
+  let firstAtOrAfter = -1;
+  for (let b = p.first + 1; b < p.end; b++) {
+    const w = words[b]!;
+    if (w.startMs < startMs) continue;
+    if (firstAtOrAfter < 0) firstAtOrAfter = b;
+    if (w.startMs > startMs + CUT_WINDOW_MS) break;
+    const rank = SENTENCE_END.test(words[b - 1]!.text.trim())
+      ? 0
+      : gapBefore(words, b) >= CUT_PAUSE_MS
+        ? 1
+        : b === firstAtOrAfter
+          ? 2
+          : 9;
+    // Closest to the interjection; earlier on a tie (strict < keeps the earlier word).
+    if (rank < bestRank) {
+      best = b;
+      bestRank = rank;
+    }
+  }
+  if (best < 0) return;
+  const left = { first: p.first, end: best };
+  const right = { first: best, end: p.end };
+  if (!pieceBigEnough(words, left) || !pieceBigEnough(words, right)) return;
+  pieces.splice(idx, 1, left, right);
+}
+
+function capPieces(words: Word[], pieces: Range[]): Range[] {
+  const out: Range[] = [];
+  const queue = [...pieces];
+  while (queue.length > 0) {
+    const p = queue.shift()!;
+    if (spanMs(words, p) <= MAX_PARAGRAPH_MS || p.end - p.first < 2) {
+      out.push(p);
+      continue;
+    }
+    const mark = words[p.first]!.startMs + MAX_PARAGRAPH_MS;
+    let best = -1;
+    let bestRank = 9;
+    let bestGap = -1;
+    let nearest = p.first + 1;
+    for (let b = p.first + 1; b < p.end; b++) {
+      const w = words[b]!;
+      if (Math.abs(w.startMs - mark) < Math.abs(words[nearest]!.startMs - mark)) nearest = b;
+      if (w.startMs > mark || w.startMs < mark - CAP_WINDOW_MS) continue;
+      const gap = gapBefore(words, b);
+      const rank = SENTENCE_END.test(words[b - 1]!.text.trim()) ? 0 : gap >= CUT_PAUSE_MS ? 1 : 2;
+      // Within a rank prefer the longer pause, then the later word (longer left piece).
+      if (rank < bestRank || (rank === bestRank && gap >= bestGap)) {
+        best = b;
+        bestRank = rank;
+        bestGap = gap;
+      }
+    }
+    const at = best >= 0 ? best : nearest;
+    queue.unshift({ first: p.first, end: at }, { first: at, end: p.end });
+  }
+  return out;
 }
