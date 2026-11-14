@@ -157,6 +157,29 @@ async function exists(target: string): Promise<boolean> {
   }
 }
 
+async function privateDirectory(target: string): Promise<void> {
+  try {
+    const info = await fs.lstat(target);
+    if (info.isDirectory() && !info.isSymbolicLink()) await fs.chmod(target, 0o700);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+async function looksShared(root: string, existed: boolean): Promise<boolean> {
+  if (!existed) return false;
+  if (process.platform === 'win32') {
+    const normalized = path.resolve(root).toLowerCase();
+    const publicRoot = path.resolve(process.env['PUBLIC'] ?? 'C:\\Users\\Public').toLowerCase();
+    return (
+      normalized.startsWith('\\\\') ||
+      normalized === publicRoot ||
+      normalized.startsWith(`${publicRoot}${path.sep}`)
+    );
+  }
+  return ((await fs.stat(root)).mode & 0o077) !== 0;
+}
+
 async function hasAnyFile(dir: string): Promise<boolean> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -177,6 +200,8 @@ function isAlive(correction: Correction | undefined): boolean {
  */
 export class Library {
   readonly paths: LibraryPaths;
+  /** True when the user-selected root appears readable by other local users. */
+  readonly rootMayBeShared: boolean;
   readonly settings: SettingsStore;
   readonly vocabulary: VocabularyStore;
   readonly voiceProfiles: VoiceProfileStore;
@@ -201,6 +226,7 @@ export class Library {
     clock: () => Date,
     replacedCorruptIndex: string | null,
     retainedIndexSnapshot: boolean,
+    rootMayBeShared: boolean,
   ) {
     this.paths = paths;
     this.db = db;
@@ -208,6 +234,7 @@ export class Library {
     this.clock = clock;
     this.replacedCorruptIndex = replacedCorruptIndex;
     this.retainedIndexSnapshot = retainedIndexSnapshot;
+    this.rootMayBeShared = rootMayBeShared;
     const now = (): string => clock().toISOString();
     this.settings = new SettingsStore(db);
     this.vocabulary = new VocabularyStore(db, now);
@@ -226,20 +253,51 @@ export class Library {
 
   static async open(options: LibraryOptions): Promise<Library> {
     const paths = libraryPaths(options.root);
+    const rootExisted = await exists(paths.root);
+    await fs.mkdir(paths.root, {
+      recursive: true,
+      mode: process.platform === 'win32' ? undefined : 0o700,
+    });
     await Promise.all(
       [paths.meetings, paths.models, paths.logs, paths.cache].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
+    const rootMayBeShared = await looksShared(paths.root, rootExisted);
+    if (process.platform !== 'win32') {
+      await Promise.all(
+        [paths.meetings, paths.models, paths.logs, paths.cache].map(privateDirectory),
+      );
+    }
     const clock = options.now ?? (() => new Date());
     const logger = options.logger ?? new Logger(paths.logs, clock);
     const { db, replacedCorruptIndex, retainedSnapshot } = await openIndex(paths.index);
-    const library = new Library(paths, db, logger, clock, replacedCorruptIndex, retainedSnapshot);
+    const library = new Library(
+      paths,
+      db,
+      logger,
+      clock,
+      replacedCorruptIndex,
+      retainedSnapshot,
+      rootMayBeShared,
+    );
     Object.assign(library.openReport, await library.reconcile());
+    if (process.platform !== 'win32') await library.secureMeetingDirectories();
     await library.repairVocabulary();
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
+  }
+
+  private async secureMeetingDirectories(): Promise<void> {
+    for (const row of this.listMeetings()) {
+      const files = this.meetingPaths(row.id);
+      await Promise.all(
+        [files.folder, files.audio, files.audioMicrophone, files.audioMeeting, files.exports].map(
+          privateDirectory,
+        ),
+      );
+    }
   }
 
   setMeetingChangedListener(listener: ((meeting: MeetingMeta) => void) | null): void {
@@ -320,7 +378,7 @@ export class Library {
     const files = meetingPaths(meetingFolderPath(this.paths, folder));
     await Promise.all(
       [files.audioMicrophone, files.audioMeeting, files.exports].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
     await saveDocument(files.meta, meta, null);
@@ -334,7 +392,9 @@ export class Library {
     for (let attempt = 1; ; attempt += 1) {
       const name = attempt === 1 ? base : `${base} (${attempt})`;
       try {
-        await fs.mkdir(meetingFolderPath(this.paths, name));
+        await fs.mkdir(meetingFolderPath(this.paths, name), {
+          mode: process.platform === 'win32' ? undefined : 0o700,
+        });
         return name;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;

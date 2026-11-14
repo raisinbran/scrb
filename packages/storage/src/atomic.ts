@@ -57,7 +57,7 @@ export async function atomicWriteFile(
   const bytes = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
   const { onStep } = options;
 
-  const handle = await fs.open(tempPath, 'wx');
+  const handle = await fs.open(tempPath, 'wx', process.platform === 'win32' ? undefined : 0o600);
   try {
     await onStep?.('temp-created', tempPath);
     const half = Math.floor(bytes.length / 2);

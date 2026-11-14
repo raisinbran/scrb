@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, rename, rm, stat, statfs } from 'node:fs/promises';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ModelDownloadFailure, ModelDownloadProgress, ModelRole } from '@scrb/contracts';
 
@@ -85,13 +85,30 @@ export interface DownloadOptions {
   progressIntervalMs?: number;
   /** Space kept free beyond the download itself. */
   marginBytes?: number;
+  /** Tests may lower the periodic disk-space check interval. */
+  freeSpaceCheckIntervalBytes?: number;
 }
 
 const MAX_REDIRECTS = 5;
+const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
+const FREE_SPACE_CHECK_INTERVAL = 64 * 1024 * 1024;
 
 async function freeBytesOf(dir: string): Promise<number> {
   const info = await statfs(dir);
   return Number(info.bavail) * Number(info.bsize);
+}
+
+async function checkedFreeBytes(
+  read: (dir: string) => Promise<number>,
+  dir: string,
+): Promise<number> {
+  try {
+    const free = await read(dir);
+    if (!Number.isFinite(free) || free < 0) throw new Error('Invalid free-space value');
+    return free;
+  } catch {
+    throw new DownloadError('diskSpace', 'Could not check free disk space for the download.');
+  }
 }
 
 async function sizeOr0(file: string): Promise<number> {
@@ -200,7 +217,7 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
     let needed = 0;
     for (const source of todo)
       needed += Math.max(0, source.bytes - (await sizeOr0(path.join(dir, `${source.file}.part`))));
-    const free = await (options.freeBytes ?? freeBytesOf)(dir);
+    const free = await checkedFreeBytes(options.freeBytes ?? freeBytesOf, dir);
     if (free < needed + (options.marginBytes ?? 256 * 1024 * 1024))
       throw new DownloadError(
         'diskSpace',
@@ -230,7 +247,19 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
         ...(message ? { message } : {}),
       });
     try {
-      await fetchOne(source, dir, net, retries, delay, interval, report, options.extract);
+      await fetchOne(
+        source,
+        dir,
+        net,
+        retries,
+        delay,
+        interval,
+        report,
+        options.extract,
+        options.freeBytes ?? freeBytesOf,
+        options.marginBytes ?? 256 * 1024 * 1024,
+        options.freeSpaceCheckIntervalBytes ?? FREE_SPACE_CHECK_INTERVAL,
+      );
     } catch (error) {
       const message =
         error instanceof DownloadError ? error.message : 'The download failed unexpectedly.';
@@ -257,9 +286,12 @@ async function fetchOne(
   interval: number,
   report: (state: ModelDownloadProgress['state'], done: number, message?: string) => void,
   extract: DownloadOptions['extract'],
+  freeBytes: (dir: string) => Promise<number>,
+  marginBytes: number,
+  freeSpaceCheckInterval: number,
 ): Promise<void> {
   const target = source.archive
-    ? { name: source.archive.name, sha256: source.archive.sha256, bytes: null }
+    ? { name: source.archive.name, sha256: source.archive.sha256, bytes: MAX_ARCHIVE_BYTES }
     : { name: source.file, sha256: source.sha256, bytes: source.bytes };
   const part = path.join(dir, `${target.name}.part`);
   let lastError: DownloadError | null = null;
@@ -268,12 +300,12 @@ async function fetchOne(
     abortIfCancelled(net.signal);
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, delay));
     let have = await sizeOr0(part);
-    if (target.bytes !== null && have > target.bytes) {
+    if (have > target.bytes) {
       await rm(part, { force: true });
       have = 0;
     }
     try {
-      if (target.bytes === null || have < target.bytes) {
+      if (have < target.bytes) {
         const response = await open(source.url, have, net);
         if (response.status === 416) {
           // The part is not a prefix of this file: start over.
@@ -291,33 +323,84 @@ async function fetchOne(
         const resumed = response.status === 206 && have > 0;
         if (!resumed) have = 0;
         if (!response.body) throw new DownloadError('offline', 'The server sent no data.');
+        const contentLength = Number(response.headers.get('content-length'));
+        if (
+          Number.isFinite(contentLength) &&
+          contentLength >= 0 &&
+          have + contentLength > target.bytes
+        ) {
+          await response.body.cancel();
+          await rm(part, { force: true });
+          throw new DownloadError('size', `${source.label} exceeds its allowed download size.`);
+        }
         let done = have;
         let last = 0;
         const body = Readable.fromWeb(response.body as never);
-        body.on('data', (chunk: Buffer) => {
-          done += chunk.length;
-          const now = Date.now();
-          if (now - last >= interval) {
-            last = now;
-            report('downloading', Math.min(done, source.bytes));
-          }
+        let nextSpaceCheck = done + Math.max(1, freeSpaceCheckInterval);
+        const bounded = new Transform({
+          transform(chunk: Buffer, _encoding, callback) {
+            done += chunk.length;
+            if (done > target.bytes) {
+              callback(
+                new DownloadError('size', `${source.label} exceeds its allowed download size.`),
+              );
+              return;
+            }
+            const sendProgress = () => {
+              const now = Date.now();
+              if (now - last >= interval) {
+                last = now;
+                report('downloading', Math.min(done, source.bytes));
+              }
+            };
+            const checkSpace = async (): Promise<void> => {
+              if (done < nextSpaceCheck) return;
+              nextSpaceCheck = done + Math.max(1, freeSpaceCheckInterval);
+              const beforeChunk = done - chunk.length;
+              const reserve = source.archive
+                ? Math.min(
+                    Math.max(0, target.bytes - beforeChunk),
+                    Math.max(1, freeSpaceCheckInterval) + chunk.length,
+                  )
+                : Math.max(0, source.bytes - beforeChunk);
+              if ((await checkedFreeBytes(freeBytes, dir)) < marginBytes + reserve) {
+                throw new DownloadError(
+                  'diskSpace',
+                  'Free disk space fell below the download reserve.',
+                );
+              }
+            };
+            void checkSpace().then(() => {
+              sendProgress();
+              callback(null, chunk);
+            }, callback);
+          },
         });
         try {
-          await pipeline(body, createWriteStream(part, { flags: resumed ? 'a' : 'w' }), {
-            ...(net.signal ? { signal: net.signal } : {}),
-          });
+          await pipeline(
+            body,
+            bounded,
+            createWriteStream(part, {
+              flags: resumed ? 'a' : 'w',
+              mode: process.platform === 'win32' ? undefined : 0o600,
+            }),
+            {
+              ...(net.signal ? { signal: net.signal } : {}),
+            },
+          );
         } catch (error) {
+          if (error instanceof DownloadError) throw error;
           if (net.signal?.aborted)
             throw new DownloadError('cancelled', 'The download was cancelled.');
           throw new DownloadError('offline', `The connection dropped: ${String(error)}`);
         }
       }
       const size = await sizeOr0(part);
-      if (target.bytes !== null && size < target.bytes) {
+      if (target.name === source.file && size < target.bytes) {
         // Truncated: keep the part and ask again from where it ended.
         throw new DownloadError('offline', 'The connection ended before the file was complete.');
       }
-      if (target.bytes !== null && size > target.bytes) {
+      if (size > target.bytes || (target.name === source.file && size !== target.bytes)) {
         await rm(part, { force: true });
         throw new DownloadError('size', `${source.label} has the wrong size.`);
       }
@@ -355,6 +438,7 @@ async function fetchOne(
       return;
     } catch (error) {
       if (!(error instanceof DownloadError)) throw error;
+      if (error.code === 'size') await rm(part, { force: true });
       // Only dropped connections, server faults and stale ranges are worth another try.
       const retryable = error.code === 'offline';
       if (!retryable) throw error;

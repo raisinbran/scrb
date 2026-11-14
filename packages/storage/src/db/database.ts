@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { chmodSync, createReadStream } from 'node:fs';
 import { lstat, open, readFile, readdir, rename, rm, stat, statfs, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -7,6 +7,22 @@ import { StorageError, UnsupportedVersionError } from '../errors.ts';
 import { INDEX_VERSION, migrate, readIndexVersion } from './migrations.ts';
 
 export type { DatabaseSync };
+
+function openDatabase(
+  file: string,
+  options?: ConstructorParameters<typeof DatabaseSync>[1],
+): DatabaseSync {
+  if (process.platform !== 'win32' && file !== ':memory:') {
+    try {
+      chmodSync(file, 0o600);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  const db = options ? new DatabaseSync(file, options) : new DatabaseSync(file);
+  if (process.platform !== 'win32' && file !== ':memory:') chmodSync(file, 0o600);
+  return db;
+}
 
 function applyPragmas(db: DatabaseSync): void {
   // Rollback journal, not WAL: the user picks the library location, WAL fails on network and
@@ -97,8 +113,9 @@ function journalPath(file: string): string {
 async function saveJournal(file: string, state: UpgradeJournal): Promise<void> {
   const target = journalPath(file);
   const temporary = `${target}.tmp`;
-  const handle = await open(temporary, 'w');
+  const handle = await open(temporary, 'w', process.platform === 'win32' ? undefined : 0o600);
   try {
+    if (process.platform !== 'win32') await handle.chmod(0o600);
     await handle.writeFile(JSON.stringify(state));
     await handle.sync();
   } finally {
@@ -137,7 +154,7 @@ async function ordinaryFile(path: string): Promise<boolean> {
 }
 
 function verifyReadOnly(file: string): number {
-  const db = new DatabaseSync(file, { readOnly: true });
+  const db = openDatabase(file, { readOnly: true });
   try {
     verify(db);
     return readIndexVersion(db);
@@ -148,7 +165,7 @@ function verifyReadOnly(file: string): number {
 
 function verifyLive(file: string): number {
   // Opening normally lets SQLite roll back any hot journal after an interrupted write.
-  const db = new DatabaseSync(file);
+  const db = openDatabase(file);
   try {
     verify(db);
     return readIndexVersion(db);
@@ -237,7 +254,7 @@ export async function openIndex(
           'The interrupted index snapshot is untrusted.',
         );
       }
-      const snapshotDb = new DatabaseSync(target, { readOnly: true });
+      const snapshotDb = openDatabase(target, { readOnly: true });
       let originalRows: ReturnType<typeof currentTables>;
       try {
         verify(snapshotDb);
@@ -249,7 +266,7 @@ export async function openIndex(
         snapshotDb.close();
       }
       // A normal SQLite open rolls back an interrupted write before examining live rows.
-      const live = new DatabaseSync(filePath);
+      const live = openDatabase(filePath);
       let version: number;
       try {
         verify(live);
@@ -306,7 +323,7 @@ export async function openIndex(
       if (!retainedSnapshot) await rm(journalPath(filePath), { force: true });
     }
   }
-  const db = new DatabaseSync(filePath);
+  const db = openDatabase(filePath);
   let snapshot: string | null = null;
   let copying: string | null = null;
   let upgrade: UpgradeJournal | null = null;
@@ -345,7 +362,7 @@ export async function openIndex(
       await saveJournal(filePath, upgrade);
       db.prepare('VACUUM INTO ?').run(copying);
       checks.afterSnapshot?.(copying);
-      const copy = new DatabaseSync(copying);
+      const copy = openDatabase(copying);
       try {
         verify(copy);
         if (readIndexVersion(copy) !== version) {
