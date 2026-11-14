@@ -60,7 +60,7 @@ Eval runs: ES2008b baseline 15.6 minutes, IS1009d baseline 11.5, others minutes 
 2. **Later change overrides earlier**: removed after five consecutive review rounds each found a way for it to delete a real item. It never fired on any of the six meetings, so it has no measured benefit. Failure families, for any future attempt: another person declining a task; a different verb; a different object; a different due date or qualifier; changed word order; a negation word inside a compound ("no-show") or an ordinary verb read as negation ("remove", "drop"); ownerless items; negation in a relative clause ("devices that are not supported" against "devices that are supported", two separate tasks). A safe version needs the model to say which earlier decision a later one replaces (a prompt and schema change), not a wording test.
 3. **Cap** on items per minute: removed; the result is kept below as evidence.
 
-The existing first dedupe in `dedupe.ts` has one known problem, written up in [the handoff note](../handoffs/summary-dedupe-merges-different-builds.md). Guard tests in `test/units.test.ts` now check that related tasks and a task against its negation are kept apart.
+The existing first dedupe in `dedupe.ts` has one known problem, written up in [the handoff note](../handoffs/summary-dedupe-merges-different-builds.md). Guard tests in `test/guards.test.ts` now check that related tasks and a task against its negation are kept apart.
 
 ## Numbers (same scorer and 50% matching rule as above; AMI only)
 

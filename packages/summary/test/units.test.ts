@@ -147,15 +147,6 @@ describe("dedupe", () => {
     expect(dedupe([decision("The remote has a rounded shape that fits the hand", 100), decision("A rounded remote shape that fits", 120)])).toHaveLength(1);
   });
 
-  it("keeps related tasks of one owner apart (guard: nothing is deleted)", () => {
-    expect(dedupe([action("Test deployment", "Alice", 100), action("Test deployment rollback", "Alice", 200)])).toHaveLength(2);
-  });
-
-  it("keeps a task apart from the same words with a negation (guard)", () => {
-    const kept = dedupe([action("Alice will test devices that are supported", "Alice", 100), action("Alice will test devices that are not supported", "Alice", 900)]);
-    expect(kept).toHaveLength(2);
-  });
-
   it("does not merge a decision with its opposite, and flags both", () => {
     const items = dedupe([decision("The remote will include an LCD screen."), decision("The remote will not include an LCD screen.")]);
     expect(items).toHaveLength(2);
