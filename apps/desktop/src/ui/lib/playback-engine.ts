@@ -73,7 +73,11 @@ export class PlaybackEngine {
   async seek(positionMs: number): Promise<void> {
     this.seeking = true;
     try {
-      await this.backend.call('seekAudio', { meetingId: this.meetingId, positionMs });
+      // Live words carry fractional times, which the request check refuses; whole ms are enough.
+      await this.backend.call('seekAudio', {
+        meetingId: this.meetingId,
+        positionMs: Math.max(0, Math.round(positionMs)),
+      });
       if (this.latest?.isPlaying) this.restart(this.latest.positionMs);
     } finally {
       this.seeking = false;
@@ -180,7 +184,7 @@ export class PlaybackEngine {
     try {
       const { chunks, nextPositionMs } = await this.backend.call('getPlaybackMedia', {
         meetingId: this.meetingId,
-        positionMs,
+        positionMs: Math.max(0, Math.round(positionMs)),
       });
       if (turn !== this.turn) return;
       this.next = nextPositionMs;

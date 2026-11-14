@@ -18,6 +18,7 @@ export function usePlayback(meetingId: MeetingId) {
     const off = backend.on('playbackPosition', (playback) => {
       if (playback.meetingId !== meetingId) return;
       playing.current = playback.isPlaying;
+      if (playback.isPlaying) setError(null);
       setPositionMs(playback.isPlaying ? playback.positionMs : null);
     });
     return () => {
@@ -29,14 +30,19 @@ export function usePlayback(meetingId: MeetingId) {
 
   const play = useCallback((ms: number) => {
     setError(null);
-    engine.current?.seek(ms).catch((failure: unknown) => {
-      setError(failure instanceof Error ? failure.message : 'That audio could not be played.');
-    });
+    engine.current?.seek(ms).then(
+      () => setError(null),
+      (failure: unknown) => {
+        setError(failure instanceof Error ? failure.message : 'That audio could not be played.');
+      },
+    );
   }, []);
+
+  const clearError = useCallback(() => setError(null), []);
 
   const stop = useCallback(() => {
     void backend.call('pauseAudio', { meetingId }).catch(() => setPositionMs(null));
   }, [backend, meetingId]);
 
-  return { positionMs, error, play, stop };
+  return { positionMs, error, play, stop, clearError };
 }

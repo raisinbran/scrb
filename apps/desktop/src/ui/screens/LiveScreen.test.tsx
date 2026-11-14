@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ContractError, type TranscriptSegment } from '@scrb/contracts';
+import { ContractError, isValidRequest, type TranscriptSegment } from '@scrb/contracts';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { createHybridBackend } from '../lib/hybrid-backend.ts';
@@ -702,6 +702,69 @@ describe('LiveScreen', () => {
         expect(screen.getByLabelText<HTMLInputElement>('Correct text').value).toBe(
           words()[2]?.textContent,
         );
+      });
+
+      it('clicks a word with fractional live timings using requests the real validator accepts', async () => {
+        await startMeeting();
+        const { meetingId, rewritten } = await rewriteFirstSegment(false);
+        const fractional = {
+          ...rewritten,
+          words: rewritten.words.map((word, index) => ({
+            ...word,
+            id: `${word.id}-f`,
+            startMs: 1000.4 + index * 100.25,
+            endMs: 1050.6 + index * 100.25,
+          })),
+        };
+        const { revision } = await backend.call('getTranscript', {
+          meetingId,
+          offset: 0,
+          limit: 1,
+        });
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: revision + 1,
+            change: { kind: 'replace', segments: [fractional], removedSegmentIds: [] },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+        const requests: unknown[] = [];
+        const real = backend.call.bind(backend) as (name: string, request?: unknown) => unknown;
+        vi.spyOn(backend, 'call').mockImplementation(((name: string, request?: unknown) => {
+          if (name === 'seekAudio' || name === 'getPlaybackMedia') {
+            requests.push([name, request]);
+            expect(isValidRequest(name, request)).toBe(true);
+          }
+          return real(name, request);
+        }) as never);
+        clickWord(words()[1] as HTMLElement);
+        await advance(300);
+        expect(requests.length).toBeGreaterThan(0);
+      });
+
+      it('shows a playback notice that can be dismissed and clears on the next success', async () => {
+        await startMeeting();
+        const real = backend.call.bind(backend) as (name: string, request?: unknown) => unknown;
+        let fail = true;
+        vi.spyOn(backend, 'call').mockImplementation(((name: string, request?: unknown) =>
+          name === 'seekAudio' && fail
+            ? Promise.reject(new ContractError({ code: 'invalidRequest', message: 'Nope.' }))
+            : real(name, request)) as never);
+        clickWord(words()[0] as HTMLElement);
+        await advance(300);
+        expect(screen.getByRole('alert').textContent).toContain('Nope.');
+        fireEvent.click(button('Dismiss'));
+        expect(screen.queryByRole('alert')).toBeNull();
+
+        clickWord(words()[0] as HTMLElement);
+        await advance(300);
+        expect(screen.getByRole('alert')).toBeTruthy();
+        fail = false;
+        clickWord(words()[1] as HTMLElement);
+        await advance(300);
+        expect(screen.queryByRole('alert')).toBeNull();
       });
 
       it('still seeks on a click and selects on a drag', async () => {

@@ -533,6 +533,17 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       {error && (
         <p className={styles.notice} role="alert">
           {error}
+          <button
+            type="button"
+            className={styles.toolButton}
+            onClick={() => {
+              playback.clearError();
+              undoState.clearError();
+              if (selectionLost) setSelection(null);
+            }}
+          >
+            Dismiss
+          </button>
         </p>
       )}
       <div className={styles.frame}>

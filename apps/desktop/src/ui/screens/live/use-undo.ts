@@ -23,6 +23,7 @@ export function useUndo(meetingId: MeetingId) {
     (next: UndoState) => {
       memoryOf(backend).set(meetingId, next);
       setState(next);
+      setError(null);
     },
     [backend, meetingId],
   );
@@ -40,6 +41,7 @@ export function useUndo(meetingId: MeetingId) {
   return {
     ...state,
     error,
+    clearError: useCallback(() => setError(null), []),
     record,
     undo: useCallback(() => run('undo'), [run]),
     redo: useCallback(() => run('redo'), [run]),
