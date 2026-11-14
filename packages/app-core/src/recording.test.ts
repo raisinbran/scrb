@@ -109,6 +109,34 @@ describe('RecordingSession', () => {
     expect(ended).toEqual(['stopped']);
   });
 
+  it('reopens a restarted worker with the switched microphone, and with the old one after a failed switch', async () => {
+    await session.start(OPEN);
+    const ack = await session.switchSource({ mic: 'usb-1' });
+    expect(ack.ok).toBe(true);
+    expect(latest().commands.at(-1)).toEqual({ name: 'selectMic', mic: 'usb-1' });
+    latest().crash();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(latest().commands[0]).toMatchObject({ name: 'open', mic: 'usb-1' });
+
+    latest().reply = (command) => (command.name === 'selectMic' ? { ok: false } : {});
+    expect((await session.switchSource({ mic: 'bad' })).ok).toBe(false);
+    latest().crash();
+    await vi.advanceTimersByTimeAsync(RESTART_WAITS_MS[0]!);
+    expect(latest().commands[0]).toMatchObject({ name: 'open', mic: 'usb-1' });
+  });
+
+  it('reopens a restarted worker with the switched meeting app', async () => {
+    await session.start(OPEN);
+    await session.switchSource({ source: [42] });
+    latest().crash();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(latest().commands[0]).toMatchObject({ name: 'open', source: [42], mic: 'default' });
+  });
+
+  it('refuses to switch when not recording', async () => {
+    await expect(session.switchSource({ mic: 'x' })).rejects.toThrow('Not recording.');
+  });
+
   it('runs start, pause, resume and stop', async () => {
     await session.start(OPEN);
     await session.pause();
