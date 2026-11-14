@@ -8,6 +8,7 @@ export function secureWebPreferences(dir: string) {
     sandbox: true,
     nodeIntegration: false,
     webviewTag: false,
+    navigateOnDragDrop: false,
   } as const;
 }
 

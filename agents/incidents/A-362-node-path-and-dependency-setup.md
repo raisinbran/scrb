@@ -1,0 +1,6 @@
+### A-362 — 2026-11-14 — local coding session — first check command used unavailable npm path
+
+- **Status / attribution:** Confirmed session error; no application defect.
+- **What failed:** I invoked `npm run check` before applying the repository's documented Node path. The shell returned `zsh: command not found: npm`; no check or test process started. My first correction called npm by absolute path but still failed because its `#!/usr/bin/env node` launcher could not find Node outside `PATH`; no check or test process started on that attempt either. After adding Node to `PATH`, the check stopped in typechecking because I had symlinked an incomplete dependency tree from the existing checkout and `@vitejs/plugin-react` was missing; no tests started. I also invoked the formatting binary before exporting Node into `PATH`; its `env node` launcher failed before formatting or tests ran.
+- **Impact:** Several failed command invocations and short delays. No source files or user data were changed.
+- **Correction / remaining risk:** Prepend `/Users/brandonchen/.local/share/scrb-node/current/bin` to `PATH` for Node-based commands and install from this worktree’s lockfile instead of reusing the incomplete dependency tree. Low.

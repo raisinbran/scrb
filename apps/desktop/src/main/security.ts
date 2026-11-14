@@ -1,6 +1,7 @@
 import { net, protocol, session, type WebContents } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { isAppUrl } from './app-trust.ts';
 import { MEDIA_SCHEME } from './playback-media.ts';
 
 export const APP_SCHEME = 'scribe';
@@ -42,11 +43,15 @@ export function denyAllPermissions(): void {
   session.defaultSession.setPermissionCheckHandler(() => false);
 }
 
-/** Blocks navigation away from the app, new windows and webviews. */
-export function lockDownContents(contents: WebContents, allowedOrigin: string): void {
-  contents.on('will-navigate', (event, url) => {
-    if (new URL(url).origin !== allowedOrigin) event.preventDefault();
-  });
+/** Blocks navigation, redirects and frame loads away from the app, new windows and webviews. */
+export function lockDownContents(contents: WebContents, appUrl: string): void {
+  const expected = new URL(appUrl);
+  const guard = (details: { url: string; preventDefault: () => void }): void => {
+    if (!isAppUrl(details.url, expected)) details.preventDefault();
+  };
+  contents.on('will-navigate', guard);
+  contents.on('will-redirect', guard);
+  contents.on('will-frame-navigate', guard);
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-attach-webview', (event) => event.preventDefault());
 }
