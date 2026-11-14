@@ -57,10 +57,13 @@ const LIMITS = {
   // The helper records a gap only past this (README finding 12): smaller differences between chunk
   // boundaries are timestamp jitter, not lost audio. The 5-minute smoke on a USB mic summed 0.3 ms.
   gapToleranceMs: 2,
-  // Gaps under the tolerance are ignored one by one, but their sum per track must stay under this budget,
-  // so many tiny gaps cannot hide real loss. 100 ms is about 3x the jitter seen on the smoke run
-  // (0.3 ms per 5 minutes, about 29 ms over 8 hours) and far under the 1.5 s timeline slack.
-  smallGapBudgetMs: 100,
+  // Differences under the tolerance (gaps and overlaps) are netted, not summed one-sided: matching overlaps cancel
+  // matching gaps (Regiurn 8 h, 2026-11-14). The net may not exceed 10 ms in any clock hour or 100 ms overall,
+  // and the net shortfall of audio against the timeline may not exceed 100 ms. See
+  // docs/handoffs/2026-11-14-lost-audio-rule-proposal.md (unreviewed).
+  netSmallHourMs: 10,
+  netSmallRunMs: 100,
+  netShortfallMs: 100,
 };
 
 if (flag('--report')) {
@@ -408,7 +411,7 @@ async function verify(work) {
       `${logged} chunks, ${broken} numbering breaks, ${left} .part/.tmp left, ${damaged} damaged, ${recovered} recovered after a crash`,
     );
     const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
-    const { unmarked, overlaps, lossNs, longestNs: longest, smallNs } = scanGaps(
+    const { unmarked, overlaps, lossNs, longestNs: longest, posSmallNs, negSmallNs, netSmallNs, worstHourNetNs } = scanGaps(
       chunks,
       LIMITS.gapToleranceMs,
       (from) => marked.some((span) => span.startNs === from),
@@ -420,10 +423,12 @@ async function verify(work) {
       lossNs === 0 &&
         unmarked === 0 &&
         marked.length === 0 &&
-        smallNs <= LIMITS.smallGapBudgetMs * 1e6 &&
-        sealed.endNs - audioNs <= LIMITS.timelineSlackMs * 1e6,
+        Math.abs(netSmallNs) <= LIMITS.netSmallRunMs * 1e6 &&
+        worstHourNetNs <= LIMITS.netSmallHourMs * 1e6 &&
+        sealed.endNs - audioNs <= LIMITS.netShortfallMs * 1e6,
       `gaps total ${s(lossNs)} s, longest ${s(longest)} s, ${marked.length} marked, ${unmarked} unmarked, ${overlaps} overlaps, ` +
-        `${(smallNs / 1e6).toFixed(1)} ms in gaps under ${LIMITS.gapToleranceMs} ms (budget ${LIMITS.smallGapBudgetMs} ms); ` +
+        `under ${LIMITS.gapToleranceMs} ms: +${(posSmallNs / 1e6).toFixed(1)} / ${(negSmallNs / 1e6).toFixed(1)} ms, net ${(netSmallNs / 1e6).toFixed(1)} ms ` +
+        `(limit ${LIMITS.netSmallRunMs}), worst hour net ${(worstHourNetNs / 1e6).toFixed(1)} ms (limit ${LIMITS.netSmallHourMs}); ` +
         `audio ${s(audioNs)} s of ${s(sealed.endNs)} s (difference ${s(sealed.endNs - audioNs)} s)`,
     );
   }

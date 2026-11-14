@@ -54,23 +54,33 @@ export function chooseSeconds(explicit) {
 }
 
 /**
- * Walks one track's chunks. Gaps at or past toleranceMs count as lost audio; smaller ones are timestamp
- * jitter, but they are summed (smallNs) so the caller can bound the total. gap is relative to the previous end.
+ * Walks one track's chunks. A gap at or past toleranceMs is lost audio, always. Differences under the
+ * tolerance (gaps and overlaps) are timestamp jitter: they are netted as a signed sum, whole run and per
+ * clock hour of the run, so the caller can bound the net. gap is relative to the previous end.
  */
 export function scanGaps(chunks, toleranceMs, isMarked) {
-  const out = { overlaps: 0, unmarked: 0, lossNs: 0, longestNs: 0, smallNs: 0 };
+  const out = {
+    overlaps: 0, unmarked: 0, lossNs: 0, longestNs: 0,
+    posSmallNs: 0, negSmallNs: 0, netSmallNs: 0, worstHourNetNs: 0,
+  };
+  const perHour = new Map();
   for (let i = 0; i < chunks.length; i += 1) {
     const from = i === 0 ? 0 : chunks[i - 1].endNs;
     if (i === 0 && chunks[0].startNs < 100e6) continue;
     const gap = chunks[i].startNs - from;
     if (gap < 0) out.overlaps += 1;
     if (gap < toleranceMs * 1e6) {
-      if (gap > 0) out.smallNs += gap;
+      if (gap > 0) out.posSmallNs += gap;
+      else out.negSmallNs += gap;
+      out.netSmallNs += gap;
+      const hour = Math.floor(chunks[i].startNs / 3.6e12);
+      perHour.set(hour, (perHour.get(hour) ?? 0) + gap);
       continue;
     }
     out.lossNs += gap;
     out.longestNs = Math.max(out.longestNs, gap);
     if (!isMarked(from)) out.unmarked += 1;
   }
+  for (const net of perHour.values()) out.worstHourNetNs = Math.max(out.worstHourNetNs, Math.abs(net));
   return out;
 }
