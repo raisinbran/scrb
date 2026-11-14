@@ -24,6 +24,19 @@ describe('settings handlers', () => {
     expect(settings.autoDelete).toEqual({ period: 'never', scope: 'audioOnly' });
   });
 
+  it('starts a new install on the recommended preset, and a saved choice wins', () => {
+    const store = memoryStore();
+    expect(createSettingsHandlers(store, '/lib', 'fast').getSettings().transcriptionQuality).toBe(
+      'fast',
+    );
+    createSettingsHandlers(store, '/lib', 'fast').updateSettings({
+      transcriptionQuality: 'accurate',
+    });
+    expect(createSettingsHandlers(store, '/lib', 'fast').getSettings().transcriptionQuality).toBe(
+      'accurate',
+    );
+  });
+
   it('keeps a change across new handlers on the same store', () => {
     const store = memoryStore();
     createSettingsHandlers(store, '/lib').updateSettings({ theme: 'dark', transcriptFontPx: 18 });

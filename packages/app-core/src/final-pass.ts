@@ -201,7 +201,10 @@ export function createConfiguredImportRunner(configPath: string) {
  * The real final pass, set up from a JSON file holding `tools` and `models` paths. The file is
  * read for each meeting, so a missing tool fails that meeting and not the app.
  */
-export function createFinalPassRunner(configPath: string): RunFinalPass {
+export function createFinalPassRunner(
+  configPath: string,
+  getThreads?: () => number | undefined,
+): RunFinalPass {
   return async ({
     tracks,
     workDir,
@@ -211,6 +214,7 @@ export function createFinalPassRunner(configPath: string): RunFinalPass {
     onProgress,
   }) => {
     const { tools, models } = await loadSetup(configPath);
+    const threads = getThreads?.();
     onEmbeddingModel?.(models.embedding);
     return runFinalPass({
       tools,
@@ -218,6 +222,7 @@ export function createFinalPassRunner(configPath: string): RunFinalPass {
       tracks,
       workDir,
       signal,
+      ...(threads ? { threads } : {}),
       ...(hint ? { vocabularyHint: hint } : {}),
       ...(onProgress ? { onProgress } : {}),
     });

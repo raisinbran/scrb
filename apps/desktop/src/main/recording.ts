@@ -100,7 +100,7 @@ export class RecordingController {
     /** Null leaves a stopped meeting ready with no transcript. */
     private readonly finalPasses: FinalPassQueue | null = null,
     private readonly shouldShowPrivacyBanner: () => Promise<boolean> = async () => false,
-    private readonly liveSetup: LiveSetup | null = null,
+    private readonly liveSetup: LiveSetup | null | (() => LiveSetup | null) = null,
     private readonly beforeCaptureStart: () => Promise<void> = async () => undefined,
     private readonly echoCancellation: () => boolean = () => false,
   ) {
@@ -287,8 +287,10 @@ export class RecordingController {
         'warning',
       );
     }
-    this.live = this.liveSetup
-      ? new LiveCaptureSession(this.library, meeting.id, this.emit, this.liveSetup)
+    // A function is read per recording, so a changed setting applies to the next one.
+    const liveSetup = typeof this.liveSetup === 'function' ? this.liveSetup() : this.liveSetup;
+    this.live = liveSetup
+      ? new LiveCaptureSession(this.library, meeting.id, this.emit, liveSetup)
       : null;
     // Prebind every Windows restart endpoint before the first helper launches.
     if (process.platform === 'win32') await this.live?.prepareWindowsPipes();
