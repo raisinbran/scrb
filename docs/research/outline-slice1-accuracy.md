@@ -30,7 +30,7 @@ Tuning check: values were searched on the even-numbered meetings only. Average a
 - AMI topic labels are short and generic ("marketing expert presentation", "costing", "look and usability"). The words people say in those topics are mostly not the label's words. A real outline with more descriptive headings should do better, but that is not measured here.
 - Wording overlap alone cannot see that "headcount" belongs under "Hiring"; this is the gap Level B is meant to close.
 - The "Likely" label is mostly granted when neighbouring blocks agree, so it does not track correctness yet. It must not be shown to users as is.
-- The transcript is AMI's human-written reference text, not speech-recognition output, so real results can only be worse. Live versus final-pass text was not compared.
+- The transcript is AMI's human-written reference text, not speech-recognition output, so real results are likely to be worse; not measured. Live versus final-pass text was not compared.
 - Headings come from the annotation, so the reference is itself judged by one annotator; boundaries are fuzzy by nature.
 - Not measured: owner (speaker) bonus on AMI (AMI has no pre-meeting outline with owners; it is covered by an invented-data unit test), real owner meetings (confidential, never used), and a 2-hour transcript beyond a synthetic speed test (500 blocks by 60 items runs well under 2 s).
 

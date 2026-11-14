@@ -87,7 +87,9 @@ export function matchOutline(
   options: MatchOptions = {},
 ): PlacedBlock[] {
   const pinnedWords: (PinAssignment | undefined)[] = new Array(words.length).fill(undefined);
+  const knownItems = new Set(items.map((it) => it.id));
   for (const lp of options.pins ?? []) {
+    if (lp.pin.itemId !== null && !knownItems.has(lp.pin.itemId)) continue;
     if (lp.status !== 'ok' || lp.first === undefined || lp.last === undefined) continue;
     for (let i = lp.first; i <= lp.last; i += 1)
       pinnedWords[i] = { pinId: lp.pin.id, itemId: lp.pin.itemId };
@@ -136,8 +138,7 @@ export function matchOutline(
   const emission = (bi: number, s: number): number => {
     const block = blocks[bi]!;
     if (block.pin) {
-      const target =
-        block.pin.itemId === null ? notPlaced : (itemIndex.get(block.pin.itemId) ?? notPlaced);
+      const target = block.pin.itemId === null ? notPlaced : itemIndex.get(block.pin.itemId)!;
       return s === target ? 0 : Infinity;
     }
     if (short[bi]) return 0;

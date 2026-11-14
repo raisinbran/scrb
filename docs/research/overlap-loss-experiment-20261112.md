@@ -10,35 +10,35 @@ Offline, ES2004a (AMI) only, no audio played, no product code changed. Follow-up
 
 ## Sanity check (reimplementation vs retained raw output)
 
-| Set | Retained (trace note) | Mine | Agreement |
-| --- | --- | --- | --- |
-| Reference overlap | 83.02 s | 82.99 s | grid/collar details differ slightly |
-| Raw 0 / 1 / 2+ speakers | 5.42 / 44.60 / 33.00 s | 5.45 / 44.66 / 32.88 s | sets match within 0.1 s |
-| Raw 2+ set: mean >= 1.5 | n/a | 29.02 of 32.88 s (88%) | mostly agrees; 32.42 s (99%) have mean >= 1.0 |
-| Raw 1 set: mean < 1.5 | n/a | 44.02 of 44.66 s (99%) | agrees |
+| Set                     | Retained (trace note)  | Mine                   | Agreement                                     |
+| ----------------------- | ---------------------- | ---------------------- | --------------------------------------------- |
+| Reference overlap       | 83.02 s                | 82.99 s                | grid/collar details differ slightly           |
+| Raw 0 / 1 / 2+ speakers | 5.42 / 44.60 / 33.00 s | 5.45 / 44.66 / 32.88 s | sets match within 0.1 s                       |
+| Raw 2+ set: mean >= 1.5 | n/a                    | 29.02 of 32.88 s (88%) | mostly agrees; 32.42 s (99%) have mean >= 1.0 |
+| Raw 1 set: mean < 1.5   | n/a                    | 44.02 of 44.66 s (99%) | agrees                                        |
 
 The 12% of 2+ frames below 1.5 is expected: clusters, min-duration merging and `min_duration_off` also shape the raw output, and my per-frame count is not the full pipeline. I treat the reimplementation as validated for the count rule.
 
 ## Results: the 44.66 s of reference overlap rendered as one speaker
 
-| Mean count at least | Seconds | Share |
-| --- | --- | --- |
-| 1.5 (sherpa's current rule) | 0.64 | 1% |
-| 1.3 | 4.44 | 10% |
-| 1.1 | 16.46 | 37% |
-| 1.0 | 21.37 | 48% |
-| below 1.0 | 23.29 (0.77 s under 0.5; 22.52 s in 0.5-1.0) | 52% |
+| Mean count at least         | Seconds                                      | Share |
+| --------------------------- | -------------------------------------------- | ----- |
+| 1.5 (sherpa's current rule) | 0.64                                         | 1%    |
+| 1.3                         | 4.44                                         | 10%   |
+| 1.1                         | 16.46                                        | 37%   |
+| 1.0                         | 21.37                                        | 48%   |
+| below 1.0                   | 23.29 (0.77 s under 0.5; 22.52 s in 0.5-1.0) | 52%   |
 
 The 5.45 s with no raw speaker: 5.27 s have mean < 0.5, none reach 1.0.
 
 Would-be second-speaker runs (consecutive grid frames with mean >= t that touch the one-speaker set), how many are 0.3 s or shorter. These are short runs of elevated mean count, not sherpa's per-speaker segments (sherpa applies its filter after clustering and merging), so they are an estimate only:
 
-| t | Runs | Runs <= 0.3 s | Their seconds inside the one-speaker set |
-| --- | --- | --- | --- |
-| 1.5 | 13 | 6 | 0.30 |
-| 1.3 | 58 | 32 | 2.33 |
-| 1.1 | 57 | 12 | 1.28 |
-| 1.0 | 71 | 19 | 1.16 |
+| t   | Runs | Runs <= 0.3 s | Their seconds inside the one-speaker set |
+| --- | ---- | ------------- | ---------------------------------------- |
+| 1.5 | 13   | 6             | 0.30                                     |
+| 1.3 | 58   | 32            | 2.33                                     |
+| 1.1 | 57   | 12            | 1.28                                     |
+| 1.0 | 71   | 19            | 1.16                                     |
 
 ## What this shows (measured)
 

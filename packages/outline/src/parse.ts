@@ -44,7 +44,7 @@ function splitOwner(text: string): { text: string; owner?: string } {
 }
 
 /** Pure parser: pasted outline text to a flat, ordered item list with levels. */
-export function parseOutline(input: string): ParseResult {
+export function parseOutline(input: string, previous: readonly OutlineItem[] = []): ParseResult {
   if (input.trim() === '') return { items: [], notes: [], error: 'empty' };
   if (input.length > MAX_TEXT_CHARS) return { items: [], notes: [], error: 'tooLong' };
 
@@ -86,9 +86,46 @@ export function parseOutline(input: string): ParseResult {
     stack.push({ indent: line.indent, level, major });
     prevLevel = level;
     const { text, owner } = splitOwner(line.text.trim());
-    const item: OutlineItem = { id: `o${items.length + 1}`, level, text };
+    const item: OutlineItem = { id: '', level, text };
     if (owner) item.ownerName = owner;
     items.push(item);
   }
+  assignIds(items, previous);
   return { items, notes };
+}
+
+function pathKeys(items: readonly OutlineItem[]): string[] {
+  const trail: string[] = [];
+  return items.map((it) => {
+    trail.length = it.level - 1;
+    trail.push(it.text.trim().toLowerCase());
+    return trail.join('\u0000');
+  });
+}
+
+/**
+ * Ids are stable across outline revisions: an item keeps the id of the earlier item with the
+ * same heading text under the same parent headings (matched in order). Anything else, including
+ * an edited heading, gets a new id that is never reused, so a pin made on an old id can never
+ * attach to a different heading.
+ */
+function assignIds(items: OutlineItem[], previous: readonly OutlineItem[]): void {
+  const old = pathKeys(previous);
+  const taken = new Set<number>();
+  const keys = pathKeys(items);
+  let next = 1;
+  for (const p of previous) {
+    const n = /^o(\d+)$/.exec(p.id);
+    if (n) next = Math.max(next, Number(n[1]) + 1);
+  }
+  items.forEach((item, i) => {
+    const hit = old.findIndex((k, j) => k === keys[i] && !taken.has(j));
+    if (hit >= 0) {
+      taken.add(hit);
+      item.id = previous[hit]!.id;
+    } else {
+      item.id = `o${next}`;
+      next += 1;
+    }
+  });
 }
