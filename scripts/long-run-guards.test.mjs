@@ -3,7 +3,14 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_SECONDS, assertEvidenceDir, chooseSeconds, scanGaps } from './long-run/guards.mjs';
+import {
+  DEFAULT_SECONDS,
+  LOST_AUDIO_LIMITS,
+  assertEvidenceDir,
+  chooseSeconds,
+  judgeLostAudio,
+  scanGaps,
+} from './long-run/guards.mjs';
 
 let base;
 let repo;
@@ -78,60 +85,111 @@ describe('scanGaps', () => {
     return out;
   };
   const same = (gapNs, count) => chunksWithGaps(Array.from({ length: count }, () => gapNs));
+  const jitter = (pairs) =>
+    chunksWithGaps(Array.from({ length: pairs * 2 }, (_, i) => (i % 2 === 0 ? 1.9e6 : -1.9e6)));
   const none = () => false;
-  const HOUR_LIMIT_NS = 10e6; // LIMITS.netSmallHourMs
-  const RUN_LIMIT_NS = 100e6; // LIMITS.netSmallRunMs
 
-  it('nets cancelling jitter: big one-sided sums, tiny net, within both limits', () => {
-    // +1.9 ms then -1.9 ms, like the Regiurn microphone track; 480 chunks = 4 hours.
-    const r = scanGaps(chunksWithGaps(Array.from({ length: 480 }, (_, i) => (i % 2 === 0 ? 1.9e6 : -1.9e6))), 2, none);
+  it('nets cancelling jitter below the tolerance: big one-sided sums, tiny net', () => {
+    const r = scanGaps(jitter(240), 2, none);
     expect(r.lossNs).toBe(0);
-    expect(r.unmarked).toBe(0);
+    expect(r.bigOverlaps).toBe(0);
     expect(r.posSmallNs).toBeCloseTo(240 * 1.9e6, -3);
     expect(r.negSmallNs).toBeCloseTo(-240 * 1.9e6, -3);
-    expect(r.posSmallNs).toBeGreaterThan(RUN_LIMIT_NS); // the old one-sided budget would have failed this
-    expect(Math.abs(r.netSmallNs)).toBeLessThan(RUN_LIMIT_NS);
-    expect(r.worstHourNetNs).toBeLessThan(HOUR_LIMIT_NS);
+    expect(Math.abs(r.netSmallNs)).toBeLessThan(LOST_AUDIO_LIMITS.netSmallRunMs * 1e6);
+    expect(r.worstHourNetNs).toBeLessThan(LOST_AUDIO_LIMITS.netSmallHourMs * 1e6);
+  });
+
+  it('never nets an overlap of the tolerance or more: it is its own finding', () => {
+    const r = scanGaps(chunksWithGaps([...Array(50).fill(1.9e6), -95e6]), 2, none);
+    expect(r.bigOverlaps).toBe(1);
+    expect(r.largestOverlapNs).toBe(95e6);
+    expect(r.overlaps).toBe(1);
+    expect(r.negSmallNs).toBe(0); // the 95 ms overlap is not in the small totals
+    expect(r.netSmallNs).toBeCloseTo(50 * 1.9e6, -3);
+    const exact = scanGaps(chunksWithGaps([-2e6]), 2, none);
+    expect(exact.bigOverlaps).toBe(1);
   });
 
   it('still fails a real accumulating loss of small gaps', () => {
-    const r = scanGaps(same(0.5e6, 300), 2, none); // 0.5 ms before each of 300 chunks
-    expect(r.lossNs).toBe(0); // each one is under the tolerance
-    expect(r.netSmallNs).toBeGreaterThan(RUN_LIMIT_NS);
-    expect(r.worstHourNetNs).toBeGreaterThan(HOUR_LIMIT_NS);
+    const r = scanGaps(same(0.5e6, 300), 2, none);
+    expect(r.lossNs).toBe(0);
+    expect(r.netSmallNs).toBeGreaterThan(LOST_AUDIO_LIMITS.netSmallRunMs * 1e6);
+    expect(r.worstHourNetNs).toBeGreaterThan(LOST_AUDIO_LIMITS.netSmallHourMs * 1e6);
   });
 
   it('fails a loss that stays under the whole-run limit but piles up inside one hour', () => {
-    const r = scanGaps(same(0.5e6, 100), 2, none); // 50 ms in under an hour
-    expect(r.netSmallNs).toBeLessThan(RUN_LIMIT_NS);
-    expect(r.worstHourNetNs).toBeGreaterThan(HOUR_LIMIT_NS);
+    const r = scanGaps(same(0.5e6, 100), 2, none);
+    expect(r.netSmallNs).toBeLessThan(LOST_AUDIO_LIMITS.netSmallRunMs * 1e6);
+    expect(r.worstHourNetNs).toBeGreaterThan(LOST_AUDIO_LIMITS.netSmallHourMs * 1e6);
   });
 
-  it('counts a single 8 ms gap as lost audio, unmarked', () => {
-    const r = scanGaps(chunksWithGaps([0.1e6, 8e6, -0.1e6]), 2, none);
-    expect(r.lossNs).toBe(8e6);
-    expect(r.longestNs).toBe(8e6);
-    expect(r.unmarked).toBe(1);
-  });
-
-  it('reports a marked gap as lost audio but not as unmarked', () => {
-    const chunks = chunksWithGaps([8e6]);
-    const r = scanGaps(chunks, 2, (from) => from === chunks[0].endNs);
-    expect(r.lossNs).toBe(8e6);
-    expect(r.unmarked).toBe(0);
-  });
-
-  it('never nets a large gap against an overlap', () => {
-    const r = scanGaps(chunksWithGaps([8e6, -8e6]), 2, none);
-    expect(r.lossNs).toBe(8e6);
-    expect(r.overlaps).toBe(1);
-    expect(r.unmarked).toBe(1);
+  it('counts a single 8 ms gap as lost audio, unmarked; a marked one is not unmarked', () => {
+    const chunks = chunksWithGaps([0.1e6, 8e6, -0.1e6]);
+    const a = scanGaps(chunks, 2, none);
+    expect([a.lossNs, a.longestNs, a.unmarked]).toEqual([8e6, 8e6, 1]);
+    const b = scanGaps(chunks, 2, (from) => from === chunks[1].endNs);
+    expect([b.lossNs, b.unmarked]).toEqual([8e6, 0]);
   });
 
   it('counts a gap at the tolerance as lost audio', () => {
     const r = scanGaps(same(2e6, 2), 2, none);
     expect(r.lossNs).toBe(4e6);
     expect(r.unmarked).toBe(2);
+  });
+});
+
+describe('judgeLostAudio (the "no lost audio" decision)', () => {
+  const chunksWithGaps = (gaps) => {
+    const out = [{ seq: 0, startNs: 0, endNs: 30e9 }];
+    for (let i = 0; i < gaps.length; i += 1) {
+      const start = out[i].endNs + gaps[i];
+      out.push({ seq: i + 1, startNs: start, endNs: start + 30e9 });
+    }
+    return out;
+  };
+  const judge = (chunks, markedCount = 0, isMarked = () => false) =>
+    judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs, markedCount, isMarked });
+
+  it('FAILS 50 gaps of +1.9 ms plus one -95 ms overlap', () => {
+    const v = judge(chunksWithGaps([...Array(50).fill(1.9e6), -95e6]));
+    expect(v.passed).toBe(false);
+    expect(v.detail).toContain('1 overlaps of 2 ms or more (largest 95.0 ms)');
+    expect(v.warning).toBeNull();
+  });
+
+  it('PASSES pure alternating +/-1.9 ms jitter, with the cancelling-jitter warning', () => {
+    const v = judge(chunksWithGaps(Array.from({ length: 480 }, (_, i) => (i % 2 === 0 ? 1.9e6 : -1.9e6))));
+    expect(v.passed).toBe(true);
+    expect(v.warning).toBe('large cancelling jitter, continuity not independently shown');
+    expect(v.detail).toContain('provisional');
+    expect(v.detail).toContain('not calibrated');
+  });
+
+  it('PASSES small cancelling jitter without the warning', () => {
+    const v = judge(chunksWithGaps([0.5e6, -0.5e6, 0.4e6, -0.4e6]));
+    expect(v.passed).toBe(true);
+    expect(v.warning).toBeNull();
+  });
+
+  it('FAILS one 8 ms gap, unmarked, and reports it separately from a marked one', () => {
+    const chunks = chunksWithGaps([8e6]);
+    const unmarked = judge(chunks);
+    expect(unmarked.passed).toBe(false);
+    expect(unmarked.detail).toContain('0 marked, 1 unmarked');
+    const marked = judge(chunks, 1, (from) => from === chunks[0].endNs);
+    expect(marked.passed).toBe(false);
+    expect(marked.detail).toContain('1 marked, 0 unmarked');
+  });
+
+  it('FAILS a marked gap even when no gap is found in the chunks', () => {
+    expect(judge(chunksWithGaps([0.1e6]), 1).passed).toBe(false);
+  });
+
+  it('FAILS an accumulating small loss and a large net shortfall', () => {
+    expect(judge(chunksWithGaps(Array(300).fill(0.5e6))).passed).toBe(false);
+    const chunks = chunksWithGaps([0.1e6]);
+    const v = judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs + 150e6, markedCount: 0, isMarked: () => false });
+    expect(v.passed).toBe(false);
   });
 });
 

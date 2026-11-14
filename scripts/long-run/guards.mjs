@@ -53,34 +53,82 @@ export function chooseSeconds(explicit) {
   return seconds;
 }
 
+/** Provisional: chosen after seeing three runs (smoke, Regiurn 8 h mic and meeting), not calibrated. */
+export const LOST_AUDIO_LIMITS = {
+  gapToleranceMs: 2,
+  netSmallHourMs: 10,
+  netSmallRunMs: 100,
+  netShortfallMs: 100,
+  // Both one-sided totals above this while the net is small: the net alone does not show continuity.
+  cancellingWarnMs: 100,
+};
+
+export const CANCELLING_WARNING = 'large cancelling jitter, continuity not independently shown';
+
 /**
- * Walks one track's chunks. A gap at or past toleranceMs is lost audio, always. Differences under the
- * tolerance (gaps and overlaps) are timestamp jitter: they are netted as a signed sum, whole run and per
- * clock hour of the run, so the caller can bound the net. gap is relative to the previous end.
+ * Walks one track's chunks. gap is relative to the previous end. A difference of toleranceMs or more in
+ * EITHER direction is a finding and is never netted: a gap is lost audio (marked or unmarked), an overlap is
+ * counted in bigOverlaps. Only differences smaller than the tolerance are timestamp jitter; those are netted as
+ * a signed sum, over the whole run and per clock hour of the run, so the caller can bound the net.
  */
 export function scanGaps(chunks, toleranceMs, isMarked) {
   const out = {
-    overlaps: 0, unmarked: 0, lossNs: 0, longestNs: 0,
+    overlaps: 0, bigOverlaps: 0, largestOverlapNs: 0, unmarked: 0, lossNs: 0, longestNs: 0,
     posSmallNs: 0, negSmallNs: 0, netSmallNs: 0, worstHourNetNs: 0,
   };
   const perHour = new Map();
+  const tolNs = toleranceMs * 1e6;
   for (let i = 0; i < chunks.length; i += 1) {
     const from = i === 0 ? 0 : chunks[i - 1].endNs;
     if (i === 0 && chunks[0].startNs < 100e6) continue;
     const gap = chunks[i].startNs - from;
     if (gap < 0) out.overlaps += 1;
-    if (gap < toleranceMs * 1e6) {
+    if (Math.abs(gap) < tolNs) {
       if (gap > 0) out.posSmallNs += gap;
       else out.negSmallNs += gap;
       out.netSmallNs += gap;
       const hour = Math.floor(chunks[i].startNs / 3.6e12);
       perHour.set(hour, (perHour.get(hour) ?? 0) + gap);
-      continue;
+    } else if (gap < 0) {
+      out.bigOverlaps += 1;
+      out.largestOverlapNs = Math.max(out.largestOverlapNs, -gap);
+    } else {
+      out.lossNs += gap;
+      out.longestNs = Math.max(out.longestNs, gap);
+      if (!isMarked(from)) out.unmarked += 1;
     }
-    out.lossNs += gap;
-    out.longestNs = Math.max(out.longestNs, gap);
-    if (!isMarked(from)) out.unmarked += 1;
   }
   for (const net of perHour.values()) out.worstHourNetNs = Math.max(out.worstHourNetNs, Math.abs(net));
   return out;
+}
+
+/**
+ * The pass/fail decision for one track's "no lost audio" check. markedCount is how many marked gap spans the
+ * helper recorded for the track. Netting measures timestamp jitter only; it is not proof of continuous audio.
+ */
+export function judgeLostAudio({ chunks, timelineEndNs, markedCount, isMarked, limits = LOST_AUDIO_LIMITS }) {
+  const r = scanGaps(chunks, limits.gapToleranceMs, isMarked);
+  const audioNs = chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
+  const shortfallNs = timelineEndNs - audioNs;
+  const passed =
+    r.lossNs === 0 &&
+    r.unmarked === 0 &&
+    markedCount === 0 &&
+    r.bigOverlaps === 0 &&
+    Math.abs(r.netSmallNs) <= limits.netSmallRunMs * 1e6 &&
+    r.worstHourNetNs <= limits.netSmallHourMs * 1e6 &&
+    shortfallNs <= limits.netShortfallMs * 1e6;
+  const sec = (ns) => (ns / 1e9).toFixed(3);
+  const msf = (ns) => (ns / 1e6).toFixed(1);
+  const cancelling =
+    r.posSmallNs > limits.cancellingWarnMs * 1e6 && -r.negSmallNs > limits.cancellingWarnMs * 1e6;
+  const detail =
+    `gaps total ${sec(r.lossNs)} s, longest ${sec(r.longestNs)} s, ${markedCount} marked, ${r.unmarked} unmarked, ` +
+    `${r.bigOverlaps} overlaps of ${limits.gapToleranceMs} ms or more (largest ${msf(r.largestOverlapNs)} ms), ` +
+    `${r.overlaps} overlaps in all; under ${limits.gapToleranceMs} ms: +${msf(r.posSmallNs)} / ${msf(r.negSmallNs)} ms, ` +
+    `net ${msf(r.netSmallNs)} ms (limit ${limits.netSmallRunMs}), worst hour net ${msf(r.worstHourNetNs)} ms ` +
+    `(limit ${limits.netSmallHourMs}); audio ${sec(audioNs)} s of ${sec(timelineEndNs)} s ` +
+    `(difference ${sec(shortfallNs)} s, limit ${limits.netShortfallMs} ms); netting limits are provisional, ` +
+    `chosen after seeing three runs, not calibrated`;
+  return { passed, detail, warning: passed && cancelling ? CANCELLING_WARNING : null, audioNs, ...r };
 }

@@ -27,7 +27,7 @@ import {
 import { createInterface } from 'node:readline';
 import { dirname, join, resolve } from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
-import { assertEvidenceDir, chooseSeconds, scanGaps } from './guards.mjs';
+import { LOST_AUDIO_LIMITS, assertEvidenceDir, chooseSeconds, judgeLostAudio } from './guards.mjs';
 import { performance } from 'node:perf_hooks';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,13 +57,9 @@ const LIMITS = {
   // The helper records a gap only past this (README finding 12): smaller differences between chunk
   // boundaries are timestamp jitter, not lost audio. The 5-minute smoke on a USB mic summed 0.3 ms.
   gapToleranceMs: 2,
-  // Differences under the tolerance (gaps and overlaps) are netted, not summed one-sided: matching overlaps cancel
-  // matching gaps (Regiurn 8 h, 2026-11-14). The net may not exceed 10 ms in any clock hour or 100 ms overall,
-  // and the net shortfall of audio against the timeline may not exceed 100 ms. See
-  // docs/handoffs/2026-11-14-lost-audio-rule-proposal.md (unreviewed).
-  netSmallHourMs: 10,
-  netSmallRunMs: 100,
-  netShortfallMs: 100,
+  // Lost-audio limits live in guards.mjs (LOST_AUDIO_LIMITS): provisional, chosen after seeing three runs, not
+  // calibrated. See docs/handoffs/2026-11-14-lost-audio-rule-proposal.md.
+  ...LOST_AUDIO_LIMITS,
 };
 
 if (flag('--report')) {
@@ -411,26 +407,15 @@ async function verify(work) {
       `${logged} chunks, ${broken} numbering breaks, ${left} .part/.tmp left, ${damaged} damaged, ${recovered} recovered after a crash`,
     );
     const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
-    const { unmarked, overlaps, lossNs, longestNs: longest, posSmallNs, negSmallNs, netSmallNs, worstHourNetNs } = scanGaps(
+    const verdict = judgeLostAudio({
       chunks,
-      LIMITS.gapToleranceMs,
-      (from) => marked.some((span) => span.startNs === from),
-    );
-    const audioNs = chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
-    perTrack[track] = { chunks, audioNs, lossNs };
-    check(
-      `${track} no lost audio`,
-      lossNs === 0 &&
-        unmarked === 0 &&
-        marked.length === 0 &&
-        Math.abs(netSmallNs) <= LIMITS.netSmallRunMs * 1e6 &&
-        worstHourNetNs <= LIMITS.netSmallHourMs * 1e6 &&
-        sealed.endNs - audioNs <= LIMITS.netShortfallMs * 1e6,
-      `gaps total ${s(lossNs)} s, longest ${s(longest)} s, ${marked.length} marked, ${unmarked} unmarked, ${overlaps} overlaps, ` +
-        `under ${LIMITS.gapToleranceMs} ms: +${(posSmallNs / 1e6).toFixed(1)} / ${(negSmallNs / 1e6).toFixed(1)} ms, net ${(netSmallNs / 1e6).toFixed(1)} ms ` +
-        `(limit ${LIMITS.netSmallRunMs}), worst hour net ${(worstHourNetNs / 1e6).toFixed(1)} ms (limit ${LIMITS.netSmallHourMs}); ` +
-        `audio ${s(audioNs)} s of ${s(sealed.endNs)} s (difference ${s(sealed.endNs - audioNs)} s)`,
-    );
+      timelineEndNs: sealed.endNs,
+      markedCount: marked.length,
+      isMarked: (from) => marked.some((span) => span.startNs === from),
+    });
+    perTrack[track] = { chunks, audioNs: verdict.audioNs, lossNs: verdict.lossNs };
+    check(`${track} no lost audio`, verdict.passed, verdict.detail);
+    if (verdict.warning) out.push(`WARN  ${track}: ${verdict.warning}`);
   }
 
   // Drift: between consecutive chunks with no gap on either track, the change in (mic start - meeting start)
