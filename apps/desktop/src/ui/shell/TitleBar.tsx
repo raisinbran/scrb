@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import type { RecordingHealth, TranscriptionLag } from '@scrb/contracts';
 import { formatElapsed } from '../lib/format.ts';
 import { useMockMode, useSetupBlocked } from '../lib/mock-mode.tsx';
+import { useBackend } from '../lib/backend-context.tsx';
 import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './TitleBar.module.css';
 
@@ -16,9 +18,22 @@ function healthText(health: RecordingHealth | null): string | null {
   return health.warnings[0]?.message ?? 'Recording needs attention';
 }
 
+/** True while the user has hidden the mini window; the main process says so. */
+function useMiniHidden(): boolean {
+  const backend = useBackend();
+  const [hidden, setHidden] = useState(false);
+  useEffect(
+    () => backend.on('miniWindowHiddenChanged', (event) => setHidden(event.hidden)),
+    [backend],
+  );
+  return hidden;
+}
+
 export function TitleBar() {
   const { recording, health, lag } = useRecordingStatus();
   const mockMode = useMockMode();
+  const backend = useBackend();
+  const miniHidden = useMiniHidden();
   const setupBlocked = useSetupBlocked();
   const active = recording.status === 'recording' || recording.status === 'paused';
   const warning = active ? healthText(health) : null;
@@ -61,6 +76,16 @@ export function TitleBar() {
             {recording.status === 'recording' ? 'Recording' : 'Paused'}{' '}
             <span className={styles.elapsed}>{formatElapsed(recording.elapsedMs)}</span>
           </span>
+        )}
+        {active && miniHidden && (
+          <button
+            type="button"
+            className={styles.showMini}
+            title="Show the small recording window again"
+            onClick={() => void backend.call('showMiniWindow').catch(() => undefined)}
+          >
+            Show mini window
+          </button>
         )}
       </div>
     </header>

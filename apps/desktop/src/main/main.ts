@@ -129,7 +129,18 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     }
     compact = next;
   };
-  mini.webContents.setWindowOpenHandler(miniWindowOpenHandler(() => restoreApp?.(), setCompact));
+  mini.webContents.setWindowOpenHandler(
+    miniWindowOpenHandler(
+      () => restoreApp?.(),
+      setCompact,
+      () => {
+        hideMini();
+        // Clicking the mini window made Scribe the active app, and without it the OS hands the
+        // keyboard to the main window. Hiding the app gives it back to the app used before.
+        if (process.platform === 'darwin') app.hide();
+      },
+    ),
+  );
   let opacity = 0;
   let cancelFade: () => void = () => undefined;
   const fadeTo = (to: number, done?: () => void): void => {
@@ -191,7 +202,18 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   };
 }
 
-const mini = createMiniController(openMiniWindow);
+let miniHidden = false;
+function sendMiniHidden(window: BrowserWindow): void {
+  window.webContents.send(IPC_EVENT_CHANNEL, 'miniWindowHiddenChanged', { hidden: miniHidden });
+}
+
+// The window opened below names itself `mini`, so the controller is reached through this name.
+const hideMini = (): void => mini.hide();
+
+const mini = createMiniController(openMiniWindow, (hidden) => {
+  miniHidden = hidden;
+  for (const window of BrowserWindow.getAllWindows()) sendMiniHidden(window);
+});
 
 function mainWindows(): BrowserWindow[] {
   return withoutMini(BrowserWindow.getAllWindows(), miniWindows);
@@ -236,7 +258,10 @@ function createMainWindow(
   window.on('hide', refreshMainInFront);
   window.on('minimize', refreshMainInFront);
   window.on('restore', refreshMainInFront);
+  // A page that loads while the mini window is hidden must learn it, to offer the way back.
+  window.webContents.on('did-finish-load', () => sendMiniHidden(window));
   window.on('closed', () => {
+    if (mainWindows().length === 0) mini.mainGone();
     // Elsewhere the app quits with its last main window; the mini one must not keep it alive.
     if (process.platform !== 'darwin') mini.dispose();
     else refreshMainInFront();
@@ -303,6 +328,10 @@ void app.whenReady().then(async () => {
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();
+  backend.handlers.showMiniWindow = () => {
+    mini.show();
+    return Promise.resolve();
+  };
   registerCallHandlers(backend.handlers, isTrustedSender);
   closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning, backend.recovery, stopPlayback);

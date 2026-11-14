@@ -8,6 +8,7 @@ import {
   createCloseGate,
   createMiniController,
   miniWindowOpenHandler,
+  HIDE_URL,
   restoreMain,
   shouldShowMini,
   withoutMini,
@@ -30,13 +31,17 @@ describe('shouldShowMini', () => {
 function setup() {
   const closes: ReturnType<typeof vi.fn>[] = [];
   const userCloses: (() => void)[] = [];
-  const controller = createMiniController((onClosedByUser) => {
-    const close = vi.fn();
-    closes.push(close);
-    userCloses.push(onClosedByUser);
-    return { close };
-  });
-  return { controller, closes, userCloses };
+  const hiddenEvents: boolean[] = [];
+  const controller = createMiniController(
+    (onClosedByUser) => {
+      const close = vi.fn();
+      closes.push(close);
+      userCloses.push(onClosedByUser);
+      return { close };
+    },
+    (hidden) => hiddenEvents.push(hidden),
+  );
+  return { controller, closes, userCloses, hiddenEvents };
 }
 
 describe('createMiniController', () => {
@@ -49,6 +54,49 @@ describe('createMiniController', () => {
     expect(closes).toHaveLength(1);
     controller.setMainInFront(true);
     expect(closes[0]).toHaveBeenCalledTimes(1);
+  });
+
+  it('hide closes the window and keeps it away, and tells the main window', () => {
+    const { controller, closes, hiddenEvents } = setup();
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.hide();
+    expect(closes[0]).toHaveBeenCalledTimes(1);
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    expect(closes).toHaveLength(1);
+    expect(hiddenEvents).toEqual([true]);
+  });
+
+  it('show brings it back even with the main window in front, until the user returns to it', () => {
+    const { controller, closes, hiddenEvents } = setup();
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.hide();
+    controller.setMainInFront(true);
+    controller.show();
+    expect(closes).toHaveLength(2);
+    expect(hiddenEvents).toEqual([true, false]);
+    controller.setMainInFront(true);
+    expect(closes[1]).not.toHaveBeenCalled();
+    controller.setMainInFront(false);
+    controller.setMainInFront(true);
+    expect(closes[1]).toHaveBeenCalledTimes(1);
+  });
+
+  it('forgets a hide when the recording stops, and when no main window is left', () => {
+    const { controller, closes, hiddenEvents } = setup();
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.hide();
+    controller.setStatus('idle');
+    expect(hiddenEvents).toEqual([true, false]);
+    controller.setStatus('recording');
+    expect(closes).toHaveLength(2);
+    controller.hide();
+    controller.mainGone();
+    expect(hiddenEvents).toEqual([true, false, true, false]);
+    expect(closes).toHaveLength(3);
   });
 
   it('closes when the recording stops', () => {
@@ -175,10 +223,13 @@ describe('miniWindowOpenHandler', () => {
   it('maps each exact address to its action and denies every open', () => {
     const showMain = vi.fn();
     const setCompact = vi.fn();
-    const handler = miniWindowOpenHandler(showMain, setCompact);
+    const hide = vi.fn();
+    const handler = miniWindowOpenHandler(showMain, setCompact, hide);
     expect(handler({ url: SHOW_MAIN_URL })).toEqual({ action: 'deny' });
     expect(handler({ url: COMPACT_URL })).toEqual({ action: 'deny' });
     expect(handler({ url: EXPAND_URL })).toEqual({ action: 'deny' });
+    expect(handler({ url: HIDE_URL })).toEqual({ action: 'deny' });
+    expect(hide).toHaveBeenCalledTimes(1);
     expect(showMain).toHaveBeenCalledTimes(1);
     expect(setCompact.mock.calls).toEqual([[true], [false]]);
   });
@@ -186,11 +237,13 @@ describe('miniWindowOpenHandler', () => {
   it('does nothing for any other address, and still denies', () => {
     const showMain = vi.fn();
     const setCompact = vi.fn();
-    const handler = miniWindowOpenHandler(showMain, setCompact);
+    const hide = vi.fn();
+    const handler = miniWindowOpenHandler(showMain, setCompact, hide);
     for (const url of [
       'https://example.com/',
       `${SHOW_MAIN_URL}/extra`,
       `${COMPACT_URL}?x=1`,
+      `${HIDE_URL}/extra`,
       'scrb-app://other',
       'scrb://app/index.html',
     ]) {
@@ -198,6 +251,7 @@ describe('miniWindowOpenHandler', () => {
     }
     expect(showMain).not.toHaveBeenCalled();
     expect(setCompact).not.toHaveBeenCalled();
+    expect(hide).not.toHaveBeenCalled();
   });
 });
 

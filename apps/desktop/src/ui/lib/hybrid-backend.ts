@@ -21,6 +21,7 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   'resumeRecording',
   'stopRecording',
   'getRecordingSnapshot',
+  'showMiniWindow',
   'listInputDevices',
   'listMeetingApps',
   'selectSources',
@@ -73,6 +74,7 @@ const MEETING_CALLS: ReadonlySet<CallName> = new Set([
 ]);
 const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'recordingStateChanged',
+  'miniWindowHiddenChanged',
   'pauseSpansChanged',
   'recordingHealth',
   'levelMeter',

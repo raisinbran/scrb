@@ -71,3 +71,18 @@
   border: 1px solid var(--color-warning);
   border-radius: 4px;
 }
+
+.showMini {
+  padding: 1px var(--space-2);
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  app-region: no-drag;
+}
+
+.showMini:focus-visible {
+  outline: 2px solid var(--color-focus);
+}

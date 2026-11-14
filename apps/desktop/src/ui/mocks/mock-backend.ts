@@ -1502,6 +1502,7 @@ export class MockBackend implements Backend {
     getAppInfo: () => (this.armed.has('noModelInfo') ? { ...APP_INFO, models: [] } : APP_INFO),
     getLicenses: () => LICENSES,
     openLogsFolder: () => undefined,
+    showMiniWindow: () => undefined,
   };
 
   private historyOf(meetingId: string) {
