@@ -12,7 +12,8 @@ import {
   type MouseEvent,
   type Ref,
 } from 'react';
-import type { MeetingId } from '@scrb/contracts';
+import { ContractError, type MeetingId } from '@scrb/contracts';
+import { ContextMenu } from '../../components/ContextMenu.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
 import { CorrectionEditor } from './CorrectionEditor.tsx';
@@ -21,6 +22,7 @@ import { TranscriptStore, type WordPosition, type WordRef } from './transcript-s
 import { usePlayback } from './use-playback.ts';
 import { useUndo } from './use-undo.ts';
 import {
+  comparePositions,
   movePosition,
   rangeOf,
   resolveSelection,
@@ -86,6 +88,8 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const [selection, setSelection] = useState<WordSelection | null>(null);
   const [cursor, setCursor] = useState<WordRef | null>(null);
   const [editing, setEditing] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
 
   const playback = usePlayback(meetingId);
   const undoState = useUndo(meetingId);
@@ -241,7 +245,11 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0) return;
     const ref = refFromEvent(event);
-    if (!ref) return;
+    if (!ref) {
+      setSelection(null);
+      setEditing(false);
+      return;
+    }
     if (event.shiftKey && liveSelection) {
       startSelection({ anchor: liveSelection.anchor, focus: ref });
       dragRef.current = { anchor: liveSelection.anchor, moved: true };
@@ -338,23 +346,69 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
 
   const closeEditor = () => {
     setEditing(false);
+    setSelection(null);
     scrollRef.current?.focus();
   };
 
+  // The live pass re-times the newest words, which gives them new ids while the editor is open.
+  // Each try looks the selection up again, so a revision that landed meanwhile does not fail it.
   const applyCorrection = async (text: string, remember: boolean) => {
-    if (!range) return;
-    const first = store.refAt(range.first);
-    const last = store.refAt(range.last);
-    if (!first || !last) return;
-    const next = await backend.call('applyCorrection', {
-      meetingId,
-      range: { firstWordId: first.wordId, lastWordId: last.wordId },
-      text,
-      remember,
-    });
-    undoState.record(next);
-    setSelection(null);
-    closeEditor();
+    for (let attempt = 0; ; attempt += 1) {
+      const current = selection && resolveSelection(store, selection);
+      const now = current && rangeOf(store, current);
+      const first = now && store.refAt(now.first);
+      const last = now && store.refAt(now.last);
+      if (!first || !last) return;
+      try {
+        const next = await backend.call('applyCorrection', {
+          meetingId,
+          range: { firstWordId: first.wordId, lastWordId: last.wordId },
+          text,
+          remember,
+        });
+        undoState.record(next);
+        closeEditor();
+        return;
+      } catch (error) {
+        const stale = error instanceof ContractError && error.code === 'conflict';
+        if (!stale || attempt > 0) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  };
+
+  // Clicking or focusing anything but a word or the editor ends the selection.
+  const selectionActive = selection !== null;
+  useEffect(() => {
+    if (!selectionActive) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-word-id], [role="menu"]') || target.closest('form[aria-label]')) {
+        return;
+      }
+      setSelection(null);
+      setEditing(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [selectionActive]);
+
+  const onContextMenu = (event: MouseEvent) => {
+    const ref = refFromEvent(event);
+    if (!ref) return;
+    event.preventDefault();
+    const inside = liveSelection && range && store.positionOf(ref);
+    const covered =
+      inside &&
+      comparePositions(range.first, inside) <= 0 &&
+      comparePositions(inside, range.last) <= 0;
+    if (!covered) startSelection({ anchor: ref, focus: ref });
+    setMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const copySelection = () => {
+    if (range) void navigator.clipboard?.writeText(store.textBetween(range.first, range.last));
   };
 
   const editorTop = () => {
@@ -501,6 +555,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onDoubleClick={onDoubleClick}
+            onContextMenu={onContextMenu}
           >
             {rows}
           </div>
@@ -524,6 +579,17 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           <button type="button" className={styles.jump} onClick={jumpToLive}>
             Jump to Live
           </button>
+        )}
+        {menu && (
+          <ContextMenu
+            label="Transcript text"
+            at={menu}
+            onClose={closeMenu}
+            items={[
+              { label: 'Copy', onSelect: copySelection },
+              { label: 'Correct text', onSelect: () => setEditing(true) },
+            ]}
+          />
         )}
         {editing && range && (
           <CorrectionEditor

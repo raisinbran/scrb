@@ -441,7 +441,7 @@
   font-weight: 600;
   color: var(--color-text);
   text-decoration: underline dotted;
-  cursor: text;
+  cursor: default;
   background: none;
   border: 0;
 }
@@ -508,7 +508,12 @@
 
 .words {
   margin: 0;
-  cursor: pointer;
+  cursor: default;
+}
+
+/* Only text that can be selected gets the I-beam. */
+.words [data-word] {
+  cursor: text;
 }
 
 .wordsFollowing {

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
@@ -714,6 +716,96 @@ describe('Recordings', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
         expect(screen.queryByText(/Double-click a word to correct it/)).toBeNull();
         expect(window.localStorage.getItem('scrb.recordings.editHintDismissed')).toBe('true');
+      });
+
+      describe('selecting and copying text', () => {
+        const selectWords = (from: HTMLElement, to: HTMLElement) => {
+          const range = document.createRange();
+          range.setStartBefore(from);
+          range.setEndAfter(to);
+          window.getSelection()?.removeAllRanges();
+          window.getSelection()?.addRange(range);
+        };
+        const wordsOf = () => [...document.querySelectorAll<HTMLElement>('[data-word]')];
+
+        it('clears the highlight when the editor closes or the user clicks away', async () => {
+          renderScreen();
+          await openMeeting(/Weekly project sync/);
+          const word = await firstWord();
+          selectWords(word, word);
+          fireEvent.doubleClick(word);
+          const form = await screen.findByRole('form', { name: 'Correct transcript' });
+          fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+          expect(window.getSelection()?.isCollapsed).toBe(true);
+
+          selectWords(word, word);
+          fireEvent.doubleClick(word);
+          await screen.findByRole('form', { name: 'Correct transcript' });
+          fireEvent.pointerDown(document.body);
+          expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+          expect(window.getSelection()?.isCollapsed).toBe(true);
+        });
+
+        it('offers Copy and Correct text on a multi-word selection', async () => {
+          const writeText = vi.fn().mockResolvedValue(undefined);
+          Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+          });
+          renderScreen();
+          await openMeeting(/Weekly project sync/);
+          await firstWord();
+          const [first, second] = wordsOf() as [HTMLElement, HTMLElement];
+          selectWords(first, second);
+          fireEvent.contextMenu(second);
+          expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+            'Copy',
+            'Correct text',
+          ]);
+          fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }));
+          expect(writeText).toHaveBeenCalledWith(
+            expect.stringContaining(first.textContent as string),
+          );
+
+          selectWords(first, second);
+          fireEvent.contextMenu(second);
+          fireEvent.click(screen.getByRole('menuitem', { name: 'Correct text' }));
+          const form = await screen.findByRole('form', { name: 'Correct transcript' });
+          expect((within(form).getByRole('textbox') as HTMLInputElement).value).toBe(
+            `${first.textContent} ${second.textContent}`,
+          );
+          const call = vi.spyOn(backend, 'call');
+          fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'Joined' } });
+          fireEvent.click(within(form).getByRole('button', { name: 'Apply' }));
+          await waitFor(() =>
+            expect(call).toHaveBeenCalledWith(
+              'applyCorrection',
+              expect.objectContaining({
+                range: { firstWordId: first.dataset['word'], lastWordId: second.dataset['word'] },
+              }),
+            ),
+          );
+        });
+
+        it('acts on the word under the pointer when nothing is selected', async () => {
+          renderScreen();
+          await openMeeting(/Weekly project sync/);
+          const word = await firstWord();
+          window.getSelection()?.removeAllRanges();
+          fireEvent.contextMenu(word);
+          fireEvent.click(screen.getByRole('menuitem', { name: 'Correct text' }));
+          const form = await screen.findByRole('form', { name: 'Correct transcript' });
+          expect((within(form).getByRole('textbox') as HTMLInputElement).value).toBe(
+            word.textContent,
+          );
+        });
+
+        it('keeps the pointer an arrow except over words', () => {
+          const css = readFileSync(join(__dirname, 'recordings.module.css'), 'utf8');
+          expect(/\.words \{[^}]*cursor: default/.test(css)).toBe(true);
+          expect(/\.words \[data-word\] \{[^}]*cursor: text/.test(css)).toBe(true);
+          expect(/\.speakerButton \{[^}]*cursor: default/.test(css)).toBe(true);
+        });
       });
     });
 

@@ -133,6 +133,18 @@ export class TranscriptStore {
    */
   resolve(ref: WordRef): WordRef | null {
     if (this.positionOf(ref)) return ref;
+    // The live pass re-times words of a segment that keeps its id, so try that segment first.
+    const home = this.segments[this.indexById.get(ref.segmentId) ?? -1];
+    const rewritten = home?.words.reduce<(typeof home.words)[number] | undefined>(
+      (best, item) =>
+        !best || Math.abs(item.startMs - ref.startMs) < Math.abs(best.startMs - ref.startMs)
+          ? item
+          : best,
+      undefined,
+    );
+    if (home && rewritten) {
+      return { segmentId: home.id, wordId: rewritten.id, startMs: rewritten.startMs };
+    }
     const segment = this.loadedSegmentAt(ref.startMs);
     const word = segment?.words.find((item) => item.endMs > ref.startMs);
     return segment && word
