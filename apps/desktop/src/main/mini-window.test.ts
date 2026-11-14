@@ -51,6 +51,27 @@ describe('createMiniController', () => {
     expect(closes[0]).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a minimized window, and opens no second one, while the main window comes and goes', () => {
+    const { controller, closes } = setup();
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.setMinimized(true);
+    controller.setMainInFront(true);
+    controller.setMainInFront(false);
+    expect(closes).toHaveLength(1);
+    expect(closes[0]).not.toHaveBeenCalled();
+  });
+
+  it('closes a restored window if the main window is in front by then', () => {
+    const { controller, closes } = setup();
+    controller.setStatus('recording');
+    controller.setMainInFront(false);
+    controller.setMinimized(true);
+    controller.setMainInFront(true);
+    controller.setMinimized(false);
+    expect(closes[0]).toHaveBeenCalledTimes(1);
+  });
+
   it('closes when the recording stops', () => {
     const { controller, closes } = setup();
     controller.setMainInFront(false);

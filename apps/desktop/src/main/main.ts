@@ -112,7 +112,11 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   mini.on('close', (event) => {
     if (closeGate.blocks()) event.preventDefault();
   });
-  mini.on('minimize', () => minimizeGuard.minimized());
+  mini.on('minimize', () => {
+    minimizeGuard.minimized();
+    setMiniMinimized(true);
+  });
+  mini.on('restore', () => setMiniMinimized(false));
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
@@ -195,6 +199,7 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
 }
 
 const mini = createMiniController(openMiniWindow);
+const setMiniMinimized = (on: boolean): void => mini.setMinimized(on);
 
 function mainWindows(): BrowserWindow[] {
   return withoutMini(BrowserWindow.getAllWindows(), miniWindows);
@@ -233,11 +238,7 @@ function createMainWindow(
   });
   window.webContents.on('render-process-gone', stopPlayback);
   window.on('closed', stopPlayback);
-  window.on('focus', () => {
-    // Focus that only follows the mini window minimizing was not asked for by the user.
-    if (minimizeGuard.shouldBlurMain()) window.blur();
-    else refreshMainInFront();
-  });
+  window.on('focus', refreshMainInFront);
   window.on('blur', refreshMainInFront);
   window.on('show', refreshMainInFront);
   window.on('hide', refreshMainInFront);

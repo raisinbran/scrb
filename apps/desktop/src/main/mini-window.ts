@@ -24,6 +24,8 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
   let mainInFront = true;
   let dismissed = false;
   let disposed = false;
+  // Minimized by the user: keep it as it is, whatever the main window does meanwhile.
+  let minimized = false;
   let handle: MiniHandle | null = null;
   // A window fading out. Showing again reuses it, so two mini windows never overlap.
   let closing: MiniHandle | null = null;
@@ -44,7 +46,7 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
         dismissed = true;
       });
       handle = opened;
-    } else if (!want && handle) {
+    } else if (!want && handle && !minimized) {
       closing = handle;
       handle = null;
       closing.close();
@@ -54,6 +56,10 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
   return {
     setStatus(next: string): void {
       status = next;
+      sync();
+    },
+    setMinimized(next: boolean): void {
+      minimized = next;
       sync();
     },
     setMainInFront(next: boolean): void {
