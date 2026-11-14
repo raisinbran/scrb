@@ -274,7 +274,9 @@ test.describe('Gate 7 walkthrough', () => {
 
     const launch = async () =>
       electron.launch({ args: ['.', `--user-data-dir=${join(root, '..')}`] });
-    const settle = async (app: ElectronApplication, done: () => boolean) => {
+    // A sweep removes the folder first and the index rows and audioDeletedAt last, and handles the
+    // meetings one after another, so wait for the last step of every old meeting, not the first.
+    const settle = async (app: ElectronApplication, done: () => boolean | Promise<boolean>) => {
       await app.firstWindow();
       await expect.poll(done, { timeout: 60_000, intervals: [500] }).toBe(true);
     };
@@ -282,7 +284,11 @@ test.describe('Gate 7 walkthrough', () => {
     // Round 1: delete audio only.
     let app = await launch();
     try {
-      await settle(app, () => !existsSync(oldA.paths.audioMeeting));
+      await settle(app, () =>
+        [oldA, oldB].every(
+          (old) => JSON.parse(readFileSync(old.paths.meta, 'utf8')).audioDeletedAt !== null,
+        ),
+      );
     } finally {
       await app.close();
     }
@@ -306,8 +312,17 @@ test.describe('Gate 7 walkthrough', () => {
     await reopen.close();
     app = await launch();
     try {
-      await settle(app, () => !existsSync(oldA.folder) && !existsSync(oldB.folder));
       const page = await app.firstWindow();
+      await settle(app, async () => {
+        const listed = JSON.stringify(
+          await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {})),
+        );
+        return (
+          !listed.includes(ids.a) &&
+          !listed.includes(ids.b) &&
+          walk(join(root, 'meetings')).every((p) => !p.startsWith('.deleting-'))
+        );
+      });
       const listed = JSON.stringify(
         await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {})),
       );
