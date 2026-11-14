@@ -295,7 +295,13 @@ describe('MiniRecording', () => {
     await showRecording(65_000);
     fireEvent.click(screen.getByRole('button', { name: 'Show Scribe' }));
     fireEvent.click(screen.getByRole('button', { name: 'Make smaller' }));
-    expect(open.mock.calls).toEqual([['scrb-app://show-main'], ['scrb-app://mini-compact']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide mini window' }));
+    expect(open.mock.calls).toEqual([
+      ['scrb-app://show-main'],
+      ['scrb-app://mini-compact'],
+      ['scrb-app://mini-hide'],
+    ]);
+    expect(screen.getByRole('button', { name: 'Hide mini window' }).title).toBe('Hide mini window');
     fireEvent.click(screen.getByRole('button', { name: 'Make larger' }));
     expect(open).toHaveBeenLastCalledWith('scrb-app://mini-expand');
   });

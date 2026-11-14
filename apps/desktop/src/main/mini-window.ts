@@ -1,12 +1,27 @@
 export interface MiniInputs {
+  /** The user hid the mini window with its Hide button. */
+  hidden?: boolean;
+  /** The user asked for it back: it shows even with the main window in front. */
+  forced?: boolean;
   status: 'idle' | 'recording' | 'paused' | 'stopping' | string;
   mainInFront: boolean;
   dismissed: boolean;
 }
 
 /** The mini window shows while a recording is on, the main window is not in front and it was not closed. */
-export function shouldShowMini({ status, mainInFront, dismissed }: MiniInputs): boolean {
-  return (status === 'recording' || status === 'paused') && !mainInFront && !dismissed;
+export function shouldShowMini({
+  status,
+  mainInFront,
+  dismissed,
+  hidden = false,
+  forced = false,
+}: MiniInputs): boolean {
+  return (
+    (status === 'recording' || status === 'paused') &&
+    !dismissed &&
+    !hidden &&
+    (forced || !mainInFront)
+  );
 }
 
 export interface MiniHandle {
@@ -19,18 +34,33 @@ export interface MiniHandle {
  * Opens and closes the mini window as the recording and the main window change. A close by the
  * user keeps it closed for that recording; the next recording starts afresh.
  */
-export function createMiniController(openWindow: (onClosedByUser: () => void) => MiniHandle) {
+export function createMiniController(
+  openWindow: (onClosedByUser: () => void) => MiniHandle,
+  onHiddenChanged: (hidden: boolean) => void = () => undefined,
+) {
   let status = 'idle';
   let mainInFront = true;
   let dismissed = false;
+  let hidden = false;
+  let forced = false;
   let disposed = false;
   let handle: MiniHandle | null = null;
   // A window fading out. Showing again reuses it, so two mini windows never overlap.
   let closing: MiniHandle | null = null;
 
+  const setHidden = (next: boolean): void => {
+    if (hidden === next) return;
+    hidden = next;
+    onHiddenChanged(next);
+  };
+
   const sync = (): void => {
-    if (status === 'idle') dismissed = false;
-    const want = !disposed && shouldShowMini({ status, mainInFront, dismissed });
+    if (status === 'idle') {
+      dismissed = false;
+      setHidden(false);
+      forced = false;
+    }
+    const want = !disposed && shouldShowMini({ status, mainInFront, dismissed, hidden, forced });
     if (want && !handle) {
       if (closing?.reopen?.()) {
         handle = closing;
@@ -56,7 +86,27 @@ export function createMiniController(openWindow: (onClosedByUser: () => void) =>
       status = next;
       sync();
     },
+    /** The Hide button: the window goes away, and a recording goes on. */
+    hide(): void {
+      forced = false;
+      setHidden(true);
+      sync();
+    },
+    /** The way back from the main window: it shows even while the main window is in front. */
+    show(): void {
+      setHidden(false);
+      forced = true;
+      sync();
+    },
+    /** With no main window left there is no way back, so a hidden mini window returns. */
+    mainGone(): void {
+      setHidden(false);
+      forced = false;
+      sync();
+    },
     setMainInFront(next: boolean): void {
+      // Back in the main window: a window it asked for earlier has done its job.
+      if (next && !mainInFront) forced = false;
       mainInFront = next;
       sync();
     },
@@ -90,6 +140,7 @@ export const SHOW_MAIN_URL = 'scrb-app://show-main';
 /** Addresses the mini window's buttons open; the UI keeps a copy of these strings. */
 export const COMPACT_URL = 'scrb-app://mini-compact';
 export const EXPAND_URL = 'scrb-app://mini-expand';
+export const HIDE_URL = 'scrb-app://mini-hide';
 
 /**
  * The mini window's only window-open rules: three exact addresses (show the app, make the window
@@ -99,11 +150,13 @@ export const EXPAND_URL = 'scrb-app://mini-expand';
 export function miniWindowOpenHandler(
   showMain: () => void,
   setCompact: (compact: boolean) => void,
+  hide: () => void,
 ): (details: { url: string }) => { action: 'deny' } {
   return ({ url }) => {
     if (url === SHOW_MAIN_URL) showMain();
     else if (url === COMPACT_URL) setCompact(true);
     else if (url === EXPAND_URL) setCompact(false);
+    else if (url === HIDE_URL) hide();
     return { action: 'deny' };
   };
 }

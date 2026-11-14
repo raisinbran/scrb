@@ -10,6 +10,8 @@ const SHOW_MAIN_URL = 'scrb-app://show-main';
 /** Likewise `COMPACT_URL` and `EXPAND_URL`: they shrink the window to its status row and back. */
 const COMPACT_URL = 'scrb-app://mini-compact';
 const EXPAND_URL = 'scrb-app://mini-expand';
+/** And `HIDE_URL`: it hides this window while the recording goes on; the main window brings it back. */
+const HIDE_URL = 'scrb-app://mini-hide';
 
 /** A speaker counts as talking while their latest transcribed words end within this of the clock. */
 const ACTIVE_WITHIN_MS = 4000;
@@ -179,6 +181,22 @@ export function MiniRecording() {
             <Icon>
               <path
                 d={compact ? 'M2 8l4-4 4 4' : 'M2 6h8'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </Icon>
+          </button>
+          <button
+            type="button"
+            className={styles.icon}
+            aria-label="Hide mini window"
+            title="Hide mini window"
+            onClick={() => window.open(HIDE_URL)}
+          >
+            <Icon>
+              <path
+                d="M2.5 3.5L6 7l3.5-3.5M2 10h8"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"

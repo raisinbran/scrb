@@ -234,6 +234,10 @@ export interface BackendCalls {
   getAppInfo: { request: void; response: AppInfo };
   getLicenses: { request: void; response: LicenseEntry[] };
   openLogsFolder: { request: void; response: void };
+
+  // Mini window
+  /** @addition Shows the mini window again after the user hid it, without taking the keyboard. */
+  showMiniWindow: { request: void; response: void };
 }
 
 /** Maps each event name to its payload. */
@@ -278,6 +282,10 @@ export interface BackendEvents {
 
   // Settings
   modelDownloadProgress: ModelDownloadProgress;
+
+  // Mini window
+  /** @addition The user hid the mini window (true) or it is back (false). */
+  miniWindowHiddenChanged: { hidden: boolean };
 }
 
 export type CallName = keyof BackendCalls;
@@ -402,6 +410,7 @@ const CALL_TABLE: Record<CallName, true> = {
   getAppInfo: true,
   getLicenses: true,
   openLogsFolder: true,
+  showMiniWindow: true,
 };
 
 const EVENT_TABLE: Record<EventName, true> = {
@@ -425,6 +434,7 @@ const EVENT_TABLE: Record<EventName, true> = {
   exportFinished: true,
   meetingChanged: true,
   modelDownloadProgress: true,
+  miniWindowHiddenChanged: true,
 };
 
 export const CALL_NAMES = Object.keys(CALL_TABLE) as CallName[];
