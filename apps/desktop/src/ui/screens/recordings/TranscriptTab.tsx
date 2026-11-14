@@ -522,6 +522,13 @@ export function TranscriptTab(props: TranscriptTabProps) {
     : placedIndex >= 0
       ? placedIndex
       : activeRowAt(rows, positionMs);
+  const activeRow = rows[activeIndex];
+  const activeWordKey =
+    activeRow?.kind === 'segment' && showPosition
+      ? placedIndex >= 0 && placedNow
+        ? placedNow.wordId
+        : currentWordId(activeRow.segment, positionMs)
+      : undefined;
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
@@ -530,12 +537,23 @@ export function TranscriptTab(props: TranscriptTabProps) {
     const bottom = tops[activeIndex + 1];
     if (top === undefined || bottom === undefined) return;
     if (top >= element.scrollTop && bottom <= element.scrollTop + element.clientHeight) return;
-    const target = Math.max(0, top - FOLLOW_MARGIN_PX);
+    let target = Math.max(0, top - FOLLOW_MARGIN_PX);
+    // A row taller than the list (one long speaker turn) cannot fit, so follow its current word.
+    const word =
+      bottom - top > element.clientHeight &&
+      element.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+    if (word) {
+      const from = element.getBoundingClientRect().top;
+      const wordTop = word.getBoundingClientRect().top - from;
+      const wordBottom = word.getBoundingClientRect().bottom - from;
+      if (wordTop >= 0 && wordBottom <= element.clientHeight) return;
+      target = Math.max(0, element.scrollTop + wordTop - FOLLOW_MARGIN_PX);
+    }
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     if (typeof element.scrollTo === 'function') {
       element.scrollTo({ top: target, behavior: reduced ? 'auto' : 'smooth' });
     } else element.scrollTop = target;
-  }, [playing, followPlayback, activeIndex, viewportPx]);
+  }, [playing, followPlayback, activeIndex, activeWordKey, viewportPx]);
 
   const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
   const contentHeight = (offsets[rows.length] as number) + unloaded;

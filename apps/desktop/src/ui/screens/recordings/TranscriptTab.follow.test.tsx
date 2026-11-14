@@ -162,4 +162,73 @@ describe('TranscriptTab follow-along', () => {
     expect(onPlace).toHaveBeenCalledTimes(1);
     expect(onPlay).not.toHaveBeenCalled();
   });
+
+  it('keeps the current word in view inside a row taller than the list', () => {
+    // Old recordings hold one speaker turn of hundreds of words, far taller than the list.
+    const words = Array.from({ length: 100 }, (_, i) => ({
+      id: `invented-long-${i}`,
+      text: 'invented',
+      startMs: i * 1000,
+      endMs: i * 1000 + 900,
+      state: 'final' as const,
+      correctionId: null,
+    }));
+    const long: TranscriptData = {
+      segments: [
+        {
+          id: 'invented-long',
+          speakerId: 'invented-speaker',
+          track: 'meeting',
+          startMs: 0,
+          endMs: 100_000,
+          words,
+        },
+      ],
+      speakers: [],
+      totalSegments: 1,
+      loading: false,
+      error: null,
+    };
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly onResize: (entries: unknown[]) => void) {}
+        observe = (target: Element) => {
+          if ((target as HTMLElement).dataset['row']) this.onResize([{ target }]);
+        };
+        unobserve = () => undefined;
+        disconnect = () => undefined;
+      },
+    );
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => 1500,
+    });
+    // Word 60 sits 900px below the top of a 300px list that is scrolled to 0.
+    const rect = (top: number) => ({ top, bottom: top + 20 }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.getAttribute('aria-current') === 'true' ? rect(900) : rect(0);
+      });
+    const view = (ms: number) => (
+      <TranscriptTab
+        transcript={long}
+        gaps={[]}
+        fontPx={15}
+        positionMs={ms}
+        showPosition
+        playing
+        jump={null}
+        onPlay={onPlay}
+        onPlace={onPlace}
+      />
+    );
+    const { rerender } = render(view(100));
+    scrollTo.mockClear();
+    rerender(view(60_100));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 900 - 24, behavior: 'smooth' });
+    spy.mockRestore();
+    Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
+  });
 });
