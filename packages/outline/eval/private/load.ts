@@ -1,6 +1,8 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, extname, join } from 'node:path';
 import { contentTokens } from '@scrb/summary';
+import { trimAgenda } from './agenda.js';
+import { docxLines, emlText, pdfText } from './formats.js';
 import { parseOutline } from '../../src/parse.js';
 import type { OutlineItem, TranscriptWord } from '../../src/types.js';
 
@@ -147,9 +149,59 @@ export interface PrivateMeeting {
   words: TranscriptWord[];
   /** Notes body per outline item; null when the notes have no matching heading. */
   bodies: (string | null)[];
+  /** Agenda lines seen and kept when the outline came from an email or PDF; null for outline.md. */
+  agenda: { seen: number; kept: number } | null;
+  /** Extra candidate files that were not used (counts only). */
+  ignored: number;
 }
 
 export type Loaded = { ok: true; meeting: PrivateMeeting } | { ok: false; code: SkipCode };
+
+interface Picked {
+  file: string;
+  ext: string;
+}
+
+/**
+ * Finds the three inputs by name, then by extension, in fixed priority:
+ *   outline:    outline.md, then .eml, then .pdf
+ *   notes:      final-notes.md, then .docx
+ *   transcript: transcript.txt, then another .txt, then a .md that is not the outline or the notes
+ * Within one kind the first name in sorted order wins. `ignored` counts the other candidates.
+ */
+export function discoverFiles(folder: string): {
+  outline: Picked | null;
+  notes: Picked | null;
+  transcript: Picked | null;
+  ignored: number;
+} {
+  let all: string[] = [];
+  try {
+    all = readdirSync(folder);
+  } catch {
+    // a missing folder has no candidates
+  }
+  const names = all
+    .filter((n) => !n.startsWith('.') && !n.startsWith('_') && statSync(join(folder, n)).isFile())
+    .sort();
+  const byExt = (ext: string): string[] => names.filter((n) => extname(n).toLowerCase() === ext);
+  let ignored = 0;
+  const pick = (groups: string[][]): Picked | null => {
+    const all = [...new Set(groups.flat())];
+    if (all.length === 0) return null;
+    ignored += all.length - 1;
+    return { file: join(folder, all[0]!), ext: extname(all[0]!).toLowerCase() };
+  };
+  const outline = pick([names.filter((n) => n === 'outline.md'), byExt('.eml'), byExt('.pdf')]);
+  const notes = pick([names.filter((n) => n === 'final-notes.md'), byExt('.docx')]);
+  const used = new Set([outline?.file, notes?.file].map((f) => (f ? basename(f) : '')));
+  const transcript = pick([
+    names.filter((n) => n === 'transcript.txt'),
+    byExt('.txt'),
+    byExt('.md').filter((n) => !used.has(n) && n !== 'outline.md' && n !== 'final-notes.md'),
+  ]);
+  return { outline, notes, transcript, ignored };
+}
 
 /** Sub-folders in name order; names starting with "_" or "." are skipped. Names are never reported. */
 export function listPrivateMeetings(root: string): string[] {
@@ -159,18 +211,30 @@ export function listPrivateMeetings(root: string): string[] {
     .sort();
 }
 
-export function loadPrivateMeeting(folder: string): Loaded {
-  const file = (n: string): string => join(folder, n);
-  const need: [string, SkipCode][] = [
-    ['outline.md', 'noOutline'],
-    ['transcript.txt', 'noTranscript'],
-    ['final-notes.md', 'noNotes'],
-  ];
-  for (const [n, code] of need) if (!existsSync(file(n))) return { ok: false, code };
-  const parsed = parseOutline(readFileSync(file('outline.md'), 'utf8'));
+async function outlineText(f: Picked): Promise<{ text: string; agenda: PrivateMeeting['agenda'] }> {
+  if (f.ext === '.md') return { text: readFileSync(f.file, 'utf8'), agenda: null };
+  const raw = f.ext === '.eml' ? emlText(f.file) : await pdfText(f.file);
+  const t = trimAgenda(raw);
+  return { text: t.text, agenda: { seen: t.seen, kept: t.kept } };
+}
+
+export async function loadPrivateMeeting(folder: string): Promise<Loaded> {
+  const found = discoverFiles(folder);
+  if (!found.outline) return { ok: false, code: 'noOutline' };
+  if (!found.transcript) return { ok: false, code: 'noTranscript' };
+  if (!found.notes) return { ok: false, code: 'noNotes' };
+  const { text, agenda } = await outlineText(found.outline);
+  const parsed = parseOutline(text);
   if (parsed.error || parsed.items.length === 0) return { ok: false, code: 'outlineRejected' };
-  const words = parseTranscript(readFileSync(file('transcript.txt'), 'utf8'));
+  const words = parseTranscript(readFileSync(found.transcript.file, 'utf8'));
   if (words.length === 0) return { ok: false, code: 'emptyTranscript' };
-  const bodies = splitNotes(readFileSync(file('final-notes.md'), 'utf8'), parsed.items);
-  return { ok: true, meeting: { items: parsed.items, words, bodies } };
+  const notes =
+    found.notes.ext === '.docx'
+      ? docxLines(found.notes.file).join('\n')
+      : readFileSync(found.notes.file, 'utf8');
+  const bodies = splitNotes(notes, parsed.items);
+  return {
+    ok: true,
+    meeting: { items: parsed.items, words, bodies, agenda, ignored: found.ignored },
+  };
 }
