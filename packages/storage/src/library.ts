@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { AtomicWriteOptions } from './atomic.ts';
@@ -147,6 +148,20 @@ export interface LibraryOptions {
   logger?: Logger;
 }
 
+export interface RootPrivacyAssessment {
+  mayBeShared: boolean;
+  mappedNetworkDrive: boolean | null;
+  redirected: boolean | null;
+  windowsAccessVerified: boolean;
+}
+
+export interface RootPrivacyProbes {
+  platform?: NodeJS.Platform;
+  isMappedNetworkDrive?: (root: string) => Promise<boolean | null>;
+  realpath?: (root: string) => Promise<string | null>;
+  effectiveAccessIsPrivate?: (root: string) => Promise<boolean | null>;
+}
+
 async function exists(target: string): Promise<boolean> {
   try {
     await fs.lstat(target);
@@ -155,6 +170,113 @@ async function exists(target: string): Promise<boolean> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
     throw error;
   }
+}
+
+async function privateDirectory(target: string): Promise<void> {
+  try {
+    const info = await fs.lstat(target);
+    if (info.isDirectory() && !info.isSymbolicLink()) await fs.chmod(target, 0o700);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+async function detectMappedNetworkDrive(root: string): Promise<boolean | null> {
+  const drive = /^([a-z]:)[\\/]/i.exec(path.win32.resolve(root))?.[1]?.toUpperCase();
+  if (!drive) return false;
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        'net.exe',
+        ['use'],
+        { encoding: 'utf8', timeout: 3_000, windowsHide: true },
+        (error, output) => {
+          if (error) reject(error);
+          else resolve(output);
+        },
+      );
+    });
+    return stdout.split(/\r?\n/).some((line) => {
+      const fields = line.trim().split(/\s+/);
+      return fields.some(
+        (field, index) => field.toUpperCase() === drive && fields[index + 1]?.startsWith('\\\\'),
+      );
+    });
+  } catch {
+    return null;
+  }
+}
+
+function windowsPathKey(value: string): string {
+  return path.win32
+    .normalize(value)
+    .replace(/^\\\\\?\\UNC\\/i, '\\\\')
+    .replace(/^\\\\\?\\/, '')
+    .replace(/[\\/]+$/, '')
+    .toLowerCase();
+}
+
+/**
+ * Evaluate the selected root conservatively. Node does not expose effective Windows ACL checks,
+ * so an unverified Windows root is reported as potentially shared. Probe overrides let tests
+ * exercise the same production decision with simulated Windows path and permission results.
+ */
+export async function assessRootPrivacy(
+  root: string,
+  existed: boolean,
+  probes: RootPrivacyProbes = {},
+): Promise<RootPrivacyAssessment> {
+  const platform = probes.platform ?? process.platform;
+  if (platform !== 'win32') {
+    if (!existed) {
+      return {
+        mayBeShared: false,
+        mappedNetworkDrive: false,
+        redirected: false,
+        windowsAccessVerified: true,
+      };
+    }
+    return {
+      mayBeShared: ((await fs.stat(root)).mode & 0o077) !== 0,
+      mappedNetworkDrive: false,
+      redirected: false,
+      windowsAccessVerified: true,
+    };
+  }
+
+  const resolvedRoot = path.win32.resolve(root);
+  const publicRoot = path.win32.resolve(process.env['PUBLIC'] ?? 'C:\\Users\\Public');
+  const isPublicRoot =
+    windowsPathKey(resolvedRoot) === windowsPathKey(publicRoot) ||
+    windowsPathKey(resolvedRoot).startsWith(`${windowsPathKey(publicRoot)}\\`);
+  const [mappedNetworkDrive, realpath, effectiveAccessIsPrivate] = await Promise.all([
+    probes.isMappedNetworkDrive
+      ? probes.isMappedNetworkDrive(root)
+      : detectMappedNetworkDrive(root),
+    probes.realpath ? probes.realpath(root) : fs.realpath(root).catch(() => null),
+    // Node core has no effective-access ACL query. Until one is available, fail closed.
+    probes.effectiveAccessIsPrivate ? probes.effectiveAccessIsPrivate(root) : Promise.resolve(null),
+  ]);
+  const redirected =
+    realpath === null ? null : windowsPathKey(realpath) !== windowsPathKey(resolvedRoot);
+  const isUncPath = windowsPathKey(resolvedRoot).startsWith('\\\\');
+  const mayBeShared =
+    isUncPath ||
+    isPublicRoot ||
+    mappedNetworkDrive !== false ||
+    redirected !== false ||
+    effectiveAccessIsPrivate !== true;
+
+  return {
+    mayBeShared,
+    mappedNetworkDrive,
+    redirected,
+    windowsAccessVerified: effectiveAccessIsPrivate !== null,
+  };
+}
+
+async function looksShared(root: string, existed: boolean): Promise<boolean> {
+  return (await assessRootPrivacy(root, existed)).mayBeShared;
 }
 
 async function hasAnyFile(dir: string): Promise<boolean> {
@@ -177,6 +299,8 @@ function isAlive(correction: Correction | undefined): boolean {
  */
 export class Library {
   readonly paths: LibraryPaths;
+  /** True when the user-selected root appears readable by other local users. */
+  readonly rootMayBeShared: boolean;
   readonly settings: SettingsStore;
   readonly vocabulary: VocabularyStore;
   readonly voiceProfiles: VoiceProfileStore;
@@ -201,6 +325,7 @@ export class Library {
     clock: () => Date,
     replacedCorruptIndex: string | null,
     retainedIndexSnapshot: boolean,
+    rootMayBeShared: boolean,
   ) {
     this.paths = paths;
     this.db = db;
@@ -208,6 +333,7 @@ export class Library {
     this.clock = clock;
     this.replacedCorruptIndex = replacedCorruptIndex;
     this.retainedIndexSnapshot = retainedIndexSnapshot;
+    this.rootMayBeShared = rootMayBeShared;
     const now = (): string => clock().toISOString();
     this.settings = new SettingsStore(db);
     this.vocabulary = new VocabularyStore(db, now);
@@ -226,20 +352,51 @@ export class Library {
 
   static async open(options: LibraryOptions): Promise<Library> {
     const paths = libraryPaths(options.root);
+    const rootExisted = await exists(paths.root);
+    await fs.mkdir(paths.root, {
+      recursive: true,
+      mode: process.platform === 'win32' ? undefined : 0o700,
+    });
     await Promise.all(
       [paths.meetings, paths.models, paths.logs, paths.cache].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
+    const rootMayBeShared = await looksShared(paths.root, rootExisted);
+    if (process.platform !== 'win32') {
+      await Promise.all(
+        [paths.meetings, paths.models, paths.logs, paths.cache].map(privateDirectory),
+      );
+    }
     const clock = options.now ?? (() => new Date());
     const logger = options.logger ?? new Logger(paths.logs, clock);
     const { db, replacedCorruptIndex, retainedSnapshot } = await openIndex(paths.index);
-    const library = new Library(paths, db, logger, clock, replacedCorruptIndex, retainedSnapshot);
+    const library = new Library(
+      paths,
+      db,
+      logger,
+      clock,
+      replacedCorruptIndex,
+      retainedSnapshot,
+      rootMayBeShared,
+    );
     Object.assign(library.openReport, await library.reconcile());
+    if (process.platform !== 'win32') await library.secureMeetingDirectories();
     await library.repairVocabulary();
     await logger.prune();
     logger.log('info', 'library-opened', { corruptIndexReplaced: replacedCorruptIndex !== null });
     return library;
+  }
+
+  private async secureMeetingDirectories(): Promise<void> {
+    for (const row of this.listMeetings()) {
+      const files = this.meetingPaths(row.id);
+      await Promise.all(
+        [files.folder, files.audio, files.audioMicrophone, files.audioMeeting, files.exports].map(
+          privateDirectory,
+        ),
+      );
+    }
   }
 
   setMeetingChangedListener(listener: ((meeting: MeetingMeta) => void) | null): void {
@@ -320,7 +477,7 @@ export class Library {
     const files = meetingPaths(meetingFolderPath(this.paths, folder));
     await Promise.all(
       [files.audioMicrophone, files.audioMeeting, files.exports].map((dir) =>
-        fs.mkdir(dir, { recursive: true }),
+        fs.mkdir(dir, { recursive: true, mode: process.platform === 'win32' ? undefined : 0o700 }),
       ),
     );
     await saveDocument(files.meta, meta, null);
@@ -334,7 +491,9 @@ export class Library {
     for (let attempt = 1; ; attempt += 1) {
       const name = attempt === 1 ? base : `${base} (${attempt})`;
       try {
-        await fs.mkdir(meetingFolderPath(this.paths, name));
+        await fs.mkdir(meetingFolderPath(this.paths, name), {
+          mode: process.platform === 'win32' ? undefined : 0o700,
+        });
         return name;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;

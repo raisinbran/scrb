@@ -11,6 +11,10 @@ import { ImportCoordinator } from './imports.ts';
 const fake = vi.hoisted(() => ({
   sealAudio: vi.fn(),
   spawnSync: vi.fn(),
+  execFile: vi.fn((...args: unknown[]) => {
+    const callback = args.at(-1) as ((error: Error | null, stdout: string) => void) | undefined;
+    callback?.(null, '');
+  }),
   resolveSources: vi.fn(),
   switchSource: vi.fn(),
   sessions: [] as {
@@ -25,7 +29,10 @@ const fake = vi.hoisted(() => ({
   windowsLaunches: 0,
 }));
 
-vi.mock('node:child_process', () => ({ spawnSync: fake.spawnSync }));
+vi.mock('node:child_process', () => ({
+  execFile: fake.execFile,
+  spawnSync: fake.spawnSync,
+}));
 vi.mock('@scrb/app-core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@scrb/app-core')>()),
   sealAudio: fake.sealAudio,
