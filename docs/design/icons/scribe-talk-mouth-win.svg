@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon option E: mouth talking, sound arcs flowing to a pen writing (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#d9dcf0"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#4149b840" stroke-width="6"/>
+  <path fill="#3a41a8" d="M170 510c46-80 96-60 130-30 24-26 84-50 130 30-50 120-210 120-260 0z"/>
+  <path d="M200 515c60 30 160 30 200 0" stroke="#fbfaf6" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <g fill="none" stroke="#6a73e6" stroke-width="30" stroke-linecap="round"><path d="M513 476A55 55 0 0 1 513 544"/><path d="M549 448A100 100 0 0 1 549 572"/><path d="M584 421A145 145 0 0 1 584 599"/></g>
+  <g transform="translate(477 150) scale(0.66)"><g transform="rotate(-24 440 540)"><path fill="#3a41a8" d="M440 790L350 640C326 580 332 500 372 430V330c0-14 10-24 24-24h88c14 0 24 10 24 24v100c40 70 46 150 22 210z"/>
+    <path d="M440 580v190" stroke="#fbfaf6" stroke-width="22" stroke-linecap="round" fill="none"/><circle cx="440" cy="560" r="30" fill="#fbfaf6"/><path d="M378 408h124" stroke="#fbfaf6" stroke-width="16" stroke-linecap="round"/></g></g>
+  <path d="M652 700c24-34 40-34 52 0s30 34 46 0 34-34 48 0 28 30 44 6" fill="none" stroke="#3a41a8" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
