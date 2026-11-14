@@ -1,4 +1,4 @@
-### A-359 — 2026-11-14 — Codex — Node command not on PATH during quota time conversion
+### A-373 — 2026-11-14 — Codex — Node command not on PATH during quota time conversion
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** I used `node -e` to convert quota reset timestamps even though the repository instructions say the owner's Node binary is under `~/.local/share/scrb-node/current/bin`; the shell did not have `node` on PATH.

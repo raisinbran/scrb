@@ -1,4 +1,4 @@
-### A-361 — 2026-11-14 — Codex — Chained staging and verification commands
+### A-375 — 2026-11-14 — Codex — Chained staging and verification commands
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** I combined `git add`, `git diff --cached --check`, and `git diff --cached --name-only` with `&&`, despite the instruction to run separate shell commands.

@@ -1,4 +1,4 @@
-### A-360 — 2026-11-14 — Codex — PR attachment call omitted required artifact type
+### A-374 — 2026-11-14 — Codex — PR attachment call omitted required artifact type
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** My first pull-request attachment call supplied the URL but omitted the required `artifact_type` argument, so the call returned an input error.
