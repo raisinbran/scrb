@@ -44,18 +44,18 @@ All of it lives in the final pass's turn construction (`packages/transcription/s
 **Steps**
 
 1. Build base turns as today (`buildTurns`, unchanged). This keeps same-track splitting exactly as now.
-2. **Interjection cuts.** For each turn T, find every other turn U (any speaker, **different track from T only**) with `T.startMs < U.startMs < T.endMs`, `U.endMs - U.startMs <= MAX_INTERJECTION_MS`, and at least one word with letters or digits (ignore empty or punctuation-only words). For each such U, in time order, pick the cut: the best word boundary of T's words within `U.startMs ± CUT_WINDOW_MS`, preferring (a) after a word ending `.`, `?` or `!`, then (b) a pause of at least `CUT_PAUSE_MS`, else (c) the first boundary at or after `U.startMs` (exact time). Within a rank, take the one closest to `U.startMs`; earlier on a tie. Skip the cut if either piece would be smaller than `MIN_PIECE_MS` **and** `MIN_PIECE_WORDS`, counting pieces left by earlier cuts of T. If a cut is skipped, U stays a separate turn ordered by start (it appears after the part of T that contains its start; harmless).
+2. **Interjection cuts.** For each turn T, find every other turn U (any speaker, **different track from T only**) with `T.startMs < U.startMs < T.endMs`, `U.endMs - U.startMs <= MAX_INTERJECTION_MS`, and at least one word with letters or digits (ignore empty or punctuation-only words). For each such U, in time order, pick the cut: the best word boundary of T's words within `U.startMs ± CUT_WINDOW_MS` **and with the right-hand piece starting at or after `U.startMs`** (a boundary before the interjection would leave the long left part sorting before it only if the right part started earlier; requiring this guarantees the order A-left, U, A-right), preferring (a) after a word ending `.`, `?` or `!`, then (b) a pause of at least `CUT_PAUSE_MS`, else (c) the first word starting at or after `U.startMs` (exact time). Because of the rule above, a sentence end or pause _before_ `U.startMs` is never chosen; the nearest one at or after it, within the window, is. Within a rank, take the one closest to `U.startMs`; earlier on a tie. Skip the cut if either piece would be smaller than `MIN_PIECE_MS` **and** `MIN_PIECE_WORDS`, counting pieces left by earlier cuts of T. If a cut is skipped, U stays a separate turn ordered by start (it appears after the part of T that contains its start; harmless).
    - Same-track speaker changes need no step 2; they already split.
    - Why different track only: track identity is certain (mic = you). Cutting on same-track labels would let a diarization error shred a paragraph, and same-track labels already split today without new guards.
 3. **Length cap.** Any piece still longer than `MAX_PARAGRAPH_MS` is cut at the best boundary (sentence end, else pause of at least `CUT_PAUSE_MS`, else the largest pause) within the last 15 s before the 60 s mark; if none, at the word nearest 60 s. Repeat until all pieces fit. Pieces from step 2 are not merged back.
 4. **Order.** Sort all turns by `startMs`, then `endMs`, then `speakerId` (string compare) so ties are deterministic. A cut piece that starts at the same instant as its interjection sorts after it because its end is later. Speaker identity never decides order except as the last tie-break.
 
-**Backchannels ("yeah", "mm-hm", "right", one word, 0.2 to 0.6 s). Owner choice, flagged:**
+**Backchannels ("yeah", "mm-hm", "right", one word, 0.2 to 0.6 s). Owner decision 2026-11-14: option A.**
 
-- **Option A, recommended.** A backchannel on the other track cuts the turn like any interjection and gets its own short row in time order. The transcript is exactly chronological and the follow-along does not bounce. Cost: more rows in a conversation with many "yeah"s; a paragraph is cut into pieces of at least 2 s or 3 words.
-- **Option B.** Only interjections of at least 2 words or 1.0 s cut. One-word backchannels become their own rows, still sorted by start, so they appear after the paragraph they interrupted (up to a minute later) and the follow-along bounces to them and back. Fewer rows; pair it with the optional sticky follow-along (slice 3) to hide the bounce.
+- **Option A, chosen.** A backchannel on the other track cuts the turn like any interjection and gets its own short row in time order. The transcript is exactly chronological and the follow-along does not bounce. Cost: more rows in a conversation with many "yeah"s; a paragraph is cut into pieces of at least 2 s or 3 words.
+- **Option B (not chosen, kept for reference).** Only interjections of at least 2 words or 1.0 s cut. One-word backchannels become their own rows, still sorted by start, so they appear after the paragraph they interrupted (up to a minute later) and the follow-along bounces to them and back. Fewer rows; pair it with the optional sticky follow-along (slice 3) to hide the bounce.
 
-Recommendation: A, because the owner's example ("right" at 30 s) is a one-word backchannel and chronological order was the request. The change between A and B is one constant (`MIN_INTERJECTION_WORDS` 1 or 2, plus `MIN_INTERJECTION_MS` 0 or 1000).
+Reason: the owner's example ("right" at 30 s) is a one-word backchannel and chronological order was the request. The change between A and B is one constant (`MIN_INTERJECTION_WORDS` 1 or 2, plus `MIN_INTERJECTION_MS` 0 or 1000).
 
 **Echo caution.** If the room leaks into the mic and `dropRoomEcho` misses a run, those leaked words are a fake "You" interjection and would cut a remote paragraph. The guards above (pieces of 2 s or 3 words) limit the damage to a few extra rows; `dropRoomEcho` is not touched.
 
@@ -71,7 +71,7 @@ Evidence (ES2004a, public AMI, one meeting, one int8 model; [trace](../research/
 **How to measure on AMI (needs no owner recordings).**
 
 1. From the AMI reference annotations of the eight meetings used in `docs/research/ami-short-speaker-sweep-20261114.md`, list interjections: reference segments by one speaker lying inside (or touching) another speaker's talk, bucketed by length (under 0.5 s, 0.5-1, 1-2, 2-4 s) and by overlapped or not.
-2. Run the final-pass diarization once per meeting with the existing `scripts/research/ami_speaker_dump.mts` (about 6.5 minutes per meeting, one process each, so under the 20-minute line per run), apply the shipped relabel, and for each interjection report the fraction of its duration labelled with the correct final speaker (best one-to-one mapping as in `ami_speaker_score.py`).
+2. Run the final-pass diarization once per meeting with the existing `scripts/research/ami_speaker_dump.mts` (about 6.5 minutes per meeting; eight meetings are about 52 minutes in total, and splitting them into separate processes does not avoid the 20-minute rule). **The campaign needs the owner's explicit approval before it starts**, or run it in bounded batches of at most two meetings (about 13 minutes each), each batch approved separately, apply the shipped relabel, and for each interjection report the fraction of its duration labelled with the correct final speaker (best one-to-one mapping as in `ami_speaker_score.py`).
 3. Report the table per bucket. Decision use: it sets how often the "wrong name" case happens for remote-versus-remote interjections; it does not change the rule.
 
 ## 4. UI versus backend
@@ -90,6 +90,7 @@ No file in `packages/contracts/` changes in slices 1 and 3. Section 6 lists the 
 1. **Unit, `buildTurns`/new cut step** (extend `packages/transcription/test/parsing.test.ts` or a new `final-pass-order.test.ts`). Invented words:
    - You 0-60 s continuous; remote "right" at 30 s: expect You 0-30, remote, You 30-60 after the sort.
    - Cut moves to a sentence end within 3 s; else to a pause; else exact time.
+   - Regression: T has a sentence end 2 s before `U.startMs` and none after within the window; the right-hand piece must start at or after `U.startMs` (cut falls back to the exact-time word), so the order is T-left, U, T-right and never T-left, T-right, U.
    - Guards: interjection 1.5 s after the turn start (piece under 2 s and 3 words) does not cut; two interjections 3 s apart cut at most once where a piece would fall below the floor.
    - Interjection longer than 10 s does not cut; same-track speaker change still cuts as before (existing test at `parsing.test.ts` "builds turns on speaker change and long gaps" passes unchanged).
    - A 150 s single-speaker run with no interjection becomes pieces of at most 60 s, split at sentence or pause; a 55 s run stays one piece.
@@ -146,8 +147,10 @@ No test here is expected to exceed 20 minutes. Do not use the owner's real recor
 4. **Re-process** (section 6): backend gate widening and status restore with tests, then the button and mock. Owner approved the contract addition on 2026-11-14; no further approval needed to start.
 5. Measurement in section 3 can run any time, in parallel; it changes no code.
 
+**Possible later item, needs owner approval, not part of slice 1: "Short replies" display setting.** A setting, default "show all", that hides only filler backchannels (1-2 words, matched from a fixed list: yeah, yep, mm-hm, uh-huh, right, okay, ok, sure, ...) in the transcript view and in exports. It filters at display time and never deletes data, so turning it off restores everything and no per-line work is needed. Substantive short words (yes, no, agreed, correct, numbers, names) are never in the list. Design notes for whoever picks it up: a rows-only filter in `resolveDisplay` or the UI, a new setting (contract change, owner approval), export option, and the summary must not use hidden text differently from shown text. Sized small; build only if the extra rows from option A bother the owner after use.
+
 ## 9. Open items for the owner
 
-1. Backchannels: option A (recommended) or B.
+1. Backchannels: **decided, option A** (own line in time order).
 2. Paragraph cap 60 s and the 2 s / 3 word minimum piece: acceptable?
 3. Re-process: **approved by the owner on 2026-11-14** (contract addition, wording "Re-process"). Implementer chooses option 1 or 2 in section 6 and notes the choice in the PR.
