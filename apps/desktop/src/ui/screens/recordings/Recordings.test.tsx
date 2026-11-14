@@ -79,7 +79,7 @@ describe('Recordings', () => {
       fireEvent.change(screen.getByLabelText('Search recordings'), {
         target: { value: 'northern depot' },
       });
-      const snippets = await screen.findAllByText('northern depot');
+      const snippets = await screen.findAllByText('northern');
       fireEvent.click(snippets[0]?.closest('button') as HTMLElement);
       expect(await screen.findByRole('tab', { name: 'Transcript' })).toBeTruthy();
     });
