@@ -1,0 +1,4 @@
+IS1004d: recall 5/12 (42%; actions 0/0, decisions 5/12); reference-precision 18/51 (35%); judged-precision not run; links: 58/58 point at a real line with its stored time; secondary (alsoAt) links 9/9 real; 33/58 also share 30% of their words with the nearby lines
+ES2015c: recall 11/13 (85%; actions 3/5, decisions 7/8); reference-precision 26/58 (45%); judged-precision not run; links: 63/63 point at a real line with its stored time; secondary (alsoAt) links 8/8 real; 42/63 also share 30% of their words with the nearby lines
+TS3005b: recall 11/15 (73%; actions 0/0, decisions 10/15); reference-precision 37/62 (60%); judged-precision not run; links: 68/68 point at a real line with its stored time; secondary (alsoAt) links 16/16 real; 46/68 also share 30% of their words with the nearby lines
+TOTAL: recall 27/40 (68%); links real: primary 189/189, secondary 33/33; word-supported 121/189

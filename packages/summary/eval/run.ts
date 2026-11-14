@@ -110,13 +110,15 @@ async function main(): Promise<void> {
     });
     const extractSeconds = (Date.now() - extractStart) / 1000;
     const narrativeStart = Date.now();
-    const brief = await writeSummary(extraction, llm, 'brief');
-    const full = await writeSummary(extraction, llm, 'full');
-    const narrativeSeconds = (Date.now() - narrativeStart) / 1000;
     writeFileSync(join(out, `${meeting}.extraction.json`), JSON.stringify(extraction, null, 1));
     writeFileSync(join(out, `${meeting}.judging.md`), judgingSheet(meeting, extraction, reference));
-    writeFileSync(join(out, `${meeting}.brief.md`), renderMarkdown(brief));
-    writeFileSync(join(out, `${meeting}.full.md`), renderMarkdown(full));
+    if (!rest.includes('--no-narrative')) {
+      const brief = await writeSummary(extraction, llm, 'brief');
+      const full = await writeSummary(extraction, llm, 'full');
+      writeFileSync(join(out, `${meeting}.brief.md`), renderMarkdown(brief));
+      writeFileSync(join(out, `${meeting}.full.md`), renderMarkdown(full));
+    }
+    const narrativeSeconds = (Date.now() - narrativeStart) / 1000;
     const row = {
       meeting,
       extractSeconds,
