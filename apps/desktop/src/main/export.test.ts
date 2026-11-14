@@ -137,6 +137,18 @@ describe('createExportHandlers', () => {
     expect(exportsOf(id)).toEqual(['Invented sync-2026-11-03.pdf']);
   });
 
+  it('writes WebVTT captions as UTF-8 text with the speaker as a voice tag', async () => {
+    const id = await seed();
+    await dispatchCall(handlers, 'exportMeeting', request(id, { format: 'vtt' }));
+    expect(await settled()).toMatchObject({ ok: true, fileName: 'Invented sync-2026-11-03.vtt' });
+    const text = readFileSync(
+      join(library.meetingPaths(id).exports, 'Invented sync-2026-11-03.vtt'),
+      'utf8',
+    );
+    expect(text).toBe('WEBVTT\n\n1\n00:00:00.000 --> 00:00:00.900\n<v a>hello there</v>\n');
+    expect(exportsOf(id)).toEqual(['Invented sync-2026-11-03.vtt']);
+  });
+
   it('keeps a hostile title inside the exports folder', async () => {
     const id = await seed('../../x/\\..\\y');
     await dispatchCall(handlers, 'exportMeeting', request(id));

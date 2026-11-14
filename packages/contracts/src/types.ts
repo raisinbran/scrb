@@ -540,7 +540,7 @@ export interface DeleteResult {
 export type MeetingFolder = 'meeting' | 'audio' | 'exports';
 
 export type ExportContent = 'transcript' | 'summary' | 'both';
-export type ExportFormat = 'docx' | 'pdf';
+export type ExportFormat = 'docx' | 'pdf' | 'vtt';
 
 export interface TranscriptExportOptions {
   title: boolean;

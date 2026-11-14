@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon concept A: speech bubble with text lines</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/></filter>
+  </defs>
+  <g>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
+  <path fill="#ffffff" d="M372 262h280c68 0 118 50 118 118v140c0 68-50 118-118 118H520L360 760V638h-0c-62-6-108-54-108-118V380c0-68 50-118 120-118z"/>
+  <g stroke="#4149b8" stroke-width="40" stroke-linecap="round"><path d="M372 380h280M372 450h280M372 520h170"/></g>
+  </g>
+</svg>

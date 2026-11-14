@@ -15,6 +15,7 @@ import {
   runFinalPass,
   toolsIn,
   YOU_ID,
+  type FinalPassDiagnostics,
   type FinalTranscript,
   type ImportResult,
   type Progress,
@@ -61,6 +62,7 @@ export type RunFinalPass = (input: {
   signal: AbortSignal;
   vocabularyHint?: string;
   onEmbeddingModel?: (path: string) => void;
+  onDiagnostics?: (fields: FinalPassDiagnostics) => void;
   onProgress?: (progress: Progress<FinalPhase>) => void;
 }) => Promise<FinalTranscript>;
 
@@ -211,6 +213,7 @@ export function createFinalPassRunner(
     signal,
     vocabularyHint: hint,
     onEmbeddingModel,
+    onDiagnostics,
     onProgress,
   }) => {
     const { tools, models } = await loadSetup(configPath);
@@ -224,6 +227,7 @@ export function createFinalPassRunner(
       signal,
       ...(threads ? { threads } : {}),
       ...(hint ? { vocabularyHint: hint } : {}),
+      ...(onDiagnostics ? { onDiagnostics } : {}),
       ...(onProgress ? { onProgress } : {}),
     });
   };
@@ -310,6 +314,8 @@ export class FinalPassQueue {
             onEmbeddingModel: (path) => {
               modelPath = path;
             },
+            onDiagnostics: (fields) =>
+              this.library.logger.log('info', 'final-pass-speakers', { ...fields }),
             onProgress: ({ phase, fraction }) => {
               const next = overallProgress(phase, fraction);
               report(next.stage, next.fraction);

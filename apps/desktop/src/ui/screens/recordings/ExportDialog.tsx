@@ -216,6 +216,7 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
           options={[
             { value: 'docx', label: 'DOCX' },
             { value: 'pdf', label: 'PDF' },
+            { value: 'vtt', label: 'WebVTT captions' },
           ]}
         />
         {usesTranscript && (

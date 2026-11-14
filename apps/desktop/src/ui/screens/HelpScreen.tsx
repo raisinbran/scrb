@@ -10,7 +10,11 @@ export function HelpScreen() {
   const { state: licenses } = useBackendData(loadLicenses);
   return (
     <Screen title="Help">
-      <p>The User Manual arrives with each phase and is finished in Phase 8.</p>
+      <h2>User Manual</h2>
+      <p>
+        The User Manual is in the <code>docs/user-manual</code> folder of the Scribe project, with a
+        Known issues page. It is not shown inside the app.
+      </p>
       <h2>About</h2>
       <DataView state={state}>
         {(info) => (
@@ -20,8 +24,12 @@ export function HelpScreen() {
             </p>
             <p>{info.copyright}</p>
             <p>{info.storageStatement}</p>
+            <p>
+              Scribe keeps your data on this computer and does not upload it. If you choose a
+              library folder on a cloud-synced drive, that service may upload the files.
+            </p>
             {info.models.length === 0 ? (
-              <p>Model information is unavailable until models are downloaded.</p>
+              <p>This build does not report installed model details.</p>
             ) : (
               <ItemList>
                 {info.models.map((model) => (
@@ -32,6 +40,11 @@ export function HelpScreen() {
           </>
         )}
       </DataView>
+      <h2>Credits</h2>
+      <p>
+        Scribe includes third-party software. Only notices that have been verified for this build
+        are listed below; the project's development-only sources are not part of the app.
+      </p>
       <h2>Third-party notices</h2>
       <DataView state={licenses}>
         {(entries) =>

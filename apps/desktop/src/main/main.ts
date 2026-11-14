@@ -59,6 +59,13 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
 // Every mini window that exists, including one fading out; none may stand in for the main window.
 const miniWindows = new Set<BrowserWindow>();
 
+// Packaged builds take their icon from the executable or bundle (electron-builder);
+// a dev run has only Electron's own, so the window and Dock icon are set here.
+const devIcon = (file: string): { icon?: string } =>
+  app.isPackaged ? {} : { icon: path.resolve(__dirname, '../assets/icons', file) };
+const devWindowIcon = (): { icon?: string } =>
+  devIcon(process.platform === 'win32' ? 'icon-win.png' : 'icon.png');
+
 // A quit closes every window, so the mini one must let it.
 app.on('before-quit', () => {
   for (const window of miniWindows) {
@@ -103,6 +110,7 @@ const prefersReducedMotion = (): boolean =>
 function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   const mini = new BrowserWindow({
     ...MINI_WINDOW_OPTIONS,
+    ...devWindowIcon(),
     webPreferences: secureWebPreferences(__dirname),
   });
   miniWindows.add(mini);
@@ -120,7 +128,7 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     const bounds = mini.getBounds();
     if (next) {
       fullHeight = bounds.height;
-      // Content height, so the title bar is kept; the window keeps its top edge.
+      // Content height (the page's own strip is inside it); the window keeps its top edge.
       const chrome = bounds.height - mini.getContentBounds().height;
       mini.setBounds({ ...bounds, height: MINI_COMPACT_HEIGHT + chrome });
     } else {
@@ -239,6 +247,7 @@ function createMainWindow(
     minWidth: 800,
     minHeight: 560,
     show: false,
+    ...devWindowIcon(),
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
       ? { trafficLightPosition: { x: 12, y: 12 } }
@@ -317,6 +326,9 @@ let restoreApp: (() => void) | null = null;
 app.on('second-instance', () => restoreApp?.());
 
 void app.whenReady().then(async () => {
+  if (process.platform === 'darwin' && !app.isPackaged) {
+    app.dock?.setIcon(path.resolve(__dirname, '../assets/icons/icon.png'));
+  }
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
   const backend = await openBackend((name, payload) => {
