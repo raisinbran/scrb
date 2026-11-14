@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TranscriptSegment } from '@scrb/contracts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { ContractError, isValidRequest, type TranscriptSegment } from '@scrb/contracts';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { createHybridBackend } from '../lib/hybrid-backend.ts';
@@ -495,7 +497,8 @@ describe('LiveScreen', () => {
       fireEvent.keyDown(input, { key: 'Escape' });
       expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
       expect(document.activeElement).toBe(transcript());
-      expect(selected().length).toBe(2);
+      // Closing the editor ends the selection, so no highlight is left behind.
+      expect(selected().length).toBe(0);
     });
 
     it('plays from the cursor with Space', async () => {
@@ -581,6 +584,268 @@ describe('LiveScreen', () => {
       await advance(0);
 
       expect(selected()).toEqual([word.textContent]);
+    });
+    describe('selection, cursor and menu', () => {
+      const rewriteFirstSegment = async (retime: boolean) => {
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const rewritten = {
+          ...segment,
+          words: segment.words.map((word) => ({
+            ...word,
+            id: `${word.id}-v2`,
+            startMs: word.startMs + (retime ? 7 : 0),
+            endMs: word.endMs + (retime ? 7 : 0),
+          })),
+        };
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: { kind: 'replace', segments: [rewritten], removedSegmentIds: [] },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+        return { meetingId, rewritten };
+      };
+
+      it('applies a correction after the live pass re-timed the word being edited', async () => {
+        await startMeeting();
+        fireEvent.doubleClick(words()[1] as HTMLElement);
+        const { rewritten } = await rewriteFirstSegment(true);
+        const call = vi.spyOn(backend, 'call');
+        fireEvent.change(screen.getByLabelText('Correct text'), { target: { value: 'fixed' } });
+        fireEvent.click(button('Apply'));
+        await advance(0);
+        const sent = call.mock.calls.find(([name]) => name === 'applyCorrection')?.[1] as {
+          range: { firstWordId: string };
+        };
+        expect(sent.range.firstWordId).toBe(rewritten.words[1]?.id);
+      });
+
+      it('retries once with the current ids when the backend reports a conflict', async () => {
+        await startMeeting();
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        const real = backend.call.bind(backend) as (name: string, request?: unknown) => unknown;
+        let tries = 0;
+        vi.spyOn(backend, 'call').mockImplementation(((name: string, request?: unknown) => {
+          if (name === 'applyCorrection' && tries++ === 0) {
+            return Promise.reject(new ContractError({ code: 'conflict', message: 'stale' }));
+          }
+          return real(name, request);
+        }) as never);
+        fireEvent.change(screen.getByLabelText('Correct text'), { target: { value: 'fixed' } });
+        fireEvent.click(button('Apply'));
+        await advance(10);
+        expect(tries).toBe(2);
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+        expect(words()[0]?.textContent).toBe('fixed');
+      });
+
+      it('never corrects a neighbour when the selected word disappears in a rewrite', async () => {
+        await startMeeting();
+        fireEvent.doubleClick(words()[1] as HTMLElement);
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const kept = segment.words.filter((_, index) => index !== 1);
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: {
+              kind: 'replace',
+              segments: [
+                {
+                  ...segment,
+                  words: kept.map((word) => ({ ...word, id: `${word.id}-v2` })),
+                },
+              ],
+              removedSegmentIds: [],
+            },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+        const call = vi.spyOn(backend, 'call');
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+        expect(screen.getByRole('alert').textContent).toContain('selection was cleared');
+        expect(call).not.toHaveBeenCalledWith('applyCorrection', expect.anything());
+      });
+
+      it('sends no correction when one of several identical words is removed in a rewrite', async () => {
+        await startMeeting();
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const yes = (index: number) => ({
+          ...(segment.words[0] as TranscriptSegment['words'][number]),
+          text: 'yes',
+          startMs: 500 + index * 120,
+          endMs: 560 + index * 120,
+        });
+        const send = (revision: number, items: TranscriptSegment['words']) =>
+          act(() =>
+            backend.emit('transcriptChanged', {
+              meetingId,
+              revision,
+              change: {
+                kind: 'replace',
+                segments: [{ ...segment, words: items }],
+                removedSegmentIds: [],
+              },
+              speakers: [],
+            }),
+          );
+        send(
+          page.revision + 1,
+          [0, 1, 2].map((i) => ({ ...yes(i), id: `a${i}` })),
+        );
+        await advance(0);
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        send(
+          page.revision + 2,
+          [1, 2].map((i) => ({ ...yes(i), id: `b${i}` })),
+        );
+        await advance(0);
+        const call = vi.spyOn(backend, 'call');
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+        expect(call).not.toHaveBeenCalledWith('applyCorrection', expect.anything());
+      });
+
+      it('clears the selection when the editor is cancelled or the user clicks away', async () => {
+        await startMeeting();
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        expect(selected().length).toBe(1);
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(1);
+        fireEvent.click(button('Cancel'));
+        expect(selected().length).toBe(0);
+        // The purple outline around the word goes too.
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(0);
+
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        expect(selected().length).toBe(1);
+        fireEvent.pointerDown(button('Undo'));
+        expect(selected().length).toBe(0);
+        expect(document.querySelectorAll('[data-cursor]').length).toBe(0);
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        fireEvent.mouseDown(transcript().firstElementChild as HTMLElement);
+        expect(selected().length).toBe(0);
+      });
+
+      it('keeps the pointer an arrow except over words', () => {
+        const css = readFileSync(join(__dirname, 'live/TranscriptView.module.css'), 'utf8');
+        expect(/\.canvas \{[^}]*cursor: default/.test(css)).toBe(true);
+        expect(/\.word \{[^}]*cursor: text/.test(css)).toBe(true);
+      });
+
+      it('offers Copy and Correct text on a selection and copies it', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+        await startMeeting();
+        dragAcross(words()[0] as HTMLElement, words()[1] as HTMLElement);
+        fireEvent.keyDown(screen.getByLabelText<HTMLInputElement>('Correct text'), {
+          key: 'Escape',
+        });
+        dragAcross(words()[0] as HTMLElement, words()[1] as HTMLElement);
+        fireEvent.keyDown(screen.getByLabelText<HTMLInputElement>('Correct text'), {
+          key: 'Escape',
+        });
+        fireEvent.contextMenu(words()[0] as HTMLElement);
+        expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+          'Copy',
+          'Correct text',
+        ]);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }));
+        expect(writeText).toHaveBeenCalledWith(words()[0]?.textContent);
+      });
+
+      it('opens the correction editor from the menu', async () => {
+        await startMeeting();
+        fireEvent.contextMenu(words()[2] as HTMLElement);
+        expect(selected()).toEqual([words()[2]?.textContent]);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Correct text' }));
+        expect(screen.getByLabelText<HTMLInputElement>('Correct text').value).toBe(
+          words()[2]?.textContent,
+        );
+      });
+
+      it('clicks a word with fractional live timings using requests the real validator accepts', async () => {
+        await startMeeting();
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const fractional = {
+          ...segment,
+          words: segment.words.map((word, index) => ({
+            ...word,
+            startMs: 1000.4 + index * 100.25,
+            endMs: 1050.6 + index * 100.25,
+          })),
+        };
+        act(() =>
+          backend.emit('transcriptChanged', {
+            meetingId,
+            revision: page.revision + 1,
+            change: { kind: 'replace', segments: [fractional], removedSegmentIds: [] },
+            speakers: [],
+          }),
+        );
+        await advance(0);
+        const requests: unknown[] = [];
+        const real = backend.call.bind(backend) as (name: string, request?: unknown) => unknown;
+        vi.spyOn(backend, 'call').mockImplementation(((name: string, request?: unknown) => {
+          if (name === 'seekAudio' || name === 'getPlaybackMedia') {
+            requests.push(isValidRequest(name, request));
+          }
+          return real(name, request);
+        }) as never);
+        clickWord(words()[1] as HTMLElement);
+        await advance(300);
+        expect(requests.length).toBeGreaterThan(0);
+        expect(requests.every(Boolean)).toBe(true);
+      });
+
+      it('shows a playback notice that can be dismissed and clears on the next success', async () => {
+        await startMeeting();
+        const real = backend.call.bind(backend) as (name: string, request?: unknown) => unknown;
+        let fail = true;
+        vi.spyOn(backend, 'call').mockImplementation(((name: string, request?: unknown) =>
+          name === 'seekAudio' && fail
+            ? Promise.reject(new ContractError({ code: 'invalidRequest', message: 'Nope.' }))
+            : real(name, request)) as never);
+        clickWord(words()[0] as HTMLElement);
+        await advance(300);
+        expect(screen.getByRole('alert').textContent).toContain('Nope.');
+        fireEvent.click(button('Dismiss'));
+        expect(screen.queryByRole('alert')).toBeNull();
+
+        clickWord(words()[0] as HTMLElement);
+        await advance(300);
+        expect(screen.getByRole('alert')).toBeTruthy();
+        fail = false;
+        clickWord(words()[1] as HTMLElement);
+        await advance(300);
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
+
+      it('still seeks on a click and selects on a drag', async () => {
+        await startMeeting();
+        clickWord(words()[0] as HTMLElement);
+        await advance(300);
+        expect(screen.getByText(/^Playing/)).toBeTruthy();
+        expect(selected().length).toBe(0);
+        dragAcross(words()[0] as HTMLElement, words()[2] as HTMLElement);
+        expect(selected().length).toBe(3);
+      });
     });
   });
 });

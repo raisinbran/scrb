@@ -61,6 +61,9 @@
 }
 
 .notice {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
   margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-warning);
@@ -89,7 +92,7 @@
 .canvas {
   position: relative;
   line-height: 1.55;
-  cursor: text;
+  cursor: default;
   user-select: none;
 }
 
@@ -125,6 +128,7 @@
 
 .word {
   border-radius: var(--radius);
+  cursor: text;
 }
 
 .word[data-state='provisional'] {

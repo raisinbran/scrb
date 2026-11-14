@@ -10,11 +10,26 @@ import { RowHeights } from './row-heights.ts';
 
 export const PAGE_SEGMENTS = 100;
 
+/**
+ * How far a revised live word may start from where it started and still be the same word. This is
+ * a judgement, not a measurement: nothing here records how far live revisions shift words. It is
+ * only a bound. What makes a match safe is that the word also keeps the same words before and
+ * after it, and that exactly one word qualifies.
+ */
+export const RETIME_WINDOW_MS = 200;
+
 /** A word that stays identifiable while rows are virtualized or replaced by the backend. */
 export interface WordRef {
   segmentId: string;
   wordId: string;
   startMs: number;
+  /** The text when picked. A rewrite only follows this word to a word with the same text. */
+  text?: string;
+  /** The words either side when picked, or null at a segment edge. A match must keep both. */
+  before?: string | null;
+  after?: string | null;
+  /** Another word with this text sat within the re-timing window, so a rewrite cannot be trusted. */
+  repeated?: boolean;
 }
 
 export interface WordPosition {
@@ -124,7 +139,22 @@ export class TranscriptStore {
   refAt({ segment, word }: WordPosition): WordRef | null {
     const row = this.segments[segment];
     const item = row?.words[word];
-    return row && item ? { segmentId: row.id, wordId: item.id, startMs: item.startMs } : null;
+    return row && item
+      ? {
+          segmentId: row.id,
+          wordId: item.id,
+          startMs: item.startMs,
+          text: item.text,
+          before: row.words[word - 1]?.text ?? null,
+          after: row.words[word + 1]?.text ?? null,
+          repeated: row.words.some(
+            (other) =>
+              other !== item &&
+              other.text === item.text &&
+              Math.abs(other.startMs - item.startMs) <= RETIME_WINDOW_MS,
+          ),
+        }
+      : null;
   }
 
   /**
@@ -133,11 +163,36 @@ export class TranscriptStore {
    */
   resolve(ref: WordRef): WordRef | null {
     if (this.positionOf(ref)) return ref;
+    // The live pass re-times words of a segment that keeps its id. Only one word with the same
+    // text, starting within RETIME_WINDOW_MS of the original, counts. A removed word must not hand
+    // its selection, and any correction typed for it, to a neighbour or a repeat of the word.
+    const near = (
+      item: { text: string; startMs: number },
+      words: { text: string }[],
+      index: number,
+    ) =>
+      ref.text === undefined
+        ? true
+        : item.text === ref.text &&
+          Math.abs(item.startMs - ref.startMs) <= RETIME_WINDOW_MS &&
+          (ref.before === undefined || (words[index - 1]?.text ?? null) === ref.before) &&
+          (ref.after === undefined || (words[index + 1]?.text ?? null) === ref.after);
+    // Identical words side by side cannot be told apart once one of them is gone.
+    if (ref.repeated) return null;
+    const home = this.segments[this.indexById.get(ref.segmentId) ?? -1];
+    if (home && ref.text !== undefined) {
+      const found = home.words.filter((item, index) => near(item, home.words, index));
+      const only = found.length === 1 ? found[0] : undefined;
+      const position = only ? this.positionOf({ ...ref, wordId: only.id }) : null;
+      return position ? this.refAt(position) : null;
+    }
     const segment = this.loadedSegmentAt(ref.startMs);
-    const word = segment?.words.find((item) => item.endMs > ref.startMs);
-    return segment && word
-      ? { segmentId: segment.id, wordId: word.id, startMs: word.startMs }
-      : null;
+    const word = segment?.words.find(
+      (item, index) => item.endMs > ref.startMs && near(item, segment.words, index),
+    );
+    const found =
+      segment && word && this.positionOf({ ...ref, segmentId: segment.id, wordId: word.id });
+    return found ? this.refAt(found) : null;
   }
 
   /** The text between two positions, skipping any rows not loaded yet. */

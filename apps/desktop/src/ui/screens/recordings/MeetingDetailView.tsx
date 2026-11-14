@@ -448,10 +448,10 @@ function LoadedDetail(props: LoadedDetailProps) {
 
   const editing: TranscriptEditing | undefined = canEdit
     ? {
-        correctWord: async (wordId, text, remember) => {
+        correctRange: async (firstWordId, lastWordId, text, remember) => {
           const next = await backend.call('applyCorrection', {
             meetingId,
-            range: { firstWordId: wordId, lastWordId: wordId },
+            range: { firstWordId, lastWordId },
             text,
             remember,
           });

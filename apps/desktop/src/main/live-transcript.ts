@@ -153,7 +153,8 @@ export class LiveTranscriptSink {
       }
       // Storage can split frozen corrections into new segments. Persist ownership in
       // word IDs so later revisions (including after reconnect) replace those too.
-      const prefix = `live-word-${createHash('sha256').update(input.id).digest('hex')}-`;
+      // Ids must stay within the contract's 128-character request limit, or no edit can name them.
+      const prefix = `live-word-${createHash('sha256').update(input.id).digest('hex').slice(0, 24)}-`;
       const occurrences = new Map<string, number>();
       const segment: Segment = {
         id: input.id,
@@ -165,7 +166,7 @@ export class LiveTranscriptSink {
           const occurrence = occurrences.get(key) ?? 0;
           occurrences.set(key, occurrence + 1);
           return {
-            id: `${prefix}${createHash('sha256').update(key).update(String(occurrence)).digest('hex')}`,
+            id: `${prefix}${createHash('sha256').update(key).update(String(occurrence)).digest('hex').slice(0, 24)}`,
             text: word.text,
             startMs: word.startMs,
             endMs: word.endMs,

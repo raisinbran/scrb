@@ -12,6 +12,7 @@ import {
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
 import { recall, remember } from '../../lib/tab-memory.ts';
+import { ContextMenu } from '../../components/ContextMenu.tsx';
 import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
 import type { TranscriptData } from './use-transcript.ts';
@@ -341,7 +342,13 @@ interface TranscriptTabProps {
 }
 
 export interface TranscriptEditing {
-  correctWord(wordId: string, text: string, remember: boolean): Promise<void>;
+  /** Corrects the words from the first id to the last, which may be the same word. */
+  correctRange(
+    firstWordId: string,
+    lastWordId: string,
+    text: string,
+    remember: boolean,
+  ): Promise<void>;
   renameSpeaker(speakerId: string, name: string): Promise<void>;
 }
 
@@ -472,7 +479,35 @@ export function TranscriptTab(props: TranscriptTabProps) {
     },
     [onPlace],
   );
-  const [editWord, setEditWord] = useState<{ id: string; text: string } | null>(null);
+  const [editWord, setEditWord] = useState<{ id: string; lastId: string; text: string } | null>(
+    null,
+  );
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    /** What Copy puts on the clipboard. */
+    text: string;
+    /** The model words under the selection, which Correct text starts from. */
+    words: string;
+    first: string;
+    last: string;
+  } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  /** Closing the editor also drops the text highlight the double-click left behind. */
+  const closeEditor = useCallback(() => {
+    setEditWord(null);
+    window.getSelection()?.removeAllRanges();
+  }, []);
+  const editorShown = editWord !== null;
+  useEffect(() => {
+    if (!editorShown) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(`[${EDITOR_MARK}]`)) closeEditor();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [editorShown, closeEditor]);
   const [renaming, setRenaming] = useState<{ speakerId: string; rowKey: string } | null>(null);
   const renamingId = renaming?.speakerId ?? null;
   // The rename form lives in its row. While that row is outside the rendered range the form is
@@ -492,11 +527,43 @@ export function TranscriptTab(props: TranscriptTabProps) {
       const word = segments.flatMap((segment) => segment.words).find((item) => item.id === id);
       if (word) {
         setRenaming(null);
-        setEditWord({ id, text: word.text });
+        setEditWord({ id, lastId: id, text: word.text });
       }
     },
     [segments],
   );
+  const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    const root = event.currentTarget;
+    const wordAt = (event.target as HTMLElement).closest<HTMLElement>('[data-word]');
+    const selection = window.getSelection();
+    const inWords = (element: HTMLElement) =>
+      selection !== null &&
+      selection.rangeCount > 0 &&
+      !selection.isCollapsed &&
+      selection.getRangeAt(0).intersectsNode(element);
+    if (wordAt && !inWords(wordAt)) {
+      // Right-clicking a word outside the selection acts on that word, as in a text editor.
+      selection?.selectAllChildren(wordAt);
+    }
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+    const hit = [...root.querySelectorAll<HTMLElement>('[data-word]')].filter(inWords);
+    const first = hit[0]?.dataset['word'];
+    const last = hit.at(-1)?.dataset['word'];
+    if (!first || !last) return;
+    event.preventDefault();
+    const ids = segments.flatMap((segment) => segment.words);
+    const from = ids.findIndex((item) => item.id === first);
+    const to = ids.findIndex((item) => item.id === last);
+    const words = from >= 0 && to >= from ? ids.slice(from, to + 1) : [];
+    setMenu({
+      x: event.clientX,
+      y: event.clientY,
+      text: selection.toString(),
+      first,
+      last,
+      words: words.map((item) => item.text).join(' '),
+    });
+  };
   const onStartRename = useCallback((speakerId: string, rowKey: string) => {
     setEditWord(null);
     setRenaming({ speakerId, rowKey });
@@ -559,6 +626,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
           if (restoreKey && restored.current)
             remember(`scroll.${restoreKey}`, event.currentTarget.scrollTop);
         }}
+        onContextMenu={onContextMenu}
         onWheel={stopFollowing}
         onTouchMove={stopFollowing}
         onPointerDown={(event) => {
@@ -635,12 +703,38 @@ export function TranscriptTab(props: TranscriptTabProps) {
             originalText={editWord.text}
             top={8}
             onApply={async (text, remember) => {
-              await editing.correctWord(editWord.id, text, remember);
-              setEditWord(null);
+              await editing.correctRange(editWord.id, editWord.lastId, text, remember);
+              closeEditor();
             }}
-            onCancel={() => setEditWord(null)}
+            onCancel={closeEditor}
           />
         </div>
+      )}
+      {menu && (
+        <ContextMenu
+          label="Transcript text"
+          at={menu}
+          onClose={closeMenu}
+          items={[
+            {
+              label: 'Copy',
+              onSelect: () => {
+                void navigator.clipboard?.writeText(menu.text);
+              },
+            },
+            ...(editing
+              ? [
+                  {
+                    label: 'Correct text',
+                    onSelect: () => {
+                      setRenaming(null);
+                      setEditWord({ id: menu.first, lastId: menu.last, text: menu.words });
+                    },
+                  },
+                ]
+              : []),
+          ]}
+        />
       )}
     </div>
   );

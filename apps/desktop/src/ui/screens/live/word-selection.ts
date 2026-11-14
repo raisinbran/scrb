@@ -10,7 +10,7 @@ export interface SelectionRange {
   last: WordPosition;
 }
 
-function comparePositions(a: WordPosition, b: WordPosition): number {
+export function comparePositions(a: WordPosition, b: WordPosition): number {
   return a.segment - b.segment || a.word - b.word;
 }
 

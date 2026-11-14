@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptChanged, TranscriptSegment } from '@scrb/contracts';
 import { MockBackend } from '../../mocks/index.ts';
 import { RowHeights } from './row-heights.ts';
-import { PAGE_SEGMENTS, TranscriptStore } from './transcript-store.ts';
+import { PAGE_SEGMENTS, TranscriptStore, type WordRef } from './transcript-store.ts';
 
 function makeSegment(id: string, startMs: number, words = ['one', 'two']): TranscriptSegment {
   return {
@@ -91,7 +91,126 @@ describe('TranscriptStore', () => {
       segments: [makeSegment('c2', 400, ['new', 'words'])],
       removedSegmentIds: ['c'],
     });
-    expect(store.resolve(ref)).toEqual({ segmentId: 'c2', wordId: 'c2-1', startMs: 500 });
+    expect(store.resolve(ref)).toMatchObject({
+      segmentId: 'c2',
+      wordId: 'c2-1',
+      startMs: 500,
+      text: 'words',
+    });
+  });
+
+  it('does not hand a removed word to a neighbour that the rewrite kept', () => {
+    emit(2, {
+      kind: 'replace',
+      segments: [makeSegment('c', 400, ['one', 'maybe'])],
+      removedSegmentIds: [],
+    });
+    const yes = { segmentId: 'c', wordId: 'gone', startMs: 500, text: 'yes' };
+    expect(store.resolve(yes)).toBeNull();
+    const retimed = { segmentId: 'c', wordId: 'gone', startMs: 530, text: 'maybe' };
+    expect(store.resolve(retimed)).toMatchObject({ wordId: 'c-1', text: 'maybe' });
+  });
+
+  it('follows a small re-timing, but not a repeat of the word seconds away or an ambiguous pair', () => {
+    const words = (items: [string, number][]) => ({
+      ...makeSegment('c', 400, []),
+      endMs: 5000,
+      words: items.map(([text, startMs], i) => ({
+        id: `n-${i}`,
+        text,
+        startMs,
+        endMs: startMs + 80,
+        state: 'provisional' as const,
+        correctionId: null,
+      })),
+    });
+    const send = (revision: number, items: [string, number][]) =>
+      emit(revision, { kind: 'replace', segments: [words(items)], removedSegmentIds: [] });
+    const ref = { segmentId: 'c', wordId: 'old', startMs: 500, text: 'yes' };
+    send(2, [['yes', 530]]);
+    expect(store.resolve(ref)).toMatchObject({ wordId: 'n-0' });
+    send(3, [
+      ['no', 500],
+      ['yes', 4000],
+    ]);
+    expect(store.resolve(ref)).toBeNull();
+    send(4, [
+      ['yes', 450],
+      ['yes', 600],
+    ]);
+    expect(store.resolve(ref)).toBeNull();
+  });
+
+  it('refuses a same-text word 120 ms away when its neighbours differ', () => {
+    const put = (revision: number, items: [string, number][]) =>
+      emit(revision, {
+        kind: 'replace',
+        segments: [
+          {
+            ...makeSegment('c', 400, []),
+            endMs: 3000,
+            words: items.map(([text, startMs], i) => ({
+              id: `m-${i}`,
+              text,
+              startMs,
+              endMs: startMs + 80,
+              state: 'provisional' as const,
+              correctionId: null,
+            })),
+          },
+        ],
+        removedSegmentIds: [],
+      });
+    put(2, [
+      ['say', 300],
+      ['yes', 500],
+      ['and', 700],
+      ['yes', 900],
+    ]);
+    const picked = store.refAt({ segment: 1, word: 1 }) as WordRef;
+    expect(picked).toMatchObject({ text: 'yes', before: 'say', after: 'and' });
+    // The first "yes" is deleted; the other one now sits 120 ms from where it was.
+    put(3, [
+      ['say', 300],
+      ['and', 400],
+      ['yes', 620],
+    ]);
+    expect(store.resolve({ ...picked, wordId: 'gone' })).toBeNull();
+    // The same word, re-timed with the same neighbours, is still followed.
+    put(4, [
+      ['say', 310],
+      ['yes', 540],
+      ['and', 700],
+    ]);
+    expect(store.resolve({ ...picked, wordId: 'gone' })).toMatchObject({ wordId: 'm-1' });
+  });
+
+  it('refuses to remap one of three identical words when the first disappears', () => {
+    const put = (revision: number, starts: number[]) =>
+      emit(revision, {
+        kind: 'replace',
+        segments: [
+          {
+            ...makeSegment('c', 400, []),
+            endMs: 3000,
+            words: starts.map((startMs, i) => ({
+              id: `y-${startMs}-${revision}`,
+              text: 'yes',
+              startMs,
+              endMs: startMs + 80,
+              state: 'provisional' as const,
+              correctionId: null,
+              i,
+            })),
+          },
+        ],
+        removedSegmentIds: [],
+      });
+    put(2, [500, 620, 740]);
+    const picked = store.refAt({ segment: 1, word: 0 }) as WordRef;
+    expect(picked.repeated).toBe(true);
+    put(3, [620, 740]);
+    expect(store.resolve(picked)).toBeNull();
   });
 
   it('gives up on a word whose moment has no text left', () => {
