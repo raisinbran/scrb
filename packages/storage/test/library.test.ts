@@ -790,6 +790,41 @@ describe('search', () => {
     await library.close();
   });
 
+  it('reads only indexed meetings, not transcript files elsewhere under the root', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const a = await seeded(library, 'Inside', 'hello indexedterm');
+    const stray = path.join(root, 'stray-folder');
+    await mkdir(stray);
+    // The stray copy holds a term that exists nowhere in the library, so a scan of it would find it.
+    const original = await readFile(library.meetingPaths(a.id).transcript, 'utf8');
+    await writeFile(
+      path.join(stray, path.basename(library.meetingPaths(a.id).transcript)),
+      original.replace('indexedterm', 'strayonlyterm'),
+    );
+    expect((await library.search('strayonlyterm')).results).toEqual([]);
+    expect((await library.search('indexedterm')).results.map((r) => r.meeting.id)).toEqual([a.id]);
+    await library.close();
+  });
+
+  // Measures only library.search(), after the meetings are created: warm file cache, no indexing,
+  // no cold start, no UI. 12 matching meetings have 18,001 words, the other 108 have 9,000.
+  it('searches 120 meetings of 9,000 or more words within a generous limit', async () => {
+    const library = await Library.open({ root: await tempDir() });
+    const filler = Array.from({ length: 9000 }, (_, i) => `word${i % 400}`).join(' ');
+    for (let i = 0; i < 120; i += 1) {
+      const text = i % 10 === 0 ? `${filler} needlephrase ${filler}` : filler;
+      await seeded(library, `Meeting ${i}`, text, '2026-03-01');
+    }
+    const started = performance.now();
+    const found = await library.search('needlephrase', { hitsPerMeeting: 5 });
+    const elapsedMs = performance.now() - started;
+    console.log(`library.search over 120 seeded meetings: ${Math.round(elapsedMs)} ms`);
+    expect(found.results).toHaveLength(12);
+    expect(elapsedMs).toBeLessThan(10_000);
+    await library.close();
+  });
+
   it('stops when cancelled, and leaves unfinished imports out', async () => {
     const library = await Library.open({ root: await tempDir() });
     await seeded(library, 'One', 'hello');
