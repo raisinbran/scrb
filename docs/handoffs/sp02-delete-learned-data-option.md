@@ -1,6 +1,6 @@
 # SP-02: delete asks whether to also remove learned data (contract change needed)
 
-**Status:** blocked on owner approval of one `packages/contracts/` change. No code written.
+**Status:** owner approved 2026-11-14 (relayed by the planning session): both contract fields and the "only source" rule. Implemented in this PR: contract commit, backend commit, UI commit.
 
 **Decision (owner):** deleting a recording asks "Also remove voice profiles and vocabulary learned from this recording?" The default is **keep**.
 
