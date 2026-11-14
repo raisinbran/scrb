@@ -677,6 +677,47 @@ describe('LiveScreen', () => {
         expect(call).not.toHaveBeenCalledWith('applyCorrection', expect.anything());
       });
 
+      it('sends no correction when one of several identical words is removed in a rewrite', async () => {
+        await startMeeting();
+        const { state } = await backend.call('getRecordingSnapshot');
+        const meetingId = state.meetingId as string;
+        const page = await backend.call('getTranscript', { meetingId, offset: 0, limit: 1 });
+        const segment = page.segments[0] as TranscriptSegment;
+        const yes = (index: number) => ({
+          ...(segment.words[0] as TranscriptSegment['words'][number]),
+          text: 'yes',
+          startMs: 500 + index * 120,
+          endMs: 560 + index * 120,
+        });
+        const send = (revision: number, items: TranscriptSegment['words']) =>
+          act(() =>
+            backend.emit('transcriptChanged', {
+              meetingId,
+              revision,
+              change: {
+                kind: 'replace',
+                segments: [{ ...segment, words: items }],
+                removedSegmentIds: [],
+              },
+              speakers: [],
+            }),
+          );
+        send(
+          page.revision + 1,
+          [0, 1, 2].map((i) => ({ ...yes(i), id: `a${i}` })),
+        );
+        await advance(0);
+        fireEvent.doubleClick(words()[0] as HTMLElement);
+        send(
+          page.revision + 2,
+          [1, 2].map((i) => ({ ...yes(i), id: `b${i}` })),
+        );
+        await advance(0);
+        const call = vi.spyOn(backend, 'call');
+        expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+        expect(call).not.toHaveBeenCalledWith('applyCorrection', expect.anything());
+      });
+
       it('clears the selection when the editor is cancelled or the user clicks away', async () => {
         await startMeeting();
         fireEvent.doubleClick(words()[0] as HTMLElement);

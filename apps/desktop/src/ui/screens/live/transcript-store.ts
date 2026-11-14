@@ -28,6 +28,8 @@ export interface WordRef {
   /** The words either side when picked, or null at a segment edge. A match must keep both. */
   before?: string | null;
   after?: string | null;
+  /** Another word with this text sat within the re-timing window, so a rewrite cannot be trusted. */
+  repeated?: boolean;
 }
 
 export interface WordPosition {
@@ -145,6 +147,12 @@ export class TranscriptStore {
           text: item.text,
           before: row.words[word - 1]?.text ?? null,
           after: row.words[word + 1]?.text ?? null,
+          repeated: row.words.some(
+            (other) =>
+              other !== item &&
+              other.text === item.text &&
+              Math.abs(other.startMs - item.startMs) <= RETIME_WINDOW_MS,
+          ),
         }
       : null;
   }
@@ -169,6 +177,8 @@ export class TranscriptStore {
           Math.abs(item.startMs - ref.startMs) <= RETIME_WINDOW_MS &&
           (ref.before === undefined || (words[index - 1]?.text ?? null) === ref.before) &&
           (ref.after === undefined || (words[index + 1]?.text ?? null) === ref.after);
+    // Identical words side by side cannot be told apart once one of them is gone.
+    if (ref.repeated) return null;
     const home = this.segments[this.indexById.get(ref.segmentId) ?? -1];
     if (home && ref.text !== undefined) {
       const found = home.words.filter((item, index) => near(item, home.words, index));

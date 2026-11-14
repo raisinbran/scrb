@@ -185,6 +185,34 @@ describe('TranscriptStore', () => {
     expect(store.resolve({ ...picked, wordId: 'gone' })).toMatchObject({ wordId: 'm-1' });
   });
 
+  it('refuses to remap one of three identical words when the first disappears', () => {
+    const put = (revision: number, starts: number[]) =>
+      emit(revision, {
+        kind: 'replace',
+        segments: [
+          {
+            ...makeSegment('c', 400, []),
+            endMs: 3000,
+            words: starts.map((startMs, i) => ({
+              id: `y-${startMs}-${revision}`,
+              text: 'yes',
+              startMs,
+              endMs: startMs + 80,
+              state: 'provisional' as const,
+              correctionId: null,
+              i,
+            })),
+          },
+        ],
+        removedSegmentIds: [],
+      });
+    put(2, [500, 620, 740]);
+    const picked = store.refAt({ segment: 1, word: 0 }) as WordRef;
+    expect(picked.repeated).toBe(true);
+    put(3, [620, 740]);
+    expect(store.resolve(picked)).toBeNull();
+  });
+
   it('gives up on a word whose moment has no text left', () => {
     const ref = { segmentId: 'c', wordId: 'c-1', startMs: 500 };
     emit(2, { kind: 'replace', segments: [], removedSegmentIds: ['c'] });
