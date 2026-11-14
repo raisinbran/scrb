@@ -64,6 +64,19 @@ export function linkProblem(item: SummaryItem, transcript: Transcript): string |
     : 'words not found nearby';
 }
 
+/** Primary and secondary (alsoAt) link checks over every item the gate covers. */
+export function scoreLinks(extraction: Extraction, transcript: Transcript) {
+  const linked: SummaryItem[] = [
+    ...extraction.actions,
+    ...extraction.decisions,
+    ...extraction.openQuestions,
+  ];
+  const secondary = linked.flatMap((i) => i.alsoAt);
+  const secondaryBroken = secondary.filter((l) => secondaryProblem(l, transcript)).length;
+  const problems = linked.map((i) => ({ i, p: linkProblem(i, transcript) })).filter((x) => x.p);
+  return { linked, secondary, secondaryBroken, problems };
+}
+
 const JUDGE_SCHEMA = {
   type: 'object',
   properties: { verdict: { enum: ['genuine', 'not_an_item'] } },
@@ -109,7 +122,7 @@ async function main(): Promise<void> {
   const jsonOut = jsonAt >= 0 ? args[jsonAt + 1] : undefined;
   const doJudge = args.includes('--judge');
   const [fixtures, out, ...meetings] = args.filter(
-    (a, i) => !a.startsWith('--') && i !== jsonAt + 1,
+    (a, i) => !a.startsWith('--') && (jsonAt < 0 || i !== jsonAt + 1),
   );
   if (!fixtures || !out || meetings.length === 0)
     throw new Error('usage: gate6.js <fixtures> <out> <meeting>...');
@@ -140,10 +153,7 @@ async function main(): Promise<void> {
       const recD = refD.filter((r) => extraction.decisions.some((i) => matches(r, i)));
       const recPooled = [...refA, ...refD].filter((r) => pooled.some((i) => matches(r, i)));
       const refMatched = pooled.filter((i) => [...refA, ...refD].some((r) => matches(r, i)));
-      const linked = [...pooled, ...extraction.openQuestions];
-      const secondary = linked.flatMap((i) => i.alsoAt);
-      const secondaryBroken = secondary.filter((l) => secondaryProblem(l, transcript)).length;
-      const problems = linked.map((i) => ({ i, p: linkProblem(i, transcript) })).filter((x) => x.p);
+      const { linked, secondary, secondaryBroken, problems } = scoreLinks(extraction, transcript);
       let judged: { genuine: number; total: number } | undefined;
       if (worker) {
         let genuine = 0;

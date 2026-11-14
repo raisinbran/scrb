@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { linkProblem, secondaryProblem } from '../eval/gate6.js';
-import type { ActionItem } from '../src/types.js';
+import { linkProblem, scoreLinks, secondaryProblem } from '../eval/gate6.js';
+import type { ActionItem, Extraction } from '../src/types.js';
 
 const transcript = {
   lines: [
@@ -44,5 +44,30 @@ describe('gate6 secondary link check', () => {
     expect(secondaryProblem({ lineIndex: 2, timestampSec: 99 }, transcript)).toBe(
       'time differs from line',
     );
+  });
+});
+
+describe('gate6 scoring visits secondary links', () => {
+  const extraction = (alsoAt: ActionItem['alsoAt']): Extraction =>
+    ({
+      actions: [{ ...item(1, 10, 'Send the budget estimate to Priya'), alsoAt }],
+      decisions: [],
+      openQuestions: [],
+    }) as unknown as Extraction;
+
+  it('counts an invalid alsoAt link as a secondary break and a valid one as fine', () => {
+    const good = scoreLinks(extraction([{ lineIndex: 2, timestampSec: 20 }]), transcript);
+    expect(good.secondary).toHaveLength(1);
+    expect(good.secondaryBroken).toBe(0);
+    const bad = scoreLinks(
+      extraction([
+        { lineIndex: 2, timestampSec: 20 },
+        { lineIndex: 8, timestampSec: 20 },
+      ]),
+      transcript,
+    );
+    expect(bad.secondary).toHaveLength(2);
+    expect(bad.secondaryBroken).toBe(1);
+    expect(bad.problems).toHaveLength(0);
   });
 });
