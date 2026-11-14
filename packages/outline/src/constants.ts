@@ -57,6 +57,10 @@ export interface Tuning {
   parentWeight: number;
   likelyMinScore: number;
   likelyMinMargin: number;
+  /** Level B only: share of the score from sentence-vector similarity (0 = Level A only). */
+  semanticWeight: number;
+  /** Level B only: cosine at or below this counts as no similarity. */
+  cosineFloor: number;
 }
 
 export const DEFAULT_TUNING: Tuning = {
@@ -74,4 +78,6 @@ export const DEFAULT_TUNING: Tuning = {
   parentWeight: PARENT_WEIGHT,
   likelyMinScore: LIKELY_MIN_SCORE,
   likelyMinMargin: LIKELY_MIN_MARGIN,
+  semanticWeight: 0,
+  cosineFloor: 0.2,
 };
