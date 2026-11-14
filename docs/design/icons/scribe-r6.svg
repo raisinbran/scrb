@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
-  <title>Scribe icon option C-3: three sound curves flowing into a thick caret</title>
+  <title>Scribe icon option R-6: red dot ringed by sound arcs</title>
   <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
   <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/></filter>
@@ -7,7 +7,7 @@
   <g>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
   <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
-  <g fill="none" stroke="#fff" stroke-width="50" stroke-linecap="round"><path d="M247 448A100 100 0 0 1 247 576"/><path d="M316 390A190 190 0 0 1 316 634"/><path d="M384 332A280 280 0 0 1 384 692"/></g>
-  <rect x="628" y="300" width="64" height="424" rx="32" fill="#fff"/>
+  <circle cx="512" cy="512" r="80" fill="#ff4d4d" stroke="#fff" stroke-width="14"/>
+  <g fill="none" stroke="#fff" stroke-width="50" stroke-linecap="round"><path d="M632 392A170 170 0 0 1 632 632"/><path d="M392 392A170 170 0 0 0 392 632"/><path d="M703 321A270 270 0 0 1 703 703"/><path d="M321 321A270 270 0 0 0 321 703"/></g>
   </g>
 </svg>

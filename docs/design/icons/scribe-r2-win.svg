@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon option R-2: red dot inside sound arcs (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a73e6"/><stop offset="1" stop-color="#3a3f9e"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#ffffff30" stroke-width="6"/>
+  <circle cx="270" cy="512" r="76" fill="#ff4d4d" stroke="#fff" stroke-width="14"/>
+  <g fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round"><path d="M385 416A150 150 0 0 1 385 608"/><path d="M462 351A250 250 0 0 1 462 673"/><path d="M538 287A350 350 0 0 1 538 737"/></g>
+  </g>
+</svg>
