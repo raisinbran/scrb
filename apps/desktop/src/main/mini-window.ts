@@ -109,12 +109,11 @@ export function miniWindowOpenHandler(
 }
 
 /**
- * Fixed window options. The OS minimize is off: on macOS the key window going to the dock hands
- * the keyboard to the next window of the app and raises it, so minimizing the mini window brought
- * the main window to the front. The window's own compact button replaces it and never touches
- * another window.
+ * Fixed window options. The OS minimize is off: on macOS, minimizing the key window can hand the
+ * keyboard to the app's next window and raise it, and that could not be verified or fixed (see the
+ * PR). The compact button shrinks the window to its status row instead and touches no other window.
  */
-export const MINI_WINDOW_SIZE = { width: 280, height: 72 } as const;
+export const MINI_WINDOW_SIZE = { width: 320, height: 72 } as const;
 /** Content height of the compact strip: the status row only. */
 export const MINI_COMPACT_HEIGHT = 40;
 
@@ -126,8 +125,26 @@ export const MINI_WINDOW_OPTIONS = {
   alwaysOnTop: true,
   resizable: false,
   minimizable: false,
+  // Only the app closes it (when the recording ends or the app quits); see `createCloseGate`.
+  closable: false,
   maximizable: false,
   fullscreenable: false,
   autoHideMenuBar: true,
   show: false,
 } as const;
+
+/**
+ * The mini window cannot be closed by the user: the OS close control is off, and any close that
+ * still arrives (Cmd+W, a menu, the keyboard) is cancelled unless the app opened the gate first
+ * (the recording ended, the main window went away, or the app is quitting).
+ */
+export function createCloseGate() {
+  let open = false;
+  return {
+    allow(): void {
+      open = true;
+    },
+    /** True when a close event must be cancelled. */
+    blocks: (): boolean => !open,
+  };
+}

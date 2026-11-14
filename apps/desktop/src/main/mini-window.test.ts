@@ -5,6 +5,7 @@ import {
   EXPAND_URL,
   SHOW_MAIN_URL,
   MINI_WINDOW_OPTIONS,
+  createCloseGate,
   createMiniController,
   miniWindowOpenHandler,
   restoreMain,
@@ -213,7 +214,7 @@ describe('the main window keeps denying every open', () => {
 });
 
 describe('MINI_WINDOW_OPTIONS', () => {
-  it('has no OS minimize, which would raise the main window; the compact button replaces it', () => {
+  it('has no OS minimize, which can raise the main window; the compact button replaces it', () => {
     expect(MINI_WINDOW_OPTIONS.minimizable).toBe(false);
   });
 
@@ -223,5 +224,18 @@ describe('MINI_WINDOW_OPTIONS', () => {
       alwaysOnTop: true,
       show: false,
     });
+  });
+});
+
+describe('the mini window cannot be closed by the user', () => {
+  it('has the OS close control off', () => {
+    expect(MINI_WINDOW_OPTIONS.closable).toBe(false);
+  });
+
+  it('cancels a close until the app opens the gate', () => {
+    const gate = createCloseGate();
+    expect(gate.blocks()).toBe(true);
+    gate.allow();
+    expect(gate.blocks()).toBe(false);
   });
 });

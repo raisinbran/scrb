@@ -322,4 +322,79 @@ describe('MiniRecording', () => {
     expect(rule('line')).toMatch(/white-space: nowrap/);
     expect(rule('buttons')).toMatch(/flex-shrink: 0/);
   });
+
+  function showWithCalls(status: 'recording' | 'paused', fail = false) {
+    const calls: string[] = [];
+    const listeners = new Map<string, ((payload: never) => void)[]>();
+    const backend = {
+      call: (name: string) => {
+        calls.push(name);
+        if (name === 'getRecordingSnapshot') {
+          return Promise.resolve({
+            state: recording(status),
+            pauseSpans: [],
+            health: null,
+            transcription: null,
+          });
+        }
+        return fail ? Promise.reject(new Error('Could not pause')) : Promise.resolve();
+      },
+      on: (name: string, listener: (payload: never) => void) => {
+        listeners.set(name, [...(listeners.get(name) ?? []), listener]);
+        return () => undefined;
+      },
+    } as unknown as Backend;
+    render(
+      <BackendProvider backend={backend}>
+        <MiniRecording />
+      </BackendProvider>,
+    );
+    return calls;
+  }
+
+  it('pauses a recording and stops it through the backend, with tooltips', async () => {
+    const calls = showWithCalls('recording');
+    const pause = await screen.findByRole('button', { name: 'Pause recording' });
+    expect(pause.getAttribute('title')).toMatch(/Pause/);
+    expect(screen.getByRole('button', { name: 'Stop recording' }).getAttribute('title')).toMatch(
+      /Stop recording/,
+    );
+    fireEvent.click(pause);
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    await act(async () => undefined);
+    expect(calls).toContain('pauseRecording');
+    expect(calls).toContain('stopRecording');
+  });
+
+  it('offers resume while paused', async () => {
+    const calls = showWithCalls('paused');
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume recording' }));
+    await act(async () => undefined);
+    expect(calls).toContain('resumeRecording');
+  });
+
+  it('shows a failed pause in the warning slot instead of swallowing it', async () => {
+    showWithCalls('recording', true);
+    fireEvent.click(await screen.findByRole('button', { name: 'Pause recording' }));
+    expect(await screen.findByText('Could not pause')).toBeTruthy();
+  });
+
+  it('explains the compact and return buttons in tooltips', async () => {
+    await showRecording(65_000);
+    expect(screen.getByRole('button', { name: 'Make smaller' }).getAttribute('title')).toMatch(
+      /status row/,
+    );
+    expect(screen.getByRole('button', { name: 'Show Scribe' }).getAttribute('title')).toMatch(
+      /main Scribe window/,
+    );
+  });
+
+  it('the top row has a fixed height and the time shares the label font', () => {
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('line')).toMatch(/height: 24px/);
+    expect(rule('mini')).toMatch(/justify-content: flex-start/);
+    expect(rule('elapsed')).not.toMatch(/font-family|font-size/);
+  });
 });

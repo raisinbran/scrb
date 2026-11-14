@@ -15,6 +15,7 @@ import { registerCallHandlers } from './ipc.ts';
 import {
   MINI_COMPACT_HEIGHT,
   MINI_WINDOW_OPTIONS,
+  createCloseGate,
   createMiniController,
   type MiniHandle,
   miniWindowOpenHandler,
@@ -58,6 +59,14 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
 // Every mini window that exists, including one fading out; none may stand in for the main window.
 const miniWindows = new Set<BrowserWindow>();
 
+// A quit closes every window, so the mini one must let it.
+app.on('before-quit', () => {
+  for (const window of miniWindows) {
+    window.setClosable(true);
+    window.destroy();
+  }
+});
+
 const miniPlacementFile = (): string => path.join(app.getPath('userData'), 'mini-window.json');
 
 function displayInfos(): DisplayInfo[] {
@@ -97,6 +106,10 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
     webPreferences: secureWebPreferences(__dirname),
   });
   miniWindows.add(mini);
+  const closeGate = createCloseGate();
+  mini.on('close', (event) => {
+    if (closeGate.blocks()) event.preventDefault();
+  });
   mini.setAlwaysOnTop(true, 'floating');
   mini.setMenuBarVisibility(false);
   lockDownContents(mini.webContents, appOrigin);
@@ -162,8 +175,13 @@ function openMiniWindow(onClosedByUser: () => void): MiniHandle {
   return {
     close: () => {
       if (mini.isDestroyed()) return;
-      if (!mini.isVisible()) mini.close();
-      else fadeTo(0, () => mini.close());
+      const closeNow = (): void => {
+        closeGate.allow();
+        mini.setClosable(true);
+        mini.close();
+      };
+      if (!mini.isVisible()) closeNow();
+      else fadeTo(0, closeNow);
     },
     reopen: () => {
       if (mini.isDestroyed() || !mini.isVisible()) return false;
