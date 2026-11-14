@@ -36,7 +36,7 @@ When you stop, Scribe re-reads the saved audio to produce a more accurate transc
 
 - **Transcript:** click a timestamp to play from there. Space plays or pauses; the arrow keys step through words.
 - **Audio:** play, mute, and see the two tracks and a timeline of any gaps.
-- Rename a meeting or change its date from the meeting page.
+- You can change a meeting's date from the meeting page.
 
 ## 5. Corrections
 
