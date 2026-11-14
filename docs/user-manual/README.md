@@ -1,6 +1,6 @@
 # Scribe User Manual
 
-Scribe records your meetings on your own computer and turns them into text. Nothing is uploaded. Known problems are listed in [known-issues.md](known-issues.md); please read it before relying on Scribe for an important meeting.
+Scribe records your meetings on your own computer and turns them into text. Scribe itself uploads nothing, but a cloud-synced folder you choose for your library may be uploaded by that service (see section 1). Known problems are listed in [known-issues.md](known-issues.md); please read it before relying on Scribe for an important meeting.
 
 Checked against the app on `main` on 2026-11-13 by reading the app's screens and code. Things not tried on a real Windows or Mac install are marked **(unverified)**.
 
@@ -66,7 +66,7 @@ On **Recordings**, choose **Import** and pick a WAV, MP3, M4A, FLAC, Opus or Ogg
 
 - **Delete** on a meeting asks you to confirm, then removes its files. If some files cannot be removed, it lists them and offers **Try again**. This is not secure erasure: backups and copies you made remain.
 - **Settings > Storage** can auto-delete after 30, 90, 180 days or 1 year (default **Never**), either **Audio** only or **Audio & Transcript**.
-- Everything stays on this computer. Protect it with your system's disk encryption (BitLocker or FileVault). A privacy reminder about recording consent may appear; it is not legal advice, and you are responsible for consent.
+- Scribe keeps everything on this computer and uploads nothing itself; a cloud-synced library folder may be uploaded by its service. Protect it with your system's disk encryption (BitLocker or FileVault). A privacy reminder about recording consent may appear; it is not legal advice, and you are responsible for consent.
 
 ## 12. Settings
 

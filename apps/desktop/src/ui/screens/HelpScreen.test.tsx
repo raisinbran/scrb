@@ -22,18 +22,20 @@ describe('HelpScreen', () => {
     expect(
       await screen.findByText(new RegExp(`${APP_INFO.version.replace(/[().]/g, '\\$&')}`)),
     ).toBeTruthy();
-    expect(screen.getByText(/All of your data stays on this computer/)).toBeTruthy();
+    expect(screen.getByText(/Scribe keeps your data on this computer/)).toBeTruthy();
     expect(screen.getByText(/development-only sources are not part of the app/)).toBeTruthy();
     expect(screen.getByText('docs/user-manual')).toBeTruthy();
     expect(await screen.findByText(/Electron 45\.1\.0 \(MIT\)/)).toBeTruthy();
     backend.dispose();
   });
 
-  it('says model information is unavailable before models are downloaded', async () => {
+  it('says model details are not reported', async () => {
     const backend = new MockBackend();
     backend.arm('noModelInfo');
     show(backend);
-    expect(await screen.findByText(/Model information is unavailable/)).toBeTruthy();
+    expect(
+      await screen.findByText(/This build does not report installed model details/),
+    ).toBeTruthy();
     backend.dispose();
   });
 });

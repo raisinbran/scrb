@@ -24,9 +24,12 @@ export function HelpScreen() {
             </p>
             <p>{info.copyright}</p>
             <p>{info.storageStatement}</p>
-            <p>All of your data stays on this computer. Scribe does not upload it anywhere.</p>
+            <p>
+              Scribe keeps your data on this computer and does not upload it. If you choose a
+              library folder on a cloud-synced drive, that service may upload the files.
+            </p>
             {info.models.length === 0 ? (
-              <p>Model information is unavailable until models are downloaded.</p>
+              <p>This build does not report installed model details.</p>
             ) : (
               <ItemList>
                 {info.models.map((model) => (
