@@ -12,6 +12,7 @@
   color: var(--color-surface);
   background: var(--color-text);
   border-radius: var(--radius);
+  white-space: pre-line;
   pointer-events: none;
   transform: translateX(-50%);
   animation: tip-in 120ms ease-out;

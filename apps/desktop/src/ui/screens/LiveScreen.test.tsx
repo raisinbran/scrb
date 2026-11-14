@@ -595,3 +595,24 @@ describe('Live row alignment', () => {
     expect(heightOf('.meters')).toBe('var(--control-height)');
   });
 });
+
+describe('Live text styles help', () => {
+  it('explains the three styles through a named info button', async () => {
+    const backend = new MockBackend();
+    await backend.call('startRecording', {});
+    render(
+      <BackendProvider backend={backend}>
+        <LiveScreen />
+      </BackendProvider>,
+    );
+    const info = await screen.findByRole('button', { name: 'Text styles' });
+    expect(screen.queryByText('Provisional')).toBeNull();
+    info.focus();
+    fireEvent.focus(info);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip.textContent).toContain('Provisional: text just heard');
+    expect(tip.textContent).toContain('Final: text that has settled');
+    expect(tip.textContent).toContain('Corrected: words you edited');
+    cleanup();
+  });
+});
