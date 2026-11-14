@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Filed paraphrased owner feedback as an archival note under docs/feedback/ (docs only) | unavailable | unavailable | unavailable | unavailable | unavailable | Documentation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |

@@ -274,6 +274,7 @@ describe('MINI_WINDOW_OPTIONS', () => {
 
   it('keeps the content-size, always-on-top and hidden-until-ready settings', () => {
     expect(MINI_WINDOW_OPTIONS).toMatchObject({
+      frame: false,
       useContentSize: true,
       alwaysOnTop: true,
       show: false,

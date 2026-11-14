@@ -9,7 +9,7 @@ $savedPath = $env:PATH
 function Fail([string]$Message) { Write-Host "FAIL: $Message"; if ($script:out) { Write-Host $script:out }; Cleanup; exit 1 }
 function Cleanup {
   $env:PATH = $savedPath
-  Remove-Item Env:SCRB_M1_HOME, Env:SCRB_M1_PROCESS_LIST -ErrorAction SilentlyContinue
+  Remove-Item Env:SCRB_M1_HOME, Env:SCRB_M1_PROCESS_LIST, Env:SCRB_M1_FORCE_CIM_FAIL, Env:SCRB_M1_FALLBACK_LIST -ErrorAction SilentlyContinue
   Remove-Item -Recurse -Force $fake -ErrorAction SilentlyContinue
 }
 
@@ -92,6 +92,36 @@ Set-Content -Path $procFile -Value @(
 Run
 if ($script:code -ne 0) { Fail 'unrelated processes blocked the start' }
 Set-Content -Path $procFile -Value ''
+
+# The process query is refused (forced here): the fallback sees no command line, so a path match
+# alone must not refuse, and unreadable details must skip the check rather than block the start.
+Remove-Item Env:SCRB_M1_PROCESS_LIST
+$env:SCRB_M1_FORCE_CIM_FAIL = '1'
+$fbFile = Join-Path $fake 'fallback.txt'
+$env:SCRB_M1_FALLBACK_LIST = $fbFile
+$skipLine = 'Skipped the check for a running copy'
+Set-Content -Path $fbFile -Value "201|$electronDir\electron.exe|1", "202|$electronDir\electron.exe|0"
+Remove-Item $log -ErrorAction SilentlyContinue
+Run
+ExpectFail 'already running', 'Stop-Process -Id 201 -Force'
+if (Test-Path $log) { Fail 'fallback: launched despite a running main app' }
+Set-Content -Path $fbFile -Value "203|$electronDir\electron.exe|0"
+Run
+if ($script:code -ne 0) { Fail "fallback: subprocess-only list blocked the start ($script:code)" }
+if (-not $script:out.Contains($skipLine)) { Fail 'fallback: subprocess-only list did not say the check was skipped' }
+Set-Content -Path $fbFile -Value '204||0'
+Run
+if ($script:code -ne 0) { Fail "fallback: unreadable path blocked the start ($script:code)" }
+if (-not $script:out.Contains($skipLine)) { Fail 'fallback: unreadable path did not say the check was skipped' }
+Set-Content -Path $fbFile -Value '205|C:\other\repo\node_modules\electron\dist\electron.exe|1'
+Run
+if ($script:code -ne 0) { Fail "fallback: another repo's app blocked the start ($script:code)" }
+if ($script:out.Contains($skipLine)) { Fail 'fallback: skipped the check although nothing was ambiguous' }
+Set-Content -Path $fbFile -Value ''
+Run
+if ($script:code -ne 0) { Fail "fallback: empty list blocked the start ($script:code)" }
+Remove-Item Env:SCRB_M1_FORCE_CIM_FAIL, Env:SCRB_M1_FALLBACK_LIST
+$env:SCRB_M1_PROCESS_LIST = $procFile
 
 # Each case below breaks one thing.
 WriteJson 'live.json' '{"tools":{},"models":{}}'

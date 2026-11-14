@@ -229,7 +229,7 @@ const settingsPatch = shape(
 const exportRequest = shape({
   meetingId: id,
   content: oneOf('transcript', 'summary', 'both'),
-  format: oneOf('docx', 'pdf'),
+  format: oneOf('docx', 'pdf', 'vtt'),
   transcript: shape({
     title: flag,
     date: flag,

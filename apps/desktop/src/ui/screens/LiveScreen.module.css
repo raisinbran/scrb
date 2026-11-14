@@ -30,13 +30,13 @@
 .button,
 .startButton,
 .stopButton {
-  min-width: 76px;
+  width: 88px;
   padding: var(--space-1) var(--space-3);
   font-weight: 600;
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
 }
 
 .button:hover:not(:disabled) {
@@ -86,6 +86,7 @@ button:disabled {
 }
 
 .elapsed {
+  min-width: 5ch;
   font-variant-numeric: tabular-nums;
 }
 
@@ -122,7 +123,7 @@ button:disabled {
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .hint {
@@ -165,7 +166,7 @@ button:disabled {
   height: 8px;
   overflow: hidden;
   background: var(--color-surface-selected);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .meterFill {
@@ -212,7 +213,7 @@ button:disabled {
   background: var(--color-surface-sidebar);
   border: 1px solid var(--color-border);
   border-inline-start: 3px solid var(--color-text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .banner[data-level='warning'] {

@@ -33,7 +33,7 @@
   color: var(--color-text-muted);
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .inspectorToggle:hover {

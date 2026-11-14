@@ -4,7 +4,7 @@
   color: var(--color-text);
   background: none;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .label:hover {
@@ -30,5 +30,5 @@
   font-size: 0.8em;
   color: var(--color-warning);
   border: 1px solid var(--color-warning);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }

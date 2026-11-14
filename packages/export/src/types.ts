@@ -37,6 +37,9 @@ export interface ExportTextPart {
   text: string;
   /** Present when the user corrected this text; the words as first heard. */
   original?: string;
+  /** Word timing, when known; only the WebVTT export needs it. */
+  startMs?: number;
+  endMs?: number;
 }
 
 export interface ExportMarker {

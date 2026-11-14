@@ -17,8 +17,8 @@
   --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* The one corner radius for buttons, inputs, selects, panels, cards and popovers. */
+  --radius: 4px;
 
   --titlebar-height: 40px;
   --transcript-font-size: 15px;
@@ -110,4 +110,23 @@ textarea {
    ring around them only looks like a stray rectangle. Dialog panels keep the ring. */
 h1[tabindex='-1']:focus-visible {
   outline: none;
+}
+
+/* Every dropdown: the caret sits one text-padding (--space-2) from the right edge, the same gap as
+   on the left, and the text is cut with an ellipsis before it can run under the caret. The doubled
+   :root keeps this above each component's own select padding. */
+:root:root select {
+  padding-right: calc(var(--space-2) * 2 + 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-size: 6px 6px;
+  background-position:
+    right calc(var(--space-2) + 6px) center,
+    right var(--space-2) center;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
+    linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
 }

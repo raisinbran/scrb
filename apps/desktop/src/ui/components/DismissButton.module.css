@@ -9,7 +9,7 @@
   color: var(--color-text-muted);
   background: none;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .dismiss:hover {

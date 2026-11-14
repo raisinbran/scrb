@@ -15,6 +15,8 @@ export type {
 } from './layout.js';
 export type { PageOptions, PageSize } from './page.js';
 export { renderDocx } from './render-docx.js';
+export { formatVttTime, renderVtt } from './render-vtt.js';
+export type { VttOptions } from './render-vtt.js';
 export { renderHtml } from './render-html.js';
 export { pdfPrintOptions, renderPdf } from './render-pdf.js';
 export type { PdfPrintOptions, PrintHtmlToPdf } from './render-pdf.js';

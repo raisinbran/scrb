@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img">
+  <title>Scribe icon concept B: waveform turning into text lines (Windows)</title>
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2e4a"/><stop offset="1" stop-color="#15161f"/></linearGradient>
+  <linearGradient id="bar" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b4baff"/><stop offset="1" stop-color="#7c85f5"/></linearGradient>
+  
+  </defs>
+  <g transform="translate(512 512) scale(1.19) translate(-512 -512)">
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="#9aa1f766" stroke-width="6"/>
+  <g fill="url(#bar)"><rect x="222" y="450" width="52" height="124" rx="26"/><rect x="304" y="352" width="52" height="320" rx="26"/><rect x="386" y="400" width="52" height="224" rx="26"/><rect x="468" y="300" width="52" height="424" rx="26"/></g>
+  <g stroke="#f2f3f5" stroke-width="44" stroke-linecap="round"><path d="M600 400h160M600 512h120M600 624h160"/></g>
+  </g>
+</svg>
