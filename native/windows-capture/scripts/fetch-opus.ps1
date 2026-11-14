@@ -12,7 +12,9 @@ $head = git -C $src rev-parse --verify -q HEAD
 if ($LASTEXITCODE -ne 0) { $head = $null }
 if ($head -ne $commit) {
     git -C $src fetch -q --depth 1 origin $commit
+    if ($LASTEXITCODE) { throw "libopus fetch failed (git exit $LASTEXITCODE). Check the network and that $src\.git is writable, then run this again." }
     git -C $src checkout -q $commit
+    if ($LASTEXITCODE) { throw "libopus checkout of $commit failed (git exit $LASTEXITCODE)." }
 }
 $cmake = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 $ninja = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
