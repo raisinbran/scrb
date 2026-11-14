@@ -49,14 +49,8 @@ jobs:
       - name: Check Prettier on changed TypeScript
         shell: bash
         run: |
-          files=()
-          while IFS= read -r -d '' file; do files+=("$file"); done < <(git diff --name-only -z 444e1ce HEAD -- '*.ts' '*.tsx')
-          if (("${#files[@]}" > 0)); then
-            npx prettier --write "${files[@]}"
-            git diff --check
-            git diff -- "${files[@]}"
-            git diff --exit-code -- "${files[@]}"
-          fi
+          # xargs splits the list: all changed files at once overran the Windows command line.
+          git diff --name-only --diff-filter=d -z 444e1ce HEAD -- '*.ts' '*.tsx' | xargs -0 -r npx prettier --check
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build -w @scrb/summary

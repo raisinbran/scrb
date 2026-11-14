@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
@@ -119,6 +119,23 @@ describe('Recordings', () => {
         SLOW,
       );
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
+    });
+
+    it('fills the bar from the final pass progress event and names the stage', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      act(() =>
+        backend.emit('finalPassProgress', {
+          meetingId: 'meeting-final-pass',
+          stage: 'diarizing',
+          fraction: 0.6,
+          startedAt: new Date().toISOString(),
+        }),
+      );
+      const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
+      expect(bar.getAttribute('aria-valuenow')).toBe('60');
+      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
     });
 
     it('lets the banner be dismissed with an X', async () => {
