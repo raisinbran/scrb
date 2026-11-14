@@ -102,7 +102,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
     <div className={styles.player} role="group" aria-label="Audio player">
       <button
         type="button"
-        className={styles.button}
+        className={`${styles.button} ${styles.toggleButton}`}
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       >
@@ -138,12 +138,12 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         value={positionMs}
         onChange={(event) => move(Number(event.target.value))}
       />
-      <span className={styles.time}>
+      <span className={`${styles.time} ${styles.playerTime}`}>
         {formatElapsed(positionMs)} / {formatElapsed(durationMs)}
       </span>
       <button
         type="button"
-        className={styles.button}
+        className={`${styles.button} ${styles.toggleButton}`}
         aria-pressed={muted}
         onClick={playback.toggleMute}
       >

@@ -5,7 +5,7 @@
   padding: var(--space-1);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-overlay);
 }
 
@@ -17,7 +17,7 @@
   text-align: start;
   background: none;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .item:hover,

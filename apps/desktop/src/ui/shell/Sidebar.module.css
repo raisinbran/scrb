@@ -25,7 +25,7 @@
   white-space: nowrap;
   background: none;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .item:hover {

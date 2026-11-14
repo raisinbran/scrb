@@ -17,6 +17,7 @@
 }
 
 .time {
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -31,7 +32,7 @@
   padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
   color: var(--color-text);
 }
@@ -72,7 +73,7 @@
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .field {
@@ -111,7 +112,7 @@
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .rows,
@@ -167,7 +168,7 @@
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .badgeStrong {
@@ -207,7 +208,7 @@
 .imports {
   margin-bottom: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
 }
 
 .importRow {
@@ -261,7 +262,7 @@
   overflow-y: auto;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-overlay);
 }
 
@@ -361,7 +362,7 @@
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface-sidebar);
   border-inline-start: 3px solid var(--color-accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .bannerWarning {
@@ -429,7 +430,7 @@
   color: var(--color-on-accent);
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-overlay);
   transform: translateX(-50%);
 }
@@ -564,7 +565,7 @@
 .segmented {
   display: inline-flex;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .segmentOn,
@@ -663,7 +664,7 @@
   width: 100%;
   height: 12px;
   background: var(--color-surface-selected);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .timelineGap {
@@ -718,4 +719,16 @@
 
 .dismissible p {
   margin: 0;
+}
+
+/* State-toggling player buttons keep one size whichever label they show. */
+.toggleButton {
+  flex: none;
+  width: 72px;
+}
+
+.playerTime {
+  flex: none;
+  min-width: 11ch;
+  text-align: end;
 }
