@@ -13,6 +13,7 @@ import {
   type Ref,
 } from 'react';
 import type { MeetingId } from '@scrb/contracts';
+import { IconButton } from '../../components/IconButton.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
 import { CorrectionEditor } from './CorrectionEditor.tsx';
@@ -437,40 +438,34 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           </span>
         )}
         <div className={styles.tools}>
-          <button
-            type="button"
-            className={styles.toolButton}
+          <IconButton
+            label="Undo"
+            icon="undo"
+            className={styles.toolIcon}
             disabled={!undoState.canUndo}
             onClick={undoState.undo}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
+          />
+          <IconButton
+            label="Redo"
+            icon="redo"
+            className={styles.toolIcon}
             disabled={!undoState.canRedo}
             onClick={undoState.redo}
-          >
-            Redo
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-label="Smaller transcript text"
+          />
+          <IconButton
+            label="Smaller transcript text"
+            icon="textSmaller"
+            className={styles.toolIcon}
             disabled={fontPx <= MIN_FONT_PX}
             onClick={() => onFontChange(fontPx - 1)}
-          >
-            A−
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-label="Larger transcript text"
+          />
+          <IconButton
+            label="Larger transcript text"
+            icon="textLarger"
+            className={styles.toolIcon}
             disabled={fontPx >= MAX_FONT_PX}
             onClick={() => onFontChange(fontPx + 1)}
-          >
-            A+
-          </button>
+          />
         </div>
       </div>
       {error && (

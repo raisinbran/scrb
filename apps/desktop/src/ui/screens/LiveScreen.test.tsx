@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
@@ -578,5 +580,18 @@ describe('LiveScreen', () => {
 
       expect(selected()).toEqual([word.textContent]);
     });
+  });
+});
+
+describe('Live row alignment', () => {
+  it('gives the dropdowns, Test mic and the meters one shared height', () => {
+    const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8');
+    const heightOf = (selector: string) =>
+      new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{[^}]*height:\\s*([^;]+);`).exec(
+        css,
+      )?.[1];
+    expect(heightOf('.picker select')).toBe('var(--control-height)');
+    expect(heightOf('.button,\n.startButton,\n.stopButton')).toBe('var(--control-height)');
+    expect(heightOf('.meters')).toBe('var(--control-height)');
   });
 });
