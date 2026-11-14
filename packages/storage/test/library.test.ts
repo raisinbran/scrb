@@ -400,6 +400,29 @@ describe('delete', () => {
     await library.close();
   });
 
+  it('keeps a term that another meeting also taught, and drops the deleting meeting from it', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const first = await seeded(library, 'First');
+    const second = await seeded(library, 'Second');
+    for (const m of [first, second]) {
+      await library.applyCorrection(m.id, {
+        wordIds: m.ids.slice(0, 1),
+        replacement: 'Kiwi',
+        remember: true,
+      });
+    }
+    expect(library.vocabulary.list()).toHaveLength(1);
+
+    const report = await library.deleteMeeting(first.id, false, true);
+
+    expect(report.learned).toMatchObject({ profiles: 0, terms: 0 });
+    const kept = library.vocabulary.list();
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.contexts.map((c) => c.meetingId)).toEqual([second.id]);
+    await library.close();
+  });
+
   it('keeps learned data by default and reports nothing about it', async () => {
     const root = await tempDir();
     const library = await Library.open({ root });
