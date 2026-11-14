@@ -17,11 +17,11 @@ export const MODELS_FOLDER_NAME = 'Scribe';
 export function modelsDirFor(
   home: string,
   platform: NodeJS.Platform = process.platform,
-  localAppData: string | undefined = process.env['LOCALAPPDATA'],
+  env: { LOCALAPPDATA?: string } = process.env,
 ): string {
   if (platform === 'win32')
     return path.win32.join(
-      localAppData || path.win32.join(home, 'AppData', 'Local'),
+      env.LOCALAPPDATA || path.win32.join(home, 'AppData', 'Local'),
       MODELS_FOLDER_NAME,
       'models',
     );

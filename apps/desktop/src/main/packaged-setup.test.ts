@@ -96,16 +96,16 @@ describe('resolvePackagedSetup', () => {
   it('keeps the pinned data folder and the models folder apart from the app name', () => {
     const appData = join('h', 'Library', 'Application Support');
     expect(userDataFor(appData)).toBe(join(appData, '@scrb', 'desktop'));
-    expect(modelsDirFor('h')).toBe(join(appData, 'Scribe', 'models'));
+    expect(modelsDirFor('h', 'darwin')).toBe(join(appData, 'Scribe', 'models'));
   });
 
   it('uses .exe tool names and a local models folder on Windows', async () => {
     expect(toolFileName('ffmpeg', 'win32')).toBe('ffmpeg.exe');
     expect(toolFileName('ffmpeg', 'darwin')).toBe('ffmpeg');
-    expect(modelsDirFor('C:\\Users\\o', 'win32', 'C:\\Users\\o\\AppData\\Local')).toBe(
-      'C:\\Users\\o\\AppData\\Local\\Scribe\\models',
-    );
-    expect(modelsDirFor('C:\\Users\\o', 'win32', undefined)).toBe(
+    expect(
+      modelsDirFor('C:\\Users\\o', 'win32', { LOCALAPPDATA: 'C:\\Users\\o\\AppData\\Local' }),
+    ).toBe('C:\\Users\\o\\AppData\\Local\\Scribe\\models');
+    expect(modelsDirFor('C:\\Users\\o', 'win32', {})).toBe(
       'C:\\Users\\o\\AppData\\Local\\Scribe\\models',
     );
     const bin = join(resources, 'bin');
