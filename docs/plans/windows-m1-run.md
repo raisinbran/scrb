@@ -42,6 +42,7 @@ Existing Windows setup docs: only the Gate 3 runbook (`docs/gates/gate-3-windows
 
 ## 2. Rules for every command below
 
+- Windows blocks `.ps1` files by default ("running scripts is disabled", seen on Regiurn). Run every `.ps1` as `powershell -NoProfile -ExecutionPolicy Bypass -File <script>`; this changes no setting and needs no admin.
 - PowerShell, **not as administrator**, except the one-time Build Tools install in B5. Every block names its folder. Use one PowerShell window and leave it open.
 - Files are never deleted. Keep the test recording; do not delete it (gate-evidence policy). Do not use a real confidential meeting.
 - **Time limit:** the whole test, from starting the app in step 8 through the final pass and your checks in step 10, including setup of the test and cleanup, must stay within 20 minutes. That is a 2-minute recording plus a final pass that may take up to about 15 minutes. If the final pass is still running at 20 minutes, stop and ask before waiting longer; do not quit the app or start another test. One-time builds (steps 2-7) are setup, not the test.
@@ -80,7 +81,13 @@ Test-Path "$env:USERPROFILE\scrb-dev-assets"
 Test-Path 'C:\msys64'
 ```
 
-Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Node 22.23.4, Git present. Build steps need `vcvars64.bat` = True (else B5). `scrb-dev-assets` = True means a seed exists: step 2 skips what it has. MSYS2 is only needed for step 6.
+Record the Windows version and the answers. Pass: Windows 10 or 11 shown, Git present, and `node -v` prints **v22.23.4**, the version in `.nvmrc`. A newer default is not a pass: Regiurn had v26.13.0, and every later step must run with 22.23.4 first on `PATH`. Without admin, install 22.23.4 (the zip from nodejs.org, unpacked to a folder you own such as `%USERPROFILE%\node-v22.23.4-win-x64`) and put it first in each PowerShell window (then `node -v` again):
+
+```powershell
+$env:PATH = "$env:USERPROFILE\node-v22.23.4-win-x64;$env:PATH"
+```
+
+Then: Build steps need `vcvars64.bat` = True (else B5). `scrb-dev-assets` = True means a seed exists: step 2 skips what it has. MSYS2 is only needed for step 6.
 
 **Step 1. Get the code and install.** Folder: where you keep repos, e.g. `C:\Users\<you>\Documents\GitHub`. Admin: no. Use the branch of this PR (or `main` once merged).
 
@@ -121,7 +128,7 @@ cd native\windows-capture
 ```
 
 ```powershell
-powershell -NoProfile -File scripts\fetch-opus.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-opus.ps1
 ```
 
 ```powershell
@@ -158,7 +165,7 @@ $nj = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.ex
 cmd /c "call C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat >nul && `"$cm`" -S . -B build -G Ninja -DCMAKE_MAKE_PROGRAM=`"$nj`" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && `"$cm`" --build build"
 ```
 
-Pass: `build\bin\whisper-cli.exe`, `whisper-server.exe` and `whisper-vad-speech-segments.exe` exist. Fail: a missing tool name means the pinned commit lacks it on Windows (report; this contradicts the Mac build, so it would be a build-option issue). The CMake paths are those the helper's `fetch-opus.ps1` uses.
+The build ran 78 targets without error on Regiurn. Pass: `build\bin\whisper-cli.exe`, `whisper-server.exe` and `whisper-vad-speech-segments.exe` exist. Fail: a missing tool name means the pinned commit lacks it on Windows (report; this contradicts the Mac build, so it would be a build-option issue). The CMake paths are those the helper's `fetch-opus.ps1` uses.
 
 **Step 5. scrb-sherpa (B2).** Folder: the `scrb` folder. Admin: no.
 
@@ -190,7 +197,7 @@ Copy-Item "$s\lib\*.dll", "$s\bin\*.dll" packages\transcription\.bin -ErrorActio
 
 Pass: the compile finishes and the last command starts and prints a usage or protocol line instead of "DLL not found" (its exact output is unverified). Fail: a compile error (report the first error; likely needs a source change = new blocker) or a missing-DLL dialog (copy the named DLL beside the exe).
 
-**Step 6. ffmpeg and ffprobe (B3).** Folder: the `scrb` folder, in an MSYS2 UCRT64 shell (Start menu, "MSYS2 UCRT64"), not PowerShell. Admin: no. Skip if you already have both executables; copy them to `packages\transcription\.bin\` instead.
+**Step 6. ffmpeg and ffprobe (B3).** **Look first:** a working `ffmpeg.exe` and `ffprobe.exe` pair may already be on the PC (Regiurn had one); if so, copy both into `packages\transcription\.bin` and skip the compile. Folder: the `scrb` folder, in an MSYS2 UCRT64 shell (Start menu, "MSYS2 UCRT64"), not PowerShell. Admin: no. Skip if you already have both executables; copy them to `packages\transcription\.bin\` instead.
 
 ```bash
 pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc make diffutils nasm xz curl
@@ -279,7 +286,7 @@ If a voice name is rejected, run `$v.GetInstalledVoices() | % { $_.VoiceInfo.Nam
 
 - `scripts/m1.sh`, `native/macos-capture/build.sh` and the Mac permission prompts have no counterpart except `m1.ps1` and the Windows microphone switch (step 9). Windows system audio needs no permission.
 - `dev-assets.sh` skips CMake/Ninja, whisper, llama and sherpa builds on Windows; steps 4-5 replace them by hand.
-- `scripts\m1.test.ps1` is not run by CI (neither is `m1.test.sh`); run it on the PC with `powershell -File scripts\m1.test.ps1` (expects `ok`).
+- `scripts\m1.test.ps1` is not run by CI (neither is `m1.test.sh`); run it on the PC with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\m1.test.ps1` (expects `ok`).
 - Per-app meeting capture on Windows: Teams fixed, Zoom and browser targets unrun, Communications-type streams silent in per-app mode (BUG-1, `docs/bug-tracker.md`). Use Whole computer audio until those are checked.
 - The mock "Mock backend" title-bar marker and `m1.ps1` do not detect a bad live config beyond the file check; the live feed silently stays off if `readLiveSetup` rejects it (the log has `live-config-unavailable`).
 - Packaged Windows app: slice 1 only (unpacked shell, no tools staged); install on Windows 11 is a separate plan.
