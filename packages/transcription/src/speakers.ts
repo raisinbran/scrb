@@ -249,10 +249,11 @@ export function relabelClusters(
     speechMs: c.speechMs,
   });
   let major = voiced.filter((c) => c.speechMs >= minSpeakerMs).map(toGroup);
-  let minor = voiced.filter((c) => c.speechMs < minSpeakerMs).map(toGroup);
-  if (major.length === 0) {
-    major = [...major, ...minor];
-    minor = [];
+  const minor = voiced.filter((c) => c.speechMs < minSpeakerMs).map(toGroup);
+  if (major.length === 0 && minor.length > 0) {
+    // Every cluster is short: the biggest anchors, and the rest follow the short-speaker rule.
+    minor.sort((a, b) => b.speechMs - a.speechMs);
+    major = [minor.shift()!];
   }
 
   if (options.knownSpeakers !== undefined) {

@@ -58,6 +58,30 @@ describe('final speaker absorption', () => {
   });
 });
 
+describe('final speakers when every cluster is under 30 s', () => {
+  const short = (similar: boolean) => {
+    const raw: RawSegment[] = [
+      { start: 0, end: 20, speaker: 0 },
+      { start: 20, end: 35, speaker: 1 },
+      { start: 35, end: 38, speaker: 2 },
+    ];
+    const vectors = [[1, 0, 0], similar ? [0.9, 0.44, 0] : [0, 1, 0], [0.9, 0, 0.44]];
+    return { raw, embedded: raw.map((segment, i) => ({ segment, vector: vectors[i]! })) };
+  };
+
+  it('keeps a distinct 15 s voice, and absorbs a 3 s one under the floor', () => {
+    const { raw, embedded } = short(false);
+    const result = decideSpeakers(raw, embedded);
+    expect(result.speakers).toHaveLength(2);
+    expect(result.spans.map((s) => s.speakerId)).toEqual(['speaker-1', 'speaker-2', 'speaker-1']);
+  });
+
+  it('absorbs a similar 15 s voice into the biggest cluster', () => {
+    const { raw, embedded } = short(true);
+    expect(decideSpeakers(raw, embedded).speakers).toHaveLength(1);
+  });
+});
+
 describe('final speaker diagnostics', () => {
   it('reports counts, seconds and similarities and nothing else', () => {
     const { raw, embedded } = fixture(14);
