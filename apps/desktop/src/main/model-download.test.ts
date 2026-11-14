@@ -168,8 +168,71 @@ describe('downloadModels', () => {
       hits++;
       res.end(body);
     };
-    await fails(run([source()], { freeBytes: async () => 1000 }), 'diskSpace');
+    const events: ModelDownloadProgress[] = [];
+    await fails(
+      run([source()], { freeBytes: async () => 1000, onProgress: (e) => events.push(e) }),
+      'diskSpace',
+    );
     expect(hits).toBe(0);
+    // The user must see why nothing started.
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ state: 'failed', reason: 'diskSpace' });
+    expect(events[0]?.message).toMatch(/free up/i);
+  });
+
+  it('does not install a file when cancelled during verification', async () => {
+    serveBody();
+    const controller = new AbortController();
+    await fails(
+      run([source()], {
+        signal: controller.signal,
+        onProgress: (e) => {
+          if (e.state === 'verifying') controller.abort();
+        },
+      }),
+      'cancelled',
+    );
+    await expect(stat(join(dir, 'm.bin'))).rejects.toThrow();
+  });
+
+  it('does not install an archived model when cancelled during verification or extraction', async () => {
+    const archive = Buffer.from('fake-archive');
+    const model = Buffer.from('extracted-model');
+    handler = (_req, res) => res.end(archive);
+    const src = source({
+      file: 'seg.onnx',
+      sha256: sha(model),
+      bytes: model.length,
+      archive: { name: 'seg.tar.bz2', sha256: sha(archive), member: 'dir/model.onnx' },
+    });
+    const extract = async (_a: string, _m: string, out: string) => writeFile(out, model);
+
+    const duringVerify = new AbortController();
+    await fails(
+      run([src], {
+        extract,
+        signal: duringVerify.signal,
+        onProgress: (e) => {
+          if (e.state === 'verifying') duringVerify.abort();
+        },
+      }),
+      'cancelled',
+    );
+    await expect(stat(join(dir, 'seg.onnx'))).rejects.toThrow();
+
+    const duringExtract = new AbortController();
+    await fails(
+      run([src], {
+        signal: duringExtract.signal,
+        extract: async (a, m, out) => {
+          await extract(a, m, out);
+          duringExtract.abort();
+        },
+      }),
+      'cancelled',
+    );
+    await expect(stat(join(dir, 'seg.onnx'))).rejects.toThrow();
+    await expect(stat(join(dir, 'seg.onnx.part'))).rejects.toThrow();
   });
 
   it('skips files that are already installed', async () => {

@@ -173,23 +173,43 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
     allowedHosts: options.allowedHosts ?? DEFAULT_ALLOWED_HOSTS,
     insecureHosts: options.insecureHosts ?? [],
   };
-  await mkdir(dir, { recursive: true });
-
   const todo: DownloadSource[] = [];
-  for (const source of sources) if (!(await options.isInstalled?.(source))) todo.push(source);
-  if (todo.length === 0) return;
+  const overallTotal = sources.reduce((sum, item) => sum + item.bytes, 0);
+  // Failures before the first byte (disk space, unreadable folder) must reach the user too.
+  const failBeforeStart = (error: unknown): never => {
+    const first = todo[0] ?? sources[0];
+    if (first && !(error instanceof DownloadError && error.code === 'cancelled'))
+      options.onProgress?.({
+        role: first.role,
+        modelName: first.label,
+        state: 'failed',
+        bytesDone: 0,
+        bytesTotal: first.bytes,
+        overallBytesDone: 0,
+        overallBytesTotal: overallTotal,
+        ...(error instanceof DownloadError ? { reason: error.code as ModelDownloadFailure } : {}),
+        message: error instanceof DownloadError ? error.message : 'The download could not start.',
+      });
+    throw error;
+  };
+  try {
+    await mkdir(dir, { recursive: true });
+    for (const source of sources) if (!(await options.isInstalled?.(source))) todo.push(source);
+    if (todo.length === 0) return;
 
-  let needed = 0;
-  for (const source of todo)
-    needed += Math.max(0, source.bytes - (await sizeOr0(path.join(dir, `${source.file}.part`))));
-  const free = await (options.freeBytes ?? freeBytesOf)(dir);
-  if (free < needed + (options.marginBytes ?? 256 * 1024 * 1024))
-    throw new DownloadError(
-      'diskSpace',
-      `Not enough free disk space: about ${Math.ceil(needed / 1e6)} MB are needed.`,
-    );
-
-  const overallTotal = todo.reduce((sum, item) => sum + item.bytes, 0);
+    let needed = 0;
+    for (const source of todo)
+      needed += Math.max(0, source.bytes - (await sizeOr0(path.join(dir, `${source.file}.part`))));
+    const free = await (options.freeBytes ?? freeBytesOf)(dir);
+    if (free < needed + (options.marginBytes ?? 256 * 1024 * 1024))
+      throw new DownloadError(
+        'diskSpace',
+        `Not enough free disk space. Free up about ${Math.ceil((needed + (options.marginBytes ?? 256 * 1024 * 1024)) / 1e6)} MB and try again.`,
+      );
+  } catch (error) {
+    failBeforeStart(error);
+  }
+  const todoTotal = todo.reduce((sum, item) => sum + item.bytes, 0);
   let finished = 0;
   for (const source of todo) {
     const report = (
@@ -200,7 +220,7 @@ export async function downloadModels(options: DownloadOptions): Promise<void> {
     ) =>
       options.onProgress?.({
         overallBytesDone: finished + (state === 'done' ? 0 : done),
-        overallBytesTotal: overallTotal,
+        overallBytesTotal: todoTotal,
         ...(reason ? { reason } : {}),
         role: source.role,
         modelName: source.label,
@@ -306,16 +326,26 @@ async function fetchOne(
         await rm(part, { force: true });
         throw new DownloadError('checksum', `${source.label} failed its integrity check.`);
       }
+      // Hashing cannot be interrupted: a cancel that came meanwhile must not install the file.
+      abortIfCancelled(net.signal);
       const final = path.join(dir, source.file);
       if (source.archive) {
         if (!extract) throw new DownloadError('http', 'No archive extractor is configured.');
         const out = `${final}.part`;
         await extract(part, source.archive.member, out);
+        if (net.signal?.aborted) {
+          await rm(out, { force: true });
+          abortIfCancelled(net.signal);
+        }
         const ok = (await sizeOr0(out)) === source.bytes && (await hashFile(out)) === source.sha256;
         if (!ok) {
           await rm(out, { force: true });
           await rm(part, { force: true });
           throw new DownloadError('checksum', `${source.label} failed its integrity check.`);
+        }
+        if (net.signal?.aborted) {
+          await rm(out, { force: true });
+          abortIfCancelled(net.signal);
         }
         await rename(out, final);
         await rm(part, { force: true });
