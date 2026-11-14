@@ -38,3 +38,22 @@
 ## Incidents / working tree
 
 Incidents A-354 and A-355 document two corrected preflight command mistakes. No source code was changed. npm’s lockfile-only metadata churn was restored. The root `scrb-sherpa.obj` is deliberately left untracked under the no-delete rule. **Independent review: pending.**
+
+## Follow-up attempt — 2026-11-13
+
+This continuation stopped before resuming Step 3 because Node 22.23.4 was not available on PATH. The `npx --yes --package=node@22.23.4 --call "node -v"` wrapper produced no output, remained active for over 35 seconds, and was interrupted with exit code 1; it emitted no error text. A first wrapper attempt also produced no usable output. A read-only search of the common npm cache and Node installation locations found only `C:\Program Files\nodejs\node.exe` (v26.13.0). No libopus fetch or checkout, `fetch-opus.ps1`, `build.cmd`, or rerun of `m1.ps1` was performed in this continuation.
+
+The three workarounds and their status are:
+
+1. **Execution policy bypass:** previously used for `fetch-opus.ps1`; it passed the policy barrier but the script failed because the fresh Opus clone had no valid `HEAD` (`fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.`).
+2. **Node 22.23.4 on PATH:** previously used via the `node@22.23.4` package wrapper for `npm install`. In this continuation the wrapper did not initialize successfully, so the requested PATH prerequisite was unavailable and no setup command was run under Node 26.13.0.
+3. **Pre-seed pinned libopus checkout:** not performed; continuation stopped before any Git fetch or checkout under the Node PATH requirement.
+
+The requested GPU query succeeded on the non-administrator account:
+
+| Name | DriverVersion |
+| --- | --- |
+| Intel(R) UHD Graphics 770 | 32.0.101.7088 |
+| NVIDIA GeForce RTX 3080 | 32.0.16.1088 |
+
+No recording was started; steps 9 and 10 remain unrun.
