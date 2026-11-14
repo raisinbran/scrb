@@ -113,7 +113,9 @@ No test here is expected to exceed 20 minutes. Do not use the owner's real recor
 2. **Failure safety (real risk).** A failed pass sets `transcriptionFailed` (`final-pass.ts:363`), and `getTranscript` then throws for that status (`meetings.ts:400`). A failed re-run of a good old recording would hide its transcript. Needed: remember the status before the run (`ready` or `recovered`) and restore it on failure, keeping a safe user message; also restore on cancel or app restart mid-run. This is a small persisted field on the meeting record (storage package, `packages/storage/src/formats/`), not a contract field.
 3. A button with an honest label. Suggested: on a finished meeting with audio, "Re-process transcript" with a one-line explanation: "Re-runs speech recognition and speaker detection with the current app. Your edits and speaker names are kept where the words still match." Disabled while any pass runs; hidden when the audio was deleted by auto-delete (`hasAudio` false). Also tell the user the summary may become outdated (`summaryState`).
 
-**Contract change, for owner approval.** Option 1 (recommended): **no type change**. Reuse `retryFinalPass` and widen its server-side precondition; update its doc comment in `backend.ts` to say it also re-processes a finished meeting. This still edits `packages/contracts/`, so it needs your approval even though only a comment changes. Option 2: add `reprocessFinalPass: { request: { meetingId }; response: void }` (clearer name, a real contract change, mock and validator entries needed: `backend.ts`, `validate.ts`, `mock-backend.ts`, `hybrid-backend.ts`). I recommend option 1. Nothing in `packages/contracts/` is edited by this plan.
+**Owner decision (2026-11-14): the Re-process button is approved as a contract addition, button wording "Re-process".** The contract options below stay for the implementer to choose the form; the owner's approval covers the addition, and slice 4 may start. Previously stated options:
+
+**Contract change.** Option 1 (recommended): **no type change**. Reuse `retryFinalPass` and widen its server-side precondition; update its doc comment in `backend.ts` to say it also re-processes a finished meeting. This still edits `packages/contracts/`, so it needs your approval even though only a comment changes. Option 2: add `reprocessFinalPass: { request: { meetingId }; response: void }` (clearer name, a real contract change, mock and validator entries needed: `backend.ts`, `validate.ts`, `mock-backend.ts`, `hybrid-backend.ts`). I recommend option 1. Nothing in `packages/contracts/` is edited by this plan.
 
 **Corrections on re-run.** `mergeModel` keeps frozen (corrected) words by matching surrounding words or time (`locateRun`, `corrections.ts` near line 540), and the test for it must run against split segments (test 3). A correction whose words changed in the new recognition is kept and may be placed a few words away; that already happens on any re-run.
 
@@ -141,11 +143,11 @@ No test here is expected to exceed 20 minutes. Do not use the owner's real recor
 1. **Backend cut rule** (section 2) in `finalPass.ts` with tests 1, 2, 3 and `npm run check`. Backchannel option: implement A with the two constants named so B is a one-line change. No contract change. Start here.
 2. **AMI replay and export check** (test 4, export output on a split transcript). Tune constants if the replay shows shredding or no effect; report numbers in `docs/research/`.
 3. **Optional UI: sticky follow-along** only if the owner still sees bounce after slice 1 on a real, owner-run check: in `activeRowAt`, stay on the previous active row while it still has a current word; when no row has one, keep the previous row. Test 5.
-4. **Re-process** (section 6): backend gate widening and status restore with tests, then the button and mock. Needs the owner's approval of the contract comment or new method before it starts.
+4. **Re-process** (section 6): backend gate widening and status restore with tests, then the button and mock. Owner approved the contract addition on 2026-11-14; no further approval needed to start.
 5. Measurement in section 3 can run any time, in parallel; it changes no code.
 
 ## 9. Open items for the owner
 
 1. Backchannels: option A (recommended) or B.
 2. Paragraph cap 60 s and the 2 s / 3 word minimum piece: acceptable?
-3. Re-process: option 1 (reuse `retryFinalPass`, comment change only) or option 2 (new method), and the button wording.
+3. Re-process: **approved by the owner on 2026-11-14** (contract addition, wording "Re-process"). Implementer chooses option 1 or 2 in section 6 and notes the choice in the PR.
