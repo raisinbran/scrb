@@ -20,6 +20,7 @@ import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
+import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
 const TAB_KEY = 'scrb.recordings.tab';
@@ -317,7 +318,7 @@ function DeleteDialog({
     return (
       <Modal title="Delete meeting">
         <p role="status">Deleting {meeting.title}…</p>
-        <progress className={styles.progress} aria-label="Delete progress" />
+        <Progress label="Delete progress" />
       </Modal>
     );
   }
@@ -544,7 +545,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             {retryError && <p role="alert">{retryError}</p>}
           </div>
         )}
-        {meeting.status === 'finalPassRunning' && <ProcessingBanner />}
+        {meeting.status === 'finalPassRunning' && <ProcessingBanner meetingId={meetingId} />}
         {live && (
           <p role="status" className={styles.bannerInfo}>
             This meeting is still recording. Controls are on the Live screen.
@@ -639,6 +640,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
             playing={playback.isPlaying}
             jump={jump}
+            restoreKey={meetingId}
             onPlay={playback.play}
             editing={editing}
             onEditorOpenChange={setEditorOpen}
