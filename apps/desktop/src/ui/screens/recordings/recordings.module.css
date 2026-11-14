@@ -354,7 +354,6 @@
 .meetingTitle:focus {
   background: var(--color-surface);
   border-color: var(--color-focus);
-  outline: none;
 }
 
 .actions,
