@@ -1,0 +1,160 @@
+name: Windows FFmpeg 9.0 decoder (isolated)
+
+on:
+  push:
+    branches: [rosmont/gate3-windows-ffmpeg-ci-20261102]
+  pull_request:
+    paths:
+      - .github/workflows/windows-ffmpeg-decoder.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-decoder:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Preserve Unix line endings
+        shell: pwsh
+        run: git config --global core.autocrlf input
+
+      - uses: actions/checkout@v4
+
+      # The official FFmpeg release tag n9.0 resolves to this immutable commit.
+      # Checkout avoids the blocked ffmpeg.org release-tarball host.
+      - uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: d32b387f2b0a484599d4587d651891f0c63c4238
+          path: vendor/ffmpeg
+          persist-credentials: false
+
+      - name: Verify pinned upstream checkout
+        shell: pwsh
+        run: |
+          $actual = (git -C vendor/ffmpeg rev-parse HEAD).Trim()
+          if ($actual -ne 'd32b387f2b0a484599d4587d651891f0c63c4238') {
+            throw "Unexpected FFmpeg source commit: $actual"
+          }
+
+      # Tools are installed on the disposable GitHub runner, not the user's PC.
+      # UCRT64 builds native Windows binaries; MSYS2 tools run only at build time.
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          release: false
+          update: true
+          install: >-
+            make
+            diffutils
+            gawk
+            curl
+            tar
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-opus
+
+      - name: Compile pinned, minimal LGPL decoder
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          repo="$(cygpath -u "$GITHUB_WORKSPACE")"
+          out="$repo/out/windows-ffmpeg"
+          mkdir -p "$out"
+          for tool in cmp diff make gcc nasm pkg-config sha256sum; do
+            command -v "$tool" >/dev/null || { echo "Missing build tool: $tool" >&2; exit 1; }
+          done
+          test "$(pkg-config --modversion opus)" = "1.6.1"
+          cd "$repo/vendor/ffmpeg"
+
+          ./configure \
+            --disable-everything --disable-autodetect --disable-doc --disable-network \
+            --disable-ffplay --disable-avdevice --disable-swscale \
+            --enable-static --disable-shared --pkg-config-flags=--static \
+            --extra-ldflags=-static \
+            --enable-ffmpeg --enable-ffprobe --enable-libopus \
+            --enable-protocol=file,pipe \
+            --enable-demuxer=wav,w64,mp3,mov,flac,ogg,aac \
+            --enable-decoder=pcm_u8,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp3,mp3float,aac,aac_fixed,alac,flac,opus \
+            --enable-parser=aac,flac,mpegaudio,opus \
+            --enable-encoder=libopus,pcm_s16le,pcm_f32le \
+            --enable-muxer=ogg,opus,segment,wav,pcm_s16le,pcm_f32le,null \
+            --enable-filter=aresample,aformat,anull,atrim,pan \
+            --enable-bsf=aac_adtstoasc
+
+          if grep -Eq '^CONFIG_(GPL|NONFREE|VERSION3)=yes$' ffbuild/config.mak; then
+            echo "Rejected: GPL, nonfree or version3 components enabled." >&2
+            exit 1
+          fi
+          # FFmpeg's config.mak omits disabled license flags; no match is expected.
+          grep -E '^CONFIG_(GPL|NONFREE|VERSION3)=' ffbuild/config.mak || true
+          make -j4 ffmpeg.exe ffprobe.exe
+          cp ffmpeg.exe ffprobe.exe ffbuild/config.mak "$out/"
+          cp COPYING.LGPLv2.1 "$out/FFMPEG-LGPL-2.1.txt"
+          cp /ucrt64/share/licenses/opus/COPYING "$out/LIBOPUS-BSD-3-Clause.txt"
+          cp "$repo/packages/transcription/THIRD_PARTY_NOTICES.md" "$out/THIRD_PARTY_NOTICES.md"
+          printf "FFmpeg upstream: FFmpeg/FFmpeg n9.0 commit d32b387f2b0a484599d4587d651891f0c63c4238\nSource method: official Git checkout, not the separately hashed release tarball\nOpus: $(pkg-config --modversion opus)\nCompiler: $(gcc -dumpfullversion)\n" > "$out/BUILD-INFO.txt"
+          cd "$out"
+          sha256sum ffmpeg.exe ffprobe.exe > SHA256SUMS.txt
+
+      - name: Run native Windows smoke without MSYS2 on PATH
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:GITHUB_WORKSPACE 'out/windows-ffmpeg'
+          $ffmpeg = Join-Path $out 'ffmpeg.exe'
+          $ffprobe = Join-Path $out 'ffprobe.exe'
+          $oldPath = $env:PATH
+          try {
+            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\Wbem"
+            & $ffmpeg -hide_banner -version
+            if ($LASTEXITCODE -ne 0) { throw 'ffmpeg.exe failed without build tools on PATH' }
+            & $ffprobe -hide_banner -version
+            if ($LASTEXITCODE -ne 0) { throw 'ffprobe.exe failed without build tools on PATH' }
+            $conf = (& $ffmpeg -hide_banner -buildconf | Out-String)
+            if ($conf -match '--enable-(gpl|nonfree|version3)') { throw 'Non-LGPL configure flags found' }
+            if ($conf -notmatch '--disable-network') { throw 'Network not disabled' }
+            $decoders = (& $ffmpeg -hide_banner -decoders | Out-String)
+            foreach ($codec in @('aac', 'alac', 'flac', 'opus', 'mp3')) {
+              if ($decoders -notmatch "(?m)\s$codec\s") { throw "Required decoder missing: $codec" }
+            }
+
+            $wav = Join-Path $env:RUNNER_TEMP 'srcb-input.wav'
+            $opus = Join-Path $env:RUNNER_TEMP 'srcb-output.opus'
+            $decoded = Join-Path $env:RUNNER_TEMP 'srcb-decoded.wav'
+            $writer = [System.IO.BinaryWriter]::new([System.IO.File]::Create($wav))
+            try {
+              $writer.Write([System.Text.Encoding]::ASCII.GetBytes('RIFF'))
+              $writer.Write([int]32036)
+              $writer.Write([System.Text.Encoding]::ASCII.GetBytes('WAVEfmt '))
+              $writer.Write([int]16)
+              $writer.Write([short]1)
+              $writer.Write([short]1)
+              $writer.Write([int]16000)
+              $writer.Write([int]32000)
+              $writer.Write([short]2)
+              $writer.Write([short]16)
+              $writer.Write([System.Text.Encoding]::ASCII.GetBytes('data'))
+              $writer.Write([int]32000)
+              $writer.Write([byte[]]::new(32000))
+            } finally {
+              $writer.Dispose()
+            }
+            & $ffmpeg -nostdin -hide_banner -loglevel error -y -i $wav -ac 1 -ar 48000 -c:a libopus -b:a 32k -f ogg $opus
+            if ($LASTEXITCODE -ne 0) { throw 'WAV to Opus smoke failed' }
+            & $ffprobe -v error -show_entries stream=codec_name -of default=nw=1 $opus
+            if ($LASTEXITCODE -ne 0) { throw 'Opus probe failed' }
+            & $ffmpeg -nostdin -hide_banner -loglevel error -y -i $opus -ac 1 -ar 16000 -c:a pcm_s16le -f wav $decoded
+            if ($LASTEXITCODE -ne 0 -or (Get-Item $decoded).Length -le 44) { throw 'Opus to WAV smoke failed' }
+          } finally {
+            $env:PATH = $oldPath
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: srcb-windows-ffmpeg-9.0-lgpl
+          path: out/windows-ffmpeg/
+          if-no-files-found: error
+          retention-days: 7
