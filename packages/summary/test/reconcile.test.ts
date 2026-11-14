@@ -135,6 +135,18 @@ describe('reconcileItems', () => {
     expect(reconcileItems([monday, plain], 20)).toEqual([monday, plain]);
   });
 
+  it('does not treat swapped word order as taking the decision back', () => {
+    const first = decision('The team will launch Alpha before Beta.', 100);
+    const swapped = decision('The team will not launch Beta before Alpha.', 900);
+    expect(reconcileItems([first, swapped], 20)).toEqual([first, swapped]);
+  });
+
+  it('drops a decision that a later one reverses in identical wording', () => {
+    const first = decision('The team will launch Alpha before Beta.', 100);
+    const back = decision('The team will not launch Alpha before Beta.', 900);
+    expect(reconcileItems([first, back], 20)).toEqual([back]);
+  });
+
   it('removes nothing for a negation about a different matter', () => {
     const a = decision('The remote will include an LCD screen for channel display', 100);
     const b = decision('The remote will not include a speech recognition chip', 900);

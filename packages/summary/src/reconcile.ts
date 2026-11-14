@@ -1,4 +1,4 @@
-import { contentTokens, coverage, hasNegation, jaccard } from './text.js';
+import { contentTokens, coverage, hasNegation, jaccard, NEGATIONS, words } from './text.js';
 import type { ActionItem, DecisionItem, Extraction } from './types.js';
 import { EVERYONE, NOT_SPECIFIED, UNCONFIRMED } from './types.js';
 
@@ -107,6 +107,12 @@ function mergeNearDuplicates(items: Pooled[]): Pooled[] {
  * qualifier is therefore never a reversal. The later item stays and keeps the earlier one's line
  * in `alsoAt`, so the history is still reachable.
  */
+/** The words in their order with the negation words taken out: "will not launch B before A" is "will launch b before a". */
+const wording = (item: Pooled): string =>
+  words(item.text)
+    .filter((word) => !NEGATIONS.has(word))
+    .join(' ');
+
 function dropOverridden(items: Pooled[]): Pooled[] {
   const dropped = new Set<Pooled>();
   for (const earlier of items) {
@@ -117,8 +123,7 @@ function dropOverridden(items: Pooled[]): Pooled[] {
         continue;
       if (hasNegation(later.text) === hasNegation(earlier.text)) continue;
       if (ownerOf(later) !== ownerOf(earlier)) continue;
-      const b = contentTokens(later.text);
-      if (a.size < MIN_SHARED || a.size !== b.size || sharedCount(a, b) !== a.size) continue;
+      if (a.size < MIN_SHARED || wording(later) !== wording(earlier)) continue;
       later.alsoAt.push(earlier.evidence);
       dropped.add(earlier);
       break;
