@@ -1,0 +1,1 @@
+| 2026-11-13 | Claude Code / Sonnet 5.5 / Mac desktop | Windows CI fix: batch the changed-file list in the Prettier step (command line too long); independent review pending | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | usage not read this task; other sessions run. |
