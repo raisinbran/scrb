@@ -1,6 +1,6 @@
 # Known issues
 
-Draft for the User Manual. Update it when the behavior changes.
+Part of the [User Manual](README.md). Update it when the behavior changes.
 
 ## Microsoft Teams desktop app on Windows
 

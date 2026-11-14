@@ -55,6 +55,18 @@ describe('createHybridBackend', () => {
     );
   });
 
+  it('sends About information to the real backend, never the mock', async () => {
+    const real = { call: vi.fn(async () => undefined), on: vi.fn() } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call');
+    const backend = createHybridBackend(real, mock);
+    await backend.call('getAppInfo');
+    await backend.call('getLicenses');
+    expect(real.call).toHaveBeenCalledWith('getAppInfo', undefined);
+    expect(real.call).toHaveBeenCalledWith('getLicenses', undefined);
+    expect(mockCall).not.toHaveBeenCalledWith('getAppInfo', undefined);
+    expect(mockCall).not.toHaveBeenCalledWith('getLicenses', undefined);
+  });
+
   it('sends the vocabulary calls to the real backend, not the mock', async () => {
     const real = { call: vi.fn(async () => undefined), on: vi.fn() } as unknown as Backend;
     const mockCall = vi.spyOn(mock, 'call');

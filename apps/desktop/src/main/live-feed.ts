@@ -6,6 +6,7 @@ import type { BackendEvents, EventName } from '@scrb/contracts';
 import type { Library } from '@scrb/storage';
 import {
   LiveAudioWorker,
+  LiveEchoFilter,
   PcmFrameDecoder,
   toolsIn,
   type LiveAudioWorkerOptions,
@@ -130,6 +131,7 @@ export function applyLivePerformance(
 /** One sink per meeting, but a fresh worker and decoder for every helper launch. */
 export class LiveCaptureSession {
   private readonly sink: LiveTranscriptSink;
+  private readonly echo: LiveEchoFilter;
   private current: HelperFeed | null = null;
   private readonly cleanup = new Set<Promise<void>>();
   private windowsPipes: WindowsLivePipePool | null = null;
@@ -146,6 +148,7 @@ export class LiveCaptureSession {
     ) => Promise<WorkerHandle> = LiveAudioWorker.start,
   ) {
     this.sink = new LiveTranscriptSink(library, meetingId, emit);
+    this.echo = new LiveEchoFilter((segment) => this.sink.handle({ type: 'segment', segment }));
     this.progressTimer = setInterval(() => this.logProgress(), 60_000);
     this.progressTimer.unref();
   }
@@ -226,7 +229,9 @@ export class LiveCaptureSession {
     feed.startup = this.launchWorker({
       ...this.setup,
       onEvent: (event) => {
-        if (!feed.closed && this.current === feed) this.sink.handle(event);
+        if (feed.closed || this.current !== feed) return;
+        if (event.type === 'segment') this.echo.push(event.segment);
+        else this.sink.handle(event);
       },
     })
       .then((worker) => {
@@ -280,6 +285,7 @@ export class LiveCaptureSession {
     clearInterval(this.progressTimer);
     this.windowsPipes?.close();
     if (this.current) this.closeHelper(this.current);
+    this.echo.flush();
     await this.sink.stop();
     await Promise.all([...this.cleanup]);
   }
