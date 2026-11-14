@@ -14,6 +14,18 @@ The recorder measures chunk timestamps. Two different things show up there: smal
 4. **Marked gap over 20 ms:** each one is a finding and blocks the gate until it is explained or fixed. It is an open recording bug (Gate 8: "no open recording, data-loss or privacy bugs").
 5. **Overlap of 2 ms or more:** always reported as a finding (as in #248), never netted.
 
+## How this fits the frame check
+
+Today `checkChunkFrames` marks any chunk carrying a `missingCause` as bad, so an accepted marked gap would still return `bad` and FAIL. The change keeps every other frame safeguard:
+
+- A `missingCause` chunk is excused only when it matches a marked gap span the helper recorded for that track and that gap is 2 ms to 20 ms. The count of `missingCause` chunks must equal the helper's marked-gap count; a mismatch is `bad`.
+- An excused chunk still has to hold the frame count its own stamped span implies (within one frame), carry no padded span, and, if closed by rollover, hold the rollover count.
+- A `missingCause` chunk with no matching marked span, or whose gap is over 20 ms, is `bad` (FAIL for unmarked, open finding for over 20 ms).
+- Missing, unreadable or wrong-length chunk logs stay `absent`, so the track is INCONCLUSIVE, never PASS.
+- The 100 ms total counts the marked gaps from the helper's list, not from the frame counts.
+
+Synthetic tests: an accepted 8 ms marked gap passes; the same chunk with a wrong frame count fails; a `missingCause` with no marked span fails; a marked 25 ms gap is a finding; a missing log is INCONCLUSIVE; marked gaps totalling over 100 ms fail.
+
 ## Where the numbers come from
 
 | Number | Basis | Strength |
@@ -34,6 +46,10 @@ Jitter data (`2026-11-14-regiurn-jitter-numbers.md`, `2026-11-14-w10-jitter-numb
 
 Regiurn's Gate 8 recorder result stays FAIL under the verifier as run until this rule is reviewed, approved and implemented. A pass would then be a recorder-only result, not final Gate 8 acceptance (no app, transcription or final pass in that run).
 
+## Applying it to the Regiurn run
+
+The 20 ms and 100 ms numbers were chosen after seeing the Regiurn result, so rescoring that run under them is not an independent pass. Also, the 8 ms gap has no explained cause, which the Gate 8 "no open recording bugs" criterion asks for. Recommendation: the Regiurn run stays recorded as FAIL as run. After the rule is approved and frozen, it may be listed as "rescored under a rule frozen after the run" supporting evidence only. The Gate 8 recorder PASS comes from the next run (the Mac 8-hour run, needed anyway) judged by the frozen rule, with any marked gap in it explained or confirmed as within tier 3.
+
 ## Limits to be honest about
 
 - The 20 ms and 100 ms numbers are policy judgements, not statistics. More runs can show how often gaps happen; they cannot say what is acceptable.
@@ -45,6 +61,7 @@ Regiurn's Gate 8 recorder result stays FAIL under the verifier as run until this
 1. Accept 20 ms per marked gap and 100 ms total (or choose others).
 2. Confirm that a marked gap over 20 ms counts as an open recording bug at Gate 8.
 3. Whether a short listening check of a 20 ms and a 200 ms gap is wanted before the numbers are frozen.
+4. Whether the Regiurn run may be reclassified under a rule written after it (recommended: no, supporting evidence only; the Mac run decides) or must be re-run.
 
 ## After approval
 
