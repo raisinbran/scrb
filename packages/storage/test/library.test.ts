@@ -368,6 +368,59 @@ describe('delete', () => {
     expect(bytes).not.toContain(id);
   });
 
+  it('removes only learned data this meeting alone supports, and only when asked', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id, ids } = await seeded(library, 'Secret plans');
+    const { id: other } = await seeded(library, 'Other');
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'Kiwi',
+      remember: true,
+    });
+    const sole = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const shared = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([3, 4]),
+      meetingId: id,
+    });
+    library.voiceProfiles.grow(shared.id, new Float32Array([3, 4]), 1, other);
+
+    const report = await library.deleteMeeting(id, false, true);
+
+    expect(report.ok).toBe(true);
+    expect(report.learned).toMatchObject({ profiles: 1, terms: 1 });
+    expect(library.voiceProfiles.get(sole.id)).toBeNull();
+    expect(library.voiceProfiles.get(shared.id)?.meetingIds).toEqual([other]);
+    expect(library.vocabulary.list()).toEqual([]);
+    await library.close();
+  });
+
+  it('keeps learned data by default and reports nothing about it', async () => {
+    const root = await tempDir();
+    const library = await Library.open({ root });
+    const { id, ids } = await seeded(library, 'Secret plans');
+    await library.applyCorrection(id, {
+      wordIds: ids.slice(0, 1),
+      replacement: 'Kiwi',
+      remember: true,
+    });
+    const profile = library.voiceProfiles.create({
+      modelId: 'm',
+      embedding: new Float32Array([1, 2]),
+      meetingId: id,
+    });
+    const report = await library.deleteMeeting(id);
+    expect(report.learned).toBeUndefined();
+    expect(library.voiceProfiles.get(profile.id)).not.toBeNull();
+    expect(library.vocabulary.list()).toHaveLength(1);
+    await library.close();
+  });
+
   it.each(['undo', 'redo'] as const)(
     'never recreates deleted meeting vocabulary through %s',
     async (direction) => {

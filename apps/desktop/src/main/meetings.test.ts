@@ -847,6 +847,25 @@ describe('createMeetingHandlers', () => {
     spy.mockRestore();
   });
 
+  it('passes removeLearnedData through and reports what was removed', async () => {
+    const meeting = await recorded('Learned', '2026-10-15T10:00:00.000Z');
+    const spy = vi.spyOn(library, 'deleteMeeting').mockResolvedValue({
+      meetingId: meeting.id,
+      ok: true,
+      remaining: [],
+      learned: { profiles: 1, terms: 2, transcriptChanges: [] },
+    });
+    expect(
+      await value('deleteMeeting', { meetingId: meeting.id, removeLearnedData: true }),
+    ).toEqual({
+      verified: true,
+      remaining: [],
+      learnedDataRemoved: { profiles: 1, terms: 2 },
+    });
+    expect(spy).toHaveBeenCalledWith(meeting.id, false, true);
+    spy.mockRestore();
+  });
+
   it('opens a meeting after its audio folder is removed', async () => {
     const meeting = await recorded('No audio', '2026-10-15T10:00:00.000Z');
     await library.deleteAudio(meeting.id);
