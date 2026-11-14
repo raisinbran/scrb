@@ -184,6 +184,18 @@ export interface ImportFinished {
   meetingId: MeetingId;
 }
 
+export type FinalPassStage = 'queued' | 'transcribing' | 'diarizing' | 'finishing';
+
+/** Real progress of a meeting's final pass. Fractions never go down within one pass. */
+export interface FinalPassProgress {
+  meetingId: MeetingId;
+  stage: FinalPassStage;
+  /** 0 to 1 across the whole final pass. */
+  fraction: number;
+  /** ISO time the pass started working on this meeting. */
+  startedAt: string;
+}
+
 /** The import stopped at the user's request. No meeting was created and its files are gone. */
 export interface ImportCancelled {
   importId: ImportId;

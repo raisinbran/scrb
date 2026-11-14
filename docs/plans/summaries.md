@@ -90,7 +90,7 @@ A failed or cancelled run never touches `summary.json`.
 ## 7. Model download (V1-only; M1-optional: dev build keeps the config-file paths)
 
 - Add `summary` to the setup status as an **optional** model: a missing summary model must not block `complete`, because summaries are optional (requirement 8).
-- The dev/config route comes first (config `models.summary` and `tools.llamaServer`, in the same files the final pass uses; exact key names set in slice 1).
+- The dev/config route comes first: `models.summary` and `tools.llamaServer` in the same JSON file the final pass uses (`SCRB_FINAL_PASS_CONFIG`); both must exist or the run fails with a message naming which is missing.
 - The real download (`startModelDownload`, `modelDownloadProgress`, `checkModelUpdates`, `revertModel`) belongs to the packaged-app and setup work; this plan only requires that it fetch the pinned file with the pinned SHA-256 from `dev-assets.sh`, verify before use, resume or restart cleanly, and delete a partial file on failure. It is the one place the app touches the network, and it must say so on screen. Packaged llama.cpp must be the pinned build, shipped per `docs/plans/packaged-mac-app.md`.
 - License text for the model and llama.cpp goes into the third-party notices (Apache-2.0 and MIT as the manifest lists them; **verify the model card at ship time**).
 
