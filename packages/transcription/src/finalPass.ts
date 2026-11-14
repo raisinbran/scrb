@@ -557,7 +557,7 @@ export function buildTurns(words: Word[]): Turn[] {
 const hasLetters = (text: string): boolean => /[\p{L}\p{N}]/u.test(text);
 const SENTENCE_END = /[.?!]["')\]]*$/;
 
-type Range = { first: number; end: number };
+type Range = { first: number; end: number; afterCut?: boolean };
 
 const spanMs = (words: Word[], r: Range): number =>
   words[r.end - 1]!.endMs - words[r.first]!.startMs;
@@ -575,6 +575,9 @@ const gapBefore = (words: Word[], b: number): number => words[b]!.startMs - word
  */
 export function cutTurns(words: Word[], turns: Turn[]): Turn[] {
   const out: Turn[] = [];
+  // A right-hand fragment starts when the interjection does, so at equal start the
+  // interjection goes first however long it runs.
+  const rightFragments = new Set<Turn>();
   for (const t of turns) {
     const track = words[t.firstWord]!.track;
     let pieces: Range[] = [{ first: t.firstWord, end: t.firstWord + t.wordCount }];
@@ -593,11 +596,16 @@ export function cutTurns(words: Word[], turns: Turn[]): Turn[] {
       .sort((a, b) => a.startMs - b.startMs);
     for (const u of inters) cutAtInterjection(words, pieces, u.startMs);
     pieces = capPieces(words, pieces);
-    for (const r of pieces) out.push(toTurn(words, t.speakerId, r));
+    for (const r of pieces) {
+      const turn = toTurn(words, t.speakerId, r);
+      out.push(turn);
+      if (r.afterCut) rightFragments.add(turn);
+    }
   }
   return out.sort(
     (a, b) =>
       a.startMs - b.startMs ||
+      Number(rightFragments.has(a)) - Number(rightFragments.has(b)) ||
       a.endMs - b.endMs ||
       (a.speakerId < b.speakerId ? -1 : a.speakerId > b.speakerId ? 1 : 0),
   );
@@ -645,7 +653,7 @@ function cutAtInterjection(words: Word[], pieces: Range[], startMs: number): voi
   }
   if (best < 0) return;
   const left = { first: p.first, end: best };
-  const right = { first: best, end: p.end };
+  const right = { first: best, end: p.end, afterCut: true };
   if (!pieceBigEnough(words, left) || !pieceBigEnough(words, right)) return;
   pieces.splice(idx, 1, left, right);
 }

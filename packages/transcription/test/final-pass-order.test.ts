@@ -96,6 +96,18 @@ describe('cutTurns', () => {
     expect(b).toEqual(a);
   });
 
+  it('puts a longer reply before the fragment it interrupted, and the mirror case', () => {
+    // Reply 20-28 s, fragment 20-26 s; and reply 20-23 s, fragment 20-40 s.
+    for (const [replyEnd, micEnd] of [
+      [28_000, 26_000],
+      [23_000, 40_000],
+    ] as const) {
+      const { turns } = build([you(0, micEnd), remote(20_000, replyEnd)]);
+      expect(turns.map((t) => t.speakerId)).toEqual(['you', 'speaker-1', 'you']);
+      expect(turns[2]!.startMs).toBeGreaterThanOrEqual(20_000);
+    }
+  });
+
   it('does not cut when a piece would be too small', () => {
     const { turns } = build([you(0, 30_000), remote(500, 700)]);
     // left piece would hold one or two words under 2 s
