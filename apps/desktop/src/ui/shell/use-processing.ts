@@ -11,7 +11,10 @@ export function useAnyProcessing(): boolean {
   const [busy, setBusy] = useState<ReadonlySet<MeetingId>>(new Set());
   useEffect(() => {
     let live = true;
-    const change = (id: MeetingId, status: MeetingStatus): void =>
+    /** Meetings a later event has already spoken for: an older list answer must not override them. */
+    const heard = new Set<MeetingId>();
+    const change = (id: MeetingId, status: MeetingStatus): void => {
+      heard.add(id);
       setBusy((previous) => {
         if (BUSY.has(status) === previous.has(id)) return previous;
         const next = new Set(previous);
@@ -19,6 +22,7 @@ export function useAnyProcessing(): boolean {
         else next.delete(id);
         return next;
       });
+    };
     const off = backend.on('meetingChanged', (meeting) => change(meeting.id, meeting.status));
     backend
       .call('listMeetings', {})
@@ -26,7 +30,9 @@ export function useAnyProcessing(): boolean {
         if (!live) return;
         setBusy((previous) => {
           const next = new Set(previous);
-          for (const meeting of meetings) if (BUSY.has(meeting.status)) next.add(meeting.id);
+          for (const meeting of meetings) {
+            if (!heard.has(meeting.id) && BUSY.has(meeting.status)) next.add(meeting.id);
+          }
           return next;
         });
       })

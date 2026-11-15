@@ -19,11 +19,17 @@ const meeting = (status: MeetingListItem['status']): MeetingListItem => ({
   speakerCount: 1,
 });
 
-function fake(list: MeetingListItem[]) {
+function fake(list: MeetingListItem[], late?: { release: () => void }) {
   const listeners = new Map<EventName, ((payload: never) => void)[]>();
   const backend = {
     call: (name: string) =>
-      name === 'listMeetings' ? Promise.resolve(list) : new Promise(() => undefined),
+      name === 'listMeetings'
+        ? late
+          ? new Promise((resolve) => {
+              late.release = () => resolve(list);
+            })
+          : Promise.resolve(list)
+        : new Promise(() => undefined),
     on: (name: EventName, listener: (payload: never) => void) => {
       listeners.set(name, [...(listeners.get(name) ?? []), listener]);
       return () => undefined;
@@ -51,6 +57,21 @@ describe('Recordings disc', () => {
     ).toBe('recordings-processing');
     expect(screen.getByText('Processing a recording')).toBeTruthy();
     act(() => f.emit('meetingChanged', meeting('ready')));
+    expect(screen.queryByText('Processing a recording')).toBeNull();
+  });
+
+  it('ignores an older list answer that arrives after a newer status event', async () => {
+    const late = { release: () => undefined };
+    const f = fake([meeting('finalPassRunning')], late);
+    await act(async () => {
+      render(
+        <BackendProvider backend={f.backend}>
+          <Sidebar selected="live" onSelect={() => undefined} />
+        </BackendProvider>,
+      );
+    });
+    act(() => f.emit('meetingChanged', meeting('ready')));
+    await act(async () => late.release());
     expect(screen.queryByText('Processing a recording')).toBeNull();
   });
 
