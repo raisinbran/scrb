@@ -55,7 +55,7 @@
 
 ## Owner decisions
 
-1. Approve the read-only `getProfileClips` call.
+1. Approve the read-only `getProfileClips` call. **Recorded 2026-11-15:** approved for implementation after independent review of this plan; relayed by the planning session from the owner's chat decision, so the owner should confirm it on this PR.
 2. Clip count and length: 3 clips from different meetings, 4 to 10 s each (recommended), or one clip?
 3. May a preview move the meeting's saved playback position and light the sidebar indicator (reuse of the shared engine), or must it stay separate (a few more hours)?
 4. Profile previews only from meetings whose audio still exists: acceptable (the only possibility, since profiles hold no audio)?

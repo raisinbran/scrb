@@ -39,6 +39,8 @@
 
 ## Owner decisions required
 
+None recorded yet (2026-11-15). Note the contract approvals for plans A and B do not cover the settings change below.
+
 1. Auto-generate after the final pass: **on or off by default**? Recommended **off** until the hand-checked precision is known and the first real use shows the time and memory are acceptable; the setting exists either way. On by default costs several GB of download and many minutes of CPU or GPU after every meeting.
 2. Approve the settings contract change (`autoGenerateSummary`, and with it any "summary model" status fields) for slice 4.
 3. Model: Qwen3.5-9B Q4_K_M as the single optional download, or a smaller model for 8 GB machines? (Gate 6 recall of 68% against 80% is also the owner's call: lower the target or try a larger model.)

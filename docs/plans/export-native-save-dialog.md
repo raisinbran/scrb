@@ -73,7 +73,7 @@ Alternative considered and rejected: a response `{cancelled}` on `exportMeeting`
 
 ## Owner decisions
 
-1. Approve the two contract additions (`cancelled` and `revealExport`). Without `revealExport` there is no folder button.
+1. Approve the two contract additions (`cancelled` and `revealExport`). Without `revealExport` there is no folder button. **Recorded 2026-11-15:** approved for implementation after independent review of this plan; relayed by the planning session from the owner's chat decision, so the owner should confirm it on this PR.
 2. First-use folder: the meeting's own `exports` folder (recommended, today's behaviour) or one library-wide `Exports` folder?
 3. Remember one folder for all exports (recommended) or one per meeting?
 4. Multi-file naming `<stem> transcript` and `<stem> summary` in a chosen folder: acceptable?
