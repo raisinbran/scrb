@@ -334,7 +334,7 @@ describe('LiveScreen', () => {
       const alerts = screen.getAllByRole('alert');
       expect(alerts).toHaveLength(1);
       expect(alerts[0]?.textContent).toContain('Live transcription stopped');
-      expect(alerts[0]?.textContent).toContain('Audio is still being recorded');
+      expect(alerts[0]?.textContent).not.toMatch(/recorded|nothing is lost/);
     });
 
     it('shows nothing about recording or transcript when idle or healthy', async () => {
@@ -346,6 +346,23 @@ describe('LiveScreen', () => {
       await advance(0);
       expect(screen.queryByText(/Recording: |Transcript: /)).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('keeps both banners truthful when recording and transcription fail together', async () => {
+      await startMeeting();
+      await trigger('permission-lost');
+      act(() =>
+        backend.emit('recordingHealth', {
+          level: 'failed',
+          warnings: [{ kind: 'audioMissing', message: 'No audio is arriving.', atMs: 1000 }],
+          diskFreeBytes: 1e9,
+        }),
+      );
+      await trigger('transcription-failed');
+      const text = screen.getAllByRole('alert').map((alert) => alert.textContent ?? '');
+      expect(text.some((t) => t.includes('Audio missing'))).toBe(true);
+      const transcript = text.find((t) => t.includes('Live transcription stopped')) ?? '';
+      expect(transcript).not.toMatch(/recorded|nothing is lost|not affected/);
     });
 
     it('says what is wrong when transcription restarts', async () => {

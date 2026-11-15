@@ -29,7 +29,8 @@ const WARNING_ADVICE: Record<RecordingWarningKind, string> = {
   permissionLost: 'Allow Scribe to record in your computer’s privacy settings.',
   audioMissing: 'Check that the meeting app is playing sound and is the one selected above.',
   bluetoothHandsFreeMic: 'Use a wired or built-in microphone for better quality.',
-  meetingAppExited: 'Only the microphone is being recorded now. Pick another app to capture its audio.',
+  meetingAppExited:
+    'Only the microphone is being recorded now. Pick another app to capture its audio.',
   pauseFailed: 'Audio saved so far is kept.',
 };
 
@@ -42,7 +43,8 @@ function WarningBanner({ warning, failed }: { warning: RecordingWarning; failed:
   return (
     <div className={styles.banner} data-level={failed ? 'failed' : 'warning'} role="alert">
       <strong>{WARNING_TITLES[warning.kind]}.</strong> {warning.message}
-      {warning.track && <> This affects {TRACK_NAMES[warning.track]}.</>} {WARNING_ADVICE[warning.kind]}
+      {warning.track && <> This affects {TRACK_NAMES[warning.track]}.</>}{' '}
+      {WARNING_ADVICE[warning.kind]}
       {warning.atMs > 0 && <span className={styles.bannerTime}>{formatElapsed(warning.atMs)}</span>}
     </div>
   );
@@ -82,20 +84,19 @@ export function LiveAlerts(props: LiveAlertsProps) {
       )}
       {active && lag?.status === 'failed' && (
         <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription stopped.</strong> Audio is still being recorded, so nothing
-          is lost.
+          <strong>Live transcription stopped.</strong> No new text will appear here until it starts
+          again.
         </div>
       )}
       {active && lag?.status === 'restarting' && (
         <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription is restarting.</strong> Audio is still being recorded. New text
-          will appear again in a moment.
+          <strong>Live transcription is restarting.</strong> New text may be delayed.
         </div>
       )}
       {active && lag?.status === 'lagging' && lag.lagMs >= LAG_NOTICE_MS && (
         <div className={styles.banner} data-level="warning" role="status">
           <strong>Transcript is catching up.</strong> It is about {Math.round(lag.lagMs / 1000)}{' '}
-          seconds behind. Audio is being recorded normally.
+          seconds behind.
         </div>
       )}
       {device && <DeviceNotice {...props} device={device} />}
