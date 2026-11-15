@@ -1,3 +1,4 @@
+import { clipSessionOpen } from './clip-session.ts';
 import type { Backend, CallResponse, MeetingId, PlaybackPosition } from '@scrb/contracts';
 
 type MediaChunk = CallResponse<'getPlaybackMedia'>['chunks'][number];
@@ -64,6 +65,9 @@ export class PlaybackEngine {
   ) {
     this.off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
+      // A clip borrows the backend session: its events are not this meeting's playing, but a
+      // pause that reaches playing audio still stops it.
+      if (clipSessionOpen() && (position.isPlaying || this.anchor === null)) return;
       this.latest = position;
       if (!this.seeking) this.follow(position);
     });

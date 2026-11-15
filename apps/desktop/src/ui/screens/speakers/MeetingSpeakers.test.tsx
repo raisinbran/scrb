@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpeakerSuggestionsProvider } from '../../components/speakers/SpeakerSuggestions.tsx';
 import { BackendProvider } from '../../lib/backend-context.tsx';
+import { PlaybackProvider, useMeetingPlayback } from '../../lib/playback-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
 import { ThemeProvider } from '../../theme/ThemeProvider.tsx';
 import { SpeakersScreen } from '../SpeakersScreen.tsx';
@@ -54,12 +55,20 @@ describe('Split a speaker: passage preview', () => {
     vi.restoreAllMocks();
   });
 
+  function Probe() {
+    const playback = useMeetingPlayback('meeting-outdated');
+    return <button onClick={() => playback.play(0)}>Play meeting</button>;
+  }
+
   async function openDialog() {
     render(
       <BackendProvider backend={backend}>
         <ThemeProvider>
           <SpeakerSuggestionsProvider>
-            <SpeakersScreen />
+            <PlaybackProvider>
+              <Probe />
+              <SpeakersScreen />
+            </PlaybackProvider>
           </SpeakerSuggestionsProvider>
         </ThemeProvider>
       </BackendProvider>,
@@ -154,5 +163,28 @@ describe('Split a speaker: passage preview', () => {
     await waitFor(() => expect((play as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(play);
     expect((await dialog.findByRole('alert')).textContent).toMatch(/isn.t available/);
+  });
+
+  it('never sounds together with the shared playback', async () => {
+    withChunk();
+    const dialog = await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Play meeting' }));
+    await waitFor(() => expect(FakeAudio.all.some((audio) => !audio.paused)).toBe(true));
+    const shared = FakeAudio.all[0] as FakeAudio;
+    const play = (
+      await dialog.findAllByRole('button', { name: /^Play passage at/ })
+    )[0] as HTMLElement;
+    await waitFor(() => expect((play as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(play);
+    await waitFor(() => expect(FakeAudio.all.length).toBeGreaterThan(1));
+    await waitFor(() => expect(shared.paused).toBe(true));
+    const clip = FakeAudio.all.at(-1) as FakeAudio;
+    expect(clip.paused).toBe(false);
+    // The clip's own events must not restart the shared audio.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(FakeAudio.all.filter((audio) => !audio.paused)).toEqual([clip]);
+    fireEvent.click(screen.getByRole('button', { name: 'Play meeting' }));
+    await waitFor(() => expect(clip.paused).toBe(true));
+    await dialog.findAllByRole('button', { name: /^Play passage at/ });
   });
 });

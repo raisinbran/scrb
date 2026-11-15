@@ -54,9 +54,7 @@ export function useMeetingPlayback(meetingId: MeetingId): Playback {
 /** Pauses the shared playback, for a short preview that takes over the one audio session. */
 export function usePauseSharedPlayback(): () => void {
   const context = useContext(PlaybackContext);
-  const playing = context?.playback.isPlaying === true;
   const pause = context?.playback.pause;
-  return useCallback(() => {
-    if (playing) pause?.();
-  }, [playing, pause]);
+  // Not only while it plays: the state can lag the audio, and a pause of an idle meeting is harmless.
+  return useCallback(() => pause?.(), [pause]);
 }
