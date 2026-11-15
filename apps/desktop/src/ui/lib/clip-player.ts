@@ -1,4 +1,4 @@
-import type { Backend, MeetingId } from '@scrb/contracts';
+import type { Backend, MeetingId, TrackKind } from '@scrb/contracts';
 import { closeClipSession, openClipSession } from './clip-session.ts';
 import { readPlaybackLevel } from './playback-level.ts';
 import type { AudioOutput } from './playback-engine.ts';
@@ -7,6 +7,8 @@ import type { AudioOutput } from './playback-engine.ts';
 const CHECK_MS = 50;
 /** A safety net only, in case no clock check ever runs. */
 const FALLBACK_MS = 150;
+/** Sound is cut this close to the end, so a late check cannot leave a click or a trailing word. */
+const CUT_MS = 60;
 export const LEAD_IN_MS = 500;
 const NO_AUDIO = 'Audio isn’t available for this passage.';
 
@@ -44,12 +46,19 @@ export class ClipPlayer {
   ) {}
 
   /** Plays [startMs - lead-in, endMs]. Resolves once playing; the end is reported to `onEnd`. */
-  async play(meetingId: MeetingId, startMs: number, endMs: number): Promise<void> {
+  async play(
+    meetingId: MeetingId,
+    startMs: number,
+    endMs: number,
+    track?: TrackKind,
+    /** How much sound to start before `startMs`. Previews of a voice use none. */
+    leadInMs = LEAD_IN_MS,
+  ): Promise<void> {
     if (ClipPlayer.current !== this) ClipPlayer.current?.interrupt();
     ClipPlayer.current = this;
     this.release();
     const turn = ++this.turn;
-    const from = Math.max(0, startMs - LEAD_IN_MS);
+    const from = Math.max(0, startMs - leadInMs);
     this.meetingId = meetingId;
     if (!this.holdsSession) {
       this.holdsSession = true;
@@ -63,7 +72,12 @@ export class ClipPlayer {
         positionMs: Math.round(from),
       });
       if (turn !== this.turn) return;
-      const usable = chunks.filter((chunk) => chunk.endMs > from && chunk.startMs < endMs);
+      const usable = chunks.filter(
+        (chunk) =>
+          chunk.endMs > from &&
+          chunk.startMs < endMs &&
+          (track === undefined || chunk.track === track),
+      );
       if (usable.length === 0) throw new Error(NO_AUDIO);
       for (const chunk of usable) {
         const audio = this.createAudio();
@@ -116,6 +130,9 @@ export class ClipPlayer {
 
   private check(turn: number, endMs: number): void {
     if (turn !== this.turn || this.active.length === 0) return;
+    for (const { audio, startMs } of this.active) {
+      if (audio.currentTime * 1000 + startMs >= endMs - CUT_MS) audio.volume = 0;
+    }
     const over = this.active.every(
       ({ audio, startMs, stopped }) => stopped || audio.currentTime * 1000 + startMs >= endMs,
     );

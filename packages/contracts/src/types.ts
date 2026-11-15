@@ -351,6 +351,18 @@ export interface VoiceProfile {
   lastHeardAt: string;
 }
 
+/** One passage that sounds like a voice profile, from a meeting whose audio is still saved. */
+export interface ProfileClip {
+  meetingId: MeetingId;
+  meetingTitle: string;
+  date: string;
+  startMs: number;
+  endMs: number;
+  /** The track the passage was spoken on; the preview plays only this one. */
+  track: TrackKind;
+  text: string;
+}
+
 export type SpeakerTarget =
   | { kind: 'meetingSpeaker'; meetingId: MeetingId; speakerId: SpeakerId }
   | { kind: 'profile'; profileId: ProfileId };

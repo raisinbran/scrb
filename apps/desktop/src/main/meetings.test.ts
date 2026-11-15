@@ -1191,6 +1191,22 @@ describe('createMeetingHandlers', () => {
     expect(result).toMatchObject({ ok: true, value: [{ lastHeardAt: profile.updatedAt }] });
   });
 
+  it('refuses clips for a profile that does not exist', async () => {
+    const result = await dispatchCall(handlers, 'getProfileClips', { profileId: 'missing' });
+    expect(result).toMatchObject({ ok: false, error: { code: 'notFound' } });
+  });
+
+  it('gives no clips for a profile whose meetings have no saved audio', async () => {
+    const meeting = await recorded('No audio', '2026-10-15T10:00:00.000Z');
+    const profile = library.voiceProfiles.create({
+      modelId: 'invented-model',
+      embedding: new Float32Array([1, 0]),
+      meetingId: meeting.id,
+    });
+    const result = await dispatchCall(handlers, 'getProfileClips', { profileId: profile.id });
+    expect(result).toMatchObject({ ok: true, value: { clips: [] } });
+  });
+
   it('derives lastHeardAt from meetings rather than renaming the voice profile', async () => {
     const meeting = await recorded('Voice', '2026-10-15T10:00:00.000Z');
     const profile = library.voiceProfiles.create({

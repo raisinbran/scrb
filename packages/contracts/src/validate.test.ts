@@ -107,6 +107,13 @@ describe('isValidRequest', () => {
     expect(isValidRequest('exportMeeting', { ...request, path: '/tmp/x.docx' })).toBe(false);
   });
 
+  it('takes only a profile id for profile clips', () => {
+    expect(isValidRequest('getProfileClips', { profileId: 'p-1' })).toBe(true);
+    expect(isValidRequest('getProfileClips', { profileId: '../x' })).toBe(false);
+    expect(isValidRequest('getProfileClips', { profileId: 'p-1', path: '/tmp' })).toBe(false);
+    expect(isValidRequest('getProfileClips', {})).toBe(false);
+  });
+
   it('checks unions by kind', () => {
     const profile = { target: { kind: 'profile', profileId: 'p-1' }, name: 'Ana' };
     expect(isValidRequest('renameSpeaker', profile)).toBe(true);
