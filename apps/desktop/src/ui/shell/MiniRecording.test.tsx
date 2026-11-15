@@ -159,9 +159,39 @@ describe('MiniRecording', () => {
     expect(shape()).toEqual(before);
   });
 
-  it('shows who spoke last, highlighted while recent, without their words', async () => {
-    const fake = fakeBackend();
-    show(fake);
+  const transcript = (
+    meetingId: string,
+    label: string,
+    track: 'microphone' | 'meeting' = 'microphone',
+  ) => ({
+    meetingId,
+    revision: 1,
+    change: {
+      kind: 'append',
+      segments: [
+        {
+          id: 's',
+          speakerId: 'a',
+          track,
+          startMs: 8000,
+          endMs: 9000,
+          words: [
+            {
+              id: 'w',
+              text: 'secretwords',
+              startMs: 8000,
+              endMs: 9000,
+              state: 'final',
+              correctionId: null,
+            },
+          ],
+        },
+      ],
+    },
+    speakers: [{ id: 'a', label, kind: 'unknown', profileId: null }],
+  });
+
+  async function startRecording(fake: ReturnType<typeof fakeBackend>) {
     await act(async () =>
       fake.snapshot({
         state: recording('recording', 10_000),
@@ -170,57 +200,52 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    const words = [
-      {
-        id: 'w',
-        text: 'secretwords',
-        startMs: 8000,
-        endMs: 9000,
-        state: 'final',
-        correctionId: null,
-      },
-    ];
-    act(() =>
-      fake.emit('transcriptChanged', {
-        meetingId: 'invented-meeting',
-        revision: 1,
-        change: {
-          kind: 'append',
-          segments: [{ id: 's', speakerId: 'a', track: 'mic', startMs: 8000, endMs: 9000, words }],
-        },
-        speakers: [{ id: 'a', label: 'You', kind: 'you', profileId: null }],
-      }),
-    );
-    const slot = screen.getByText('You');
-    expect(slot.getAttribute('data-active')).toBe('true');
-    expect(document.body.textContent).not.toContain('secretwords');
-  });
+  }
 
-  it('dims the speaker once they have been quiet a while', async () => {
+  it('shows no speaker label while nobody is above the noise, even after the transcript names one', async () => {
     const fake = fakeBackend();
     show(fake);
-    await act(async () =>
-      fake.snapshot({
-        state: recording('recording', 60_000),
-        pauseSpans: [],
-        health: null,
-        transcription: null,
-      }),
-    );
-    act(() =>
-      fake.emit('transcriptChanged', {
-        meetingId: 'invented-meeting',
-        revision: 1,
-        change: {
-          kind: 'append',
-          segments: [
-            { id: 's', speakerId: 'a', track: 'mic', startMs: 1000, endMs: 2000, words: [] },
-          ],
-        },
-        speakers: [{ id: 'a', label: 'Speaker 2', kind: 'unknown', profileId: null }],
-      }),
-    );
-    expect(screen.getByText('Speaker 2').getAttribute('data-active')).toBe('false');
+    await startRecording(fake);
+    act(() => fake.emit('transcriptChanged', transcript('invented-meeting', 'You')));
+    act(() => fake.emit('levelMeter', { micDb: -55, meetingDb: -70 }));
+    expect(screen.queryByText('You')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Speaking' })).toBeNull();
+  });
+
+  it('shows a label with moving bars as soon as a track is loud, without waiting for the transcript', async () => {
+    const fake = fakeBackend();
+    show(fake);
+    await startRecording(fake);
+    act(() => fake.emit('levelMeter', { micDb: -20, meetingDb: null }));
+    expect(screen.getByText('You')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Speaking' })).toBeTruthy();
+    act(() => fake.emit('levelMeter', { micDb: -20, meetingDb: -25 }));
+    expect(screen.getByText('Meeting')).toBeTruthy();
+  });
+
+  it('names the meeting track from the transcript, never showing words, and clears when quiet', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = fakeBackend();
+      show(fake);
+      await startRecording(fake);
+      act(() => fake.emit('transcriptChanged', transcript('invented-meeting', 'Ana', 'meeting')));
+      act(() => fake.emit('levelMeter', { micDb: -80, meetingDb: -20 }));
+      expect(screen.getByText('Ana')).toBeTruthy();
+      expect(document.body.textContent).not.toContain('secretwords');
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.queryByText('Ana')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws the bars still when motion is reduced', () => {
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    expect(css).toMatch(/@media \(prefers-reduced-motion: no-preference\)\s*\{[^@]*animation: eq/);
+    expect(css).not.toMatch(/^\.bars i \{[^}]*animation:/m);
   });
 
   it('opens the show-main address when Show Scribe is pressed', async () => {
@@ -243,35 +268,10 @@ describe('MiniRecording', () => {
   it('ignores another meeting’s events, even with a reused speaker ID', async () => {
     const fake = fakeBackend();
     show(fake);
-    await act(async () =>
-      fake.snapshot({
-        state: recording('recording', 10_000),
-        pauseSpans: [],
-        health: null,
-        transcription: null,
-      }),
-    );
-    const event = (meetingId: string, endMs: number, label: string) => ({
-      meetingId,
-      revision: 1,
-      change: {
-        kind: 'append',
-        segments: [
-          { id: `s${endMs}`, speakerId: 'a', track: 'mic', startMs: endMs - 500, endMs, words: [] },
-        ],
-      },
-      speakers: [{ id: 'a', label, kind: 'unknown', profileId: null }],
-    });
-    act(() => fake.emit('transcriptChanged', event('invented-meeting', 9000, 'Ana')));
-    act(() => fake.emit('transcriptChanged', event('other-meeting', 9500, 'Ben')));
-    act(() =>
-      fake.emit('transcriptChanged', {
-        meetingId: 'other-meeting',
-        revision: 2,
-        change: { kind: 'replace', segments: [], removedSegmentIds: ['x'] },
-        speakers: [{ id: 'a', label: 'Ben', kind: 'named', profileId: null }],
-      }),
-    );
+    await startRecording(fake);
+    act(() => fake.emit('transcriptChanged', transcript('invented-meeting', 'Ana')));
+    act(() => fake.emit('transcriptChanged', transcript('other-meeting', 'Ben')));
+    act(() => fake.emit('levelMeter', { micDb: -20, meetingDb: null }));
     expect(screen.getByText('Ana')).toBeTruthy();
     expect(screen.queryByText('Ben')).toBeNull();
   });
@@ -301,7 +301,9 @@ describe('MiniRecording', () => {
       ['scrb-app://mini-compact'],
       ['scrb-app://mini-hide'],
     ]);
-    expect(screen.getByRole('button', { name: 'Hide mini window' }).dataset.tip).toBe('Hide');
+    expect(screen.getByRole('button', { name: 'Hide mini window' }).dataset.tip).toBe(
+      'Hide (recording continues)',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Make larger' }));
     expect(open).toHaveBeenLastCalledWith('scrb-app://mini-expand');
   });
@@ -407,19 +409,13 @@ describe('MiniRecording', () => {
     expect(screen.queryByText(/Transcription/)).toBeNull();
   });
 
-  it('puts one Hide control in the title strip, first in the tab order, on the platform side', async () => {
-    for (const [agent, platform] of [
-      ['Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)', 'mac'],
-      ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'other'],
-    ] as const) {
-      vi.stubGlobal('navigator', { userAgent: agent });
-      await showRecording(65_000);
-      const hide = screen.getByRole('button', { name: 'Hide mini window' });
-      expect(hide.parentElement?.getAttribute('data-platform')).toBe(platform);
-      expect(screen.getAllByRole('button')[0]).toBe(hide);
-      expect(screen.getAllByRole('button', { name: 'Hide mini window' })).toHaveLength(1);
-      cleanup();
-    }
+  it('has one Hide control, an ordinary button in the same row as the others', async () => {
+    await showRecording(65_000);
+    const hide = screen.getByRole('button', { name: 'Hide mini window' });
+    const stop = screen.getByRole('button', { name: 'Show Scribe' });
+    expect(hide.parentElement).toBe(stop.parentElement);
+    expect(hide.className).toBe(stop.className);
+    expect(screen.getAllByRole('button', { name: 'Hide mini window' })).toHaveLength(1);
   });
 
   it('shows tooltips from CSS within 400 ms, with no slow native title on the buttons', async () => {

@@ -27,11 +27,6 @@
   padding: 0 var(--space-2);
 }
 
-.strip[data-platform='other'] {
-  justify-content: flex-end;
-  padding: 0;
-}
-
 .body,
 .idle {
   display: flex;
@@ -42,52 +37,6 @@
   min-height: 0;
   margin: 0;
   padding: var(--space-1) var(--space-3) var(--space-2);
-}
-
-/* Like a traffic light on a Mac: a round control that shows its glyph only on hover or focus. */
-.hide {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  padding: 0;
-  color: var(--color-text);
-  cursor: pointer;
-  background: var(--color-text-muted);
-  border: 0;
-  border-radius: 50%;
-}
-
-.hide svg {
-  opacity: 0;
-}
-
-.hide:hover svg,
-.hide:focus-visible svg {
-  opacity: 1;
-}
-
-.hide:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
-/* Elsewhere a standard minus control: a flat key at the strip's top right, shaded on hover. */
-.strip[data-platform='other'] .hide {
-  width: 36px;
-  height: 20px;
-  background: none;
-  border-radius: 0;
-}
-
-.strip[data-platform='other'] .hide svg {
-  opacity: 1;
-}
-
-.strip[data-platform='other'] .hide:hover {
-  background: var(--color-surface-hover);
 }
 
 /* Tooltips: native-looking, and shown 300 ms after hover or keyboard focus (the OS ones wait about a second). */
@@ -114,21 +63,10 @@
   transition-delay: 300ms;
 }
 
-/* The row's buttons show theirs above (in the strip's space); the Hide control's goes beside it, inside the strip. */
+/* The row's buttons show theirs above, in the strip's space. */
 .icon[data-tip]::after {
   right: 0;
   bottom: calc(100% + 4px);
-}
-
-.hide[data-tip]::after {
-  top: 50%;
-  left: calc(100% + 6px);
-  transform: translateY(-50%);
-}
-
-.strip[data-platform='other'] .hide[data-tip]::after {
-  right: calc(100% + 4px);
-  left: auto;
 }
 
 .line {
@@ -178,19 +116,81 @@
   color: var(--color-warning);
 }
 
-.slot[data-kind='speaker'][data-active='true'] {
+.slot[data-kind='speaker'] {
+  display: flex;
+  gap: var(--space-3);
   font-weight: 600;
   color: var(--color-text);
 }
 
-.slot[data-kind='speaker'][data-active='true']::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: var(--space-2);
-  border-radius: 50%;
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Equalizer bars: their height follows the live level (--amp, 0 to 1); they only move when motion is allowed. */
+.bars {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: flex-end;
+  height: 12px;
+}
+
+.bars i {
+  width: 3px;
+  height: 100%;
   background: var(--color-ok);
+  transform: scaleY(calc(var(--amp, 0.5) * var(--k, 1)));
+  transform-origin: bottom;
+  transition: transform 150ms linear;
+}
+
+.bars i:nth-child(1) {
+  --k: 0.7;
+}
+
+.bars i:nth-child(3) {
+  --k: 0.85;
+}
+
+.bars i:nth-child(4) {
+  --k: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bars i {
+    animation: eq 700ms ease-in-out infinite alternate;
+  }
+
+  .bars i:nth-child(2) {
+    animation-duration: 520ms;
+  }
+
+  .bars i:nth-child(3) {
+    animation-duration: 840ms;
+  }
+
+  .bars i:nth-child(4) {
+    animation-duration: 610ms;
+  }
+}
+
+@keyframes eq {
+  from {
+    transform: scaleY(0.2);
+  }
+
+  to {
+    transform: scaleY(calc(var(--amp, 0.5) * var(--k, 1)));
+  }
 }
 
 .buttons {
