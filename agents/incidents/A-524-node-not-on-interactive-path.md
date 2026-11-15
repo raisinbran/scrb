@@ -1,4 +1,4 @@
-### A-518 — 2026-11-15 — Codex / Mac local — syntax check omitted the repository Node path
+### A-524 — 2026-11-15 — Codex / Mac local — syntax check omitted the repository Node path
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** The first shell syntax-check command invoked `node` from the interactive shell's default `PATH`, where it was unavailable. The command chain still ran `bash -n`, but the Node check did not run.
