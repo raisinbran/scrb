@@ -170,6 +170,18 @@ describe('AutoTitleController', () => {
     expect(await titleOf(id)).toBe('Renamed meanwhile');
   });
 
+  it('does not overwrite a rename queued just before the write', async () => {
+    const id = await seed();
+    const write = library.updateMeetingIf.bind(library);
+    library.updateMeetingIf = (...args) => {
+      // The rename takes the meeting lock first, between the last check and the title write.
+      void library.updateMeeting(id, { title: 'Renamed at the last moment' });
+      return write(...args);
+    };
+    await run(id);
+    expect(await titleOf(id)).toBe('Renamed at the last moment');
+  });
+
   it('falls back to date and a neutral label when the model is not set up', async () => {
     const id = await seed();
     unavailable = true;

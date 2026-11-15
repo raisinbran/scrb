@@ -103,13 +103,14 @@ export class AutoTitleController {
       generated === null
         ? [prefix, FALLBACK_LABEL].filter(Boolean).join(' ')
         : [prefix, generated].filter(Boolean).join(' ');
-    // Read again: the user may have renamed the meeting while the model ran.
-    const latest = await library.getMeeting(meetingId).catch(() => null);
-    if (!latest || !isAutoTitleable(latest)) return;
-    await library.updateMeeting(meetingId, {
-      title: text,
-      autoTitle: { kind: generated === null ? 'fallback' : 'generated', text },
-    });
+    // Checked again inside the write's lock: the user may have renamed the meeting while the
+    // model ran, or just now.
+    await library
+      .updateMeetingIf(meetingId, isAutoTitleable, {
+        title: text,
+        autoTitle: { kind: generated === null ? 'fallback' : 'generated', text },
+      })
+      .catch(() => null);
   }
 
   /** The model's title, null for "use the fallback", or 'shutdown' to leave the meeting alone. */
