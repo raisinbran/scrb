@@ -1,6 +1,6 @@
 import { cachedSources, fetchSources, type Sources } from '../lib/sources-cache.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DeviceChange, SourceSelection } from '@scrb/contracts';
+import { WHOLE_COMPUTER_SOURCE_ID, type DeviceChange, type SourceSelection } from '@scrb/contracts';
 import { isTranscribing } from '../components/RecordingDot.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useSetupBlocked } from '../lib/mock-mode.tsx';
@@ -25,6 +25,7 @@ export function LiveScreen() {
   const [sources, setSources] = useState<Sources>(
     () => cachedSources() ?? { devices: [], apps: [] },
   );
+  const [sourcesReady, setSourcesReady] = useState(() => cachedSources() !== null);
   const [selection, setSelection] = useState<SourceSelection | null>(null);
   const [fontPx, setFontPx] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,7 +36,13 @@ export function LiveScreen() {
   const transcriptRef = useRef<TranscriptViewHandle>(null);
 
   const refreshSources = useCallback(() => {
-    fetchSources(backend).then(setSources, (failure: unknown) => setError(messageOf(failure)));
+    fetchSources(backend).then(
+      (loaded) => {
+        setSources(loaded);
+        setSourcesReady(true);
+      },
+      (failure: unknown) => setError(messageOf(failure)),
+    );
   }, [backend]);
 
   useEffect(() => {
@@ -131,15 +138,16 @@ export function LiveScreen() {
         />
       </div>
       <div className={styles.sources}>
-        {selection && (
+        {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
+        <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
           <SourcePickers
             devices={sources.devices}
             apps={sources.apps}
-            selection={selection}
+            selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
             switching={switching}
             onSelect={selectSources}
           />
-        )}
+        </div>
         {status === 'idle' ? (
           <MicTest sources={selection} devices={sources.devices} />
         ) : (
