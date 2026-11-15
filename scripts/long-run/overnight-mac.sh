@@ -28,7 +28,11 @@ fi
 seconds=300
 [[ -n "$hours" ]] && seconds=$(awk -v h="$hours" 'BEGIN { printf "%d", h * 3600 }')
 stamp="$(date +%Y%m%d-%H%M%S)"
-[[ -n "$out" ]] || out="$HOME/scrb-long-run/$([[ $seconds -le 300 ]] && echo smoke-)$stamp"
+if [[ -z "$out" ]]; then
+  prefix=""
+  [[ $seconds -le 300 ]] && prefix="smoke-"
+  out="$HOME/scrb-long-run/$prefix$stamp"
+fi
 echo "helper:   $helper"
 echo "evidence: $out"
 echo "stop early: touch '$out/STOP'   (or Ctrl+C once)"
