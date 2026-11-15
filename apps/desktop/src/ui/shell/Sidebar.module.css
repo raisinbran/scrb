@@ -72,6 +72,10 @@
   background: var(--color-paused);
 }
 
+.playing {
+  margin-inline-start: auto;
+}
+
 .footer {
   display: flex;
   align-items: center;

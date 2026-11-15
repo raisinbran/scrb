@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
 import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
+import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
+import { useNowPlaying } from '../../lib/playback-context.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
@@ -22,6 +24,7 @@ interface RowProps {
 }
 
 function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
+  const playing = useNowPlaying() === meeting.id;
   const status = STATUS_LABELS[meeting.status];
   const summary = SUMMARY_STATE_LABELS[meeting.summaryState];
   const snippets = matches.filter((match) => match.snippet !== null && match.startMs !== null);
@@ -35,6 +38,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
       >
         <span className={styles.rowTitle}>
           <Highlight text={meeting.title} query={query} />
+          {playing && <PlayingIndicator className={styles.rowPlaying} />}
         </span>
         <span className={styles.muted}>
           {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
