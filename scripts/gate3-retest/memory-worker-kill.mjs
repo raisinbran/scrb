@@ -228,7 +228,10 @@ async function watch() {
     const tot = totals(tree);
     const worker = tree.find((r) => roleOf(r, appPid) === 'live-worker') ?? null;
     samples += 1;
-    if (tot.ws > peakWs) ((peakWs = tot.ws), (peakAt = t));
+    if (tot.ws > peakWs) {
+      peakWs = tot.ws;
+      peakAt = t;
+    }
     peakPriv = Math.max(peakPriv, tot.priv);
     appendFileSync(
       join(out, 'samples.csv'),
@@ -321,13 +324,13 @@ function verify() {
       sealed: existsSync(join(audio, t, 'chunks.json')),
     };
   }
-  let status = null;
+  let status;
   try {
     status = JSON.parse(readFileSync(join(meeting, 'meeting.json'), 'utf8')).status;
   } catch {
     status = null;
   }
-  let lostAudioGaps = null;
+  let lostAudioGaps;
   try {
     const tr = JSON.parse(readFileSync(join(meeting, 'transcript.json'), 'utf8'));
     lostAudioGaps = (tr.gaps ?? []).filter((g) => g.kind === 'gap').length;
