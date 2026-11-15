@@ -1,5 +1,7 @@
 # Gate 3 Windows: memory and worker-kill check, 2026-11-15 (Regiurn): NOT RUN, blocked at setup
 
+**Update (owner chose BCHEN-W10 for the run):** the sampler, kill trigger and verifier are now in `scripts/gate3-retest/memory-worker-kill.mjs`, tested only against invented stand-in processes on Regiurn, with the W10 steps in `gate-3-windows-memory-worker-kill-runbook-20261115.md` (draft; needs the owner's approval of its about 25-minute total before it starts). Still no measurement and no gate claim; the run has not happened.
+
 **Result: INCONCLUSIVE (not run). No Gate 3 pass or fail is claimed, and no measurement was taken.** The owner approved one live two-track run of about 25 minutes (stop at 125%) to cover criteria 2 and 4 of `docs/handoffs/windows-gate3-remaining-20261115.md` (on draft PR #275's branch): whole-app memory against the plan's target of about 6 GB or less, and a kill of the live transcription worker during audible capture on both tracks. Setup checks on Regiurn found that the route used by the earlier scored runs is not there, so nothing was started. About 5 minutes of the approved time were spent (machine clock 00:01 to about 00:05) on reading and these checks. No app, recording, playback, model download, driver install or administrator step ran, and nothing was repeated.
 
 ## What was checked on Regiurn (read-only)
