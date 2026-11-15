@@ -817,3 +817,8 @@
   min-width: 11ch;
   text-align: end;
 }
+
+.rowPlaying {
+  margin-inline-start: var(--space-2);
+  vertical-align: baseline;
+}

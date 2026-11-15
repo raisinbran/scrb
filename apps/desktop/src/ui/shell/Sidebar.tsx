@@ -1,4 +1,6 @@
 import { isTranscribing, pulseClass, recordingTip } from '../components/RecordingDot.tsx';
+import { PlayingIndicator } from '../components/PlayingIndicator.tsx';
+import { useNowPlaying } from '../lib/playback-context.tsx';
 import { Tooltip } from '../components/Tooltip.tsx';
 import { SCREENS, type ScreenEntry, type ScreenId } from '../screens/index.ts';
 import { useRecordingStatus } from './use-recording-status.ts';
@@ -11,6 +13,7 @@ interface SidebarProps {
 
 export function Sidebar({ selected, onSelect }: SidebarProps) {
   const { recording, lag } = useRecordingStatus();
+  const nowPlaying = useNowPlaying();
   const dot =
     recording.status === 'recording' || recording.status === 'paused' ? recording.status : null;
   const tip = dot ? recordingTip(dot, isTranscribing(lag)) : '';
@@ -34,6 +37,9 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
             data-state={dot}
             aria-label={tip}
           />
+        )}
+        {screen.id === 'recordings' && nowPlaying && (
+          <PlayingIndicator className={styles.playing} />
         )}
       </button>
     );
