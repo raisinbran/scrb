@@ -1,0 +1,6 @@
+### A-409 — 2026-11-15 — Claude Code / Sonnet 5.5 / Windows PC Regiurn — an unbounded recursive file search ran past its time limit during Gate 3 setup checks
+- **Status / attribution:** Confirmed agent error (tool use); no product defect.
+- **What failed:** While checking whether Whisper models existed on Regiurn, one command recursed through the whole home folder for model files. It exceeded the 90-second limit, was moved to the background and had to be stopped. It found nothing before it was stopped.
+- **Impact:** About two minutes of the owner-approved 25-minute run and one wasted call. The "source audio not found" line in `docs/gates/gate-3-windows-memory-worker-kill-20261115.md` rests on targeted checks only, because this search never finished. The models were then found by looking in the known development-assets folder, which the first search should have used.
+- **Source evidence:** The background task that was stopped (command output empty); the later targeted listing of `scrb-dev-assets\models`.
+- **Correction / remaining risk:** Check the documented asset folder (`SCRB_DEV_ASSETS`, default `~/scrb-dev-assets`) before any wide search, and bound searches by depth and time. Negligible risk.
