@@ -15,6 +15,15 @@ export function HelpScreen() {
         The User Manual is in the <code>docs/user-manual</code> folder of the Scribe project, with a
         Known issues page. It is not shown inside the app.
       </p>
+      <h2>How models are chosen for this computer</h2>
+      <p>
+        When Scribe is first set up, it checks your computer's memory and processor cores and picks
+        a Performance setting for you: Fast on computers with under 8 GB of memory or under 4 cores,
+        otherwise Balanced. Best quality is never picked for you, because it uses the most power.
+        You can change it in Settings at any time, and Scribe never changes a choice you have made.
+        Scribe does not yet time your computer to pick models, and each kind of model currently
+        comes in one version.
+      </p>
       <h2>About</h2>
       <DataView state={state}>
         {(info) => (
