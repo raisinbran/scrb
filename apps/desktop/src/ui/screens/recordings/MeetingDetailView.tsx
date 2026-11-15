@@ -14,6 +14,8 @@ import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, useFocusFallback } from '../Screen.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
+import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { Tooltip } from '../../components/Tooltip.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import {
@@ -644,6 +646,59 @@ function LoadedDetail(props: LoadedDetailProps) {
 
   return (
     <div className={styles.detail}>
+      <PopupLayer>
+        {folderError && (
+          <PopupBanner role="alert" level="danger" onDismiss={() => setFolderError(null)}>
+            <p>{folderError}</p>
+          </PopupBanner>
+        )}
+        {canReprocess && retryError && (
+          <PopupBanner role="alert" level="danger" onDismiss={() => setRetryError(null)}>
+            <p>{retryError}</p>
+          </PopupBanner>
+        )}
+        {meeting.status === 'recovered' && (
+          <PopupBanner level="warning">
+            <p>
+              Recovered after a crash.
+              {meeting.recoveredEndMs !== undefined &&
+                ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
+            </p>
+          </PopupBanner>
+        )}
+        {meeting.status === 'transcriptionFailed' && (
+          <PopupBanner level="warning">
+            <p>{meeting.transcriptionFailure ?? 'Transcription could not finish.'}</p>
+            {meeting.hasAudio && (
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => {
+                  setRetryError(null);
+                  void backend.call('retryFinalPass', { meetingId }).then(
+                    () => onChanged(),
+                    () => setRetryError('The final pass could not be retried.'),
+                  );
+                }}
+              >
+                Retry transcription
+              </button>
+            )}
+            {retryError && <p role="alert">{retryError}</p>}
+          </PopupBanner>
+        )}
+        {meeting.status === 'finalPassRunning' && <ProcessingBanner meetingId={meetingId} />}
+        {live && (
+          <PopupBanner>
+            <p>This meeting is still recording. Controls are on the Live screen.</p>
+          </PopupBanner>
+        )}
+        {meeting.status === 'deleting' && (
+          <PopupBanner>
+            <p>This meeting is being deleted.</p>
+          </PopupBanner>
+        )}
+      </PopupLayer>
       <header className={styles.detailHead}>
         <DetailTitle headingRef={heading} onBack={() => onBack()} />
         <MeetingTitle
@@ -710,47 +765,6 @@ function LoadedDetail(props: LoadedDetailProps) {
             onClick={() => setDialog('delete')}
           />
         </div>
-        {folderError && <p role="alert">{folderError}</p>}
-        {canReprocess && retryError && <p role="alert">{retryError}</p>}
-        {meeting.status === 'recovered' && (
-          <p className={styles.bannerWarning}>
-            Recovered after a crash.
-            {meeting.recoveredEndMs !== undefined &&
-              ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
-          </p>
-        )}
-        {meeting.status === 'transcriptionFailed' && (
-          <div role="status" className={styles.bannerWarning}>
-            <p>{meeting.transcriptionFailure ?? 'Transcription could not finish.'}</p>
-            {meeting.hasAudio && (
-              <button
-                type="button"
-                className={styles.button}
-                onClick={() => {
-                  setRetryError(null);
-                  void backend.call('retryFinalPass', { meetingId }).then(
-                    () => onChanged(),
-                    () => setRetryError('The final pass could not be retried.'),
-                  );
-                }}
-              >
-                Retry transcription
-              </button>
-            )}
-            {retryError && <p role="alert">{retryError}</p>}
-          </div>
-        )}
-        {meeting.status === 'finalPassRunning' && <ProcessingBanner meetingId={meetingId} />}
-        {live && (
-          <p role="status" className={styles.bannerInfo}>
-            This meeting is still recording. Controls are on the Live screen.
-          </p>
-        )}
-        {meeting.status === 'deleting' && (
-          <p role="status" className={styles.bannerInfo}>
-            This meeting is being deleted.
-          </p>
-        )}
       </header>
 
       <div role="tablist" aria-label="Meeting" className={styles.tabs} onKeyDown={onTabKey}>

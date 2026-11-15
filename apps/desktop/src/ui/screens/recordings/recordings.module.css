@@ -788,24 +788,6 @@
   accent-color: var(--color-accent);
 }
 
-.processing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  width: 100%;
-}
-
-.dismissible {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.dismissible p {
-  margin: 0;
-}
-
 /* State-toggling player buttons keep one size whichever label they show. */
 .toggleButton {
   flex: none;

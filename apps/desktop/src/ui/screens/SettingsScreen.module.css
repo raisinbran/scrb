@@ -160,9 +160,19 @@
   color: var(--color-danger);
 }
 
-.saveBar {
+.saveDock {
   position: sticky;
   inset-block-end: var(--space-3);
+  z-index: 20;
+  height: 0;
+  /* Reserved whether or not the bar shows, so the last section is never covered. */
+  margin-block-end: 56px;
+}
+
+/* Pinned to the bottom of the panel and out of the flow, so it never moves with the scroll position. */
+.saveBar {
+  position: absolute;
+  inset: auto 0 0;
   display: flex;
   gap: var(--space-4);
   align-items: center;
