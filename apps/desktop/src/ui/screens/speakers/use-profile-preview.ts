@@ -4,6 +4,9 @@ import { useBackend } from '../../lib/backend-context.tsx';
 import { ClipPlayer } from '../../lib/clip-player.ts';
 import { usePauseSharedPlayback } from '../../lib/playback-context.tsx';
 
+/** The newest press wins: a slower earlier load must not start or replace later playback. */
+let latestRequest = 0;
+
 export const NO_PREVIEW = 'No audio available to preview.';
 
 /** Plays a profile's sample passages one after another, and stops on the audio clock. */
@@ -26,7 +29,7 @@ export function useProfilePreview(profileId: ProfileId) {
     }
     index.current = at;
     setPlaying(at);
-    void player.current?.play(clip.meetingId, clip.startMs, clip.endMs, clip.track);
+    void player.current?.play(clip.meetingId, clip.startMs, clip.endMs, clip.track, 0);
   }, []);
 
   useEffect(() => {
@@ -57,6 +60,7 @@ export function useProfilePreview(profileId: ProfileId) {
   const play = useCallback(
     async (only?: number) => {
       setMessage(null);
+      const request = ++latestRequest;
       if (index.current !== null) return stop();
       setLoading(true);
       try {
@@ -65,6 +69,7 @@ export function useProfilePreview(profileId: ProfileId) {
           setClips(list.current);
         }
         if (list.current.length === 0) return setMessage(NO_PREVIEW);
+        if (request !== latestRequest) return;
         pauseShared();
         if (only === undefined) return start(0);
         // One passage: play it alone by ending the list after it.
@@ -72,8 +77,9 @@ export function useProfilePreview(profileId: ProfileId) {
         if (!clip) return;
         index.current = list.current.length - 1;
         setPlaying(only);
-        void player.current?.play(clip.meetingId, clip.startMs, clip.endMs, clip.track);
+        void player.current?.play(clip.meetingId, clip.startMs, clip.endMs, clip.track, 0);
       } catch (failure) {
+        if (request !== latestRequest) return;
         setMessage(failure instanceof Error ? failure.message : NO_PREVIEW);
       } finally {
         setLoading(false);

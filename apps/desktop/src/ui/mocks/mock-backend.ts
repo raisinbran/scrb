@@ -1133,21 +1133,40 @@ export class MockBackend implements Backend {
           message: 'That voice profile no longer exists.',
         });
       }
+      // The same eligibility as the real handler: saved audio, one voice, 4 to 10 s, not in the
+      // first 30 s, no other speaker or gap inside.
       const clips: ProfileClip[] = [];
       for (const meeting of this.library) {
         if (clips.length >= 3) break;
-        if (meeting.status !== 'ready') continue;
-        const speaker = this.speakersOf(meeting.id).find((item) => item.profileId === profileId);
-        const segment = this.transcriptOf(meeting.id).find(
-          (item) => item.speakerId === speaker?.id,
-        );
+        if (meeting.status !== 'ready' || !meeting.hasAudio) continue;
+        const speakers = this.speakersOf(meeting.id).filter((item) => item.profileId === profileId);
+        if (speakers.length !== 1) continue;
+        const all = this.transcriptOf(meeting.id);
+        const segment = all.find((item) => {
+          const length = item.endMs - item.startMs;
+          if (item.speakerId !== speakers[0]?.id) return false;
+          if (length < 4000 || length > 10_000 || item.startMs < 30_000) return false;
+          const overlaps = (start: number, end: number) => item.startMs < end && start < item.endMs;
+          if (
+            all.some(
+              (other) => other.speakerId !== item.speakerId && overlaps(other.startMs, other.endMs),
+            )
+          ) {
+            return false;
+          }
+          return !meeting.gaps.some(
+            (gap) =>
+              (gap.track === 'both' || gap.track === item.track) &&
+              overlaps(gap.startMs, gap.endMs),
+          );
+        });
         if (!segment) continue;
         clips.push({
           meetingId: meeting.id,
           meetingTitle: meeting.title,
           date: meeting.startedAt,
           startMs: segment.startMs,
-          endMs: Math.min(segment.endMs, segment.startMs + 10_000),
+          endMs: segment.endMs,
           track: segment.track,
           text: segment.words.map((word) => word.text).join(' '),
         });

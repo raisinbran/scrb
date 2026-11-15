@@ -148,4 +148,39 @@ describe('Voice profile sample', () => {
     fireEvent.click(await open());
     expect((await screen.findByRole('status')).textContent).toMatch(/isn.t available/);
   });
+
+  it('starts exactly at the passage, with no lead-in that could hold another voice', async () => {
+    withAudio();
+    const { clips } = await backend.call('getProfileClips', { profileId: 'profile-1' });
+    fireEvent.click(await open());
+    await waitFor(() => expect(FakeAudio.all[0]?.paused).toBe(false));
+    expect(FakeAudio.all[0]?.currentTime).toBeCloseTo((clips[0]?.startMs ?? 0) / 1000);
+  });
+
+  it('lets the latest selection win when an earlier request finishes late', async () => {
+    const real = backend.call.bind(backend) as (name: string, request: unknown) => Promise<unknown>;
+    withAudio();
+    const inner = vi.mocked(backend.call).getMockImplementation() as (
+      name: string,
+      request: unknown,
+    ) => Promise<unknown>;
+    let release: () => void = () => undefined;
+    const slow = new Promise<void>((resolve) => (release = resolve));
+    vi.spyOn(backend, 'call').mockImplementation(((name: string, request: unknown) =>
+      name === 'getProfileClips' && (request as { profileId: string }).profileId === 'profile-1'
+        ? slow.then(() => real(name, request))
+        : name === 'getProfileClips'
+          ? real(name, { profileId: 'profile-1' })
+          : inner(name, request)) as typeof backend.call);
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Play sample of Priya Natarajan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play sample of Tomas Lindgren' }));
+    await waitFor(() => expect(FakeAudio.all.some((audio) => !audio.paused)).toBe(true));
+    const playing = FakeAudio.all.filter((audio) => !audio.paused);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(FakeAudio.all.filter((audio) => !audio.paused)).toEqual(playing);
+    expect(screen.queryByRole('list', { name: 'Samples of Priya Natarajan' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Stop sample of Tomas Lindgren' })).toBeTruthy();
+  });
 });

@@ -51,12 +51,14 @@ export class ClipPlayer {
     startMs: number,
     endMs: number,
     track?: TrackKind,
+    /** How much sound to start before `startMs`. Previews of a voice use none. */
+    leadInMs = LEAD_IN_MS,
   ): Promise<void> {
     if (ClipPlayer.current !== this) ClipPlayer.current?.interrupt();
     ClipPlayer.current = this;
     this.release();
     const turn = ++this.turn;
-    const from = Math.max(0, startMs - LEAD_IN_MS);
+    const from = Math.max(0, startMs - leadInMs);
     this.meetingId = meetingId;
     if (!this.holdsSession) {
       this.holdsSession = true;
