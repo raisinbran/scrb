@@ -21,6 +21,8 @@ Inputs for the UI agent: this document, V1 Requirements v1.2 ("Audio capture and
 
 ## Look and feel
 
+Practical rules and checklist for building this: `docs/design/scribe-design-guide.md`.
+
 A calm, professional tool: Discord's navigation and settings style, AutoCAD's resizable workspace, no decorative clutter.
 
 - **Layout:** left sidebar (Live, Recordings, Speakers, Vocabulary, Settings, with Help pinned at the bottom), a central workspace, and a collapsible inspector panel on the right. Panels resize by dragging, and sizes are remembered.

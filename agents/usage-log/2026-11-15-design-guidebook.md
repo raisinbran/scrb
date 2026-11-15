@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac desktop | Design guidebook (docs only): docs/design/scribe-design-guide.md plus AGENTS.md pointer | unavailable | unavailable | unavailable | unavailable | unavailable | Documentation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
