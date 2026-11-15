@@ -6,7 +6,7 @@ import { fetchSources } from './lib/sources-cache.ts';
 import { PlaybackProvider } from './lib/playback-context.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SCREENS, type ScreenId } from './screens/index.ts';
-import { FOCUS_MODELS_KEY, OpenModelsProvider } from './lib/models-missing.tsx';
+import { FOCUS_MODELS_EVENT, FOCUS_MODELS_KEY, OpenModelsProvider } from './lib/models-missing.tsx';
 import { readStored, writeStored } from './lib/stored-value.ts';
 import { OPEN_MEETING_KEY } from './screens/RecordingsScreen.tsx';
 
@@ -54,6 +54,7 @@ export function App() {
   const openModels = () => {
     writeStored(FOCUS_MODELS_KEY, true);
     selectScreen('settings');
+    window.dispatchEvent(new Event(FOCUS_MODELS_EVENT));
   };
 
   const Screen = SCREENS.find((screen) => screen.id === screenId)?.component;

@@ -1,9 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import { App } from '../App.tsx';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
-import { OpenModelsProvider } from '../lib/models-missing.tsx';
+import { OpenModelsProvider, resetModelsRestartState } from '../lib/models-missing.tsx';
 import { MockBackend } from '../mocks/index.ts';
 import { ThemeProvider } from '../theme/ThemeProvider.tsx';
 import { LiveScreen } from './LiveScreen.tsx';
@@ -28,6 +29,7 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    resetModelsRestartState();
     backend = new MockBackend();
     backend.setDownloadStepMs(5);
     backend.arm('modelsMissing');
@@ -189,7 +191,7 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       expect(screen.queryByRole('button', { name: 'Download models' })).toBeNull();
     });
 
-    it('enables Start again after the download finishes', async () => {
+    it('keeps Start disabled after the download until the restart, saying why', async () => {
       renderWith(
         backend,
         <>
@@ -197,17 +199,71 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
           <SettingsScreen />
         </>,
       );
-      expect(
-        ((await screen.findByRole('button', { name: 'Start' })) as HTMLButtonElement).disabled,
-      ).toBe(true);
+      const start = (await screen.findByRole('button', { name: 'Start' })) as HTMLButtonElement;
+      expect(start.disabled).toBe(true);
       fireEvent.click(await screen.findByRole('button', { name: /^Download models \(/ }));
-      await waitFor(
-        () =>
-          expect(
-            (screen.getByRole('button', { name: 'Start' }) as HTMLButtonElement).disabled,
-          ).toBe(false),
-        FAST,
+      await waitFor(() => expect(screen.getByText('Restarting to finish setup.')).toBeTruthy(), FAST);
+      expect(start.disabled).toBe(true);
+      expect(start.getAttribute('aria-describedby')).toBe('start-blocked-reason');
+      expect(document.getElementById('start-blocked-reason')?.textContent).toBe(
+        'Restarting to finish setup',
       );
+      const called = vi.spyOn(backend, 'call');
+      fireEvent.keyDown(window, { key: 'S', ctrlKey: true, shiftKey: true });
+      expect(called).not.toHaveBeenCalledWith('startRecording', expect.anything());
+    });
+
+    it('keeps Start disabled while the setup status is still loading', async () => {
+      backend = new MockBackend();
+      const never = new Promise<never>(() => undefined);
+      const real = backend.call.bind(backend);
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, ...rest: never[]) =>
+        name === 'getSetupStatus'
+          ? never
+          : (real as never as (...a: unknown[]) => unknown)(name, ...rest)) as never);
+      renderWith(backend, <LiveScreen />);
+      const start = (await screen.findByRole('button', { name: 'Start' })) as HTMLButtonElement;
+      expect(start.disabled).toBe(true);
+      expect(document.getElementById('start-blocked-reason')?.textContent).toMatch(/Checking/);
+    });
+
+    it('keeps Start disabled when the setup status cannot be read', async () => {
+      backend = new MockBackend();
+      const real = backend.call.bind(backend);
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, ...rest: never[]) =>
+        name === 'getSetupStatus'
+          ? Promise.reject(new Error('no answer'))
+          : (real as never as (...a: unknown[]) => unknown)(name, ...rest)) as never);
+      renderWith(backend, <LiveScreen />);
+      await waitFor(() =>
+        expect(document.getElementById('start-blocked-reason')?.textContent).toMatch(
+          /could not check/,
+        ),
+      );
+      expect((screen.getByRole('button', { name: 'Start' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('the notice link while Settings is already open', () => {
+    it('scrolls to and focuses the Models section', async () => {
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      render(
+        <BackendProvider backend={backend}>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </BackendProvider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      await screen.findByRole('heading', { name: 'Models' });
+      scroll.mockClear();
+      const notice = await screen.findByRole('status', { name: 'Models needed' });
+      fireEvent.click(within(notice).getByRole('button', { name: 'Download models' }));
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect(document.activeElement?.id).toBe('settings-models');
     });
   });
 });

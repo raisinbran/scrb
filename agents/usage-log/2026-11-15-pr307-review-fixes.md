@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac | PR #307 review fixes: Start stays disabled while setup status is unresolved, failed or awaiting restart; Models link works with Settings already open | unavailable | unavailable | unavailable | unavailable | unavailable | Fix / Sonnet 5.5 / low effort | none | Review pending | allowance not read in this task; other sessions run. |

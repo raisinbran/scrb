@@ -104,11 +104,15 @@ export function LiveScreen() {
     backend.call('updateSettings', { transcriptFontPx: next }).catch(() => undefined);
   };
 
+  const models = useModelsNeeded();
+  const startBlocked = models.startBlockedReason !== null;
+
   useLiveShortcuts({
     onStartStop: () => {
       if (busy) return;
-      if (status === 'idle') start();
-      else if (active) stop();
+      if (status === 'idle') {
+        if (!startBlocked) start();
+      } else if (active) stop();
     },
     onPauseResume: () => {
       if (busy) return;
@@ -122,7 +126,6 @@ export function LiveScreen() {
 
   const meetingId = recording.meetingId ?? lastMeetingId;
   const setupBlocked = useSetupBlocked();
-  const models = useModelsNeeded();
   const openModels = useOpenModels();
 
   return (
@@ -135,7 +138,8 @@ export function LiveScreen() {
           pauseReason={recording.pauseReason}
           busy={busy}
           transcribing={isTranscribing(lag)}
-          startBlocked={models.missing}
+          startBlocked={startBlocked}
+          startBlockedReason={models.startBlockedReason ?? undefined}
           onStart={start}
           onPause={pause}
           onResume={resume}
@@ -190,14 +194,20 @@ export function LiveScreen() {
           <p className={styles.idleTitle}>
             {models.missing
               ? 'Models needed'
-              : setupBlocked
-                ? 'Cannot record yet'
-                : 'Ready to record'}
+              : models.restartNeeded
+                ? 'Restarting'
+                : models.setup !== 'ready'
+                  ? 'Checking setup'
+                  : setupBlocked
+                    ? 'Cannot record yet'
+                    : 'Ready to record'}
           </p>
           <p className={styles.idleBody}>
             {models.missing
               ? `Scribe needs to download its speech models (${formatFileSize(models.bytes)}) before it can record.`
-              : (setupBlocked ?? 'Choose your sources, then press Start.')}
+              : models.startBlockedReason
+                ? `${models.startBlockedReason}.`
+                : (setupBlocked ?? 'Choose your sources, then press Start.')}
           </p>
           {models.missing && (
             <button type="button" className={styles.button} onClick={openModels}>

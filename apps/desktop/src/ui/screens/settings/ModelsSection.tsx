@@ -10,7 +10,7 @@ import type {
 import { Button } from '../../components/Button.tsx';
 import { ActionDialog } from '../../components/Dialog.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
-import { FOCUS_MODELS_KEY } from '../../lib/models-missing.tsx';
+import { FOCUS_MODELS_EVENT, FOCUS_MODELS_KEY } from '../../lib/models-missing.tsx';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useAction } from '../../lib/use-action.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
@@ -157,9 +157,16 @@ export function ModelsSection() {
 
   useEffect(() => {
     // The notice's link comes here: scroll to this section once, then forget the request.
-    if (readStored<boolean>(FOCUS_MODELS_KEY) !== true) return;
-    writeStored(FOCUS_MODELS_KEY, null);
-    heading.current?.scrollIntoView?.({ block: 'start' });
+    // On mount it reads the key; while already mounted it hears the event.
+    const consume = () => {
+      if (readStored<boolean>(FOCUS_MODELS_KEY) !== true) return;
+      writeStored(FOCUS_MODELS_KEY, null);
+      heading.current?.scrollIntoView?.({ block: 'start' });
+      heading.current?.focus?.({ preventScroll: true });
+    };
+    consume();
+    window.addEventListener(FOCUS_MODELS_EVENT, consume);
+    return () => window.removeEventListener(FOCUS_MODELS_EVENT, consume);
   }, []);
 
   useEffect(
@@ -224,7 +231,7 @@ export function ModelsSection() {
 
   return (
     <section className={styles.section} aria-labelledby="settings-models">
-      <h2 id="settings-models" ref={heading} className={styles.legend}>
+      <h2 id="settings-models" ref={heading} tabIndex={-1} className={styles.legend}>
         Models
       </h2>
       <DataView state={state}>
