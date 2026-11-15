@@ -1,4 +1,4 @@
-### A-410 — 2026-11-15 — Codex — restricted shell blocked score evidence write
+### A-419 — 2026-11-15 — Codex — restricted shell blocked score evidence write
 
 - **Status / attribution:** Confirmed setup error; no data loss or application defect.
 - **What failed:** Attempted to serialize the computed baseline-only score JSON with the bundled Python runtime from the restricted shell into the private assets folder, outside writable roots. The write was denied.
