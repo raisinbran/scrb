@@ -14,7 +14,7 @@ The speech model's prompt can only take about 40 terms, so a bigger list cannot 
 
 - Stage 1: hint-on output was word-for-word identical to hint-off (recall 8/30 both, WER 23.91% both). The code passed `-mc 0`, which makes whisper.cpp `284029c` drop the prompt, so the "hint" never reached the model.
 - `-mc 128` (now in `whisper.ts`, `HINTED_MAX_CONTEXT`) on one meeting (TS3003a) and one 10-term set: recall 8 to 16 of 30, WER 23.91% to 23.05%. Negatives: 1 benign event at `-mc 128`; ES2003c WER 1.9 points worse; one real wrong held-out word ("waterproof"), probably from the non-zero context, not the hint (unverified). Verdict: inconclusive.
-- Not known: whether the gain holds on other meetings, other term sets, or at 40 terms (the test used 10); whether benefit survives when the terms are *not* in the meeting (a wrong hint is the false-replacement risk).
+- Not known: whether the gain holds on other meetings, other term sets, or at 40 terms (the test used 10); whether benefit survives when the terms are _not_ in the meeting (a wrong hint is the false-replacement risk).
 
 **Smallest test (H1), settles "can hints help at all":** reuse the retained `eval-vocab/` files and scorer; add no new audio.
 
@@ -22,7 +22,7 @@ The speech model's prompt can only take about 40 terms, so a bigger list cannot 
 2. Per meeting, three decodes at `-mc 128`: hint off, hint on (10 terms), hint on (40 terms: the 10 plus 30 distractors from other meetings' references that do not occur in this one). Distractors test the realistic case and the false-replacement risk.
 3. Score with the existing scorer (recall, WER, false events).
 
-**Pre-registered bars (H1):** *Hints can help* = in both meetings, recall on > off and WER on <= off + 0.3 points (absolute) at 10 terms, and 40-term recall at least the 10-term recall minus 1 occurrence, with 0 false events from distractors. *Cannot help* = recall gain in neither meeting. Anything else is INCONCLUSIVE; the owner decides, and the plan proceeds on the correction pass anyway (section 2A does not depend on the hint). Expected cost: 6 decodes of about 17 to 25 min audio each, about 5 to 10 min total decode at ~63x real time plus setup and scoring: **estimated 30 to 45 min, over 20 min, needs owner approval**. Run each decode once; no automatic reruns.
+**Pre-registered bars (H1):** _Hints can help_ = in both meetings, recall on > off and WER on <= off + 0.3 points (absolute) at 10 terms, and 40-term recall at least the 10-term recall minus 1 occurrence, with 0 false events from distractors. _Cannot help_ = recall gain in neither meeting. Anything else is INCONCLUSIVE; the owner decides, and the plan proceeds on the correction pass anyway (section 2A does not depend on the hint). Expected cost: 6 decodes of about 17 to 25 min audio each, about 5 to 10 min total decode at ~63x real time plus setup and scoring: **estimated 30 to 45 min, over 20 min, needs owner approval**. Run each decode once; no automatic reruns.
 
 ## 2. Approach that scales
 
@@ -33,9 +33,9 @@ What it applies: the user's learned fixes, "misheard text to correct text", alre
 **Matching rules (all must hold, otherwise leave text unchanged):**
 
 1. **Whole-word or whole-phrase match**, case-insensitive, NFC-normalized, on the word sequence; never inside a larger word; punctuation ignored at the edges only. Phrase (multi-word) misheard forms need all words adjacent with no long pause (gap under 500 ms, tunable by the test).
-2. **Common-word guard:** a misheard form that is an ordinary word (top-N frequency list bundled with the app, N tuned on AMI so that the guard blocks "pen", "kick off" and similar) is never replaced on its own. It may be replaced only with a context match (rule 3) *and* score at least the high threshold.
+2. **Common-word guard:** a misheard form that is an ordinary word (top-N frequency list bundled with the app, N tuned on AMI so that the guard blocks "pen", "kick off" and similar) is never replaced on its own. It may be replaced only with a context match (rule 3) _and_ score at least the high threshold.
 3. **Context rule:** each learned correction keeps the words around it (up to 3 before and after, stored beside the correction). A candidate scores by (a) the share of those neighbours seen again, (b) the same speaker or a speaker in the same previous meetings, (c) the word's recognizer confidence if the model output has it. Bare matches with no context evidence stay unchanged.
-4. **Per-term confidence** from history: number of active remembered corrections, number of distinct meetings, and a **conflict count** (times the same misheard form was *left* uncorrected, found where the user reviewed the meeting and the form stayed; also times a correction was reverted). Replacement threshold rises with conflicts; a term with a revert is never auto-applied until the user re-enables it. The initial formula and thresholds are fixed in the slice 3 plan before any test (pre-registration), then not tuned on the test set.
+4. **Per-term confidence** from history: number of active remembered corrections, number of distinct meetings, and a **conflict count** (times the same misheard form was _left_ uncorrected, found where the user reviewed the meeting and the form stayed; also times a correction was reverted). Replacement threshold rises with conflicts; a term with a revert is never auto-applied until the user re-enables it. The initial formula and thresholds are fixed in the slice 3 plan before any test (pre-registration), then not tuned on the test set.
 5. **One form, one target:** if a misheard form maps to two different correct terms, skip it and list it for the user.
 6. **Frozen spans:** the pass skips any word inside an `active` or `superseded` correction (existing layer rule, `corrections.ts`) and the pass's own replacements are saved as corrections of a new kind, so the final-pass re-run keeps them frozen exactly as it keeps user edits. Re-running the pass is idempotent.
 
@@ -43,7 +43,7 @@ What it applies: the user's learned fixes, "misheard text to correct text", alre
 
 - Every replacement is an ordinary reversible correction record with original words, timing and audio link, plus `source: 'vocabulary'`, the term id and the score and rule that fired. Original words are never lost.
 - **Undo:** one click per replacement, **and** "undo all vocabulary fixes in this meeting"; undo of a pass fix tells the term (counts as a conflict). Edit, disable and delete of a term (already designed) stop it applying in new meetings only; they do not rewrite saved transcripts unless the user chooses "undo all".
-- **Audit list:** a meeting-level list "Fixed by your vocabulary" with before, after, time, term and reason; click jumps to the audio. Also shows "skipped, unsure" items so the user sees what was *not* changed.
+- **Audit list:** a meeting-level list "Fixed by your vocabulary" with before, after, time, term and reason; click jumps to the audio. Also shows "skipped, unsure" items so the user sees what was _not_ changed.
 - **Off switch:** a setting (default **off** until the Gate 5 evidence passes, then on, owner decision) and a per-term toggle.
 - The user's own corrections and speaker edits always win; the pass runs only inside the pass's lock window as part of the final pass, so corrections made during it are kept (existing `applyFinalPass` locking).
 
@@ -63,37 +63,37 @@ Replace "newest 40 enabled terms" by a deterministic per-meeting ranking, same o
 
 **Gate 5 limit (from the Development Plan and `vocabulary-rules.md`):** learned terms improve recognition with **fewer than 1 false replacement per audio hour**; 100% of corrections survive restarts and final passes (met, 35/35). Stage 1's table is the standard here: with about 3.6 audio-hours, 0 events means the 95% upper bound is about 0.8 per hour (rule of three).
 
-**Definitions.** *False replacement* = the pass changed a word whose AMI reference word is different from the replacement, and the pass-off output had the reference word or a different wrong word that the pass made worse. *Good fix* = the pass changed a wrong word to the reference word. *Missed* = wrong word left unchanged.
+**Definitions.** _False replacement_ = the pass changed a word whose AMI reference word is different from the replacement, and the pass-off output had the reference word or a different wrong word that the pass made worse. _Good fix_ = the pass changed a wrong word to the reference word. _Missed_ = wrong word left unchanged.
 
 **Data (AMI and invented only; never the owner's recordings).**
 
-- **Invented history:** a generator writes thousands of learned corrections (misheard to correct) from AMI vocabulary *not* from the test meetings, plus **adversarial traps**: misheard forms that are common words ("pen", "kick off", "there"), near-duplicates, phrases that are substrings of other phrases, forms mapped to two targets, forms that are correct elsewhere.
+- **Invented history:** a generator writes thousands of learned corrections (misheard to correct) from AMI vocabulary _not_ from the test meetings, plus **adversarial traps**: misheard forms that are common words ("pen", "kick off", "there"), near-duplicates, phrases that are substrings of other phrases, forms mapped to two targets, forms that are correct elsewhere.
 - **Held-out meetings:** the Stage 1 set (TS3003a plus the 7 negative-control files, 4.06 audio-hours) decoded once at `-mc 128` and saved; the pass runs on **saved decode output**, so the pass tests need no new decodes and repeat in seconds.
 - **Term set sizes:** 40, 1,000 and 10,000 terms, each seeded with the same real fixes for the held-out meetings (which the pass should find) hidden among the rest.
 
 **Tests and pre-registered bars (fixed before the first run; thresholds not tuned afterward):**
 
-| Test | Bar |
-| --- | --- |
-| Unit and property tests: word boundaries, Unicode, overlapping phrases, frozen spans, idempotence, conflict skip, undo restores bytes | all pass |
-| Negative controls, 7 files (3.643 h), 10,000 terms with traps | **PASS 0 false replacements; INCONCLUSIVE 1 to 3 (point rate under 1, upper bound over 1); FAIL 4 or more** |
-| Held-out TS3003a with real fixes | good fixes >= 50% of the seeded true errors, false replacements 0, WER not worse than pass-off |
-| Scale, 40 vs 1,000 vs 10,000 terms | false replacements do not rise with term count beyond the 0/1-to-3/4 table; performance budgets in section 3 met |
-| Persistence: restart, final-pass re-run, undo, redo with pass fixes | 100% (extends `gate5-persistence.test.ts`) |
-| Hint selection (slice 5): ranked 40 vs newest 40 | recall at least equal, 0 new false events, deterministic |
+| Test                                                                                                                                  | Bar                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Unit and property tests: word boundaries, Unicode, overlapping phrases, frozen spans, idempotence, conflict skip, undo restores bytes | all pass                                                                                                         |
+| Negative controls, 7 files (3.643 h), 10,000 terms with traps                                                                         | **PASS 0 false replacements; INCONCLUSIVE 1 to 3 (point rate under 1, upper bound over 1); FAIL 4 or more**      |
+| Held-out TS3003a with real fixes                                                                                                      | good fixes >= 50% of the seeded true errors, false replacements 0, WER not worse than pass-off                   |
+| Scale, 40 vs 1,000 vs 10,000 terms                                                                                                    | false replacements do not rise with term count beyond the 0/1-to-3/4 table; performance budgets in section 3 met |
+| Persistence: restart, final-pass re-run, undo, redo with pass fixes                                                                   | 100% (extends `gate5-persistence.test.ts`)                                                                       |
+| Hint selection (slice 5): ranked 40 vs newest 40                                                                                      | recall at least equal, 0 new false events, deterministic                                                         |
 
 **INCONCLUSIVE** rule: results in the middle bands or recall gain within run-to-run noise are reported as INCONCLUSIVE; no automatic rerun; the owner decides on one further, separately approved run. Gate 5 vocabulary criterion is met only on the PASS rows together, and is stated as evidence on AMI plus invented data, not on the owner's meetings.
 
 ## 5. Run times and approvals
 
-| Item | Estimate (unverified) | Over 20 min? |
-| --- | --- | --- |
-| Unit and property tests, performance budgets | under 2 min each run | no |
-| Pass over saved decode output (negatives, held-out, three term sizes) | under 5 min | no |
-| H1 hint test (6 decodes plus scoring) | 30 to 45 min | **yes, owner approval before start** |
-| New decodes for the correction pass | none needed (reuse saved outputs); only if the saved outputs are lost, about 15 min decode plus setup | would need approval |
-| Any added AMI meetings beyond those local | download and 30+ min | **yes, approval, name files, source and size first** |
-| Owner's own Mac trial of the app (informal, own meetings) | not a gate; not measured | n/a |
+| Item                                                                  | Estimate (unverified)                                                                                 | Over 20 min?                                         |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Unit and property tests, performance budgets                          | under 2 min each run                                                                                  | no                                                   |
+| Pass over saved decode output (negatives, held-out, three term sizes) | under 5 min                                                                                           | no                                                   |
+| H1 hint test (6 decodes plus scoring)                                 | 30 to 45 min                                                                                          | **yes, owner approval before start**                 |
+| New decodes for the correction pass                                   | none needed (reuse saved outputs); only if the saved outputs are lost, about 15 min decode plus setup | would need approval                                  |
+| Any added AMI meetings beyond those local                             | download and 30+ min                                                                                  | **yes, approval, name files, source and size first** |
+| Owner's own Mac trial of the app (informal, own meetings)             | not a gate; not measured                                                                              | n/a                                                  |
 
 All raw outputs stay under `~/scrb-dev-assets/eval-vocab/`; nothing is deleted after a pass (evidence-retention policy).
 
@@ -137,7 +137,7 @@ Slices 2 and 3 are independent and can run in parallel; 4 follows 3; 6 follows t
 - **Contract changes need owner approval**; a delay blocks slices 4 and 6 only.
 - **Scope creep:** no fine-tuning, no live-path substitution, no cloud service, no change to Electron settings.
 
-**Abandon (recommend stopping) if:** the correction pass shows 4 or more false replacements in the negative controls after one fix round on the *rule set* (not the thresholds), or fewer than 25% of seeded true fixes are found with 0 false replacements, or the owner's trial finds replacements the owner would not accept at a rate above 1 per hour. Then keep the 40-term hint, say so on the Vocabulary screen, and stop.
+**Abandon (recommend stopping) if:** the correction pass shows 4 or more false replacements in the negative controls after one fix round on the _rule set_ (not the thresholds), or fewer than 25% of seeded true fixes are found with 0 false replacements, or the owner's trial finds replacements the owner would not accept at a rate above 1 per hour. Then keep the 40-term hint, say so on the Vocabulary screen, and stop.
 
 ## Unverified
 
