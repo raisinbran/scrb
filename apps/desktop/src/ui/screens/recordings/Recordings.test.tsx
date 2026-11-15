@@ -45,8 +45,13 @@ describe('Recordings', () => {
     it('re-runs a finished meeting and shows the processing banner', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);
-      expect(screen.getByText(/Your edits and speaker names are kept/)).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Re-process' }));
+      expect(screen.queryByText(/Your edits and speaker names are kept/)).toBeNull();
+      const button = screen.getByRole('button', { name: 'Re-process' });
+      fireEvent.focus(button);
+      expect(screen.getByRole('tooltip').textContent).toBe(
+        'Re-run speech recognition and speaker detection. Uses the model currently selected in Settings. Edits and speaker names are kept where the words still match. The summary may become outdated.',
+      );
+      fireEvent.click(button);
       expect(await screen.findByRole('progressbar', {}, SLOW)).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull();
     });
