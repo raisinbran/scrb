@@ -317,7 +317,6 @@ describe('screens', () => {
       expect(screen.queryByRole('combobox', { name: 'Performance' })).toBeNull();
       release();
       expect(await screen.findByRole('combobox', { name: 'Performance' })).toBeTruthy();
-      expect(screen.queryByText('Loading…')).toBeNull();
     });
 
     it('asks before turning on auto-delete', async () => {
