@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { unzipSync } from 'fflate';
 import { Library } from '@scrb/storage';
 
 // Gate 7 walkthrough on this Mac: invented speech, the real import, search, export and delete.
@@ -31,28 +32,62 @@ const isSubsequence = (needle: string[], haystack: string[]) => {
   return at === needle.length;
 };
 
-const docxText = (file: string) =>
-  [
-    ...execFileSync('unzip', ['-p', file, 'word/document.xml'], { encoding: 'utf8' }).matchAll(
-      /<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g,
-    ),
-  ]
-    .map((m) => m[1])
-    .join(' ');
+const isWindows = process.platform === 'win32';
 
-// macOS PDFKit reads the text layer; there is no PDF text library in the repo.
-const pdfText = (file: string) =>
+const docxText = (file: string) => {
+  const xml = isWindows
+    ? Buffer.from(
+        unzipSync(new Uint8Array(readFileSync(file)))['word/document.xml'] as Uint8Array,
+      ).toString('utf8')
+    : execFileSync('unzip', ['-p', file, 'word/document.xml'], { encoding: 'utf8' });
+  return [...xml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(' ');
+};
+
+// macOS reads the text layer with PDFKit; Windows has no such tool, so pdf.js (a test-only dependency) does.
+const pdfText = async (file: string) => {
+  if (!isWindows) {
+    return execFileSync(
+      'osascript',
+      [
+        '-l',
+        'JavaScript',
+        '-e',
+        'ObjC.import("PDFKit"); function run(a) { return ObjC.unwrap($.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(a[0])).string); }',
+        file,
+      ],
+      { encoding: 'utf8' },
+    );
+  }
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(file)) }).promise;
+  const pages: string[] = [];
+  for (let n = 1; n <= doc.numPages; n += 1) {
+    const content = await (await doc.getPage(n)).getTextContent();
+    pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+  }
+  return pages.join(' ');
+};
+
+/** Invented speech as a 16 kHz mono WAV. macOS uses say and afconvert; Windows uses the built-in speech voices. */
+const makeSpeech = (dir: string, wav: string) => {
+  if (!isWindows) {
+    const aiff = join(dir, 'invented.aiff');
+    execFileSync('say', ['-o', aiff, SPEECH]);
+    execFileSync('afconvert', ['-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', aiff, wav]);
+    return;
+  }
   execFileSync(
-    'osascript',
+    'powershell',
     [
-      '-l',
-      'JavaScript',
-      '-e',
-      'ObjC.import("PDFKit"); function run(a) { return ObjC.unwrap($.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(a[0])).string); }',
-      file,
+      '-NoProfile',
+      '-Command',
+      'Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; ' +
+        '$f = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono); ' +
+        '$s.SetOutputToWaveFile($env:GATE7_WAV, $f); $s.Speak($env:GATE7_SPEECH); $s.Dispose()',
     ],
-    { encoding: 'utf8' },
+    { env: { ...process.env, GATE7_WAV: wav, GATE7_SPEECH: SPEECH } },
   );
+};
 
 /** Every path under a folder, relative, including hidden ones. */
 const walk = (root: string, base = root): string[] =>
@@ -76,10 +111,8 @@ test.describe('Gate 7 walkthrough', () => {
     test.skip(!helper || !config, 'set SCRB_CAPTURE_HELPER and SCRB_FINAL_PASS_CONFIG to run');
     test.setTimeout(900_000);
     const { userData, root } = newUserData('scrb-gate7-');
-    const aiff = join(userData, 'invented.aiff');
     const wav = join(userData, 'gate7 invented talk.wav');
-    execFileSync('say', ['-o', aiff, SPEECH]);
-    execFileSync('afconvert', ['-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', aiff, wav]);
+    makeSpeech(userData, wav);
 
     const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
     try {
@@ -170,7 +203,7 @@ test.describe('Gate 7 walkthrough', () => {
       const exported = readdirSync(exportsDir).sort();
       expect(exported.map((f) => f.split('.').pop())).toEqual(['docx', 'pdf']);
       const fromDocx = tokens(docxText(join(exportsDir, exported[0] as string)));
-      const fromPdf = tokens(pdfText(join(exportsDir, exported[1] as string)));
+      const fromPdf = tokens(await pdfText(join(exportsDir, exported[1] as string)));
       expect(isSubsequence(spoken, fromDocx), 'DOCX holds the whole transcript in order').toBe(
         true,
       );
