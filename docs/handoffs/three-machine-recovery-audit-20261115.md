@@ -1,6 +1,6 @@
 # Three-machine recovery audit — 2026-11-15
 
-**Status:** local inventory complete; selective preservation remains; implementation may proceed. This is the current disposition of the recovery findings, superseding the unrefreshed next-actions lists in [the earlier planner handoff](planner-handoff-20261115.md). No gate approval is implied.
+**Status:** local inventory complete; selective preservation remains; implementation may proceed. This is the current disposition of the recovery findings, superseding the unrefreshed next-actions lists in [the earlier planner handoff](https://github.com/raisinbran/scrb/blob/ee024c8b572cf2010dc2900265b878ddd95043c2/docs/handoffs/planner-handoff-20261115.md). No gate approval is implied.
 
 **Evidence basis:** read-only local audit reports for Mac, BCHEN-W10, and Regiurn supplied to the project planner, plus GitHub checks at `main` `97080d05`. Local files and raw evidence were **not** independently opened by the planner. File counts and unpublished-state findings below are audit reports, not independently reproduced measurements. All three audits reported no local changes and no tests.
 
