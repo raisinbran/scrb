@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -48,4 +49,14 @@ export function useMeetingPlayback(meetingId: MeetingId): Playback {
     return { ...context.playback, positionMs: 0, isPlaying: false, error: null };
   }
   return context.playback;
+}
+
+/** Pauses the shared playback, for a short preview that takes over the one audio session. */
+export function usePauseSharedPlayback(): () => void {
+  const context = useContext(PlaybackContext);
+  const playing = context?.playback.isPlaying === true;
+  const pause = context?.playback.pause;
+  return useCallback(() => {
+    if (playing) pause?.();
+  }, [playing, pause]);
 }
