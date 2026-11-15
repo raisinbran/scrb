@@ -308,7 +308,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .detailHead {
@@ -464,7 +464,7 @@
 
 .panel {
   flex: 1;
-  min-height: 0;
+  min-height: 200px;
   overflow-y: auto;
 }
 
