@@ -146,6 +146,7 @@ export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs
   let wrong = 0;
   let padded = 0;
   let caused = 0;
+  let inconsistent = 0;
   const free = markedSpans.map((span, index) => ({ span, index }));
   for (const r of rows) {
     const implied = (r.rate * (r.endNs - r.startNs)) / 1e9;
@@ -160,16 +161,55 @@ export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs
           (span.endNs ?? span.startNs) >= r.startNs &&
           ((span.endNs ?? span.startNs) - span.startNs) / 1e6 <= maxGapMs,
       );
-      if (at === -1) caused += 1;
-      else free.splice(at, 1);
+      if (at === -1) {
+        caused += 1;
+      } else {
+        // The helper's own reported duration must agree with the measured span (1 ms of rounding allowed).
+        const { span } = free[at];
+        const measuredMs = ((span.endNs ?? span.startNs) - span.startNs) / 1e6;
+        if (!(Math.abs((r.missingBeforeMs ?? NaN) - measuredMs) <= 1)) inconsistent += 1;
+        free.splice(at, 1);
+      }
     }
   }
   const unusedSpans = free.length;
   const detail =
     `${rows.length} chunks, ${wrong} without the expected frame count (${expected ?? 'none closed by rollover'} ` +
     `at rollover), ${padded} with a padded span, ${caused} with a missingCause not matched to a marked gap, ` +
+    `${inconsistent} whose missingBeforeMs disagrees with the marked span, ` +
     `${unusedSpans} marked gaps without a missingCause chunk`;
-  return { status: wrong + padded + caused + unusedSpans === 0 ? 'ok' : 'bad', detail };
+  return { status: wrong + padded + caused + inconsistent + unusedSpans === 0 ? 'ok' : 'bad', detail };
+}
+
+/**
+ * The marked gap spans the helper itself reported in a track's chunk log: every row with a missingCause, as the span
+ * from the previous row's end (0 for the first) to its own start. Read from the original log so sealing, which drops
+ * rollover gaps under 50 ms, cannot lose a helper marking. Unreadable or empty logs give no spans.
+ */
+export function markedSpansFromLog(logText) {
+  const rows = [];
+  for (const line of (logText ?? '').split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      rows.push(JSON.parse(line));
+    } catch {
+      return [];
+    }
+  }
+  const spans = [];
+  rows.forEach((row, i) => {
+    if (row.missingCause) spans.push({ startNs: i === 0 ? 0 : rows[i - 1].endNs, endNs: row.startNs });
+  });
+  return spans;
+}
+
+/** The run-wide cap: marked gap time summed over every track, not per track. */
+export function judgeMarkedRunTotal(verdicts, limits = LOST_AUDIO_LIMITS) {
+  const totalNs = verdicts.reduce((sum, v) => sum + v.markedNs, 0);
+  return {
+    ok: totalNs <= limits.markedTotalMaxMs * 1e6,
+    detail: `${(totalNs / 1e6).toFixed(1)} ms of marked gaps over all tracks (limit ${limits.markedTotalMaxMs} ms per run, provisional)`,
+  };
 }
 
 /**

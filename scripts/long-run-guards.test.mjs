@@ -10,6 +10,8 @@ import {
   checkChunkFrames,
   chooseSeconds,
   judgeLostAudio,
+  judgeMarkedRunTotal,
+  markedSpansFromLog,
   scanGaps,
 } from './long-run/guards.mjs';
 
@@ -301,7 +303,7 @@ describe('checkChunkFrames', () => {
   });
 
   it('excuses a missingCause chunk only when matched to a distinct marked span of at most 10 ms', () => {
-    const caused = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown' });
+    const caused = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', missingBeforeMs: 8 });
     const span = { startNs: 5e9 - 8e6, endNs: 5e9 };
     expect(checkChunkFrames(log(line(), caused), 2, [span]).status).toBe('ok');
     expect(checkChunkFrames(log(line(), caused), 2, []).status).toBe('bad');
@@ -309,13 +311,35 @@ describe('checkChunkFrames', () => {
     expect(checkChunkFrames(log(line(), caused), 2, [{ startNs: 50e9, endNs: 50.008e9 }]).status).toBe('bad');
     // a marked span with no missingCause chunk, or two chunks for one span
     expect(checkChunkFrames(log(line(), line({ startNs: 5e9, endNs: 10e9 })), 2, [span]).status).toBe('bad');
-    const second = line({ startNs: 10e9, endNs: 15e9, missingCause: 'unknown' });
+    const second = line({ startNs: 10e9, endNs: 15e9, missingCause: 'unknown', missingBeforeMs: 8 });
     expect(checkChunkFrames(log(line(), caused, second), 3, [span]).status).toBe('bad');
+  });
+
+  it('is bad when the helper-reported missingBeforeMs disagrees with the marked span', () => {
+    const span = { startNs: 5e9 - 8e6, endNs: 5e9 };
+    const row = (ms) => line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', missingBeforeMs: ms });
+    expect(checkChunkFrames(log(line(), row(0)), 2, [span]).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), row(9.5)), 2, [span]).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), row(8.4)), 2, [span]).status).toBe('ok');
+  });
+
+  it('reads helper markings from the original chunk log', () => {
+    const rows = log(line(), line({ startNs: 5e9 + 8e6, endNs: 10e9, missingCause: 'unknown' }), line({ startNs: 10e9, endNs: 15e9 }));
+    expect(markedSpansFromLog(rows)).toEqual([{ startNs: 5e9, endNs: 5e9 + 8e6 }]);
+    expect(markedSpansFromLog('')).toEqual([]);
+    expect(markedSpansFromLog('not json')).toEqual([]);
+  });
+
+  it('caps marked gaps over the whole run, summed over tracks', () => {
+    const v = (ms) => ({ markedNs: ms * 1e6 });
+    expect(judgeMarkedRunTotal([v(50), v(50)]).ok).toBe(true);
+    expect(judgeMarkedRunTotal([v(60), v(60)]).ok).toBe(false);
+    expect(judgeMarkedRunTotal([v(50), v(50.1)]).ok).toBe(false);
   });
 
   it('still checks the frame count, padding and rollover of an excused chunk', () => {
     const span = { startNs: 5e9 - 8e6, endNs: 5e9 };
-    const bad = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', frames: 239000 });
+    const bad = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', missingBeforeMs: 8, frames: 239000 });
     expect(checkChunkFrames(log(line(), bad), 2, [span]).status).toBe('bad');
     const padded = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', paddedSpans: [{ startNs: 1, endNs: 2 }] });
     expect(checkChunkFrames(log(line(), padded), 2, [span]).status).toBe('bad');

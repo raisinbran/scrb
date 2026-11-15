@@ -27,7 +27,7 @@ import {
 import { createInterface } from 'node:readline';
 import { dirname, join, resolve } from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
-import { LOST_AUDIO_LIMITS, assertEvidenceDir, checkChunkFrames, chooseSeconds, judgeLostAudio } from './guards.mjs';
+import { LOST_AUDIO_LIMITS, assertEvidenceDir, checkChunkFrames, chooseSeconds, judgeLostAudio, judgeMarkedRunTotal, markedSpansFromLog } from './guards.mjs';
 import { performance } from 'node:perf_hooks';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -411,19 +411,27 @@ async function verify(work) {
       logged > 0 && broken === 0 && left === 0 && damaged === 0 && recovered === 0,
       `${logged} chunks, ${broken} numbering breaks, ${left} .part/.tmp left, ${damaged} damaged, ${recovered} recovered after a crash`,
     );
-    const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
     const logFile = join(logs, `${track}.chunks.log`);
-    const frames = checkChunkFrames(existsSync(logFile) ? readFileSync(logFile, 'utf8') : '', chunks.length, marked);
+    const logText = existsSync(logFile) ? readFileSync(logFile, 'utf8') : '';
+    // Helper markings come from the original chunk log (sealing drops rollover gaps under 50 ms); sealed
+    // gaps such as pauses are added unless the same span is already listed.
+    const marked = markedSpansFromLog(logText);
+    for (const gap of sealed.gaps.filter((g) => g.track === track || g.track === 'both')) {
+      if (!marked.some((m) => m.startNs === gap.startNs && m.endNs === gap.endNs)) marked.push(gap);
+    }
+    const frames = checkChunkFrames(logText, chunks.length, marked);
     const verdict = judgeLostAudio({
       frames,
       chunks,
       timelineEndNs: sealed.endNs,
       marked,
     });
-    perTrack[track] = { chunks, audioNs: verdict.audioNs, lossNs: verdict.lossNs };
+    perTrack[track] = { chunks, audioNs: verdict.audioNs, lossNs: verdict.lossNs, verdict };
     check(`${track} no lost audio`, verdict.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : verdict.passed, verdict.detail);
     if (verdict.warning) out.push(`WARN  ${track}: ${verdict.warning}`);
   }
+  const runTotal = judgeMarkedRunTotal(TRACKS.map((track) => perTrack[track].verdict));
+  check('marked gaps total, whole run', runTotal.ok, runTotal.detail);
 
   // Drift: between consecutive chunks with no gap on either track, the change in (mic start - meeting start)
   // is clock drift. Sum those changes along the run and take the worst change within any 4 hours.
