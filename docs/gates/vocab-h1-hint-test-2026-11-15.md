@@ -25,4 +25,4 @@ One of six decodes completed. At 17.16 minutes for the first baseline, five furt
 
 All available raw output remains under C:\Users\brand\scrb-dev-assets\eval-vocab\h1-2026-11-15\; no assets or raw output were deleted or committed. No private recordings were accessed.
 
-The initial wrong annotation path and restricted-shell score-file write are recorded as incidents A-409 and A-410. A-408 records the prior wrong-workspace stop.
+The initial wrong annotation path and restricted-shell score-file write are recorded as incidents A-409 and A-410. A-408 records the prior wrong-workspace stop; A-411 records the rejected PR metadata update.
