@@ -33,12 +33,14 @@ import {
   MODELS,
   missingMessage,
   modelsDirFor,
+  listModelRows,
   verified,
   resolvePackagedSetup,
   type PackagedSetup,
 } from './packaged-setup.ts';
 import { ContractError } from '@scrb/contracts';
 import { createModelDownloader, extractWithTar, sourcesFor } from './model-download.ts';
+import { isIdle, relaunchWhenIdle, withReadyMessage } from './models-ready.ts';
 import os from 'node:os';
 
 export interface OpenedBackend {
@@ -112,26 +114,33 @@ export async function openBackend(
         })
       : null;
     const modelsDir = modelsDirFor(os.homedir());
+    const verifiedCache = path.join(app.getPath('userData'), 'config', 'model-verified.json');
+    const idleNow = () => isIdle({ recording, finalPasses, imports });
+    // Only a missing model is fixed by a restart: with a tool missing too, the restart would not help.
+    const restartFixesIt = packaged?.missing.every((item) => item.startsWith('model ')) ?? false;
     const modelDownloader = packaged
-      ? createModelDownloader({
-          dir: modelsDir,
-          sources: sourcesFor(MODELS, DIGESTS),
-          extract: extractWithTar,
-          isInstalled: (source) =>
-            verified(
-              path.join(modelsDir, source.file),
-              source.file,
-              path.join(app.getPath('userData'), 'config', 'model-verified.json'),
-              DIGESTS,
-            ),
-          onProgress: (progress) =>
-            emit('modelDownloadProgress', {
-              ...progress,
-              ...(progress.state === 'done'
-                ? { message: 'Reopen Scribe when all models are done.' }
-                : {}),
-            }),
-        })
+      ? createModelDownloader(
+          {
+            dir: modelsDir,
+            sources: sourcesFor(MODELS, DIGESTS),
+            extract: extractWithTar,
+            isInstalled: (source) =>
+              verified(path.join(modelsDir, source.file), source.file, verifiedCache, DIGESTS),
+            // A restart is only promised when it will happen: idle, and nothing but models missing.
+            onProgress: (progress) =>
+              emit(
+                'modelDownloadProgress',
+                withReadyMessage(progress, restartFixesIt && idleNow()),
+              ),
+          },
+          () => {
+            // Verify again from disk: the restart must not happen on a hunch.
+            void listModelRows(modelsDir, verifiedCache).then((rows) => {
+              if (!restartFixesIt || !rows.every((row) => row.installed)) return;
+              relaunchWhenIdle(app, idleNow);
+            });
+          },
+        )
       : null;
     if (packaged && packaged.missing.length > 0)
       library.logger.log('error', 'packaged-setup-incomplete', { count: packaged.missing.length });
@@ -275,6 +284,8 @@ export async function openBackend(
           helper,
           finalPassConfig,
           liveConfig,
+          readModels: packaged ? () => listModelRows(modelsDir, verifiedCache) : undefined,
+          downloading: () => modelDownloader?.isRunning() ?? false,
           microphoneStatus:
             process.platform === 'darwin' || process.platform === 'win32'
               ? () => systemPreferences.getMediaAccessStatus('microphone')

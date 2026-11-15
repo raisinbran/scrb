@@ -321,6 +321,16 @@ describe('final pass after Stop', () => {
     expect(queue.isBusy(id)).toBe(false);
   });
 
+  it('has work from enqueue until the pass and matching finish', async () => {
+    const { id } = await sealedMeeting();
+    const queue = new FinalPassQueue(library, async () => TRANSCRIPT);
+    expect(queue.hasWork()).toBe(false);
+    queue.enqueue(id);
+    expect(queue.hasWork()).toBe(true);
+    await queue.idle();
+    expect(queue.hasWork()).toBe(false);
+  });
+
   it('stops reporting when the pass is cancelled', async () => {
     const { id } = await sealedMeeting();
     const reports: FinalPassReport[] = [];

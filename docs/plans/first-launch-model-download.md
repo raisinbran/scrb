@@ -42,7 +42,7 @@ Not needed: any change to `ModelDownloadProgress`, `cancelModelDownload`, or `ge
 
 ## 3a. Activating models after the download (Gap D)
 
-Chosen: **automatic relaunch when idle, with "Reopen Scribe" as the fallback.** The final event says "Models ready. Scribe is restarting"; the main process then calls `app.relaunch()` followed by `app.quit()` (not `app.exit()`, which skips the `will-quit` cleanup in `quit.ts`: backend close, library and worker cleanup), only if nothing is recording, processing or importing. On a fresh install nothing can be running, so the first-time user sees one restart and then can record; the library location and settings persist. Files: `backend.ts` and `model-download.ts` (a done callback), nothing in the UI beyond the message.
+Chosen: **automatic relaunch when idle, with "Reopen Scribe" as the fallback.** The final event says "Models ready. Scribe is restarting"; the main process then calls `app.relaunch()` followed by `app.quit()` (not `app.exit()`, which skips the `will-quit` cleanup in `quit.ts`: backend close, library and worker cleanup; that cleanup is time-bounded, waiting up to 15 seconds for the backend to close and then exiting anyway, so it is not an unconditional guarantee), only if nothing is recording, processing or importing. On a fresh install nothing can be running, so the first-time user sees one restart and then can record; the library location and settings persist. Files: `backend.ts` and `model-download.ts` (a done callback), nothing in the UI beyond the message.
 
 Rejected: **lazy or re-created handlers.** The queue, live setup, recording controller, import coordinator, crash recovery and the handler spread all close over the startup config; rebuilding them mid-session touches most of `backend.ts`, risks two controllers holding the helper, and needs tests for every handler. Cost far above the one-time restart it saves. Revisit only if model updates (`installModelUpdate`) must apply live.
 
@@ -60,7 +60,7 @@ Rejected: **lazy or re-created handlers.** The queue, live setup, recording cont
 
 ## 5. Tests
 
-- Unit: hybrid routing sends the three names to the real backend (extend `hybrid-backend.test.ts`); real `getSetupStatus` with an empty folder lists five uninstalled rows with sizes; partial folder; all verified; relaunch requested only when idle (no recording, final pass or import) after the last `done`; a test that the quit goes through the `will-quit` cleanup and that cleanup finishes before the process exits.
+- Unit: hybrid routing sends the three names to the real backend (extend `hybrid-backend.test.ts`); real `getSetupStatus` with an empty folder lists five uninstalled rows with sizes; partial folder; all verified; relaunch requested only when idle (no recording, final pass or import) after the last `done`; a test that the quit goes through the `will-quit` cleanup and that the process exits only after the cleanup ends or its 15-second limit passes (time-bounded, not guaranteed).
 - UI (mock backend, `screens.test.tsx` style): button starts, progress and overall bar, cancel, `offline`, `diskSpace` and `checksum` messages each show the right next step, retry resumes, Record disabled while models are missing.
 - Existing manager tests stay the guard for hash, resume, redirect and cancel; add none that fetch a real model.
 - Manual (slice 4): clean user folder, packaged app, real hosts, airplane-mode start, kill during the 574 MB file, reopen and finish, corrupt one byte and relaunch.
