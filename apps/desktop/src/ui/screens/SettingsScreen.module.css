@@ -173,3 +173,10 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-overlay);
 }
+
+/* A control a preset owns: greyed, and its row says so. */
+.check:has(input:disabled),
+.field:has(select:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

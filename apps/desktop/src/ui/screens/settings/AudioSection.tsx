@@ -1,4 +1,6 @@
+import { cloneElement, Fragment, type ReactElement } from 'react';
 import type { AudioSettings, InputDevice, MeetingApp, NoiseSuppression } from '@scrb/contracts';
+import { Tooltip } from '../../components/Tooltip.tsx';
 import { PRESET_OPTIONS, presetPatch, type PresetControls } from './presets.ts';
 import styles from '../SettingsScreen.module.css';
 
@@ -75,6 +77,24 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
   const micMissing = audio.micDeviceId !== null && selectedMic === undefined;
   const sensitivity = audio.inputSensitivityDb;
 
+  // A preset other than Custom owns its controls; picking Custom unlocks them.
+  const locked = audio.preset !== 'custom';
+  const lockedBy = PRESET_OPTIONS.find((option) => option.value === audio.preset)?.label;
+  const lockTip = locked ? `Set by ${lockedBy}` : '';
+  // Always wrapped, so a preset change keeps the same elements; an empty tip shows nothing.
+  // A disabled control cannot take focus, so its row does while locked: keyboard users reach the tip.
+  const lockable = (
+    key: string,
+    node: ReactElement<{ 'aria-describedby'?: string; tabIndex?: number }>,
+  ) => {
+    const owned = locked && isPresetControl(key);
+    return (
+      <Tooltip label={owned ? lockTip : ''}>
+        {owned ? cloneElement(node, { tabIndex: 0 }) : node}
+      </Tooltip>
+    );
+  };
+
   const change = (patch: Partial<AudioSettings>) => {
     const leavesPreset = Object.keys(patch).some(isPresetControl);
     onChange(leavesPreset ? { ...patch, preset: 'custom' } : patch);
@@ -143,21 +163,25 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
       </fieldset>
 
       <div className={styles.fields}>
-        <label className={styles.field}>
-          Noise suppression
-          <select
-            value={audio.noiseSuppression}
-            onChange={(event) =>
-              change({ noiseSuppression: event.target.value as NoiseSuppression })
-            }
-          >
-            {NOISE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {lockable(
+          'noiseSuppression',
+          <label className={styles.field}>
+            Noise suppression
+            <select
+              disabled={locked}
+              value={audio.noiseSuppression}
+              onChange={(event) =>
+                change({ noiseSuppression: event.target.value as NoiseSuppression })
+              }
+            >
+              {NOISE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>,
+        )}
         <div className={styles.field}>
           <label htmlFor="input-sensitivity">Input sensitivity</label>
           <div className={styles.slider}>
@@ -194,17 +218,23 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
 
       <div className={styles.toggles}>
         {TOGGLES.map((toggle) => (
-          <label key={toggle.key} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={audio[toggle.key]}
-              onChange={(event) => change({ [toggle.key]: event.target.checked })}
-            />
-            <span>
-              {toggle.label}
-              <span className={styles.help}>{toggle.description}</span>
-            </span>
-          </label>
+          <Fragment key={toggle.key}>
+            {lockable(
+              toggle.key,
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  disabled={locked && isPresetControl(toggle.key)}
+                  checked={audio[toggle.key]}
+                  onChange={(event) => change({ [toggle.key]: event.target.checked })}
+                />
+                <span>
+                  {toggle.label}
+                  <span className={styles.help}>{toggle.description}</span>
+                </span>
+              </label>,
+            )}
+          </Fragment>
         ))}
       </div>
     </section>

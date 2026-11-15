@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
@@ -257,9 +257,40 @@ describe('screens', () => {
       expect((echo as HTMLInputElement).checked).toBe(false);
     });
 
-    it('switches to Custom when a preset control changes', async () => {
+    it.each([
+      ['Voice Isolation', 'Set by Voice Isolation'],
+      ['Studio', 'Set by Studio'],
+    ])('locks the preset controls under %s and unlocks them for Custom', async (name, tip) => {
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('checkbox', { name: /Echo cancellation/ }));
+      fireEvent.click(await screen.findByRole('radio', { name: new RegExp(`^${name}`) }));
+      const controls = [
+        screen.getByRole('combobox', { name: 'Noise suppression' }),
+        screen.getByRole('checkbox', { name: /Echo cancellation/ }),
+        screen.getByRole('checkbox', { name: /Automatic gain control/ }),
+        screen.getByRole('checkbox', { name: /Bypass system audio/ }),
+      ];
+      for (const control of controls) expect((control as HTMLInputElement).disabled).toBe(true);
+      // Controls the preset does not own stay usable.
+      expect(
+        (screen.getByRole('checkbox', { name: /No audio detected/ }) as HTMLInputElement).disabled,
+      ).toBe(false);
+      fireEvent.pointerEnter(controls[1]!.closest('span')!);
+      expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
+      fireEvent.pointerLeave(controls[1]!.closest('span')!);
+      // Keyboard: a disabled control cannot be focused, so its row is the tab stop.
+      const row = controls[2]!.closest('label')!;
+      expect(row.tabIndex).toBe(0);
+      act(() => row.focus());
+      expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
+      act(() => row.blur());
+      fireEvent.click(screen.getByRole('radio', { name: /^Custom/ }));
+      for (const control of controls) expect((control as HTMLInputElement).disabled).toBe(false);
+    });
+
+    it('lets a Custom control change without leaving Custom', async () => {
+      renderScreen(backend, <SettingsScreen />);
+      fireEvent.click(await screen.findByRole('radio', { name: /^Custom/ }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /Echo cancellation/ }));
       const custom = screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement;
       expect(custom.checked).toBe(true);
     });
