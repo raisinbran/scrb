@@ -8,7 +8,7 @@ Upgrade `index.sqlite` without losing meeting listings, settings, vocabulary, vo
 
 Existing code in `packages/storage/src/db/` already provides ordered SQLite migrations (currently version 5), one transaction/version bump per step, health checks, and refusal of newer versions. `packages/storage/test/index-db.test.ts` covers version upgrades, rollback, and corruption. **Preserve these foundations; do not rewrite shipped migrations.**
 
-The index is _not_ entirely reconstructable: meeting folders restore listing metadata, but not all settings, user-edited vocabulary, or speaker embeddings. Today, a corrupt index is moved aside and replaced, which loses this index-only state.
+The index is *not* entirely reconstructable: meeting folders restore listing metadata, but not all settings, user-edited vocabulary, or speaker embeddings. Today, a corrupt index is moved aside and replaced, which loses this index-only state.
 
 ## Proposed changes
 
@@ -22,16 +22,16 @@ No `packages/contracts/` changes are approved here. If recovery requires new UI/
 
 ## Failure cases and proof
 
-| Failure or scenario                                          | Required test and outcome                                                                 |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Every supported old version, multiple steps, repeated launch | Seed representative rows; verify exact contents, version, and idempotence.                |
-| SQL error, crash within a step, crash between steps          | Inject failure; reopen, check no half-applied step or lost data, then retry.              |
-| Insufficient space, read-only storage, snapshot error        | Fail before unsafe mutation; preserve the existing index and meeting files.               |
-| Crash after migration commit, before cleanup                 | Keep valid upgraded index; safely remove or report orphan snapshot.                       |
-| Corrupt index or unusable snapshot                           | Retain original; no silent loss of settings, terms, or embeddings; explicit warning.      |
-| Index written by a newer build                               | Refuse upgrade; verify database hash/version unchanged.                                   |
-| Foreign-key or semantic data mismatch                        | Reject success; preserve recovery path; compare profiles, terms, retention, and meetings. |
-| Deletion with leftover backup                                | Report residual data rather than claim a complete delete (coordinate with Task 4).        |
+| Failure or scenario | Required test and outcome |
+| --- | --- |
+| Every supported old version, multiple steps, repeated launch | Seed representative rows; verify exact contents, version, and idempotence. |
+| SQL error, crash within a step, crash between steps | Inject failure; reopen, check no half-applied step or lost data, then retry. |
+| Insufficient space, read-only storage, snapshot error | Fail before unsafe mutation; preserve the existing index and meeting files. |
+| Crash after migration commit, before cleanup | Keep valid upgraded index; safely remove or report orphan snapshot. |
+| Corrupt index or unusable snapshot | Retain original; no silent loss of settings, terms, or embeddings; explicit warning. |
+| Index written by a newer build | Refuse upgrade; verify database hash/version unchanged. |
+| Foreign-key or semantic data mismatch | Reject success; preserve recovery path; compare profiles, terms, retention, and meetings. |
+| Deletion with leftover backup | Report residual data rather than claim a complete delete (coordinate with Task 4). |
 
 Use synthetic meetings and invented profile vectors only. Extend existing `index-db.test.ts` and `library.test.ts`; include Windows/macOS filesystem checks, not just mocked failures.
 
@@ -41,6 +41,6 @@ Use synthetic meetings and invented profile vectors only. Extend existing `index
 - **Slice B:** restart/corruption recovery, snapshot cleanup and warnings; integrate Task 4's deletion guarantees.
 - **Review:** Claude Code applies the plan on a branch, runs `npm run check` plus relevant integration and platform tests, reviews the diff, and seeks owner approval before merge.
 
-**Both decisions approved 2026-10-31:** (1) do not automatically perform a _lossy_ rebuild when corruption affects index-only data; (2) use short-lived, verified upgrade snapshots, with leftover copies included in deletion verification.
+**Both decisions approved 2026-10-31:** (1) do not automatically perform a *lossy* rebuild when corruption affects index-only data; (2) use short-lived, verified upgrade snapshots, with leftover copies included in deletion verification.
 
 **Not run:** `npm run check`, smoke tests, fault injection, real migration, and Mac/Windows filesystem tests. No repo files or contracts were changed. This document is a proposed plan, not tested behavior.

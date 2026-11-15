@@ -10,7 +10,7 @@ The `pickStorageLocation(): AppSettings` contract already exists but no real mai
 2. **Preserve original as fallback.** Stop recording, import, final pass, export, auto-delete and other writers before copying. Copy to a staging directory on the destination filesystem; validate free space, ownership, no symlink escapes, all manifests/chunks and SQLite integrity. Copy or SQLite-backup the index while no writer is active; never raw-copy a live index. Keep old library unchanged until validation succeeds.
 3. **Atomic switch.** Set a durable migration journal in the app config outside the library, fsync destination/manifest, switch the pointer via `writeLibraryLocation` only after checks, then reopen the backend. On cancellation, crash or partial copy, keep the pointer on the old library and report the staging path. Do not silently erase the old library or any user backups.
 4. **Exclusive ownership.** One migration at a time; reject nesting (moving inside self/another library), inaccessible destination, insufficient disk space, and another running app instance. Path-handling must work on Windows and macOS.
-5. **UI/contract question:** the existing picker response has no progress or second confirmation field. Recommendation: keep the picker as a _selection_ only until an owner-approved progress/confirmation mechanism exists. Do not fake success by returning the new settings before a verified switch.
+5. **UI/contract question:** the existing picker response has no progress or second confirmation field. Recommendation: keep the picker as a *selection* only until an owner-approved progress/confirmation mechanism exists. Do not fake success by returning the new settings before a verified switch.
 
 ## Required tests and outstanding gates
 

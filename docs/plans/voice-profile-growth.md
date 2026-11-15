@@ -20,25 +20,23 @@ Status: draft, independent ChatGPT review **pending**. Docs only; no code in thi
 
 **Learning rule** (new `packages/app-core/src/profile-learning.ts`, called from the real `renameSpeaker` handler after the transcript edit succeeds). For a renamed meeting speaker S with name N:
 
-| Case                                                                                             | Action                                                                                 |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Meeting has no voices file, speaker is "You", has overrides, was split, or model is not approved | Do nothing                                                                             |
-| S was auto-matched to profile P and N differs from P's name                                      | Unlink S from P (remove its contribution), then continue as below. P is not renamed    |
-| A named profile P with the same name (case-insensitive, trimmed) exists and cosine(S, P) >= 0.45 | Add S's contribution to P (silent grow), link S to P                                   |
-| Same-name profile exists but cosine < 0.45                                                       | Create a second profile with that name (merge on the Speakers screen); never pollute P |
-| No same-name profile                                                                             | Create profile N from S, link S                                                        |
+| Case | Action |
+| --- | --- |
+| Meeting has no voices file, speaker is "You", has overrides, was split, or model is not approved | Do nothing |
+| S was auto-matched to profile P and N differs from P's name | Unlink S from P (remove its contribution), then continue as below. P is not renamed |
+| A named profile P with the same name (case-insensitive, trimmed) exists and cosine(S, P) >= 0.45 | Add S's contribution to P (silent grow), link S to P |
+| Same-name profile exists but cosine < 0.45 | Create a second profile with that name (merge on the Speakers screen); never pollute P |
+| No same-name profile | Create profile N from S, link S |
 
 A profile with fewer than 8 segments never auto-names (`minProfileSegments`), so a first-meeting profile cannot auto-name a stranger. Today `startProfileMatching` drops such profiles in its snapshot (`sampleCount >= 8`, `profile-matching.ts` lines 41-49), so thin profiles would never even suggest. Change: the snapshot keeps every named, approved-model profile; the 8-segment rule for automatic naming stays, enforced by `matchVoices` itself (it already returns `suggest`, not `auto`, for a thin profile) plus an explicit `sampleCount >= 8` check on the `auto` branch before assignment. Matches of kind `suggest` are collected separately and written to `suggestions.json`.
 
 **Silent versus asking.**
-
 - Silent: anything the owner explicitly did (typing a name; accepting a suggestion). Auto matches at >= 0.60 by a profile with >= 8 segments, as today.
 - Ask (suggestion): matches between 0.45 and 0.60, and matches to thin profiles. The final-pass matcher stores them in `suggestions.json` in the meeting folder (speaker id, profile id, score, status; no voice data) and emits the existing `speakerSuggestion` event. `listSpeakerSuggestions` reads it, dropping speakers already named or merged and profiles that no longer exist. `answerSpeakerSuggestion` accept = same as a rename to the profile's name (link, silent grow); decline = status `declined`, never asked again for that speaker.
 - Never learn: auto matches never grow a profile by themselves (a wrong auto match must not reinforce itself); only an owner action does. Word-level `reassignSpeaker` and `splitSpeaker` never grow (an embedding is per speaker, not per word) and mark the speakers as not learnable in that meeting. Unnamed profiles are not built for every voice (a deliberate narrowing of the requirement wording: they cannot auto-name anyone, and naming later builds the profile from `voices.json`).
 - Merging two meeting speakers where one is profile-linked: replace that meeting's contribution with the segment-weighted mean of the two; if they link to different profiles, do nothing.
 
 **Privacy and deletion.**
-
 - Imports keep their default of no building and no `voices.json`; existing profiles may still suggest and assign (requirements, import section).
 - Recordings: set `buildVoiceProfiles: true` at `createMeeting` in `recording.ts`. This is the behaviour requirement 139 already describes and the privacy banner already covers; the owner should confirm it.
 - `deleteProfile` also removes that profile's contributions and the `voices.json` entries of speakers linked to it (the scan in `unlinkVoiceProfile` already visits those meetings). Meeting delete and auto-delete remove `voices.json` with the folder and the meeting's contributions, then recompute. Embeddings stay on this computer, never in logs, exports or transcript text.

@@ -13,7 +13,6 @@ Extends the draft in PR #131 (`docs/plans/typed-transcript-fill.md`, "fill the t
 **How it decides.** Mostly by (1) order: meetings usually follow the outline, so the next topic is more likely than a random one, but the app allows jumping back; (2) wording: how similar the spoken words are to the heading's words; (3) speaker, only if the outline says who owns an item (for example "Budget (Dana)").
 
 **Risks.**
-
 - A wrong placement can look like fact. So every placement carries a confidence, weak ones are not placed, the screen says "Automatic, check before relying on it", and every placement can be moved with a click.
 - The outline text is private. Scribe never sends it anywhere (no network use). It is saved in the meeting folder inside your library folder, exactly like the transcript. If you chose a library folder that Dropbox, OneDrive, iCloud or similar syncs, that service copies the outline the same way it already copies your transcripts.
 - Your own moves are tied to the exact words you moved, so they survive the final pass. If words are removed or changed, the move is kept and flagged "needs re-check"; it is never silently dropped.
@@ -130,11 +129,10 @@ events:
 types: TranscriptExportOptions gains groupByOutline: boolean and includeEmptyHeadings: boolean
 ```
 
-Errors use only the existing codes (`ContractErrorCode`: `invalidRequest`, `notFound`, `conflict`, `diskFull`, `internal`, ...): `notFound` for a missing meeting, `conflict` while recording or finalising, `invalidRequest` for empty or over-long text. There is no `cancelled` code; cancelling a sort ends it silently with `state` back to `none` or the previous result, and no new code is proposed. The mock must reject exactly what the real handler rejects.
-
-- `OutlineItem.ownerName` is the typed name string, not a `SpeakerId`; speakers appear only per block (`OutlineBlock.speakerId`), after sorting.
-- `OutlineView` also carries `pins: { id; startMs; endMs; itemId: string | null; status: 'ok' | 'needsRecheck' }[]` (the sketch's `placeBlocks` already takes a word range).
-- **Export flags are backward compatible:** `groupByOutline?: boolean` and `includeEmptyHeadings?: boolean` are optional fields on `TranscriptExportOptions`; absent means `false` and `true` respectively, so existing callers, saved settings and the mock keep working unchanged. The validator must accept requests with and without them. A **possible simplification** if the owner prefers fewer contract additions: drop `parseOutline` and `splitBlock` (do the preview in the UI with a copy-free shared pure parser in `packages/contracts` only if the owner allows code there; otherwise keep `parseOutline`). Recommendation: keep all as listed; it is small and keeps the parser out of the UI.
+  Errors use only the existing codes (`ContractErrorCode`: `invalidRequest`, `notFound`, `conflict`, `diskFull`, `internal`, ...): `notFound` for a missing meeting, `conflict` while recording or finalising, `invalidRequest` for empty or over-long text. There is no `cancelled` code; cancelling a sort ends it silently with `state` back to `none` or the previous result, and no new code is proposed. The mock must reject exactly what the real handler rejects.
+  - `OutlineItem.ownerName` is the typed name string, not a `SpeakerId`; speakers appear only per block (`OutlineBlock.speakerId`), after sorting.
+  - `OutlineView` also carries `pins: { id; startMs; endMs; itemId: string | null; status: 'ok' | 'needsRecheck' }[]` (the sketch's `placeBlocks` already takes a word range).
+  - **Export flags are backward compatible:** `groupByOutline?: boolean` and `includeEmptyHeadings?: boolean` are optional fields on `TranscriptExportOptions`; absent means `false` and `true` respectively, so existing callers, saved settings and the mock keep working unchanged. The validator must accept requests with and without them. A **possible simplification** if the owner prefers fewer contract additions: drop `parseOutline` and `splitBlock` (do the preview in the UI with a copy-free shared pure parser in `packages/contracts` only if the owner allows code there; otherwise keep `parseOutline`). Recommendation: keep all as listed; it is small and keeps the parser out of the UI.
 
 ## Test plan (invented data and AMI fixtures only; never the owner's recordings)
 
@@ -157,7 +155,6 @@ Errors use only the existing codes (`ContractErrorCode`: `invalidRequest`, `notF
 **Expectation (estimates, not measurements):** for a meeting that follows its outline with distinct headings, Level A should file roughly 70 to 85 percent of the dialog (by time) under the right heading; the order prior fixes most single-word ambiguity. For vague headings ("Updates", "AOB"), meetings that jump around, or heavy small talk, expect 50 to 65 percent. Level B might add 5 to 10 points on wording-mismatch topics. These numbers are guesses to be replaced by the AMI evaluation.
 
 **Measure before shipping:**
-
 1. **Time-weighted accuracy:** share of reference dialog time placed under the correct item (Not placed counts as wrong unless the reference also says off-topic).
 2. **Placed-correct rate for "Likely" labelled blocks only** (this is the one that matters for trust).
 3. **Unsure/Not-placed share** (so the app does not "win" by refusing everything).
@@ -168,28 +165,28 @@ Errors use only the existing codes (`ContractErrorCode`: `invalidRequest`, `notF
 
 ## Slices
 
-| #   | Slice                                                                                                                                                                                                | Hours   | Notes                                                                 |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------- |
-| 1   | Offline engine and evidence (nothing visible in the app): `packages/outline` parser, blocks, Level A matcher, pin re-location, constants, the summary export line, AMI evaluation harness and report | 20      | Pure functions; no contract change; yields the accuracy numbers first |
-| 2   | Contract additions (approval), storage `outline.json`, handlers, mock backend                                                                                                                        | 10      | Backend and mock on opposite sides of the folder line                 |
-| 3   | Outline tab UI: paste and preview, tree view, confidence badges, banners                                                                                                                             | 12      | After slice 2                                                         |
-| 4   | Moves, pins, split, undo, re-sort keeps pins, outdated after final pass; grouped DOCX/PDF export (and the VTT decision)                                                                              | 14      |                                                                       |
-| 5   | Optional: .docx input (5 h); Level B model (12 h, separate approval); Level C                                                                                                                        | 5 to 17 | Only if the numbers or the owner call for them                        |
+| # | Slice | Hours | Notes |
+| - | ----- | ----- | ----- |
+| 1 | Offline engine and evidence (nothing visible in the app): `packages/outline` parser, blocks, Level A matcher, pin re-location, constants, the summary export line, AMI evaluation harness and report | 20 | Pure functions; no contract change; yields the accuracy numbers first |
+| 2 | Contract additions (approval), storage `outline.json`, handlers, mock backend | 10 | Backend and mock on opposite sides of the folder line |
+| 3 | Outline tab UI: paste and preview, tree view, confidence badges, banners | 12 | After slice 2 |
+| 4 | Moves, pins, split, undo, re-sort keeps pins, outdated after final pass; grouped DOCX/PDF export (and the VTT decision) | 14 | |
+| 5 | Optional: .docx input (5 h); Level B model (12 h, separate approval); Level C | 5 to 17 | Only if the numbers or the owner call for them |
 
 Slice 1 can start before any approval beyond the plan, because it touches no contract. Total for slices 1 to 4: about 56 hours (range 45 to 70). Plan review and owner approval are not counted. Work is split so each PR stays on one side of the UI/backend line.
 
 ## Risks
 
-| Risk                                                     | Handling                                                                                                                                                                                                               |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Wrong placement looks like fact                          | Confidence labels, "Automatic" banner, weak ones stay Not placed, export marks unconfirmed placements, every block movable                                                                                             |
-| Outline private content                                  | Stored only in the meeting folder in the user's library (same as transcripts, so a user-synced library folder syncs it too); never logged, never in the index DB; Scribe makes no network use; Level C stays on-device |
-| Over-trust of order prior makes a jump-back wrong        | Jump-back is allowed with a modest cost; AMI variants test it                                                                                                                                                          |
-| Vague headings ("Misc")                                  | Expected weak; low confidence rather than forced placement                                                                                                                                                             |
-| Final pass changes the text under a placement            | Marks outdated, asks before re-sorting, pins re-applied by time                                                                                                                                                        |
-| New model (Level B) adds size, licence and platform risk | Separate owner approval; only if Level A fails the bar                                                                                                                                                                 |
-| Scope growth                                             | Post-meeting only; no live use, no summary coupling, no import beyond text in V1                                                                                                                                       |
-| User moves lost on re-sort or final pass                 | Pins are word-range based, separate from blocks, re-located by id then fingerprint, flagged "needs re-check" if not found; pin-survival tests above                                                                    |
+| Risk | Handling |
+| ---- | -------- |
+| Wrong placement looks like fact | Confidence labels, "Automatic" banner, weak ones stay Not placed, export marks unconfirmed placements, every block movable |
+| Outline private content | Stored only in the meeting folder in the user's library (same as transcripts, so a user-synced library folder syncs it too); never logged, never in the index DB; Scribe makes no network use; Level C stays on-device |
+| Over-trust of order prior makes a jump-back wrong | Jump-back is allowed with a modest cost; AMI variants test it |
+| Vague headings ("Misc") | Expected weak; low confidence rather than forced placement |
+| Final pass changes the text under a placement | Marks outdated, asks before re-sorting, pins re-applied by time |
+| New model (Level B) adds size, licence and platform risk | Separate owner approval; only if Level A fails the bar |
+| Scope growth | Post-meeting only; no live use, no summary coupling, no import beyond text in V1 |
+| User moves lost on re-sort or final pass | Pins are word-range based, separate from blocks, re-located by id then fingerprint, flagged "needs re-check" if not found; pin-survival tests above |
 
 ## Relation to #131 and where it belongs
 

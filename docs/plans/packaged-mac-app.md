@@ -14,15 +14,15 @@
   - `backend.ts:62,64,76` ignore `SCRB_CAPTURE_HELPER`, `SCRB_FINAL_PASS_CONFIG`, `SCRB_LIVE_CONFIG` when packaged, so a packaged build today is mock-only.
 - **What real mode needs** (from `~/scrb-dev-assets/config/*.json`, built by `scripts/dev-assets.sh`):
 
-  | Piece                                                                                                                | Today                                                                                                                                                                                                                                                          | Size                                 |
-  | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-  | capture helper `scrb-capture`                                                                                        | `native/macos-capture/build/` (Swift + libopus, `build.sh`)                                                                                                                                                                                                    | small                                |
-  | `whisper-cli`, `whisper-server`, `whisper-vad-speech-segments`                                                       | `~/scrb-dev-assets/upstream/whisper.cpp/build/bin`, **dynamically linked** to `@rpath` `libwhisper`, `libggml*` dylibs                                                                                                                                         | ~1 MB each + dylibs                  |
-  | `scrb-sherpa`, `ffmpeg`, `ffprobe`                                                                                   | `packages/transcription/.bin/` (gitignored; absent in this worktree). `scrb-sherpa` is dynamically linked to `libsherpa-onnx-c-api` from `upstream/sherpa-onnx/build/install` (a development-directory path) and that library pulls in **ONNX Runtime** dylibs | few MB + libs                        |
-  | models: `ggml-large-v3-turbo-q5_0` (final), `ggml-small.en-q5_1` (live), silero VAD, sherpa segmentation + embedding | `~/scrb-dev-assets/models/`                                                                                                                                                                                                                                    | ~574 + 190 + 1 + 2 + 40 ≈ **810 MB** |
+  | Piece | Today | Size |
+  | --- | --- | --- |
+  | capture helper `scrb-capture` | `native/macos-capture/build/` (Swift + libopus, `build.sh`) | small |
+  | `whisper-cli`, `whisper-server`, `whisper-vad-speech-segments` | `~/scrb-dev-assets/upstream/whisper.cpp/build/bin`, **dynamically linked** to `@rpath` `libwhisper`, `libggml*` dylibs | ~1 MB each + dylibs |
+  | `scrb-sherpa`, `ffmpeg`, `ffprobe` | `packages/transcription/.bin/` (gitignored; absent in this worktree). `scrb-sherpa` is dynamically linked to `libsherpa-onnx-c-api` from `upstream/sherpa-onnx/build/install` (a development-directory path) and that library pulls in **ONNX Runtime** dylibs | few MB + libs |
+  | models: `ggml-large-v3-turbo-q5_0` (final), `ggml-small.en-q5_1` (live), silero VAD, sherpa segmentation + embedding | `~/scrb-dev-assets/models/` | ~574 + 190 + 1 + 2 + 40 ≈ **810 MB** |
 
 - **Library and settings:** library root is read from a pointer file in `app.getPath('userData')` (today `~/Library/Application Support/@scrb/desktop`), default `~/Documents/Meeting Scribe`. Settings live in the library's `index.sqlite` (node's built-in SQLite, no native npm module to rebuild). So recordings and settings are outside the app and survive replacing it.
-- **Permissions:** Electron's web-permission handlers deny everything (`security.ts`), correct and unchanged. Capture is native: the helper opens the mic and a Core Audio **process tap** (`CATapDescription`, not ScreenCaptureKit), so macOS asks for _Microphone_ and _System Audio Recording_. It is spawned as a child process (`process-adapter.ts`).
+- **Permissions:** Electron's web-permission handlers deny everything (`security.ts`), correct and unchanged. Capture is native: the helper opens the mic and a Core Audio **process tap** (`CATapDescription`, not ScreenCaptureKit), so macOS asks for *Microphone* and *System Audio Recording*. It is spawned as a child process (`process-adapter.ts`).
 
 ## 2. Recommended smallest option
 
@@ -42,13 +42,13 @@ Why: it adds one build config and one resolver. Models stay out of git and out o
 
 ## 3. Signing options for personal use
 
-| Option                                                                                      | Cost                                         | Result                                                                              | Catch                                                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ad-hoc (`-`)**                                                                            | free                                         | runs on this Mac; Apple Silicon requires some signature, and this gives it          | macOS ties permissions to the exact build, so **each rebuild may re-ask** for Microphone and System Audio (and Documents). Fine for occasional rebuilds.                                                                                                    |
-| **Stable self-signed certificate** (Keychain Access → Certificate Assistant → Code Signing) | free                                         | same signing identity every build, so permissions are normally kept across rebuilds | one-time setup by the owner (I give exact clicks); the cert must be trusted for code signing or `codesign`/electron-builder may report no valid identity. Still not notarized.                                                                              |
-| **Apple Developer ID + notarization**                                                       | **US$99 per year** (Apple Developer Program) | opens on any Mac without warnings                                                   | needs enrollment, hardened runtime, entitlements (`audio-input`, JIT etc.) and notarization on every build. Only worth it if the app goes to another person's Mac. Prior owner decision (Task 30): avoid the annual cost unless a measured blocker remains. |
+| Option | Cost | Result | Catch |
+| --- | --- | --- | --- |
+| **Ad-hoc (`-`)** | free | runs on this Mac; Apple Silicon requires some signature, and this gives it | macOS ties permissions to the exact build, so **each rebuild may re-ask** for Microphone and System Audio (and Documents). Fine for occasional rebuilds. |
+| **Stable self-signed certificate** (Keychain Access → Certificate Assistant → Code Signing) | free | same signing identity every build, so permissions are normally kept across rebuilds | one-time setup by the owner (I give exact clicks); the cert must be trusted for code signing or `codesign`/electron-builder may report no valid identity. Still not notarized. |
+| **Apple Developer ID + notarization** | **US$99 per year** (Apple Developer Program) | opens on any Mac without warnings | needs enrollment, hardened runtime, entitlements (`audio-input`, JIT etc.) and notarization on every build. Only worth it if the app goes to another person's Mac. Prior owner decision (Task 30): avoid the annual cost unless a measured blocker remains. |
 
-Moving the app to a _different_ Mac (e.g. by download) sets the quarantine flag; the owner would right-click → Open once, or run `xattr -cr`. Not needed on the build Mac.
+Moving the app to a *different* Mac (e.g. by download) sets the quarantine flag; the owner would right-click → Open once, or run `xattr -cr`. Not needed on the build Mac.
 
 **Recommendation:** ad-hoc first; switch to the free self-signed certificate if re-prompting after rebuilds is annoying. Do not buy Developer ID.
 
@@ -79,16 +79,16 @@ Not needed. Update = rebuild and copy over `/Applications`. Library and settings
 
 ## 7. Risks
 
-| Risk                                                                                                                                | Mitigation                                                                                                                                           |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Child helper's permission prompt not attributed to the app                                                                          | Test 3 first; fallback in §4                                                                                                                         |
+| Risk | Mitigation |
+| --- | --- |
+| Child helper's permission prompt not attributed to the app | Test 3 first; fallback in §4 |
 | A tool or library still points at a development path (whisper, ggml, sherpa, ONNX Runtime) → tool fails to start on a clean machine | recursive `otool -L` walk, install-name/rpath rewrite and a no-outside-reference assertion in the staging script; test 2 runs with dev assets hidden |
-| Ad-hoc re-sign invalidates permissions every rebuild                                                                                | switch to self-signed certificate                                                                                                                    |
-| Library-location pointer lost if `userData` changed                                                                                 | `userData` is pinned to the existing `@scrb/desktop` path (§2 step 3); test 5b                                                                       |
-| Packaged app and dev app run together                                                                                               | single-instance lock shares userData if the path matches; `m1.sh` already refuses a running copy; quit one first                                     |
-| electron-builder drags in monorepo `node_modules` and bloats/breaks the app                                                         | check app size and `app.asar` contents; main/worker are esbuild bundles so only `electron` and `files` are needed                                    |
-| Performance of a packaged build differs                                                                                             | none expected; same binaries and models                                                                                                              |
-| Unsigned-tools warning from Gatekeeper for bundled binaries                                                                         | all inside the one signed bundle; built locally, no quarantine                                                                                       |
+| Ad-hoc re-sign invalidates permissions every rebuild | switch to self-signed certificate |
+| Library-location pointer lost if `userData` changed | `userData` is pinned to the existing `@scrb/desktop` path (§2 step 3); test 5b |
+| Packaged app and dev app run together | single-instance lock shares userData if the path matches; `m1.sh` already refuses a running copy; quit one first |
+| electron-builder drags in monorepo `node_modules` and bloats/breaks the app | check app size and `app.asar` contents; main/worker are esbuild bundles so only `electron` and `files` are needed |
+| Performance of a packaged build differs | none expected; same binaries and models |
+| Unsigned-tools warning from Gatekeeper for bundled binaries | all inside the one signed bundle; built locally, no quarantine |
 
 ## 8. Test plan (invented or AMI data only; every test under 20 minutes)
 
@@ -115,3 +115,4 @@ No long test is planned; none needs the 20-minute approval. Do not use the owner
 ## 10. Out of scope
 
 Notarization, DMG, auto-update, first-run model download, Windows, removing the mock sample meetings, any contract change.
+

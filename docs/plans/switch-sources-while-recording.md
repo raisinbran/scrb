@@ -77,24 +77,24 @@ The pickers on the Live screen already call `selectSources` and already revert t
 
 ### Failure and rollback summary
 
-| Case                                      | Result                                                                                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| New mic or app fails to open              | Old source re-opened, selection not saved, user told, recording continues                                                        |
-| Old source also fails to reopen           | Track dead with the existing warning and retry; selection not saved                                                              |
-| App has no audio process yet              | Fails as "no audio process"; old app kept (user can pick Whole computer audio)                                                   |
-| Worker dies mid-switch                    | Existing restart path; reopens with `openCommand` as last updated, so the old choice (the update happens only after an `ok` ack) |
-| Worker restarts after a successful switch | Reopens with the **new** choice (`openCommand` updated)                                                                          |
-| Picked mic disappeared before the switch  | Rejected up front, old mic kept, nothing saved                                                                                   |
-| Both fields changed in one request        | Rejected up front; nothing sent, `openCommand` and Settings untouched                                                            |
-| Ack lost                                  | Same command ID returns the first ack (`CaptureAck` contract); no double switch                                                  |
-| Stop during a switch                      | The switch call is rejected or ignored; Stop wins                                                                                |
+| Case | Result |
+| --- | --- |
+| New mic or app fails to open | Old source re-opened, selection not saved, user told, recording continues |
+| Old source also fails to reopen | Track dead with the existing warning and retry; selection not saved |
+| App has no audio process yet | Fails as "no audio process"; old app kept (user can pick Whole computer audio) |
+| Worker dies mid-switch | Existing restart path; reopens with `openCommand` as last updated, so the old choice (the update happens only after an `ok` ack) |
+| Worker restarts after a successful switch | Reopens with the **new** choice (`openCommand` updated) |
+| Picked mic disappeared before the switch | Rejected up front, old mic kept, nothing saved |
+| Both fields changed in one request | Rejected up front; nothing sent, `openCommand` and Settings untouched |
+| Ack lost | Same command ID returns the first ack (`CaptureAck` contract); no double switch |
+| Stop during a switch | The switch call is rejected or ignored; Stop wins |
 
 ## Tests (invented audio or AMI only; none over 20 minutes)
 
 1. **Helper command tests** in `native/macos-capture/tests/` (extend `capture-smoke.mjs` style): tone through a test source; `selectMic` to a second input; assert ack `ok`, new chunk with reason `deviceChanged`, `streamReopened`; `selectMic` to a nonexistent id: ack `ok: false`, old mic still recording (rollback), `mic` unchanged. Same for `selectSource`. About 2 minutes.
 2. **Unit tests in `recording.test.ts`/`sources.test.ts` and `packages/app-core/src/recording.test.ts`** with a fake adapter: success saves and warns; failure does not save and throws; refused while starting; refused on Windows; same value is a no-op; **a missing mic ID or an app with no process is rejected with nothing sent and nothing saved**; **a request changing both fields is rejected with nothing sent or saved; a mic-only change succeeds while the saved app has exited, and an app-only change succeeds while the saved mic is disconnected, and neither touches the unchanged field's stored value;** **after a successful switch a forced worker restart sends `open` with the new mic or source, and after a failed switch with the old one.**
 3. **Gap measurement:** record a continuous invented tone, switch mid-way 10 times, and report the gap per switch from chunk start/end times for mic and meeting. Pass rule: gap equals the measured value within one chunk-clock tolerance, with no overlap above 2 ms (the existing Q4 rule). Under 5 minutes.
-4. **Chunk integrity:** after those switches, every chunk decodes, sequence numbers have no hole, and total duration of both tracks matches the timeline.
+4. **Chunk integrity:** after those switches, every chunk decodes, sequence numbers have no hole, and total duration of both tracks matches the timeline. 
 5. **Debounce:** change the system default input, then within 5 s pick an explicit mic; assert exactly one rebuild (one gap), no `deviceChanged` rebuild at 5 s. Also a default change with no pick still rebuilds once.
 6. **Pause interaction:** switch while paused, resume, confirm nothing recorded in the pause and a `resume` chunk follows.
 7. **UI tests** on the mock: pickers enabled while recording, busy state, success note, failure revert and message.
@@ -114,8 +114,7 @@ The pickers on the Live screen already call `selectSources` and already revert t
 
 ## Echo: this is a stopgap, not a fix
 
-Speaker echo comes from the mic hearing the laptop speakers. Switching to a headset or other mic mid-meeting stops _new_ echo from that moment (a headset leaks nothing, and the plan's own "not an issue" list already says so), and the owner can do it without losing the meeting. It does nothing for audio recorded before the switch, nothing for the next meeting if the user forgets, and changing the _meeting app_ has no effect on echo at all. The real remedies are unchanged: `dropRoomEcho` in the final pass (PR #143) and the voice-processing spike in PR #160 (`docs/plans/mic-echo-handling.md`, option A). This plan must not be presented to users as echo cancellation, and must not delay that spike.
-
+Speaker echo comes from the mic hearing the laptop speakers. Switching to a headset or other mic mid-meeting stops *new* echo from that moment (a headset leaks nothing, and the plan's own "not an issue" list already says so), and the owner can do it without losing the meeting. It does nothing for audio recorded before the switch, nothing for the next meeting if the user forgets, and changing the *meeting app* has no effect on echo at all. The real remedies are unchanged: `dropRoomEcho` in the final pass (PR #143) and the voice-processing spike in PR #160 (`docs/plans/mic-echo-handling.md`, option A). This plan must not be presented to users as echo cancellation, and must not delay that spike.
 ## Slice order and recommendation
 
 1. **Slice 1, macOS mic switching (recommend starting here).** Helper: honest ack, rollback and the pending-rebuild cancel for `selectMic` (and the shared helper code, so `selectSource` gets the ack and rollback too), helper tests 1, 3, 4, 5, 6. Main: wire `select` for the mic with the up-front rejection of a missing mic, the `RecordingSession` restart-command update, platform gate for Windows, unit tests, success and failure messages. UI: enable the mic picker while recording and paused, mock parity. The helper path is already proven for device changes, so the new risk is only rollback and the ack.

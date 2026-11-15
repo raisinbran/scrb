@@ -41,12 +41,12 @@ About 22 audio-hours (more AMI meetings, more held-out meetings and term sets), 
 
 ## Pass/fail (about 3.6 audio-hours with hints on)
 
-| Result                  | Condition                                                                                               | Outcome                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Recognition improves    | Term recall on > off **and** WER on <= off (Gate 5 gives no numeric margin; owner/reviewer may set one) | Required for pass                                                      |
-| Zero false replacements | 0 events in about 3.6 h (95% upper bound about 0.8 per hour, rule of three)                             | **Gate 5 vocabulary criterion met** (with the line above)              |
-| Inconclusive            | 1 to 3 events (point rate under 1 but upper bound over 1), or improvement within noise                  | Report; Stage 2 only on owner decision                                 |
-| Fail                    | 4 or more events (rate about 1.1 or more per hour), or WER worse, or recall not higher                  | Gate 5 vocabulary criterion not met; hints stay on, no automatic fixer |
+| Result | Condition | Outcome |
+| --- | --- | --- |
+| Recognition improves | Term recall on > off **and** WER on <= off (Gate 5 gives no numeric margin; owner/reviewer may set one) | Required for pass |
+| Zero false replacements | 0 events in about 3.6 h (95% upper bound about 0.8 per hour, rule of three) | **Gate 5 vocabulary criterion met** (with the line above) |
+| Inconclusive | 1 to 3 events (point rate under 1 but upper bound over 1), or improvement within noise | Report; Stage 2 only on owner decision |
+| Fail | 4 or more events (rate about 1.1 or more per hour), or WER worse, or recall not higher | Gate 5 vocabulary criterion not met; hints stay on, no automatic fixer |
 
 The other Gate 5 criterion (100% corrections survive restarts and final passes, task #1) is outside this plan. Single meeting and one term set: a pass shows benefit on this evidence, not in general; say so in the report.
 

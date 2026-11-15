@@ -17,7 +17,7 @@
 
 ## Behavior and implementation
 
-1. **Keep learning tied to visible corrections.** Only _active_, `remember: true` corrections contribute to hints. Superseded/reverted corrections stay available for undo but do not influence future recognition. Preserve original words, timing and audio links. Multiple supporting corrections must not lose shared terms/forms when one is undone. Keep surrounding transcript context in the meeting folder, not SQLite.
+1. **Keep learning tied to visible corrections.** Only *active*, `remember: true` corrections contribute to hints. Superseded/reverted corrections stay available for undo but do not influence future recognition. Preserve original words, timing and audio links. Multiple supporting corrections must not lose shared terms/forms when one is undone. Keep surrounding transcript context in the meeting folder, not SQLite.
 2. **Make learning crash-recoverable.** Reconcile correction-derived links against readable meeting files on startup and after failed SQLite updates. The operation must be repeatable, preserve user-edited terms and enabled state, and never undo a saved correction. Warn that learning is pending when sync fails. If a meeting cannot be read, retain its existing references pending investigation. Any provenance/index migration needs separate task #3 approval.
 3. **Respect deliberate vocabulary changes.** Edit, disable and delete must survive restart and reconciliation; deleting a term must not erase transcript corrections or silently resurrect the term. Define a durable deletion/suppression mechanism before implementation. A later explicit **Remember correction** may relearn it. Do not re-enable a disabled entry merely because another correction references it.
 4. **Use bounded, local prompts.** Build deterministic, deduplicated hints from enabled terms, selecting relevant/recent entries within a measured model-specific length budget. Keep the hint stable for a transcription job. Connect final-pass and import paths. Verify the installed whisper-server accepts hints before modifying the live path; otherwise report that limitation. No network services or impact on audio capture.
@@ -26,15 +26,15 @@
 
 ## Failure tests and Gate 5
 
-| Risk                                                   | Test and expected outcome                                                                                                                                                                 |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Crash between transcript and SQLite writes             | Reopen/reconcile twice; correction remains saved, learning repaired once, no duplicate links.                                                                                             |
-| Undo/redo, supersede, overlapping support              | Only active remembered corrections affect hints; other supporting links and forms remain intact.                                                                                          |
-| Disabled, edited or deleted entry                      | User choices persist through restart/rebuild; nothing deleted or disabled enters prompts without new explicit consent.                                                                    |
-| Unreadable/deleted meeting                             | No invented context; a failed read cannot remove evidence; confirmed deletion removes its references (task #4).                                                                           |
-| Overlong hints, similar terms, Unicode, worker failure | Stable prompt limits, no ambiguous replacements, no impact on saved audio or recording.                                                                                                   |
-| Final, import and live paths                           | Real worker interfaces tested with invented audio; unsupported live hinting documented, not guessed.                                                                                      |
-| False substitutions                                    | Compare hints off/on using synthetic terms and licensed AMI audio; count term recall, word error and false replacements per **audio hour**, including several hours of negative controls. |
+| Risk | Test and expected outcome |
+| --- | --- |
+| Crash between transcript and SQLite writes | Reopen/reconcile twice; correction remains saved, learning repaired once, no duplicate links. |
+| Undo/redo, supersede, overlapping support | Only active remembered corrections affect hints; other supporting links and forms remain intact. |
+| Disabled, edited or deleted entry | User choices persist through restart/rebuild; nothing deleted or disabled enters prompts without new explicit consent. |
+| Unreadable/deleted meeting | No invented context; a failed read cannot remove evidence; confirmed deletion removes its references (task #4). |
+| Overlong hints, similar terms, Unicode, worker failure | Stable prompt limits, no ambiguous replacements, no impact on saved audio or recording. |
+| Final, import and live paths | Real worker interfaces tested with invented audio; unsupported live hinting documented, not guessed. |
+| False substitutions | Compare hints off/on using synthetic terms and licensed AMI audio; count term recall, word error and false replacements per **audio hour**, including several hours of negative controls. |
 
 **Gate 5:** All accepted user corrections survive restarts/final passes (**100%**, task #1); learned vocabulary improves recognition with **fewer than 1 false replacement per audio hour**. Synthetic Gate 0 results are not a pass. Claude Code validates tests and measures the installed app on the relevant machines before merge.
 

@@ -16,15 +16,15 @@ A user explicitly presses **Test mic** while idle, sees mic levels and hearing/q
 
 ## Failure checks
 
-| Case                                       | Expected                                                                                                     |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Probe alone                                | No meeting row, folder, writer.lock, Ogg chunk, transcript, cache, or network request                        |
-| Start while probing                        | Probe ends synchronously before Start opens the real mic; recording latency and first sample are not delayed |
-| Probe while recording                      | `conflict`, no capture changes                                                                               |
-| Probe during permission denial             | `denied` event, mic released                                                                                 |
-| Device unplug/OS audio service failure     | `deviceLost` or `noSignal`; worker cleaned                                                                   |
-| 120 s idle timeout, view closes, app quits | Prompt release, one terminal event, no zombie worker                                                         |
-| Rapid Start/Stop/repeated commands         | No double-close, no unhandled rejection or lost user recording                                               |
+| Case | Expected |
+|---|---|
+| Probe alone | No meeting row, folder, writer.lock, Ogg chunk, transcript, cache, or network request |
+| Start while probing | Probe ends synchronously before Start opens the real mic; recording latency and first sample are not delayed |
+| Probe while recording | `conflict`, no capture changes |
+| Probe during permission denial | `denied` event, mic released |
+| Device unplug/OS audio service failure | `deviceLost` or `noSignal`; worker cleaned |
+| 120 s idle timeout, view closes, app quits | Prompt release, one terminal event, no zombie worker |
+| Rapid Start/Stop/repeated commands | No double-close, no unhandled rejection or lost user recording |
 
 T22 native capture checks belong to the primary agent on Windows and macOS. Use synthetic tones/fixtures only; do not involve private meeting audio.
 

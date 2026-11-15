@@ -16,15 +16,15 @@
 
 ## Fault cases and tests
 
-| Fault                                       | Expected observable test                                                                 |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Worker is killed/hangs                      | Recording chunks continue; live lag/failure visible; worker restarts at most three times |
-| Live queue exceeds budget                   | Oldest live PCM skipped with a marked live-only gap; saved chunks retain every frame     |
-| One track silent, paused or device switched | No synthetic words across gaps; proper two-track timestamp alignment                     |
-| Rapid live revisions during correction      | Persisted correction and cursor survive; reject only unsafe revision, not user edit      |
-| Worker restarts while final pass starts     | No transcript file race; only one final pass per meeting                                 |
-| UI reload and 8-hour transcript             | Paged revision catch-up, no unbounded event or rerender                                  |
-| Capture process crash or disk full          | Existing recording recovery owns the failure; live worker cannot mask missing audio      |
+| Fault | Expected observable test |
+|---|---|
+| Worker is killed/hangs | Recording chunks continue; live lag/failure visible; worker restarts at most three times |
+| Live queue exceeds budget | Oldest live PCM skipped with a marked live-only gap; saved chunks retain every frame |
+| One track silent, paused or device switched | No synthetic words across gaps; proper two-track timestamp alignment |
+| Rapid live revisions during correction | Persisted correction and cursor survive; reject only unsafe revision, not user edit |
+| Worker restarts while final pass starts | No transcript file race; only one final pass per meeting |
+| UI reload and 8-hour transcript | Paged revision catch-up, no unbounded event or rerender |
+| Capture process crash or disk full | Existing recording recovery owns the failure; live worker cannot mask missing audio |
 
 ## Recommendations and outstanding validation
 

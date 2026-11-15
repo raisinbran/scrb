@@ -21,12 +21,12 @@ Active path: `apps/desktop/src/main/live-feed.ts` -> `packages/transcription/src
 
 Phase 0 speaker workload (4 CPU threads): Windows RTF **0.03-0.04**, worst 5 s hop **1.2 s**; Mac RTF **0.011-0.012**, worst hop **0.34 s**, peak **371-459 MiB**. These are **not integrated-worker measurements**. Budget <=4 speaker threads, <=10 s PCM ring plus bounded metadata, no waiting on ASR/ACK, no accumulating hops, 6 GiB recording envelope. Preserve live **text** median <=3 s and >=95% within 6 s; report **speaker-label delay separately**. Measure CPU, RSS, queue and lag under contention; degrade diarization first.
 
-| Failure risk                         | Deterministic, silent proof                                                                                                                                                                                                                         |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Over-splits, wrong promotion, merges | `speakers.test.ts`: seeded embeddings, join/merge, 30 s "?" rule, three speakers, absent spans, overlap, cluster cap.                                                                                                                               |
-| Lost corrections, names or words     | Synthetic `live-pcm`, sink, storage tests: ID/timing preservation, two speakers inside one ASR segment, freeze, revision conflict, atomic failure, reopen, user rename/override, final relabel and Undo/Redo.                                       |
-| Stalls, crashes, stale results       | Fake slow/failed Sherpa; ACK/ASR unaffected, bounded queue, nonfatal fallback, pause/Stop/restart generation isolation, log-redaction checks.                                                                                                       |
-| Actual multi-speaker plumbing        | Replay Phase 0 **ES2004a** PCM as frames without playback, with deterministic timed-word stub and real Sherpa. Assert **>=3 promoted meeting-track display labels** (exclude "You"/"Speaker ?"), stable persisted IDs/events; measure DER and hops. |
+| Failure risk | Deterministic, silent proof |
+| --- | --- |
+| Over-splits, wrong promotion, merges | `speakers.test.ts`: seeded embeddings, join/merge, 30 s "?" rule, three speakers, absent spans, overlap, cluster cap. |
+| Lost corrections, names or words | Synthetic `live-pcm`, sink, storage tests: ID/timing preservation, two speakers inside one ASR segment, freeze, revision conflict, atomic failure, reopen, user rename/override, final relabel and Undo/Redo. |
+| Stalls, crashes, stale results | Fake slow/failed Sherpa; ACK/ASR unaffected, bounded queue, nonfatal fallback, pause/Stop/restart generation isolation, log-redaction checks. |
+| Actual multi-speaker plumbing | Replay Phase 0 **ES2004a** PCM as frames without playback, with deterministic timed-word stub and real Sherpa. Assert **>=3 promoted meeting-track display labels** (exclude "You"/"Speaker ?"), stable persisted IDs/events; measure DER and hops. |
 
 **Smallest first slice:** meeting ring + Sherpa hop + word/span matcher + supervisor/sink attribution + persisted speaker promotion + transcript event, demonstrated on a long enough ES2004a excerpt. Follow with safe retroactive merge/relabel of historical segments before declaring the feature complete. AMI/model availability and integrated accuracy/load **unverified**; no tests or sound used for this plan.
 

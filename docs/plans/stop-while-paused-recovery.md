@@ -27,13 +27,13 @@ Base commit: `639a25e08ac602d6618204df66cff95c910120d7` (`main`; `packages/app-c
 
 ## Verification after approval
 
-| Scenario                          | Required result                                                                                |
-| --------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Normal Start → Stop               | `ready`, `endedBy: stop`; final pass queued if configured                                      |
-| Start → Pause → Stop              | `ready`; paused span ends at explicit Stop, no fabricated missing audio; final pass queued     |
-| Pause → Resume → immediate Stop   | `ready` even when one track's last chunk is still `pause`; final pass queued                   |
-| Permission loss → Stop            | `ready`; actual trailing audio loss is still marked, saved chunks unchanged; final pass queued |
-| Pause → genuine crash / stdin EOF | No `stop` marker; `recovered`, `endedBy: crash`; no false final-pass enqueue                   |
+| Scenario | Required result |
+| --- | --- |
+| Normal Start → Stop | `ready`, `endedBy: stop`; final pass queued if configured |
+| Start → Pause → Stop | `ready`; paused span ends at explicit Stop, no fabricated missing audio; final pass queued |
+| Pause → Resume → immediate Stop | `ready` even when one track's last chunk is still `pause`; final pass queued |
+| Permission loss → Stop | `ready`; actual trailing audio loss is still marked, saved chunks unchanged; final pass queued |
+| Pause → genuine crash / stdin EOF | No `stop` marker; `recovered`, `endedBy: crash`; no false final-pass enqueue |
 
 In all five cases, compare every pre-existing saved chunk byte-for-byte and check repeat sealing. An absent, torn, unterminated or followed-by-data Stop record must not make a newly sealed recording clean. Test a log-write or sync failure and a Windows drain timeout without a successful Stop acknowledgement; no sound may be discarded. Run `npm run check` and existing helper tests on both operating systems; independently verify the five desktop flows with invented/public audio. Leave Gate 3 open.
 
