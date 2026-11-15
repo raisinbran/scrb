@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           # Batch the file list: one command line with every changed file exceeds the Windows limit.
-          git diff --name-only -z 444e1ce HEAD -- '*.ts' '*.tsx' | xargs -0 -r -n 40 npx prettier --write
+          git diff --name-only --diff-filter=ACMR -z 444e1ce HEAD -- '*.ts' '*.tsx' | xargs -0 -r -n 40 npx prettier --write
           git diff --check
           git diff --exit-code -- '*.ts' '*.tsx'
       - run: npm run typecheck
