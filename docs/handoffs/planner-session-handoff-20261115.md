@@ -1,6 +1,6 @@
 # Planner session handoff — 2026-11-15
 
-**Current status:** Three-machine recovery inventory completed; development resumed through four assignments already accepted by the owner and dispatched to their machines. Do not reissue these assignments while they are running. This handoff and the [consolidated recovery audit](three-machine-recovery-audit-20261115.md) supersede stale task instructions in the earlier [planner handoff](planner-handoff-20261115.md). These documents are proposed in [PR #318](https://github.com/raisinbran/scrb/pull/318); nothing here is yet merged.
+**Current status:** Three-machine recovery inventory completed; development resumed through four assignments already accepted by the owner and dispatched to their machines. Do not reissue these assignments while they are running. This handoff and the [consolidated recovery audit](three-machine-recovery-audit-20261115.md) supersede stale task instructions in the earlier [planner handoff](https://github.com/raisinbran/scrb/blob/ee024c8b572cf2010dc2900265b878ddd95043c2/docs/handoffs/planner-handoff-20261115.md). These documents are proposed in [PR #318](https://github.com/raisinbran/scrb/pull/318); nothing here is yet merged.
 
 **Evidence boundaries:** The planner read GitHub and user-relayed read-only local audit reports; the planner could not open private local worktrees, raw audio or the original Mac test files. Machine audit statements below retain that provenance. GitHub merge state was independently checked against repository main at 97080d05; recheck when taking over.
 
