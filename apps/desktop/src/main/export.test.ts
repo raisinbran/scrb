@@ -293,8 +293,8 @@ describe('createExportHandlers', () => {
     });
     expect(revealPath).toHaveBeenCalledOnce();
     // Compared through realpath: the temp folder may be a short or linked name.
-    expect(realpathSync(revealPath.mock.calls[0]?.[0] as string)).toBe(
-      realpathSync(join(library.meetingPaths(id).exports, 'Invented sync-2026-11-03.docx')),
+    expect(realpathSync.native(revealPath.mock.calls[0]?.[0] as string)).toBe(
+      realpathSync.native(join(library.meetingPaths(id).exports, 'Invented sync-2026-11-03.docx')),
     );
     revealPath.mockClear();
     expect(
