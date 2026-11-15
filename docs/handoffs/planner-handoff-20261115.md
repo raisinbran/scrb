@@ -2,6 +2,8 @@
 
 Written by the Claude planner session for the next planner (probably ChatGPT). State as of about 02:50 PST; refresh section 1 and 2 by 08:30. Supersedes the untracked `planner-handoff-20261114.md`. Owner is non-technical: give exact clicks and name the PC, app, folder and admin yes/no for every command. The owner merges every PR (Ready for review, Squash and merge, Confirm squash and merge, Delete branch). Never merge for the owner.
 
+**Final refresh 08:45 PT, 2026-11-15.** Covers PR state as of the last `gh pr list` (read at 05:13 PT by the scheduled refresh) and the Mac Gate 8 run as of its last log line (05:13 PT). It could not verify anything that happened after that: the run result, later merges, or CI on open PRs. Re-check `gh pr list` and `REPORT.txt` first. Sections 3 and 3A below were written earlier and are partly out of date; section 1, 2, 4 and the next-actions list in section 1 supersede them.
+
 ## 0. Hard rules (every agent, every prompt)
 
 - No `Co-Authored-By`, no "Generated with" or other attribution lines, no agent names in PR text ("independent review"). Branches `cuc/...`. Each task: one new usage-log file in `agents/usage-log/`; each agent mistake: one new file in `agents/incidents/` (A-400 to A-417 are taken or reserved; check open PRs before choosing a number). Never merge. Owner's real recordings are confidential: never read, quote, commit or share.
@@ -9,21 +11,25 @@ Written by the Claude planner session for the next planner (probably ChatGPT). S
 - Tests expected to exceed 20 minutes need explicit owner approval first. Never delete gate evidence.
 - Every prompt opens with `PASTE INTO:` (session, model, PC, folder, admin yes/no). Give the full `pde-pr-approve <id>`-style command in a bash block only if the repo still uses it (the gh guard is off since 2026-11-13).
 
-## 1. PR state (all unmerged; main is still f258188f)
+## 1. PR state (final refresh)
 
-Approved by independent review and CI green on both platforms, waiting for the owner to merge: #278, #279, #281, #282, #284, #287, #288, #290, plus #286, #291, #294 (approved at their corrected heads) and #296, #297 (merge #296 first, then rebase #297 and re-check CI), #302. Suggested order: #284, #282, #278, #279, #281, #288, #290, #287 (keep #279's Re-process wording). #277 has NOT been independently reviewed, so #295 (stacked on #277) must wait for #277's review. Rejected and being fixed (2026-11-15 ~10:30 UTC): #283, #289, #292, #293, #298, #299, #301; re-check heads before use.
-Fixed after a rejection, needs re-review: #283 (docs, `ac13001b`), #286 (`b2bfe7d0`, CI pending), #289 (`d94f34c6`, macOS CI failing on the screens.test.tsx loading-state test, to be routed to ui-global-polish; an earlier failure was a flaky `final-pass.test.ts`), #291 (plans, `dcc68c33`, voice-preview stop now on the audio clock), #294 (auto titles, race fix pushed, CI pending).
-Not yet reviewed: #264 (outline harness, `35d427c1`, re-review owed), #275 (Gate 3 audit, `2e6f7b3a`, re-review owed), #276 (owner feedback note), #280 (model help text), #292 (H1 pin + partial run), #293 (incident A-417), #296 (backend: re-process makes summary outdated) and #297 (UI, stacked on #296), #298 (first-launch model download plan), #299 (voice preview slice 1), #301 (this handoff).
-Sessions still working at write time: `save-dialog-impl` (draft PR, branch cuc/save-dialog-slice1) and `voice-preview-s1` (cuc/voice-preview-slice1). Both need independent review; `save-dialog-impl` touches IPC.
-Do not touch: the Rust PRs (#87-#95, #135-#138). Old/stale: #213 superseded by #294 (close), #210 conflicting, #253 on hold, #223, #131, #25.
+Merged on main (head 97080d05 when read): 277, 278, 279, 281, 282, 283, 284, 286, 287, 288, 289, 290, 291, 292, 293, 294, 296, 298, 299, 300, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317. Closed without merge: 285, 295 (replaced by 313), 297 (replaced by 310).
+Open, not for the owner to merge yet: 301 (this handoff, awaiting independent review). Open and old or on hold: 253, 223, 213 (superseded by 294, close), 210, 131 (typed notes), the Rust PRs 87 to 95 and 135 to 138 (do not touch), 25.
+Not seen as PRs at read time: #264, #275, #276, #280 are not in the first 60 PRs listed as open; check their state with `gh pr view` before relying on them.
+
+What the owner or a Codex session must do next, in order (Codex at its lowest model, high effort, inline step-by-step prompt with pinned inputs and a time cap):
+
+1. Owner: when the Mac run finishes, run the report command in section 2 if `REPORT.txt` is missing.
+2. Codex on BCHEN-W10: Windows Gate 8. First run the confirm commands in `docs/handoffs/long-run-report-w10-failures.md` (Node version, `Get-Command node`, and the others listed there); fix Node if that note's cause is confirmed; then the 8-hour run (owner approval for a 20+ minute test is already part of Gate 8 plan; confirm in chat).
+3. Codex: summaries slice 3a (per the approved plan in #312, after slice 1 in #316).
+4. Codex on Regiurn: the speaker benchmark (approved 2026-11-15).
+5. Anything still awaiting independent review or owner merge: #301, then any new draft PR.
 
 ## 2. Mac Gate 8 run (decides the recorder result)
 
-Started 01:00 PST in the Claude app Terminal tab "Gate 8 Mac 8-hour run"; evidence `~/scrb-long-run/gate8-mac-20261115/`. A timer tab creates `STOP` at 08:30 PST, so the run lasts 7.5 h. Owner accepted the shortened run as the Gate 8 pass for the Mac (decision 2026-11-15, chat). Limits 10 ms per marked gap, 100 ms cumulative, provisional (#263 merged). The run only survives while the Claude app and that Terminal tab stay open.
-After it ends: read `REPORT.txt` (look for `RESULT: PASS`), `logs/samples.csv`, `logs/run.json`, `run.log`. If the report is not there, the run died: say so, do not guess. Never delete the folder before the owner passes Gate 8.
-Known bug: `scripts/long-run/overnight-mac.sh --hours N` exits silently unless `--out` is given (the folder-name line fails under `set -e`). Fix is one line; do it in a separate worktree, not while the script runs. Incident A-417 (#293) records this and the Mac freeze.
-Mac must stay quiet during the run: local checks only through `~/scrb-dev-assets/heavy.sh <command>` (one heavy job at a time, nice 19, 2 workers, waits while load >= 4). Six parallel Claude sessions froze this Mac once.
-Windows 8-hour runs (Regiurn, W10) were FAIL as run under the old verifier and stay FAIL; no rewrite of past evidence.
+Result at 05:13 PT (last log line): the run was STILL RUNNING, so the result is unknown. Started 01:00 PST (09:00 UTC; log times are UTC). Elapsed 15,180 s (4.2 h) of a planned 28,800 s; the 08:30 PT `STOP` file ends it early at 7.5 h. Chunks: mic 3,034 and meeting 3,034 (equal). Peak helper memory 47 MB (last sample 16 MB, CPU about 3 to 4% of a core). Free disk 139 GB at start, 131 GB at 05:13. Every sample line ended `ok`; no failure line was seen. Processes were alive (`overnight-mac.sh`, `overnight.mjs`, `caffeinate`).
+The run is a pass only if `~/scrb-long-run/gate8-mac-20261115/REPORT.txt` ends with the line `RESULT: PASS`. At 05:13 that file did not exist, which is normal while the run is going. If it is missing after the run ends, run in Terminal on the Mac, in the folder `~/Documents/GitHub/scrb`, no admin: `node --experimental-transform-types scripts/long-run/overnight.mjs --report ~/scrb-long-run/gate8-mac-20261115` (with `~/.local/share/scrb-node/current/bin` on PATH). It re-runs the checks and writes `REPORT.txt`. Owner accepted the shortened 7.5 h run as the Mac Gate 8 pass (2026-11-15); limits 10 ms per marked gap, 100 ms cumulative (#263 merged). Do not open the audio; never delete the folder before the owner passes Gate 8.
+The `--hours` without `--out` bug was fixed and merged (#302); incident A-417 (#293, merged) records it and the Mac freeze. Mac must stay quiet during runs: checks only through `~/scrb-dev-assets/heavy.sh <command>`. Windows 8-hour runs (Regiurn, W10) were FAIL as run and stay FAIL; no rewrite of past evidence.
 
 ## 3. What holds back the gates, M1 and V1
 
@@ -74,12 +80,11 @@ Order by what can run in parallel: Gate 8 Mac and Gate 7 Windows can run now; Ga
 
 Heavy tests on the Mac under load time out and get blamed on code: run them through `~/scrb-dev-assets/heavy.sh`. Do not run more than three Claude sessions at once on the Mac (six froze it, A-417). Never edit a script that is running. Always pass `--out` to `overnight-mac.sh --hours` until the bug is fixed. Never read or commit the owner's real recordings.
 
-## 4. Owner decisions pending
+## 4. Owner decisions (current at 05:13 PT)
 
-Decided 2026-11-15 (owner, in chat): Windows Gate 3 closure accepted as recommended: one clip is enough for final-pass 15%, the 21/21 import result stands, and CPU-only final-pass speed does not block Gate 3 (GPU speed is a later quality item). Speaker benchmark approved (Regiurn, Codex-runnable instructions). Gate 7 Windows walkthrough approved on W10. Remove these from the list below.
-
-
-Item 27 answer; Gate 6 bar; Windows Gate 3 closure (one clip enough? 21/21 imports stand? GPU speed blocks?); contract approvals above that are NOT approved; speaker benchmark yes/no; Mac vs Regiurn for H1; close old PRs (#213, Rust PRs); "Group transcript by outline"; typed-notes fill; final icon.
+Decided 2026-11-15 (owner, in chat): Windows Gate 3 closure accepted (one clip enough for final-pass 15%; 21/21 imports stand; CPU-only final-pass speed does not block); speaker benchmark approved (Regiurn); Gate 7 Windows walkthrough approved and passed on W10 (#304); all seven decisions in the summaries plan (#312) approved yes; Mac Gate 8 shortened run accepted.
+State: model download slice 1 merged (#306 backend, #307 UI). Summaries on a normal install slice 1 merged (#316: pins, packaged paths, optional status row); next is slice 3a. Vocabulary H1 hint test is INCONCLUSIVE (1 of 6 decodes done; pins in #292). Design guide for UI work is merged at `docs/design/scribe-design-guide.md` (#314, checked against main on 2026-11-15; says "not implemented" where something is not built).
+Still open, ask the owner with a recommendation each: Gate 6 bar (recall 68% vs 80%, precision judged 32%); item 27 follow-up if any; close old PRs (#213, Rust PRs); "Group transcript by outline"; typed-notes fill (#131); final icon; Mac vs Regiurn for H1 (Mac after the run ends is about 10 minutes). Not approved: short replies setting, automatic-summary setting, a "number of remote speakers" setting.
 
 ## 5. Machines and agents
 
