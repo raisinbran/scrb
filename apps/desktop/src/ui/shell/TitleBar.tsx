@@ -1,3 +1,4 @@
+import { Tooltip } from '../components/Tooltip.tsx';
 import { useEffect, useState } from 'react';
 import type { RecordingHealth, TranscriptionLag } from '@scrb/contracts';
 import { LAG_NOTICE_MS } from '../lib/lag.ts';
@@ -47,18 +48,18 @@ export function TitleBar() {
       <span className={styles.name}>Scribe</span>
       <div className={styles.status}>
         {setupBlocked && (
-          <span className={styles.mock} data-testid="setup-incomplete-marker" title={setupBlocked}>
-            Setup incomplete
-          </span>
+          <Tooltip label={setupBlocked}>
+            <span className={styles.mock} data-testid="setup-incomplete-marker">
+              Setup incomplete
+            </span>
+          </Tooltip>
         )}
         {mockMode && (
-          <span
-            className={styles.mock}
-            data-testid="mock-backend-marker"
-            title="Recording or the final pass is simulated. Start the app with scripts/m1.sh to record real meetings."
-          >
-            Mock backend
-          </span>
+          <Tooltip label="Recording or the final pass is simulated. Start the app with scripts/m1.sh to record real meetings.">
+            <span className={styles.mock} data-testid="mock-backend-marker">
+              Mock backend
+            </span>
+          </Tooltip>
         )}
         {lagText && (
           <span
@@ -82,14 +83,15 @@ export function TitleBar() {
           </span>
         )}
         {active && miniHidden && (
-          <button
-            type="button"
-            className={styles.showMini}
-            title="Show the small recording window again"
-            onClick={() => void backend.call('showMiniWindow').catch(() => undefined)}
-          >
-            Show mini window
-          </button>
+          <Tooltip label="Show the small recording window again">
+            <button
+              type="button"
+              className={styles.showMini}
+              onClick={() => void backend.call('showMiniWindow').catch(() => undefined)}
+            >
+              Show mini window
+            </button>
+          </Tooltip>
         )}
       </div>
     </header>

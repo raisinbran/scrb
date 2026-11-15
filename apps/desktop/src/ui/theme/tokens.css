@@ -88,6 +88,11 @@ body,
   margin: 0;
 }
 
+/* Checkboxes, radios and other native toggles use the same purple as the primary buttons. */
+:root {
+  accent-color: var(--color-accent);
+}
+
 body {
   overflow: hidden;
   font-family: var(--font-sans);

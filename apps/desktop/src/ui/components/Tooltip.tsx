@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import styles from './Tooltip.module.css';
 
 /** Pointer hover waits this long; keyboard focus shows the tip at once. */
-export const TOOLTIP_DELAY_MS = 400;
+export const TOOLTIP_DELAY_MS = 100;
 
 interface Point {
   x: number;
@@ -31,27 +31,32 @@ export function Tooltip({
 }) {
   const id = useId();
   const [point, setPoint] = useState<Point | null>(null);
+  // The bubble stays mounted at its last place so it can fade out; `open` drives visibility.
+  const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const hide = useCallback(() => {
     clearTimeout(timer.current);
-    setPoint(null);
+    setOpen(false);
   }, []);
   const show = useCallback(() => {
     const box = wrapper.current?.getBoundingClientRect();
-    if (box && label) setPoint({ x: box.left + box.width / 2, y: box.bottom + 6 });
+    if (box && label) {
+      setPoint({ x: box.left + box.width / 2, y: box.bottom + 6 });
+      setOpen(true);
+    }
   }, [label]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
-    if (!point) return;
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') hide();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [point, hide]);
+  }, [open, hide]);
 
   // Focus that follows a mouse press is not keyboard focus, so it shows no instant tip.
   const pressed = useRef(false);
@@ -83,13 +88,14 @@ export function Tooltip({
       onFocus={onFocus}
       onBlur={hide}
     >
-      {cloneElement(children, point ? { 'aria-describedby': id } : {})}
+      {cloneElement(children, open ? { 'aria-describedby': id } : {})}
       {createPortal(
         <span
           id={id}
           role="tooltip"
           className={styles.tip}
-          hidden={!point}
+          aria-hidden={!open}
+          data-open={open || undefined}
           style={point ? { left: point.x, top: point.y } : undefined}
         >
           {label}
