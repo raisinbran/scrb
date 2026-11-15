@@ -49,3 +49,17 @@ describe('mic test headset advisory', () => {
     expect(screen.queryByText(/call mode/)).toBeNull();
   });
 });
+
+describe('MicTest layout', () => {
+  it('keeps a fixed-size button and note slot, and Settings places it above the Preset', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(__dirname, 'MicTest.module.css'), 'utf8');
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('testButton')).toMatch(/width: \d+px/);
+    expect(rule('testNote')).toMatch(/height:/);
+    const audio = readFileSync(join(__dirname, '../settings/AudioSection.tsx'), 'utf8');
+    expect(audio.indexOf('<MicTest')).toBeGreaterThan(0);
+    expect(audio.indexOf('<MicTest')).toBeLessThan(audio.indexOf('>Preset<'));
+  });
+});

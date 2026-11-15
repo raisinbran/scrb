@@ -295,8 +295,9 @@ describe('LiveScreen', () => {
       expect(rule('micPicker')).toMatch(/width: \d+px/);
       expect(rule('picker')).toMatch(/flex: none/);
       expect(rule('hintSlot')).toMatch(/height:/);
-      expect(rule('testButton')).toMatch(/width: \d+px/);
-      expect(rule('testNote')).toMatch(/height:/);
+      expect(rule('meter')).toMatch(/width: \d+px/);
+      expect(rule('meterLabel')).toMatch(/width: \d+ch/);
+      expect(rule('levels')).toMatch(/flex: none/);
       expect(rule('sources')).toMatch(/padding-block: var\(--space-4\)/);
     });
 
@@ -705,7 +706,7 @@ describe('LiveScreen', () => {
 });
 
 describe('Live row alignment', () => {
-  it('gives the dropdowns, Test mic and the meters one shared height', () => {
+  it('gives the dropdowns and the meters one shared height', () => {
     const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8').replace(
       /\r\n/g,
       '\n',

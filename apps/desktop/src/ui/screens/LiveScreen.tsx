@@ -8,7 +8,6 @@ import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
 import { LiveAlerts } from './live/LiveAlerts.tsx';
-import { MicTest } from './live/MicTest.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
 import { TranscriptView, type TranscriptViewHandle } from './live/TranscriptView.tsx';
@@ -148,11 +147,6 @@ export function LiveScreen() {
             onSelect={selectSources}
           />
         </div>
-        {status === 'idle' ? (
-          <MicTest sources={selection} devices={sources.devices} />
-        ) : (
-          <div className={styles.testRow} aria-hidden="true" />
-        )}
         <LevelMeters active={status === 'recording'} />
       </div>
       <div className={styles.alertsSlot}>

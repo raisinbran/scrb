@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AudioCheckStatus, InputDevice, SourceSelection } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
-import styles from '../LiveScreen.module.css';
+import styles from './MicTest.module.css';
 
 const MIC_RESULT: Record<AudioCheckStatus['micResult'], string> = {
   listening: 'Listening…',

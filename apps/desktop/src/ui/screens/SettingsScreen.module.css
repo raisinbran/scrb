@@ -94,9 +94,10 @@
   align-items: center;
 }
 
+/* A fixed-size bar and a fixed-width value: nothing here moves when the value changes. */
 .slider input {
-  flex: 1;
-  min-width: 0;
+  flex: none;
+  width: 220px;
 }
 
 .slider output {
@@ -104,6 +105,7 @@
   /* "Automatic" and "-100 dB" take the same room, so the slider never changes length. */
   min-width: 9ch;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
   text-align: end;
 }
 

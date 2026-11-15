@@ -2,6 +2,7 @@ import { cloneElement, Fragment, type ReactElement } from 'react';
 import { IconButton } from '../../components/IconButton.tsx';
 import type { AudioSettings, InputDevice, MeetingApp, NoiseSuppression } from '@scrb/contracts';
 import { Tooltip } from '../../components/Tooltip.tsx';
+import { MicTest } from '../live/MicTest.tsx';
 import { PRESET_OPTIONS, presetPatch, type PresetControls } from './presets.ts';
 import styles from '../SettingsScreen.module.css';
 
@@ -146,6 +147,11 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
           </select>
         </label>
       </div>
+
+      <MicTest
+        sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
+        devices={devices}
+      />
 
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
