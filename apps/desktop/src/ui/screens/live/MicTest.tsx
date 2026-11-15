@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AudioCheckStatus, InputDevice, SourceSelection } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { useRecordingStatus } from '../../shell/use-recording-status.ts';
 import styles from './MicTest.module.css';
 
 const MIC_RESULT: Record<AudioCheckStatus['micResult'], string> = {
@@ -20,6 +21,9 @@ export function MicTest({
 }) {
   const backend = useBackend();
   const [check, setCheck] = useState<AudioCheckStatus | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const { recording } = useRecordingStatus();
+  const recordingNow = recording.status !== 'idle';
 
   useEffect(() => {
     const unsubscribe = backend.on('audioCheck', setCheck);
@@ -38,19 +42,35 @@ export function MicTest({
   const showFailure = !active && check?.micResult === 'denied';
   const toggle = () => {
     if (active) void backend.call('stopAudioCheck');
-    else if (sources) void backend.call('startAudioCheck', { sources }).catch(() => undefined);
+    else if (sources) {
+      setFailure(null);
+      backend.call('startAudioCheck', { sources }).catch((error: unknown) => {
+        setFailure(error instanceof Error ? error.message : 'The mic test could not start.');
+      });
+    }
   };
 
   return (
     <div className={styles.testRow}>
-      <button type="button" className={styles.testButton} disabled={!sources} onClick={toggle}>
+      <button
+        type="button"
+        className={styles.testButton}
+        disabled={!sources || (recordingNow && !active)}
+        onClick={toggle}
+      >
         {active ? 'Stop test' : 'Test mic'}
       </button>
       <div className={styles.testNote}>
-        {(active || handsFree || showFailure) && (
+        {(active || handsFree || showFailure || recordingNow || failure) && (
           <span className={styles.hint} role="status">
+            {recordingNow && !active
+              ? 'Not available while recording.'
+              : failure && !active
+                ? failure
+                : null}
             {check && (active || showFailure) ? MIC_RESULT[check.micResult] : null}
             {handsFree &&
+              !recordingNow &&
               (active
                 ? '. This headset is in call mode, so sound quality is lower.'
                 : `${showFailure ? '. ' : ''}Testing this headset turns on call mode and may lower sound quality.`)}
