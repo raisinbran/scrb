@@ -139,7 +139,12 @@ describe('Recordings', () => {
 
     it('fills the bar from the final pass progress event and names the stage', async () => {
       renderScreen();
+      const on = vi.spyOn(backend, 'on');
       await openMeeting(/Budget review/);
+      // The banner subscribes in a passive effect; emitting earlier drops the event.
+      await waitFor(() =>
+        expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
+      );
       act(() =>
         backend.emit('finalPassProgress', {
           meetingId: 'meeting-final-pass',
