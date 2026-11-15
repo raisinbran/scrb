@@ -25,3 +25,14 @@ Wave 1 playback and capture (Tests 4 and 5 in `wave1...:17-18`) are not a Gate 3
 - V1 still needs both platforms recorded (`Development Plan:154`). Windows Gate 3 is not passed and the 2026-11-10 and 2026-11-12 records cover only the items named in them.
 - Follow-ups that do not block (`Development Plan:156-165`): the 106 s extra-sample capture event, level meters reading 0, PR #67 diagnostics unmerged, hyphen handling in the matcher.
 - Gate 8 (8-hour recorder run) is a different gate; BCHEN-W10's 8-hour run is a separate matter (`docs/handoffs/2026-11-14-w10-gate8-gap-analysis.md`).
+
+## Addendum, 2026-11-15: owner decisions and new measurements
+
+The findings above are the 2026-11-14 audit and are unchanged. Sources for this addendum are the owner's chat decisions of 2026-11-15 and PR #295, both relayed to me by the planning session; I did not read PR #295 or any owner record, so treat them as unverified until a record is committed.
+
+- Row 3 (15% target): owner decision that one clip is enough.
+- Row 5 (imports): owner decision that the 21/21 result stands.
+- Row 7 (final-pass speed): owner decision that CPU-only speed (about 2x real time on Regiurn) does not block Gate 3; GPU speed is a later quality item.
+- Rows 2 and 4 (memory, worker kill): now measured on BCHEN-W10 in PR #295, pending its merge. Peak working set 1,405.1 MiB and private bytes 1,801.2 MiB against the 6,144 MiB target; kill-to-restart 4.1 s; 112 chunks intact. One 7-minute development-launch run, so a lower bound.
+
+This addendum does not record Windows Gate 3 as passed. It covers only what the evidence and these decisions say; V1 still needs both platforms recorded.
