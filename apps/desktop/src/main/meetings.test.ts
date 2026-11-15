@@ -567,6 +567,17 @@ describe('createMeetingHandlers', () => {
       status: 'finalPassRunning',
       statusBeforeReprocess: 'ready',
     });
+    await library.updateMeeting(meeting.id, { status: 'ready' });
+    const busy = vi.fn();
+    handlers = createMeetingHandlers(library, vi.fn(), undefined, {
+      enqueue: busy,
+      isBusy: () => true,
+    } as never);
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
+      ok: false,
+      error: { code: 'conflict' },
+    });
+    expect(busy).not.toHaveBeenCalled();
     await library.updateMeeting(meeting.id, { status: 'recording' });
     expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
       ok: false,

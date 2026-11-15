@@ -6,11 +6,12 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import type { FinalTranscript } from '@scrb/transcription';
 import {
@@ -267,6 +268,44 @@ describe('final pass after Stop', () => {
       status: 'ready',
       statusBeforeReprocess: null,
     });
+  });
+
+  it('restores the old status when a queued re-run finds no sealed audio', async () => {
+    const { id, audio } = await sealedMeeting();
+    rmSync(audio, { recursive: true, force: true });
+    await library.updateMeeting(id, { status: 'finalPassRunning', statusBeforeReprocess: 'ready' });
+    const run = vi.fn(async () => TRANSCRIPT);
+    const queue = new FinalPassQueue(library, run);
+    queue.enqueue(id);
+    await queue.idle();
+    expect(run).not.toHaveBeenCalled();
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'ready',
+      statusBeforeReprocess: null,
+    });
+  });
+
+  it('reports a meeting busy until the pass and matching finish', async () => {
+    const { id } = await sealedMeeting();
+    let release: () => void = () => undefined;
+    const matching = async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return undefined;
+    };
+    const queue = new FinalPassQueue(
+      library,
+      async () => TRANSCRIPT,
+      undefined,
+      (() => matching) as never,
+    );
+    expect(queue.isBusy(id)).toBe(false);
+    queue.enqueue(id);
+    expect(queue.isBusy(id)).toBe(true);
+    await vi.waitFor(async () => expect((await library.getMeeting(id)).status).toBe('ready'));
+    expect(queue.isBusy(id)).toBe(true);
+    release();
+    await queue.idle();
+    expect(queue.isBusy(id)).toBe(false);
   });
 
   it('stops reporting when the pass is cancelled', async () => {

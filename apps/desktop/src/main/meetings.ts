@@ -354,6 +354,8 @@ export function createMeetingHandlers(
       // The status check alone lets a double click queue the pass twice.
       if (
         retrying.has(meetingId) ||
+        // Ready is set before optional speaker matching ends, so the status alone is not enough.
+        finalPasses?.isBusy?.(meetingId) ||
         (meeting.status !== 'transcriptionFailed' &&
           meeting.status !== 'ready' &&
           meeting.status !== 'recovered') ||

@@ -240,6 +240,7 @@ function finalPassDir(library: Library, meetingId: string): string {
 /** Runs final passes one at a time, so only one large model is ever loaded. */
 export class FinalPassQueue {
   private waiting: string[] = [];
+  private readonly active = new Set<string>();
   private running: Promise<void> | null = null;
   private closing = false;
   private readonly abort = new AbortController();
@@ -255,8 +256,14 @@ export class FinalPassQueue {
 
   enqueue(meetingId: string): void {
     if (this.closing) return;
+    this.active.add(meetingId);
     this.waiting.push(meetingId);
     this.running ??= this.drain();
+  }
+
+  /** True from enqueue until the pass and its optional speaker matching have finished. */
+  isBusy(meetingId: string): boolean {
+    return this.active.has(meetingId);
   }
 
   /** Resolves once nothing is queued or running. */
@@ -268,13 +275,18 @@ export class FinalPassQueue {
   async shutdown(): Promise<void> {
     this.closing = true;
     this.waiting = [];
+    this.active.clear();
     this.abort.abort();
     await this.running;
   }
 
   private async drain(): Promise<void> {
     for (let id = this.waiting.shift(); id !== undefined; id = this.waiting.shift()) {
-      await this.process(id);
+      try {
+        await this.process(id);
+      } finally {
+        this.active.delete(id);
+      }
     }
     this.running = null;
   }
@@ -304,6 +316,10 @@ export class FinalPassQueue {
     try {
       report('queued', 0);
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
+      // A re-run whose audio vanished must not report success over the old transcript.
+      if (tracks.length === 0 && (await this.library.getMeeting(meetingId)).statusBeforeReprocess) {
+        throw new Error('No readable sealed tracks');
+      }
       if (tracks.length > 0) {
         const job = () =>
           this.run({
