@@ -13,17 +13,10 @@ function pointAtTestLibrary(userData: string, root = join(userData, 'library')):
 }
 
 /** The real settings start with no location, so the first-launch question opens. */
-/** Settings is a modal overlay, not a screen: open it from the gear and close it again with Escape. */
+/** Settings is an ordinary tab at the bottom of the sidebar. */
 async function openSettings(page: Page) {
-  await page.getByRole('button', { name: 'Settings' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await expect(dialog).toBeVisible();
-  return dialog;
-}
-
-async function closeSettings(page: Page): Promise<void> {
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
 }
 
 async function answerFirstLaunch(page: Page): Promise<void> {
@@ -153,7 +146,6 @@ test('launches and shows every screen against the mock backend', async () => {
   for (const theme of ['Dark', 'Light']) {
     await openSettings(page);
     await page.getByRole('radio', { name: theme }).check();
-    await closeSettings(page);
     for (const screen of SCREENS) {
       await page.getByRole('button', { name: screen, exact: true }).click();
       await expect(page.getByRole('heading', { level: 1, name: screen })).toBeVisible();
