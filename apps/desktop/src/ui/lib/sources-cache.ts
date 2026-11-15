@@ -6,15 +6,23 @@ export interface Sources {
 }
 
 let cached: Sources | null = null;
+// Each request takes a number; an answer older than the newest one already stored is dropped, so a
+// slow early request can never overwrite a newer device list.
+let requested = 0;
+let stored = 0;
 
 /** Asks the backend for the lists (the slow part of opening Settings and Live) and remembers them. */
 export async function fetchSources(backend: Backend): Promise<Sources> {
+  const ticket = ++requested;
   const [devices, apps] = await Promise.all([
     backend.call('listInputDevices'),
     backend.call('listMeetingApps'),
   ]);
-  cached = { devices, apps };
-  return cached;
+  if (ticket > stored) {
+    stored = ticket;
+    cached = { devices, apps };
+  }
+  return cached ?? { devices, apps };
 }
 
 /** The last lists seen, if any, so a screen can draw at once. */
@@ -30,4 +38,6 @@ export function sourcesNow(backend: Backend): Promise<Sources> {
 /** A device was plugged in or removed: the remembered lists can no longer be trusted. */
 export function forgetSources(): void {
   cached = null;
+  // Answers to requests made before this point describe the old devices.
+  stored = requested;
 }
