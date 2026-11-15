@@ -1,0 +1,6 @@
+### A-402 — 2026-11-14 — Claude Code planner session (model not recorded) / Mac desktop — PR #250 pushed with the heading edit left unstaged
+- **Status / attribution:** Confirmed agent error (planner session); caught by independent review before merge. No product defect.
+- **What failed:** To renumber the duplicate A-373 incident to A-397, the planner staged the `git mv` but not the `sed` edit of the heading inside the file, so the committed file was named A-397 while its heading still read A-373. Removing the worktree with `git worktree remove --force` then discarded the unstaged edit.
+- **Impact:** The first commit (`53ebd6b6`) did not fix the register check's duplicate. Independent review caught it; fix commit `0946cb47` changed the heading, and #250 merged with both commits (it shows as a rename with 1 addition and 1 deletion).
+- **Source evidence:** `gh pr view 250` (two commits, 53ebd6b6 then 0946cb47); planner transcript summary. That `--force` removal discarded the edit is from the planner's own summary and was not re-verified.
+- **Correction / remaining risk:** Heading fixed in 0946cb47. Low risk. Run `git status` and `node scripts/check-register-ids.mjs` before pushing a rename, and avoid `--force` worktree removal while changes are unstaged.

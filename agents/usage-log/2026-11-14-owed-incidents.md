@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Mac desktop | Wrote three owed incident files (A-400 to A-402) and checked an obsolete handoff prompt | unavailable | unavailable | unavailable | unavailable | unavailable | Docs-only / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
