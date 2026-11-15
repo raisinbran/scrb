@@ -76,6 +76,9 @@ Heavy tests on the Mac under load time out and get blamed on code: run them thro
 
 ## 4. Owner decisions pending
 
+Decided 2026-11-15 (owner, in chat): Windows Gate 3 closure accepted as recommended: one clip is enough for final-pass 15%, the 21/21 import result stands, and CPU-only final-pass speed does not block Gate 3 (GPU speed is a later quality item). Speaker benchmark approved (Regiurn, Codex-runnable instructions). Gate 7 Windows walkthrough approved on W10. Remove these from the list below.
+
+
 Item 27 answer; Gate 6 bar; Windows Gate 3 closure (one clip enough? 21/21 imports stand? GPU speed blocks?); contract approvals above that are NOT approved; speaker benchmark yes/no; Mac vs Regiurn for H1; close old PRs (#213, Rust PRs); "Group transcript by outline"; typed-notes fill; final icon.
 
 ## 5. Machines and agents
