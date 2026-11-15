@@ -101,7 +101,7 @@ describe('overnight.mjs --report on synthetic evidence', () => {
     expect(r.text).toMatch(/PASS {2}meeting no lost audio: .*1 marked by the helper, 1 matched/);
   });
 
-  it('FAILS a marked 12 ms gap, an unmarked 8 ms gap, and an unmarked missingCause', () => {
+  it('FAILS a marked 12 ms gap and an unmarked 8 ms gap', () => {
     for (const r of [gapped(12e6), gapped(8e6, { marked: false })]) {
       expect(r.result).toBe('RESULT: FAIL');
       expect(r.code).toBe(1);
