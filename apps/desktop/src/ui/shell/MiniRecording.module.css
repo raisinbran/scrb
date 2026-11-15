@@ -64,6 +64,13 @@
 }
 
 /* The row's buttons show theirs above, in the strip's space. */
+.flag[data-tip]::after {
+  bottom: calc(100% + 4px);
+  left: 0;
+  max-width: 300px;
+  white-space: normal;
+}
+
 .icon[data-tip]::after {
   right: 0;
   bottom: calc(100% + 4px);
@@ -217,7 +224,9 @@
 }
 
 .flag {
+  position: relative;
   flex-shrink: 0;
+  cursor: default;
   font-weight: 700;
   color: var(--color-warning);
 }
