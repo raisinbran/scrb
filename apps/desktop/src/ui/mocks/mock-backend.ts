@@ -1340,10 +1340,14 @@ export class MockBackend implements Backend {
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
     retryFinalPass: ({ meetingId }) => {
       const meeting = this.findMeeting(meetingId);
-      if (meeting.status !== 'transcriptionFailed' || !meeting.hasAudio) {
+      const retryable =
+        meeting.status === 'transcriptionFailed' ||
+        meeting.status === 'ready' ||
+        meeting.status === 'recovered';
+      if (!retryable || !meeting.hasAudio) {
         throw new ContractError({
           code: 'conflict',
-          message: 'No failed pass with audio is available to retry.',
+          message: 'No meeting with audio is available to re-process.',
         });
       }
       this.updateMeetingStatus(meetingId, {

@@ -41,6 +41,17 @@ describe('Recordings', () => {
     backend.dispose();
   });
 
+  describe('re-process', () => {
+    it('re-runs a finished meeting and shows the processing banner', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      expect(screen.getByText(/Your edits and speaker names are kept/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Re-process' }));
+      expect(await screen.findByRole('progressbar', {}, SLOW)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull();
+    });
+  });
+
   describe('library', () => {
     it('shows each in-progress state', async () => {
       renderScreen();
