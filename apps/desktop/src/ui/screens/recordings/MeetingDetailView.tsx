@@ -764,13 +764,6 @@ function LoadedDetail(props: LoadedDetailProps) {
             onClick={() => setDialog('delete')}
           />
         </div>
-        {canReprocess && (
-          <p id="reprocess-note" className={styles.muted}>
-            Re-process re-runs speech recognition and speaker detection with the current app. Your
-            edits and speaker names are kept where the words still match. The summary may become
-            outdated.
-          </p>
-        )}
       </header>
 
       <div role="tablist" aria-label="Meeting" className={styles.tabs} onKeyDown={onTabKey}>
