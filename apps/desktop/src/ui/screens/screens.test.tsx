@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
@@ -276,6 +276,13 @@ describe('screens', () => {
       ).toBe(false);
       fireEvent.pointerEnter(controls[1]!.closest('span')!);
       expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
+      fireEvent.pointerLeave(controls[1]!.closest('span')!);
+      // Keyboard: a disabled control cannot be focused, so its row is the tab stop.
+      const row = controls[2]!.closest('label')!;
+      expect(row.tabIndex).toBe(0);
+      act(() => row.focus());
+      expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
+      act(() => row.blur());
       fireEvent.click(screen.getByRole('radio', { name: /^Custom/ }));
       for (const control of controls) expect((control as HTMLInputElement).disabled).toBe(false);
     });

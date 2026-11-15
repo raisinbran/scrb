@@ -1,4 +1,4 @@
-import { Fragment, type ReactElement } from 'react';
+import { cloneElement, Fragment, type ReactElement } from 'react';
 import type { AudioSettings, InputDevice, MeetingApp, NoiseSuppression } from '@scrb/contracts';
 import { Tooltip } from '../../components/Tooltip.tsx';
 import { PRESET_OPTIONS, presetPatch, type PresetControls } from './presets.ts';
@@ -81,10 +81,19 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
   const locked = audio.preset !== 'custom';
   const lockedBy = PRESET_OPTIONS.find((option) => option.value === audio.preset)?.label;
   const lockTip = locked ? `Set by ${lockedBy}` : '';
-  // Always wrapped, so a preset change keeps the same elements (and focus); an empty tip shows nothing.
-  const lockable = (key: string, node: ReactElement<{ 'aria-describedby'?: string }>) => (
-    <Tooltip label={isPresetControl(key) ? lockTip : ''}>{node}</Tooltip>
-  );
+  // Always wrapped, so a preset change keeps the same elements; an empty tip shows nothing.
+  // A disabled control cannot take focus, so its row does while locked: keyboard users reach the tip.
+  const lockable = (
+    key: string,
+    node: ReactElement<{ 'aria-describedby'?: string; tabIndex?: number }>,
+  ) => {
+    const owned = locked && isPresetControl(key);
+    return (
+      <Tooltip label={owned ? lockTip : ''}>
+        {owned ? cloneElement(node, { tabIndex: 0 }) : node}
+      </Tooltip>
+    );
+  };
 
   const change = (patch: Partial<AudioSettings>) => {
     const leavesPreset = Object.keys(patch).some(isPresetControl);
