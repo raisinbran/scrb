@@ -530,3 +530,12 @@ export function createModelDownloader(
 export function createSummaryModelDownloader(base: Omit<DownloadOptions, 'signal'>) {
   return createModelDownloader(base);
 }
+
+/** Cancels both model downloads when the backend closes. */
+export function cancelModelDownloadersOnClose(
+  modelDownloader: { cancel(): void } | null,
+  summaryModelDownloader: { cancel(): void } | null,
+): void {
+  modelDownloader?.cancel();
+  summaryModelDownloader?.cancel();
+}

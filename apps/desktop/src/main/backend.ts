@@ -45,6 +45,7 @@ import {
 } from './packaged-setup.ts';
 import { ContractError } from '@scrb/contracts';
 import {
+  cancelModelDownloadersOnClose,
   createModelDownloader,
   createSummaryModelDownloader,
   extractWithTar,
@@ -439,7 +440,7 @@ export async function openBackend(
         sharedNotice = null;
       },
       close: async () => {
-        modelDownloader?.cancel();
+        cancelModelDownloadersOnClose(modelDownloader, summaryModelDownloader);
         playback.stop();
         stopRetention();
         await summaries.shutdown();
