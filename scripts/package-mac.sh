@@ -61,14 +61,15 @@ capture="$(pick "$repo/native/macos-capture/build/scrb-capture" "$main/native/ma
 tools="$(pick "$repo/packages/transcription/.bin" "$main/packages/transcription/.bin")"
 whisper="${assets}/upstream/whisper.cpp/build/bin"
 sherpa_lib="${assets}/upstream/sherpa-onnx/build/install/lib"
+llama="${assets}/upstream/llama.cpp/build/bin"
 
 echo "Scribe build"
-echo "  tools from:   $capture, $whisper, $tools, $sherpa_lib"
+echo "  tools from:   $capture, $whisper, $tools, $sherpa_lib, $llama"
 echo "  output:       $repo/apps/desktop/release/mac-arm64/Scribe.app"
 [[ "$mode" == install ]] && echo "  then replaces: /Applications/Scribe.app (your library, settings and models are not touched)"
 
 cd "$repo/apps/desktop"
-node "$repo/scripts/stage-mac-tools.mjs" build/mac-stage "$capture" "$whisper" "$tools" "$sherpa_lib"
+node "$repo/scripts/stage-mac-tools.mjs" build/mac-stage "$capture" "$whisper" "$tools" "$llama" "$sherpa_lib"
 npm run build
 rm -rf release
 npx electron-builder --mac dir --arm64 --publish never
