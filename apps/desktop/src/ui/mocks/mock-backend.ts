@@ -1447,7 +1447,10 @@ export class MockBackend implements Backend {
     },
     revealExport: ({ exportId }) => {
       if (!this.savedExports.has(exportId)) {
-        throw new ContractError({ code: 'notFound', message: 'That export is no longer available.' });
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That export is no longer available.',
+        });
       }
     },
 

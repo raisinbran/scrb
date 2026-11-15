@@ -286,7 +286,9 @@ describe('createExportHandlers', () => {
       value: { exportId: string };
     };
     await settled();
-    expect(await dispatchCall(handlers, 'revealExport', { exportId: value.exportId })).toMatchObject({
+    expect(
+      await dispatchCall(handlers, 'revealExport', { exportId: value.exportId }),
+    ).toMatchObject({
       ok: true,
     });
     expect(revealPath).toHaveBeenCalledWith(

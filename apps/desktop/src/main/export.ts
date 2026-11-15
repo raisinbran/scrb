@@ -245,7 +245,10 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     revealExport: async (raw) => {
       const file = saved.get((raw as { exportId: string }).exportId);
       if (file === undefined) {
-        throw new ContractError({ code: 'notFound', message: 'That export is no longer available.' });
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That export is no longer available.',
+        });
       }
       deps.revealPath(file);
     },
