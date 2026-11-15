@@ -413,13 +413,12 @@ async function verify(work) {
     );
     const marked = sealed.gaps.filter((gap) => gap.track === track || gap.track === 'both');
     const logFile = join(logs, `${track}.chunks.log`);
-    const frames = checkChunkFrames(existsSync(logFile) ? readFileSync(logFile, 'utf8') : '', chunks.length);
+    const frames = checkChunkFrames(existsSync(logFile) ? readFileSync(logFile, 'utf8') : '', chunks.length, marked);
     const verdict = judgeLostAudio({
       frames,
       chunks,
       timelineEndNs: sealed.endNs,
-      markedCount: marked.length,
-      isMarked: (from) => marked.some((span) => span.startNs === from),
+      marked,
     });
     perTrack[track] = { chunks, audioNs: verdict.audioNs, lossNs: verdict.lossNs };
     check(`${track} no lost audio`, verdict.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : verdict.passed, verdict.detail);

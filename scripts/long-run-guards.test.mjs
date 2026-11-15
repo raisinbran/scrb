@@ -148,8 +148,8 @@ describe('judgeLostAudio (the "no lost audio" decision)', () => {
     }
     return out;
   };
-  const judge = (chunks, markedCount = 0, isMarked = () => false) =>
-    judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs, markedCount, isMarked, frames: { status: 'ok', detail: 'test' } });
+  const judge = (chunks, marked = []) =>
+    judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs, marked, frames: { status: 'ok', detail: 'test' } });
 
   it('FAILS 50 gaps of +1.9 ms plus one -95 ms overlap', () => {
     const v = judge(chunksWithGaps([...Array(50).fill(1.9e6), -95e6]));
@@ -174,32 +174,98 @@ describe('judgeLostAudio (the "no lost audio" decision)', () => {
 
   it('is INCONCLUSIVE, not PASS, when the timestamps look fine but the frame evidence is absent or disagrees', () => {
     const chunks = chunksWithGaps([0.5e6, -0.5e6]);
-    const base = { chunks, timelineEndNs: chunks.at(-1).endNs, markedCount: 0, isMarked: () => false };
+    const base = { chunks, timelineEndNs: chunks.at(-1).endNs, marked: [] };
     expect(judgeLostAudio({ ...base, frames: { status: 'absent', detail: 'no chunk log' } }).status).toBe('INCONCLUSIVE');
     expect(judgeLostAudio({ ...base, frames: { status: 'bad', detail: 'x' } }).status).toBe('INCONCLUSIVE');
     expect(judgeLostAudio(base).status).toBe('INCONCLUSIVE');
     expect(judgeLostAudio({ ...base, frames: { status: 'ok', detail: '' } }).status).toBe('PASS');
   });
 
-  it('FAILS one 8 ms gap, unmarked, and reports it separately from a marked one', () => {
+  it('FAILS one 8 ms gap, unmarked; a matched marked 8 ms gap passes', () => {
     const chunks = chunksWithGaps([8e6]);
     const unmarked = judge(chunks);
-    expect(unmarked.passed).toBe(false);
-    expect(unmarked.detail).toContain('0 marked, 1 unmarked');
-    const marked = judge(chunks, 1, (from) => from === chunks[0].endNs);
-    expect(marked.passed).toBe(false);
-    expect(marked.detail).toContain('1 marked, 0 unmarked');
+    expect(unmarked.status).toBe('FAIL');
+    expect(unmarked.detail).toContain('0 marked by the helper, 0 matched');
+    expect(unmarked.detail).toContain('1 unmarked');
+    const marked = judge(chunks, [{ startNs: chunks[0].endNs, endNs: chunks[1].startNs }]);
+    expect(marked.status).toBe('PASS');
+    expect(marked.detail).toContain('1 marked by the helper, 1 matched');
   });
 
-  it('FAILS a marked gap even when no gap is found in the chunks', () => {
-    expect(judge(chunksWithGaps([0.1e6]), 1).passed).toBe(false);
+  it('is INCONCLUSIVE, not a pass, when a marked gap is not found in the chunks', () => {
+    expect(judge(chunksWithGaps([0.1e6]), [{ startNs: 30e9, endNs: 38e9 }]).status).toBe('INCONCLUSIVE');
   });
-
   it('FAILS an accumulating small loss and a large net shortfall', () => {
     expect(judge(chunksWithGaps(Array(300).fill(0.5e6))).passed).toBe(false);
     const chunks = chunksWithGaps([0.1e6]);
-    const v = judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs + 150e6, markedCount: 0, isMarked: () => false, frames: { status: 'ok', detail: 'test' } });
+    const v = judgeLostAudio({ chunks, timelineEndNs: chunks.at(-1).endNs + 150e6, marked: [], frames: { status: 'ok', detail: 'test' } });
     expect(v.passed).toBe(false);
+  });
+
+  describe('tiers (owner decision 2026-11-15: 10 ms per marked gap, 100 ms per run, provisional)', () => {
+    const span = (chunks, i, endNs = chunks[i + 1].startNs) => ({ startNs: chunks[i].endNs, endNs });
+    const marked1 = (gapNs) => {
+      const chunks = chunksWithGaps([gapNs]);
+      return judge(chunks, [span(chunks, 0)]);
+    };
+
+    it('nets a 1.9 ms gap or overlap; fails any unmarked 2 ms gap or overlap', () => {
+      expect(judge(chunksWithGaps([1.9e6])).status).toBe('PASS');
+      expect(judge(chunksWithGaps([-1.9e6])).status).toBe('PASS');
+      expect(judge(chunksWithGaps([2e6])).status).toBe('FAIL');
+      expect(judge(chunksWithGaps([-2e6])).status).toBe('FAIL');
+      expect(judge(chunksWithGaps([2e6]), []).detail).toContain('1 unmarked');
+    });
+
+    it('passes a matched marked gap at 2 ms and exactly 10 ms, fails at 10.1 ms', () => {
+      expect(marked1(2e6).status).toBe('PASS');
+      expect(marked1(10e6).status).toBe('PASS');
+      const over = marked1(10.1e6);
+      expect(over.status).toBe('FAIL');
+      expect(over.detail).toContain('1 over');
+    });
+
+    it('passes marked gaps totalling exactly 100 ms, fails at 100.1 ms', () => {
+      const run = (sizes) => {
+        const chunks = chunksWithGaps(sizes);
+        return judge(chunks, sizes.map((_, i) => span(chunks, i)));
+      };
+      expect(run(Array(10).fill(10e6)).status).toBe('PASS');
+      expect(run([...Array(9).fill(10e6), 5e6, 5e6]).status).toBe('PASS');
+      expect(run([...Array(9).fill(10e6), 5e6, 5.1e6]).status).toBe('FAIL');
+    });
+
+    it('requires an exact match: wrong start or wrong end is unmarked and FAILS', () => {
+      const chunks = chunksWithGaps([8e6]);
+      expect(judge(chunks, [{ startNs: chunks[0].endNs + 1, endNs: chunks[1].startNs }]).status).toBe('FAIL');
+      expect(judge(chunks, [{ startNs: chunks[0].endNs, endNs: chunks[1].startNs - 1 }]).status).toBe('FAIL');
+    });
+
+    it('is INCONCLUSIVE when the marked list has more entries than the chunk gaps, and counts must agree', () => {
+      const chunks = chunksWithGaps([8e6]);
+      const real = span(chunks, 0);
+      expect(judge(chunks, [real, { startNs: 99e9, endNs: 99.005e9 }]).status).toBe('INCONCLUSIVE');
+      // one marked span cannot excuse two identical-looking gaps
+      const two = chunksWithGaps([8e6, 8e6]);
+      expect(judge(two, [span(two, 0)]).status).toBe('FAIL');
+    });
+
+    it('is INCONCLUSIVE with a good marked gap but missing or bad frame evidence', () => {
+      const chunks = chunksWithGaps([8e6]);
+      const base = { chunks, timelineEndNs: chunks.at(-1).endNs, marked: [span(chunks, 0)] };
+      expect(judgeLostAudio({ ...base, frames: { status: 'absent', detail: '' } }).status).toBe('INCONCLUSIVE');
+      expect(judgeLostAudio({ ...base, frames: { status: 'bad', detail: '' } }).status).toBe('INCONCLUSIVE');
+    });
+
+    it('still FAILS an overlap of 2 ms or more even with marked gaps present', () => {
+      const chunks = chunksWithGaps([8e6, -3e6]);
+      expect(judge(chunks, [span(chunks, 0)]).status).toBe('FAIL');
+    });
+
+    it('feeds the final PASS/FAIL line: only PASS counts as passed', () => {
+      expect(marked1(8e6).passed).toBe(true);
+      expect(marked1(12e6).passed).toBe(false);
+    });
   });
 });
 
@@ -232,6 +298,27 @@ describe('checkChunkFrames', () => {
     expect(checkChunkFrames(log(line(), line({ closeReason: 'rollover', frames: 239000, endNs: 5e9 - 20833333 })), 2).status).toBe('bad');
     expect(checkChunkFrames(log(line(), line({ paddedSpans: [{ startNs: 1, endNs: 2 }] })), 2).status).toBe('bad');
     expect(checkChunkFrames(log(line(), line({ missingCause: 'unknown' })), 2).status).toBe('bad');
+  });
+
+  it('excuses a missingCause chunk only when matched to a distinct marked span of at most 10 ms', () => {
+    const caused = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown' });
+    const span = { startNs: 5e9 - 8e6, endNs: 5e9 };
+    expect(checkChunkFrames(log(line(), caused), 2, [span]).status).toBe('ok');
+    expect(checkChunkFrames(log(line(), caused), 2, []).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), caused), 2, [{ startNs: 5e9 - 10.1e6, endNs: 5e9 }]).status).toBe('bad');
+    expect(checkChunkFrames(log(line(), caused), 2, [{ startNs: 50e9, endNs: 50.008e9 }]).status).toBe('bad');
+    // a marked span with no missingCause chunk, or two chunks for one span
+    expect(checkChunkFrames(log(line(), line({ startNs: 5e9, endNs: 10e9 })), 2, [span]).status).toBe('bad');
+    const second = line({ startNs: 10e9, endNs: 15e9, missingCause: 'unknown' });
+    expect(checkChunkFrames(log(line(), caused, second), 3, [span]).status).toBe('bad');
+  });
+
+  it('still checks the frame count, padding and rollover of an excused chunk', () => {
+    const span = { startNs: 5e9 - 8e6, endNs: 5e9 };
+    const bad = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', frames: 239000 });
+    expect(checkChunkFrames(log(line(), bad), 2, [span]).status).toBe('bad');
+    const padded = line({ startNs: 5e9, endNs: 10e9, missingCause: 'unknown', paddedSpans: [{ startNs: 1, endNs: 2 }] });
+    expect(checkChunkFrames(log(line(), padded), 2, [span]).status).toBe('bad');
   });
 
   it('is absent when the log is empty, unreadable or does not match the chunk count', () => {

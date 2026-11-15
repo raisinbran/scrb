@@ -54,11 +54,15 @@ export function chooseSeconds(explicit) {
 }
 
 /**
- * Provisional, not calibrated: chosen after seeing one 5-minute smoke run and the one Regiurn 8-hour run (two
- * tracks). The BCHEN-W10 8-hour run is not used.
+ * Provisional, not calibrated. The jitter nets were chosen after one 5-minute smoke run and the Regiurn 8-hour run.
+ * The marked-gap limits (owner decision 2026-11-15) rest on the AMI gap-size test: output changes step up at 20 ms
+ * zero-filled gaps, so 10 ms per marked gap and 100 ms per run are the accepted provisional limits, frozen before
+ * the Mac 8-hour run. They are policy, not statistics.
  */
 export const LOST_AUDIO_LIMITS = {
   gapToleranceMs: 2,
+  markedGapMaxMs: 10,
+  markedTotalMaxMs: 100,
   netSmallHourMs: 10,
   netSmallRunMs: 100,
   netShortfallMs: 100,
@@ -74,9 +78,10 @@ export const CANCELLING_WARNING = 'large cancelling jitter, continuity not indep
  * counted in bigOverlaps. Only differences smaller than the tolerance are timestamp jitter; those are netted as
  * a signed sum, over the whole run and per clock hour of the run, so the caller can bound the net.
  */
-export function scanGaps(chunks, toleranceMs, isMarked) {
+export function scanGaps(chunks, toleranceMs, isMarked, markedMaxMs = Infinity) {
   const out = {
     overlaps: 0, bigOverlaps: 0, largestOverlapNs: 0, unmarked: 0, lossNs: 0, longestNs: 0,
+    markedFound: 0, markedNs: 0, markedOver: 0, longestMarkedNs: 0,
     posSmallNs: 0, negSmallNs: 0, netSmallNs: 0, worstHourNetNs: 0,
   };
   const perHour = new Map();
@@ -98,7 +103,14 @@ export function scanGaps(chunks, toleranceMs, isMarked) {
     } else {
       out.lossNs += gap;
       out.longestNs = Math.max(out.longestNs, gap);
-      if (!isMarked(from)) out.unmarked += 1;
+      if (!isMarked(from, chunks[i].startNs)) {
+        out.unmarked += 1;
+      } else {
+        out.markedFound += 1;
+        out.markedNs += gap;
+        out.longestMarkedNs = Math.max(out.longestMarkedNs, gap);
+        if (gap > markedMaxMs * 1e6) out.markedOver += 1;
+      }
     }
   }
   for (const net of perHour.values()) out.worstHourNetNs = Math.max(out.worstHourNetNs, Math.abs(net));
@@ -109,9 +121,12 @@ export function scanGaps(chunks, toleranceMs, isMarked) {
  * Independent sample evidence for one track, from its chunk log (one JSON line per chunk). Frame counts are
  * counted samples, not timestamps. Every chunk must hold the frame count its own stamped span implies (within
  * one frame), every chunk closed by a rollover must hold the same count as the others, and none may carry a
- * padded span or a missingCause. Missing or unreadable data is "absent", never a pass.
+ * padded span. A chunk with a missingCause is excused only when it is matched to a distinct helper-marked gap
+ * span (markedSpans, each {startNs, endNs}, at most maxGapMs long) that touches the chunk; the number of
+ * missingCause chunks must equal the number of marked spans, and an unmatched or too-long one is "bad". Missing or
+ * unreadable data is "absent", never a pass.
  */
-export function checkChunkFrames(logText, chunkCount) {
+export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs = LOST_AUDIO_LIMITS.markedGapMaxMs) {
   const lines = (logText ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return { status: 'absent', detail: 'no chunk log' };
   let rows;
@@ -131,51 +146,84 @@ export function checkChunkFrames(logText, chunkCount) {
   let wrong = 0;
   let padded = 0;
   let caused = 0;
+  const free = markedSpans.map((span, index) => ({ span, index }));
   for (const r of rows) {
     const implied = (r.rate * (r.endNs - r.startNs)) / 1e9;
     const spanOk = Number.isInteger(r.frames) && r.rate > 0 && Math.abs(r.frames - implied) <= 1;
     const rolloverOk = r.closeReason !== 'rollover' || r.frames === expected;
     if (!spanOk || !rolloverOk) wrong += 1;
     if (Array.isArray(r.paddedSpans) && r.paddedSpans.length > 0) padded += 1;
-    if (r.missingCause) caused += 1;
+    if (r.missingCause) {
+      const at = free.findIndex(
+        ({ span }) =>
+          span.startNs <= r.endNs &&
+          (span.endNs ?? span.startNs) >= r.startNs &&
+          ((span.endNs ?? span.startNs) - span.startNs) / 1e6 <= maxGapMs,
+      );
+      if (at === -1) caused += 1;
+      else free.splice(at, 1);
+    }
   }
+  const unusedSpans = free.length;
   const detail =
     `${rows.length} chunks, ${wrong} without the expected frame count (${expected ?? 'none closed by rollover'} ` +
-    `at rollover), ${padded} with a padded span, ${caused} with a missingCause`;
-  return { status: wrong + padded + caused === 0 ? 'ok' : 'bad', detail };
+    `at rollover), ${padded} with a padded span, ${caused} with a missingCause not matched to a marked gap, ` +
+    `${unusedSpans} marked gaps without a missingCause chunk`;
+  return { status: wrong + padded + caused + unusedSpans === 0 ? 'ok' : 'bad', detail };
 }
 
 /**
- * The decision for one track's "no lost audio" check: status FAIL, INCONCLUSIVE or PASS. markedCount is how many
- * marked gap spans the helper recorded for the track. frames is checkChunkFrames' result. Netting measures
- * timestamp jitter only; a PASS also needs the frame evidence to agree, otherwise the status is INCONCLUSIVE.
+ * The decision for one track's "no lost audio" check: status FAIL, INCONCLUSIVE or PASS. marked is the helper's
+ * list of marked gap spans for the track ({startNs, endNs}). A gap of the tolerance or more in the chunk
+ * timestamps is allowed only if it exactly matches a distinct marked span, is at most markedGapMaxMs, and the
+ * matched total is at most markedTotalMaxMs; anything else (unmarked gap, overlap, over-long marked gap, over-long
+ * total) is a FAIL. If the marked list and the chunk gaps disagree in count, or the frame evidence is absent or
+ * bad, the result is INCONCLUSIVE, never PASS. frames is checkChunkFrames' result.
  */
-export function judgeLostAudio({ chunks, timelineEndNs, markedCount, isMarked, frames, limits = LOST_AUDIO_LIMITS }) {
-  const r = scanGaps(chunks, limits.gapToleranceMs, isMarked);
+export function judgeLostAudio({ chunks, timelineEndNs, marked = [], frames, limits = LOST_AUDIO_LIMITS }) {
+  const used = new Set();
+  const isMarked = (from, to) => {
+    const at = marked.findIndex(
+      (span, i) => !used.has(i) && span.startNs === from && (span.endNs === undefined || span.endNs === to),
+    );
+    if (at === -1) return false;
+    used.add(at);
+    return true;
+  };
+  const r = scanGaps(chunks, limits.gapToleranceMs, isMarked, limits.markedGapMaxMs);
+  const markedCount = marked.length;
   const audioNs = chunks.reduce((sum, chunk) => sum + chunk.endNs - chunk.startNs, 0);
   const shortfallNs = timelineEndNs - audioNs;
   const timestampsOk =
-    r.lossNs === 0 &&
     r.unmarked === 0 &&
-    markedCount === 0 &&
+    r.markedOver === 0 &&
+    r.markedNs <= limits.markedTotalMaxMs * 1e6 &&
     r.bigOverlaps === 0 &&
     Math.abs(r.netSmallNs) <= limits.netSmallRunMs * 1e6 &&
     r.worstHourNetNs <= limits.netSmallHourMs * 1e6 &&
     shortfallNs <= limits.netShortfallMs * 1e6;
+  const listsAgree = r.markedFound === markedCount;
   const framesStatus = frames?.status ?? 'absent';
-  const status = !timestampsOk ? 'FAIL' : framesStatus === 'ok' ? 'PASS' : 'INCONCLUSIVE';
+  const status = !timestampsOk
+    ? 'FAIL'
+    : listsAgree && framesStatus === 'ok'
+      ? 'PASS'
+      : 'INCONCLUSIVE';
   const sec = (ns) => (ns / 1e9).toFixed(3);
   const msf = (ns) => (ns / 1e6).toFixed(1);
   const cancelling =
     r.posSmallNs > limits.cancellingWarnMs * 1e6 && -r.negSmallNs > limits.cancellingWarnMs * 1e6;
   const detail =
-    `gaps total ${sec(r.lossNs)} s, longest ${sec(r.longestNs)} s, ${markedCount} marked, ${r.unmarked} unmarked, ` +
+    `gaps total ${sec(r.lossNs)} s, longest ${sec(r.longestNs)} s; ${markedCount} marked by the helper, ` +
+    `${r.markedFound} matched (total ${msf(r.markedNs)} ms, limit ${limits.markedTotalMaxMs}; longest ` +
+    `${msf(r.longestMarkedNs)} ms, limit ${limits.markedGapMaxMs} each; ${r.markedOver} over), ${r.unmarked} unmarked, ` +
     `${r.bigOverlaps} overlaps of ${limits.gapToleranceMs} ms or more (largest ${msf(r.largestOverlapNs)} ms), ` +
     `${r.overlaps} overlaps in all; under ${limits.gapToleranceMs} ms: +${msf(r.posSmallNs)} / ${msf(r.negSmallNs)} ms, ` +
     `net ${msf(r.netSmallNs)} ms (limit ${limits.netSmallRunMs}), worst hour net ${msf(r.worstHourNetNs)} ms ` +
     `(limit ${limits.netSmallHourMs}); audio ${sec(audioNs)} s of ${sec(timelineEndNs)} s ` +
-    `(difference ${sec(shortfallNs)} s, limit ${limits.netShortfallMs} ms); sample evidence: ${framesStatus} ` +
-    `(${frames?.detail ?? 'none'}); netting limits are provisional, chosen after one smoke run and one 8-hour run, not calibrated`;
+    `(difference ${sec(shortfallNs)} s, limit ${limits.netShortfallMs} ms); ` +
+    `${listsAgree ? 'marked list agrees with the chunk gaps' : 'marked list DISAGREES with the chunk gaps'}; ` +
+    `sample evidence: ${framesStatus} (${frames?.detail ?? 'none'}); limits are provisional and not calibrated`;
   return {
     status,
     passed: status === 'PASS',

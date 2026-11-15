@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 /** Builds one track: gapFor(i) is the signed difference (ns) before chunk i; frames/closeReason per chunk. */
-function track(gapFor, { frameFor = () => 240000 } = {}) {
+function track(gapFor, { frameFor = () => 240000, causeFor = () => '' } = {}) {
   const chunks = [];
   const log = [];
   let at = 0;
@@ -24,7 +24,7 @@ function track(gapFor, { frameFor = () => 240000 } = {}) {
     chunks.push({ seq: i, startNs, endNs, openReason: i === 0 ? 'start' : 'rollover', closeReason: 'rollover', state: 'complete' });
     log.push(JSON.stringify({
       file: `${String(i).padStart(6, '0')}.opus`, seq: i, startNs, endNs, frames: frameFor(i), rate: 48000,
-      closeReason: 'rollover', allZero: false, missingBeforeMs: 0, missingCause: '', overlapMs: 0, paddedSpans: [],
+      closeReason: 'rollover', allZero: false, missingBeforeMs: 0, missingCause: causeFor(i), overlapMs: 0, paddedSpans: [],
     }));
     at = endNs;
   }
@@ -87,17 +87,30 @@ describe('overnight.mjs --report on synthetic evidence', () => {
     expect(report(dir).result).toBe('RESULT: INCONCLUSIVE');
   });
 
-  it('FAILS a marked 8 ms gap on the meeting track', () => {
-    const meeting = track((i) => (i === 50 ? 8e6 : 0));
-    const marked = meeting.chunks[49].endNs;
-    const dir = evidence({
-      mic: track(steady), meeting,
-      gaps: [{ track: 'meeting', startNs: marked, endNs: marked + 8e6 }],
-    });
-    const r = report(dir);
-    expect(r.result).toBe('RESULT: FAIL');
-    expect(r.code).toBe(1);
-    expect(r.text).toMatch(/FAIL {2}meeting no lost audio: .*1 marked/);
-    expect(r.text).toMatch(/PASS {2}microphone no lost audio/);
+  const gapped = (sizeNs, { cause = 'unknown', marked = true } = {}) => {
+    const meeting = track((i) => (i === 50 ? sizeNs : 0), { causeFor: (i) => (i === 50 && cause ? cause : '') });
+    const from = meeting.chunks[49].endNs;
+    const gaps = marked ? [{ track: 'meeting', startNs: from, endNs: from + sizeNs }] : [];
+    return report(evidence({ mic: track(steady), meeting, gaps }));
+  };
+
+  it('PASSES a matched marked 8 ms gap (within the 10 ms limit) on the meeting track', () => {
+    const r = gapped(8e6);
+    expect(r.result).toBe('RESULT: PASS');
+    expect(r.code).toBe(0);
+    expect(r.text).toMatch(/PASS {2}meeting no lost audio: .*1 marked by the helper, 1 matched/);
+  });
+
+  it('FAILS a marked 12 ms gap, an unmarked 8 ms gap, and an unmarked missingCause', () => {
+    for (const r of [gapped(12e6), gapped(8e6, { marked: false })]) {
+      expect(r.result).toBe('RESULT: FAIL');
+      expect(r.code).toBe(1);
+      expect(r.text).toMatch(/FAIL {2}meeting no lost audio/);
+      expect(r.text).toMatch(/PASS {2}microphone no lost audio/);
+    }
+  });
+
+  it('is INCONCLUSIVE when the helper marked a gap but the chunk log has no missingCause for it', () => {
+    expect(gapped(8e6, { cause: '' }).result).toBe('RESULT: INCONCLUSIVE');
   });
 });
