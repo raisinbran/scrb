@@ -1,9 +1,10 @@
-import { isTranscribing, pulseClass, recordingTip } from '../components/RecordingDot.tsx';
+import { isTranscribing, recordingTip } from '../components/RecordingDot.tsx';
 import { PlayingIndicator } from '../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../lib/playback-context.tsx';
 import { Tooltip } from '../components/Tooltip.tsx';
 import { SCREENS, type ScreenEntry, type ScreenId } from '../screens/index.ts';
 import { useRecordingStatus } from './use-recording-status.ts';
+import { useAnyProcessing } from './use-processing.ts';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -14,6 +15,7 @@ interface SidebarProps {
 export function Sidebar({ selected, onSelect }: SidebarProps) {
   const { recording, lag } = useRecordingStatus();
   const nowPlaying = useNowPlaying();
+  const processing = useAnyProcessing();
   const dot =
     recording.status === 'recording' || recording.status === 'paused' ? recording.status : null;
   const tip = dot ? recordingTip(dot, isTranscribing(lag)) : '';
@@ -26,17 +28,38 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
         aria-current={screen.id === selected ? 'page' : undefined}
         onClick={() => onSelect(screen.id)}
       >
-        <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-          <path d={screen.icon} />
-        </svg>
-        {screen.label}
-        {screen.id === 'live' && dot && (
-          <span
-            role="img"
-            className={`${styles.dot} ${pulseClass(dot)}`}
+        {screen.id === 'live' && dot ? (
+          <svg
+            className={`${styles.icon} ${styles.micLive}`}
             data-state={dot}
-            aria-label={tip}
-          />
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d={screen.icon} />
+          </svg>
+        ) : screen.id === 'recordings' ? (
+          <span className={styles.discWrap}>
+            <svg
+              className={`${styles.icon} ${processing ? styles.spin : ''}`}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d={screen.icon} />
+            </svg>
+            {processing && <span className={styles.badge} aria-hidden="true" />}
+          </span>
+        ) : (
+          <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+            <path d={screen.icon} />
+          </svg>
+        )}
+        {screen.label}
+        {/* Named after the label so the button's own name still starts with it. */}
+        {screen.id === 'live' && dot && (
+          <span role="img" className={styles.hidden} aria-label={tip} />
+        )}
+        {screen.id === 'recordings' && processing && (
+          <span role="img" className={styles.hidden} aria-label="Processing a recording" />
         )}
         {screen.id === 'recordings' && nowPlaying && (
           <PlayingIndicator className={styles.playing} />
