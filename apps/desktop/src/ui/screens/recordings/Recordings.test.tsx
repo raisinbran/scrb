@@ -803,7 +803,7 @@ describe('Recordings', () => {
         expect(input.type).toBe('datetime-local');
         fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
         fireEvent.keyDown(input, { key: 'Enter' });
-        fireEvent.blur(input);
+        await waitFor(() => expect(document.activeElement).toBe(dateButton()));
         const expected = new Date('2026-10-01T09:30').toISOString();
         await waitFor(async () =>
           expect(
@@ -821,8 +821,8 @@ describe('Recordings', () => {
           .startedAt;
         fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
         fireEvent.keyDown(input, { key: 'Escape' });
-        fireEvent.blur(input);
         expect(screen.queryByLabelText('Meeting date and time')).toBeNull();
+        await waitFor(() => expect(document.activeElement).toBe(dateButton()));
         expect(
           (await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).startedAt,
         ).toBe(before);
@@ -871,9 +871,11 @@ describe('Recordings', () => {
       fireEvent.change(title, { target: { value: 'Dropped name' } });
       fireEvent.keyDown(title, { key: 'Escape' });
       expect(title.value).toBe('Vendor call');
+      expect(document.activeElement).toBe(title);
       title.focus();
       fireEvent.change(title, { target: { value: 'Quick rename' } });
       fireEvent.keyDown(title, { key: 'Enter' });
+      expect(document.activeElement).toBe(title);
       await waitFor(async () =>
         expect((await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).title).toBe(
           'Quick rename',

@@ -263,14 +263,8 @@ function MeetingTitle({
 }) {
   const [draft, setDraft] = useState(title);
   const [error, setError] = useState<string | null>(null);
-  const cancelled = useRef(false);
 
   const commit = () => {
-    if (cancelled.current) {
-      cancelled.current = false;
-      setDraft(title);
-      return;
-    }
     const next = draft.trim();
     if (!next) {
       setDraft(title);
@@ -301,10 +295,10 @@ function MeetingTitle({
           setError(null);
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key === 'Enter') commit();
           else if (event.key === 'Escape') {
-            cancelled.current = true;
-            event.currentTarget.blur();
+            setDraft(title);
+            setError(null);
           }
         }}
         onBlur={commit}
@@ -335,7 +329,16 @@ function MeetingDate({
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const cancelled = useRef(false);
+  const refocus = useRef(false);
+  const button = useRef<HTMLButtonElement>(null);
   const label = formatMeetingWhen(startedAt);
+
+  useEffect(() => {
+    if (!editing && refocus.current) {
+      refocus.current = false;
+      button.current?.focus();
+    }
+  }, [editing]);
 
   if (!editing) {
     return (
@@ -344,6 +347,7 @@ function MeetingDate({
           <span>{label}</span>
         ) : (
           <button
+            ref={button}
             type="button"
             className={styles.dateButton}
             aria-label={`Meeting date and time: ${label}. Edit`}
@@ -391,9 +395,9 @@ function MeetingDate({
       value={draft}
       onChange={(event) => setDraft(event.target.value)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-        else if (event.key === 'Escape') {
-          cancelled.current = true;
+        if (event.key === 'Enter' || event.key === 'Escape') {
+          refocus.current = true;
+          cancelled.current = event.key === 'Escape';
           event.currentTarget.blur();
         }
       }}
