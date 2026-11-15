@@ -42,6 +42,7 @@ import type {
   PickedAudioFile,
   PlaybackPosition,
   ProfileId,
+  ProfileClip,
   ProfileUndoState,
   RecordingHealth,
   RecordingSnapshot,
@@ -148,6 +149,13 @@ export interface BackendCalls {
   // Speakers
   /** @addition */
   listProfiles: { request: void; response: VoiceProfile[] };
+  /**
+   * @addition
+   * Up to three short single-voice passages for a profile, chosen from its meetings whose audio
+   * still exists. No audio, path or URL: playback goes through `getPlaybackMedia`. Empty when
+   * nothing qualifies.
+   */
+  getProfileClips: { request: { profileId: ProfileId }; response: { clips: ProfileClip[] } };
   getProfileUndoState: { request: void; response: ProfileUndoState };
   undoProfileChange: { request: void; response: ProfileUndoState };
   redoProfileChange: { request: void; response: ProfileUndoState };
@@ -377,6 +385,7 @@ const CALL_TABLE: Record<CallName, true> = {
   pauseAudio: true,
   getPlaybackMedia: true,
   listProfiles: true,
+  getProfileClips: true,
   getProfileUndoState: true,
   undoProfileChange: true,
   redoProfileChange: true,

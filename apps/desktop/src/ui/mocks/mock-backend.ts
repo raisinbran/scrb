@@ -25,6 +25,7 @@ import {
   type RecordingState,
   type SearchMatch,
   type SettingsPatch,
+  type ProfileClip,
   type Speaker,
   type SummaryItemUpdate,
   type SummaryLength,
@@ -1124,6 +1125,34 @@ export class MockBackend implements Backend {
     listSpeakerSuggestions: ({ meetingId }) => {
       if (meetingId) this.findMeeting(meetingId);
       return [];
+    },
+    getProfileClips: ({ profileId }) => {
+      if (!this.profiles.some((profile) => profile.id === profileId)) {
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That voice profile no longer exists.',
+        });
+      }
+      const clips: ProfileClip[] = [];
+      for (const meeting of this.library) {
+        if (clips.length >= 3) break;
+        if (meeting.status !== 'ready') continue;
+        const speaker = this.speakersOf(meeting.id).find((item) => item.profileId === profileId);
+        const segment = this.transcriptOf(meeting.id).find(
+          (item) => item.speakerId === speaker?.id,
+        );
+        if (!segment) continue;
+        clips.push({
+          meetingId: meeting.id,
+          meetingTitle: meeting.title,
+          date: meeting.startedAt,
+          startMs: segment.startMs,
+          endMs: Math.min(segment.endMs, segment.startMs + 10_000),
+          track: segment.track,
+          text: segment.words.map((word) => word.text).join(' '),
+        });
+      }
+      return { clips };
     },
     getProfileUndoState: () => this.profileHistoryState(),
     undoProfileChange: () => this.changeProfileHistory(true),

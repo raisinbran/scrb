@@ -17,6 +17,7 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 | `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                            |
 | `getPlaybackMedia`                                          | A sandboxed renderer needs a narrow, expiring audio URL; owner decision on PR 39, 2026-11-02                 |
 | `listProfiles`                                              | The Speakers screen has nothing to show without it                                                           |
+| `getProfileClips`                                           | A voice preview needs passages chosen from saved audio; profiles hold no audio. Owner approved 2026-11-15    |
 | `splitSpeaker`                                              | V1 Requirements list split; the table does not                                                               |
 | `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                          |
 | `getSummary`, `getMeeting`                                  | Meeting detail and the Summary tab must load stored data                                                     |

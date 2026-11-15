@@ -43,6 +43,7 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   // Together, so a profile id never reaches a side that did not make it. The meeting variants of
   // the two speaker calls are routed by meeting first and never reach this set.
   'listProfiles',
+  'getProfileClips',
   'getProfileUndoState',
   'undoProfileChange',
   'redoProfileChange',

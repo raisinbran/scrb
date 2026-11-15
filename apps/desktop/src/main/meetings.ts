@@ -23,6 +23,7 @@ import {
   type MeetingFilter,
   type MeetingListItem,
   type MeetingStatus,
+  type ProfileClip,
   type SummaryState,
   type SummaryItemUpdate,
   type VocabularyTerm as ContractTerm,
@@ -50,6 +51,7 @@ import {
   type TranscriptFile,
 } from '@scrb/storage';
 import type { CallHandlers } from './dispatch.ts';
+import { chooseClip, MAX_CLIPS } from './profile-clips.ts';
 
 const NS_PER_MS = 1e6;
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
@@ -551,6 +553,51 @@ export function createMeetingHandlers(
       if (meetingId) await requireMeeting(library, meetingId);
       // No suggestion store exists yet: do not invent a voice match.
       return [];
+    },
+    getProfileClips: async (request) => {
+      const { profileId } = request as { profileId: string };
+      const profile = library.voiceProfiles.get(profileId);
+      if (!profile) {
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That voice profile no longer exists.',
+        });
+      }
+      const linked = new Set(profile.meetingIds);
+      const rows = library
+        .listMeetings()
+        .filter((row) => linked.has(row.id))
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : 1));
+      const clips: ProfileClip[] = [];
+      for (const meeting of rows) {
+        if (clips.length >= MAX_CLIPS) break;
+        try {
+          const meta = await requireMeeting(library, meeting.id);
+          if (!hasSavedAudio(library, meta)) continue;
+          const page = toTranscriptPage(
+            await library.readTranscript(meeting.id),
+            0,
+            Number.MAX_SAFE_INTEGER,
+          );
+          const choice = chooseClip(
+            profileId,
+            page.segments,
+            page.speakers,
+            timelineGaps(library, meta),
+          );
+          if (choice) {
+            clips.push({
+              meetingId: meeting.id,
+              meetingTitle: meeting.title,
+              date: meeting.date,
+              ...choice,
+            });
+          }
+        } catch {
+          // A meeting that cannot be read simply contributes no passage.
+        }
+      }
+      return { clips };
     },
     getProfileUndoState: async () => library.voiceProfiles.undoState(),
     undoProfileChange: async () => {

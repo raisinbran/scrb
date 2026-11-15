@@ -9,6 +9,7 @@ import { useAction } from '../lib/use-action.ts';
 import { useBackendData } from '../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from './Screen.tsx';
 import { MeetingSpeakers } from './speakers/MeetingSpeakers.tsx';
+import { useProfilePreview } from './speakers/use-profile-preview.ts';
 import styles from './SpeakersScreen.module.css';
 
 const load = (backend: Backend) =>
@@ -61,6 +62,91 @@ function SuggestionRow({
 
 type ProfileDialog = { kind: 'rename' | 'merge' | 'delete'; profile: VoiceProfile } | null;
 
+function ProfileRow({
+  profile,
+  deleting,
+  canMerge,
+  onDialog,
+}: {
+  profile: VoiceProfile;
+  deleting: boolean;
+  canMerge: boolean;
+  onDialog(kind: 'rename' | 'merge' | 'delete'): void;
+}) {
+  const preview = useProfilePreview(profile.id);
+  return (
+    <li className={`${styles.row} ${styles.wrap}`} aria-busy={deleting}>
+      <div className={styles.rowText}>
+        <span className={profile.name ? styles.name : styles.unnamed}>{nameOf(profile)}</span>
+        <span className={styles.muted}>
+          {deleting
+            ? 'Deleting…'
+            : `${meetingsText(profile.meetingCount)} · Last heard ${formatMeetingDate(profile.lastHeardAt)}`}
+        </span>
+      </div>
+      <div className={styles.actions}>
+        <Button
+          disabled={deleting || preview.loading}
+          aria-label={`${preview.playing === null ? 'Play sample of' : 'Stop sample of'} ${nameOf(profile)}`}
+          onClick={() => void preview.play()}
+        >
+          {preview.playing === null ? 'Play sample' : 'Stop'}
+        </Button>
+        <Button
+          disabled={deleting}
+          aria-label={`Rename ${nameOf(profile)}`}
+          onClick={() => onDialog('rename')}
+        >
+          Rename
+        </Button>
+        <Button
+          disabled={deleting || !canMerge}
+          aria-label={`Merge ${nameOf(profile)}`}
+          onClick={() => onDialog('merge')}
+        >
+          Merge
+        </Button>
+        <Button
+          variant="danger"
+          disabled={deleting}
+          aria-label={`Delete ${nameOf(profile)}`}
+          onClick={() => onDialog('delete')}
+        >
+          Delete
+        </Button>
+      </div>
+      {preview.message && (
+        <p role="status" className={`${styles.muted} ${styles.clips}`}>
+          {preview.message}
+        </p>
+      )}
+      {preview.clips.length > 0 && (
+        <ul
+          className={`${styles.clipList} ${styles.clips}`}
+          aria-label={`Samples of ${nameOf(profile)}`}
+        >
+          {preview.clips.map((clip, at) => (
+            <li key={`${clip.meetingId}/${clip.startMs}`} className={styles.clip}>
+              <div className={styles.rowText}>
+                <span className={styles.muted}>
+                  {clip.meetingTitle} · {formatMeetingDate(clip.date)}
+                </span>
+                <span>{clip.text}</span>
+              </div>
+              <Button
+                aria-label={`${preview.playing === at ? 'Stop' : 'Play'} sample from ${clip.meetingTitle}`}
+                onClick={() => void preview.play(at)}
+              >
+                {preview.playing === at ? 'Stop' : 'Play'}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged(): void }) {
   const backend = useBackend();
   const [dialog, setDialog] = useState<ProfileDialog>(null);
@@ -100,47 +186,15 @@ function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged
         </p>
       )}
       <ul className={styles.list}>
-        {profiles.map((profile) => {
-          const deleting = deletingId === profile.id;
-          return (
-            <li key={profile.id} className={styles.row} aria-busy={deleting}>
-              <div className={styles.rowText}>
-                <span className={profile.name ? styles.name : styles.unnamed}>
-                  {nameOf(profile)}
-                </span>
-                <span className={styles.muted}>
-                  {deleting
-                    ? 'Deleting…'
-                    : `${meetingsText(profile.meetingCount)} · Last heard ${formatMeetingDate(profile.lastHeardAt)}`}
-                </span>
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  disabled={deleting}
-                  aria-label={`Rename ${nameOf(profile)}`}
-                  onClick={() => setDialog({ kind: 'rename', profile })}
-                >
-                  Rename
-                </Button>
-                <Button
-                  disabled={deleting || profiles.length < 2}
-                  aria-label={`Merge ${nameOf(profile)}`}
-                  onClick={() => setDialog({ kind: 'merge', profile })}
-                >
-                  Merge
-                </Button>
-                <Button
-                  variant="danger"
-                  disabled={deleting}
-                  aria-label={`Delete ${nameOf(profile)}`}
-                  onClick={() => setDialog({ kind: 'delete', profile })}
-                >
-                  Delete
-                </Button>
-              </div>
-            </li>
-          );
-        })}
+        {profiles.map((profile) => (
+          <ProfileRow
+            key={profile.id}
+            profile={profile}
+            deleting={deletingId === profile.id}
+            canMerge={profiles.length >= 2}
+            onDialog={(kind) => setDialog({ kind, profile })}
+          />
+        ))}
       </ul>
       {dialog?.kind === 'rename' && (
         <TextDialog

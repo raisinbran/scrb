@@ -278,6 +278,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   getPlaybackMedia: shape({ meetingId: id, positionMs: ms }),
 
   listProfiles: nothing,
+  getProfileClips: shape({ profileId: id }),
   getProfileUndoState: nothing,
   undoProfileChange: nothing,
   redoProfileChange: nothing,
