@@ -75,11 +75,7 @@ export function meetingFolderPath(paths: LibraryPaths, folderName: string): stri
 /** `2026-10-28 Project sync`, safe on Windows and macOS. */
 export function meetingFolderName(dateIso: string, title: string): string {
   const day = dateIso.slice(0, 10);
-  const cleaned = title
-    .normalize('NFC')
-    .replace(FORBIDDEN_CHARS, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const cleaned = title.normalize('NFC').replace(FORBIDDEN_CHARS, ' ').replace(/\s+/g, ' ').trim();
   const short = Array.from(cleaned).slice(0, MAX_TITLE_CHARS).join('');
   const trimmed = short.replace(/[. ]+$/, '').replace(/^\.+/, '');
   const safe = trimmed === '' || WINDOWS_RESERVED.test(trimmed) ? 'Meeting' : trimmed;

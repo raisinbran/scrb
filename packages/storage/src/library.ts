@@ -93,6 +93,7 @@ export type MeetingChanges = Partial<
     | 'buildVoiceProfiles'
     | 'transcriptionFailure'
     | 'statusBeforeReprocess'
+    | 'autoTitle'
   >
 >;
 
@@ -529,6 +530,22 @@ export class Library {
   /** The folder keeps its first name; titles change here, so open handles stay valid. */
   updateMeeting(meetingId: string, changes: MeetingChanges): Promise<MeetingMeta> {
     return this.withLock(meetingId, () => this.writeMeta(meetingId, changes));
+  }
+
+  /**
+   * Changes the meeting only if `allow` accepts its current file, with the check and the write in
+   * one hold of the meeting lock, so a rename cannot land between them. Null when refused.
+   */
+  updateMeetingIf(
+    meetingId: string,
+    allow: (current: MeetingMeta) => boolean,
+    changes: MeetingChanges,
+  ): Promise<MeetingMeta | null> {
+    return this.withLock(meetingId, async () => {
+      const loaded = await loadDocument(MEETING_FORMAT, this.meetingPaths(meetingId).meta);
+      if (loaded === null) throw new MeetingNotFoundError(meetingId);
+      return allow(loaded.doc) ? this.writeMeta(meetingId, changes) : null;
+    });
   }
 
   private async writeMeta(meetingId: string, changes: Partial<MeetingMeta>): Promise<MeetingMeta> {
