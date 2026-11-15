@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import type { Speaker, SpeakerId } from '@scrb/contracts';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useBackend } from '../lib/backend-context.tsx';
 import { isTranscribing, RecordingDot } from '../components/RecordingDot.tsx';
 import { Tooltip } from '../components/Tooltip.tsx';
@@ -15,77 +14,83 @@ const EXPAND_URL = 'scrb-app://mini-expand';
 /** And `HIDE_URL`: it hides this window while the recording goes on; the main window brings it back. */
 const HIDE_URL = 'scrb-app://mini-hide';
 
-/** The Hide control follows the platform: a round control at the top left on a Mac, a minus at the top right elsewhere. */
-const onMac = (): boolean => /Mac/.test(navigator.userAgent);
-
-/** The window's own title strip: it drags the window and holds the one Hide control (closing is not allowed). */
+/** The window's own title strip: it only drags the window. Hide sits with the other buttons. */
 function TitleStrip() {
-  const mac = onMac();
-  return (
-    <div className={styles.strip} data-platform={mac ? 'mac' : 'other'}>
-      <button
-        type="button"
-        className={styles.hide}
-        aria-label="Hide mini window"
-        data-tip="Hide"
-        onClick={() => window.open(HIDE_URL)}
-      >
-        <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-          <path d="M3 6h6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </button>
-    </div>
-  );
+  return <div className={styles.strip} />;
 }
 
-/** A speaker counts as talking while their latest transcribed words end within this of the clock. */
-const ACTIVE_WITHIN_MS = 4000;
+/** A track counts as sounding while its level was above this within HOLD_MS (peaks arrive about once a second). */
+const SPEAKING_DB = -40;
+const HOLD_MS = 1800;
+/** How long the last meeting speaker's name from the transcript may lend itself to the meeting track. */
+const NAME_FRESH_MS = 8000;
 
-interface Heard {
-  meetingId: string;
-  speakerId: SpeakerId;
-  endMs: number;
-  speakers: Record<SpeakerId, Speaker>;
+type Track = 'mic' | 'meeting';
+
+interface Activity {
+  /** When each track was last clearly above the noise, in wall-clock ms; 0 for never. */
+  loudAt: Record<Track, number>;
+  /** Latest level of each track as 0..1, for the bars. */
+  amp: Record<Track, number>;
+  /** The last transcribed speaker of each track: a label only, never words. */
+  names: Record<Track, { label: string; at: number } | null>;
 }
+
+const quiet = (): Activity => ({
+  loudAt: { mic: 0, meeting: 0 },
+  amp: { mic: 0, meeting: 0 },
+  names: { mic: null, meeting: null },
+});
+
+const ampOf = (db: number): number => Math.min(Math.max((db + 60) / 60, 0.15), 1);
 
 /**
- * Who spoke last, from transcript events only: labels and times, never the words. Only the
- * recording this window shows counts: another meeting's events (a final pass, say) must neither
- * blank the indicator nor lend it a name, as speaker IDs can repeat across meetings. State carries
- * its meeting, so a new meeting starts clean.
+ * Who is sounding now. The level meter says when a track is loud (about 1 s old at worst); the
+ * transcript only supplies a name, which arrives seconds later. Only this window's meeting counts.
  */
-function useLastSpeaker(meetingId: string | null) {
+function useActivity(meetingId: string | null): Activity {
   const backend = useBackend();
-  const [heard, setHeard] = useState<Heard | null>(null);
+  const [state, setState] = useState<{ meetingId: string | null; activity: Activity }>({
+    meetingId,
+    activity: quiet(),
+  });
   useEffect(() => {
     if (meetingId === null) return undefined;
-    return backend.on('transcriptChanged', (event) => {
-      if (event.meetingId !== meetingId) return;
-      const latest =
-        event.change.kind === 'realign'
-          ? null
-          : event.change.segments.reduce<{ speakerId: SpeakerId; endMs: number } | null>(
-              (best, segment) => (best && best.endMs >= segment.endMs ? best : segment),
-              null,
-            );
-      setHeard((previous) => {
-        const own = previous && previous.meetingId === meetingId ? previous : null;
-        const speakers = {
-          ...own?.speakers,
-          ...Object.fromEntries(event.speakers.map((speaker) => [speaker.id, speaker])),
-        };
-        const keep = !latest || (own !== null && own.endMs > latest.endMs);
-        if (keep && own) return { ...own, speakers };
-        if (!latest) return own ?? null;
-        return { meetingId, speakerId: latest.speakerId, endMs: latest.endMs, speakers };
+    const update = (change: (activity: Activity) => Activity): void =>
+      setState((previous) => ({
+        meetingId,
+        activity: change(previous.meetingId === meetingId ? previous.activity : quiet()),
+      }));
+    const offLevels = backend.on('levelMeter', ({ micDb, meetingDb }) => {
+      const at = Date.now();
+      update((activity) => ({
+        ...activity,
+        loudAt: {
+          mic: micDb > SPEAKING_DB ? at : activity.loudAt.mic,
+          meeting: meetingDb !== null && meetingDb > SPEAKING_DB ? at : activity.loudAt.meeting,
+        },
+        amp: { mic: ampOf(micDb), meeting: ampOf(meetingDb ?? -100) },
+      }));
+    });
+    const offTranscript = backend.on('transcriptChanged', (event) => {
+      if (event.meetingId !== meetingId || event.change.kind === 'realign') return;
+      const labels = new Map(event.speakers.map((speaker) => [speaker.id, speaker.label]));
+      const at = Date.now();
+      update((activity) => {
+        const names = { ...activity.names };
+        for (const segment of event.change.kind === 'realign' ? [] : event.change.segments) {
+          const label = labels.get(segment.speakerId);
+          if (label) names[segment.track === 'microphone' ? 'mic' : 'meeting'] = { label, at };
+        }
+        return { ...activity, names };
       });
     });
+    return () => {
+      offLevels();
+      offTranscript();
+    };
   }, [backend, meetingId]);
-  const current = heard && heard.meetingId === meetingId ? heard : null;
-  return {
-    heard: current,
-    label: current ? (current.speakers[current.speakerId]?.label ?? 'Speaker') : null,
-  };
+  return state.meetingId === meetingId ? state.activity : quiet();
 }
 
 function Icon({ children }: { children: ReactNode }) {
@@ -96,10 +101,37 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+/** Hide keeps the recording going; it is offered idle too, so the window is never stuck on screen. */
+function HideButton() {
+  return (
+    <button
+      type="button"
+      className={styles.icon}
+      aria-label="Hide mini window"
+      data-tip="Hide (recording continues)"
+      onClick={() => window.open(HIDE_URL)}
+    >
+      <Icon>
+        <rect
+          x="1.5"
+          y="2"
+          width="9"
+          height="8"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+        />
+        <path d="M3.5 7.5h5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </Icon>
+    </button>
+  );
+}
+
 /** The small window shown over other apps: status and time only, never transcript text. */
 export function MiniRecording() {
   const { recording, recordingAt, health, lag } = useRecordingStatus();
-  const { heard, label } = useLastSpeaker(recording.meetingId);
+  const activity = useActivity(recording.meetingId);
   const [now, setNow] = useState(() => Date.now());
   const backend = useBackend();
   const [compact, setCompact] = useState(false);
@@ -133,9 +165,14 @@ export function MiniRecording() {
     return (
       <div className={styles.mini}>
         <TitleStrip />
-        <p className={styles.idle} role="status">
-          Not recording
-        </p>
+        <div className={styles.idle}>
+          <span className={styles.line}>
+            <span role="status">Not recording</span>
+            <span className={styles.buttons}>
+              <HideButton />
+            </span>
+          </span>
+        </div>
       </div>
     );
   }
@@ -146,7 +183,14 @@ export function MiniRecording() {
     (health && health.level !== 'ok'
       ? (health.warnings[0]?.message ?? 'Recording needs attention')
       : null);
-  const speaking = heard !== null && elapsed - heard.endMs <= ACTIVE_WITHIN_MS;
+  const speakers = (['mic', 'meeting'] as const)
+    .filter((track) => recording.status === 'recording' && now - activity.loudAt[track] < HOLD_MS)
+    .map((track) => {
+      const name = activity.names[track];
+      const fresh = name !== null && now - name.at < NAME_FRESH_MS;
+      const label = track === 'mic' ? (name?.label ?? 'You') : fresh ? name.label : 'Meeting';
+      return { track, label, amp: activity.amp[track] };
+    });
   return (
     <div className={styles.mini}>
       <TitleStrip />
@@ -215,6 +259,7 @@ export function MiniRecording() {
                 />
               </Icon>
             </button>
+            <HideButton />
             <button
               type="button"
               className={styles.icon}
@@ -239,8 +284,23 @@ export function MiniRecording() {
             {warning}
           </span>
         ) : (
-          <span className={styles.slot} data-kind="speaker" data-active={speaking}>
-            {label}
+          <span className={styles.slot} data-kind="speaker">
+            {speakers.map((speaker) => (
+              <span key={speaker.track} className={styles.who}>
+                <span className={styles.name}>{speaker.label}</span>
+                <span
+                  className={styles.bars}
+                  role="img"
+                  aria-label="Speaking"
+                  style={{ '--amp': speaker.amp } as CSSProperties}
+                >
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </span>
+            ))}
           </span>
         )}
       </div>
