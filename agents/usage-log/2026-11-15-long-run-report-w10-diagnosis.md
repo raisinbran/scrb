@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac desktop | Diagnose 7 long-run-report test failures on W10: read-only analysis and handoff note, test not run (no node_modules in worktree) | unavailable | unavailable | unavailable | unavailable | unavailable | Diagnosis / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
