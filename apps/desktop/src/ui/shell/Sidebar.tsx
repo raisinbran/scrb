@@ -17,6 +17,7 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
   const item = (screen: ScreenEntry) => {
     const button = (
       <button
+        key={screen.id}
         type="button"
         className={styles.item}
         aria-current={screen.id === selected ? 'page' : undefined}
