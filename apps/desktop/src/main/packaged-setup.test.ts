@@ -132,7 +132,7 @@ describe('resolvePackagedSetup', () => {
         platform,
       );
       expect(message).toContain('Download models');
-      expect(message).not.toMatch(/package-mac|scripts/ | LOCALAPPDATA | (terminal / i));
+      expect(message).not.toMatch(/package-mac|scripts|LOCALAPPDATA|terminal/i);
     }
     expect(missingMessage(['model a.bin', 'tool ffmpeg'], 'darwin')).toContain('package-mac.sh');
   });
