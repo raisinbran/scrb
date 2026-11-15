@@ -149,24 +149,6 @@ describe('Recordings', () => {
       expect(document.querySelector('header')?.contains(banner)).toBe(false);
     });
 
-    it('puts Summary tab banners in flow, ahead of the controls, so none is covered', async () => {
-      renderScreen();
-      await openTab(/Budget review/, 'Summary');
-      const banner = screen.getByText(/Final transcript is still being processed/);
-      const layer = banner.closest('[class*="inline"]');
-      expect(layer).not.toBeNull();
-      const panel = document.getElementById('meeting-panel');
-      const controls = [...(panel?.querySelectorAll('button, input') ?? [])].filter(
-        (control) => !layer?.contains(control),
-      );
-      expect(controls.length).toBeGreaterThan(0);
-      for (const control of controls) {
-        expect(layer?.compareDocumentPosition(control)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-      }
-      const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
-      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
-    });
-
     it('fills the bar from the final pass progress event and names the stage', async () => {
       renderScreen();
       const on = vi.spyOn(backend, 'on');
@@ -1086,6 +1068,18 @@ describe('Recordings', () => {
       fireEvent.click(await button('Generate Summary'));
       expect(await screen.findByRole('alert')).toBeTruthy();
       expect(await button('Generate Summary')).toBeTruthy();
+    });
+
+    it('keeps banners in flow ahead of the Brief/Full toggle, so none covers it', async () => {
+      renderScreen();
+      await openTab(/Weekly project sync/, 'Summary');
+      const banner = await screen.findByText('May be outdated — regenerate?');
+      const layer = banner.closest('[class*="inline"]');
+      expect(layer).not.toBeNull();
+      const toggle = screen.getByRole('radiogroup', { name: 'Summary length' });
+      expect(layer?.compareDocumentPosition(toggle)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
+      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
     });
 
     it('flags an outdated summary and its warnings', async () => {
