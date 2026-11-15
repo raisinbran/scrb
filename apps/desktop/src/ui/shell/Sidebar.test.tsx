@@ -47,9 +47,7 @@ describe('Recordings disc', () => {
       );
     });
     expect(
-      screen
-        .getByRole('button', { name: 'Recordings', exact: true })
-        .getAttribute('aria-describedby'),
+      screen.getByRole('button', { name: /^Recordings$/ }).getAttribute('aria-describedby'),
     ).toBe('recordings-processing');
     expect(screen.getByText('Processing a recording')).toBeTruthy();
     act(() => f.emit('meetingChanged', meeting('ready')));
