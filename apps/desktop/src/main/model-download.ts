@@ -525,3 +525,17 @@ export function createModelDownloader(
     isRunning: (): boolean => running !== null,
   };
 }
+
+/** Summary models are read on each run, so installing one must never relaunch the app. */
+export function createSummaryModelDownloader(base: Omit<DownloadOptions, 'signal'>) {
+  return createModelDownloader(base);
+}
+
+/** Cancels both model downloads when the backend closes. */
+export function cancelModelDownloadersOnClose(
+  modelDownloader: { cancel(): void } | null,
+  summaryModelDownloader: { cancel(): void } | null,
+): void {
+  modelDownloader?.cancel();
+  summaryModelDownloader?.cancel();
+}
