@@ -587,6 +587,8 @@ function LoadedDetail(props: LoadedDetailProps) {
     writeStored(HINT_KEY, true);
   };
   const unfinished = isUnfinished(meeting.status);
+  const canReprocess =
+    canEdit && meeting.hasAudio && (meeting.status === 'ready' || meeting.status === 'recovered');
   const status = STATUS_LABELS[meeting.status];
   const summaryLabel = SUMMARY_STATE_LABELS[meeting.summaryState];
 
@@ -629,6 +631,22 @@ function LoadedDetail(props: LoadedDetailProps) {
           <button type="button" className={styles.button} onClick={() => setDialog('edit')}>
             Edit details
           </button>
+          {canReprocess && (
+            <button
+              type="button"
+              className={styles.button}
+              aria-describedby="reprocess-note"
+              onClick={() => {
+                setRetryError(null);
+                void backend.call('retryFinalPass', { meetingId }).then(
+                  () => onChanged(),
+                  () => setRetryError('The transcript could not be re-processed.'),
+                );
+              }}
+            >
+              Re-process
+            </button>
+          )}
           <IconButton
             label="Delete"
             icon="trash"
@@ -638,6 +656,14 @@ function LoadedDetail(props: LoadedDetailProps) {
           />
         </div>
         {folderError && <p role="alert">{folderError}</p>}
+        {canReprocess && (
+          <p id="reprocess-note" className={styles.muted}>
+            Re-process re-runs speech recognition and speaker detection with the current app. Your
+            edits and speaker names are kept where the words still match. The summary may become
+            outdated.
+          </p>
+        )}
+        {canReprocess && retryError && <p role="alert">{retryError}</p>}
         {meeting.status === 'recovered' && (
           <p className={styles.bannerWarning}>
             Recovered after a crash.
