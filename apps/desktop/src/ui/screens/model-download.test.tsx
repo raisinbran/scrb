@@ -202,7 +202,10 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       const start = (await screen.findByRole('button', { name: 'Start' })) as HTMLButtonElement;
       expect(start.disabled).toBe(true);
       fireEvent.click(await screen.findByRole('button', { name: /^Download models \(/ }));
-      await waitFor(() => expect(screen.getByText('Restarting to finish setup.')).toBeTruthy(), FAST);
+      await waitFor(
+        () => expect(screen.getByText('Restarting to finish setup.')).toBeTruthy(),
+        FAST,
+      );
       expect(start.disabled).toBe(true);
       expect(start.getAttribute('aria-describedby')).toBe('start-blocked-reason');
       expect(document.getElementById('start-blocked-reason')?.textContent).toBe(
