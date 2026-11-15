@@ -24,7 +24,8 @@ import {
   type TranscriptEditing,
 } from './TranscriptTab.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
-import { usePlayback, type Playback } from './use-playback.ts';
+import { useMeetingPlayback } from '../../lib/playback-context.tsx';
+import type { Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
 import { ICONS, IconButton } from '../../components/IconButton.tsx';
@@ -509,7 +510,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
-  const playback = usePlayback(meetingId);
+  const playback = useMeetingPlayback(meetingId);
   const transcript = useTranscript(meetingId, meeting.status);
   const undoState = useMeetingUndo(meetingId);
 

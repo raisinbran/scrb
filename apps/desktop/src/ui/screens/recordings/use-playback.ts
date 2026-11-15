@@ -31,7 +31,8 @@ export interface Playback {
 }
 
 /** The backend keeps the clock; this mirrors its position for every tab of one meeting. */
-export function usePlayback(meetingId: MeetingId): Playback {
+/** A null meeting is idle: no audio is opened and nothing is sent to the backend. */
+export function usePlayback(meetingId: MeetingId | null): Playback {
   const backend = useBackend();
   const [positionMs, setPositionMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,6 +52,7 @@ export function usePlayback(meetingId: MeetingId): Playback {
   }, [volume, muted]);
 
   useEffect(() => {
+    if (meetingId === null) return;
     const audio = new PlaybackEngine(backend, meetingId, setError);
     engine.current = audio;
     audio.setVolume(level.current.volume, level.current.muted);
@@ -63,7 +65,11 @@ export function usePlayback(meetingId: MeetingId): Playback {
     return () => {
       off();
       audio.dispose();
+      engine.current = null;
       if (playing.current) void backend.call('pauseAudio', { meetingId }).catch(() => undefined);
+      playing.current = false;
+      setIsPlaying(false);
+      setPositionMs(0);
     };
   }, [backend, meetingId]);
 
@@ -73,14 +79,16 @@ export function usePlayback(meetingId: MeetingId): Playback {
 
   const play = useCallback(
     (target: number) => {
+      if (meetingId === null) return;
       setError(null);
       setPositionMs(target);
       engine.current?.seek(Math.round(target)).catch(report);
     },
-    [report],
+    [meetingId, report],
   );
 
   const pause = useCallback(() => {
+    if (meetingId === null) return;
     backend.call('pauseAudio', { meetingId }).catch(report);
   }, [backend, meetingId, report]);
 

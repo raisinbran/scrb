@@ -81,7 +81,7 @@ describe('accessibility', () => {
     found['Live recording'] = (await startLive(), unnamedControls());
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     await advance(0);
-    for (const name of ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Help']) {
+    for (const name of ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Settings', 'Help']) {
       await goTo(name);
       found[name] = unnamedControls();
     }
@@ -89,18 +89,15 @@ describe('accessibility', () => {
     fireEvent.click(screen.getByRole('button', { name: /Weekly project sync/ }));
     await advance(0);
     found['Meeting detail'] = unnamedControls();
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-    await advance(0);
-    found['Settings'] = unnamedControls();
     expect(found).toEqual({
       'Live recording': [],
       Live: [],
       Recordings: [],
       Speakers: [],
       Vocabulary: [],
+      Settings: [],
       Help: [],
       'Meeting detail': [],
-      Settings: [],
     });
   });
 

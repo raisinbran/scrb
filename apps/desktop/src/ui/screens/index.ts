@@ -2,10 +2,11 @@ import type { ComponentType } from 'react';
 import { HelpScreen } from './HelpScreen.tsx';
 import { LiveScreen } from './LiveScreen.tsx';
 import { RecordingsScreen } from './RecordingsScreen.tsx';
+import { SettingsScreen } from './SettingsScreen.tsx';
 import { SpeakersScreen } from './SpeakersScreen.tsx';
 import { VocabularyScreen } from './VocabularyScreen.tsx';
 
-export type ScreenId = 'live' | 'recordings' | 'speakers' | 'vocabulary' | 'help';
+export type ScreenId = 'live' | 'recordings' | 'speakers' | 'vocabulary' | 'settings' | 'help';
 
 export interface ScreenEntry {
   id: ScreenId;
@@ -40,6 +41,13 @@ export const SCREENS: ScreenEntry[] = [
     label: 'Vocabulary',
     component: VocabularyScreen,
     icon: 'M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    component: SettingsScreen,
+    icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+    pinnedToBottom: true,
   },
   {
     id: 'help',
