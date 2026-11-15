@@ -15,7 +15,6 @@ import { DataView, useFocusFallback } from '../Screen.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
-import { Tooltip } from '../../components/Tooltip.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import {
@@ -765,6 +764,13 @@ function LoadedDetail(props: LoadedDetailProps) {
             onClick={() => setDialog('delete')}
           />
         </div>
+        {canReprocess && (
+          <p id="reprocess-note" className={styles.muted}>
+            Re-process re-runs speech recognition and speaker detection with the current app. Your
+            edits and speaker names are kept where the words still match. The summary may become
+            outdated.
+          </p>
+        )}
       </header>
 
       <div role="tablist" aria-label="Meeting" className={styles.tabs} onKeyDown={onTabKey}>

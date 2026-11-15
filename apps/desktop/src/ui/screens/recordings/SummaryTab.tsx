@@ -454,6 +454,7 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
   const generate = async (target: SummaryLength) => {
     setError(null);
     setSaved(null);
+    setDismissedWarnings([]);
     setLength(target);
     try {
       await backend.call('generateSummary', { meetingId, length: target });
