@@ -290,6 +290,7 @@ export function toSummaryDoc(
     decisions: file.decisions,
     openQuestions: file.openQuestions,
     warnings: file.warnings,
+    ...(file.outdated && file.reprocessed ? { outdatedByReprocess: true } : {}),
   };
 }
 

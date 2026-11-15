@@ -570,6 +570,8 @@ export class Library {
     change: (current: TranscriptFile) => TranscriptFile | Promise<TranscriptFile>,
     options: {
       userEdit: boolean;
+      /** The change is a re-run final pass: the summary banner says so. */
+      reprocessed?: boolean;
       expectedRevision?: number;
       write?: AtomicWriteOptions;
       beforeSave?: () => void;
@@ -586,7 +588,7 @@ export class Library {
       const changed = await change(current);
       if (changed === current) return current;
       // Flag first: after a crash a false "may be outdated" is harmless; a missing one is not.
-      if (options.userEdit) await this.flagSummaryOutdated(meetingId);
+      if (options.userEdit) await this.flagSummaryOutdated(meetingId, options.reprocessed === true);
       const next = { ...changed, revision: current.revision + 1 };
       const learningChanged = current.corrections !== next.corrections;
       if (learningChanged) this.settings.set(`vocabulary.pending.${meetingId}`, true);
@@ -666,7 +668,7 @@ export class Library {
     return this.changeTranscript(
       meetingId,
       (current) => corrections.applyFinalPass(current, incoming),
-      { userEdit: true },
+      { userEdit: true, reprocessed: true },
     );
   }
 
@@ -1107,11 +1109,17 @@ export class Library {
     return loaded?.doc ?? null;
   }
 
-  private async flagSummaryOutdated(meetingId: string): Promise<void> {
+  private async flagSummaryOutdated(meetingId: string, reprocessed = false): Promise<void> {
     const file = this.meetingPaths(meetingId).summary;
     const loaded = await loadDocument(SUMMARY_FORMAT, file);
-    if (loaded === null || loaded.doc.outdated) return;
-    const next = { ...loaded.doc, outdated: true, revision: loaded.doc.revision + 1 };
+    if (loaded === null || (loaded.doc.outdated && (!reprocessed || loaded.doc.reprocessed)))
+      return;
+    const next = {
+      ...loaded.doc,
+      outdated: true,
+      ...(reprocessed ? { reprocessed: true } : {}),
+      revision: loaded.doc.revision + 1,
+    };
     await saveDocument(file, next, loaded.fileVersion);
   }
 

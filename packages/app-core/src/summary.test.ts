@@ -95,6 +95,16 @@ function stored(summary = engineSummary()): SummaryFile {
 describe('summary engine to the UI contract', () => {
   const doc = toSummaryDoc('m-1', stored());
 
+  it('tells a re-processed outdated summary from an edited one', () => {
+    expect(
+      toSummaryDoc('m-1', { ...stored(), outdated: true }).outdatedByReprocess,
+    ).toBeUndefined();
+    expect(
+      toSummaryDoc('m-1', { ...stored(), outdated: true, reprocessed: true }).outdatedByReprocess,
+    ).toBe(true);
+    expect(toSummaryDoc('m-1', stored()).outdatedByReprocess).toBeUndefined();
+  });
+
   it('keeps every action field, and agreement never reads as completion', () => {
     expect(doc.actionItems).toEqual([
       {
