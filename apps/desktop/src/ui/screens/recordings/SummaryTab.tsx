@@ -1,5 +1,6 @@
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   ActionItem,
   ActionStatus,
@@ -410,10 +411,12 @@ function LengthToggle({
 interface SummaryTabProps {
   meeting: MeetingDetail;
   defaultLength: SummaryLength;
+  /** The detail view's banner stack: summary banners join it so they never overlap its own. */
+  popupSlot?: HTMLElement | null;
   onPlay(ms: number): void;
 }
 
-export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) {
+export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: SummaryTabProps) {
   const backend = useBackend();
   const meetingId = meeting.id;
   const load = useCallback(
@@ -518,39 +521,46 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
             );
           }
           const sections = doc.narrative[length];
+          const banners = (
+            <>
+              {doc.state === 'outdated' && (
+                <PopupBanner level="warning">
+                  <p>
+                    {doc.outdatedByReprocess
+                      ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
+                      : 'May be outdated — regenerate?'}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      className={styles.button}
+                      onClick={() => void generate(length)}
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                </PopupBanner>
+              )}
+              {doc.warnings
+                .filter((warning) => !dismissedWarnings.includes(warning))
+                .map((warning) => (
+                  <PopupBanner
+                    key={warning}
+                    level="warning"
+                    onDismiss={() => setDismissedWarnings([...dismissedWarnings, warning])}
+                  >
+                    <p>{warning}</p>
+                  </PopupBanner>
+                ))}
+            </>
+          );
           return (
             <>
-              <PopupLayer>
-                {doc.state === 'outdated' && (
-                  <PopupBanner level="warning">
-                    <p>
-                      {doc.outdatedByReprocess
-                        ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
-                        : 'May be outdated — regenerate?'}
-                    </p>
-                    <div>
-                      <button
-                        type="button"
-                        className={styles.button}
-                        onClick={() => void generate(length)}
-                      >
-                        Regenerate
-                      </button>
-                    </div>
-                  </PopupBanner>
-                )}
-                {doc.warnings
-                  .filter((warning) => !dismissedWarnings.includes(warning))
-                  .map((warning) => (
-                    <PopupBanner
-                      key={warning}
-                      level="warning"
-                      onDismiss={() => setDismissedWarnings([...dismissedWarnings, warning])}
-                    >
-                      <p>{warning}</p>
-                    </PopupBanner>
-                  ))}
-              </PopupLayer>
+              {popupSlot ? (
+                createPortal(banners, popupSlot)
+              ) : (
+                <PopupLayer inline>{banners}</PopupLayer>
+              )}
               <div className={styles.summaryBar}>
                 <LengthToggle length={length} onChange={setLength} />
                 {doc.state === 'edited' && <span className={styles.badge}>Edited</span>}

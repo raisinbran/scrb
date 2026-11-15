@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
@@ -135,6 +137,16 @@ describe('Recordings', () => {
         SLOW,
       );
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
+    });
+
+    it('anchors the banner inside the transcript panel, never over the header or tabs', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      const banner = screen.getByText(/Final transcript is still being processed/);
+      const panel = document.getElementById('meeting-panel');
+      expect(panel?.contains(banner)).toBe(true);
+      expect(screen.getByRole('tablist', { name: 'Meeting' }).contains(banner)).toBe(false);
+      expect(document.querySelector('header')?.contains(banner)).toBe(false);
     });
 
     it('fills the bar from the final pass progress event and names the stage', async () => {
@@ -1056,6 +1068,18 @@ describe('Recordings', () => {
       fireEvent.click(await button('Generate Summary'));
       expect(await screen.findByRole('alert')).toBeTruthy();
       expect(await button('Generate Summary')).toBeTruthy();
+    });
+
+    it('keeps banners in flow ahead of the Brief/Full toggle, so none covers it', async () => {
+      renderScreen();
+      await openTab(/Weekly project sync/, 'Summary');
+      const banner = await screen.findByRole('button', { name: 'Regenerate' });
+      const layer = banner.closest('[class*="inline"]');
+      expect(layer).not.toBeNull();
+      const toggle = screen.getByRole('radiogroup', { name: 'Summary length' });
+      expect(layer?.compareDocumentPosition(toggle)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
+      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
     });
 
     it('flags an outdated summary and its warnings', async () => {

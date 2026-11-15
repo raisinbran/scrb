@@ -1,15 +1,28 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { DismissButton } from './DismissButton.tsx';
 import styles from './PopupBanner.module.css';
 
 /**
- * Holds popup banners over the top of a scrolling panel, centred left to right. It has no height,
- * so a banner appearing or going never moves the content under it. Put it first inside the panel.
+ * Holds popup banners over the top of a panel's content, centred left to right. It has no height,
+ * so a banner appearing or going never moves the content under it. Put it inside the panel, below
+ * any header, tabs or toolbar, so a banner never covers a control. `stackRef` lets other components
+ * add banners to the same stack.
  */
-export function PopupLayer({ children }: { children: ReactNode }) {
+export function PopupLayer({
+  children,
+  stackRef,
+  inline = false,
+}: {
+  children?: ReactNode;
+  stackRef?: Ref<HTMLDivElement>;
+  /** Banners take their own room above the content instead of floating over it. For panels whose first row is controls. */
+  inline?: boolean;
+}) {
   return (
-    <div className={styles.layer}>
-      <div className={styles.stack}>{children}</div>
+    <div className={inline ? styles.inline : styles.layer}>
+      <div ref={stackRef} className={styles.stack}>
+        {children}
+      </div>
     </div>
   );
 }

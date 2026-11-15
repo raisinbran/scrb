@@ -35,7 +35,8 @@ function Meter({ label, meterRef }: { label: string; meterRef: React.Ref<HTMLDiv
   );
 }
 
-export function LevelMeters({ active }: { active: boolean }) {
+/** `micOnly` is the compact form the mic test uses: the Mic bar alone, with no title. */
+export function LevelMeters({ active, micOnly = false }: { active: boolean; micOnly?: boolean }) {
   const backend = useBackend();
   const micRef = useRef<HTMLDivElement>(null);
   const meetingRef = useRef<HTMLDivElement>(null);
@@ -57,10 +58,10 @@ export function LevelMeters({ active }: { active: boolean }) {
 
   return (
     <div className={styles.levels}>
-      <span className={styles.levelsTitle}>Levels</span>
-      <div className={styles.meters}>
+      {!micOnly && <span className={styles.levelsTitle}>Levels</span>}
+      <div className={micOnly ? styles.metersCompact : styles.meters}>
         <Meter label="Mic" meterRef={micRef} />
-        <Meter label="Meeting" meterRef={meetingRef} />
+        {!micOnly && <Meter label="Meeting" meterRef={meetingRef} />}
       </div>
     </div>
   );

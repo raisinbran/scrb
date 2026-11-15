@@ -1,8 +1,13 @@
 .testRow {
   display: flex;
   gap: var(--space-3);
-  align-items: flex-start;
+  align-items: center;
   min-height: var(--control-height);
+  margin-block: var(--space-4);
+}
+
+.testMeter {
+  flex: none;
 }
 
 .testButton {
@@ -25,7 +30,6 @@
   flex: 1;
   min-width: 0;
   height: calc(var(--text-xs) * 2.6);
-  padding-block-start: var(--space-1);
 }
 
 .hint {
