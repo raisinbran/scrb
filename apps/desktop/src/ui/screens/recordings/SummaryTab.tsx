@@ -523,7 +523,11 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
               <PopupLayer>
                 {doc.state === 'outdated' && (
                   <PopupBanner level="warning">
-                    <p>May be outdated — regenerate?</p>
+                    <p>
+                      {doc.outdatedByReprocess
+                        ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
+                        : 'May be outdated — regenerate?'}
+                    </p>
                     <div>
                       <button
                         type="button"
