@@ -264,6 +264,12 @@ function MeetingTitle({
   const [draft, setDraft] = useState(title);
   const [error, setError] = useState<string | null>(null);
 
+  const [seen, setSeen] = useState(title);
+  if (seen !== title) {
+    setSeen(title);
+    setDraft(title);
+  }
+
   const commit = () => {
     const next = draft.trim();
     if (!next) {
@@ -639,7 +645,6 @@ function LoadedDetail(props: LoadedDetailProps) {
       <header className={styles.detailHead}>
         <DetailTitle headingRef={heading} onBack={() => onBack()} />
         <MeetingTitle
-          key={meeting.title}
           title={meeting.title}
           readOnly={!canEdit}
           onSave={async (title) => {
@@ -649,7 +654,6 @@ function LoadedDetail(props: LoadedDetailProps) {
         />
         <p className={styles.muted}>
           <MeetingDate
-            key={meeting.startedAt}
             startedAt={meeting.startedAt}
             readOnly={!canEdit}
             onSave={async (startedAt) => {

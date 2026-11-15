@@ -803,7 +803,6 @@ describe('Recordings', () => {
         expect(input.type).toBe('datetime-local');
         fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
         fireEvent.keyDown(input, { key: 'Enter' });
-        await waitFor(() => expect(document.activeElement).toBe(dateButton()));
         const expected = new Date('2026-10-01T09:30').toISOString();
         await waitFor(async () =>
           expect(
@@ -812,7 +811,8 @@ describe('Recordings', () => {
             ).toISOString(),
           ).toBe(expected),
         );
-        expect(await screen.findByRole('button', { name: /Oct 1, 2026/ })).toBeTruthy();
+        const updated = await screen.findByRole('button', { name: /Oct 1, 2026/ });
+        expect(document.activeElement).toBe(updated);
       });
 
       it('keeps the old date on Escape', async () => {
@@ -874,13 +874,22 @@ describe('Recordings', () => {
       expect(document.activeElement).toBe(title);
       title.focus();
       fireEvent.change(title, { target: { value: 'Quick rename' } });
+      const calls = vi.spyOn(backend, 'call');
       fireEvent.keyDown(title, { key: 'Enter' });
-      expect(document.activeElement).toBe(title);
       await waitFor(async () =>
         expect((await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).title).toBe(
           'Quick rename',
         ),
       );
+      // After the refreshed meeting has rendered, the same input is still there and focused.
+      await waitFor(() => {
+        const names = calls.mock.calls.map(([name]) => name);
+        expect(names.slice(names.indexOf('updateMeeting'))).toContain('getMeeting');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(screen.getByLabelText('Meeting title')).toBe(title);
+      expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe('Quick rename');
+      expect(document.activeElement).toBe(title);
     });
 
     it('keeps the Recordings title and a named back button', async () => {
