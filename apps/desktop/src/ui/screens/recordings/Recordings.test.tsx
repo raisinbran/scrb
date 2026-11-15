@@ -888,7 +888,9 @@ describe('Recordings', () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 20));
       expect(screen.getByLabelText('Meeting title')).toBe(title);
-      expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe('Quick rename');
+      expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe(
+        'Quick rename',
+      );
       expect(document.activeElement).toBe(title);
     });
 
