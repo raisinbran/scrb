@@ -1,0 +1,6 @@
+### A-412 — 2026-11-15 — Claude Code / Sonnet 5.5 / Windows PC BCHEN-W10 — real playback command run without the real-playback switches
+- **Status / attribution:** Confirmed agent error (command assembled from the dry-run line); no product defect, fixed in the same session.
+- **What failed:** After the owner pressed Record, I started `play-sources.ps1` with the dry-run arguments, without `-Play`, `-OwnerApprovedLongTest` and `-RecordingReadyFile`. It printed "Dry run complete" and played nothing. I noticed from the log about 40 s later and started the real playback at 00:59:35, so the recording had about 40 s of silence before the audio began.
+- **Impact:** About 40 s of the owner-approved run time and a silent start on both tracks; the kill still happened with audio on both tracks and results are unaffected. A stray empty evidence folder was also created and left.
+- **Source evidence:** The script's own log (dry-run text, no `recording_ready` event until the second start) and the `playback start` time 00:59:35 against the Record press near 00:58:55.
+- **Correction / remaining risk:** Start playback before the owner is asked to press Record, or check for the "Playback" log events within seconds. Low risk.
