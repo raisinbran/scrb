@@ -125,6 +125,18 @@ describe('resolvePackagedSetup', () => {
     expect(missingMessage(setup.missing, 'darwin')).toContain('package-mac.sh');
   });
 
+  it('tells a user with only models missing to download them in the app, with no terminal step', () => {
+    for (const platform of ['darwin', 'win32'] as const) {
+      const message = missingMessage(
+        ['model ggml-small.en-q5_1.bin', 'model ggml-silero-v6.2.0.bin'],
+        platform,
+      );
+      expect(message).toContain('Download models');
+      expect(message).not.toMatch(/package-mac|scripts/ | LOCALAPPDATA | (terminal / i));
+    }
+    expect(missingMessage(['model a.bin', 'tool ffmpeg'], 'darwin')).toContain('package-mac.sh');
+  });
+
   it("stages each platform's tools only into its own build (no top-level extraResources)", () => {
     const yml = readFileSync(join(__dirname, '../../electron-builder.yml'), 'utf8');
     expect(yml).not.toMatch(/^extraResources:/m);

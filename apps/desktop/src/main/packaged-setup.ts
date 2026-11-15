@@ -239,6 +239,9 @@ export function missingMessage(
   missing: string[],
   platform: NodeJS.Platform = process.platform,
 ): string {
+  // Only models missing: the app downloads them itself, so no terminal step or folder is named.
+  if (missing.length > 0 && missing.every((item) => item.startsWith('model ')))
+    return 'Scribe needs to download its speech models before it can record. Open Settings, find Models, and press Download models.';
   if (platform === 'win32')
     return `Scribe cannot record yet. Missing: ${missing.join(', ')}. The Windows tools and models are not installed (see docs/plans/packaged-windows-app.md); models belong in %LOCALAPPDATA%\\Scribe\\models. Reopen Scribe after installing them.`;
   return `Scribe cannot record yet. Missing: ${missing.join(', ')}. Run scripts/package-mac.sh --install-models from the scrb folder, then reopen Scribe.`;
