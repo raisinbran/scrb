@@ -235,27 +235,6 @@ export function MiniRecording() {
             <button
               type="button"
               className={styles.icon}
-              aria-label="Hide mini window"
-              data-tip="Hide (recording continues)"
-              onClick={() => window.open(HIDE_URL)}
-            >
-              <Icon>
-                <rect
-                  x="1.5"
-                  y="2"
-                  width="9"
-                  height="8"
-                  rx="1"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                />
-                <path d="M3.5 7.5h5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              </Icon>
-            </button>
-            <button
-              type="button"
-              className={styles.icon}
               aria-label="Show Scribe"
               data-tip="Open Scribe"
               onClick={() => window.open(SHOW_MAIN_URL)}
