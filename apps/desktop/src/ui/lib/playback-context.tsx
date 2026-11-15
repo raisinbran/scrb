@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -48,4 +49,12 @@ export function useMeetingPlayback(meetingId: MeetingId): Playback {
     return { ...context.playback, positionMs: 0, isPlaying: false, error: null };
   }
   return context.playback;
+}
+
+/** Pauses the shared playback, for a short preview that takes over the one audio session. */
+export function usePauseSharedPlayback(): () => void {
+  const context = useContext(PlaybackContext);
+  const pause = context?.playback.pause;
+  // Not only while it plays: the state can lag the audio, and a pause of an idle meeting is harmless.
+  return useCallback(() => pause?.(), [pause]);
 }

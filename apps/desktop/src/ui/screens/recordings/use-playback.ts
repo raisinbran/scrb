@@ -2,17 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MeetingId } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { PlaybackEngine } from '../../lib/playback-engine.ts';
+import { MUTED_KEY, storedVolume, VOLUME_KEY } from '../../lib/playback-level.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
+import { stopClipPlayback } from '../../lib/clip-player.ts';
+import { clipSessionOpen } from '../../lib/clip-session.ts';
 
-const VOLUME_KEY = 'scrb.playback.volume';
-const MUTED_KEY = 'scrb.playback.muted';
 const AUDIBLE_KEY = 'scrb.playback.lastAudibleVolume';
 const DEFAULT_AUDIBLE_VOLUME = 0.5;
-
-function storedVolume(): number {
-  const value = readStored<number>(VOLUME_KEY);
-  return typeof value === 'number' && value >= 0 && value <= 1 ? value : 1;
-}
 
 export interface Playback {
   positionMs: number;
@@ -58,6 +54,8 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
     audio.setVolume(level.current.volume, level.current.muted);
     const off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
+      // Events of a clip's borrowed session are not this meeting's, except a pause of its audio.
+      if (clipSessionOpen() && (position.isPlaying || !playing.current)) return;
       setPositionMs(position.positionMs);
       setIsPlaying(position.isPlaying);
       playing.current = position.isPlaying;
@@ -80,6 +78,7 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
   const play = useCallback(
     (target: number) => {
       if (meetingId === null) return;
+      stopClipPlayback();
       setError(null);
       setPositionMs(target);
       engine.current?.seek(Math.round(target)).catch(report);

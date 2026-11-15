@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Backend,
   MeetingId,
@@ -12,6 +12,8 @@ import { Button } from '../../components/Button.tsx';
 import { ActionDialog } from '../../components/Dialog.tsx';
 import { SpeakerLabel } from '../../components/speakers/SpeakerLabel.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { ClipPlayer } from '../../lib/clip-player.ts';
+import { usePauseSharedPlayback } from '../../lib/playback-context.tsx';
 import { formatElapsed, formatMeetingDate } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
@@ -46,6 +48,44 @@ function SplitDialog(props: SplitDialogProps) {
   // Kept across retries, so a failure partway through never creates a second new speaker.
   const created = useRef<SpeakerId | null>(null);
   const moved = useRef(new Set<string>());
+  const [hasAudio, setHasAudio] = useState<boolean | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [clipError, setClipError] = useState<string | null>(null);
+  const player = useRef<ClipPlayer | null>(null);
+  const pauseShared = usePauseSharedPlayback();
+  useEffect(() => {
+    let current = true;
+    backend.call('getMeeting', { meetingId }).then(
+      (meeting) => current && setHasAudio(meeting.hasAudio),
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [backend, meetingId]);
+  useEffect(() => {
+    const clip = new ClipPlayer(backend, (error) => {
+      setPlayingId(null);
+      setClipError(error);
+    });
+    player.current = clip;
+    return () => {
+      clip.stop();
+      player.current = null;
+    };
+  }, [backend]);
+
+  const preview = (segment: TranscriptSegment) => {
+    setClipError(null);
+    if (playingId === segment.id) {
+      player.current?.stop();
+      setPlayingId(null);
+      return;
+    }
+    pauseShared();
+    setPlayingId(segment.id);
+    void player.current?.play(meetingId, segment.startMs, segment.endMs);
+  };
   const own = segments.filter((segment) => segment.speakerId === speakerId);
   const name = newLabel.trim();
 
@@ -109,17 +149,29 @@ function SplitDialog(props: SplitDialogProps) {
         <legend className={styles.legend}>What the new speaker said</legend>
         {own.length === 0 && <p className={styles.muted}>Nothing to show for this speaker.</p>}
         {own.map((segment) => (
-          <label key={segment.id} className={styles.segment}>
-            <input
-              type="checkbox"
-              checked={chosen.has(segment.id)}
-              onChange={() => toggle(segment.id)}
-            />
-            <span className={styles.time}>{formatElapsed(segment.startMs)}</span>
-            <span>{segment.words.map((word) => word.text).join(' ')}</span>
-          </label>
+          <div key={segment.id} className={styles.row}>
+            <label className={styles.segment}>
+              <input
+                type="checkbox"
+                checked={chosen.has(segment.id)}
+                onChange={() => toggle(segment.id)}
+              />
+              <span className={styles.time}>{formatElapsed(segment.startMs)}</span>
+              <span>{segment.words.map((word) => word.text).join(' ')}</span>
+            </label>
+            <Button
+              type="button"
+              disabled={hasAudio !== true}
+              aria-label={`${playingId === segment.id ? 'Stop' : 'Play'} passage at ${formatElapsed(segment.startMs)}`}
+              onClick={() => preview(segment)}
+            >
+              {playingId === segment.id ? 'Stop' : 'Play'}
+            </Button>
+          </div>
         ))}
       </fieldset>
+      {hasAudio === false && <p className={styles.muted}>Audio isn’t saved for this meeting.</p>}
+      {clipError && <p role="alert">{clipError}</p>}
       {partial && (
         <p className={styles.muted}>
           Showing the start of this meeting. For later passages, select the words in the transcript.
