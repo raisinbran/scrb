@@ -270,19 +270,32 @@ describe('final pass after Stop', () => {
     });
   });
 
-  it('restores the old status when a queued re-run finds no sealed audio', async () => {
-    const { id, audio } = await sealedMeeting();
-    rmSync(audio, { recursive: true, force: true });
+  it('restores the old status when a queued re-run loses its audio while waiting', async () => {
+    const first = await sealedMeeting('First');
+    const { id, audio } = await sealedMeeting('Re-run');
+    // The re-run meeting already has a finished transcript from an earlier pass.
+    await runQueue(id, async () => TRANSCRIPT);
+    const before = await library.readTranscript(id);
+    expect(before.segments.length).toBeGreaterThan(0);
     await library.updateMeeting(id, { status: 'finalPassRunning', statusBeforeReprocess: 'ready' });
-    const run = vi.fn(async () => TRANSCRIPT);
+    let release: () => void = () => undefined;
+    const run = vi.fn(async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return TRANSCRIPT;
+    });
     const queue = new FinalPassQueue(library, run);
+    queue.enqueue(first.id);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1));
     queue.enqueue(id);
+    rmSync(audio, { recursive: true, force: true });
+    release();
     await queue.idle();
-    expect(run).not.toHaveBeenCalled();
+    expect(run).toHaveBeenCalledTimes(1);
     expect(await library.getMeeting(id)).toMatchObject({
       status: 'ready',
       statusBeforeReprocess: null,
     });
+    expect(await library.readTranscript(id)).toEqual(before);
   });
 
   it('reports a meeting busy until the pass and matching finish', async () => {
