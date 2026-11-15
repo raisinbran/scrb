@@ -106,3 +106,10 @@
   color: var(--color-text);
   background: var(--color-surface-selected);
 }
+
+/* A mouse click leaves no ring on the footer buttons or tab items; keyboard focus keeps the shared
+   :focus-visible ring from tokens.css. */
+.item:focus:not(:focus-visible),
+.iconButton:focus:not(:focus-visible) {
+  outline-color: transparent;
+}

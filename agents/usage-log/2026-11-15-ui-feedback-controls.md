@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac desktop | UI feedback PR 1: sidebar ring, accent color, tooltips, fixed sidebar width | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |

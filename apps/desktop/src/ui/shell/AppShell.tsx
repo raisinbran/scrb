@@ -2,13 +2,12 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
-import { usePanelSize, type PanelLimits } from '../lib/use-panel-size.ts';
-import { ResizeHandle } from './ResizeHandle.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { TitleBar } from './TitleBar.tsx';
 import styles from './AppShell.module.css';
 
-const SIDEBAR_LIMITS: PanelLimits = { min: 160, max: 320, initial: 200 };
+/** Fixed: the narrowest width at which every tab label still fits. */
+const SIDEBAR_WIDTH = 160;
 
 interface AppShellProps {
   screenId: ScreenId;
@@ -17,8 +16,6 @@ interface AppShellProps {
 }
 
 export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) {
-  const [sidebarWidth, setSidebarWidth] = usePanelSize('scrb.sidebar.width', SIDEBAR_LIMITS);
-
   const workspace = useRef<HTMLElement>(null);
   // Only the reader's own scrolling is remembered: the browser's clamping while a screen is
   // empty or still loading must not overwrite the place. This also covers every way of changing
@@ -55,17 +52,9 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <TitleBar />
       <PrivacyBanner />
       <div className={styles.body}>
-        <div className={styles.sidebar} style={{ width: sidebarWidth }}>
+        <div className={styles.sidebar} style={{ width: SIDEBAR_WIDTH }}>
           <Sidebar selected={screenId} onSelect={onSelectScreen} />
         </div>
-        <ResizeHandle
-          label="Resize sidebar"
-          size={sidebarWidth}
-          min={SIDEBAR_LIMITS.min}
-          max={SIDEBAR_LIMITS.max}
-          direction={1}
-          onResize={setSidebarWidth}
-        />
         <main
           ref={workspace}
           className={styles.workspace}

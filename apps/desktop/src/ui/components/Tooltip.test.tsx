@@ -23,18 +23,18 @@ describe('Tooltip', () => {
     const button = setup();
     fireEvent.pointerEnter(button.parentElement as HTMLElement);
     act(() => void vi.advanceTimersByTime(TOOLTIP_DELAY_MS - 1));
-    expect(tip().hidden).toBe(true);
+    expect(tip().dataset.open).toBeUndefined();
     act(() => void vi.advanceTimersByTime(1));
-    expect(tip().hidden).toBe(false);
+    expect(tip().dataset.open).toBe('true');
     expect(button.getAttribute('aria-describedby')).toBe(tip().id);
   });
 
   it('shows at once on keyboard focus and hides on Escape', () => {
     const button = setup();
     fireEvent.focus(button);
-    expect(tip().hidden).toBe(false);
+    expect(tip().dataset.open).toBe('true');
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(tip().hidden).toBe(true);
+    expect(tip().dataset.open).toBeUndefined();
     expect(button.getAttribute('aria-describedby')).toBeNull();
   });
 
@@ -44,6 +44,6 @@ describe('Tooltip', () => {
     fireEvent.pointerEnter(wrapper);
     fireEvent.pointerLeave(wrapper);
     act(() => void vi.advanceTimersByTime(1000));
-    expect(tip().hidden).toBe(true);
+    expect(tip().dataset.open).toBeUndefined();
   });
 });
