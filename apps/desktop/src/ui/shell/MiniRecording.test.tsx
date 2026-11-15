@@ -409,6 +409,24 @@ describe('MiniRecording', () => {
     expect(screen.queryByText(/Transcription/)).toBeNull();
   });
 
+  it('still offers Hide when nothing is recording, so the window is never stuck', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    const fake = fakeBackend();
+    show(fake);
+    await act(async () =>
+      fake.snapshot({
+        state: recording('idle', 0),
+        pauseSpans: [],
+        health: null,
+        transcription: null,
+      }),
+    );
+    expect(screen.getByText('Not recording')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide mini window' }));
+    expect(open).toHaveBeenCalledWith('scrb-app://mini-hide');
+  });
+
   it('has one Hide control, an ordinary button in the same row as the others', async () => {
     await showRecording(65_000);
     const hide = screen.getByRole('button', { name: 'Hide mini window' });

@@ -101,6 +101,33 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+/** Hide keeps the recording going; it is offered idle too, so the window is never stuck on screen. */
+function HideButton() {
+  return (
+    <button
+      type="button"
+      className={styles.icon}
+      aria-label="Hide mini window"
+      data-tip="Hide (recording continues)"
+      onClick={() => window.open(HIDE_URL)}
+    >
+      <Icon>
+        <rect
+          x="1.5"
+          y="2"
+          width="9"
+          height="8"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+        />
+        <path d="M3.5 7.5h5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </Icon>
+    </button>
+  );
+}
+
 /** The small window shown over other apps: status and time only, never transcript text. */
 export function MiniRecording() {
   const { recording, recordingAt, health, lag } = useRecordingStatus();
@@ -138,9 +165,14 @@ export function MiniRecording() {
     return (
       <div className={styles.mini}>
         <TitleStrip />
-        <p className={styles.idle} role="status">
-          Not recording
-        </p>
+        <div className={styles.idle}>
+          <span className={styles.line}>
+            <span role="status">Not recording</span>
+            <span className={styles.buttons}>
+              <HideButton />
+            </span>
+          </span>
+        </div>
       </div>
     );
   }
@@ -227,27 +259,7 @@ export function MiniRecording() {
                 />
               </Icon>
             </button>
-            <button
-              type="button"
-              className={styles.icon}
-              aria-label="Hide mini window"
-              data-tip="Hide (recording continues)"
-              onClick={() => window.open(HIDE_URL)}
-            >
-              <Icon>
-                <rect
-                  x="1.5"
-                  y="2"
-                  width="9"
-                  height="8"
-                  rx="1"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                />
-                <path d="M3.5 7.5h5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              </Icon>
-            </button>
+            <HideButton />
             <button
               type="button"
               className={styles.icon}
