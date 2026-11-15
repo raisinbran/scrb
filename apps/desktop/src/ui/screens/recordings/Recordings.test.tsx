@@ -137,6 +137,16 @@ describe('Recordings', () => {
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
     });
 
+    it('anchors the banner inside the transcript panel, never over the header or tabs', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      const banner = screen.getByText(/Final transcript is still being processed/);
+      const panel = document.getElementById('meeting-panel');
+      expect(panel?.contains(banner)).toBe(true);
+      expect(screen.getByRole('tablist', { name: 'Meeting' }).contains(banner)).toBe(false);
+      expect(document.querySelector('header')?.contains(banner)).toBe(false);
+    });
+
     it('fills the bar from the final pass progress event and names the stage', async () => {
       renderScreen();
       const on = vi.spyOn(backend, 'on');

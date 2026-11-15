@@ -298,6 +298,9 @@ describe('LiveScreen', () => {
       expect(rule('meter')).toMatch(/width: \d+px/);
       expect(rule('meterLabel')).toMatch(/width: \d+ch/);
       expect(rule('levels')).toMatch(/flex: none/);
+      // Levels to Mic and Mic to Meeting use the one gap.
+      expect(rule('levels')).toMatch(/gap: var\(--meter-gap\)/);
+      expect(rule('meters')).toMatch(/gap: var\(--meter-gap\)/);
       expect(rule('sources')).toMatch(/padding-block: var\(--space-4\)/);
     });
 

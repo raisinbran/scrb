@@ -83,3 +83,21 @@ describe('MicTest layout', () => {
     expect(audio.indexOf('<MicTest')).toBeLessThan(audio.search(/>\s*Preset\s*</));
   });
 });
+
+describe('mic test level meter', () => {
+  it('shows the Live page mic meter beside the button and moves it while testing', async () => {
+    render(
+      <BackendProvider backend={backend}>
+        <MicTest
+          sources={{ micDeviceId: null, meetingAppId: 'whole-computer' }}
+          devices={[headset]}
+        />
+      </BackendProvider>,
+    );
+    const meter = screen.getByRole('meter', { name: 'Mic level' });
+    expect(screen.queryByRole('meter', { name: 'Meeting level' })).toBeNull();
+    expect(meter.getAttribute('aria-valuenow')).toBe('-100');
+    screen.getByRole('button', { name: 'Test mic' }).click();
+    await waitFor(() => expect(meter.getAttribute('aria-valuenow')).toBe('-24'));
+  });
+});

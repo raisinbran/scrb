@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AudioCheckStatus, InputDevice, SourceSelection } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
+import { LevelMeters } from './LevelMeters.tsx';
 import { useRecordingStatus } from '../../shell/use-recording-status.ts';
 import styles from './MicTest.module.css';
 
@@ -60,6 +61,9 @@ export function MicTest({
       >
         {active ? 'Stop test' : 'Test mic'}
       </button>
+      <div className={styles.testMeter}>
+        <LevelMeters active={active} micOnly />
+      </div>
       <div className={styles.testNote}>
         {(active || handsFree || showFailure || recordingNow || failure) && (
           <span className={styles.hint} role="status">
