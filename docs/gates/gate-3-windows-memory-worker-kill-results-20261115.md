@@ -1,6 +1,6 @@
 # Gate 3 Windows: memory and worker-kill run on BCHEN-W10, 2026-11-15: results
 
-**Result: memory under target on both measures; worker kill PASS.** One recording of about 7 minutes (420 s of audio); a lower bound for a long meeting, not a 4-hour figure. Numbers, hashes and statuses only; no transcript text. Raw evidence stays outside Git (`docs/gates/evidence-retention-policy.md`) in `C:\Users\bchen\Documents\ChatGPT\srcb\gate3-memkill-20261115-*` on BCHEN-W10.
+**Result: memory under target on both measures; worker kill PASS.** One recording of about 7 minutes (420 s of audio); a lower bound for a long meeting, not a 4-hour figure. Numbers, hashes and statuses only; no transcript text. Raw evidence stays outside Git (`docs/gates/evidence-retention-policy.md`) in an evidence folder named `gate3-memkill-20261115-*` on BCHEN-W10.
 
 ## What was run
 
