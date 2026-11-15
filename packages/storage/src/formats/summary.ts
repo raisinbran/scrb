@@ -60,6 +60,8 @@ export interface SummaryFile {
   transcriptRevision: number;
   /** "May be outdated": set by any transcript or speaker edit after generating. */
   outdated: boolean;
+  /** With `outdated`: the transcript was re-processed (final pass re-run), not just edited. */
+  reprocessed?: boolean;
   generatedAt: string | null;
   brief: SummaryBody | null;
   full: SummaryBody | null;
@@ -87,6 +89,10 @@ function validateSummary(doc: JsonObject): SummaryFile {
   assertFormat(Number.isInteger(doc['revision']), 'revision');
   assertFormat(Number.isInteger(doc['transcriptRevision']), 'transcriptRevision');
   assertFormat(typeof doc['outdated'] === 'boolean', 'outdated');
+  assertFormat(
+    doc['reprocessed'] === undefined || typeof doc['reprocessed'] === 'boolean',
+    'reprocessed',
+  );
   assertFormat(
     doc['generatedAt'] === null || typeof doc['generatedAt'] === 'string',
     'generatedAt',

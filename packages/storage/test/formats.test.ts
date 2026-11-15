@@ -507,6 +507,45 @@ describe('summary regeneration', () => {
     await library.close();
   });
 
+  it('a re-run final pass marks the summary as re-processed; regenerating clears it', async () => {
+    const { library, id } = await libraryWithMeeting();
+    const generated = {
+      generatedAt: null,
+      brief: body('first'),
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    };
+    await library.appendSegments(
+      id,
+      [{ id: 's', speakerId: 'a', track: 'meeting', pass: 'final', words: words('hi', 0) }],
+      [{ id: 'a', label: 'S', name: null, profileId: null, userNamed: false, mergedInto: null }],
+    );
+    await library.saveGeneratedSummary(id, generated);
+    // An ordinary edit flags the summary, but not as re-processed.
+    await library.renameSpeaker(id, 'a', 'Alice');
+    expect(await library.readSummary(id)).toMatchObject({ outdated: true });
+    expect((await library.readSummary(id))?.reprocessed).toBeUndefined();
+
+    await library.applyFinalPass(id, {
+      segments: [
+        { id: 'f', speakerId: 'a', track: 'meeting', pass: 'final', words: words('hello', 0) },
+      ],
+      speakers: [
+        { id: 'a', label: 'S', name: null, profileId: null, userNamed: false, mergedInto: null },
+      ],
+    });
+    expect(await library.readSummary(id)).toMatchObject({ outdated: true, reprocessed: true });
+
+    await library.saveGeneratedSummary(id, { ...generated, brief: body('second') });
+    const after = await library.readSummary(id);
+    expect(after?.outdated).toBe(false);
+    expect(after?.reprocessed).toBeUndefined();
+    await library.close();
+  });
+
   it('refuses to save a summary made from a transcript that has since changed', async () => {
     const { library, id } = await libraryWithMeeting();
     const generated = {

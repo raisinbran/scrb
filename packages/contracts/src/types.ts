@@ -468,6 +468,8 @@ export interface MeetingSummaryDoc {
   openQuestions: OpenQuestion[];
   /** Parts of the meeting the summary could not read. Always shown. */
   warnings: string[];
+  /** True with state `outdated` when the transcript was re-processed after the summary was made. */
+  outdatedByReprocess?: boolean;
 }
 
 export type SummaryItemUpdate =
