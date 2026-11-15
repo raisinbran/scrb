@@ -825,6 +825,18 @@ describe('Recordings', () => {
       expect(await screen.findByLabelText('Search recordings')).toBeTruthy();
     });
 
+    it('puts the back link above the meeting title and keeps the player outside the scrolling panel', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      const back = screen.getByRole('button', { name: 'Back to Recordings' });
+      expect(back.textContent).toBe('Recordings');
+      const title = screen.getByRole('textbox', { name: /title/i });
+      expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const panel = screen.getByRole('tabpanel');
+      const player = screen.getByRole('group', { name: 'Audio player' });
+      expect(panel.contains(player)).toBe(false);
+    });
+
     it('names every icon button', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);

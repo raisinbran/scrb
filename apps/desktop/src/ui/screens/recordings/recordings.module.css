@@ -308,14 +308,16 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .detailHead {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  flex: none;
   align-items: flex-start;
-  padding: var(--space-5) var(--space-6) var(--space-2);
+  padding: var(--space-3) var(--space-6) var(--space-2);
 }
 
 .detailHead p {
@@ -323,14 +325,47 @@
 }
 
 .pageTitle {
-  position: relative;
+  margin-bottom: var(--space-1);
 }
 
-/* The chevron sits in the page margin so the title stays where every other screen's title is. */
-.backSlot {
+.srOnly {
   position: absolute;
-  inset-block-start: 1px;
-  inset-inline-start: calc(-1 * var(--space-6) + 2px);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A breadcrumb link above the meeting title, shaped like a sidebar item. */
+.backLink {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+  margin-inline-start: calc(-1 * var(--space-1));
+  color: var(--color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+}
+
+.backLink:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.backIcon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .meetingTitle {
@@ -394,6 +429,7 @@
 
 .tabs {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   gap: var(--space-1);
   align-items: center;
@@ -428,7 +464,7 @@
 
 .panel {
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -694,6 +730,7 @@
 
 .playerRow {
   display: flex;
+  flex: none;
   gap: var(--space-2);
   align-items: center;
   padding: var(--space-2) var(--space-6);

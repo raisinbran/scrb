@@ -12,7 +12,6 @@ import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/form
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, useFocusFallback } from '../Screen.tsx';
-import screenStyles from '../Screen.module.css';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
@@ -28,7 +27,7 @@ import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { usePlayback, type Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
-import { IconButton } from '../../components/IconButton.tsx';
+import { ICONS, IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
@@ -221,7 +220,10 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
   );
 }
 
-/** The page title is "Recordings", as on the list; the chevron beside it goes back to the list. */
+/**
+ * A breadcrumb-style link above the meeting title goes back to the list. The "Recordings" heading
+ * stays in the page for screen readers and for focus after the screen opens.
+ */
 function DetailTitle({
   headingRef,
   onBack,
@@ -231,12 +233,20 @@ function DetailTitle({
 }) {
   return (
     <div className={styles.pageTitle}>
-      <span className={styles.backSlot}>
-        <IconButton label="Back to Recordings" icon="back" onClick={onBack} />
-      </span>
-      <h1 ref={headingRef} className={screenStyles.title} tabIndex={-1}>
+      <h1 ref={headingRef} className={styles.srOnly} tabIndex={-1}>
         Recordings
       </h1>
+      <button
+        type="button"
+        className={styles.backLink}
+        aria-label="Back to Recordings"
+        onClick={onBack}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.backIcon}>
+          <path d={ICONS.back} />
+        </svg>
+        Recordings
+      </button>
     </div>
   );
 }
