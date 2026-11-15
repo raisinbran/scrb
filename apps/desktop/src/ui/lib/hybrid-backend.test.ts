@@ -444,6 +444,33 @@ describe('createHybridBackend', () => {
     expect(real.on).toHaveBeenCalledWith('importFinished', expect.any(Function));
   });
 
+  it('sends the model download calls and progress events to the real backend, not the mock', async () => {
+    const real = await realReturning();
+    const backend = createHybridBackend(real, mock);
+    const startMock = vi.spyOn(mock, 'call');
+    await backend.call('startModelDownload');
+    await backend.call('cancelModelDownload');
+    expect(real.call).toHaveBeenCalledWith('startModelDownload', undefined);
+    expect(real.call).toHaveBeenCalledWith('cancelModelDownload', undefined);
+    expect(startMock).not.toHaveBeenCalledWith('startModelDownload', undefined);
+    expect(startMock).not.toHaveBeenCalledWith('cancelModelDownload', undefined);
+    backend.on('modelDownloadProgress', () => undefined);
+    expect(real.on).toHaveBeenCalledWith('modelDownloadProgress', expect.any(Function));
+  });
+
+  it('falls back to the mock for model downloads when the real backend has no handler', async () => {
+    const real = {
+      call: vi.fn(async (name: string) => {
+        if (name === 'getSettings') return {};
+        throw new ContractError({ code: 'notImplemented', message: 'Not available.' });
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const startMock = vi.spyOn(mock, 'call');
+    await createHybridBackend(real, mock).call('startModelDownload');
+    expect(startMock).toHaveBeenCalledWith('startModelDownload', undefined);
+  });
+
   it('passes a real failure on to the caller', async () => {
     const real = {
       call: vi.fn(async () => {

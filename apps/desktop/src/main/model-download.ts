@@ -495,7 +495,11 @@ export async function extractWithTar(
  * One download at a time. Starting while one runs does nothing; `cancel` aborts it and keeps the
  * partial files for resume. Failures reach the UI as `failed` progress events, never as throws.
  */
-export function createModelDownloader(base: Omit<DownloadOptions, 'signal'>) {
+export function createModelDownloader(
+  base: Omit<DownloadOptions, 'signal'>,
+  /** Called once when a run ends without a failure or a cancel. */
+  onSucceeded?: () => void,
+) {
   let running: AbortController | null = null;
   return {
     start(): void {
@@ -503,9 +507,13 @@ export function createModelDownloader(base: Omit<DownloadOptions, 'signal'>) {
       const controller = new AbortController();
       running = controller;
       void downloadModels({ ...base, signal: controller.signal })
-        .catch(() => undefined)
-        .finally(() => {
+        .then(
+          () => true,
+          () => false,
+        )
+        .then((succeeded) => {
           running = null;
+          if (succeeded) onSucceeded?.();
         });
     },
     cancel(): void {

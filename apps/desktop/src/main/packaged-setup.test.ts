@@ -8,6 +8,7 @@ import {
   missingMessage,
   modelsDirFor,
   toolFileName,
+  listModelRows,
   resolvePackagedSetup,
   pinUserData,
   userDataFor,
@@ -124,6 +125,18 @@ describe('resolvePackagedSetup', () => {
     expect(missingMessage(setup.missing, 'darwin')).toContain('package-mac.sh');
   });
 
+  it('tells a user with only models missing to download them in the app, with no terminal step', () => {
+    for (const platform of ['darwin', 'win32'] as const) {
+      const message = missingMessage(
+        ['model ggml-small.en-q5_1.bin', 'model ggml-silero-v6.2.0.bin'],
+        platform,
+      );
+      expect(message).toContain('Download models');
+      expect(message).not.toMatch(/package-mac|scripts|LOCALAPPDATA|terminal/i);
+    }
+    expect(missingMessage(['model a.bin', 'tool ffmpeg'], 'darwin')).toContain('package-mac.sh');
+  });
+
   it("stages each platform's tools only into its own build (no top-level extraResources)", () => {
     const yml = readFileSync(join(__dirname, '../../electron-builder.yml'), 'utf8');
     expect(yml).not.toMatch(/^extraResources:/m);
@@ -163,5 +176,64 @@ describe('resolvePackagedSetup', () => {
       if (name === 'segmentation-model.int8.onnx') continue; // extracted from a hash-checked archive
       expect(script).toContain(sha256);
     }
+  });
+});
+
+describe('listModelRows', () => {
+  let dir: string;
+  let table: DigestTable;
+  const write = (index: number) =>
+    writeFileSync(join(dir, NAMES[index] as string), `invented model ${index}`);
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'scrb-rows-'));
+    table = {};
+    NAMES.forEach((name, index) => {
+      const bytes = Buffer.from(`invented model ${index}`);
+      table[name] = {
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        bytes: bytes.length,
+      };
+    });
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const rows = () => listModelRows(dir, join(dir, 'verified.json'), table);
+
+  it('lists all five files as not installed, with their expected sizes, when the folder is empty', async () => {
+    const list = await rows();
+    expect(list).toHaveLength(5);
+    expect(list.map((row) => row.version).sort()).toEqual([...NAMES].sort());
+    expect(list.every((row) => !row.installed)).toBe(true);
+    for (const row of list) expect(row.sizeBytes).toBe(table[row.version]?.bytes);
+  });
+
+  it('marks only the verified files installed in a partial folder', async () => {
+    write(0);
+    write(1);
+    const list = await rows();
+    expect(
+      list
+        .filter((row) => row.installed)
+        .map((row) => row.version)
+        .sort(),
+    ).toEqual([NAMES[0], NAMES[1]].sort());
+  });
+
+  it('does not count a file with the wrong content or a part file', async () => {
+    writeFileSync(join(dir, NAMES[0] as string), 'invented model X');
+    writeFileSync(join(dir, `${NAMES[1]}.part`), `invented model 1`);
+    expect((await rows()).filter((row) => row.installed)).toHaveLength(0);
+  });
+
+  it('marks all five installed when every file verifies', async () => {
+    NAMES.forEach((_, index) => write(index));
+    const list = await rows();
+    expect(list.every((row) => row.installed)).toBe(true);
+  });
+
+  it('uses the pinned digests by default', async () => {
+    const list = await listModelRows(dir, join(dir, 'verified.json'));
+    expect(list.reduce((sum, row) => sum + row.sizeBytes, 0)).toBe(
+      Object.values(realDigests).reduce((sum, entry) => sum + entry.bytes, 0),
+    );
   });
 });

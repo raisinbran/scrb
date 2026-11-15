@@ -110,6 +110,27 @@ export async function verified(
   return true;
 }
 
+/**
+ * The five required model files as the setup screen lists them: installed only when the file on
+ * disk has the pinned size and hash, and `sizeBytes` is the expected size either way.
+ */
+export async function listModelRows(
+  modelsDir: string,
+  cacheFile: string,
+  table: DigestTable = DIGESTS,
+): Promise<ModelInfo[]> {
+  const rows: ModelInfo[] = [];
+  for (const row of MODELS)
+    rows.push({
+      role: row.role,
+      name: row.label,
+      version: row.file,
+      installed: await verified(path.join(modelsDir, row.file), row.file, cacheFile, table),
+      sizeBytes: table[row.file]?.bytes ?? 0,
+    });
+  return rows;
+}
+
 export interface PackagedSetup {
   /** Present only when every tool and model is in place. */
   helper: string | null;
@@ -218,6 +239,9 @@ export function missingMessage(
   missing: string[],
   platform: NodeJS.Platform = process.platform,
 ): string {
+  // Only models missing: the app downloads them itself, so no terminal step or folder is named.
+  if (missing.length > 0 && missing.every((item) => item.startsWith('model ')))
+    return 'Scribe needs to download its speech models before it can record. Open Settings, find Models, and press Download models.';
   if (platform === 'win32')
     return `Scribe cannot record yet. Missing: ${missing.join(', ')}. The Windows tools and models are not installed (see docs/plans/packaged-windows-app.md); models belong in %LOCALAPPDATA%\\Scribe\\models. Reopen Scribe after installing them.`;
   return `Scribe cannot record yet. Missing: ${missing.join(', ')}. Run scripts/package-mac.sh --install-models from the scrb folder, then reopen Scribe.`;

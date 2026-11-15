@@ -268,6 +268,11 @@ export class FinalPassQueue {
     return this.active.has(meetingId);
   }
 
+  /** True while any meeting is queued or running. */
+  hasWork(): boolean {
+    return this.active.size > 0;
+  }
+
   /** Resolves once nothing is queued or running. */
   async idle(): Promise<void> {
     await this.running;

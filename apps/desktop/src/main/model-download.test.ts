@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -10,6 +10,7 @@ import type { ModelDownloadProgress } from '@scrb/contracts';
 import {
   DownloadError,
   MODEL_URLS,
+  createModelDownloader,
   downloadModels,
   type DownloadSource,
   type DownloadOptions,
@@ -307,6 +308,50 @@ describe('downloadModels', () => {
     const bad = async (_a: string, _m: string, out: string) => writeFile(out, 'wrong');
     await fails(run([src], { extract: bad }), 'checksum');
     await expect(stat(join(dir, 'seg.onnx'))).rejects.toThrow();
+  });
+  describe('createModelDownloader', () => {
+    const make = (onSucceeded: () => void, over: Partial<DownloadOptions> = {}) =>
+      createModelDownloader(
+        {
+          dir,
+          sources: [source()],
+          insecureHosts: ['127.0.0.1'],
+          retryDelayMs: 0,
+          progressIntervalMs: 0,
+          freeBytes: async () => 1e12,
+          ...over,
+        },
+        onSucceeded,
+      );
+
+    it('calls back once when a run ends well, and reports not running by then', async () => {
+      serveBody();
+      let runningAtCallback: boolean | null = null;
+      const done = vi.fn(() => {
+        runningAtCallback = downloader.isRunning();
+      });
+      const downloader = make(done);
+      downloader.start();
+      await vi.waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+      expect(runningAtCallback).toBe(false);
+    });
+
+    it('does not call back after a failure or a cancel', async () => {
+      serveBody();
+      const failed = vi.fn();
+      make(failed, { sources: [source({ sha256: sha(Buffer.from('other')) })] }).start();
+      await new Promise((r) => setTimeout(r, 200));
+      expect(failed).not.toHaveBeenCalled();
+
+      handler = () => undefined; // never answers
+      const cancelled = vi.fn();
+      const downloader = make(cancelled);
+      downloader.start();
+      await new Promise((r) => setTimeout(r, 50));
+      downloader.cancel();
+      await vi.waitFor(() => expect(downloader.isRunning()).toBe(false));
+      expect(cancelled).not.toHaveBeenCalled();
+    });
   });
 });
 

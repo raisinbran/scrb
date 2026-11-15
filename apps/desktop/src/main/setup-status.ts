@@ -13,6 +13,13 @@ export interface SetupStatusSources {
   liveConfig?: string | undefined;
   /** Electron's getMediaAccessStatus('microphone'); absent where the OS cannot report it. */
   microphoneStatus?: (() => string) | undefined;
+  /**
+   * The packaged app's five required model files, read from disk. When given, these replace the
+   * rows taken from the config files, so a model that is not there yet still shows with its size.
+   */
+  readModels?: (() => Promise<ModelInfo[]>) | undefined;
+  /** True while a model download runs; setup is not complete until it ends. */
+  downloading?: (() => boolean) | undefined;
 }
 
 // The final pass's keys plus ffprobe, which imports refuse to run without.
@@ -87,21 +94,22 @@ export function microphoneState(read: (() => string) | undefined): PermissionSta
 /**
  * Real-mode setup status: which configured models and tools exist on disk, and the microphone
  * permission. System audio stays 'unknown' because macOS offers no read without a prompt.
- * `complete` needs every configured final-pass file, the helper, a granted microphone and a
+ * With `readModels` (packaged) the list is the five required files and `complete` also needs
+ * every one verified and no download running. `complete` needs every configured final-pass file, the helper, a granted microphone and a
  * saved location; the meeting-audio permission cannot be read, so it does not gate completion.
  */
 export function createSetupStatusHandler(sources: SetupStatusSources) {
   return async (): Promise<SetupStatus> => {
     const final = await readConfig(sources.finalPassConfig);
     const live = await readConfig(sources.liveConfig);
-    const models: ModelInfo[] = [];
-    if (sources.liveConfig)
+    const models: ModelInfo[] = sources.readModels ? await sources.readModels() : [];
+    if (!sources.readModels && sources.liveConfig)
       models.push(
         await modelInfo('liveSpeech', basename(live.models['speechLive'] ?? 'live speech'), [
           live.models['speechLive'],
         ]),
       );
-    if (sources.finalPassConfig) {
+    if (!sources.readModels && sources.finalPassConfig) {
       models.push(
         await modelInfo('finalSpeech', basename(final.models['speechFinal'] ?? 'final speech'), [
           final.models['speechFinal'],
@@ -132,6 +140,7 @@ export function createSetupStatusHandler(sources: SetupStatusSources) {
       complete:
         toolsReady &&
         models.every((model) => model.installed) &&
+        !(sources.downloading?.() ?? false) &&
         permissions.microphone === 'granted' &&
         locationSet,
     };

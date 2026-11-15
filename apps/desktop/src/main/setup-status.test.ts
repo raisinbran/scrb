@@ -192,4 +192,61 @@ describe('getSetupStatus', () => {
     ).toBe('unknown');
     expect(microphoneState(undefined)).toBe('unknown');
   });
+
+  describe('with the packaged model list', () => {
+    const row = (
+      installed: boolean,
+      role: 'liveSpeech' | 'finalSpeech' | 'speaker' = 'liveSpeech',
+    ) => ({
+      role,
+      name: 'A model',
+      version: 'file.bin',
+      installed,
+      sizeBytes: 100,
+    });
+    const run = async (models: ReturnType<typeof row>[], downloading = false, withTools = true) => {
+      const { library, settings } = await open();
+      settings.updateSettings({ location: { country: 'US', usState: 'IL' } });
+      const helper = join(dir, 'helper');
+      const config = join(dir, 'final.json');
+      await writeFile(helper, 'x');
+      const tool = join(dir, 'tool');
+      await writeFile(tool, 'x');
+      await writeFile(
+        config,
+        JSON.stringify({
+          tools: { ffmpeg: tool, ffprobe: tool, whisperCli: tool, sherpaSidecar: tool },
+          models: { vad: tool },
+        }),
+      );
+      const status = await createSetupStatusHandler({
+        readSettings: settings.getSettings,
+        helper: withTools ? helper : undefined,
+        finalPassConfig: withTools ? config : undefined,
+        microphoneStatus: () => 'granted',
+        readModels: async () => models,
+        downloading: () => downloading,
+      })();
+      await library.close();
+      return status;
+    };
+
+    it('lists the rows it is given, installed or not, with their expected sizes', async () => {
+      const status = await run([row(false), row(true, 'speaker')], false, false);
+      expect(status.models).toEqual([row(false), row(true, 'speaker')]);
+      expect(status.complete).toBe(false);
+    });
+
+    it('is incomplete while one required file is missing', async () => {
+      expect((await run([row(true), row(false)])).complete).toBe(false);
+    });
+
+    it('is incomplete while a download runs, even with every file verified', async () => {
+      expect((await run([row(true), row(true)], true)).complete).toBe(false);
+    });
+
+    it('is complete when every file is verified, nothing downloads, and the rest is ready', async () => {
+      expect((await run([row(true), row(true)])).complete).toBe(true);
+    });
+  });
 });
