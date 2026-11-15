@@ -217,7 +217,7 @@ export function SpeakersScreen() {
                 Voice profiles
               </h2>
               {profiles.length === 0 ? (
-                <EmptyState title="No voice profiles yet">
+                <EmptyState compact title="No voice profiles yet">
                   Profiles appear after your first recording.
                 </EmptyState>
               ) : (

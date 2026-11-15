@@ -52,9 +52,18 @@ export function Screen({ title, children }: { title: string; children: ReactNode
   );
 }
 
-export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+/** `compact` is for an empty section inside a screen: left-aligned and no tall padding. */
+export function EmptyState({
+  title,
+  compact = false,
+  children,
+}: {
+  title: string;
+  compact?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <div className={styles.empty}>
+    <div className={compact ? styles.emptyCompact : styles.empty}>
       <p className={styles.emptyTitle}>{title}</p>
       {children && <p className={styles.emptyBody}>{children}</p>}
     </div>

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -45,6 +47,16 @@ describe('screens', () => {
       backend.setProfiles([]);
       renderScreen(backend, <SpeakersScreen />);
       expect(await screen.findByText('No voice profiles yet')).toBeTruthy();
+    });
+
+    it('keeps the empty profile list compact, with the meeting section right after it', async () => {
+      backend.setProfiles([]);
+      renderScreen(backend, <SpeakersScreen />);
+      const empty = (await screen.findByText('No voice profiles yet')).parentElement;
+      expect(empty?.className).toMatch(/emptyCompact/);
+      expect(empty?.className).not.toMatch(/(^|\s)\S*_empty_/);
+      const css = readFileSync(join(__dirname, 'Screen.module.css'), 'utf8');
+      expect(css.match(/\.emptyCompact \{([^}]*)\}/)?.[1]).not.toMatch(/space-7/);
     });
 
     it('renames a profile', async () => {
