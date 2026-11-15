@@ -2,7 +2,9 @@
 
 Written by the Claude planner session for the next planner (probably ChatGPT). State as of about 02:50 PST; refresh section 1 and 2 by 08:30. Supersedes the untracked `planner-handoff-20261114.md`. Owner is non-technical: give exact clicks and name the PC, app, folder and admin yes/no for every command. The owner merges every PR (Ready for review, Squash and merge, Confirm squash and merge, Delete branch). Never merge for the owner.
 
-**Final refresh 08:45 PT, 2026-11-15.** Covers PR state as of the last `gh pr list` (read at 05:13 PT by the scheduled refresh) and the Mac Gate 8 run as of its last log line (05:13 PT). It could not verify anything that happened after that: the run result, later merges, or CI on open PRs. Re-check `gh pr list` and `REPORT.txt` first. Sections 3 and 3A below were written earlier and are partly out of date; section 1, 2, 4 and the next-actions list in section 1 supersede them.
+**Refreshed 06:21 PT, 2026-11-15.** Covered: PR states from `gh pr list` (all of 277 to 317 except 301 are merged; open: 301, 253, 223, 213, 210, 131, 138 to 135, 95 to 87, 25; 285, 295 and 297 closed) and the Mac Gate 8 run log (see section 2: still running at 06:21 PT, 19,260 s of the planned 28,800 s, chunks mic 3,853 and meeting 3,850, helper 33 MB, free disk 132 GB, every line `ok`, no `REPORT.txt` yet, so no result). Not verified: the run result after 06:21 PT, CI on open PRs, and whether the confirm commands in the W10 note still need a W10 run (they do until a W10 session runs them). The owner left #301 open; it is not marked ready.
+
+**Earlier refresh 08:45 PT, 2026-11-15.** Covers PR state as of the last `gh pr list` (read at 05:13 PT by the scheduled refresh) and the Mac Gate 8 run as of its last log line (05:13 PT). It could not verify anything that happened after that: the run result, later merges, or CI on open PRs. Re-check `gh pr list` and `REPORT.txt` first. Sections 3 and 3A below were written earlier and are partly out of date; section 1, 2, 4 and the next-actions list in section 1 supersede them.
 
 ## 0. Hard rules (every agent, every prompt)
 
