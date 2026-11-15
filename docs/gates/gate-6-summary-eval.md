@@ -1,6 +1,6 @@
 # Gate 6 evidence: summary recall, precision and links (2026-11-13)
 
-**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (primary 189/189, secondary 33/33); judged precision is added below (**54/171 = 32%**, a harsh self-judge; see the section). The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
+**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (primary 189/189, secondary 33/33); judged precision is added below (**54/171 = 32%**, a self-judge of unknown accuracy; see the section). The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
 
 ## What was run
 
@@ -40,11 +40,11 @@ Run with `gate6.js ... --judge` on the **same saved extractions** (no re-extract
 | TS3005b | 62 | 22 | 35% | 40 | 60% |
 | **Pooled** | **171** | **54** | **32%** | **117 (68%)** | 47% |
 
-- **Against the hand reading:** earlier hand reading found about 16% non-items and 22% repeats (up to about 38% unusable, if they do not overlap). The judge calls 68% not genuine, about twice that, so it is far stricter than the hand reading.
-- **The judge may be overly strict:** its genuine share (32%) is below the share of items that match an annotator's reference (47%). That does not prove the judge is wrong (the two measures differ and word-overlap matching can credit near-misses), but it is a warning sign: the judge sees only 7 lines and its prompt rejects a suggestion nobody took up.
-- **Which problem is bigger:** not established. Recall (68% against 80%, 13 of 40 reference sentences missed) is a measured, rule-based number. True precision is **unknown**: the judge's 32% is likely biased low by an unknown amount, and the earlier hand reading is a different, unmatched sample. Human calibration (grading a sample of the 117 rejected items) is required before concluding anything about precision.
+- **Against the hand reading:** earlier hand reading found about 16% non-items and 22% repeats (up to about 38% unusable, if they do not overlap). The judge calls 68% not genuine, about twice that, so the two readings disagree widely.
+- **The judge may be biased in either direction:** its genuine share (32%) is below the share of items that match an annotator's reference (47%). That does not show which measure is right (word-overlap matching can credit near-misses, and the judge sees only 7 lines and rejects a suggestion nobody took up), only that they disagree.
+- **Which problem is bigger:** not established. Recall (68% against 80%, 13 of 40 reference sentences missed) is a measured, rule-based number. True precision is **unknown**: the judge's 32% may be biased in either direction by an unknown amount, and the earlier hand reading is a different, unmatched sample. Human calibration (grading a sample of the 117 rejected items) is required before concluding anything about precision.
 - **Evidence:** numbers-only receipt in [gate-6/judge-receipt.md](gate-6/judge-receipt.md) (counts, extraction hashes, model and run details). Per-item verdicts were not saved.
-- **Caveat:** the judge is the same model grading its own output, with a narrow context window and a strict prompt; treat these as an estimate with an unknown downward bias. The set is three meetings. Per-item verdicts are not saved, so the rejected items cannot be inspected without rerunning.
+- **Caveat:** the judge is the same model grading its own output, with a narrow context window and a strict prompt; treat these as an estimate of unknown accuracy and bias. The set is three meetings. Per-item verdicts are not saved, so the rejected items cannot be inspected without rerunning.
 
 ## Not covered / next
 
