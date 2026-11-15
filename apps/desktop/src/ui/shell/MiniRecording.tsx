@@ -8,9 +8,6 @@ import styles from './MiniRecording.module.css';
 
 /** Opening this address asks the main process to bring the app forward; it matches `SHOW_MAIN_URL` in main. */
 const SHOW_MAIN_URL = 'scrb-app://show-main';
-/** Likewise `COMPACT_URL` and `EXPAND_URL`: they shrink the window to its status row and back. */
-const COMPACT_URL = 'scrb-app://mini-compact';
-const EXPAND_URL = 'scrb-app://mini-expand';
 /** And `HIDE_URL`: it hides this window while the recording goes on; the main window brings it back. */
 const HIDE_URL = 'scrb-app://mini-hide';
 
@@ -112,17 +109,7 @@ function HideButton() {
       onClick={() => window.open(HIDE_URL)}
     >
       <Icon>
-        <rect
-          x="1.5"
-          y="2"
-          width="9"
-          height="8"
-          rx="1"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-        <path d="M3.5 7.5h5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M2.5 6h7" fill="none" stroke="currentColor" strokeWidth="1.5" />
       </Icon>
     </button>
   );
@@ -134,7 +121,6 @@ export function MiniRecording() {
   const activity = useActivity(recording.meetingId);
   const [now, setNow] = useState(() => Date.now());
   const backend = useBackend();
-  const [compact, setCompact] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const control = useCallback(
@@ -150,10 +136,6 @@ export function MiniRecording() {
     },
     [backend],
   );
-  const toggleCompact = (): void => {
-    window.open(compact ? EXPAND_URL : COMPACT_URL);
-    setCompact(!compact);
-  };
   useEffect(() => {
     if (recording.status !== 'recording') return undefined;
     const timer = setInterval(() => setNow(Date.now()), 500);
@@ -207,8 +189,14 @@ export function MiniRecording() {
               {formatElapsed(elapsed)}
             </span>
           </Tooltip>
-          {compact && warning ? (
-            <span className={styles.flag} role="img" aria-label={warning} title={warning}>
+          {warning ? (
+            <span
+              className={styles.flag}
+              role="img"
+              tabIndex={0}
+              aria-label={warning}
+              data-tip={warning}
+            >
               !
             </span>
           ) : null}
@@ -243,22 +231,6 @@ export function MiniRecording() {
                 <rect x="2.5" y="2.5" width="7" height="7" fill="currentColor" />
               </Icon>
             </button>
-            <button
-              type="button"
-              className={styles.icon}
-              aria-label={compact ? 'Make larger' : 'Make smaller'}
-              data-tip={compact ? 'Make larger' : 'Make smaller'}
-              onClick={toggleCompact}
-            >
-              <Icon>
-                <path
-                  d={compact ? 'M2 8l4-4 4 4' : 'M2 6h8'}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </Icon>
-            </button>
             <HideButton />
             <button
               type="button"
@@ -279,7 +251,7 @@ export function MiniRecording() {
           </span>
         </span>
         {/* One fixed-height slot: a warning takes it over, so the row above never moves. */}
-        {compact ? null : warning ? (
+        {warning ? (
           <span className={styles.slot} data-kind="warning" title={warning}>
             {warning}
           </span>

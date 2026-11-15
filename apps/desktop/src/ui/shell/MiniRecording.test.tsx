@@ -289,31 +289,53 @@ describe('MiniRecording', () => {
     );
   }
 
-  it('the two buttons ask the main process by exact address and swap the compact label', async () => {
+  it('has Resume, Stop, Hide, Open Scribe in that order, each named, and no expand toggle', async () => {
     const open = vi.fn();
     vi.stubGlobal('open', open);
     await showRecording(65_000);
-    fireEvent.click(screen.getByRole('button', { name: 'Show Scribe' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Make smaller' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Hide mini window' }));
-    expect(open.mock.calls).toEqual([
-      ['scrb-app://show-main'],
-      ['scrb-app://mini-compact'],
-      ['scrb-app://mini-hide'],
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Resume recording',
+      'Stop recording',
+      'Hide mini window',
+      'Show Scribe',
     ]);
+    expect(screen.queryByRole('button', { name: /Make (smaller|larger)/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide mini window' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show Scribe' }));
+    expect(open.mock.calls).toEqual([['scrb-app://mini-hide'], ['scrb-app://show-main']]);
     expect(screen.getByRole('button', { name: 'Hide mini window' }).dataset.tip).toBe(
       'Hide (recording continues)',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Make larger' }));
-    expect(open).toHaveBeenLastCalledWith('scrb-app://mini-expand');
   });
 
-  it('compact keeps the time and a warning flag, and drops the slot', async () => {
+  it('keeps a long, multiline warning inside the window on hover and keyboard focus', async () => {
+    const long =
+      'The microphone changed.\nScribe switched to the built-in microphone for this meeting.';
+    await showRecording(65_000, {
+      ...warned,
+      warnings: [{ kind: 'deviceChanged', message: long, atMs: 1000 }],
+    });
+    const flag = screen.getByRole('img', { name: long });
+    fireEvent.mouseOver(flag);
+    fireEvent.focus(flag);
+    expect(flag.dataset.tip).toBe(long);
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const rule = css.match(/\.flag\[data-tip\]::after \{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/position: fixed/);
+    expect(rule).toMatch(/left:/);
+    expect(rule).toMatch(/right:/);
+    expect(rule).toMatch(/white-space: normal/);
+    expect(rule).toMatch(/line-clamp: 4/);
+    expect(css).toMatch(/\[data-tip\]:focus-visible::after/);
+  });
+
+  it('shows the warning flag with the warning as its tooltip and name, reachable by keyboard', async () => {
     await showRecording(65_000, warned);
-    fireEvent.click(screen.getByRole('button', { name: 'Make smaller' }));
-    expect(screen.getByText('01:05')).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'Microphone changed' })).toBeTruthy();
-    expect(screen.queryByText('Microphone changed')).toBeNull();
+    const flag = screen.getByRole('img', { name: 'Microphone changed' });
+    expect(flag.dataset.tip).toBe('Microphone changed');
+    expect(flag.getAttribute('tabindex')).toBe('0');
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    expect(css).toMatch(/\.flag\[data-tip\]::after/);
   });
 
   it('shows 99:59:59 in full on the status row', async () => {
@@ -388,9 +410,8 @@ describe('MiniRecording', () => {
     expect(await screen.findByText('Could not pause')).toBeTruthy();
   });
 
-  it('explains the compact and return buttons in tooltips', async () => {
+  it('explains the return button in a tooltip', async () => {
     await showRecording(65_000);
-    expect(screen.getByRole('button', { name: 'Make smaller' }).dataset.tip).toBe('Make smaller');
     expect(screen.getByRole('button', { name: 'Show Scribe' }).dataset.tip).toBe('Open Scribe');
   });
 

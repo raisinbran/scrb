@@ -64,6 +64,20 @@
 }
 
 /* The row's buttons show theirs above, in the strip's space. */
+/* A warning can run to several lines, and the window clips anything that sticks out of it. So this
+   tooltip is fixed to the window itself: the full width, along the bottom, at most four lines. */
+.flag[data-tip]::after {
+  position: fixed;
+  right: var(--space-2);
+  bottom: var(--space-1);
+  left: var(--space-2);
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
 .icon[data-tip]::after {
   right: 0;
   bottom: calc(100% + 4px);
@@ -217,7 +231,9 @@
 }
 
 .flag {
+  position: relative;
   flex-shrink: 0;
+  cursor: default;
   font-weight: 700;
   color: var(--color-warning);
 }

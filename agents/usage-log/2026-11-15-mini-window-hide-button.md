@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac desktop | Mini window: Hide as a minimize dash left of Open Scribe, expand toggle removed, warning flag with tooltip | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
