@@ -80,6 +80,6 @@ describe('MicTest layout', () => {
     expect(rule('testNote')).toMatch(/height:/);
     const audio = readFileSync(join(__dirname, '../settings/AudioSection.tsx'), 'utf8');
     expect(audio.indexOf('<MicTest')).toBeGreaterThan(0);
-    expect(audio.indexOf('<MicTest')).toBeLessThan(audio.indexOf('>Preset<'));
+    expect(audio.indexOf('<MicTest')).toBeLessThan(audio.search(/>\s*Preset\s*</));
   });
 });
