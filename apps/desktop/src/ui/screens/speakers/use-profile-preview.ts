@@ -20,6 +20,8 @@ export function useProfilePreview(profileId: ProfileId) {
   const player = useRef<ClipPlayer | null>(null);
   const list = useRef<ProfileClip[]>([]);
   const index = useRef<number | null>(null);
+  /** Requests up to this number were cancelled by a stop or by leaving the screen. */
+  const cancelled = useRef(0);
   const start = useCallback((at: number) => {
     const clip = list.current[at];
     if (!clip) {
@@ -44,6 +46,7 @@ export function useProfilePreview(profileId: ProfileId) {
     });
     player.current = clip;
     return () => {
+      cancelled.current = latestRequest;
       index.current = null;
       clip.stop();
       player.current = null;
@@ -51,6 +54,7 @@ export function useProfilePreview(profileId: ProfileId) {
   }, [backend, start]);
 
   const stop = useCallback(() => {
+    cancelled.current = latestRequest;
     index.current = null;
     player.current?.stop();
     setPlaying(null);
@@ -65,11 +69,13 @@ export function useProfilePreview(profileId: ProfileId) {
       setLoading(true);
       try {
         if (list.current.length === 0) {
-          list.current = (await backend.call('getProfileClips', { profileId })).clips;
-          setClips(list.current);
+          const loaded = (await backend.call('getProfileClips', { profileId })).clips;
+          if (request <= cancelled.current) return;
+          list.current = loaded;
+          setClips(loaded);
         }
+        if (request !== latestRequest || request <= cancelled.current) return;
         if (list.current.length === 0) return setMessage(NO_PREVIEW);
-        if (request !== latestRequest) return;
         pauseShared();
         if (only === undefined) return start(0);
         // One passage: play it alone by ending the list after it.
@@ -79,7 +85,7 @@ export function useProfilePreview(profileId: ProfileId) {
         setPlaying(only);
         void player.current?.play(clip.meetingId, clip.startMs, clip.endMs, clip.track, 0);
       } catch (failure) {
-        if (request !== latestRequest) return;
+        if (request !== latestRequest || request <= cancelled.current) return;
         setMessage(failure instanceof Error ? failure.message : NO_PREVIEW);
       } finally {
         setLoading(false);

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpeakerSuggestionsProvider } from '../../components/speakers/SpeakerSuggestions.tsx';
 import { stopClipPlayback } from '../../lib/clip-player.ts';
+import { PlaybackProvider, useMeetingPlayback } from '../../lib/playback-context.tsx';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
 import { ThemeProvider } from '../../theme/ThemeProvider.tsx';
@@ -182,5 +183,40 @@ describe('Voice profile sample', () => {
     expect(FakeAudio.all.filter((audio) => !audio.paused)).toEqual(playing);
     expect(screen.queryByRole('list', { name: 'Samples of Priya Natarajan' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Stop sample of Tomas Lindgren' })).toBeTruthy();
+  });
+
+  it('does nothing when the screen is left before the request finishes', async () => {
+    const real = backend.call.bind(backend) as (name: string, request: unknown) => Promise<unknown>;
+    let release: () => void = () => undefined;
+    const slow = new Promise<void>((resolve) => (release = resolve));
+    vi.spyOn(backend, 'call').mockImplementation(((name: string, request: unknown) =>
+      name === 'getProfileClips'
+        ? slow.then(() => real(name, request))
+        : real(name, request)) as typeof backend.call);
+    function Probe() {
+      useMeetingPlayback('meeting-outdated');
+      return null;
+    }
+    render(
+      <BackendProvider backend={backend}>
+        <ThemeProvider>
+          <SpeakerSuggestionsProvider>
+            <PlaybackProvider>
+              <Probe />
+              <SpeakersScreen />
+            </PlaybackProvider>
+          </SpeakerSuggestionsProvider>
+        </ThemeProvider>
+      </BackendProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Play sample of Priya Natarajan' }));
+    cleanup();
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const names = vi.mocked(backend.call).mock.calls.map((call) => call[0]);
+    expect(FakeAudio.all).toHaveLength(0);
+    // A stale request must not pause the app's other playback either.
+    expect(names).not.toContain('pauseAudio');
+    expect(names).not.toContain('seekAudio');
   });
 });
