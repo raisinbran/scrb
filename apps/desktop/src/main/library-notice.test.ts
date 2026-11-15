@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sharedFolderNotice } from './library-notice.ts';
+import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
 
 function fakeStore() {
   const values = new Map<string, boolean>();
@@ -11,10 +11,11 @@ function fakeStore() {
 }
 
 describe('sharedFolderNotice', () => {
-  it('shows once, not on later launches', () => {
+  it('shows until it has been marked seen, then not on later launches', () => {
     const store = fakeStore();
     expect(sharedFolderNotice(store, true)).toMatch(/accessible to other people/);
-    expect(sharedFolderNotice(store, true)).toBeNull();
+    expect(sharedFolderNotice(store, true)).not.toBeNull();
+    markSharedNoticeShown(store);
     expect(sharedFolderNotice(store, true)).toBeNull();
   });
 
@@ -24,7 +25,7 @@ describe('sharedFolderNotice', () => {
 
   it('shows again when a private folder later looks shared', () => {
     const store = fakeStore();
-    sharedFolderNotice(store, true);
+    markSharedNoticeShown(store);
     sharedFolderNotice(store, false);
     expect(sharedFolderNotice(store, true)).not.toBeNull();
   });

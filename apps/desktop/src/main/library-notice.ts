@@ -13,14 +13,17 @@ interface NoticeStore {
 /**
  * The shared-folder notice is shown once per library folder (the flag lives in the folder's own
  * settings, so a new folder asks again). It is shown again if the folder stops looking shared and
- * later looks shared once more.
+ * later looks shared once more. Checking does not record anything: call `markSharedNoticeShown`
+ * once the person has actually seen it, so a launch that stops early does not lose the notice.
  */
 export function sharedFolderNotice(store: NoticeStore, mayBeShared: boolean): string | null {
   if (!mayBeShared) {
     store.delete(SHARED_NOTICE_KEY);
     return null;
   }
-  if (store.get(SHARED_NOTICE_KEY, false)) return null;
+  return store.get(SHARED_NOTICE_KEY, false) ? null : SHARED_NOTICE;
+}
+
+export function markSharedNoticeShown(store: NoticeStore): void {
   store.set(SHARED_NOTICE_KEY, true);
-  return SHARED_NOTICE;
 }

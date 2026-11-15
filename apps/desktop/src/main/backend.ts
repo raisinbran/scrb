@@ -13,7 +13,7 @@ import {
   needsPrivacyBanner,
   privacyJurisdictions,
 } from '@scrb/app-core';
-import { sharedFolderNotice } from './library-notice.ts';
+import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, writeSummary } from '@scrb/summary';
 import type { RecordingState, SettingsPatch } from '@scrb/contracts';
@@ -49,6 +49,8 @@ export interface OpenedBackend {
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
+  /** Called once the person has seen `warning`; it is then not shown again by later windows. */
+  acknowledgeWarning(): void;
   close(): Promise<void>;
 }
 
@@ -252,6 +254,14 @@ export async function openBackend(
       await summaries.stopAndWait(meetingId, 'deleted');
       playback.revokeMeeting(meetingId);
     });
+    const baseWarning = library.retainedIndexSnapshot
+      ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
+      : library.replacedCorruptIndex !== null
+        ? 'The index needs review; all original files were preserved.'
+        : packaged && packaged.missing.length > 0
+          ? missingMessage(packaged.missing)
+          : null;
+    let sharedNotice = sharedFolderNotice(library.settings, library.rootMayBeShared);
     return {
       playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
@@ -326,19 +336,16 @@ export async function openBackend(
             }
           : {}),
       },
-      warning:
-        [
-          library.retainedIndexSnapshot
-            ? 'The index was upgraded and verified, but the old recovery copy could not be removed. It may retain older deleted data.'
-            : library.replacedCorruptIndex !== null
-              ? 'The index needs review; all original files were preserved.'
-              : packaged && packaged.missing.length > 0
-                ? missingMessage(packaged.missing)
-                : null,
-          sharedFolderNotice(library.settings, library.rootMayBeShared),
-        ]
-          .filter((message): message is string => message !== null)
-          .join('\n\n') || null,
+      get warning() {
+        return (
+          [baseWarning, sharedNotice].filter((m): m is string => m !== null).join('\n\n') || null
+        );
+      },
+      acknowledgeWarning: () => {
+        if (sharedNotice === null) return;
+        markSharedNoticeShown(library.settings);
+        sharedNotice = null;
+      },
       close: async () => {
         modelDownloader?.cancel();
         playback.stop();
@@ -361,6 +368,7 @@ export async function openBackend(
       },
       handlers: {},
       playback: null,
+      acknowledgeWarning: () => undefined,
       warning:
         code === 'INDEX_SPACE'
           ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'
