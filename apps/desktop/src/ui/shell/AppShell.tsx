@@ -12,19 +12,11 @@ const SIDEBAR_LIMITS: PanelLimits = { min: 160, max: 320, initial: 200 };
 
 interface AppShellProps {
   screenId: ScreenId;
-  settingsOpen: boolean;
   onSelectScreen(id: ScreenId): void;
-  onOpenSettings(): void;
   children: ReactNode;
 }
 
-export function AppShell({
-  screenId,
-  settingsOpen,
-  onSelectScreen,
-  onOpenSettings,
-  children,
-}: AppShellProps) {
+export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) {
   const [sidebarWidth, setSidebarWidth] = usePanelSize('scrb.sidebar.width', SIDEBAR_LIMITS);
 
   const workspace = useRef<HTMLElement>(null);
@@ -64,12 +56,7 @@ export function AppShell({
       <PrivacyBanner />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: sidebarWidth }}>
-          <Sidebar
-            selected={screenId}
-            settingsOpen={settingsOpen}
-            onSelect={onSelectScreen}
-            onOpenSettings={onOpenSettings}
-          />
+          <Sidebar selected={screenId} onSelect={onSelectScreen} />
         </div>
         <ResizeHandle
           label="Resize sidebar"
