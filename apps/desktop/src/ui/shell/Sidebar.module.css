@@ -69,16 +69,17 @@
   justify-content: space-between;
 }
 
+/* Settings and Help share the sidebar items' look: no border, same radius, hover and selected fill. */
 .iconButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   color: var(--color-text-muted);
   background: none;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius);
 }
 
