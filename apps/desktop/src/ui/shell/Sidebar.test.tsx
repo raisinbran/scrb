@@ -46,9 +46,14 @@ describe('Recordings disc', () => {
         </BackendProvider>,
       );
     });
-    expect(screen.getByRole('img', { name: 'Processing a recording' })).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Recordings', exact: true })
+        .getAttribute('aria-describedby'),
+    ).toBe('recordings-processing');
+    expect(screen.getByText('Processing a recording')).toBeTruthy();
     act(() => f.emit('meetingChanged', meeting('ready')));
-    expect(screen.queryByRole('img', { name: 'Processing a recording' })).toBeNull();
+    expect(screen.queryByText('Processing a recording')).toBeNull();
   });
 
   it('keeps the disc still and shows a badge when motion is reduced', () => {

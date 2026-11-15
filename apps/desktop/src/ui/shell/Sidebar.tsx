@@ -26,6 +26,9 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
         type="button"
         className={styles.item}
         aria-current={screen.id === selected ? 'page' : undefined}
+        aria-describedby={
+          screen.id === 'recordings' && processing ? 'recordings-processing' : undefined
+        }
         onClick={() => onSelect(screen.id)}
       >
         {screen.id === 'live' && dot ? (
@@ -59,7 +62,9 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
           <span role="img" className={styles.hidden} aria-label={tip} />
         )}
         {screen.id === 'recordings' && processing && (
-          <span role="img" className={styles.hidden} aria-label="Processing a recording" />
+          <span id="recordings-processing" className={styles.hidden}>
+            Processing a recording
+          </span>
         )}
         {screen.id === 'recordings' && nowPlaying && (
           <PlayingIndicator className={styles.playing} />
