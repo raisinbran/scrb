@@ -4,6 +4,16 @@ Read this before any UI work. It describes the app as it is, so a change looks l
 
 Source of truth: tokens in `apps/desktop/src/ui/theme/tokens.css`, shared pieces in `apps/desktop/src/ui/components/`, screens in `apps/desktop/src/ui/screens/`, shell in `apps/desktop/src/ui/shell/`. Screen list and states: `dev-plan/Meeting Scribe - UI Specification.md`.
 
+## Status: implemented vs pending
+
+Checked against `origin/main` (39591254) on 2026-11-15. Statements below say which is which; a sentence marked **Pending** describes an open PR and is not on main until it merges.
+
+**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms, themed), PopupLayer/PopupBanner (used on 6 screen files), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating and equaliser bars; MicTest and LevelMeters on Live.
+
+**Pending (open PRs):** #288 (meters beside pickers under "Levels", Test mic in Settings above Preset, fixed 220px sensitivity bar); #305 (mini window Hide as minimise dash, expand toggle removed, warning flag always shown).
+
+**Owner rules not yet fully in code:** the Hide icon, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip`; remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
+
 ## 1. How to use this guide (short version)
 
 1. Find the existing screen or component closest to what you need. Copy its pattern.
@@ -106,8 +116,8 @@ Grid is 4px, steps are tokens:
 
 1. **Equal gaps between sibling items.** Siblings in one row or column use one gap token, set with `gap` on the parent, not margins on children. Never mix 8px and 12px between neighbours.
 2. **Every settings row and heading group repeats the same vertical spacing.** Settings sections are boxes with `--space-3` padding top/bottom, `--space-4` sides, `--space-3` between sections; legend sits `--space-2` above its contents; field grids use `--space-3` rows and `--space-4` columns. A new section copies these; it does not pick its own numbers.
-3. No magic pixel values for spacing. The few px literals that exist are fixed sizes (30px controls, 220px slider, 64px meter), not gaps.
-4. Fixed-size controls do not resize when their value changes (the sensitivity slider is 220px; its value box reserves `9ch`). Test: change the value and confirm nothing shifts.
+3. No magic pixel values for spacing. The few px literals that exist are fixed sizes (30px controls, 64px meter), not gaps.
+4. Fixed-size controls do not resize when their value changes (the sensitivity value box reserves `9ch` so "Automatic" and "-100 dB" take the same room; the slider itself is meant to be a fixed 220px, which is pending in PR #288). Test: change the value and confirm nothing shifts.
 
 ```css
 /* Do */
@@ -131,7 +141,7 @@ Grid is 4px, steps are tokens:
 
 **Sidebar** (`shell/Sidebar`): Live, Recordings, Speakers, Vocabulary; Settings and Help icon buttons in the footer. Items use muted text, hover fill, and `--color-surface-selected` + weight 600 for the current page (`aria-current="page"`). A mouse click shows no ring; keyboard focus does. Status lives on the icon: the Live mic turns red and fades while recording (steady amber when paused); the Recordings disc spins while any recording is processing or importing; with reduced motion the animation stops and a small accent badge appears instead.
 
-**Live:** Start/Pause/Stop controls, two source pickers (meeting app, microphone), a "Levels" row with the Mic and Meeting meters in the same row as the pickers, elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. Today `MicTest` still renders on Live; open PR #288 moves it to Settings above Preset. Follow whichever is merged.
+**Live:** Start/Pause/Stop controls, two source pickers (meeting app, microphone), the Mic and Meeting meters (`LevelMeters`), elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. `MicTest` renders on Live on main. **Pending (open PR #288):** meters move into the same row as the pickers under a "Levels" label, and Test mic moves to Settings above Preset. Follow whichever is merged.
 
 **Recordings:** list view with search and filters, import action; detail view with a back link, title, meta line, an icon-button row (export, open folder, open audio folder, delete), tabs Transcript / Summary / Audio. Tabs use `role="tablist"`, arrow keys move between them, the selected tab has an accent underline. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
 
@@ -141,7 +151,7 @@ Grid is 4px, steps are tokens:
 
 **Dialogs:** `Dialog` / `ActionDialog` (440px wide, 24px padding, title at `--text-lg`, actions right aligned with `--space-2` gap, 24px above them). Focus is trapped, Escape closes unless the dialog is required, focus returns to the opener.
 
-**Mini recording window:** always-on-top, frameless, draggable (`-webkit-app-region: drag`, buttons are `no-drag`). Shows the speaker label only while a track is above -40 dBFS, equaliser bars (static with reduced motion), elapsed time, warning flag, then the button row: Pause/Resume, Stop, Hide (minimise dash), Open Scribe. Owner rule: Hide sits immediately left of "Open Scribe". There is no expand toggle in the UI. Note: the mini window styles its tooltips with its own `data-tip` CSS rather than the shared `Tooltip`; a known inconsistency, do not copy it elsewhere.
+**Mini recording window:** always-on-top, frameless, draggable (`-webkit-app-region: drag`, buttons are `no-drag`). Shows the speaker label only while a track is above -40 dBFS, equaliser bars (static with reduced motion), elapsed time, warning flag, then the button row. **On main:** Pause/Resume, Stop, a Make larger/smaller toggle, Hide (a small window icon with a dash, tooltip "Hide (recording continues)") immediately left of Open Scribe. **Pending (open PR #305):** Hide becomes a plain minimise-dash button named "Hide mini window", the expand toggle is removed, and the warning flag shows whenever there is a warning. Owner rule either way: Hide sits immediately left of "Open Scribe". Note: the mini window styles its tooltips with its own `data-tip` CSS rather than the shared `Tooltip`; a known inconsistency, do not copy it elsewhere.
 
 ## 8. Component catalogue
 
@@ -161,7 +171,7 @@ Variants: `secondary` (default, bordered, transparent), `primary` (accent fill, 
 
 ### IconButton (`components/IconButton.tsx`)
 
-30×30 square, 16px stroke icon from `ICONS` (24-unit grid, 1.75 stroke, round caps). `label` is required: it is the accessible name **and** the tooltip. Use `tip` for longer explanation. Add a new icon to `ICONS`, drawn as strokes, matching the others. Standard icons: minimise is a **dash** ("-"), dismiss is an **X**, back is a chevron, delete is the trash. Never repurpose an icon.
+30×30 square, 16px stroke icon from `ICONS` (24-unit grid, 1.75 stroke, round caps). `label` is required: it is the accessible name **and** the tooltip. Use `tip` for longer explanation. Add a new icon to `ICONS`, drawn as strokes, matching the others. Standard icons (owner rule; the mini window's Hide icon still differs on main until PR #305 merges): minimise is a **dash** ("-"), dismiss is an **X**, back is a chevron, delete is the trash. Never repurpose an icon.
 
 ```tsx
 <IconButton label="Export" icon="export" onClick={openExport} />
@@ -272,11 +282,11 @@ Every screen must handle every state the UI Specification lists for it. A state 
 ## 13. Owner rules (hard rules, learned from feedback)
 
 1. **Banners never cover controls.** They anchor to their own panel via `PopupLayer`, not the whole page. Example: the "final transcript still being processed" banner overlays the meeting panel's top-right but must not hide the title, the icon-button row or the tabs; if it would, shorten it or move the layer.
-2. **Audio input shows the Live meter.** Anything that lets someone check or choose an input (Test mic, pickers) uses `LevelMeters`/`Meter`, same size and colour. In the Live row the meters sit beside the two pickers under a "Levels" label.
+2. **Audio input shows the Live meter.** Anything that lets someone check or choose an input (Test mic, pickers) uses `LevelMeters`/`Meter`, same size and colour. Pending (PR #288): in the Live row the meters sit beside the two pickers under a "Levels" label.
 3. **Add a new button to the existing row, in a consistent position.** Do not float it or add a new row. Example: Hide is in the mini window's button row immediately left of "Open Scribe"; export, folder, audio folder and delete sit together in the meeting icon row.
 4. **Icons are standard.** Minimise is "-", dismiss is X, trash is delete. One icon, one meaning, everywhere.
 5. **One spacing token between sibling items.** See section 6.
-6. **Reuse, never duplicate.** If a second copy of a component is tempting, extend the shared one. `MicTest` was kept reusable so it could move screens by changing three lines.
+6. **Reuse, never duplicate.** If a second copy of a component is tempting, extend the shared one. `MicTest` is kept self-contained so PR #288 can move it between screens with a three-line change.
 7. **Explanations go in tooltips, not permanent rows.** Re-process, preset info and "Set by <preset>" all became tooltips. A permanent paragraph is for facts the person needs before acting.
 8. **Do not add a hidden option.** A setting, field or contract change that is not approved stays out of the UI. `packages/contracts/` changes only with owner approval; if the contract lacks something, write a handoff note in `docs/handoffs/`. Example: a model picker or benchmark button needs approved contract changes, so it is documented in a handoff, not built.
 9. **Do not show what does not work.** Hide or label honestly (see "Automatic" sensitivity).
