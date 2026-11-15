@@ -1,4 +1,4 @@
-### A-413 — 2026-11-15 — Progress-update runtime arithmetic
+### A-426 — 2026-11-15 — Progress-update runtime arithmetic
 
 - **Status / attribution:** Confirmed reporting mistake; corrected in the next status update and results note.
 - **What happened:** A progress update stated the five additional H1 decodes totaled 60:58.9. The correct sum of the recorded times (834.0, 801.4, 809.2, 761.9, and 732.4 seconds) is 3,938.9 seconds, or 65:38.9.

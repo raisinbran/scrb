@@ -1,4 +1,4 @@
-### A-418 — 2026-11-15 — Codex — baseline scorer given the annotation archive root
+### A-422 — 2026-11-15 — Codex — baseline scorer given the annotation archive root
 
 - **Status / attribution:** Confirmed agent error; no decode or application defect.
 - **What failed:** The first partial-baseline scoring invocation passed downloads/ami/ann to parse_ref, which expects the words subdirectory; it stopped with “no reference files for ES2003c”.
