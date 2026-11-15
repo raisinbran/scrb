@@ -56,9 +56,12 @@ export function LevelMeters({ active }: { active: boolean }) {
   }, [active]);
 
   return (
-    <div className={styles.meters}>
-      <Meter label="Mic" meterRef={micRef} />
-      <Meter label="Meeting" meterRef={meetingRef} />
+    <div className={styles.levels}>
+      <span className={styles.levelsTitle}>Levels</span>
+      <div className={styles.meters}>
+        <Meter label="Mic" meterRef={micRef} />
+        <Meter label="Meeting" meterRef={meetingRef} />
+      </div>
     </div>
   );
 }
