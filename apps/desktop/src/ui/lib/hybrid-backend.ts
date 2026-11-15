@@ -16,6 +16,9 @@ const SETTINGS_CALLS: ReadonlySet<CallName> = new Set(['getSettings', 'updateSet
 const REAL_CALLS: ReadonlySet<CallName> = new Set([
   ...SETTINGS_CALLS,
   'getSetupStatus',
+  // The packaged app downloads its models for real; the mock would only pretend.
+  'startModelDownload',
+  'cancelModelDownload',
   // Version and notices must be the real build's, never the mock's placeholders.
   'getAppInfo',
   'getLicenses',
@@ -94,6 +97,7 @@ const REAL_EVENTS: ReadonlySet<EventName> = new Set([
   'importFailed',
   'importCancelled',
   'finalPassProgress',
+  'modelDownloadProgress',
 ]);
 
 /**
