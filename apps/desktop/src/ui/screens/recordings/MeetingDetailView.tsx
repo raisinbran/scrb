@@ -30,6 +30,7 @@ import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
 import { ICONS, IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
+import { Tooltip } from '../../components/Tooltip.tsx';
 import styles from './recordings.module.css';
 
 const TAB_KEY = 'scrb.recordings.tab';
@@ -685,20 +686,21 @@ function LoadedDetail(props: LoadedDetailProps) {
             onClick={() => openFolder('audio')}
           />
           {canReprocess && (
-            <button
-              type="button"
-              className={styles.button}
-              aria-describedby="reprocess-note"
-              onClick={() => {
-                setRetryError(null);
-                void backend.call('retryFinalPass', { meetingId }).then(
-                  () => onChanged(),
-                  () => setRetryError('The transcript could not be re-processed.'),
-                );
-              }}
-            >
-              Re-process
-            </button>
+            <Tooltip label="Re-run speech recognition and speaker detection. Uses the model currently selected in Settings.">
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => {
+                  setRetryError(null);
+                  void backend.call('retryFinalPass', { meetingId }).then(
+                    () => onChanged(),
+                    () => setRetryError('The transcript could not be re-processed.'),
+                  );
+                }}
+              >
+                Re-process
+              </button>
+            </Tooltip>
           )}
           <IconButton
             label="Delete"
@@ -709,13 +711,6 @@ function LoadedDetail(props: LoadedDetailProps) {
           />
         </div>
         {folderError && <p role="alert">{folderError}</p>}
-        {canReprocess && (
-          <p id="reprocess-note" className={styles.muted}>
-            Re-process re-runs speech recognition and speaker detection with the current app. Your
-            edits and speaker names are kept where the words still match. The summary may become
-            outdated.
-          </p>
-        )}
         {canReprocess && retryError && <p role="alert">{retryError}</p>}
         {meeting.status === 'recovered' && (
           <p className={styles.bannerWarning}>
