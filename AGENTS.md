@@ -6,6 +6,9 @@
 
 **Work split (owner decision, 2026-10-30):** The Codex/Claude split in the Development Process document is a preference, not a rule: unless the owner asks for work to be split between Claude and Codex, Claude Code may build both UI and backend. The folder boundaries still apply: keep each change on one side of the line, and do not let UI code import backend modules.
 
+UI work: read `docs/design/scribe-design-guide.md` first. It holds the colour, spacing,
+component and wording rules and the pre-merge UI checklist.
+
 ## Sources
 
 - Requirements: `dev-plan/Meeting Scribe - V1 Requirements v1.2.md`
