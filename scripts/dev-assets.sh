@@ -5,7 +5,7 @@
 # SHA-256. Versions and licenses are listed in third_party/MANIFEST.md.
 #
 # Usage (Terminal on macOS, Git Bash on Windows):
-#   scripts/dev-assets.sh [all|upstream|asr|diarization|ami|ami-series|summary|tools|build]
+#   scripts/dev-assets.sh [all|upstream|asr|diarization|ami|ami-series|vocab-eval|summary|tools|build]
 # Default is all. Files already present with the right hash are skipped.
 # The summary group is ~16 GB; everything else is ~2 GB.
 #
@@ -132,6 +132,15 @@ if [[ "$group" == all || "$group" == diarization ]]; then
   fi
 fi
 
+if [[ "$group" == vocab-eval ]]; then
+  fetch downloads/ami/ES2003c.Mix-Headset.wav 828faf52f14ae584c299c35009fa519b4780bfcc2c966288eebb6af091ef0fd7 \
+    $AMI/AMICorpusMirror/amicorpus/ES2003c/audio/ES2003c.Mix-Headset.wav
+  fetch downloads/ami/ES2015c.Mix-Headset.wav 50999075fa47769474ecb2b39629db674f0b2a33ca5368df6af07ea106253dcb \
+    $AMI/AMICorpusMirror/amicorpus/ES2015c/audio/ES2015c.Mix-Headset.wav
+  fetch downloads/ami/ami_public_manual_1.6.2.zip b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d \
+    $AMI/AMICorpusAnnotations/ami_public_manual_1.6.2.zip
+  mkdir -p downloads/ami/ann && unzip -q -o downloads/ami/ami_public_manual_1.6.2.zip -d downloads/ami/ann
+fi
 if [[ "$group" == all || "$group" == ami ]]; then
   fetch downloads/ami/ES2004a.Mix-Headset.wav 3e2560b19bee6952c7c7ce041b0f1ea8a7ea9468044c4eea79d2a2c67e24ab0f \
     $AMI/AMICorpusMirror/amicorpus/ES2004a/audio/ES2004a.Mix-Headset.wav

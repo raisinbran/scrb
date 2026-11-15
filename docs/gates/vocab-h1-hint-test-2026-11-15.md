@@ -1,29 +1,28 @@
-# H1 hint test — blocked before run (2026-11-15)
+# H1 hint test — INCONCLUSIVE (incomplete run, 2026-11-15)
 
-**Status: BLOCKED — no H1 verdict.** Owner approval to run H1 was given on 2026-11-15. This note records the prerequisite stop; no decode or scoring was performed.
+**Status: INCONCLUSIVE — the H1 pre-registered bars were not evaluated.** Owner approval for the H1 run and the two specified downloads was given on 2026-11-15. The test stopped after one hint-off baseline because measured decode time put the remaining five runs beyond the approved 56.25-minute ceiling. This is not evidence for or against hint effectiveness.
 
-## Prerequisite checks
+## Pinned assets and environment
 
-- Pulled origin/main with fast-forward on 2026-11-15. Base: f258188f51324362d9c7176818ff1c54a90fe7fa.
-- C: had 139.32 GB free at the initial check (above the 5 GB minimum).
-- C:\Users\brand\scrb-dev-assets\eval-vocab was absent.
-- Existing scorer is present at scripts/research/score_vocab_eval.py.
-- In scripts/dev-assets.sh, neither the ami nor ami-series group has pinned entries for ES2003c or ES2015c. The script pins the shared downloads/ami/ami_public_manual_1.6.2.zip annotation archive, but that does not pin the missing meeting audio. No Windows-specific dev-assets script is present.
-- Per the stop condition, no corpus files were downloaded and no unpinned fetch was attempted.
+- Pulled main at f258188f51324362d9c7176818ff1c54a90fe7fa; work continued on cuc/vocab-h1-hint-test.
+- Added a vocab-eval group to scripts/dev-assets.sh with the two owner-provided pins and the already pinned annotation archive.
+- ES2003c.Mix-Headset.wav: 72,221,740 bytes; SHA-256 828faf52f14ae584c299c35009fa519b4780bfcc2c966288eebb6af091ef0fd7.
+- ES2015c.Mix-Headset.wav: 68,348,632 bytes; SHA-256 50999075fa47769474ecb2b39629db674f0b2a33ca5368df6af07ea106253dcb.
+- The vocab-eval fetch group completed; both downloaded WAV hashes match. The existing annotation archive hash also matched.
+- Whisper.cpp: 284029c07012d2000941a08d38a31ffb71f4734e. Model and VAD hashes matched scripts/model-digests.json. C: had more than 139 GB free.
 
-## Exact missing audio pins
+## Completed run
 
-The AMI mirror listing reports these file sizes:
+| Meeting | Condition | Decode result | Time | Reference words | Errors | WER |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| ES2003c | Hint off, -mc 128 | Completed once, exit 0 | 1,029.8 s (17.16 min) | 6,077 | 1,563 | 25.72% |
 
-| Required path in the assets tree | Mirror filename | Listed size | Pin status |
-| --- | --- | ---: | --- |
-| downloads/ami/ES2003c.Mix-Headset.wav | ES2003c.Mix-Headset.wav | 69M | No SHA-256 entry in scripts/dev-assets.sh |
-| downloads/ami/ES2015c.Mix-Headset.wav | ES2015c.Mix-Headset.wav | 65M | No SHA-256 entry in scripts/dev-assets.sh |
+The baseline used the same whisper.cpp build, large-v3-turbo-q5_0 model, Silero VAD, and final-pass flags as the prior AMI runs, with -mc 128. Its JSON output and stdout/stderr are retained at C:\Users\brand\scrb-dev-assets\eval-vocab\h1-2026-11-15\ES2003c\off\; the baseline-only score is in baseline-score.json.
 
-Source: [AMI corpus mirror listing](https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/HeadsetAudio/). The script's existing pinned annotation archive is [ami_public_manual_1.6.2.zip](https://groups.inf.ed.ac.uk/ami/AMICorpusAnnotations/ami_public_manual_1.6.2.zip).
+## Stop and remaining work
 
-## H1 outcome
+One of six decodes completed. At 17.16 minutes for the first baseline, five further decodes would project to about 85.8 minutes, exceeding the 56.25-minute cap from the first decode start (2026-11-15 01:04:57 PT). Therefore ES2015c hint-off and all four hint-on decodes were not started. No terms.json was written; no hint-on run occurred; there is no H1 recall, paired WER, or false-event result. The pre-registered bars are unchanged and not assessable from this partial run.
 
-No terms.json was written because hint-on decodes did not start. There are no raw H1 outputs or scores. The pre-registered bars were not evaluated, so the result is **not classifiable as HINTS CAN HELP, CANNOT HELP, or INCONCLUSIVE**. H1 can proceed only after these two audio files have pinned SHA-256 entries and the assets are made available.
+All available raw output remains under C:\Users\brand\scrb-dev-assets\eval-vocab\h1-2026-11-15\; no assets or raw output were deleted or committed. No private recordings were accessed.
 
-No private recordings were accessed.
+The initial wrong annotation path and restricted-shell score-file write are recorded as incidents A-409 and A-410. A-408 records the prior wrong-workspace stop.
