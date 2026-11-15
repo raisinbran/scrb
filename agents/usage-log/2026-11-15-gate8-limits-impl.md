@@ -1,0 +1,1 @@
+| 2026-11-15 | Claude Code / Sonnet 5.5 / Mac desktop | Gate 8 lost-audio limits (10 ms per marked gap, 100 ms per run) in scripts/long-run guards, with tests | unavailable | unavailable | unavailable | unavailable | unavailable | Implementation / Sonnet 5.5 / default effort | none | Review pending | allowance not read in this task; other sessions run. |
