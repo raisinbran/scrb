@@ -1,35 +1,46 @@
-"""Summarize results.json from gap-size-test.py as markdown tables.
+"""Markdown tables from the results.json that gap-size-test.py writes.
 
-  python3 -I scripts/research/gap-size-summary.py <work dir>
+  python3 -I scripts/research/gap-size-summary.py <results.json>
+
+"Edit %" is word edit distance to Whisper's own output on the unmodified window,
+divided by that output's word count.  It is not accuracy against a reference.
 """
 import json, sys
 
-rows = json.load(open(sys.argv[1] + '/results.json'))
+rows = json.load(open(sys.argv[1]))
+SIZES = sorted({r['size_ms'] for r in rows if r['mode'] != 'control'})
 
 
-def stats(rs):
+def sel(mode, lo, hi=None, placement=None):
+    hi = lo if hi is None else hi
+    return [r for r in rows if r['mode'] == mode and lo <= r['size_ms'] <= hi
+            and (placement is None or r['placement'] == placement)]
+
+
+def pct(r):
+    return 100 * r['edit_distance'] / r['base_words']
+
+
+def cell(rs):
     n = len(rs)
-    if not n:
-        return None
     ch = sum(r['changed'] for r in rs)
-    wer = [100 * (r['sub'] + r['dele'] + r['ins']) / max(1, r['base_words']) for r in rs]
-    lost = sum(r['dele'] for r in rs)
-    shifted = [r for r in rs if r.get('max_shift_ms', 0) > 100]
-    nshift = sum(1 for r in rs if 'max_shift_ms' in r)
-    return dict(n=n, changed=ch, frac=ch / n, mean=sum(wer) / n, worst=max(wer),
-                worst_words=max(r['sub'] + r['dele'] + r['ins'] for r in rs),
-                lost=lost, shifted=len(shifted), nshift=nshift)
+    return (f"{ch}/{n} ({100 * ch // n}%) | {sum(map(pct, rs)) / n:.2f} | {max(map(pct, rs)):.0f} | "
+            f"{max(r['edit_distance'] for r in rs)}")
 
 
-print('| mode | kind | gap ms | runs | any word change | mean WER diff % | worst WER diff % | worst words | words deleted (sum) | >100 ms timestamp shift |')
-print('|---|---|---:|---:|---:|---:|---:|---:|---:|---:|')
-for mode in ['control', 'zero', 'remove']:
-    for kind in ['all', 'free', 'boundary']:
-        if mode == 'control' and kind != 'all':
-            continue
-        sizes = sorted({r['size'] for r in rows if r['mode'] == mode})
-        for size in sizes:
-            rs = [r for r in rows if r['mode'] == mode and r['size'] == size and (kind == 'all' or r['kind'] == kind)]
-            s = stats(rs)
-            print(f"| {mode} | {kind} | {size} | {s['n']} | {s['changed']} ({100*s['frac']:.0f}%) | {s['mean']:.2f} | "
-                  f"{s['worst']:.1f} | {s['worst_words']} | {s['lost']} | {s['shifted']}/{s['nshift']} |")
+print('| gap ms | zero-filled: runs with any word change | mean edit % | max edit % | max words | '
+      'removed: runs with any word change | mean edit % | max edit % | max words |')
+print('|---:|---|---:|---:|---:|---|---:|---:|---:|')
+print('| 0 (control) | ' + cell(sel('control', 0)) + ' | n/a | n/a | n/a | n/a |')
+for z in SIZES:
+    print(f"| {z} | {cell(sel('zero', z))} | {cell(sel('remove', z))} |")
+print()
+print('| mode | gap ms | runs | any word change | mean edit % | 5+ words changed | words deleted per run |')
+print('|---|---|---:|---:|---:|---:|---:|')
+for mode in ['zero', 'remove']:
+    for lo, hi in [(1, 15), (20, 200)]:
+        rs = sel(mode, lo, hi)
+        n = len(rs)
+        print(f"| {mode} | {lo}-{hi} | {n} | {100 * sum(r['changed'] for r in rs) / n:.0f}% | "
+              f"{sum(map(pct, rs)) / n:.2f} | {100 * sum(r['edit_distance'] >= 5 for r in rs) / n:.0f}% | "
+              f"{sum(r['dele'] for r in rs) / n:.2f} |")

@@ -2,12 +2,21 @@
 
 AMI audio only.  Cuts 30 s windows, inserts one gap (zeroed, or removed) and
 runs whisper-cli with the final-pass settings (wholeFileArgs in
-packages/transcription/src/whisper.ts).  Compares each variant with the
-unmodified window.  Nothing is written to the repo; results go to <work>.
+packages/transcription/src/whisper.ts).  Compares each variant's word list
+with the word list Whisper gave for the unmodified window (word edit distance
+against Whisper's own output, not against a human reference, so it shows how
+much the output changes, not recognition accuracy).  Raw outputs hold
+transcript text and stay in <work>; results.json and manifest.json hold
+numbers only.
 
-  python3 -I scripts/research/gap-size-test.py <work dir> [workers]
+  python3 -I scripts/research/gap-size-test.py <work dir> [workers] [--reset]
+  python3 -I scripts/research/gap-size-test.py <work dir> --evidence-only
+
+<work dir> must be empty or missing; --reset deletes it first.  Outputs are
+never reused.  --evidence-only rebuilds results.json and manifest.json from the
+raw outputs of a finished run and runs no whisper.
 """
-import json, os, random, re, subprocess, sys, wave
+import hashlib, json, os, random, re, shutil, subprocess, sys, wave
 from concurrent.futures import ThreadPoolExecutor
 
 SEED = 20261114
@@ -23,10 +32,12 @@ BIN = f'{assets}/upstream/whisper.cpp/build/bin/whisper-cli'
 MODEL = f'{assets}/models/whisper/ggml-large-v3-turbo-q5_0.bin'
 VAD = f'{assets}/models/whisper/ggml-silero-v6.2.0.bin'
 
-work = sys.argv[1]
-workers = int(sys.argv[2]) if len(sys.argv) > 2 else 2
-os.makedirs(work + '/wav', exist_ok=True)
-os.makedirs(work + '/out', exist_ok=True)
+args = [a for a in sys.argv[1:] if not a.startswith('--')]
+flags = {a for a in sys.argv[1:] if a.startswith('--')}
+work = args[0]
+workers = int(args[1]) if len(args) > 1 else 2
+FLAGS = ['-t', '4', '-l', 'en', '--vad', '-mc', '0', '-ml', '1', '-sow', '-ojf', '-np', '-pp']
+MAX_ATTEMPTS = 5000   # per clip and kind, then fail with a clear message
 
 
 def read(clip):
@@ -64,6 +75,14 @@ def is_speech(win, g_ms, ref):
         and rms(win, a + int(350 * RATE / 1000), int(150 * RATE / 1000)) > 0.7 * ref
 
 
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
 def write(path, pcm):
     o = wave.open(path, 'wb'); o.setnchannels(1); o.setsampwidth(2); o.setframerate(RATE)
     o.writeframes(pcm); o.close()
@@ -76,9 +95,17 @@ def make_positions():
         pcm = read(clip)
         dur = len(pcm) // 2 // RATE
         ref = clip_level(clip, pcm)
+        if dur < 60 + 90 + 30:
+            sys.exit(f'{clip}: only {dur} s of audio, need at least 180 s')
         for kind, count in (('free', n), ('boundary', BOUNDARY[clip])):
             got = 0
+            attempts = 0
             while got < count:
+                attempts += 1
+                if attempts > MAX_ATTEMPTS:
+                    sys.exit(f'{clip}: found {got} of {count} {kind} positions with speech around '
+                             f'the gap after {MAX_ATTEMPTS} tries (level {ref:.1f}); the clip is too '
+                             'quiet or too sparse for this test')
                 ws = rng.randrange(60, dur - 90, 5)       # window starts on a 5 s boundary
                 win = pcm_window(pcm, ws)
                 if kind == 'free':
@@ -102,11 +129,8 @@ def variant(win, g_ms, size_ms, mode):
 def run(name, pcm):
     wav = f'{work}/wav/{name}.wav'
     out = f'{work}/out/{name}'
-    if os.path.exists(out + '.json'):
-        return out
     write(wav, pcm)
-    subprocess.run([BIN, '-m', MODEL, '-f', wav, '-t', '4', '-l', 'en', '--vad', '--vad-model', VAD,
-                    '-mc', '0', '-ml', '1', '-sow', '-ojf', '-of', out, '-np', '-pp'],
+    subprocess.run([BIN, '-m', MODEL, '-f', wav, '--vad-model', VAD, '-of', out] + FLAGS,
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     os.remove(wav)
     return out
@@ -153,12 +177,46 @@ def compare(base, var, g_ms, size_ms, mode):
     return res
 
 
+def evidence(pos):
+    """Numbers-only results and manifest from the raw outputs in <work>/out."""
+    rows = []
+    for i, p in enumerate(pos):
+        base = words(f'{work}/out/p{i}-base')
+        who = dict(position=i, clip=p['clip'], window_start_s=p['ws'], gap_ms_in_window=p['g'],
+                   placement=p['kind'])
+        runs = [('control', 0, f'p{i}-ctrl')]
+        runs += [(m, z, f'p{i}-{m}-{z}') for z in SIZES for m in MODES]
+        for mode, size, name in runs:
+            r = compare(base, words(f'{work}/out/{name}'), p['g'], size, mode if mode != 'control' else 'zero')
+            r['edit_distance'] = r['sub'] + r['dele'] + r['ins']
+            rows.append(dict(**who, size_ms=size, mode=mode, **r))
+    inputs = {c: sha256(f'{assets}/downloads/ami/{c}.Mix-Headset.wav') for c in CLIPS}
+    manifest = dict(
+        seed=SEED, window_s=WIN_S, sizes_ms=SIZES, modes=MODES, positions=pos,
+        whisper_flags=['whisper-cli', '-m <model>', '-f <wav>', '--vad-model <vad>', '-of <out>'] + FLAGS,
+        input_sha256=inputs,
+        model_sha256={'ggml-large-v3-turbo-q5_0.bin': sha256(MODEL), 'ggml-silero-v6.2.0.bin': sha256(VAD)},
+        runs=len(rows) + len(pos),
+        metric='word edit distance (substitutions + deletions + insertions) between the variant and Whisper output '
+               'on the unmodified window, divided by that output word count; not accuracy against a reference')
+    json.dump(rows, open(work + '/results.json', 'w'), indent=0)
+    json.dump(manifest, open(work + '/manifest.json', 'w'), indent=1)
+
+
 def main():
+    if '--evidence-only' in flags:
+        evidence(json.load(open(work + '/positions.json'))['positions'])
+        return
+    if '--reset' in flags:
+        shutil.rmtree(work, ignore_errors=True)
+    if os.path.exists(work) and os.listdir(work):
+        sys.exit(f'{work} is not empty; pass --reset to delete it. Outputs are never reused.')
+    os.makedirs(work + '/wav')
+    os.makedirs(work + '/out')
     pos = make_positions()
     json.dump(dict(seed=SEED, positions=pos), open(work + '/positions.json', 'w'))
     pcms = {c: read(c) for c in CLIPS}
     jobs = []   # (name, pcm)
-    meta = []
     for i, p in enumerate(pos):
         win = pcm_window(pcms[p['clip']], p['ws'])
         jobs.append((f'p{i}-base', win)); jobs.append((f'p{i}-ctrl', win))
@@ -171,16 +229,7 @@ def main():
         for _ in ex.map(lambda j: run(*j), jobs):
             done += 1
             if done % 50 == 0: print(done, flush=True)
-    rows = []
-    for i, p in enumerate(pos):
-        base = words(f'{work}/out/p{i}-base')
-        ctrl = compare(base, words(f'{work}/out/p{i}-ctrl'), p['g'], 0, 'zero')
-        rows.append(dict(pos=i, kind=p['kind'], size=0, mode='control', **ctrl))
-        for size in SIZES:
-            for mode in MODES:
-                r = compare(base, words(f'{work}/out/p{i}-{mode}-{size}'), p['g'], size, mode)
-                rows.append(dict(pos=i, kind=p['kind'], size=size, mode=mode, **r))
-    json.dump(rows, open(work + '/results.json', 'w'))
+    evidence(pos)
 
 
 main()

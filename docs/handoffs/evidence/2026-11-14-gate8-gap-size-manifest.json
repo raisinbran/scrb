@@ -1,0 +1,210 @@
+{
+ "seed": 20261114,
+ "window_s": 30,
+ "sizes_ms": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8,
+  10,
+  12,
+  15,
+  20,
+  25,
+  30,
+  40,
+  50,
+  100,
+  200
+ ],
+ "modes": [
+  "zero",
+  "remove"
+ ],
+ "positions": [
+  {
+   "clip": "ES2004a",
+   "ws": 765,
+   "g": 20871,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 705,
+   "g": 9225,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 695,
+   "g": 5804,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 90,
+   "g": 18784,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 845,
+   "g": 22697,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 545,
+   "g": 18011,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 950,
+   "g": 13884,
+   "kind": "free"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 640,
+   "g": 10000,
+   "kind": "boundary"
+  },
+  {
+   "clip": "ES2004a",
+   "ws": 780,
+   "g": 10000,
+   "kind": "boundary"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 565,
+   "g": 20757,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 515,
+   "g": 10814,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 200,
+   "g": 16911,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 485,
+   "g": 9591,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 620,
+   "g": 14228,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 540,
+   "g": 13677,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 670,
+   "g": 21551,
+   "kind": "free"
+  },
+  {
+   "clip": "IS1009a",
+   "ws": 600,
+   "g": 15000,
+   "kind": "boundary"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 1320,
+   "g": 10058,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 375,
+   "g": 21789,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 1180,
+   "g": 21987,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 1005,
+   "g": 13332,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 545,
+   "g": 19163,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 500,
+   "g": 5386,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 340,
+   "g": 18279,
+   "kind": "free"
+  },
+  {
+   "clip": "TS3003a",
+   "ws": 1180,
+   "g": 15000,
+   "kind": "boundary"
+  }
+ ],
+ "whisper_flags": [
+  "whisper-cli",
+  "-m <model>",
+  "-f <wav>",
+  "--vad-model <vad>",
+  "-of <out>",
+  "-t",
+  "4",
+  "-l",
+  "en",
+  "--vad",
+  "-mc",
+  "0",
+  "-ml",
+  "1",
+  "-sow",
+  "-ojf",
+  "-np",
+  "-pp"
+ ],
+ "input_sha256": {
+  "ES2004a": "3e2560b19bee6952c7c7ce041b0f1ea8a7ea9468044c4eea79d2a2c67e24ab0f",
+  "IS1009a": "6eb5a0ede0d9e72794f976ce7bea5b78133eae969f99b4c5418b43c2468d25b1",
+  "TS3003a": "b6ce59ff735c234afdd94b13744aa26f6785af746170543fd03b33160e920a6d"
+ },
+ "model_sha256": {
+  "ggml-large-v3-turbo-q5_0.bin": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+  "ggml-silero-v6.2.0.bin": "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987"
+ },
+ "runs": 900,
+ "metric": "word edit distance (substitutions + deletions + insertions) between the variant and Whisper output on the unmodified window, divided by that output word count; not accuracy against a reference"
+}

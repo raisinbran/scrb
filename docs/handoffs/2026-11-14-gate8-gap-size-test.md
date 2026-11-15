@@ -1,22 +1,40 @@
-# Gate 8 gap-size test: how much a short audio gap hurts the transcript
+# Gate 8 gap-size test: how much one short audio gap changes Whisper's output
 
-Date: 2026-11-14. Data for the lost-audio limits in the gap-rule proposal (PR #251: 20 ms per marked gap, 100 ms total per 8 h). AMI audio only; the owner's recordings were never read.
+Date: 2026-11-14. Input to the lost-audio limits in the gap-rule proposal (PR #251: 20 ms per marked gap, 100 ms total per 8 h). AMI audio only; the owner's recordings were never read.
 
-## Result in one paragraph
+## What was measured
 
-A zero-filled gap (time preserved, as a marked gap would be) of **1-15 ms is indistinguishable from the smallest perturbation**: about 15% of variants change a word, mean WER difference 0.3%, never 5 or more words. At **20 ms and above** the effect steps up: 45% change a word, mean 2.8%, 9% change 5 or more words, and it keeps growing to 72% at 200 ms. **Removing** samples (time shifts) is different: it changes the transcript in about two thirds of cases (mean 4.8% WER difference) at **every** size, even 1 ms, so a dropped-but-unmarked gap is harmful regardless of length. Unmodified audio run twice gave identical transcripts in 25 of 25 runs (control), so every change below is caused by the edit; but any 1 ms edit already flips some words, so the usable floor is the 1-15 ms band, not zero.
+For each variant, the **word edit distance to Whisper's own output on the unmodified window**, divided by that output's word count ("edit %"). This is not accuracy against a human reference and not a measure of harm: it shows how much the output changes when one gap is inserted, including changes that may be neutral or even closer to the truth. "Any word change" means at least one word differs from the unmodified output.
+
+## Result
+
+- **Control:** the unmodified window run twice gave identical word lists in 25 of 25 pairs, so the run itself is deterministic and every change below comes from the edit.
+- **Zero-filled gap (time kept, as a marked gap would be), 1-15 ms:** any word change in 15% of runs, mean edit 0.30%, never 5 or more words. All sizes in this band look alike (8-20% per size, 25 runs each; one run is 4%).
+- **Zero-filled, 20 ms and above:** any word change in 45% of runs, mean edit 2.79%, 5 or more words in 9%; it keeps rising to 72% at 200 ms. 20 ms is the first size clearly above the 1-15 ms band (36% changed, mean 1.67%, 22 words deleted across 25 runs against 1-4 for each size from 1 to 15 ms).
+- **Removed samples (everything after the gap shifts earlier), any size from 1 ms:** any word change in about two thirds of runs, mean edit 4.8%, no trend with size.
+- Even a 1 ms zero gap changes a word in 12% of runs, so output is sensitive to tiny edits; the test cannot say which changes are errors.
 
 ## Method
 
-- Tools: `whisper-cli` with the final-pass settings from `wholeFileArgs` in `packages/transcription/src/whisper.ts` (large-v3-turbo-q5_0, Silero VAD, `-mc 0`, `-ml 1 -sow`, 4 threads, Metal), one process per variant.
+- Tools: `whisper-cli` (whisper.cpp commit 284029c07012d2000941a08d38a31ffb71f4734e) with the final-pass flags from `wholeFileArgs` in `packages/transcription/src/whisper.ts`: `-t 4 -l en --vad -mc 0 -ml 1 -sow -ojf -np -pp`, large-v3-turbo-q5_0, Silero VAD, Metal. File hashes are in the manifest below.
 - Clips: AMI Mix-Headset ES2004a, IS1009a, TS3003a (16 kHz mono WAV), three speaker sets.
-- Positions: 25 windows of 30 s, window starts on 5 s boundaries, seeded by `random.Random(20261114)`. 21 gap positions are random inside speech (7 per clip, 5-24 s into the window); 4 put the gap start exactly on a 5 s chunk boundary (ES2004a 2, IS1009a 1, TS3003a 1). "Inside speech" means the 500 ms around the gap is above that clip's median level. The same 25 positions are used for every size and mode (paired design).
-- Variants: 17 sizes (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100, 200 ms) x 2 modes (samples replaced by zeros; samples deleted) x 25 positions = 850 runs, plus per position the unmodified window twice (baseline and control) = 900 runs, about 17.7 minutes with 2 workers.
-- Comparison: word edit distance (substitutions + deletions + insertions) between each variant and its own unmodified window, lowercase, punctuation removed, divided by the baseline word count (mean 70 words per window). Scripts: `scripts/research/gap-size-test.py`, `scripts/research/gap-size-summary.py`. Raw results are not committed.
+- Positions: 25 windows of 30 s, window starts on 5 s boundaries, `random.Random(20261114)`. 21 gaps are random inside speech (7 per clip, 5-24 s into the window); 4 start exactly on a 5 s chunk boundary (ES2004a 2, IS1009a 1, TS3003a 1). "Inside speech": the 500 ms around the gap is above that clip's median level. The same 25 positions are used for every size and mode.
+- Variants: 17 sizes (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100, 200 ms) x 2 modes x 25 positions = 850, plus per position the unmodified window twice (baseline and control) = 900 runs, 17.7 minutes with 2 workers.
+- Position selection stops with a clear message after 5000 failed tries per clip and kind, or if a clip is shorter than 180 s.
+- Scripts: `scripts/research/gap-size-test.py` (refuses a non-empty work directory unless `--reset`; outputs are never reused), `scripts/research/gap-size-summary.py`.
+
+## Evidence in the repo
+
+- [results](evidence/2026-11-14-gate8-gap-size-results.json): one row per variant and control (875): clip, window start, gap position, placement, size, mode, word counts, edit counts. No transcript text.
+- [manifest](evidence/2026-11-14-gate8-gap-size-manifest.json): seed, the 25 positions, sizes, whisper flags, SHA-256 of the three input WAVs and both model files.
+- Derivation: the raw whisper outputs (they contain transcript text, so they stay out of git) still existed locally after the run. The results and manifest were derived from them with `gap-size-test.py --evidence-only` after the run, not by a rerun; the derived per-run counts matched the counts first computed during the run for all 875 rows, and the 25 positions regenerate from the seed. The input and model hashes were taken at that time, not during the run; the files had not been replaced.
+- Regenerate the tables: `python3 -I scripts/research/gap-size-summary.py docs/handoffs/evidence/2026-11-14-gate8-gap-size-results.json`.
 
 ## Table (25 positions per row)
 
-| gap ms | zero-filled: changed | mean WER diff % | worst % | worst words | removed: changed | mean % | worst % | worst words |
+"Max edit %" and "max words" are independent maxima over the 25 runs (different runs can produce each); they are not one worst run.
+
+| gap ms | zero-filled: runs with any word change | mean edit % | max edit % | max words | removed: runs with any word change | mean edit % | max edit % | max words |
 |---:|---|---:|---:|---:|---|---:|---:|---:|
 | 0 (control) | 0/25 (0%) | 0.00 | 0 | 0 | n/a | n/a | n/a | n/a |
 | 1 | 3/25 (12%) | 0.25 | 3 | 3 | 13/25 (52%) | 3.00 | 15 | 13 |
@@ -35,30 +53,30 @@ A zero-filled gap (time preserved, as a marked gap would be) of **1-15 ms is ind
 | 40 | 11/25 (44%) | 3.05 | 30 | 6 | 13/25 (52%) | 3.18 | 29 | 19 |
 | 50 | 9/25 (36%) | 2.63 | 30 | 6 | 19/25 (76%) | 7.13 | 35 | 17 |
 | 100 | 13/25 (52%) | 2.11 | 20 | 13 | 17/25 (68%) | 4.99 | 26 | 17 |
+
+Pooled over all positions and sizes in the band:
+
 | 200 | 18/25 (72%) | 5.11 | 30 | 15 | 18/25 (72%) | 5.87 | 30 | 17 |
 
-"Changed" = any word differs from the unmodified window. Worst case is the single worst variant of the 25.
-
-Pooled (all positions): zero-filled 1-15 ms: 15% changed, mean 0.30%, 0% with 5+ words changed; 20-200 ms: 45% changed, mean 2.79%, 9% with 5+ words; removed 1-15 ms: 66%, mean 4.80%, 26% with 5+ words; removed 20-200 ms: 67%, mean 5.19%, 26%. Words deleted per run: 0.12 (zero 1-15 ms), 0.78 (zero 20-200 ms), 0.96 (removed 1-15 ms).
-
-## Smallest size above the control
-
-The control (unmodified, run twice) changed 0 of 25, so every size is above it. The meaningful comparison is the floor set by the 1 ms edit (12% changed, 0.25%): zero-filled sizes 2-15 ms stay within it (8-20% changed, mean 0.16-0.50%, worst 1-3 words). **The first size clearly above the floor is 20 ms** (36% changed, mean 1.67%, worst 11 words, 22 words deleted across 25 runs, against 1-4 for every size from 1 to 15 ms). Zero-filled 3 ms and 10 ms reach 20% individually, which is within the sampling spread of 25 runs (one run is 4%). Removal has no such floor: it is high at every size.
+| mode | gap ms | runs | any word change | mean edit % | 5+ words changed | words deleted per run |
+|---|---|---:|---:|---:|---:|---:|
+| zero | 1-15 | 250 | 15% | 0.30 | 0% | 0.12 |
+| zero | 20-200 | 175 | 45% | 2.79 | 9% | 0.78 |
+| remove | 1-15 | 250 | 66% | 4.80 | 26% | 0.96 |
+| remove | 20-200 | 175 | 67% | 5.19 | 26% | 1.21 |
 
 ## Caveats
 
-- AMI is not the owner's meetings: headset-mix audio, different rooms, no echo from a speaker output.
-- 25 positions and 3 clips: a 4% step is one run; read bands, not single rows. IS1009a barely reacts to small zero gaps (2% over 1-15 ms) while ES2004a does (27%), so the clip matters.
-- The 4 chunk-boundary positions are too few to separate a boundary effect from the clip: they changed more often (zero 1-15 ms: 35% against 11% for the other positions), but it is 4 positions, two on one clip.
-- ASR is chaotic: a 1 ms edit changes the model input, so some words flip with no information lost. The test cannot tell lost words from flipped words; it measures the transcript effect, which is the point.
-- Windows are 30 s of audio through the whole-file command, not 8 hours; Opus chunk encoding (the recorder's 32 kbps chunks) was not applied; the live pass was not tested.
-- Timestamp shift: not reliable. Word times come out of VAD-trimmed time, and identical-text variants with tiny zero gaps show shifts above 100 ms in 6 of 21 cases at 6 ms, so the shift count measures VAD boundary jitter, not the gap. It is in `gap-size-summary.py` output but not used here.
-- Single gap per window; cumulative effect is reasoned from this, not measured.
+- AMI is not the owner's meetings: headset-mix audio, other rooms, no loudspeaker echo.
+- 25 positions on 3 clips; read bands, not single rows. IS1009a barely reacts to small zero gaps (2% of runs over 1-15 ms) and ES2004a does (27%), so the clip matters.
+- The 4 chunk-boundary positions are too few to separate a boundary effect from the clip: zero 1-15 ms changed a word in 35% of those runs against 11% for the other positions, but that is 4 positions, two of them on one clip.
+- One gap per isolated 30 s window through the whole-file command. Not tested: several gaps, a full meeting, Opus-encoded 5 s chunks, the live pass.
+- Timestamps were not analysed reliably (word times come out of VAD-trimmed time and jitter even for tiny zero gaps); no timestamp conclusion is drawn.
 
-## Recommended limits
+## Limits: what the data supports
 
-1. **Per marked gap: 10 ms** (current proposal 20 ms). Reason: 20 ms is the first size where the transcript degrades beyond the floor; 15 ms is the last size inside it; 10 ms keeps one step of margin below the first harmful size and is still inside the flat band. A 20 ms limit sits exactly on the step.
-2. **Cumulative: keep 100 ms per 8 h.** A gap only disturbs the one ~30 s VAD window around it, so total damage is count times window, not total milliseconds. Even 100 gaps of 20+ ms hit about 10% of an 8 h recording at a mean 2.8% WER, about 0.3% overall; ten 10 ms gaps (100 ms) hit about 1% of the recording at a mean 0.3% WER, about 0.003% overall. The data does not support a tighter or looser cumulative number; 100 ms is safe and consistent with the 10 ms per-gap cap (up to ten gaps at the cap). This is reasoning from a single-gap test.
-3. **Unmarked loss is worse than marked.** Deleting samples changed the transcript in about two thirds of cases at any size. The rule should count any net removal or overlap of samples (time shift) as a failure, as in PR #248's "never net gaps or overlaps of 2 ms or more", and only accept gaps that keep the timeline.
+- **10 ms per marked gap (candidate).** Conservative: 15 ms is the largest size that looks like the 1-15 ms band and the step appears at 20 ms, so 10 ms keeps one step of margin. This is not shown harmless; the test measures change against Whisper's own output only.
+- **100 ms total per 8 h: a provisional owner-approved policy, not validated by this experiment.** The test used a single gap in an isolated 30 s window; it has no multi-gap, full-meeting or Opus-encoded result, so it cannot support or contradict a cumulative number.
+- **Unmarked loss.** Removing samples changed the output in about two thirds of runs at every size. The data therefore favors counting any net removal or overlap as a failure (PR #248) and only accepting gaps that keep the timeline. That is a reading of one experiment, not a measured recorder behaviour.
 
-Owner decision needed: adopt 10 ms and 100 ms, or keep 20 ms (the data shows 20 ms is where harm starts, not a safe edge).
+Owner decision needed: keep 20 ms or adopt a lower candidate such as 10 ms.
