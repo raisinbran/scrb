@@ -29,6 +29,29 @@ describe('MockBackend', () => {
     expect(Object.keys(handlers).sort()).toEqual([...CALL_NAMES].sort());
   });
 
+  it('updates a meeting title and start time, and refuses an empty title or a bad date', async () => {
+    const id = (await backend.call('listMeetings', {}))[0]?.id as string;
+    const updated = await backend.call('updateMeeting', {
+      meetingId: id,
+      title: '  New title ',
+      startedAt: '2026-10-01T09:30:00.000Z',
+    });
+    expect(updated.title).toBe('New title');
+    expect(updated.startedAt).toBe('2026-10-01T09:30:00.000Z');
+    expect((await backend.call('getMeeting', { meetingId: id })).title).toBe('New title');
+    const keepsOther = await backend.call('updateMeeting', { meetingId: id, title: 'Only title' });
+    expect(keepsOther.startedAt).toBe('2026-10-01T09:30:00.000Z');
+    await expect(backend.call('updateMeeting', { meetingId: id, title: '   ' })).rejects.toThrow(
+      ContractError,
+    );
+    await expect(
+      backend.call('updateMeeting', { meetingId: id, startedAt: 'not a date' }),
+    ).rejects.toThrow(ContractError);
+    await expect(
+      backend.call('updateMeeting', { meetingId: 'missing', title: 'x' }),
+    ).rejects.toThrow();
+  });
+
   it('lists active imports without source tokens and removes cancelled jobs', async () => {
     const picked = await backend.call('pickAudioFile');
     expect(picked).not.toBeNull();

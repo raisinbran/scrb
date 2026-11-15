@@ -1370,7 +1370,18 @@ export class MockBackend implements Backend {
       }, 1000);
     },
     updateMeeting: ({ meetingId, ...patch }) => {
-      this.updateMeetingStatus(meetingId, patch);
+      this.findMeeting(meetingId);
+      const title = patch.title?.trim();
+      if (patch.title !== undefined && !title) {
+        throw new ContractError({ code: 'invalidRequest', message: 'A meeting needs a title.' });
+      }
+      if (patch.startedAt !== undefined && Number.isNaN(Date.parse(patch.startedAt))) {
+        throw new ContractError({ code: 'invalidRequest', message: 'That date is not valid.' });
+      }
+      this.updateMeetingStatus(meetingId, {
+        ...(title !== undefined && { title }),
+        ...(patch.startedAt !== undefined && { startedAt: patch.startedAt }),
+      });
       return this.findMeeting(meetingId);
     },
     searchMeetings: ({ query, filter }) => {

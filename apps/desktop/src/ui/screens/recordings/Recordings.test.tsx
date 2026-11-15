@@ -388,12 +388,10 @@ describe('Recordings', () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);
       await screen.findAllByRole('button', { name: /Play from/ });
-      fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
-      const input = (await screen.findByRole('dialog')).querySelector('input') as HTMLElement;
+      const input = screen.getByLabelText('Meeting title');
       const call = vi.spyOn(backend, 'call');
       expect(fireEvent.keyDown(input, { key: ' ' })).toBe(true);
       expect(fireEvent.keyDown(input, { key: 'ArrowRight' })).toBe(true);
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
     });
 
@@ -785,18 +783,84 @@ describe('Recordings', () => {
       );
     });
 
-    it('edits the title and date', async () => {
+    it('has no Edit details button', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
-      fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
-      fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'New name' } });
-      fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-10-01' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() =>
-        expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe('New name'),
+      expect(screen.queryByRole('button', { name: 'Edit details' })).toBeNull();
+    });
+
+    describe('date edit in place', () => {
+      const dateButton = () => screen.getByRole('button', { name: /^Meeting date and time:/ });
+      const open = async () => {
+        renderScreen();
+        await openMeeting(/Vendor call/);
+        fireEvent.click(dateButton());
+        return screen.getByLabelText('Meeting date and time') as HTMLInputElement;
+      };
+
+      it('saves a new date and time on Enter', async () => {
+        const input = await open();
+        expect(input.type).toBe('datetime-local');
+        fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+        fireEvent.blur(input);
+        const expected = new Date('2026-10-01T09:30').toISOString();
+        await waitFor(async () =>
+          expect(
+            new Date(
+              (await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).startedAt,
+            ).toISOString(),
+          ).toBe(expected),
+        );
+        expect(await screen.findByRole('button', { name: /Oct 1, 2026/ })).toBeTruthy();
+      });
+
+      it('keeps the old date on Escape', async () => {
+        const input = await open();
+        const before = (await backend.call('getMeeting', { meetingId: 'meeting-recovered' }))
+          .startedAt;
+        fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
+        fireEvent.keyDown(input, { key: 'Escape' });
+        fireEvent.blur(input);
+        expect(screen.queryByLabelText('Meeting date and time')).toBeNull();
+        expect(
+          (await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).startedAt,
+        ).toBe(before);
+      });
+
+      it('rejects an empty or invalid value and says so', async () => {
+        const input = await open();
+        const before = (await backend.call('getMeeting', { meetingId: 'meeting-recovered' }))
+          .startedAt;
+        fireEvent.change(input, { target: { value: '' } });
+        fireEvent.blur(input);
+        expect((await screen.findByRole('alert')).textContent).toMatch(/valid date and time/);
+        expect(
+          (await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).startedAt,
+        ).toBe(before);
+      });
+
+      it('shows the backend message when the save fails', async () => {
+        const input = await open();
+        vi.spyOn(backend, 'call').mockRejectedValueOnce(new Error('Could not save.'));
+        fireEvent.change(input, { target: { value: '2026-10-01T09:30' } });
+        fireEvent.blur(input);
+        expect((await screen.findByRole('alert')).textContent).toBe('Could not save.');
+      });
+    });
+
+    it('does not allow an empty title, and says why', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      const title = screen.getByLabelText('Meeting title') as HTMLInputElement;
+      title.focus();
+      fireEvent.change(title, { target: { value: '   ' } });
+      fireEvent.blur(title);
+      expect((await screen.findByRole('alert')).textContent).toBe('A meeting needs a title.');
+      expect(title.value).toBe('Vendor call');
+      expect((await backend.call('getMeeting', { meetingId: 'meeting-recovered' })).title).toBe(
+        'Vendor call',
       );
-      const meeting = await backend.call('getMeeting', { meetingId: 'meeting-recovered' });
-      expect(meeting.startedAt).toBe('2026-10-01T18:00:00Z');
     });
 
     it('renames the meeting in place: Enter saves, Escape cancels', async () => {
