@@ -11,6 +11,8 @@
    - `FAILS a marked 8 ms gap on the meeting track`: `expected '' to be 'RESULT: FAIL'` (`:98`)
 
    Not rerun and not investigated. The failing tests are not related to the origin check, but the cause (Windows, Node 26 or a real regression) is unknown. `npm install` also rewrote `package-lock.json` (53 lines removed); that change was discarded and is not in this PR.
+
+   **Update 2026-11-14:** this failure did not reproduce after merging the latest main into the branch and running `npm install` with Node 22.23.4: `scripts/long-run-report.test.mjs` passed 4 of 4 and `npm run check` passed (1716 tests passed, 58 skipped).
 2. **`scripts/package-win.ps1`: pass, first attempt.** No Scribe process was running. Printed `Built: ...\apps\desktop\release\win-unpacked\Scribe.exe`. Unsigned, as expected.
 3. **Packaged spec: pass.** `SCRB_PACKAGED_APP=...\win-unpacked\Scribe.exe`, `npm run test:smoke -- packaged.spec.ts`: 1 passed (5.8 s). It includes the check that `location.href = 'file:///etc/hosts'` leaves the page on `scribe://app/...`.
 4. **Launch: pass, no "Request refused".** Tools and models are not installed, so the app shows `Setup incomplete` and `Cannot record yet` (missing tools and models listed, as in `regiurn-packaged-check-20261113.md`). Driven through Playwright on a throwaway profile with an invented library folder; the first-run location dialog was dismissed through the bridge, as the spec does. Page URL stayed `scribe://app/index.html`.
