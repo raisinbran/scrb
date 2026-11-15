@@ -31,7 +31,7 @@ Extraction took 820 s (IS1004d), 906 s (ES2015c) and 880 s (TS3005b), peak llama
 
 ## Judged precision (2026-11-14)
 
-Run with `gate6.js ... --judge` on the **same saved extractions** (no re-extraction), same Mac and model (Qwen3.5-9B Q4_K_M, Metal). About 24 minutes in all (the first 21 minutes passed the 20-minute approval; paused, owner extended, see A-398). The judge sees each item with the cited line plus 3 lines either side and answers `genuine` or `not_an_item`; the output only counts, so "unsupported" and "non-item" cannot be told apart.
+Run with `gate6.js ... --judge` on the **same saved extractions** (no re-extraction), same Mac and model (Qwen3.5-9B Q4_K_M, Metal). About 24 minutes in all (the first 21 minutes passed the 20-minute approval; paused, owner extended, see A-399). The judge sees each item with the cited line plus 3 lines either side and answers `genuine` or `not_an_item`; the output only counts, so "unsupported" and "non-item" cannot be told apart.
 
 | Meeting | Items judged | Genuine | Judged precision | Not genuine | Reference-precision (lower bound) |
 | --- | ---: | ---: | ---: | ---: | ---: |
