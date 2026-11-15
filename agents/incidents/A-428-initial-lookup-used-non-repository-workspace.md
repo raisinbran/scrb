@@ -1,4 +1,4 @@
-### A-408 — 2026-11-14 — Codex — initial lookup used the non-repository workspace
+### A-428 — 2026-11-14 — Codex — initial lookup used the non-repository workspace
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** On the first attempt at the H1 task, I inspected C:\Users\brand\Documents\ChatGPT\srcb, which was not the registered scrb Git repository, and reported that the plan, handoff and repository were unavailable. The project registry already exposed the actual checkout at C:\Users\brand\Documents\GitHub\scrb; I did not query it before stopping.

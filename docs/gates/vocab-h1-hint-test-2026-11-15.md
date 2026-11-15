@@ -40,4 +40,4 @@ The existing scorer `scripts/research/score_vocab_eval.py` produced the retained
 - **HINTS CANNOT HELP:** not met. 10-term recall rose in both meetings.
 - **Verdict: INCONCLUSIVE.** The bars are unchanged; no additional terms, meetings, or thresholds were introduced.
 
-Prior incidents A-408, A-422, A-423, and A-424 cover earlier setup/reporting issues on this task. A-426 records a progress-update arithmetic error during this completion; the corrected runtime total is 65:38.9 minutes as shown above.
+Prior incidents A-428, A-422, A-423, and A-424 cover earlier setup/reporting issues on this task. A-426 records a progress-update arithmetic error during this completion; the corrected runtime total is 65:38.9 minutes as shown above.
