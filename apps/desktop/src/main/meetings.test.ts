@@ -30,7 +30,8 @@ describe('createMeetingHandlers', () => {
       | 'updateTerm'
       | 'searchMeetings'
       | 'getUndoState'
-      | 'retryFinalPass',
+      | 'retryFinalPass'
+      | 'updateMeeting',
     request: unknown,
   ) => dispatchCall(handlers, name, request);
 
@@ -42,6 +43,59 @@ describe('createMeetingHandlers', () => {
 
   const recorded = (title: string, date: string) =>
     library.createMeeting({ title, date, source: 'recorded', status: 'ready', durationMs: 5000 });
+
+  describe('updateMeeting', () => {
+    it('renames, changes the date, or both, and search and the list use the result', async () => {
+      const { id } = await recorded('Old name', '2026-11-03T10:00:00Z');
+      const emit = vi.fn();
+      handlers = createMeetingHandlers(library, emit);
+      const renamed = (await value('updateMeeting', { meetingId: id, title: '  New name  ' })) as {
+        title: string;
+        startedAt: string;
+      };
+      expect(renamed).toMatchObject({ title: 'New name', startedAt: '2026-11-03T10:00:00Z' });
+      const dated = (await value('updateMeeting', {
+        meetingId: id,
+        startedAt: '2026-11-13T09:30:00Z',
+      })) as { title: string; startedAt: string };
+      expect(dated).toMatchObject({ title: 'New name', startedAt: '2026-11-13T09:30:00Z' });
+      const both = (await value('updateMeeting', {
+        meetingId: id,
+        title: 'Both',
+        startedAt: '2026-11-14T08:00:00Z',
+      })) as { title: string; startedAt: string };
+      expect(both).toMatchObject({ title: 'Both', startedAt: '2026-11-14T08:00:00Z' });
+      expect(emit).toHaveBeenCalledTimes(3);
+      const listed = (await value('listMeetings', {})) as { id: string; title: string }[];
+      expect(listed.find((m) => m.id === id)?.title).toBe('Both');
+      const found = (await value('searchMeetings', { query: 'Both' })) as unknown[];
+      expect(found).toHaveLength(1);
+      expect(((await library.getMeeting(id)) as { title: string }).title).toBe('Both');
+    });
+
+    it('keeps the folder name and audio location', async () => {
+      const { id } = await recorded('Folder stays', '2026-11-03T10:00:00Z');
+      const before = library.meetingPaths(id);
+      await value('updateMeeting', { meetingId: id, title: '../evil <b>x</b>' });
+      expect(library.meetingPaths(id)).toEqual(before);
+    });
+
+    it('rejects blank titles, bad dates and unknown meetings', async () => {
+      const { id } = await recorded('Keep', '2026-11-03T10:00:00Z');
+      for (const request of [
+        { meetingId: id, title: '   ' },
+        { meetingId: id, title: '' },
+        { meetingId: id, title: 'x'.repeat(301) },
+        { meetingId: id, startedAt: 'yesterday' },
+      ]) {
+        const envelope = await call('updateMeeting', request);
+        expect(envelope.ok).toBe(false);
+      }
+      const unknown = await call('updateMeeting', { meetingId: 'nope', title: 'X' });
+      expect(unknown).toMatchObject({ ok: false, error: { code: 'notFound' } });
+      expect((await library.getMeeting(id)).title).toBe('Keep');
+    });
+  });
 
   describe('speaker split', () => {
     const range = { firstWordId: 'w2', lastWordId: 'w2' };

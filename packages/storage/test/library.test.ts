@@ -409,6 +409,26 @@ describe('index stays secondary', () => {
     await library.close();
   });
 
+  it('keeps a changed title and date across a restart without moving the folder', async () => {
+    const root = await tempDir();
+    let library = await Library.open({ root });
+    // An older record: date-only, as early versions wrote it.
+    const { id } = await library.createMeeting({ title: 'Before', date: '2026-10-28' });
+    const folder = library.meetingPaths(id).meta;
+    await library.updateMeeting(id, { title: 'After', date: '2026-11-13T09:30:00Z' });
+    await library.close();
+
+    library = await Library.open({ root });
+    expect(library.meetingPaths(id).meta).toBe(folder);
+    expect(await library.getMeeting(id)).toMatchObject({
+      title: 'After',
+      date: '2026-11-13T09:30:00Z',
+    });
+    expect(library.listMeetings()[0]).toMatchObject({ title: 'After' });
+    expect((await library.search('After')).results).toHaveLength(1);
+    await library.close();
+  });
+
   it('reports a final pass the app quit during, and keeps a failure reason', async () => {
     const root = await tempDir();
     let library = await Library.open({ root });
