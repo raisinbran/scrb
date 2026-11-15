@@ -19,6 +19,7 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   // The packaged app downloads its models for real; the mock would only pretend.
   'startModelDownload',
   'cancelModelDownload',
+  'installModelUpdate',
   // Version and notices must be the real build's, never the mock's placeholders.
   'getAppInfo',
   'getLicenses',

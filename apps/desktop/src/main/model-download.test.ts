@@ -11,6 +11,7 @@ import {
   DownloadError,
   MODEL_URLS,
   createModelDownloader,
+  createSummaryModelDownloader,
   downloadModels,
   type DownloadSource,
   type DownloadOptions,
@@ -309,6 +310,71 @@ describe('downloadModels', () => {
     await fails(run([src], { extract: bad }), 'checksum');
     await expect(stat(join(dir, 'seg.onnx'))).rejects.toThrow();
   });
+
+  describe('summary model installation', () => {
+    const summarySource = () => source({ file: 'Qwen3.5-9B-Q4_K_M.gguf', role: 'summary' });
+    const makeSummaryDownloader = (onProgress: (event: ModelDownloadProgress) => void) =>
+      createSummaryModelDownloader({
+        dir,
+        sources: [summarySource()],
+        insecureHosts: ['127.0.0.1'],
+        retryDelayMs: 0,
+        progressIntervalMs: 0,
+        freeBytes: async () => 1e12,
+        onProgress,
+      });
+
+    it('downloads and verifies the summary model without a relaunch hook', async () => {
+      serveBody();
+      const events: ModelDownloadProgress[] = [];
+      const downloader = makeSummaryDownloader((event) => events.push(event));
+      downloader.start();
+      await vi.waitFor(() => expect(downloader.isRunning()).toBe(false));
+
+      expect(await readFile(join(dir, 'Qwen3.5-9B-Q4_K_M.gguf'))).toEqual(body);
+      expect(events.at(-1)).toMatchObject({ state: 'done', bytesDone: body.length });
+    });
+
+    it('reports failure and preserves a partial summary download for resume', async () => {
+      let requests = 0;
+      handler = (req, res) => {
+        requests++;
+        if (requests === 1) {
+          res.writeHead(200, { 'content-length': body.length });
+          res.write(body.subarray(0, 30_000), () => setTimeout(() => res.destroy(), 10));
+        } else res.writeHead(503).end();
+      };
+      const events: ModelDownloadProgress[] = [];
+      const downloader = makeSummaryDownloader((event) => events.push(event));
+      downloader.start();
+      await vi.waitFor(() => expect(downloader.isRunning()).toBe(false));
+
+      expect(events.at(-1)).toMatchObject({ state: 'failed', reason: 'offline' });
+      expect((await stat(join(dir, 'Qwen3.5-9B-Q4_K_M.gguf.part'))).size).toBeGreaterThan(0);
+    });
+
+    it('cancels and preserves a partial summary download for resume', async () => {
+      handler = (_req, res) => {
+        res.writeHead(200, { 'content-length': body.length });
+        res.write(body.subarray(0, 30_000));
+      };
+      let cancelScheduled = false;
+      const events: ModelDownloadProgress[] = [];
+      const downloader = makeSummaryDownloader((event) => {
+        events.push(event);
+        if (event.state === 'downloading' && event.bytesDone > 0 && !cancelScheduled) {
+          cancelScheduled = true;
+          setTimeout(() => downloader.cancel(), 10);
+        }
+      });
+      downloader.start();
+      await vi.waitFor(() => expect(downloader.isRunning()).toBe(false));
+
+      expect(events.some((event) => event.state === 'failed')).toBe(false);
+      expect((await stat(join(dir, 'Qwen3.5-9B-Q4_K_M.gguf.part'))).size).toBeGreaterThan(0);
+    });
+  });
+
   describe('createModelDownloader', () => {
     const make = (onSucceeded: () => void, over: Partial<DownloadOptions> = {}) =>
       createModelDownloader(

@@ -18,7 +18,7 @@ import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, generateTitle, writeSummary } from '@scrb/summary';
 import { AutoTitleController } from './auto-title.ts';
 import type { RecordingState, SettingsPatch } from '@scrb/contracts';
-import type { BackendEvents, EventName } from '@scrb/contracts';
+import type { BackendEvents, EventName, ModelRole } from '@scrb/contracts';
 import type { CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers, publishEdit, readSummaryState } from './meetings.ts';
 import { PlaybackMedia } from './playback-media.ts';
@@ -40,10 +40,16 @@ import {
   resolvePackagedSetup,
   summaryPathsReader,
   listSummaryRow,
+  SUMMARY_MODEL,
   type PackagedSetup,
 } from './packaged-setup.ts';
 import { ContractError } from '@scrb/contracts';
-import { createModelDownloader, extractWithTar, sourcesFor } from './model-download.ts';
+import {
+  createModelDownloader,
+  createSummaryModelDownloader,
+  extractWithTar,
+  sourcesFor,
+} from './model-download.ts';
 import { isIdle, relaunchWhenIdle, withReadyMessage } from './models-ready.ts';
 import os from 'node:os';
 
@@ -170,6 +176,16 @@ export async function openBackend(
             });
           },
         )
+      : null;
+    const summaryModelDownloader = packaged
+      ? createSummaryModelDownloader({
+          dir: modelsDir,
+          sources: sourcesFor([SUMMARY_MODEL], DIGESTS),
+          extract: extractWithTar,
+          isInstalled: (source) =>
+            verified(path.join(modelsDir, source.file), source.file, verifiedCache, DIGESTS),
+          onProgress: (progress) => emit('modelDownloadProgress', progress),
+        })
       : null;
     if (packaged && packaged.missing.length > 0)
       library.logger.log('error', 'packaged-setup-incomplete', { count: packaged.missing.length });
@@ -370,7 +386,27 @@ export async function openBackend(
         ...(packaged && packaged.models.some((m) => !m.installed) && modelDownloader
           ? {
               startModelDownload: async () => modelDownloader.start(),
-              cancelModelDownload: async () => modelDownloader.cancel(),
+            }
+          : {}),
+        ...(packaged && (modelDownloader || summaryModelDownloader)
+          ? {
+              cancelModelDownload: async () => {
+                modelDownloader?.cancel();
+                summaryModelDownloader?.cancel();
+              },
+            }
+          : {}),
+        ...(summaryModelDownloader
+          ? {
+              installModelUpdate: async (request: unknown) => {
+                const { role } = request as { role: ModelRole };
+                if (role !== 'summary')
+                  throw new ContractError({
+                    code: 'notImplemented',
+                    message: 'This model update is not available.',
+                  });
+                summaryModelDownloader.start();
+              },
             }
           : {}),
         // A packaged app without its tools or models must say so, not fall back to the mock.

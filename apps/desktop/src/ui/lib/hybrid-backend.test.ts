@@ -458,6 +458,17 @@ describe('createHybridBackend', () => {
     expect(real.on).toHaveBeenCalledWith('modelDownloadProgress', expect.any(Function));
   });
 
+  it('routes summary model installation to the real backend', async () => {
+    const real = await realReturning();
+    const backend = createHybridBackend(real, mock);
+    const mockCall = vi.spyOn(mock, 'call');
+
+    await backend.call('installModelUpdate', { role: 'summary' });
+
+    expect(real.call).toHaveBeenCalledWith('installModelUpdate', { role: 'summary' });
+    expect(mockCall).not.toHaveBeenCalledWith('installModelUpdate', { role: 'summary' });
+  });
+
   it('falls back to the mock for model downloads when the real backend has no handler', async () => {
     const real = {
       call: vi.fn(async (name: string) => {
