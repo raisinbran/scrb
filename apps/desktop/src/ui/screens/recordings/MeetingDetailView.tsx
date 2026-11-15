@@ -263,16 +263,21 @@ function MeetingTitle({
 }) {
   const [draft, setDraft] = useState(title);
   const [error, setError] = useState<string | null>(null);
-  const cancelled = useRef(false);
+
+  const [seen, setSeen] = useState(title);
+  if (seen !== title) {
+    setSeen(title);
+    setDraft(title);
+  }
 
   const commit = () => {
-    if (cancelled.current) {
-      cancelled.current = false;
+    const next = draft.trim();
+    if (!next) {
       setDraft(title);
+      setError('A meeting needs a title.');
       return;
     }
-    const next = draft.trim();
-    if (!next || next === title) {
+    if (next === title) {
       setDraft(title);
       return;
     }
@@ -291,12 +296,15 @@ function MeetingTitle({
         value={draft}
         readOnly={readOnly}
         maxLength={200}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError(null);
+        }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key === 'Enter') commit();
           else if (event.key === 'Escape') {
-            cancelled.current = true;
-            event.currentTarget.blur();
+            setDraft(title);
+            setError(null);
           }
         }}
         onBlur={commit}
@@ -306,71 +314,101 @@ function MeetingTitle({
   );
 }
 
-function EditDetailsDialog({
-  meeting,
-  onSaved,
-  onClose,
-}: {
-  meeting: MeetingDetail;
-  onSaved(): void;
-  onClose(): void;
-}) {
-  const backend = useBackend();
-  const [title, setTitle] = useState(meeting.title);
-  const [date, setDate] = useState(meeting.startedAt.slice(0, 10));
-  const [error, setError] = useState<string | null>(null);
+/** `datetime-local` takes the computer's own date and time, written without a zone. */
+function toLocalInput(iso: string): string {
+  const date = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
-  const save = async () => {
-    setError(null);
-    try {
-      await backend.call('updateMeeting', {
-        meetingId: meeting.id,
-        title: title.trim(),
-        // Only the day is editable, so the time of day stays as it was.
-        startedAt: `${date}${meeting.startedAt.slice(10)}`,
-      });
-      onSaved();
-      onClose();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'The change could not be saved.');
+/** Shows the start date and time as text; click it to edit. Enter or leaving saves, Escape cancels. */
+function MeetingDate({
+  startedAt,
+  readOnly,
+  onSave,
+}: {
+  startedAt: string;
+  readOnly: boolean;
+  onSave(startedAt: string): Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const cancelled = useRef(false);
+  const refocus = useRef(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const label = formatMeetingWhen(startedAt);
+
+  useEffect(() => {
+    if (!editing && refocus.current) {
+      refocus.current = false;
+      button.current?.focus();
     }
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <>
+        {readOnly ? (
+          <span>{label}</span>
+        ) : (
+          <button
+            ref={button}
+            type="button"
+            className={styles.dateButton}
+            aria-label={`Meeting date and time: ${label}. Edit`}
+            onClick={() => {
+              setDraft(toLocalInput(startedAt));
+              setError(null);
+              setEditing(true);
+            }}
+          >
+            {label}
+          </button>
+        )}
+        {error && (
+          <span role="alert" className={styles.dateError}>
+            {error}
+          </span>
+        )}
+      </>
+    );
+  }
+
+  const commit = () => {
+    setEditing(false);
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    const next = new Date(draft);
+    if (!draft || Number.isNaN(next.getTime())) {
+      setError('Enter a valid date and time.');
+      return;
+    }
+    if (draft === toLocalInput(startedAt)) return;
+    onSave(next.toISOString()).catch((failure: unknown) =>
+      setError(failure instanceof Error ? failure.message : 'The date could not be saved.'),
+    );
   };
 
   return (
-    <Modal title="Edit details" onClose={onClose}>
-      <label className={styles.field}>
-        Title
-        <input
-          data-autofocus
-          className={styles.input}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
-      </label>
-      <label className={styles.field}>
-        Date
-        <input
-          type="date"
-          className={styles.input}
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
-        />
-      </label>
-      {error && <p role="alert">{error}</p>}
-      <div className={styles.modalActions}>
-        <button type="button" className={styles.button} onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={!title.trim() || !date}
-          onClick={() => void save()}
-        >
-          Save
-        </button>
-      </div>
-    </Modal>
+    <input
+      type="datetime-local"
+      autoFocus
+      className={styles.dateInput}
+      aria-label="Meeting date and time"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === 'Escape') {
+          refocus.current = true;
+          cancelled.current = event.key === 'Escape';
+          event.currentTarget.blur();
+        }
+      }}
+      onBlur={commit}
+    />
   );
 }
 
@@ -498,7 +536,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const [tab, setTab] = useState<Tab>(() =>
     initialJumpMs === undefined ? (readStored<Tab>(TAB_KEY) ?? 'Transcript') : 'Transcript',
   );
-  const [dialog, setDialog] = useState<'export' | 'delete' | 'edit' | null>(null);
+  const [dialog, setDialog] = useState<'export' | 'delete' | null>(null);
   const [jump, setJump] = useState<JumpTarget | null>(
     initialJumpMs === undefined ? null : { ms: initialJumpMs, nonce: 0 },
   );
@@ -607,7 +645,6 @@ function LoadedDetail(props: LoadedDetailProps) {
       <header className={styles.detailHead}>
         <DetailTitle headingRef={heading} onBack={() => onBack()} />
         <MeetingTitle
-          key={meeting.title}
           title={meeting.title}
           readOnly={!canEdit}
           onSave={async (title) => {
@@ -616,7 +653,15 @@ function LoadedDetail(props: LoadedDetailProps) {
           }}
         />
         <p className={styles.muted}>
-          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
+          <MeetingDate
+            startedAt={meeting.startedAt}
+            readOnly={!canEdit}
+            onSave={async (startedAt) => {
+              await backend.call('updateMeeting', { meetingId, startedAt });
+              onChanged();
+            }}
+          />{' '}
+          · {formatDuration(meeting.durationMs)} ·{' '}
           {meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
           {status ? ` · ${status}` : ''}
           {summaryLabel ? ` · ${summaryLabel}` : ''}
@@ -638,9 +683,6 @@ function LoadedDetail(props: LoadedDetailProps) {
             icon="audioFolder"
             onClick={() => openFolder('audio')}
           />
-          <button type="button" className={styles.button} onClick={() => setDialog('edit')}>
-            Edit details
-          </button>
           {canReprocess && (
             <button
               type="button"
@@ -833,9 +875,6 @@ function LoadedDetail(props: LoadedDetailProps) {
           defaultLength={settings.summaryDefaultLength}
           onClose={() => setDialog(null)}
         />
-      )}
-      {dialog === 'edit' && (
-        <EditDetailsDialog meeting={meeting} onSaved={onChanged} onClose={() => setDialog(null)} />
       )}
       {dialog === 'delete' && (
         <DeleteDialog

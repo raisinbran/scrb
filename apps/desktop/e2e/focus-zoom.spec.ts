@@ -157,14 +157,15 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Recordings' })).toBeFocused();
       await inspectLayout(page, `${zoom}-detail`);
       await expectPanelHeight(page, '[role="tabpanel"]', 200);
-      await page.getByRole('button', { name: 'Edit details', exact: true }).click();
-      const title = page.getByLabel('Title', { exact: true });
+      const title = page.getByLabel('Meeting title', { exact: true });
       await title.fill(
         'Weekly project sync — invented accessibility fixture with long project and participant labels',
       );
+      await title.press('Enter');
       await expect(title).toBeFocused();
+      await page.getByRole('button', { name: /^Meeting date and time/ }).click();
       await inspectLayout(page, `${zoom}-detail-dialog`);
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.getByLabel('Meeting date and time', { exact: true }).press('Escape');
       await inspectLayout(page, `${zoom}-long-detail`);
       expect(await page.locator('[data-row]').count()).toBeLessThan(60);
       await reachByKeyboard(
