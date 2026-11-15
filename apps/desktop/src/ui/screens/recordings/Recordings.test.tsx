@@ -1061,7 +1061,11 @@ describe('Recordings', () => {
     it('flags an outdated summary and its warnings', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
-      expect(await screen.findByText('May be outdated — regenerate?')).toBeTruthy();
+      expect(
+        await screen.findByText(
+          'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.',
+        ),
+      ).toBeTruthy();
       expect(screen.getByText(/does not cover it/)).toBeTruthy();
     });
 
