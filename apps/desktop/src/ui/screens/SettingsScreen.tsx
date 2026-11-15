@@ -263,19 +263,21 @@ function SettingsForm({
           {error}
         </p>
       )}
-      {dirty && (
-        <div className={styles.saveBar} role="status">
-          <span>You have unsaved changes.</span>
-          <div className={styles.actions}>
-            <Button disabled={busy} onClick={discard}>
-              Discard
-            </Button>
-            <Button variant="primary" disabled={busy} onClick={save}>
-              Save
-            </Button>
+      <div className={styles.saveDock}>
+        {dirty && (
+          <div className={styles.saveBar} role="status">
+            <span>You have unsaved changes.</span>
+            <div className={styles.actions}>
+              <Button disabled={busy} onClick={discard}>
+                Discard
+              </Button>
+              <Button variant="primary" disabled={busy} onClick={save}>
+                Save
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {confirming && (
         <ActionDialog
           title="Turn on auto-delete?"

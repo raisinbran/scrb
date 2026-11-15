@@ -1,3 +1,4 @@
+import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type {
   ActionItem,
@@ -421,6 +422,7 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
   );
   const { state, reload } = useBackendData(load);
   const [length, setLength] = useState(defaultLength);
+  const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
   const [saved, setSaved] = useState<MeetingSummaryDoc | null>(null);
   const [progress, setProgress] = useState<SummaryProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -452,6 +454,7 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
   const generate = async (target: SummaryLength) => {
     setError(null);
     setSaved(null);
+    setDismissedWarnings([]);
     setLength(target);
     try {
       await backend.call('generateSummary', { meetingId, length: target });
@@ -517,23 +520,33 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
           const sections = doc.narrative[length];
           return (
             <>
-              {doc.state === 'outdated' && (
-                <div className={styles.bannerWarning}>
-                  <span>May be outdated — regenerate?</span>
-                  <button
-                    type="button"
-                    className={styles.button}
-                    onClick={() => void generate(length)}
-                  >
-                    Regenerate
-                  </button>
-                </div>
-              )}
-              {doc.warnings.map((warning) => (
-                <p key={warning} className={styles.bannerWarning}>
-                  {warning}
-                </p>
-              ))}
+              <PopupLayer>
+                {doc.state === 'outdated' && (
+                  <PopupBanner level="warning">
+                    <p>May be outdated — regenerate?</p>
+                    <div>
+                      <button
+                        type="button"
+                        className={styles.button}
+                        onClick={() => void generate(length)}
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+                  </PopupBanner>
+                )}
+                {doc.warnings
+                  .filter((warning) => !dismissedWarnings.includes(warning))
+                  .map((warning) => (
+                    <PopupBanner
+                      key={warning}
+                      level="warning"
+                      onDismiss={() => setDismissedWarnings([...dismissedWarnings, warning])}
+                    >
+                      <p>{warning}</p>
+                    </PopupBanner>
+                  ))}
+              </PopupLayer>
               <div className={styles.summaryBar}>
                 <LengthToggle length={length} onChange={setLength} />
                 {doc.state === 'edited' && <span className={styles.badge}>Edited</span>}
