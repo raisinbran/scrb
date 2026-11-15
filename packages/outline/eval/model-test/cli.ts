@@ -20,7 +20,8 @@ import { trigramEmbedder, tuneTau, validateAll } from './validate.js';
 /**
  * Dev-only entry point (no runtime dependency in the app).
  *   validate                       scorer validation on the invented suites (no model, no private data)
- *   run --meeting F [--meeting F]  --out DIR --backend URL|mock|mock-fail --model NAME --tau N
+ *   run --meeting F [--meeting F]  --out DIR --backend URL|mock|mock-fail --tau N
+ *       with a real backend also: --model NAME --approved-model NAME (the owner-approved model)
  * stdout and stderr carry fixed codes and numbers only.
  */
 
@@ -39,6 +40,15 @@ export function assertOutsideRepo(out: string, root: string = REPO_ROOT): void {
   const rel = relative(realpathSync(root), realpathSync(out));
   if (rel === '' || (!rel.startsWith('..') && !rel.startsWith(sep) && !/^[a-z]:/i.test(rel)))
     throw new RunError('E_OUT_IN_REPO');
+}
+
+/**
+ * Plan section 2: each model needs the owner's approval before use. This cannot check who approved;
+ * it only refuses to start unless the command line names the model being run in --approved-model, so
+ * the approval is a deliberate, visible act in the command. It is not a substitute for the approval.
+ */
+export function assertModelApproved(model: string, approved: string | undefined): void {
+  if (!model || approved !== model) throw new RunError('E_MODEL_NOT_APPROVED');
 }
 
 function loadMeeting(path: string): Meeting {
@@ -93,7 +103,9 @@ async function main(): Promise<void> {
   if (isMock) backend = mockBackend(backendArg === 'mock-fail' ? 'fail' : 'echo');
   else {
     if (!isLocalUrl(backendArg)) throw new RunError('E_BACKEND_NOT_LOCAL');
-    backend = httpBackend(backendArg, arg('model')[0] ?? 'model');
+    const model = arg('model')[0] ?? '';
+    assertModelApproved(model, arg('approved-model')[0]);
+    backend = httpBackend(backendArg, model);
     await assertOffline();
   }
   const embedderId = arg('embedder')[0] ?? (isMock ? 'trigram' : 'minilm');

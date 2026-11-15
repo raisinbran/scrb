@@ -231,3 +231,81 @@ export function f1(a: readonly string[], b: readonly string[]): number {
 
 /** Round half up, for display only. Comparisons never use this. */
 export const roundHalfUp = (x: number): number => Math.floor(x + 0.5);
+
+/**
+ * Verbs whose direction matters. Each class has two opposite poles; a point and its reference must
+ * agree on the pole of every class the reference uses (plan section 3: "what" is the action, not
+ * only the nouns around it).
+ */
+const ACTION_CLASSES: { name: string; plus: string[]; minus: string[] }[] = [
+  {
+    name: 'size',
+    plus: ['increase', 'raise', 'grow', 'boost', 'expand', 'double', 'extend'],
+    minus: ['decrease', 'reduce', 'cut', 'lower', 'shrink', 'trim', 'slash', 'halve'],
+  },
+  {
+    name: 'verdict',
+    plus: ['approve', 'accept', 'authorize', 'endorse', 'greenlight'],
+    minus: ['reject', 'decline', 'deny', 'refuse', 'veto', 'disallow'],
+  },
+  {
+    name: 'run',
+    plus: ['start', 'begin', 'launch', 'open', 'resume', 'enable', 'restart'],
+    minus: ['stop', 'halt', 'end', 'close', 'pause', 'suspend', 'disable', 'terminate', 'cancel'],
+  },
+  {
+    name: 'set',
+    plus: ['add', 'include', 'hire', 'insert', 'append', 'keep'],
+    minus: ['remove', 'delete', 'exclude', 'drop', 'fire', 'eliminate', 'discard'],
+  },
+  {
+    name: 'rank',
+    plus: ['win', 'gain', 'rise', 'buy', 'receive'],
+    minus: ['lose', 'sell', 'fall', 'forfeit'],
+  },
+];
+
+function forms(base: string): string[] {
+  const noE = base.replace(/e$/, '');
+  const last = base.slice(-1);
+  return [
+    base,
+    `${base}s`,
+    `${base}es`,
+    `${base}d`,
+    `${base}ed`,
+    `${noE}ing`,
+    `${base}ing`,
+    `${base}${last}ed`,
+    `${base}${last}ing`,
+  ];
+}
+
+const ACTION_FORMS = new Map<string, string>();
+for (const c of ACTION_CLASSES) {
+  for (const w of c.plus) for (const f of forms(w)) ACTION_FORMS.set(f, `${c.name}+`);
+  for (const w of c.minus) for (const f of forms(w)) ACTION_FORMS.set(f, `${c.name}-`);
+}
+
+/** "size+" for increase, "size-" for decrease, and so on; undefined for any other word. */
+export const actionOf = (low: string): string | undefined => ACTION_FORMS.get(low);
+export const oppositeAction = (a: string): string => a.slice(0, -1) + (a.endsWith('+') ? '-' : '+');
+
+/** Words that open a subordinate phrase: a date after one belongs to that phrase, not the main action. */
+const SUBORDINATORS = new Set([
+  'after',
+  'before',
+  'during',
+  'following',
+  'once',
+  'when',
+  'since',
+  'until',
+  'because',
+  'ahead',
+  'behind',
+  'despite',
+  'although',
+  'as',
+]);
+export const isSubordinator = (low: string): boolean => SUBORDINATORS.has(low);

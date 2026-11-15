@@ -319,7 +319,7 @@ describe('bars and decisions', () => {
       decide(
         [
           { tier: 1, candidates: [bad, bad] },
-          { tier: 2, candidates: [bad] },
+          { tier: 2, candidates: [bad, bad] },
         ],
         ctx,
       ).outcome,
@@ -328,11 +328,81 @@ describe('bars and decisions', () => {
       decide(
         [
           { tier: 1, candidates: [bad, near] },
-          { tier: 2, candidates: [bad] },
+          { tier: 2, candidates: [bad, bad] },
         ],
         ctx,
       ).outcome,
     ).toBe('INCONCLUSIVE');
+  });
+
+  it('is INCONCLUSIVE, never STOP, while a tier or an approved candidate has not been evaluated', () => {
+    const bad = assessCandidate([m(10, 100), m(10, 100), m(10, 100), m(10, 100)]);
+    const ctx = { scorerValidated: true, meetingsFullyRun: 4 };
+    // Tier 1 failed outright, Tier 2 not run at all.
+    const tier1Only = decide([{ tier: 1, candidates: [bad, bad] }], ctx);
+    expect(tier1Only.outcome).toBe('INCONCLUSIVE');
+    expect(tier1Only.missing).toContain('tier2-missing');
+    // Tier 2 present but only one of its two approved candidates evaluated.
+    const partial = decide(
+      [
+        { tier: 1, candidates: [bad, bad] },
+        { tier: 2, candidates: [bad] },
+      ],
+      ctx,
+    );
+    expect(partial.outcome).toBe('INCONCLUSIVE');
+    expect(partial.missing).toContain('tier2-candidate-missing');
+    // An empty tier does not count as failed.
+    expect(
+      decide(
+        [
+          { tier: 1, candidates: [bad, bad] },
+          { tier: 2, candidates: [] },
+        ],
+        ctx,
+      ).outcome,
+    ).toBe('INCONCLUSIVE');
+    // Only Tier 2 supplied.
+    expect(decide([{ tier: 2, candidates: [bad, bad] }], ctx).missing).toContain('tier1-missing');
+    // The owner may approve fewer candidates; then those are enough.
+    expect(
+      decide(
+        [
+          { tier: 1, candidates: [bad] },
+          { tier: 2, candidates: [bad] },
+        ],
+        { ...ctx, expectedCandidates: { 1: 1, 2: 1 } },
+      ).outcome,
+    ).toBe('STOP');
+  });
+
+  it('still allows GO from one tier alone', () => {
+    const good = assessCandidate(
+      [
+        {
+          a: Object.fromEntries(
+            BARS.filter((b) => b.task === 'A').map((b) => [
+              b.metric,
+              metric(b.dir === 'ge' ? 100 : 0, 100, true),
+            ]),
+          ) as never,
+          b: Object.fromEntries(
+            BARS.filter((b) => b.task === 'B').map((b) => [
+              b.metric,
+              metric(b.dir === 'ge' ? 100 : 0, 100, true),
+            ]),
+          ) as never,
+        },
+        { a: undefined, b: undefined },
+      ].flatMap((x, i) => (i === 0 ? [x, x, x, x] : [])),
+      { n: 20, mean: 4, ones: 0 },
+    );
+    expect(good.go).toBe(true);
+    const d = decide([{ tier: 1, candidates: [good] }], {
+      scorerValidated: true,
+      meetingsFullyRun: 4,
+    });
+    expect(d).toMatchObject({ outcome: 'GO', goTier: 1 });
   });
 
   it('needs the owner rating for GO: fewer than 15 rated topics is not evaluable', () => {

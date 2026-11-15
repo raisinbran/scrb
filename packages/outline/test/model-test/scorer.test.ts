@@ -106,6 +106,93 @@ describe('role-level check', () => {
       ),
     ).toBe('value-role');
   });
+
+  it('rejects a launch date taken from an audit date in the same cited sentence', () => {
+    const span = 'Launch the beta after the audit on June 9.';
+    expect(check('Launch the beta on June 9.', 'Launch the beta.', span)).toBe('value-role');
+    expect(
+      check(
+        'Review the draft on June 9.',
+        'Review the draft.',
+        'Review the draft before the board meeting on June 9.',
+      ),
+    ).toBe('value-role');
+    expect(
+      check(
+        'Hire 12 engineers.',
+        'Hire engineers.',
+        'We have 12 open requests in finance, so hire engineers.',
+      ),
+    ).toBe('value-role');
+  });
+
+  it('accepts a date that belongs to the same action, however it is phrased', () => {
+    expect(
+      check('Launch the beta on June 9.', 'Launch the beta.', 'The beta launch is due June 9.'),
+    ).toBe('ok');
+    expect(
+      check('Launch the beta by June 9.', 'Launch the beta.', 'We will launch the beta by June 9.'),
+    ).toBe('ok');
+    expect(
+      check(
+        'Finish the audit on June 9.',
+        'Finish the audit.',
+        'Finish the audit before the board meeting on June 9.',
+      ),
+    ).toBe('value-role');
+    expect(
+      check(
+        'Hold the board meeting on June 9.',
+        'Hold the board meeting.',
+        'Review the draft before the board meeting on June 9.',
+      ),
+    ).toBe('ok');
+  });
+});
+
+describe('action meaning', () => {
+  const check = (gen: string, ref: string, span = ref): string =>
+    factCheck(extractFacts(gen), extractFacts(ref), clausesOf(words(span)), 0.9).code;
+
+  it('rejects opposite actions that share their nouns', () => {
+    expect(check('Decrease the project budget.', 'Increase the project budget.')).toBe('action');
+    expect(check('The board rejected the plan.', 'The board approved the plan.')).toBe('polarity');
+    expect(check('We will stop the rollout.', 'We will start the rollout.')).toBe('action');
+    expect(check('Remove the section.', 'Add the section.')).toBe('action');
+    expect(check('The client declined the quote.', 'The client accepted the quote.')).toBe(
+      'polarity',
+    );
+    expect(check('We will not extend the contract.', 'We will extend the contract.')).toBe(
+      'polarity',
+    );
+  });
+
+  it('accepts the same direction in other words and other tenses', () => {
+    expect(
+      check('The budget was raised.', 'We will increase the budget.', 'The budget was raised.'),
+    ).toBe('ok');
+    expect(
+      check('The offer was accepted.', 'The board approved the offer.', 'The offer was accepted.'),
+    ).toBe('ok');
+    expect(
+      check('Contractors were hired.', 'We hired contractors.', 'Contractors were hired.'),
+    ).toBe('ok');
+  });
+
+  it('requires a direction the reference states, and grounds one it does not', () => {
+    expect(check('Review the budget.', 'Increase the budget.', 'Review the budget.')).toBe(
+      'action',
+    );
+    expect(check('Increase the budget.', 'Review the budget.', 'Review the budget.')).toBe(
+      'action-role',
+    );
+    expect(
+      check('Increase the budget.', 'Review the budget.', 'We will increase the budget.'),
+    ).toBe('ok');
+    expect(check('Increase the budget.', 'Review the budget.', 'We will increase the staff.')).toBe(
+      'action-role',
+    );
+  });
 });
 
 describe('matching', () => {
@@ -196,17 +283,21 @@ describe('invented validation suites', () => {
       'flipped-negation',
       'wrong-role',
       'wrong-date',
+      'action-inversion',
+      'wrong-action-date',
     ])
       expect(a.filter((c) => c.kind === k)).toHaveLength(12);
-    expect(a.length).toBeGreaterThanOrEqual(60);
+    expect(a.length).toBeGreaterThanOrEqual(84);
     const s = split(a);
-    expect(s.heldOut.length).toBeGreaterThanOrEqual(30);
+    expect(s.heldOut.length).toBeGreaterThanOrEqual(42);
     for (const k of [
       'swapped-owner',
       'swapped-number',
       'flipped-negation',
       'wrong-role',
       'wrong-date',
+      'action-inversion',
+      'wrong-action-date',
     ])
       expect(s.heldOut.filter((c) => c.kind === k).length).toBeGreaterThanOrEqual(6);
     expect(s.tuning.length + s.heldOut.length).toBe(a.length);

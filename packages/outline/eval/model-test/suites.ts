@@ -9,7 +9,13 @@ import type { Word } from './match.js';
 
 export type GeneralKind = 'paraphrase' | 'contradiction' | 'irrelevant' | 'duplicate';
 export type AdversarialKind =
-  'swapped-owner' | 'swapped-number' | 'flipped-negation' | 'wrong-role' | 'wrong-date';
+  | 'swapped-owner'
+  | 'swapped-number'
+  | 'flipped-negation'
+  | 'wrong-role'
+  | 'wrong-date'
+  | 'action-inversion'
+  | 'wrong-action-date';
 
 export interface SuiteCase<K extends string> {
   id: string;
@@ -352,6 +358,64 @@ export function adversarialSuite(): SuiteCase<AdversarialKind>[] {
         `The ${t} is due ${d}.`,
         `The ${t} is due ${d2}.`,
         `The ${t} is due ${d}. The audit is on ${d2}.`,
+      );
+    // Opposite action with the same nouns (added after independent review found the gap): the span
+    // says the reference action, the generated point says the opposite.
+    const inversions: [string, string][] = [
+      [`The team will increase the ${t} budget.`, `The team will decrease the ${t} budget.`],
+      [`We will decrease the ${t} headcount.`, `We will increase the ${t} headcount.`],
+      [`The board approved the ${t} plan.`, `The board rejected the ${t} plan.`],
+      [`The board rejected the ${t} proposal.`, `The board approved the ${t} proposal.`],
+      [`We will start the ${t} project on ${d}.`, `We will stop the ${t} project on ${d}.`],
+      [`We decided to stop the ${t} rollout.`, `We decided to start the ${t} rollout.`],
+      [
+        `${A} will add the ${t} section to the report.`,
+        `${A} will remove the ${t} section from the report.`,
+      ],
+      [
+        `The team will remove the ${t} feature from the release.`,
+        `The team will add the ${t} feature to the release.`,
+      ],
+      [`The client accepted the ${t} quote.`, `The client declined the ${t} quote.`],
+      [`The client declined the ${t} offer.`, `The client accepted the ${t} offer.`],
+      [`We will not extend the ${t} contract.`, `We will extend the ${t} contract.`],
+      [`We will hire for the ${t} role.`, `We will not hire for the ${t} role.`],
+    ];
+    const [invRef, invGen] = inversions[n]!;
+    add('action-inversion', n, invRef, invGen, invRef);
+    // A date that belongs to another action in the span must not be credited to this one.
+    const wa = n % 4;
+    if (wa === 0)
+      add(
+        'wrong-action-date',
+        n,
+        `Launch the ${t} beta.`,
+        `Launch the ${t} beta on ${d}.`,
+        `Launch the ${t} beta after the audit on ${d}.`,
+      );
+    else if (wa === 1)
+      add(
+        'wrong-action-date',
+        n,
+        `Send the ${t} invoice.`,
+        `Send the ${t} invoice by ${d}.`,
+        `The board meeting is on ${d}. Send the ${t} invoice.`,
+      );
+    else if (wa === 2)
+      add(
+        'wrong-action-date',
+        n,
+        `Review the ${t} draft.`,
+        `Review the ${t} draft on ${d}.`,
+        `Review the ${t} draft before the board meeting on ${d}.`,
+      );
+    else
+      add(
+        'wrong-action-date',
+        n,
+        `Hire engineers for the ${t} team.`,
+        `Hire ${q} engineers for the ${t} team.`,
+        `We have ${q} open requests in finance. Hire engineers for the ${t} team.`,
       );
   }
   return out;

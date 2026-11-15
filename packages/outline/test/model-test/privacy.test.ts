@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { isLocalUrl } from '../../eval/model-test/backend.js';
-import { assertOutsideRepo } from '../../eval/model-test/cli.js';
+import { assertModelApproved, assertOutsideRepo } from '../../eval/model-test/cli.js';
 import { RunError } from '../../eval/model-test/errors.js';
 import { assertOffline } from '../../eval/model-test/netcheck.js';
 import type { Meeting } from '../../eval/model-test/run.js';
@@ -188,6 +188,34 @@ describe('privacy: markers never leave the designated output folder', () => {
     expect(r.stdout.trim()).toBe('FAILED_E_OUT_IN_REPO');
     expect(() => statSync(join(REPO, 'zz-no-out', 'raw'))).toThrow();
     rmSync(join(REPO, 'zz-no-out'), { recursive: true, force: true });
+  }, 60_000);
+
+  it('refuses a real backend unless the command names the approved model', () => {
+    expect(() => assertModelApproved('m', undefined)).toThrowError(RunError);
+    expect(() => assertModelApproved('m', 'other')).toThrowError(RunError);
+    expect(() => assertModelApproved('', '')).toThrowError(RunError);
+    expect(() => assertModelApproved('m', 'm')).not.toThrow();
+    const base = mkdtempSync(join(tmpdir(), 'scrb-approval-'));
+    cleanup.push(base);
+    const r = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        CLI,
+        'run',
+        '--meeting',
+        join(PKG, 'package.json'),
+        '--out',
+        join(base, 'out'),
+        '--backend',
+        'http://127.0.0.1:9',
+        '--model',
+        'm',
+      ],
+      { cwd: PKG, encoding: 'utf8' },
+    );
+    expect(r.stdout.trim()).toBe('FAILED_E_MODEL_NOT_APPROVED');
   }, 60_000);
 
   it('refuses to start when a public host is reachable, and accepts only localhost backends', async () => {

@@ -202,10 +202,22 @@ export interface Decision {
   missing: string[];
 }
 
-/** Plan section 7. */
+/** The plan's campaign: two tiers, two models each. */
+export const PLAN_CANDIDATES = { 1: 2, 2: 2 } as const;
+
+/**
+ * Plan section 7. STOP needs the best candidate in EVERY tier to have failed, so it is never returned
+ * while a tier, or one of its approved candidates, has not been evaluated: that is INCONCLUSIVE.
+ * GO is allowed from one tier alone (a Tier 1 GO needs no Tier 2 result).
+ */
 export function decide(
   tiers: readonly TierInput[],
-  ctx: { scorerValidated: boolean; meetingsFullyRun: number },
+  ctx: {
+    scorerValidated: boolean;
+    meetingsFullyRun: number;
+    /** How many candidates the owner approved per tier (defaults to the plan: 2 and 2). */
+    expectedCandidates?: Record<1 | 2, number>;
+  },
 ): Decision {
   const missing: string[] = [];
   if (!ctx.scorerValidated) missing.push('scorer-not-validated');
@@ -213,9 +225,15 @@ export function decide(
   if (missing.length > 0) return { outcome: 'INCONCLUSIVE', missing };
   const go = tiers.find((t) => t.candidates.some((c) => c.go));
   if (go) return { outcome: 'GO', goTier: go.tier, missing };
+
+  const expected = ctx.expectedCandidates ?? PLAN_CANDIDATES;
+  for (const tier of [1, 2] as const) {
+    const have = tiers.filter((t) => t.tier === tier).reduce((n, t) => n + t.candidates.length, 0);
+    if (have === 0) missing.push(`tier${tier}-missing`);
+    else if (have < expected[tier]) missing.push(`tier${tier}-candidate-missing`);
+  }
   const stop =
-    tiers.length > 0 &&
-    tiers.every((t) => t.candidates.length > 0 && t.candidates.every((c) => c.missesPrimary));
+    missing.length === 0 && tiers.every((t) => t.candidates.every((c) => c.missesPrimary));
   if (stop) return { outcome: 'STOP', missing };
   for (const t of tiers)
     for (const c of t.candidates)

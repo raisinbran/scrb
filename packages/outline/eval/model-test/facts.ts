@@ -1,9 +1,12 @@
 import {
+  actionOf,
   COMMIT_AFTER,
   contentStems,
   f1,
   isBarrier,
   isDateTok,
+  isSubordinator,
+  oppositeAction,
   isNegation,
   isReject,
   isStop,
@@ -22,6 +25,11 @@ export interface Value {
   key: string;
   L: string;
   R: string;
+  /**
+   * Content words of the action this value belongs to: the nearest ones before it (never across a
+   * subordinate phrase) and the nearest ones after it.
+   */
+  win: string[];
 }
 
 /** The role-level tuple of plan section 3: who, what, when/number, polarity. */
@@ -34,6 +42,10 @@ export interface Facts {
   /** False when an odd number of negations or rejections. */
   positive: boolean;
   what: string[];
+  /** Direction-bearing verbs as "class+" or "class-" (increase is "size+", decrease "size-"). */
+  actions: string[];
+  /** Content words other than those verbs. */
+  core: string[];
 }
 
 const NOT_NAMES = new Set([
@@ -266,6 +278,30 @@ function bindWord(toks: Tok[], consumed: boolean[], from: number, step: 1 | -1):
   return '';
 }
 
+/** The words of the action a value belongs to (see Value.win). */
+function windowOf(toks: Tok[], consumed: boolean[], start: number, end: number): string[] {
+  const out: string[] = [];
+  for (let j = start - 1; j >= 0 && out.length < 3; j -= 1) {
+    const t = toks[j]!;
+    if (consumed[j] || isBarrier(t) || !t.alpha) break;
+    if (isSubordinator(t.low)) {
+      if (out.length > 0) break; // what lies beyond belongs to the subordinate phrase
+      continue;
+    }
+    if (isTransparent(t) || isStop(t)) continue;
+    out.push(stem(t.low));
+  }
+  let right = 0;
+  for (let j = end + 1; j < toks.length && right < 2; j += 1) {
+    const t = toks[j]!;
+    if (consumed[j] || isBarrier(t) || !t.alpha || isSubordinator(t.low)) break;
+    if (isTransparent(t) || isStop(t)) continue;
+    out.push(stem(t.low));
+    right += 1;
+  }
+  return out;
+}
+
 function isNameToken(
   toks: Tok[],
   i: number,
@@ -302,6 +338,7 @@ export function extractFacts(text: string, common: ReadonlySet<string> = NO_WORD
       key: r.key,
       L: bindWord(toks, others, r.start - 1, -1),
       R: bindWord(toks, others, r.end + 1, 1),
+      win: windowOf(toks, others, r.start, r.end),
     };
   });
   const isName = toks.map((_, i) => isNameToken(toks, i, consumed, common));
@@ -337,7 +374,11 @@ export function extractFacts(text: string, common: ReadonlySet<string> = NO_WORD
   let negs = 0;
   for (const t of toks) if (isNegation(t) || (t.alpha && isReject(t))) negs += 1;
   const what: string[] = [];
+  const core: string[] = [];
+  const actions = new Set<string>();
   toks.forEach((t, i) => {
+    const a = t.alpha ? actionOf(t.low) : undefined;
+    if (a) actions.add(a);
     if (
       consumed[i] ||
       isName[i] ||
@@ -348,7 +389,10 @@ export function extractFacts(text: string, common: ReadonlySet<string> = NO_WORD
     )
       return;
     const s = stem(t.low);
-    if (s.length > 1) what.push(s);
+    if (s.length > 1) {
+      what.push(s);
+      if (!a) core.push(s);
+    }
   });
   return {
     owners: [...owners].sort(),
@@ -356,6 +400,8 @@ export function extractFacts(text: string, common: ReadonlySet<string> = NO_WORD
     values,
     positive: negs % 2 === 0,
     what,
+    actions: [...actions].sort(),
+    core,
   };
 }
 
@@ -442,17 +488,39 @@ export function valueGrounded(
 ): boolean {
   return clauses.some((c) => {
     const f = extractFacts(c.text, common);
-    return (
-      f.values.some((cv) => cv.key === v.key && bindMatch(v, cv, false)) &&
-      sharesStem(f.what, pointStems)
-    );
+    // The value must belong to the same action as in the point: the words around it in the span must
+    // overlap the words around it in the point. A date elsewhere in the sentence is not enough.
+    return f.values.some((cv) => cv.key === v.key && sharesStem(cv.win, v.win));
+  });
+}
+
+/** A direction-bearing verb the reference lacks must be said in the span, about the same thing. */
+export function actionGrounded(
+  action: string,
+  clauses: readonly Clause[],
+  core: readonly string[],
+  common: ReadonlySet<string> = NO_WORDS,
+): boolean {
+  return clauses.some((c) => {
+    const f = extractFacts(c.text, common);
+    return f.actions.includes(action) && sharesStem(f.core, core);
   });
 }
 
 export interface FactVerdict {
   ok: boolean;
   /** Fixed code, never text. */
-  code: 'ok' | 'polarity' | 'owner' | 'owner-role' | 'name' | 'value' | 'value-role' | 'what';
+  code:
+    | 'ok'
+    | 'polarity'
+    | 'action'
+    | 'action-role'
+    | 'owner'
+    | 'owner-role'
+    | 'name'
+    | 'value'
+    | 'value-role'
+    | 'what';
 }
 
 /** Role-level fact check of one candidate pair (plan section 3). */
@@ -464,6 +532,13 @@ export function factCheck(
   common: ReadonlySet<string> = NO_WORDS,
 ): FactVerdict {
   if (gen.positive !== ref.positive) return { ok: false, code: 'polarity' };
+  // Action meaning: the same direction for every direction-bearing verb the reference uses.
+  for (const a of ref.actions) if (!gen.actions.includes(a)) return { ok: false, code: 'action' };
+  for (const a of gen.actions) {
+    if (ref.actions.includes(a)) continue;
+    if (ref.actions.includes(oppositeAction(a))) return { ok: false, code: 'action' };
+    if (!actionGrounded(a, clauses, gen.core, common)) return { ok: false, code: 'action-role' };
+  }
   if (ref.owners.length > 0) {
     if (gen.owners.join('|') !== ref.owners.join('|')) return { ok: false, code: 'owner' };
   } else {
