@@ -182,6 +182,16 @@ export function createHybridBackend(
         await synced;
         return callMock(name, request);
       }
+      if (name === 'revealExport') {
+        // An export id belongs to whichever side saved it.
+        try {
+          return await callReal(name, request);
+        } catch (error) {
+          if (!(error instanceof ContractError) || !NOT_REAL.has(error.code)) throw error;
+          await synced;
+          return callMock(name, request);
+        }
+      }
       if (!REAL_CALLS.has(name)) {
         await synced;
         return callMock(name, request);

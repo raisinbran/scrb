@@ -62,6 +62,12 @@ function Group({ legend, children }: { legend: string; children: ReactNode }) {
   );
 }
 
+function outcome(event: ExportFinished): Progress {
+  if (event.ok) return { step: 'done', fileName: event.fileName };
+  // Cancelling the save dialog is not an error: back to the options.
+  return event.cancelled ? { step: 'choosing' } : { step: 'failed', message: event.message };
+}
+
 type Progress =
   | { step: 'choosing' }
   | { step: 'exporting' }
@@ -105,13 +111,7 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
   }, [backend, hasSummary, meetingId]);
 
   useEffect(() => {
-    const finish = (event: ExportFinished) => {
-      setProgress(
-        event.ok
-          ? { step: 'done', fileName: event.fileName }
-          : { step: 'failed', message: event.message },
-      );
-    };
+    const finish = (event: ExportFinished) => setProgress(outcome(event));
     return backend.on('exportFinished', (event) => {
       if (event.meetingId !== meetingId) return;
       if (exportId.current === event.exportId) finish(event);
@@ -140,13 +140,7 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
       exportId.current = response.exportId;
       // The finished event can arrive before this response.
       const arrived = early.current.find((event) => event.exportId === response.exportId);
-      if (arrived) {
-        setProgress(
-          arrived.ok
-            ? { step: 'done', fileName: arrived.fileName }
-            : { step: 'failed', message: arrived.message },
-        );
-      }
+      if (arrived) setProgress(outcome(arrived));
     } catch (failure) {
       setProgress({
         step: 'failed',
@@ -157,15 +151,16 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
 
   const openFolder = () => {
     setFolderError(null);
+    if (exportId.current === null) return;
     backend
-      .call('openMeetingFolder', { meetingId, folder: 'exports' })
+      .call('revealExport', { exportId: exportId.current })
       .catch(() => setFolderError('The folder could not be opened.'));
   };
 
   if (progress.step === 'exporting') {
     return (
       <Modal title="Export meeting">
-        <p role="status">Exporting…</p>
+        <p role="status">Choose where to save…</p>
         <Progress label="Export progress" />
       </Modal>
     );
@@ -174,14 +169,14 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
   if (progress.step === 'done') {
     return (
       <Modal title="Export meeting" onClose={onClose}>
-        <p role="status">Saved {progress.fileName} in the meeting&apos;s exports folder.</p>
+        <p role="status">Saved {progress.fileName}.</p>
         {folderError && <p role="alert">{folderError}</p>}
         <div className={styles.modalActions}>
           <button type="button" className={styles.button} onClick={onClose}>
             Close
           </button>
           <button type="button" data-autofocus className={styles.primary} onClick={openFolder}>
-            Open folder
+            Show in folder
           </button>
         </div>
       </Modal>

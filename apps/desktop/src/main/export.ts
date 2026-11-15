@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { lstat, mkdir, open, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toExportMeeting } from '@scrb/app-core';
 import {
   ContractError,
   type BackendEvents,
   type EventName,
+  type ExportFormat,
   type ExportRequest as ContractExportRequest,
 } from '@scrb/contracts';
 import { buildExportDocument, renderPdf, renderVtt, type ExportMeeting } from '@scrb/export';
@@ -15,12 +16,15 @@ import type { DocxRenderer } from './export-worker.ts';
 import type { PrintJobRunner } from './export-print.ts';
 import { isOurTempName, tempPartName } from './print-guard.ts';
 import { requireMeeting, timelineGaps } from './meetings.ts';
+import { readExportFolder, saveExportFolder } from './export-location.ts';
 
 type Emit = <K extends EventName>(name: K, payload: BackendEvents[K]) => void;
 
 const EXPORTABLE = new Set<MeetingMeta['status']>(['ready', 'recovered', 'finalPassRunning']);
 const STALE_MS = 24 * 60 * 60 * 1000;
 const MAX_TITLE = 60;
+const MAX_REMEMBERED_EXPORTS = 20;
+const EXPORT_EXTENSIONS = ['docx', 'pdf', 'vtt'];
 
 /** A title is only a label: strip anything a file system treats as a separator or control. */
 export function exportFileStem(title: string, date: string): string {
@@ -38,11 +42,41 @@ export function exportFileStem(title: string, date: string): string {
 function failureMessage(error: unknown): string {
   const code = (error as { code?: unknown })?.code;
   if (code === 'ENOSPC') return 'Not enough disk space.';
+  if (code === 'EACCES' || code === 'EPERM' || code === 'EROFS' || code === 'ENOENT') {
+    return "Couldn't save there.";
+  }
   if (error instanceof PdfFailure) return 'The PDF could not be created. Try DOCX.';
+  if (error instanceof ExportRefused) return error.message;
   return 'The export failed.';
 }
 
 class PdfFailure extends Error {}
+/** A message that is safe to show as it is. */
+export class ExportRefused extends Error {}
+/** The user closed the save dialog. */
+class SaveCancelled extends Error {}
+
+/** The path the user confirmed, with the format's extension, or a refusal. */
+export function chosenTarget(chosen: string, format: ExportFormat): string {
+  if (!path.isAbsolute(chosen)) throw new ExportRefused("Couldn't save there.");
+  const ext = path.extname(chosen).slice(1).toLowerCase();
+  if (ext === format) return chosen;
+  if (EXPORT_EXTENSIONS.includes(ext)) {
+    throw new ExportRefused(`Choose a file name ending in .${format}.`);
+  }
+  return `${chosen}.${format}`;
+}
+
+/** Writes beside the target, then renames over it: a failed write leaves an older file untouched. */
+async function writeReplacing(target: string, bytes: Uint8Array, exportId: string): Promise<void> {
+  const part = path.join(path.dirname(target), tempPartName(exportId));
+  try {
+    await writeFile(part, bytes, { flag: 'wx' });
+    await rename(part, target);
+  } finally {
+    await rm(part, { force: true }).catch(() => undefined);
+  }
+}
 
 /** Best effort: leftovers from an app quit mid-export, older than a day. */
 async function sweepStale(folder: string): Promise<void> {
@@ -59,44 +93,17 @@ async function sweepStale(folder: string): Promise<void> {
   }
 }
 
-/** Claims a free name, then moves the finished bytes over it, so nothing is ever overwritten. */
-async function writeUnique(
-  folder: string,
-  stem: string,
-  extension: string,
-  bytes: Uint8Array,
-  exportId: string,
-): Promise<string> {
-  const part = path.join(folder, tempPartName(exportId));
-  try {
-    await writeFile(part, bytes, { flag: 'wx' });
-    for (let n = 1; ; n += 1) {
-      const fileName = `${n === 1 ? stem : `${stem} (${n})`}.${extension}`;
-      const target = path.join(folder, fileName);
-      try {
-        await (await open(target, 'wx')).close();
-      } catch (error) {
-        if ((error as { code?: unknown }).code === 'EEXIST') continue;
-        throw error;
-      }
-      try {
-        await rename(part, target);
-      } catch (error) {
-        await rm(target, { force: true });
-        throw error;
-      }
-      return fileName;
-    }
-  } finally {
-    await rm(part, { force: true }).catch(() => undefined);
-  }
-}
-
 export interface ExportDeps {
   library: Library;
   emit: Emit;
   print: PrintJobRunner;
   renderDocx: DocxRenderer;
+  /** Opens the system save dialog; null when the user cancels. Rejects when there is no window. */
+  chooseSavePath(options: { defaultPath: string; format: ExportFormat }): Promise<string | null>;
+  /** Shows a file in the system file manager. */
+  revealPath(file: string): void;
+  /** The file in the user data folder that remembers the last export folder. */
+  locationFile: string;
 }
 
 /** Real transcript export: DOCX from a worker thread, PDF through the hidden print window, WebVTT as text. */
@@ -130,6 +137,15 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     };
   };
 
+  const saved = new Map<string, string>();
+  const remember = (exportId: string, file: string) => {
+    saved.set(exportId, file);
+    for (const key of saved.keys()) {
+      if (saved.size <= MAX_REMEMBERED_EXPORTS) break;
+      saved.delete(key);
+    }
+  };
+
   const run = async (
     exportId: string,
     meeting: MeetingMeta,
@@ -141,6 +157,18 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     const [root, actual] = await Promise.all([realpath(library.paths.root), realpath(folder)]);
     if (!actual.startsWith(root + path.sep)) throw new Error('exports folder outside library');
     await sweepStale(actual);
+    const startDir = (await readExportFolder(deps.locationFile)) ?? actual;
+    const stem = exportFileStem(meeting.title, meeting.date);
+    // Dialog first, render second, so a cancel wastes no work.
+    const chosen = await deps.chooseSavePath({
+      defaultPath: path.join(startDir, `${stem}.${request.format}`),
+      format: request.format,
+    });
+    if (chosen === null) throw new SaveCancelled();
+    const target = chosenTarget(chosen, request.format);
+    if ((await lstat(target).catch(() => null))?.isDirectory()) {
+      throw new ExportRefused("Couldn't save there.");
+    }
     const options = { scope: 'transcript' as const, transcript: request.transcript };
     let bytes: Uint8Array;
     if (request.format === 'docx') {
@@ -162,13 +190,10 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
         throw new PdfFailure();
       }
     }
-    return writeUnique(
-      actual,
-      exportFileStem(meeting.title, meeting.date),
-      request.format,
-      bytes,
-      exportId,
-    );
+    await writeReplacing(target, bytes, exportId);
+    await saveExportFolder(deps.locationFile, path.dirname(target));
+    remember(exportId, target);
+    return path.basename(target);
   };
 
   return {
@@ -193,6 +218,16 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
         (fileName) =>
           emit('exportFinished', { exportId, meetingId: meeting.id, ok: true, fileName }),
         (error: unknown) => {
+          if (error instanceof SaveCancelled) {
+            emit('exportFinished', {
+              exportId,
+              meetingId: meeting.id,
+              ok: false,
+              message: 'Export cancelled.',
+              cancelled: true,
+            });
+            return;
+          }
           library.logger.log('error', 'export-failed', {
             meetingId: meeting.id,
             ...errorFields(error),
@@ -206,6 +241,13 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
         },
       );
       return { exportId };
+    },
+    revealExport: async (raw) => {
+      const file = saved.get((raw as { exportId: string }).exportId);
+      if (file === undefined) {
+        throw new ContractError({ code: 'notFound', message: 'That export is no longer available.' });
+      }
+      deps.revealPath(file);
     },
   };
 }

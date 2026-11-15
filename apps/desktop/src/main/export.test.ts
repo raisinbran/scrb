@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  statSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -11,14 +12,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { build } from 'esbuild';
 import type { ExportFinished, ExportRequest } from '@scrb/contracts';
 import { Library } from '@scrb/storage';
 import { buildExportDocument, renderHtml, type ExportMeeting } from '@scrb/export';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
-import { createExportHandlers, exportFileStem } from './export.ts';
+import { chosenTarget, createExportHandlers, exportFileStem } from './export.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { allowPrintNavigation, allowPrintRequest } from './print-guard.ts';
 import { printWebPreferences } from './web-preferences.ts';
@@ -39,6 +41,9 @@ describe('createExportHandlers', () => {
   let finished: ExportFinished[];
   let waiting: (() => void)[];
   const print = vi.fn();
+  const chooseSavePath = vi.fn();
+  const revealPath = vi.fn();
+  let locationFile: string;
 
   beforeEach(async () => {
     library = await Library.open({ root: mkdtempSync(join(tmpdir(), 'scrb-export-')) });
@@ -46,6 +51,11 @@ describe('createExportHandlers', () => {
     waiting = [];
     print.mockReset();
     print.mockImplementation(async () => FAKE_PDF);
+    // The user accepts the suggested name and folder unless a test says otherwise.
+    chooseSavePath.mockReset();
+    chooseSavePath.mockImplementation(async ({ defaultPath }) => defaultPath);
+    revealPath.mockReset();
+    locationFile = join(mkdtempSync(join(tmpdir(), 'scrb-export-loc-')), 'export-location.json');
     handlers = createExportHandlers({
       library,
       emit: (name, payload) => {
@@ -55,6 +65,9 @@ describe('createExportHandlers', () => {
         }
       },
       print,
+      chooseSavePath,
+      revealPath,
+      locationFile,
       // A real DOCX header without the worker; the worker has its own test below.
       renderDocx: async () => new Uint8Array([0x50, 0x4b, 3, 4]),
     });
@@ -160,14 +173,130 @@ describe('createExportHandlers', () => {
     expect(exportFileStem('...', '2026-11-03')).toBe('transcript-2026-11-03');
   });
 
-  it('never overwrites an earlier export', async () => {
+  it('replaces a file the user chose to overwrite and keeps one name per export', async () => {
     const id = await seed();
     await dispatchCall(handlers, 'exportMeeting', request(id));
     await settled();
     finished.length = 0;
     await dispatchCall(handlers, 'exportMeeting', request(id));
-    expect(await settled()).toMatchObject({ fileName: 'Invented sync-2026-11-03 (2).docx' });
-    expect(exportsOf(id)).toHaveLength(2);
+    expect(await settled()).toMatchObject({ ok: true, fileName: 'Invented sync-2026-11-03.docx' });
+    expect(exportsOf(id)).toEqual(['Invented sync-2026-11-03.docx']);
+  });
+
+  it('writes to the chosen folder, appends a missing extension and remembers the folder', async () => {
+    const id = await seed();
+    const dir = mkdtempSync(join(tmpdir(), 'scrb-export-pick-'));
+    chooseSavePath.mockResolvedValueOnce(join(dir, 'Board notes'));
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({ ok: true, fileName: 'Board notes.docx' });
+    expect(readdirSync(dir)).toEqual(['Board notes.docx']);
+    expect(exportsOf(id)).toEqual([]);
+    finished.length = 0;
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    await settled();
+    expect(chooseSavePath.mock.calls[1]?.[0].defaultPath).toBe(
+      join(dir, 'Invented sync-2026-11-03.docx'),
+    );
+  });
+
+  it('starts in the meeting exports folder first, and again when the remembered folder is gone', async () => {
+    const id = await seed();
+    const gone = mkdtempSync(join(tmpdir(), 'scrb-export-gone-'));
+    writeFileSync(locationFile, JSON.stringify({ folder: gone }));
+    rmSync(gone, { recursive: true });
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    await settled();
+    expect(dirname(chooseSavePath.mock.calls[0]?.[0].defaultPath)).toContain('exports');
+    expect(readFileSync(locationFile, 'utf8')).not.toContain(gone);
+  });
+
+  it('cancel writes nothing, leaves no temporary file and keeps the remembered folder', async () => {
+    const id = await seed();
+    chooseSavePath.mockResolvedValueOnce(null);
+    await dispatchCall(handlers, 'exportMeeting', request(id, { format: 'pdf' }));
+    expect(await settled()).toMatchObject({ ok: false, cancelled: true });
+    expect(exportsOf(id)).toEqual([]);
+    expect(existsSync(locationFile)).toBe(false);
+    expect(print).not.toHaveBeenCalled();
+  });
+
+  it('keeps the old file when the export fails after the user chose it', async () => {
+    const id = await seed();
+    const dir = mkdtempSync(join(tmpdir(), 'scrb-export-keep-'));
+    const target = join(dir, 'old.docx');
+    writeFileSync(target, 'old bytes');
+    chooseSavePath.mockResolvedValueOnce(target);
+    const failing = createExportHandlers({
+      library,
+      emit: (name, payload) => {
+        if (name === 'exportFinished') finished.push(payload as ExportFinished);
+        waiting.splice(0).forEach((resolve) => resolve());
+      },
+      print,
+      chooseSavePath,
+      revealPath,
+      locationFile,
+      renderDocx: async () => {
+        throw Object.assign(new Error('x'), { code: 'EACCES' });
+      },
+    });
+    await dispatchCall(failing, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({ ok: false, message: "Couldn't save there." });
+    expect(readFileSync(target, 'utf8')).toBe('old bytes');
+    expect(readdirSync(dir)).toEqual(['old.docx']);
+  });
+
+  it('refuses a directory or another export extension and reports an unwritable folder', async () => {
+    const id = await seed();
+    const dir = mkdtempSync(join(tmpdir(), 'scrb-export-bad-'));
+    chooseSavePath.mockResolvedValueOnce(dir + '.docx').mockResolvedValueOnce(join(dir, 'a.pdf'));
+    mkdirSync(dir + '.docx');
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({ ok: false, message: "Couldn't save there." });
+    finished.length = 0;
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({
+      ok: false,
+      message: 'Choose a file name ending in .docx.',
+    });
+    finished.length = 0;
+    chooseSavePath.mockResolvedValueOnce(join(dir, 'missing', 'x.docx'));
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({ ok: false, message: "Couldn't save there." });
+    expect(statSync(dir).isDirectory()).toBe(true);
+  });
+
+  it('fails with a clear message when the window is gone', async () => {
+    const id = await seed();
+    chooseSavePath.mockRejectedValueOnce(new Error('The window was closed.'));
+    await dispatchCall(handlers, 'exportMeeting', request(id));
+    expect(await settled()).toMatchObject({ ok: false });
+  });
+
+  it('chosenTarget forces the format extension', () => {
+    expect(chosenTarget('/a/b.DOCX', 'docx')).toBe('/a/b.DOCX');
+    expect(chosenTarget('/a/Meeting 10.30', 'vtt')).toBe('/a/Meeting 10.30.vtt');
+    expect(() => chosenTarget('/a/b.pdf', 'docx')).toThrow();
+    expect(() => chosenTarget('relative.docx', 'docx')).toThrow();
+  });
+
+  it('reveals only a file this run saved, by export id', async () => {
+    const id = await seed();
+    const { value } = (await dispatchCall(handlers, 'exportMeeting', request(id))) as {
+      value: { exportId: string };
+    };
+    await settled();
+    expect(await dispatchCall(handlers, 'revealExport', { exportId: value.exportId })).toMatchObject({
+      ok: true,
+    });
+    expect(revealPath).toHaveBeenCalledWith(
+      join(realpathSync(library.meetingPaths(id).exports), 'Invented sync-2026-11-03.docx'),
+    );
+    revealPath.mockClear();
+    expect(
+      await dispatchCall(handlers, 'revealExport', { exportId: 'not-an-export' }),
+    ).toMatchObject({ ok: false, error: { code: 'notFound' } });
+    expect(revealPath).not.toHaveBeenCalled();
   });
 
   it('refuses before starting when there is nothing to export', async () => {

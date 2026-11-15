@@ -322,6 +322,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   deleteMeeting: shape({ meetingId: id }, { removeLearnedData: flag }),
   openMeetingFolder: shape({ meetingId: id, folder: oneOf('meeting', 'audio', 'exports') }),
   exportMeeting: exportRequest,
+  revealExport: shape({ exportId: id }),
 
   getPrivacyJurisdictions: nothing,
   getSettings: nothing,

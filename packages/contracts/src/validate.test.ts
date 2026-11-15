@@ -83,6 +83,30 @@ describe('isValidRequest', () => {
     }
   });
 
+  it('reveals an export by id only and keeps paths out of exportMeeting', () => {
+    expect(CALL_NAMES).toContain('revealExport');
+    expect(isValidRequest('revealExport', { exportId: 'export-1' })).toBe(true);
+    expect(isValidRequest('revealExport', { path: '/tmp/a.docx' })).toBe(false);
+    expect(isValidRequest('revealExport', { exportId: 'export-1', path: '/tmp/a' })).toBe(false);
+    expect(isValidRequest('revealExport', undefined)).toBe(false);
+    const request = {
+      meetingId: 'm-1',
+      content: 'transcript',
+      format: 'docx',
+      transcript: {
+        title: true,
+        date: true,
+        duration: true,
+        speakerNames: true,
+        timestamps: true,
+        showCorrections: false,
+      },
+      summary: { length: 'brief', openQuestions: true, sourceTimestamps: true },
+    };
+    expect(isValidRequest('exportMeeting', request)).toBe(true);
+    expect(isValidRequest('exportMeeting', { ...request, path: '/tmp/x.docx' })).toBe(false);
+  });
+
   it('checks unions by kind', () => {
     const profile = { target: { kind: 'profile', profileId: 'p-1' }, name: 'Ana' };
     expect(isValidRequest('renameSpeaker', profile)).toBe(true);

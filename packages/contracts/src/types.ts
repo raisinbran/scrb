@@ -570,7 +570,14 @@ export interface ExportRequest {
 
 export type ExportFinished =
   | { exportId: ExportId; meetingId: MeetingId; ok: true; fileName: string }
-  | { exportId: ExportId; meetingId: MeetingId; ok: false; message: string };
+  | {
+      exportId: ExportId;
+      meetingId: MeetingId;
+      ok: false;
+      message: string;
+      /** The user closed the save dialog: not a failure, show no error. */
+      cancelled?: true;
+    };
 
 // Settings and models
 

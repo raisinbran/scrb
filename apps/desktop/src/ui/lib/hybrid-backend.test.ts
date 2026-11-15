@@ -55,6 +55,19 @@ describe('createHybridBackend', () => {
     );
   });
 
+  it('reveals an export on the side that saved it', async () => {
+    const real = {
+      call: vi.fn(async () => {
+        throw new ContractError({ code: 'notFound', message: 'No such export.' });
+      }),
+      on: vi.fn(),
+    } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call').mockResolvedValue(undefined as never);
+    await createHybridBackend(real, mock).call('revealExport', { exportId: 'export-1' });
+    expect(real.call).toHaveBeenCalledWith('revealExport', { exportId: 'export-1' });
+    expect(mockCall).toHaveBeenCalledWith('revealExport', { exportId: 'export-1' });
+  });
+
   it('sends About information to the real backend, never the mock', async () => {
     const real = { call: vi.fn(async () => undefined), on: vi.fn() } as unknown as Backend;
     const mockCall = vi.spyOn(mock, 'call');
