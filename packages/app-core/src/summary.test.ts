@@ -96,7 +96,9 @@ describe('summary engine to the UI contract', () => {
   const doc = toSummaryDoc('m-1', stored());
 
   it('tells a re-processed outdated summary from an edited one', () => {
-    expect(toSummaryDoc('m-1', { ...stored(), outdated: true }).outdatedByReprocess).toBeUndefined();
+    expect(
+      toSummaryDoc('m-1', { ...stored(), outdated: true }).outdatedByReprocess,
+    ).toBeUndefined();
     expect(
       toSummaryDoc('m-1', { ...stored(), outdated: true, reprocessed: true }).outdatedByReprocess,
     ).toBe(true);
