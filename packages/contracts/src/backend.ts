@@ -200,6 +200,7 @@ export interface BackendCalls {
   listMeetings: { request: { filter?: MeetingFilter }; response: MeetingListItem[] };
   /** @addition */
   getMeeting: { request: { meetingId: MeetingId }; response: MeetingDetail };
+  /** Re-runs the final pass: retries a failed one, or re-processes a finished meeting that still has audio. */
   retryFinalPass: { request: { meetingId: MeetingId }; response: void };
   /** @addition */
   updateMeeting: {

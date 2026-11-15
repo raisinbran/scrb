@@ -246,6 +246,29 @@ describe('final pass after Stop', () => {
     expect((await library.getMeeting(id)).status).toBe('transcriptionFailed');
   });
 
+  it('keeps a finished meeting readable when its re-run fails, and clears the marker on success', async () => {
+    const { id } = await sealedMeeting();
+    await library.updateMeeting(id, { status: 'recovered', statusBeforeReprocess: 'recovered' });
+    const failing = new FinalPassQueue(library, async () => {
+      throw new Error('boom');
+    });
+    failing.enqueue(id);
+    await failing.idle();
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'recovered',
+      statusBeforeReprocess: null,
+      transcriptionFailure: null,
+    });
+    await library.updateMeeting(id, { status: 'finalPassRunning', statusBeforeReprocess: 'ready' });
+    const working = new FinalPassQueue(library, async () => TRANSCRIPT);
+    working.enqueue(id);
+    await working.idle();
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'ready',
+      statusBeforeReprocess: null,
+    });
+  });
+
   it('stops reporting when the pass is cancelled', async () => {
     const { id } = await sealedMeeting();
     const reports: FinalPassReport[] = [];

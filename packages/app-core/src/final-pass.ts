@@ -328,7 +328,11 @@ export class FinalPassQueue {
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       this.abort.signal.throwIfAborted();
-      await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
+      await this.library.updateMeeting(meetingId, {
+        status: 'ready',
+        transcriptionFailure: null,
+        statusBeforeReprocess: null,
+      });
       report('finishing', 1);
       if (transcript && matching) {
         let edit: ProfileAssignmentEdit | undefined;
@@ -360,13 +364,24 @@ export class FinalPassQueue {
   private async fail(meetingId: string, error: unknown): Promise<void> {
     this.library.logger.log('error', 'final-pass-failed', { meetingId, ...errorFields(error) });
     try {
-      await this.library.updateMeeting(meetingId, {
-        status: 'transcriptionFailed',
-        transcriptionFailure:
-          error instanceof FinalPassUnavailableError
-            ? MISSING_TOOLS_MESSAGE
-            : WORKER_FAILED_MESSAGE,
-      });
+      const { statusBeforeReprocess } = await this.library.getMeeting(meetingId);
+      // A failed re-run of a finished meeting must not hide its good transcript.
+      await this.library.updateMeeting(
+        meetingId,
+        statusBeforeReprocess
+          ? {
+              status: statusBeforeReprocess,
+              transcriptionFailure: null,
+              statusBeforeReprocess: null,
+            }
+          : {
+              status: 'transcriptionFailed',
+              transcriptionFailure:
+                error instanceof FinalPassUnavailableError
+                  ? MISSING_TOOLS_MESSAGE
+                  : WORKER_FAILED_MESSAGE,
+            },
+      );
     } catch (saveError) {
       // The status stays `finalPassRunning`, so the pass is tried again on the next launch.
       this.library.logger.log('error', 'final-pass-status-failed', {
@@ -386,10 +401,17 @@ export async function resumeFinalPasses(
     if (queue) queue.enqueue(meetingId);
     else {
       await rm(finalPassDir(library, meetingId), { recursive: true, force: true });
-      await library.updateMeeting(meetingId, {
-        status: 'transcriptionFailed',
-        transcriptionFailure: NOT_ENABLED_MESSAGE,
-      });
+      const { statusBeforeReprocess } = await library.getMeeting(meetingId);
+      await library.updateMeeting(
+        meetingId,
+        statusBeforeReprocess
+          ? {
+              status: statusBeforeReprocess,
+              transcriptionFailure: null,
+              statusBeforeReprocess: null,
+            }
+          : { status: 'transcriptionFailed', transcriptionFailure: NOT_ENABLED_MESSAGE },
+      );
     }
   }
 }
