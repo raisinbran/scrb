@@ -348,6 +348,31 @@ export function createMeetingHandlers(
       const meeting = await requireMeeting(library, meetingId);
       return toDetail(library, meeting, await readSummaryState(library, meetingId, summaryRunning));
     },
+    updateMeeting: async (request) => {
+      const { meetingId, title, startedAt } = request as {
+        meetingId: string;
+        title?: string;
+        startedAt?: string;
+      };
+      const meeting = await requireMeeting(library, meetingId);
+      const trimmed = title?.trim();
+      if (title !== undefined && !trimmed) {
+        throw new ContractError({
+          code: 'invalidRequest',
+          message: 'A meeting title cannot be empty.',
+        });
+      }
+      // Only the saved title and date change. The folder and audio files keep their names.
+      const changes = {
+        ...(trimmed !== undefined && trimmed !== meeting.title && { title: trimmed }),
+        ...(startedAt !== undefined && startedAt !== meeting.date && { date: startedAt }),
+      };
+      const updated =
+        Object.keys(changes).length > 0 ? await library.updateMeeting(meetingId, changes) : meeting;
+      const item = await itemOf(updated);
+      if (updated !== meeting) emit?.('meetingChanged', item);
+      return toDetail(library, updated, item.summaryState);
+    },
     retryFinalPass: async (request) => {
       const { meetingId } = request as { meetingId: string };
       const meeting = await requireMeeting(library, meetingId);
