@@ -519,7 +519,11 @@ export function SummaryTab({ meeting, defaultLength, onPlay }: SummaryTabProps) 
             <>
               {doc.state === 'outdated' && (
                 <div className={styles.bannerWarning}>
-                  <span>May be outdated — regenerate?</span>
+                  <span>
+                    {doc.outdatedByReprocess
+                      ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
+                      : 'May be outdated — regenerate?'}
+                  </span>
                   <button
                     type="button"
                     className={styles.button}

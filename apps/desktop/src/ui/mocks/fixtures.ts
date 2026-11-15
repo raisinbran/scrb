@@ -301,6 +301,9 @@ export function createSummary(
         ],
     warnings:
       state === 'outdated' ? ['15:00 to 17:00 was paused, so the summary does not cover it.'] : [],
+    ...(state === 'outdated' && meetingId === 'meeting-outdated'
+      ? { outdatedByReprocess: true }
+      : {}),
   };
 }
 
