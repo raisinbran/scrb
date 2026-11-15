@@ -60,7 +60,7 @@ const PERIOD_OPTIONS: { value: AutoDeletePeriod; label: string }[] = [
 
 const SCOPE_OPTIONS: { value: AutoDeleteScope; label: string }[] = [
   { value: 'audioOnly', label: 'Audio' },
-  { value: 'wholeMeeting', label: 'Audio & Transcript' },
+  { value: 'wholeMeeting', label: 'Whole meeting' },
 ];
 
 type Draft = Pick<
@@ -88,7 +88,7 @@ function autoDeleteSentence({ period, scope }: Draft['autoDelete']): string {
   const age = PERIOD_OPTIONS.find((option) => option.value === period)?.label.toLowerCase();
   return scope === 'audioOnly'
     ? `The audio of meetings older than ${age} will be permanently deleted. Transcripts and summaries stay.`
-    : `Meetings older than ${age} will be permanently deleted: the audio, the transcript, and the summary and exports.`;
+    : `Meetings older than ${age} will be permanently deleted: the audio, the transcript, the summary and the exports.`;
 }
 
 function Select<T extends string>({

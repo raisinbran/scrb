@@ -183,3 +183,9 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+.legendRow {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}

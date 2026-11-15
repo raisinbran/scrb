@@ -360,12 +360,12 @@ describe('screens', () => {
         within(scope)
           .getAllByRole('option')
           .map((o) => o.textContent),
-      ).toEqual(['Audio', 'Audio & Transcript']);
+      ).toEqual(['Audio', 'Whole meeting']);
       fireEvent.change(scope, { target: { value: 'wholeMeeting' } });
       fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
       const dialog = await screen.findByRole('dialog');
       expect(dialog.textContent).toContain(
-        'Meetings older than 90 days will be permanently deleted: the audio, the transcript, and the summary and exports.',
+        'Meetings older than 90 days will be permanently deleted: the audio, the transcript, the summary and the exports.',
       );
       expect((await backend.call('getSettings')).autoDelete.period).toBe('never');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save and turn on' }));
@@ -374,6 +374,21 @@ describe('screens', () => {
         period: '90d',
         scope: 'wholeMeeting',
       });
+    });
+
+    it('describes exactly what the selected delete option removes', async () => {
+      renderScreen(backend, <SettingsScreen />);
+      fireEvent.change(await screen.findByRole('combobox', { name: /Auto-delete/ }), {
+        target: { value: '30d' },
+      });
+      const scope = screen.getByRole('combobox', { name: 'What to delete' });
+      expect(screen.getByText(/older than 30 days/).textContent).toBe(
+        'The audio of meetings older than 30 days will be permanently deleted. Transcripts and summaries stay.',
+      );
+      fireEvent.change(scope, { target: { value: 'wholeMeeting' } });
+      expect(screen.getByText(/older than 30 days/).textContent).toBe(
+        'Meetings older than 30 days will be permanently deleted: the audio, the transcript, the summary and the exports.',
+      );
     });
 
     it('warns under a listed state', async () => {
