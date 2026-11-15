@@ -11,12 +11,15 @@ import styles from './PopupBanner.module.css';
 export function PopupLayer({
   children,
   stackRef,
+  inline = false,
 }: {
   children?: ReactNode;
   stackRef?: Ref<HTMLDivElement>;
+  /** Banners take their own room above the content instead of floating over it. For panels whose first row is controls. */
+  inline?: boolean;
 }) {
   return (
-    <div className={styles.layer}>
+    <div className={inline ? styles.inline : styles.layer}>
       <div ref={stackRef} className={styles.stack}>
         {children}
       </div>

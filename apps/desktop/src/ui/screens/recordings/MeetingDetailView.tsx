@@ -783,7 +783,7 @@ function LoadedDetail(props: LoadedDetailProps) {
           </p>
         )}
         {undoState.error && <p role="alert">{undoState.error}</p>}
-        <PopupLayer stackRef={setPopupSlot}>
+        <PopupLayer stackRef={setPopupSlot} inline={tab === 'Summary'}>
           {folderError && (
             <PopupBanner role="alert" level="danger" onDismiss={() => setFolderError(null)}>
               <p>{folderError}</p>

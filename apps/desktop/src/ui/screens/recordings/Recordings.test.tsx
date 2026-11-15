@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
@@ -145,6 +147,24 @@ describe('Recordings', () => {
       expect(panel?.contains(banner)).toBe(true);
       expect(screen.getByRole('tablist', { name: 'Meeting' }).contains(banner)).toBe(false);
       expect(document.querySelector('header')?.contains(banner)).toBe(false);
+    });
+
+    it('puts Summary tab banners in flow, ahead of the controls, so none is covered', async () => {
+      renderScreen();
+      await openTab(/Budget review/, 'Summary');
+      const banner = screen.getByText(/Final transcript is still being processed/);
+      const layer = banner.closest('[class*="inline"]');
+      expect(layer).not.toBeNull();
+      const panel = document.getElementById('meeting-panel');
+      const controls = [...(panel?.querySelectorAll('button, input') ?? [])].filter(
+        (control) => !layer?.contains(control),
+      );
+      expect(controls.length).toBeGreaterThan(0);
+      for (const control of controls) {
+        expect(layer?.compareDocumentPosition(control)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      }
+      const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
+      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
     });
 
     it('fills the bar from the final pass progress event and names the stage', async () => {
