@@ -12,7 +12,7 @@ import { useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
-import { HealthIndicator, LagIndicator, LiveAlerts } from './live/LiveAlerts.tsx';
+import { LiveAlerts } from './live/LiveAlerts.tsx';
 import { MicTest } from './live/MicTest.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
@@ -145,10 +145,6 @@ export function LiveScreen() {
           onResume={resume}
           onStop={stop}
         />
-        <div className={styles.indicators}>
-          <HealthIndicator health={health} active={active} />
-          <LagIndicator lag={lag} active={active} />
-        </div>
       </div>
       <div className={styles.sources}>
         {selection && (

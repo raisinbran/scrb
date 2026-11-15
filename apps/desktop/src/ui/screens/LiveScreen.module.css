@@ -219,29 +219,6 @@ button:disabled {
   transition: transform 100ms linear;
 }
 
-.indicators {
-  display: flex;
-  gap: var(--space-4);
-  margin-inline-start: auto;
-  font-size: var(--text-sm);
-}
-
-.indicator {
-  color: var(--color-text-muted);
-}
-
-.indicator[data-level='ok'] {
-  color: var(--color-ok);
-}
-
-.indicator[data-level='warning'] {
-  color: var(--color-warning);
-}
-
-.indicator[data-level='failed'] {
-  color: var(--color-danger);
-}
-
 /* Notices float over the top of the transcript, so they never push it down. */
 .alertsSlot {
   position: relative;

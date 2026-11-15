@@ -307,11 +307,10 @@ describe('LiveScreen', () => {
         expect(button('Pause')).toBeTruthy();
 
         act(() => real.emit('transcriptionLag', { status: 'ok', lagMs: 0 }));
-        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
+        expect(screen.queryByRole('alert')).toBeNull();
 
         act(() => real.emit('transcriptionLag', { status: 'failed', lagMs: 0 }));
-        expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: stopped');
-        expect(screen.getByTestId('recording-health').textContent).toBe('Recording: healthy');
+        expect(screen.getByRole('alert').textContent).toContain('Live transcription stopped');
       } finally {
         real.dispose();
       }
@@ -326,23 +325,58 @@ describe('LiveScreen', () => {
       await startMeeting();
       await trigger(id);
       expect(screen.getByRole('alert').textContent).toContain(title);
-      expect(screen.getByTestId('recording-health').textContent).toContain('needs attention');
+      expect(screen.getByRole('alert').textContent).toMatch(/Check|Allow|Free up/);
     });
 
     it('keeps a transcription failure apart from recording health', async () => {
       await startMeeting();
       await trigger('transcription-failed');
-      expect(screen.getByTestId('recording-health').textContent).toBe('Recording: healthy');
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: stopped');
-      expect(screen.getByRole('alert').textContent).toContain('not affected');
+      const alerts = screen.getAllByRole('alert');
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]?.textContent).toContain('Live transcription stopped');
+      expect(alerts[0]?.textContent).not.toMatch(/recorded|nothing is lost/);
+    });
+
+    it('shows nothing about recording or transcript when idle or healthy', async () => {
+      render(
+        <BackendProvider backend={backend}>
+          <LiveScreen />
+        </BackendProvider>,
+      );
+      await advance(0);
+      expect(screen.queryByText(/Recording: |Transcript: /)).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('keeps both banners truthful when recording and transcription fail together', async () => {
+      await startMeeting();
+      await trigger('permission-lost');
+      act(() =>
+        backend.emit('recordingHealth', {
+          level: 'failed',
+          warnings: [{ kind: 'audioMissing', message: 'No audio is arriving.', atMs: 1000 }],
+          diskFreeBytes: 1e9,
+        }),
+      );
+      await trigger('transcription-failed');
+      const text = screen.getAllByRole('alert').map((alert) => alert.textContent ?? '');
+      expect(text.some((t) => t.includes('Audio missing'))).toBe(true);
+      const transcript = text.find((t) => t.includes('Live transcription stopped')) ?? '';
+      expect(transcript).not.toMatch(/recorded|nothing is lost|not affected/);
+    });
+
+    it('says what is wrong when transcription restarts', async () => {
+      await startMeeting();
+      await trigger('transcription-restarting');
+      expect(screen.getByRole('alert').textContent).toContain('restarting');
     });
 
     it('says "Catching up" only once the delay has reached 10 seconds', async () => {
       await startMeeting();
       await trigger('lagging');
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Catching up');
+      expect(screen.getByText(/Transcript is catching up/)).toBeTruthy();
       act(() => backend.emit('transcriptionLag', { status: 'lagging', lagMs: 9_000 }));
-      expect(screen.getByTestId('transcript-lag').textContent).toBe('Transcript: live');
+      expect(screen.queryByText(/Transcript is catching up/)).toBeNull();
     });
 
     it('shows the privacy banner until dismissed, and again at the next recording', async () => {

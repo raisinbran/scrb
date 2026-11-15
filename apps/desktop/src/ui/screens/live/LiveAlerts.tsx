@@ -3,6 +3,7 @@ import type {
   RecordingHealth,
   RecordingWarning,
   RecordingWarningKind,
+  TrackKind,
   TranscriptionLag,
 } from '@scrb/contracts';
 import { LAG_NOTICE_MS } from '../../lib/lag.ts';
@@ -20,59 +21,30 @@ const WARNING_TITLES: Record<RecordingWarningKind, string> = {
   pauseFailed: 'Recording ended',
 };
 
-export function HealthIndicator({
-  health,
-  active,
-}: {
-  health: RecordingHealth | null;
-  active: boolean;
-}) {
-  const level = active ? (health?.level ?? 'ok') : 'idle';
-  const text = {
-    idle: 'Recording: ready',
-    ok: 'Recording: healthy',
-    warning: 'Recording: needs attention',
-    failed: 'Recording: failed',
-  }[level];
-  return (
-    <span className={styles.indicator} data-level={level} data-testid="recording-health">
-      {text}
-    </span>
-  );
-}
+/** What the person can do about each kind of warning. */
+const WARNING_ADVICE: Record<RecordingWarningKind, string> = {
+  micSilent: 'Check that the microphone is not muted and is the one selected above.',
+  lowDisk: 'Free up disk space soon, or the recording may stop.',
+  deviceChanged: 'Check which microphone is selected above.',
+  permissionLost: 'Allow Scribe to record in your computer’s privacy settings.',
+  audioMissing: 'Check that the meeting app is playing sound and is the one selected above.',
+  bluetoothHandsFreeMic: 'Use a wired or built-in microphone for better quality.',
+  meetingAppExited:
+    'Only the microphone is being recorded now. Pick another app to capture its audio.',
+  pauseFailed: 'Audio saved so far is kept.',
+};
 
-function lagText(lag: TranscriptionLag | null): { text: string; level: string } {
-  switch (lag?.status) {
-    case 'ok':
-      return { text: 'Transcript: live', level: 'ok' };
-    case 'lagging':
-      // A short delay is normal, so only a sustained one is mentioned, and calmly.
-      return lag.lagMs >= LAG_NOTICE_MS
-        ? { text: 'Catching up', level: 'idle' }
-        : { text: 'Transcript: live', level: 'ok' };
-    case 'restarting':
-      return { text: 'Transcript: restarting', level: 'warning' };
-    case 'failed':
-      return { text: 'Transcript: stopped', level: 'failed' };
-    case 'off':
-    default:
-      return { text: 'Transcript: off', level: 'idle' };
-  }
-}
-
-export function LagIndicator({ lag, active }: { lag: TranscriptionLag | null; active: boolean }) {
-  const { text, level } = lagText(active ? lag : null);
-  return (
-    <span className={styles.indicator} data-level={level} data-testid="transcript-lag">
-      {text}
-    </span>
-  );
-}
+const TRACK_NAMES: Record<TrackKind, string> = {
+  microphone: 'the microphone',
+  meeting: 'the meeting audio',
+};
 
 function WarningBanner({ warning, failed }: { warning: RecordingWarning; failed: boolean }) {
   return (
     <div className={styles.banner} data-level={failed ? 'failed' : 'warning'} role="alert">
       <strong>{WARNING_TITLES[warning.kind]}.</strong> {warning.message}
+      {warning.track && <> This affects {TRACK_NAMES[warning.track]}.</>}{' '}
+      {WARNING_ADVICE[warning.kind]}
       {warning.atMs > 0 && <span className={styles.bannerTime}>{formatElapsed(warning.atMs)}</span>}
     </div>
   );
@@ -112,7 +84,19 @@ export function LiveAlerts(props: LiveAlertsProps) {
       )}
       {active && lag?.status === 'failed' && (
         <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription stopped.</strong> Your recording is not affected.
+          <strong>Live transcription stopped.</strong> No new text will appear here until it starts
+          again.
+        </div>
+      )}
+      {active && lag?.status === 'restarting' && (
+        <div className={styles.banner} data-level="warning" role="alert">
+          <strong>Live transcription is restarting.</strong> New text may be delayed.
+        </div>
+      )}
+      {active && lag?.status === 'lagging' && lag.lagMs >= LAG_NOTICE_MS && (
+        <div className={styles.banner} data-level="warning" role="status">
+          <strong>Transcript is catching up.</strong> It is about {Math.round(lag.lagMs / 1000)}{' '}
+          seconds behind.
         </div>
       )}
       {device && <DeviceNotice {...props} device={device} />}
