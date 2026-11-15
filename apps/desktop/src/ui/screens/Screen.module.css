@@ -48,3 +48,18 @@
 .secondary {
   color: var(--color-text-muted);
 }
+
+/* Holds the screen's space, and shows its words only if loading takes noticeably long, so a quick
+   load never flashes a message and then rearranges the screen. */
+.loading {
+  min-height: 50vh;
+  margin: 0;
+  visibility: hidden;
+  animation: loading-show 0s linear 300ms forwards;
+}
+
+@keyframes loading-show {
+  to {
+    visibility: visible;
+  }
+}

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
+import { forgetSources } from '../lib/sources-cache.ts';
 import { MockBackend } from '../mocks/index.ts';
 import { ThemeProvider } from '../theme/ThemeProvider.tsx';
 import { SettingsScreen } from './SettingsScreen.tsx';
@@ -331,6 +332,22 @@ describe('screens', () => {
       expect(await saveBar()).toBeTruthy();
       const quality = screen.getByRole('combobox', { name: 'Performance' });
       expect((quality as HTMLSelectElement).value).toBe('fast');
+    });
+
+    it('holds one loading state, then the form, while devices are slow to list', async () => {
+      forgetSources();
+      const real = backend.call.bind(backend);
+      let release!: () => void;
+      const gate = new Promise<void>((done) => (release = done));
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, ...args: unknown[]) =>
+        name === 'listInputDevices'
+          ? gate.then(() => (real as (n: string, ...a: unknown[]) => unknown)(name, ...args))
+          : (real as (n: string, ...a: unknown[]) => unknown)(name, ...args)) as never);
+      renderScreen(backend, <SettingsScreen />);
+      expect(screen.getByRole('status').textContent).toBe('Loading…');
+      expect(screen.queryByRole('combobox', { name: 'Performance' })).toBeNull();
+      release();
+      expect(await screen.findByRole('combobox', { name: 'Performance' })).toBeTruthy();
     });
 
     it('asks before turning on auto-delete', async () => {

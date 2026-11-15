@@ -78,7 +78,13 @@ export function DataView<T>({
   state: BackendData<T>;
   children: (data: T) => ReactNode;
 }) {
-  if (state.status === 'loading') return <p role="status">Loading…</p>;
+  if (state.status === 'loading') {
+    return (
+      <p role="status" className={styles.loading}>
+        Loading…
+      </p>
+    );
+  }
   if (state.status === 'failed') return <p role="alert">{state.message}</p>;
   return <>{children(state.data)}</>;
 }

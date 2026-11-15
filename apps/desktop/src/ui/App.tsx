@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FirstLaunchLocation } from './components/FirstLaunchLocation.tsx';
 import { SpeakerSuggestionsProvider } from './components/speakers/SpeakerSuggestions.tsx';
+import { useBackend } from './lib/backend-context.tsx';
+import { fetchSources } from './lib/sources-cache.ts';
 import { PlaybackProvider } from './lib/playback-context.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SCREENS, type ScreenId } from './screens/index.ts';
@@ -18,6 +20,12 @@ export function App() {
   const [screenId, setScreenId] = useState<ScreenId>(restoreScreen);
   const [setupRound, setSetupRound] = useState(0);
   const [backRound, setBackRound] = useState(0);
+  const backend = useBackend();
+
+  // The device and app lists are slow to fetch; asking at launch lets Settings and Live draw at once.
+  useEffect(() => {
+    fetchSources(backend).catch(() => undefined);
+  }, [backend]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
+import { forgetSources } from '../lib/sources-cache.ts';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { createHybridBackend } from '../lib/hybrid-backend.ts';
 import { MockBackend } from '../mocks/index.ts';
@@ -111,6 +112,23 @@ describe('LiveScreen', () => {
   });
 
   describe('sources', () => {
+    it('holds the pickers in place but hidden until the device lists arrive', async () => {
+      forgetSources();
+      const real = backend.call.bind(backend) as (name: string, ...args: unknown[]) => unknown;
+      let release!: () => void;
+      const gate = new Promise<void>((done) => (release = done));
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, ...args: unknown[]) =>
+        name === 'listInputDevices'
+          ? gate.then(() => real(name, ...args))
+          : real(name, ...args)) as never);
+      await renderLive();
+      expect(screen.getByLabelText('Microphone')).toBeTruthy();
+      expect(document.querySelector('[class*="pickersPending"]')).not.toBeNull();
+      release();
+      await advance(0);
+      expect(document.querySelector('[class*="pickersPending"]')).toBeNull();
+    });
+
     it('restores the saved sources and always offers the fallback', async () => {
       await renderLive();
       const app = screen.getByLabelText<HTMLSelectElement>('Meeting app');

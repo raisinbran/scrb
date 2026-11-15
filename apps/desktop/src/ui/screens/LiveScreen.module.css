@@ -289,3 +289,7 @@ button:disabled {
 .idleBody {
   margin: 0;
 }
+
+.pickersPending {
+  visibility: hidden;
+}

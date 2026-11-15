@@ -1,11 +1,6 @@
+import { cachedSources, fetchSources, type Sources } from '../lib/sources-cache.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  Backend,
-  DeviceChange,
-  InputDevice,
-  MeetingApp,
-  SourceSelection,
-} from '@scrb/contracts';
+import { WHOLE_COMPUTER_SOURCE_ID, type DeviceChange, type SourceSelection } from '@scrb/contracts';
 import { isTranscribing } from '../components/RecordingDot.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useSetupBlocked } from '../lib/mock-mode.tsx';
@@ -20,19 +15,6 @@ import { TranscriptView, type TranscriptViewHandle } from './live/TranscriptView
 import { useLiveShortcuts } from './live/use-live-shortcuts.ts';
 import styles from './LiveScreen.module.css';
 
-interface Sources {
-  devices: InputDevice[];
-  apps: MeetingApp[];
-}
-
-async function loadSources(backend: Backend): Promise<Sources> {
-  const [devices, apps] = await Promise.all([
-    backend.call('listInputDevices'),
-    backend.call('listMeetingApps'),
-  ]);
-  return { devices, apps };
-}
-
 function messageOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : 'Something went wrong.';
 }
@@ -40,7 +22,10 @@ function messageOf(failure: unknown): string {
 export function LiveScreen() {
   const backend = useBackend();
   const { recording, health, lag } = useRecordingStatus();
-  const [sources, setSources] = useState<Sources>({ devices: [], apps: [] });
+  const [sources, setSources] = useState<Sources>(
+    () => cachedSources() ?? { devices: [], apps: [] },
+  );
+  const [sourcesReady, setSourcesReady] = useState(() => cachedSources() !== null);
   const [selection, setSelection] = useState<SourceSelection | null>(null);
   const [fontPx, setFontPx] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +36,13 @@ export function LiveScreen() {
   const transcriptRef = useRef<TranscriptViewHandle>(null);
 
   const refreshSources = useCallback(() => {
-    loadSources(backend).then(setSources, (failure: unknown) => setError(messageOf(failure)));
+    fetchSources(backend).then(
+      (loaded) => {
+        setSources(loaded);
+        setSourcesReady(true);
+      },
+      (failure: unknown) => setError(messageOf(failure)),
+    );
   }, [backend]);
 
   useEffect(() => {
@@ -147,15 +138,16 @@ export function LiveScreen() {
         />
       </div>
       <div className={styles.sources}>
-        {selection && (
+        {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
+        <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
           <SourcePickers
             devices={sources.devices}
             apps={sources.apps}
-            selection={selection}
+            selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
             switching={switching}
             onSelect={selectSources}
           />
-        )}
+        </div>
         {status === 'idle' ? (
           <MicTest sources={selection} devices={sources.devices} />
         ) : (
