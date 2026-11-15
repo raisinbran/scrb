@@ -83,7 +83,7 @@ Item 27 answer; Gate 6 bar; Windows Gate 3 closure (one clip enough? 21/21 impor
 
 ## 5. Machines and agents
 
-Mac: M5 MacBook Air, 10 cores, 16 GB. Regiurn: i7-14700K, 32 GB, RTX 3080 (preferred for long heavy runs). BCHEN-W10: Xeon W-11855M, 64 GB, RTX A3000 (random-shutoff quirk). Claude weekly allowance was 82% used at 01:40 PST (shared by chat and Code); Codex had 21% weekly left (owner's figure). Plan: stop at 99%, durable handoff before running out (owner decision 2026-11-08). Branch and usage rules in `agents/agent_task_allocation.md` (policy only; do not open `agents/usage-log.md`).
+Mac: M5 MacBook Air, 10 cores, 16 GB. Regiurn: i7-14700K, 32 GB, RTX 3080 (preferred for long heavy runs). BCHEN-W10: Xeon W-11855M, 64 GB, RTX A3000 (has shut off unexpectedly 3 to 5 times in about 4 years, per the owner: rare, so commit and push early but do not treat it as unreliable). Claude weekly allowance was 82% used at 01:40 PST (shared by chat and Code); Codex had 21% weekly left (owner's figure). Plan: stop at 99%, durable handoff before running out (owner decision 2026-11-08). Branch and usage rules in `agents/agent_task_allocation.md` (policy only; do not open `agents/usage-log.md`).
 
 ## 6. Observed agent strengths and weaknesses (this session, 2026-11-14 to 15; evidence is thin outside the first three)
 
