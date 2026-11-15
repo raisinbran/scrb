@@ -30,7 +30,7 @@
 - **November 9, 2026, approximately 2:48 PM PST:** **452** commits reachable from `main` at pinned head [`a964d25e09da453d027d2bddfc9cdaccb5d15076`](https://github.com/raisinbran/scrb/commit/a964d25e09da453d027d2bddfc9cdaccb5d15076). GitHub's paginated `GET /repos/raisinbran/scrb/commits?sha=main&per_page=100&page=N` returned 452 unique commits across five pages (100, 100, 100, 100, 52); page six was empty.
 - **Earlier November 3, 2026 snapshot:** 422 commits at `main` `2abb0d54` (reported in the earlier conversation). The increase is **30**. The current head history assigns **6** of its commits to November 3 whereas the earlier graph assigned **1**, since merges can introduce commits dated before they become reachable on `main`. **Do not confuse** a past observed snapshot count with a recomputed historical date-series.
 - **Gate approvals:** Gates **0 and 1 on October 30**, Gate **2 on November 1** (all owner-approved, cross-platform); **macOS Gate 3 on November 2** as a *platform-only* approval. Windows Gate 3 is not yet approved and therefore there are only **3/9** fully approved gates.
-- **Evidence:** [Gate 0](../../phase0/evidence/gate-0.md), [Gate 1](../gates/gate-1.md), [Gate 2](../gates/gate-2.md), [Mac Gate 3 approval on PR #47](https://github.com/raisinbran/scrb/blob/1eda6eb0fae5b672e23250a3d0782da24d4e8624/docs/gates/gate-3-macos.md), and the unapproved Windows [retest PR #74](https://github.com/raisinbran/scrb/pull/74).
+- **Evidence:** Gate 0 (its evidence folder is no longer in the repository), [Gate 1](../gates/gate-1.md), [Gate 2](../gates/gate-2.md), [Mac Gate 3 approval on PR #47](https://github.com/raisinbran/scrb/blob/1eda6eb0fae5b672e23250a3d0782da24d4e8624/docs/gates/gate-3-macos.md), and the unapproved Windows [retest PR #74](https://github.com/raisinbran/scrb/pull/74).
 - **Interpretation:** commit totals include every reachable commit (including merge commits, tests and documentation), but exclude unmerged PRs. Daily grouping uses each commit's **committer timestamp** in `America/Los_Angeles`. The timeline is **not** a measurement of feature completion or person-hours.
 
 **Update practice:** Do not overwrite any of the November 9, November 11 or November 13 observations. For each later report, append another complete dated `snapshot_time_pacific` series to `commit-gate-timeline.csv`, pin its `snapshot_main_head`, and update the SVG to display the new snapshot with clear dates and gate distinctions. If the current `main` history has changed through branch merges, explain why its retrospective date counts differ from prior snapshots.
@@ -47,15 +47,15 @@ The source-of-truth chart data is [phase-progress-history.csv](phase-progress-hi
 
 | Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST | Nov 9 2:52 PM PST | Nov 11 1:12 PM PST | Nov 13 5:18 PM PST |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 — Feasibility | 100% | 100% | 100% | 100%  100%  100%  100% |
-| 1 — Foundation | 100% | 100% | 100% | 100%  100%  100%  100% |
-| 2 — Recording | 65% | 100% | 100% | 100%  100%  100%  100% |
-| 3 — Transcription | 0%† | 0%† | 35% | **70%**  **70%**  **80%**  **85%** |
-| 4 — Speakers | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
-| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
-| 6 — Summaries | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
-| 7 — Library and export | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
-| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%†  0%†  0%†  0%† |
+| 0 — Feasibility | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 1 — Foundation | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 2 — Recording | 65% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 3 — Transcription | 0%† | 0%† | 35% | **70%** | **70%** | **80%** | **85%** |
+| 4 — Speakers | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 6 — Summaries | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 7 — Library and export | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
 | **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** |
 
 † **Unassessed:** zero is a historical chart placeholder, *not* an observation of 0% engineering work or no progress. The CSV's corresponding `phase_N_assessment_status` is `not_assessed`; consumers should treat that cell as missing data in percentage analyses. Formally approved gates and subjective readiness estimates have different meanings.
