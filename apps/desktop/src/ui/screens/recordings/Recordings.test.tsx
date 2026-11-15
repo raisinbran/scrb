@@ -1127,7 +1127,7 @@ describe('Recordings', () => {
       fireEvent.click(within(dialog).getByRole('radio', { name: 'Both' }));
       fireEvent.click(within(dialog).getByRole('radio', { name: 'PDF' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
-      fireEvent.click(await button('Open folder', SLOW));
+      fireEvent.click(await button('Show in folder', SLOW));
       expect(call).toHaveBeenCalledWith(
         'exportMeeting',
         expect.objectContaining({
@@ -1136,10 +1136,8 @@ describe('Recordings', () => {
         }),
       );
       expect(call).toHaveBeenCalledWith(
-        'openMeetingFolder',
-        expect.objectContaining({
-          folder: 'exports',
-        }),
+        'revealExport',
+        expect.objectContaining({ exportId: expect.any(String) }),
       );
     });
 
@@ -1157,7 +1155,18 @@ describe('Recordings', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
       expect(await screen.findByText('The export could not be saved.', {}, SLOW)).toBeTruthy();
       fireEvent.click(await button('Try again'));
-      expect(await button('Open folder', SLOW)).toBeTruthy();
+      expect(await button('Show in folder', SLOW)).toBeTruthy();
+    });
+
+    it('returns to the options with no error when the save dialog is cancelled', async () => {
+      renderScreen();
+      const dialog = await openExport(/Depot rollout/);
+      backend.arm('exportCancelled');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
+      expect(await screen.findByText('Choose where to save…')).toBeTruthy();
+      expect(await button('Export', SLOW)).toBeTruthy();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByText('Export cancelled.')).toBeNull();
     });
 
     it('closes with Escape', async () => {

@@ -337,12 +337,15 @@ void app.whenReady().then(async () => {
   }
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  const backend = await openBackend((name, payload) => {
-    if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
-    for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
-    }
-  });
+  const backend = await openBackend(
+    (name, payload) => {
+      if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+      }
+    },
+    () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
+  );
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();

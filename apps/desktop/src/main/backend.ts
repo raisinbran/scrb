@@ -1,4 +1,4 @@
-import { app, dialog, shell, systemPreferences } from 'electron';
+import { app, dialog, shell, systemPreferences, type BrowserWindow } from 'electron';
 import path from 'node:path';
 import {
   createConfiguredImportRunner,
@@ -25,7 +25,7 @@ import { PlaybackMedia } from './playback-media.ts';
 import { RecordingController, recoverInterrupted } from './recording.ts';
 import { applyLivePerformance, readLiveSetup, readWhisperOverride } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
-import { createExportHandlers } from './export.ts';
+import { createExportHandlers, ExportRefused } from './export.ts';
 import { readSummaryPaths, SummaryController, type SummaryEngine } from './summary.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
@@ -43,6 +43,8 @@ import { ContractError } from '@scrb/contracts';
 import { createModelDownloader, extractWithTar, sourcesFor } from './model-download.ts';
 import os from 'node:os';
 
+const FORMAT_NAMES = { docx: 'Word document', pdf: 'PDF', vtt: 'WebVTT captions' } as const;
+
 export interface OpenedBackend {
   handlers: CallHandlers;
   /** Null when no library opened, so there is no audio to serve. */
@@ -58,6 +60,7 @@ export interface OpenedBackend {
 /** Opens the library. On failure the app still runs and the UI keeps settings for this run only. */
 export async function openBackend(
   emit: <K extends EventName>(name: K, payload: BackendEvents[K]) => void,
+  parentWindow: () => BrowserWindow | null = () => null,
 ): Promise<OpenedBackend> {
   const fallback = path.join(app.getPath('documents'), 'Meeting Scribe');
   try {
@@ -322,6 +325,18 @@ export async function openBackend(
           emit,
           print: printHtmlToPdf,
           renderDocx: createDocxRenderer(path.join(__dirname, 'exportWorkerEntry.mjs')),
+          locationFile: path.join(app.getPath('userData'), 'export-location.json'),
+          revealPath: (file) => shell.showItemInFolder(file),
+          chooseSavePath: async ({ defaultPath, format }) => {
+            const parent = parentWindow();
+            if (!parent) throw new ExportRefused('The window was closed.');
+            const picked = await dialog.showSaveDialog(parent, {
+              defaultPath,
+              filters: [{ name: FORMAT_NAMES[format], extensions: [format] }],
+              properties: ['createDirectory', 'showOverwriteConfirmation'],
+            });
+            return picked.canceled ? null : (picked.filePath ?? null);
+          },
         }),
         ...recording?.handlers,
         ...(packaged && packaged.models.some((m) => !m.installed) && modelDownloader

@@ -115,6 +115,7 @@ const PICKED_STORAGE_LOCATION = '/Users/example/Documents/Meeting Scribe';
 export type ArmedFault =
   | 'deleteFails'
   | 'exportFails'
+  | 'exportCancelled'
   | keyof typeof IMPORT_FAULTS
   | 'pickerCancelled'
   | 'deleteSlow'
@@ -254,6 +255,7 @@ function toListItem(meeting: MeetingDetail): MeetingListItem {
 export class MockBackend implements Backend {
   private readonly listeners = new Map<EventName, Set<Listener>>();
   private readonly armed = new Set<ArmedFault>();
+  private readonly savedExports = new Set<string>();
   /** Running summaries, with the state to restore if one is cancelled. */
   private readonly summaryRuns = new Map<
     string,
@@ -1420,8 +1422,20 @@ export class MockBackend implements Backend {
     exportMeeting: ({ meetingId, format }) => {
       const exportId = this.id('export');
       const ok = !this.armed.delete('exportFails');
+      const cancelled = this.armed.delete('exportCancelled');
       const { title } = this.findMeeting(meetingId);
       setTimeout(() => {
+        if (cancelled) {
+          this.emit('exportFinished', {
+            exportId,
+            meetingId,
+            ok: false,
+            message: 'Export cancelled.',
+            cancelled: true,
+          });
+          return;
+        }
+        if (ok) this.savedExports.add(exportId);
         this.emit(
           'exportFinished',
           ok
@@ -1430,6 +1444,14 @@ export class MockBackend implements Backend {
         );
       }, 900);
       return { exportId };
+    },
+    revealExport: ({ exportId }) => {
+      if (!this.savedExports.has(exportId)) {
+        throw new ContractError({
+          code: 'notFound',
+          message: 'That export is no longer available.',
+        });
+      }
     },
 
     getPrivacyJurisdictions: () => ({

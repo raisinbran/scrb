@@ -215,6 +215,8 @@ export interface BackendCalls {
   };
   openMeetingFolder: { request: { meetingId: MeetingId; folder: MeetingFolder }; response: void };
   exportMeeting: { request: ExportRequest; response: { exportId: ExportId } };
+  /** Shows the file this run saved for `exportId` in the system file manager. Unknown id gives `notFound`. */
+  revealExport: { request: { exportId: ExportId }; response: void };
 
   // Settings
   getPrivacyJurisdictions: { request: void; response: { countries: string[]; usStates: string[] } };
@@ -404,6 +406,7 @@ const CALL_TABLE: Record<CallName, true> = {
   deleteMeeting: true,
   openMeetingFolder: true,
   exportMeeting: true,
+  revealExport: true,
   getPrivacyJurisdictions: true,
   getSettings: true,
   updateSettings: true,

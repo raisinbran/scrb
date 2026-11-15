@@ -48,6 +48,13 @@ test('exports an invented transcript to real DOCX and PDF files', async () => {
 
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   try {
+    // The native save dialog cannot be driven headless: accept the suggested path.
+    await app.evaluate(({ dialog }) => {
+      dialog.showSaveDialog = (async (...args: unknown[]) => {
+        const options = args.at(-1) as { defaultPath: string };
+        return { canceled: false, filePath: options.defaultPath };
+      }) as typeof dialog.showSaveDialog;
+    });
     const page = await app.firstWindow();
     const results = await page.evaluate(async (meetingId) => {
       const bridge = window.scribeBridge;

@@ -209,6 +209,12 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.arm('exportFails'),
   },
   {
+    id: 'export-cancelled',
+    group: 'Recordings',
+    label: 'Next export is cancelled in the save dialog',
+    run: (b) => b.arm('exportCancelled'),
+  },
+  {
     id: 'summary-fails',
     group: 'Summary',
     label: 'Next summary fails',

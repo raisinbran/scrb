@@ -33,6 +33,7 @@ const SPEC_CALLS = [
   'deleteMeeting',
   'openMeetingFolder',
   'exportMeeting',
+  'revealExport',
   'getSettings',
   'updateSettings',
   'checkModelUpdates',
