@@ -2,7 +2,6 @@
 
 Chatgpt:
 
-
 Revised plan for `docs/plans/live-multi-speaker-diarization-slice2b.md`.
 
 The revisions follow the seven requested changes. I also checked the relevant implementation paths at `cb82b13`. The exact ES2004a evidence subdirectory could not be verified, so the calibration section includes a read-only discovery step rather than inventing a file path.
@@ -231,4 +230,3 @@ No additional owner approvals are proposed for profile provenance, new IPC metho
 - Added the read-only ES2004a calibration procedure before threshold approval.
 
 Remaining owner decisions: two. Contract review flag and calibrated matching thresholds.
-

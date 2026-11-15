@@ -26,7 +26,12 @@
 ## What blocks the intent, smallest slices first
 
 1. **Export of summaries (DOCX and PDF).** Remove the refusal for `summary` and `both` in `export.ts`, map the stored summary with `toExportSummary`, honour the Brief or Full choice and the options already in the dialog. VTT is disabled for Summary and Both in the dialog (Both with VTT would export only the transcript; owner decision below). Generated and edited items are exported as stored; an outdated summary exports with a visible "may be outdated" line. Depends on plan `export-native-save-dialog.md` only for where the file goes. No contract change. 6 to 8 hours. Can ship before the model work, since a user can already hold a developer-made summary.
-2. **Ship llama.cpp and the model to users.** Add the llama.cpp build to the packaged Mac and Windows apps and add the summary model to the setup list and model download as an **optional** download (a missing summary model must not block setup, per requirement 8). The current choice is Qwen3.5-9B Q4_K_M (a 9B model; multi-gigabyte file, exact size and digest to be pinned from the model page in this slice, not guessed here). `ModelRole` already has `'summary'`, so no contract change. Windows needs the CUDA or CPU llama.cpp build choice. 14 to 20 hours, partly on packaging (`packaged-mac-app.md`, `packaged-windows-app.md`).
+2. **Ship llama.cpp and the model to users**, split into four independently reviewable slices (2a to 2d below). The summary model is an **optional** download (a missing one must not block setup, per requirement 8). The current choice is Qwen3.5-9B Q4_K_M (a 9B model; multi-gigabyte file, exact size and digest to be pinned from the model page in slice 2c, not guessed here). `ModelRole` already has `'summary'`, so no contract change.
+   - **2a Mac packaging:** llama.cpp build in the packaged Mac app, signed and found by `readSummaryPaths` without the developer config file. About 4 to 5 hours.
+   - **2b Windows packaging:** the same for Windows, including the CUDA or CPU build choice and the runtime files. About 4 to 6 hours.
+   - **2c Download and verify:** summary model in the setup list and the real download, pinned size and digest, optional in setup status. About 4 to 5 hours.
+   - **2d Generation wiring:** `readSummaryPaths` and the Generate button use the packaged paths and report a missing model with a clear message. About 2 to 4 hours.
+     2a and 2b are independent; 2c is independent of both; 2d needs all three.
 3. **Memory and the "never during a recording" rule on real hardware.** The rule is already enforced in code (the model run refuses and aborts while a recording is active, and the gate is shared with the final pass). What is unproven is memory next to the speech models: Gate 6 sampled peak llama-server memory at 1.9 to 6.2 GiB (the sampler may have missed the real peak). Measure on the 16 GB Mac and Regiurn (peak total memory with the summary model loaded, speech models unloaded or idle, the final pass not running at the same time), and set the fallback: smaller context (already one retry), then a failure message. No code expected unless numbers fail. 4 to 6 hours.
 4. **Automatic generation after the final pass.** When a meeting's final pass finishes (status becomes ready) and the summary model is installed and no recording is active, queue one generation (both lengths). Setting `autoGenerateSummary`, default to be decided. If a recording starts, the run aborts and the meeting stays "not generated" with a note; it is not retried on its own while recording, and retries once when the app is next idle (not after a restart storm: once per meeting). A user edit never triggers it. Needs a settings field, which is a contract change (`AppSettings`, `SettingsPatch`), owner approval. 8 to 10 hours.
 5. **Wire quality honesty.** Show the existing warnings on exports and add "Summaries are drafts; check action items" text decided by the owner. Small; folds into slice 1.
@@ -42,7 +47,7 @@
 None recorded yet (2026-11-15). Note the contract approvals for plans A and B do not cover the settings change below.
 
 1. Auto-generate after the final pass: **on or off by default**? Recommended **off** until the hand-checked precision is known and the first real use shows the time and memory are acceptable; the setting exists either way. On by default costs several GB of download and many minutes of CPU or GPU after every meeting.
-2. Approve the settings contract change (`autoGenerateSummary`, and with it any "summary model" status fields) for slice 4.
+2. **NOT APPROVED.** The settings contract change (`autoGenerateSummary`, and with it any "summary model" status fields) for slice 4 needs separate owner approval. The approvals of the save-dialog and voice-preview contract calls do not cover it. No code for slice 4 starts until this is approved.
 3. Model: Qwen3.5-9B Q4_K_M as the single optional download, or a smaller model for 8 GB machines? (Gate 6 recall of 68% against 80% is also the owner's call: lower the target or try a larger model.)
 4. Export formats: DOCX and PDF only for summaries (recommended). For "Both" with VTT: export only the transcript, or disable Both for VTT?
 5. Approve the long timing and memory run, in the one-meeting-at-a-time form above.
@@ -51,9 +56,9 @@ None recorded yet (2026-11-15). Note the contract approvals for plans A and B do
 ## Slices (one PR each)
 
 1. Summary export (DOCX, PDF) in the real handler and dialog. No contract change.
-2. Packaged llama.cpp and optional summary model download, setup status.
+2. Packaged llama.cpp and the optional summary model, in four slices (2a Mac packaging, 2b Windows packaging, 2c download and verify, 2d generation wiring), one PR each.
 3. Memory and time measurement report (needs the long-run approval).
-4. `autoGenerateSummary` setting and the post-final-pass trigger (contract approval).
+4. `autoGenerateSummary` setting and the post-final-pass trigger (**contract change not approved**).
 5. Only if the measurements fail: a fallback or smaller model.
 
-Slices 1 and 2 are independent and can run in parallel; slice 4 needs 2.
+Slice 1 and slices 2a to 2c are independent and can run in parallel; slice 2d needs 2a to 2c, and slice 4 needs 2d and the owner's approval.

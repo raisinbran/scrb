@@ -102,14 +102,14 @@ stamps still place every chunk and find every gap. Only those close-time details
 `chunks.json` keeps its place in `audio/<track>/`, so imports and recordings share one format. It
 holds the fields in the capture draft (section 3), and adds:
 
-| Field | Meaning |
-| --- | --- |
-| `schemaVersion` | 2. The current file says `version`, which the storage upgrade ladder cannot read |
-| `origin` | `recorded` or `imported`; imported chunks have no device fields |
-| `endedBy` | `stop` or `crash` |
-| `endNs` | Where this track's saved audio ends |
-| `gaps` | Each missing span: kind, cause, start and end |
-| per chunk: `file`, `preSkip`, `state` | File name, how much to skip at decode, `complete` or `recovered` |
+| Field                                 | Meaning                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `schemaVersion`                       | 2. The current file says `version`, which the storage upgrade ladder cannot read |
+| `origin`                              | `recorded` or `imported`; imported chunks have no device fields                  |
+| `endedBy`                             | `stop` or `crash`                                                                |
+| `endNs`                               | Where this track's saved audio ends                                              |
+| `gaps`                                | Each missing span: kind, cause, start and end                                    |
+| per chunk: `file`, `preSkip`, `state` | File name, how much to skip at decode, `complete` or `recovered`                 |
 
 Three additions to the capture draft's lists: close reasons `recovered` and `appLost`, and gap cause
 `disk`. On disk the mic track is `microphone`, as in the folder name; code that says `mic` maps to
@@ -160,13 +160,13 @@ it, which can leave a tiny blemish every 5 seconds.
 
 **Options for recordings:**
 
-| | Simple cut (as import) | Fresh start per chunk | Cut with a short overlap |
-| --- | --- | --- | --- |
-| How | One long encode; skip set to 0 | Encoder restarted each chunk | One long encode; each chunk repeats the previous 80 ms and skips it |
-| Samples lost | None | None, if each chunk's end is flushed | None |
-| Each 5 s join | Decoder starts cold | Encoder and decoder start cold | Decoder has warmed up |
-| Extra disk | None | Small | About 1.6% (under 0.25 MB per track-hour) |
-| Code paths | Two | One | Two |
+|               | Simple cut (as import)         | Fresh start per chunk                | Cut with a short overlap                                            |
+| ------------- | ------------------------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| How           | One long encode; skip set to 0 | Encoder restarted each chunk         | One long encode; each chunk repeats the previous 80 ms and skips it |
+| Samples lost  | None                           | None, if each chunk's end is flushed | None                                                                |
+| Each 5 s join | Decoder starts cold            | Encoder and decoder start cold       | Decoder has warmed up                                               |
+| Extra disk    | None                           | Small                                | About 1.6% (under 0.25 MB per track-hour)                           |
+| Code paths    | Two                            | One                                  | Two                                                                 |
 
 **Recommendation: the overlap.** The Ogg Opus standard (RFC 7845) recommends 80 ms of skip for a
 stream cut from a longer one. Every file stays playable alone. Losing a chunk does not harm the next
@@ -185,16 +185,16 @@ before any other chunk code. If the overlap shows no gain, we take the simple cu
 
 These are small, and they are needed for the above. They come after this plan is approved.
 
-| Where | Problem found | Fix |
-| --- | --- | --- |
-| `importFile.ts` | `chunks.json` and `transcript.final.json` are plain writes, with no flush | Use the safe write; flush the folder after the final rename |
-| `importFile.ts` | It needs a folder that does not exist yet, but `Library.createMeeting` makes the folder first. The two cannot be joined, and nothing has joined them yet | Build `meeting.json` in the hidden folder too, so the final rename makes the whole meeting appear at once |
-| `importFile.ts` | `sweepAbandonedImports` matches any folder with `.importing-` in its name, and a meeting title can contain that text. Nothing calls it yet, but once wired a title like that would be deleted at start | Match only the exact hidden-folder pattern, and never a folder with a `meeting.json` |
-| `readChunkManifest` | No version check, no validation, reads the meeting track only | Use the storage format code; takes a track |
-| `audio.ts` `assembleChunks` | Three chunks decode at once, so the winner of an overlap is random. The capture draft says the later chunk wins | Write overlapping chunks in order |
-| `library.ts` `createMeeting` | The new folder is not flushed to disk | Flush the parent folder before audio starts |
-| `storage` | `removeTempFiles` is safe today (top level only, `.tmp-` names only) | Keep it that way, with a test, since `.part` files hold audio |
-| `formats/` | `chunks.json` has no format definition | Add one with `schemaVersion`, and an upgrade from the old form with a test |
+| Where                        | Problem found                                                                                                                                                                                          | Fix                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `importFile.ts`              | `chunks.json` and `transcript.final.json` are plain writes, with no flush                                                                                                                              | Use the safe write; flush the folder after the final rename                                               |
+| `importFile.ts`              | It needs a folder that does not exist yet, but `Library.createMeeting` makes the folder first. The two cannot be joined, and nothing has joined them yet                                               | Build `meeting.json` in the hidden folder too, so the final rename makes the whole meeting appear at once |
+| `importFile.ts`              | `sweepAbandonedImports` matches any folder with `.importing-` in its name, and a meeting title can contain that text. Nothing calls it yet, but once wired a title like that would be deleted at start | Match only the exact hidden-folder pattern, and never a folder with a `meeting.json`                      |
+| `readChunkManifest`          | No version check, no validation, reads the meeting track only                                                                                                                                          | Use the storage format code; takes a track                                                                |
+| `audio.ts` `assembleChunks`  | Three chunks decode at once, so the winner of an overlap is random. The capture draft says the later chunk wins                                                                                        | Write overlapping chunks in order                                                                         |
+| `library.ts` `createMeeting` | The new folder is not flushed to disk                                                                                                                                                                  | Flush the parent folder before audio starts                                                               |
+| `storage`                    | `removeTempFiles` is safe today (top level only, `.tmp-` names only)                                                                                                                                   | Keep it that way, with a test, since `.part` files hold audio                                             |
+| `formats/`                   | `chunks.json` has no format definition                                                                                                                                                                 | Add one with `schemaVersion`, and an upgrade from the old form with a test                                |
 
 ### Not in this plan
 
@@ -214,52 +214,52 @@ Tests marked "both" run on Windows and macOS.
 
 ### Crashes
 
-| # | What could go wrong | How it is handled | Test that proves it |
-| --- | --- | --- | --- |
-| 1 | Audio worker is killed mid-chunk | `.part` is kept; good pages become a chunk | F, both: force-kill at 1,000 random moments. Decoded audio matches the input up to the marked end, and no more than 1.1 s is lost |
-| 2 | Whole app is killed while recording | The worker sees the app has gone, closes both chunks and stops within 2 s (decision 3). Recovery runs at next start | F, both: force-kill the app, confirm the worker exits, no recording continues, and the meeting shows as recovered |
-| 3 | Power cut or system crash | Checksums reject torn or garbage data. Only forced-to-disk audio is promised | I: damage the last page at every byte position, with cuts, zeros and garbage. Recovery keeps all good pages and never errors. H, both: one hard power-off during a recording |
-| 4 | Crash between writing a chunk and renaming it, or between renaming and logging | Files on disk are the truth. If `.opus` and `.part` both exist, the checked `.opus` is used | I: stop the writer at each step of closing a chunk |
-| 5 | Crash during recovery | Every step repeats safely | I: stop recovery after every step, restart, and get the same result byte for byte |
-| 6 | Crash during Stop | Only a complete, terminal `stop` entry in `session.log` proves clean Stop; otherwise preserve audio as recovered | I: stop before and after writing the Stop entry |
-| 7 | Crash before any audio is saved | The meeting stays listed as recovered with no audio; nothing is deleted | I |
-| 8 | Crash while paused | Audio ends at the pause. No false gap afterwards | F: crash during a pause |
-| 9 | A worker is still writing when the app restarts | The lock stops recovery touching its files | F: leave a worker running, start recovery, and confirm no file is touched |
-| 10 | Audio worker crashes while the app stays up | Except after `pauseFailed`, which ends the meeting with no restart (`pause-resume.md`), the app restarts it in the same meeting; next chunk numbers follow on; the gap is marked (decision 4) | F, both: kill the worker three times in one recording |
-| 11 | The screen (renderer) crashes | Recording carries on, as the worker does not depend on it | F, both: kill the renderer during recording |
+| #   | What could go wrong                                                            | How it is handled                                                                                                                                                                             | Test that proves it                                                                                                                                                          |
+| --- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Audio worker is killed mid-chunk                                               | `.part` is kept; good pages become a chunk                                                                                                                                                    | F, both: force-kill at 1,000 random moments. Decoded audio matches the input up to the marked end, and no more than 1.1 s is lost                                            |
+| 2   | Whole app is killed while recording                                            | The worker sees the app has gone, closes both chunks and stops within 2 s (decision 3). Recovery runs at next start                                                                           | F, both: force-kill the app, confirm the worker exits, no recording continues, and the meeting shows as recovered                                                            |
+| 3   | Power cut or system crash                                                      | Checksums reject torn or garbage data. Only forced-to-disk audio is promised                                                                                                                  | I: damage the last page at every byte position, with cuts, zeros and garbage. Recovery keeps all good pages and never errors. H, both: one hard power-off during a recording |
+| 4   | Crash between writing a chunk and renaming it, or between renaming and logging | Files on disk are the truth. If `.opus` and `.part` both exist, the checked `.opus` is used                                                                                                   | I: stop the writer at each step of closing a chunk                                                                                                                           |
+| 5   | Crash during recovery                                                          | Every step repeats safely                                                                                                                                                                     | I: stop recovery after every step, restart, and get the same result byte for byte                                                                                            |
+| 6   | Crash during Stop                                                              | Only a complete, terminal `stop` entry in `session.log` proves clean Stop; otherwise preserve audio as recovered                                                                              | I: stop before and after writing the Stop entry                                                                                                                              |
+| 7   | Crash before any audio is saved                                                | The meeting stays listed as recovered with no audio; nothing is deleted                                                                                                                       | I                                                                                                                                                                            |
+| 8   | Crash while paused                                                             | Audio ends at the pause. No false gap afterwards                                                                                                                                              | F: crash during a pause                                                                                                                                                      |
+| 9   | A worker is still writing when the app restarts                                | The lock stops recovery touching its files                                                                                                                                                    | F: leave a worker running, start recovery, and confirm no file is touched                                                                                                    |
+| 10  | Audio worker crashes while the app stays up                                    | Except after `pauseFailed`, which ends the meeting with no restart (`pause-resume.md`), the app restarts it in the same meeting; next chunk numbers follow on; the gap is marked (decision 4) | F, both: kill the worker three times in one recording                                                                                                                        |
+| 11  | The screen (renderer) crashes                                                  | Recording carries on, as the worker does not depend on it                                                                                                                                     | F, both: kill the renderer during recording                                                                                                                                  |
 
 ### Disk and files
 
-| # | What could go wrong | How it is handled | Test that proves it |
-| --- | --- | --- | --- |
-| 12 | A cleanup step deletes a `.part` file | Different name from temp files; no cleanup looks inside `audio/` | I: a full reconcile leaves `.part` files byte-identical |
-| 13 | Disk fills up | Warning at low space, then a clean stop at the floor (decision 5). A failed write leaves only a torn page | F: a small disk image that fills during recording |
-| 14 | Disk stalls for many seconds | The holding buffer absorbs it; overflow becomes a marked gap with cause `disk` | F: delay writes 14 s, then 60 s. Capture never blocks, and the gap matches what was lost |
-| 15 | Library drive is removed or becomes read-only | Writing fails, the user is warned, the gap is marked, and audio held in memory is written if the drive returns | F + H: unplug during recording |
-| 16 | Windows antivirus briefly blocks a rename | Retries, off the audio path. A stuck `.part` is not lost | F: hold the file open during the rename, on Windows |
-| 17 | `chunks.log` is damaged or missing | Rebuilt from the chunk files; close details read "unknown" | I: cut, garble and delete the log |
-| 18 | `chunks.json` is damaged | Rebuilt from chunks, never overwritten blindly. A newer version raises an error, as with other formats | I |
-| 19 | `meeting.json` is unreadable | Folder is kept and reported, as now; audio untouched | I: already covered in part by storage tests; extend to a recording folder |
-| 20 | A chunk in the middle is damaged | Good pages are kept, the hole is marked, and neighbours are unaffected | I: corrupt one chunk in a sequence |
+| #   | What could go wrong                           | How it is handled                                                                                              | Test that proves it                                                                      |
+| --- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 12  | A cleanup step deletes a `.part` file         | Different name from temp files; no cleanup looks inside `audio/`                                               | I: a full reconcile leaves `.part` files byte-identical                                  |
+| 13  | Disk fills up                                 | Warning at low space, then a clean stop at the floor (decision 5). A failed write leaves only a torn page      | F: a small disk image that fills during recording                                        |
+| 14  | Disk stalls for many seconds                  | The holding buffer absorbs it; overflow becomes a marked gap with cause `disk`                                 | F: delay writes 14 s, then 60 s. Capture never blocks, and the gap matches what was lost |
+| 15  | Library drive is removed or becomes read-only | Writing fails, the user is warned, the gap is marked, and audio held in memory is written if the drive returns | F + H: unplug during recording                                                           |
+| 16  | Windows antivirus briefly blocks a rename     | Retries, off the audio path. A stuck `.part` is not lost                                                       | F: hold the file open during the rename, on Windows                                      |
+| 17  | `chunks.log` is damaged or missing            | Rebuilt from the chunk files; close details read "unknown"                                                     | I: cut, garble and delete the log                                                        |
+| 18  | `chunks.json` is damaged                      | Rebuilt from chunks, never overwritten blindly. A newer version raises an error, as with other formats         | I                                                                                        |
+| 19  | `meeting.json` is unreadable                  | Folder is kept and reported, as now; audio untouched                                                           | I: already covered in part by storage tests; extend to a recording folder                |
+| 20  | A chunk in the middle is damaged              | Good pages are kept, the hole is marked, and neighbours are unaffected                                         | I: corrupt one chunk in a sequence                                                       |
 
 ### Audio accuracy
 
-| # | What could go wrong | How it is handled | Test that proves it |
-| --- | --- | --- | --- |
-| 21 | Samples lost at each chunk (6.5 ms issue) | Writer rule above | I: encode a test signal, decode each chunk alone, and match the input to the sample across 5,760 chunks' worth of joins |
-| 22 | Last 6.5 ms lost on a forced close | Encoder is flushed and padding trimmed | I: every close reason in the capture draft |
-| 23 | Wrong length at 24 kHz | Skip and duration use 48 kHz units | I: hands-free rate case (F10) |
-| 24 | Overlapping chunks land in random order | Later chunk wins, in a fixed order; the earlier chunk stays on disk | I: fixture with a 50 ms overlap |
+| #   | What could go wrong                       | How it is handled                                                   | Test that proves it                                                                                                     |
+| --- | ----------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 21  | Samples lost at each chunk (6.5 ms issue) | Writer rule above                                                   | I: encode a test signal, decode each chunk alone, and match the input to the sample across 5,760 chunks' worth of joins |
+| 22  | Last 6.5 ms lost on a forced close        | Encoder is flushed and padding trimmed                              | I: every close reason in the capture draft                                                                              |
+| 23  | Wrong length at 24 kHz                    | Skip and duration use 48 kHz units                                  | I: hands-free rate case (F10)                                                                                           |
+| 24  | Overlapping chunks land in random order   | Later chunk wins, in a fixed order; the earlier chunk stays on disk | I: fixture with a 50 ms overlap                                                                                         |
 
 ### Transcript, delete and import
 
-| # | What could go wrong | How it is handled | Test that proves it |
-| --- | --- | --- | --- |
-| 25 | Delete or auto-delete touches a meeting still being written or recovered | Delete refuses while the lock is held. Auto-delete already skips meetings being made; `recording` status counts | I |
-| 26 | Crash during the final pass, or its output is for older chunks | Pass reruns; a mismatch is ignored | F: kill at each phase |
-| 27 | Crash between merging `transcript.final.json` and removing it | The merge is recorded, so it never applies twice | I: repeat the merge; corrections stay 100% intact |
-| 28 | Import failure or crash leaves a half meeting | The hidden folder is swept. The meeting appears whole or not at all | I: stop at every import step; Gate 3's "leaves nothing behind" still passes |
-| 29 | A meeting title contains `.importing-` | The sweep leaves it alone | I |
+| #   | What could go wrong                                                      | How it is handled                                                                                               | Test that proves it                                                         |
+| --- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 25  | Delete or auto-delete touches a meeting still being written or recovered | Delete refuses while the lock is held. Auto-delete already skips meetings being made; `recording` status counts | I                                                                           |
+| 26  | Crash during the final pass, or its output is for older chunks           | Pass reruns; a mismatch is ignored                                                                              | F: kill at each phase                                                       |
+| 27  | Crash between merging `transcript.final.json` and removing it            | The merge is recorded, so it never applies twice                                                                | I: repeat the merge; corrections stay 100% intact                           |
+| 28  | Import failure or crash leaves a half meeting                            | The hidden folder is swept. The meeting appears whole or not at all                                             | I: stop at every import step; Gate 3's "leaves nothing behind" still passes |
+| 29  | A meeting title contains `.importing-`                                   | The sweep leaves it alone                                                                                       | I                                                                           |
 
 ## Results so far (2026-10-30)
 
@@ -280,13 +280,13 @@ Word error on three AMI meetings, uncut encode against each writer: uncut 23.2%,
 
 ## Gate 2 items this affects
 
-| Gate 2 item | What this plan provides | How it is checked |
-| --- | --- | --- |
-| 8-hour recording with pauses, a device change and a forced crash loses no saved audio | Chunks, recovery and failures 1 to 8 | 8-hour run on each machine, as in decision 7. Compare chunks with the capture log; every lost span must be marked |
-| Stays within the drift target (under 100 ms over 8 hours) | Exact stamps, with one meaning for every chunk (failures 21 to 23) | Capture draft test T1 plus decoded-audio placement; T14 for complete metadata and gap-free numbers |
-| Real Teams or Zoom call: start offset and drift from a shared sound | Decoded chunks placed by stamp must line up, so this is measured from saved files | Hands-on, both machines |
-| Stopped stream, including an audio-service restart, is detected, with the missing span marked | `gaps` holds the span and cause; the chunk closes cleanly at the last real audio | Capture plan detects it; this plan checks the mark survives Stop and crash |
-| Mic audio lost under load, measured against a stated limit, reported apart from sync | Gap causes split stalls from disk loss, so the total comes straight from `chunks.json` | A report from the 8-hour run. The limit itself belongs to the capture plan |
+| Gate 2 item                                                                                   | What this plan provides                                                                | How it is checked                                                                                                 |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 8-hour recording with pauses, a device change and a forced crash loses no saved audio         | Chunks, recovery and failures 1 to 8                                                   | 8-hour run on each machine, as in decision 7. Compare chunks with the capture log; every lost span must be marked |
+| Stays within the drift target (under 100 ms over 8 hours)                                     | Exact stamps, with one meaning for every chunk (failures 21 to 23)                     | Capture draft test T1 plus decoded-audio placement; T14 for complete metadata and gap-free numbers                |
+| Real Teams or Zoom call: start offset and drift from a shared sound                           | Decoded chunks placed by stamp must line up, so this is measured from saved files      | Hands-on, both machines                                                                                           |
+| Stopped stream, including an audio-service restart, is detected, with the missing span marked | `gaps` holds the span and cause; the chunk closes cleanly at the last real audio       | Capture plan detects it; this plan checks the mark survives Stop and crash                                        |
+| Mic audio lost under load, measured against a stated limit, reported apart from sync          | Gap causes split stalls from disk loss, so the total comes straight from `chunks.json` | A report from the 8-hour run. The limit itself belongs to the capture plan                                        |
 
 Also affected:
 

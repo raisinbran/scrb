@@ -45,9 +45,9 @@ Any pause, even 0 ms, is an explicit hard break for words, speaker turns and mod
 
 ## While paused
 
-| Check | During a pause |
-| --- | --- |
-| Stream arrival, device, permission, source exit, disk | On |
+| Check                                                                   | During a pause                            |
+| ----------------------------------------------------------------------- | ----------------------------------------- |
+| Stream arrival, device, permission, source exit, disk                   | On                                        |
 | Silent-mic warning, "recording stalled", transcriber inactivity restart | Off, with a 5 s grace period after Resume |
 
 - **Low disk:** the crash-safe plan's rule applies, so the meeting stops and saves at 100 MB.
@@ -70,36 +70,36 @@ Pre-pause audio may finish writing after Pause, so disk use settles shortly afte
 
 Run on both machines. **Privacy condition:** a unique tone and a spoken phrase played after the cutoff are absent from every track, `.part` file, recovered chunk, transcript and profile input, while those before it are all there. **State condition:** at no moment does the screen show Paused while the gate is open.
 
-| # | Case | Pass |
-| --- | --- | --- |
-| 1 | Pause reply delayed, lost, duplicated, late; worker stalled; encoder and transcriber stalled | Privacy condition. One pause recorded, or the failed path below |
-| 2 | Pause cannot be confirmed | Worker killed, the real supervisor does not restart it, the error survives a reload, audio loss about 1 s or less |
-| 3 | Resume with one track ready, none ready, late replies, a stream recovering later | State condition. Gaps match the real delay within 100 ms |
-| 4 | Stale packets after Resume | None in the new chunks |
-| 5 | Crash at each step of pause and resume, recovering twice | Same spans both times. Paused time not counted. Nothing marked paused without a record |
-| 6 | `chunks.log` and `session.log` deleted, cut, garbled | No false paused span |
-| 7 | Recovery attempt during a live pause | Session unaffected |
-| 8 | Stream dies, device changes, permission lost on each track and both, during a pause | Warning within 5 s. Resume matches the rules above |
-| 9 | Disk reaches 100 MB during a pause | Stops and saves |
-| 10 | Meeting app exits during a user pause, and auto-pause when it stays gone | Reason survives a reload. Never auto-resumes |
-| 11 | Sleep during a pause, crossing the 4-hour deadline; clock jump | Stops on wake if due. Never auto-resumes |
-| 12 | 100 fast pause and resume cycles, including 0, 20, 50 and 99 ms | Every one is a hard break, and all chunks are intact |
-| 13 | 20 pauses with a shared sound, and the 4-hour run with at least 5 pauses | Drift under 50 ms. Mic loss at most 15 s, not counting paused time |
-| 14 | Timeline, `elapsedMs`, playback and DOCX and PDF markers across pauses and one-track resumes | All agree |
-| 15 | Pause under full AI load | Gate confirmed within 200 ms, 99th percentile. Slower cases still meet the privacy condition |
-| 16 | UI reload while paused or after a failure; import during a pause | State and reason restored. Import rule unchanged |
+| #   | Case                                                                                         | Pass                                                                                                              |
+| --- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | Pause reply delayed, lost, duplicated, late; worker stalled; encoder and transcriber stalled | Privacy condition. One pause recorded, or the failed path below                                                   |
+| 2   | Pause cannot be confirmed                                                                    | Worker killed, the real supervisor does not restart it, the error survives a reload, audio loss about 1 s or less |
+| 3   | Resume with one track ready, none ready, late replies, a stream recovering later             | State condition. Gaps match the real delay within 100 ms                                                          |
+| 4   | Stale packets after Resume                                                                   | None in the new chunks                                                                                            |
+| 5   | Crash at each step of pause and resume, recovering twice                                     | Same spans both times. Paused time not counted. Nothing marked paused without a record                            |
+| 6   | `chunks.log` and `session.log` deleted, cut, garbled                                         | No false paused span                                                                                              |
+| 7   | Recovery attempt during a live pause                                                         | Session unaffected                                                                                                |
+| 8   | Stream dies, device changes, permission lost on each track and both, during a pause          | Warning within 5 s. Resume matches the rules above                                                                |
+| 9   | Disk reaches 100 MB during a pause                                                           | Stops and saves                                                                                                   |
+| 10  | Meeting app exits during a user pause, and auto-pause when it stays gone                     | Reason survives a reload. Never auto-resumes                                                                      |
+| 11  | Sleep during a pause, crossing the 4-hour deadline; clock jump                               | Stops on wake if due. Never auto-resumes                                                                          |
+| 12  | 100 fast pause and resume cycles, including 0, 20, 50 and 99 ms                              | Every one is a hard break, and all chunks are intact                                                              |
+| 13  | 20 pauses with a shared sound, and the 4-hour run with at least 5 pauses                     | Drift under 50 ms. Mic loss at most 15 s, not counting paused time                                                |
+| 14  | Timeline, `elapsedMs`, playback and DOCX and PDF markers across pauses and one-track resumes | All agree                                                                                                         |
+| 15  | Pause under full AI load                                                                     | Gate confirmed within 200 ms, 99th percentile. Slower cases still meet the privacy condition                      |
+| 16  | UI reload while paused or after a failure; import during a pause                             | State and reason restored. Import rule unchanged                                                                  |
 
 ## Decisions for the owner
 
-**1. Stay connected during a pause?** Option A stays connected: a dead mic is found early and Resume is fast, but the mic light stays on and a Bluetooth headset stays in call mode. Option B disconnects: the mic light goes off, but Resume can take seconds and lose your first words. *Recommendation: A, with the label "Paused. No new audio is being recorded" and a Help note on the mic light. Choose B if the mic must not be touched at all.*
+**1. Stay connected during a pause?** Option A stays connected: a dead mic is found early and Resume is fast, but the mic light stays on and a Bluetooth headset stays in call mode. Option B disconnects: the mic light goes off, but Resume can take seconds and lose your first words. _Recommendation: A, with the label "Paused. No new audio is being recorded" and a Help note on the mic light. Choose B if the mic must not be touched at all._
 
-**2. Forgotten pause:** *Recommendation: stop and save after 4 hours paused, with a notice.*
+**2. Forgotten pause:** _Recommendation: stop and save after 4 hours paused, with a notice._
 
-**3. In exports:** *Recommendation: one line, such as "Paused, 12 min".*
+**3. In exports:** _Recommendation: one line, such as "Paused, 12 min"._
 
-**4. If a pause can't be confirmed:** *Recommendation: end the recording, as above.* A rare fault could end a meeting, and about the last second may be lost, but nothing is recorded that you believed was paused.
+**4. If a pause can't be confirmed:** _Recommendation: end the recording, as above._ A rare fault could end a meeting, and about the last second may be lost, but nothing is recorded that you believed was paused.
 
-**5. Approve** `session.log`, the plan updates above, and warning `pauseFailed`. *Recommendation: approve.*
+**5. Approve** `session.log`, the plan updates above, and warning `pauseFailed`. _Recommendation: approve._
 
 ## Build order after approval
 

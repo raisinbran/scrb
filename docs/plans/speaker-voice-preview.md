@@ -29,6 +29,8 @@
 
 **Contract.** One new read-only call, `getProfileClips: { request: { profileId }; response: { clips: Array<{ meetingId; meetingTitle; date; startMs; endMs; track; text }> } }` (add to `CALL_TABLE` and `validate.ts`). No path, no URL, no audio bytes. Audio itself comes through the existing `getPlaybackMedia` for that meeting and time. Needs owner approval.
 
+**Stopping on the audio clock.** A clip must end at `endMs` even if the page is busy or a timer runs late, so the stop is never a bare `setTimeout`. The clip player checks the media element's own `currentTime` against `endMs` on `timeupdate` and on a short interval (about 50 ms, as `PlaybackEngine` already syncs), pauses the element the moment it reaches or passes `endMs`, and also handles `ended` (clip at the end of a chunk). It additionally sets a fallback timer slightly after `endMs` only as a safety net. When a clip spans two chunks, the stop is applied to the chunk that contains `endMs`. Each stop also fades the last 30 ms to avoid a click, and a late tick can overshoot by at most one check interval (about 50 ms), which the tests assert as the tolerance.
+
 **Playback reuse.** Use the shared `PlaybackEngine`: seek to `startMs`, play, stop at `endMs` with a timer. Side effect to accept or avoid: it moves the meeting's saved playback position and lights the sidebar "playing" indicator. Slice 1 starts with a spike to decide between reusing the engine and a small separate clip player over the same `getPlaybackMedia` URLs (preferred if the position side effect is unwanted); no main or contract change either way.
 
 **Privacy.** Nothing new is stored or sent. Clips come only from audio the owner already keeps, play only inside the app through the existing grant-checked media scheme, and a deleted-audio meeting contributes nothing. The profile's number list is never exposed. The preview does not feed the matcher.
@@ -44,6 +46,7 @@
 
 - Clip chooser (main, pure): invented transcripts for overlap exclusion, pause markers, length bounds, ambiguous speaker, deleted audio, three-meeting cap, determinism; user profile uses the microphone track.
 - Contract: `getProfileClips` in `contract.test.ts`, `ipc.test.ts`, `validate.test.ts`; request has no path.
+- Clip stop timing (fake media element with a controllable clock): playback stops at `endMs` within one check interval when timers are delayed or throttled; stops on `ended` when the clip ends a chunk; stops once when both the clock check and the fallback fire; a clip crossing a chunk boundary stops in the right chunk; Pause and Close stop immediately.
 - UI on the mock: Play sample starts and stops, per-clip play, no-audio state, Split dialog play and Play all, stop on close. Mock returns fixed clips and must match the contract.
 - Manual, about 10 minutes on the owner's Mac with their own meetings (never read or committed by an agent): listen to three profiles, one known good, one merged by mistake. Not expected to exceed 20 minutes.
 

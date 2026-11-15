@@ -22,19 +22,19 @@ No change to `packages/contracts/`: the picker label is the app's `name` and the
 
 ## How it could lose or expose data
 
-| # | Failure | Handling | Test |
-| - | ------- | -------- | ---- |
-| F1 | Teams is on a headset that is not the default output, so the default device hears nothing | Capture the device holding Teams' session | Unit test on device choice; real call on a non-default output |
-| F2 | Teams is not in a call yet at Start, then opens on another device | Follow within 4 s, mark the gap | Fault test with CommTone moving device |
-| F3 | Teams' device disappears mid-call | Existing device-loss handling, then follow Teams again | T24-style fault test; real unplug when a second device is here |
-| F4 | Output is muted, so device capture may record silence | Measure it first. If silent, warn and say so in the manual | CommTone test, output muted and unmuted |
-| F5 | Other apps on that device are recorded: notifications, videos, a private call | Picker label, manual section, no automatic use for other apps | UI test of the label; manual review |
-| F6 | Sounds from other apps reach transcripts and speaker profiles | Stated in the manual. Removing them is not possible on this route | Manual review |
-| F7 | Silence check misses a silent track | Meter and level are compared every second | Fake meter tests, and CommTone Communications with a per-app target must warn within 35 s |
-| F8 | Silence check fires falsely when nobody is speaking | It needs the target's meter above silence for the full 30 s | Fake meter test; idle Teams call |
-| F9 | A warning repeats every second | One warning per recording until sound returns | Unit test |
-| F10 | Worker restart or pause loses the device choice | Reopen uses the same source rule; timeline stays on one clock | Extend the restart and pause cases |
-| F11 | Silence check adds load to the audio path | It runs off the audio threads, once a second | Regression run of T1 and the 4 h load run |
+| #   | Failure                                                                                   | Handling                                                          | Test                                                                                      |
+| --- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| F1  | Teams is on a headset that is not the default output, so the default device hears nothing | Capture the device holding Teams' session                         | Unit test on device choice; real call on a non-default output                             |
+| F2  | Teams is not in a call yet at Start, then opens on another device                         | Follow within 4 s, mark the gap                                   | Fault test with CommTone moving device                                                    |
+| F3  | Teams' device disappears mid-call                                                         | Existing device-loss handling, then follow Teams again            | T24-style fault test; real unplug when a second device is here                            |
+| F4  | Output is muted, so device capture may record silence                                     | Measure it first. If silent, warn and say so in the manual        | CommTone test, output muted and unmuted                                                   |
+| F5  | Other apps on that device are recorded: notifications, videos, a private call             | Picker label, manual section, no automatic use for other apps     | UI test of the label; manual review                                                       |
+| F6  | Sounds from other apps reach transcripts and speaker profiles                             | Stated in the manual. Removing them is not possible on this route | Manual review                                                                             |
+| F7  | Silence check misses a silent track                                                       | Meter and level are compared every second                         | Fake meter tests, and CommTone Communications with a per-app target must warn within 35 s |
+| F8  | Silence check fires falsely when nobody is speaking                                       | It needs the target's meter above silence for the full 30 s       | Fake meter test; idle Teams call                                                          |
+| F9  | A warning repeats every second                                                            | One warning per recording until sound returns                     | Unit test                                                                                 |
+| F10 | Worker restart or pause loses the device choice                                           | Reopen uses the same source rule; timeline stays on one clock     | Extend the restart and pause cases                                                        |
+| F11 | Silence check adds load to the audio path                                                 | It runs off the audio threads, once a second                      | Regression run of T1 and the 4 h load run                                                 |
 
 ## Acceptance
 

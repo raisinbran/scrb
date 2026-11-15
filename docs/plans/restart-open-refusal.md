@@ -20,13 +20,13 @@
 
 ## Tests and acceptance
 
-| Failure / race | Test |
-| --- | --- |
-| R1: First replacement returns `open.ok:false` | No `start` on that adapter, it is killed, next replacement opens and starts. |
-| R2: Every replacement refuses `open` | Exactly three attempts, exactly one `workerFailed`, no false Recording success. |
-| R3: Replacement refuses `start` or has zero active tracks | Killed and retried; no `reportMissing` from a failed start ack. |
-| R4: Refusal during confirmed pause | Replacement never receives `start`; stays closed or ends with `workerFailed` after exhausting attempts. |
-| R5: Late exit after deliberately killing a refused worker | No parallel restarts or extra attempts; Stop can win. |
-| R6: Success after one refusal | `clockOriginNs` preserved; the next worker's start runs on the original timeline. |
+| Failure / race                                            | Test                                                                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| R1: First replacement returns `open.ok:false`             | No `start` on that adapter, it is killed, next replacement opens and starts.                            |
+| R2: Every replacement refuses `open`                      | Exactly three attempts, exactly one `workerFailed`, no false Recording success.                         |
+| R3: Replacement refuses `start` or has zero active tracks | Killed and retried; no `reportMissing` from a failed start ack.                                         |
+| R4: Refusal during confirmed pause                        | Replacement never receives `start`; stays closed or ends with `workerFailed` after exhausting attempts. |
+| R5: Late exit after deliberately killing a refused worker | No parallel restarts or extra attempts; Stop can win.                                                   |
+| R6: Success after one refusal                             | `clockOriginNs` preserved; the next worker's start runs on the original timeline.                       |
 
 **Verification:** `npm run check` and `npm test` must be run by Claude Code on the complete checkout; Mac/Windows simulated worker tests and real crash tests remain with Claude Code. Only synthetic adapters/meeting IDs should be used. Source inspected; no tests or hardware runs have yet been executed for the proposal.

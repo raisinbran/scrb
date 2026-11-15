@@ -10,12 +10,12 @@ Branch `cuc/echo-aec-spike-16c88b`. Plan: `mic-echo-handling.md`, option A. Date
 
 ## Measured (6 s mic recordings, speakers silent: system volume was 0)
 
-| | raw | voice processing |
-|---|---|---|
-| mic rate | 48000 | 48000 |
-| chunk 0 frames (5 s rollover) | 240128 | 240000 |
-| rollover gap | -27 us | -28 us |
-| first-chunk start | 9.7 ms | 84 ms (about 75 ms later) |
+|                               | raw    | voice processing          |
+| ----------------------------- | ------ | ------------------------- |
+| mic rate                      | 48000  | 48000                     |
+| chunk 0 frames (5 s rollover) | 240128 | 240000                    |
+| rollover gap                  | -27 us | -28 us                    |
+| first-chunk start             | 9.7 ms | 84 ms (about 75 ms later) |
 
 Voice processing delivers **9 channels** at 48 kHz (planar Float32). The stream takes channel 0; whether channel 0 is the processed mic on every Mac is **unverified**. Format and chunk output matched the raw path, and the native tests (`tests/run.sh`) and `npm run check` pass. The 75 ms later first packet is real and should be checked against the PR #150 start-gap check.
 
@@ -50,12 +50,12 @@ Ducking investigation: the SDK headers (macOS 14+) offer one control, `voiceProc
 
 Re-run at head 3f73b7a, same clip and volume: ducking setting accepted (set 0, get 0, advanced false, level 10 = min), but the meeting-track median was -56.1 dB against a -47.1 dB baseline, about 9 dB ducked. Summary:
 
-| Check | Result |
-|---|---|
-| Echo reduction on the mic track | at least 15 dB (pass) |
-| Owner's voice | intact |
-| Format, timing, gaps | match the raw path (first packet about 75 ms later) |
-| Meeting-track level | **about 9 dB lower, fail (bar: within 0.5 dB)** |
-| Ducking switch | none on macOS: only level min..max exists; the iOS-only off switch is unavailable |
+| Check                           | Result                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| Echo reduction on the mic track | at least 15 dB (pass)                                                             |
+| Owner's voice                   | intact                                                                            |
+| Format, timing, gaps            | match the raw path (first packet about 75 ms later)                               |
+| Meeting-track level             | **about 9 dB lower, fail (bar: within 0.5 dB)**                                   |
+| Ducking switch                  | none on macOS: only level min..max exists; the iOS-only off switch is unavailable |
 
 Outcome: the zero-attenuation condition fails, so option A is not shipped. The code stays only as an opt-in spike (needs `SCRB_VOICE_AEC=1` plus the setting; off by default, no default behaviour change). Next: option C in `mic-echo-handling.md`; `dropRoomEcho` stays.

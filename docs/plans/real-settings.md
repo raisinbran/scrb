@@ -18,17 +18,17 @@ No contract change. No file-format or index change: the `settings` table already
 
 ## How it could lose data, and the test for each failure
 
-| Failure | What happens | Test |
-| --- | --- | --- |
-| App closes during a save | The index is transactional, so the old or new value survives whole | Unit: kill between saves, reopen |
-| Saved settings are unreadable | Defaults are used and the app still opens | Unit: damaged JSON |
-| Bad auto-delete value | Falls back to Never, so a damaged setting can never delete anything | Existing storage test, plus a handler test |
-| Index cannot be opened (locked or folder not writable) | The app still opens, the screens work on the mock, and a message box says changes will not be saved | Integration: read-only folder |
-| Index is damaged | Storage's existing behaviour moves it aside, keeps the old file and rebuilds from the meeting folders, so meetings survive but saved settings go back to defaults. A message box says so | Integration: damaged index |
-| Two copies of the app open | The second hands over to the first and quits | Integration |
-| Settings patch merges badly | A nested change keeps its siblings | Unit: every nested group |
-| Older saved settings lack a new key | The default fills it in | Unit |
-| Renderer sends a bad request | Refused by the request validator before it reaches storage | Existing dispatch tests |
+| Failure                                                | What happens                                                                                                                                                                             | Test                                       |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| App closes during a save                               | The index is transactional, so the old or new value survives whole                                                                                                                       | Unit: kill between saves, reopen           |
+| Saved settings are unreadable                          | Defaults are used and the app still opens                                                                                                                                                | Unit: damaged JSON                         |
+| Bad auto-delete value                                  | Falls back to Never, so a damaged setting can never delete anything                                                                                                                      | Existing storage test, plus a handler test |
+| Index cannot be opened (locked or folder not writable) | The app still opens, the screens work on the mock, and a message box says changes will not be saved                                                                                      | Integration: read-only folder              |
+| Index is damaged                                       | Storage's existing behaviour moves it aside, keeps the old file and rebuilds from the meeting folders, so meetings survive but saved settings go back to defaults. A message box says so | Integration: damaged index                 |
+| Two copies of the app open                             | The second hands over to the first and quits                                                                                                                                             | Integration                                |
+| Settings patch merges badly                            | A nested change keeps its siblings                                                                                                                                                       | Unit: every nested group                   |
+| Older saved settings lack a new key                    | The default fills it in                                                                                                                                                                  | Unit                                       |
+| Renderer sends a bad request                           | Refused by the request validator before it reaches storage                                                                                                                               | Existing dispatch tests                    |
 
 ## Gate 1 evidence
 
