@@ -13,6 +13,7 @@ import {
   needsPrivacyBanner,
   privacyJurisdictions,
 } from '@scrb/app-core';
+import { sharedFolderNotice } from './library-notice.ts';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, writeSummary } from '@scrb/summary';
 import type { RecordingState, SettingsPatch } from '@scrb/contracts';
@@ -334,9 +335,7 @@ export async function openBackend(
               : packaged && packaged.missing.length > 0
                 ? missingMessage(packaged.missing)
                 : null,
-          library.rootMayBeShared
-            ? 'The library folder may be accessible to other people who use this device. Review its folder permissions if it contains sensitive recordings.'
-            : null,
+          sharedFolderNotice(library.settings, library.rootMayBeShared),
         ]
           .filter((message): message is string => message !== null)
           .join('\n\n') || null,
