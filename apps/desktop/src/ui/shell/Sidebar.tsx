@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { isTranscribing, recordingTip } from '../components/RecordingDot.tsx';
 import { PlayingIndicator } from '../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../lib/playback-context.tsx';
@@ -61,11 +62,6 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
         {screen.id === 'live' && dot && (
           <span role="img" className={styles.hidden} aria-label={tip} />
         )}
-        {screen.id === 'recordings' && processing && (
-          <span id="recordings-processing" className={styles.hidden}>
-            Processing a recording
-          </span>
-        )}
         {screen.id === 'recordings' && nowPlaying && (
           <PlayingIndicator className={styles.playing} />
         )}
@@ -77,6 +73,16 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
       <Tooltip key={screen.id} label={tip}>
         {button}
       </Tooltip>
+    ) : screen.id === 'recordings' ? (
+      <Fragment key={screen.id}>
+        {button}
+        {/* Outside the button, so it describes it without becoming part of its name. */}
+        {processing && (
+          <span id="recordings-processing" className={styles.hidden}>
+            Processing a recording
+          </span>
+        )}
+      </Fragment>
     ) : (
       button
     );
