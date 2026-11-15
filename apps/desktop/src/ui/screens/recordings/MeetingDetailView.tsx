@@ -686,7 +686,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             onClick={() => openFolder('audio')}
           />
           {canReprocess && (
-            <Tooltip label="Re-run speech recognition and speaker detection. Uses the model currently selected in Settings.">
+            <Tooltip label="Re-run speech recognition and speaker detection. Uses the model currently selected in Settings. Edits and speaker names are kept where the words still match. The summary may become outdated.">
               <button
                 type="button"
                 className={styles.button}

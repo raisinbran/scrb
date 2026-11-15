@@ -49,7 +49,7 @@ describe('Recordings', () => {
       const button = screen.getByRole('button', { name: 'Re-process' });
       fireEvent.focus(button);
       expect(screen.getByRole('tooltip').textContent).toBe(
-        'Re-run speech recognition and speaker detection. Uses the model currently selected in Settings.',
+        'Re-run speech recognition and speaker detection. Uses the model currently selected in Settings. Edits and speaker names are kept where the words still match. The summary may become outdated.',
       );
       fireEvent.click(button);
       expect(await screen.findByRole('progressbar', {}, SLOW)).toBeTruthy();
