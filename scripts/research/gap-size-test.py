@@ -12,11 +12,12 @@ numbers only.
   python3 -I scripts/research/gap-size-test.py <work dir> [workers] [--reset]
   python3 -I scripts/research/gap-size-test.py <work dir> --evidence-only
 
-<work dir> must be empty or missing; --reset deletes it first.  Outputs are
+<work dir> must be empty or missing; --reset deletes it first, but only
+a directory this script marked (and never root, home, the repo or the cwd).  Outputs are
 never reused.  --evidence-only rebuilds results.json and manifest.json from the
 raw outputs of a finished run and runs no whisper.
 """
-import hashlib, json, os, random, re, shutil, subprocess, sys, wave
+import hashlib, importlib.util, json, os, random, re, shutil, subprocess, sys, wave
 from concurrent.futures import ThreadPoolExecutor
 
 SEED = 20261114
@@ -32,6 +33,10 @@ BIN = f'{assets}/upstream/whisper.cpp/build/bin/whisper-cli'
 MODEL = f'{assets}/models/whisper/ggml-large-v3-turbo-q5_0.bin'
 VAD = f'{assets}/models/whisper/ggml-silero-v6.2.0.bin'
 
+here = os.path.dirname(os.path.abspath(__file__))
+_spec = importlib.util.spec_from_file_location('gap_size_workdir', os.path.join(here, 'gap_size_workdir.py'))
+workdir = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(workdir)
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 flags = {a for a in sys.argv[1:] if a.startswith('--')}
 work = args[0]
@@ -207,11 +212,13 @@ def main():
     if '--evidence-only' in flags:
         evidence(json.load(open(work + '/positions.json'))['positions'])
         return
-    if '--reset' in flags:
-        shutil.rmtree(work, ignore_errors=True)
+    if '--reset' in flags and os.path.exists(work):
+        # Only a directory this script marked, never root, home, the repo or the current directory.
+        workdir.reset(work, [os.path.expanduser('~'), os.path.join(here, '..', '..'), os.getcwd()])
     if os.path.exists(work) and os.listdir(work):
         sys.exit(f'{work} is not empty; pass --reset to delete it. Outputs are never reused.')
     os.makedirs(work + '/wav')
+    workdir.mark(work)
     os.makedirs(work + '/out')
     pos = make_positions()
     json.dump(dict(seed=SEED, positions=pos), open(work + '/positions.json', 'w'))

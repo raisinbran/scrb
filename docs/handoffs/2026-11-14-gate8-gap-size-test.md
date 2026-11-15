@@ -21,7 +21,7 @@ For each variant, the **word edit distance to Whisper's own output on the unmodi
 - Positions: 25 windows of 30 s, window starts on 5 s boundaries, `random.Random(20261114)`. 21 gaps are random inside speech (7 per clip, 5-24 s into the window); 4 start exactly on a 5 s chunk boundary (ES2004a 2, IS1009a 1, TS3003a 1). "Inside speech": the 500 ms around the gap is above that clip's median level. The same 25 positions are used for every size and mode.
 - Variants: 17 sizes (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100, 200 ms) x 2 modes x 25 positions = 850, plus per position the unmodified window twice (baseline and control) = 900 runs, 17.7 minutes with 2 workers.
 - Position selection stops with a clear message after 5000 failed tries per clip and kind, or if a clip is shorter than 180 s.
-- Scripts: `scripts/research/gap-size-test.py` (refuses a non-empty work directory unless `--reset`; outputs are never reused), `scripts/research/gap-size-summary.py`.
+- Scripts: `scripts/research/gap-size-test.py` (refuses a non-empty work directory; `--reset` deletes only a directory the script marked itself, never root, home, the repo or the current directory, tested in `test_gap_size_workdir.py`; outputs are never reused), `scripts/research/gap-size-summary.py`.
 
 ## Evidence in the repo
 
@@ -53,10 +53,9 @@ For each variant, the **word edit distance to Whisper's own output on the unmodi
 | 40 | 11/25 (44%) | 3.05 | 30 | 6 | 13/25 (52%) | 3.18 | 29 | 19 |
 | 50 | 9/25 (36%) | 2.63 | 30 | 6 | 19/25 (76%) | 7.13 | 35 | 17 |
 | 100 | 13/25 (52%) | 2.11 | 20 | 13 | 17/25 (68%) | 4.99 | 26 | 17 |
+| 200 | 18/25 (72%) | 5.11 | 30 | 15 | 18/25 (72%) | 5.87 | 30 | 17 |
 
 Pooled over all positions and sizes in the band:
-
-| 200 | 18/25 (72%) | 5.11 | 30 | 15 | 18/25 (72%) | 5.87 | 30 | 17 |
 
 | mode | gap ms | runs | any word change | mean edit % | 5+ words changed | words deleted per run |
 |---|---|---:|---:|---:|---:|---:|
