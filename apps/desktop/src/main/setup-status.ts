@@ -139,7 +139,7 @@ export function createSetupStatusHandler(sources: SetupStatusSources) {
       locationSet,
       complete:
         toolsReady &&
-        models.every((model) => model.installed) &&
+        models.every((model) => model.installed || model.role === 'summary') &&
         !(sources.downloading?.() ?? false) &&
         permissions.microphone === 'granted' &&
         locationSet,

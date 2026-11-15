@@ -196,7 +196,7 @@ describe('getSetupStatus', () => {
   describe('with the packaged model list', () => {
     const row = (
       installed: boolean,
-      role: 'liveSpeech' | 'finalSpeech' | 'speaker' = 'liveSpeech',
+      role: 'liveSpeech' | 'finalSpeech' | 'speaker' | 'summary' = 'liveSpeech',
     ) => ({
       role,
       name: 'A model',
@@ -243,6 +243,13 @@ describe('getSetupStatus', () => {
 
     it('is incomplete while a download runs, even with every file verified', async () => {
       expect((await run([row(true), row(true)], true)).complete).toBe(false);
+    });
+
+    it('lists an uninstalled optional summary row without making setup incomplete', async () => {
+      const summary = { ...row(false, 'summary'), name: 'Summary model' };
+      const status = await run([row(true), row(true), summary]);
+      expect(status.models).toContainEqual(summary);
+      expect(status.complete).toBe(true);
     });
 
     it('is complete when every file is verified, nothing downloads, and the rest is ready', async () => {

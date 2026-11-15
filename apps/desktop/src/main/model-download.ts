@@ -31,6 +31,9 @@ export interface DownloadSource {
 
 /** Pinned URLs come from scripts/dev-assets.sh; the sizes and digests from scripts/model-digests.json. */
 export const MODEL_URLS: Record<string, { url: string; archive?: DownloadSource['archive'] }> = {
+  'Qwen3.5-9B-Q4_K_M.gguf': {
+    url: 'https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q4_K_M.gguf',
+  },
   'ggml-large-v3-turbo-q5_0.bin': {
     url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin',
   },

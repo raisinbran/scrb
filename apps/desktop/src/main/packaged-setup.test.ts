@@ -9,14 +9,19 @@ import {
   modelsDirFor,
   toolFileName,
   listModelRows,
+  listSummaryRow,
   resolvePackagedSetup,
+  resolveSummaryPaths,
+  summaryPathsReader,
   pinUserData,
   userDataFor,
   type DigestTable,
 } from './packaged-setup.ts';
+import { SummaryUnavailableError } from './summary.ts';
 import realDigests from '../../../../scripts/model-digests.json';
 
-const NAMES = Object.keys(realDigests);
+const SUMMARY_FILE = 'Qwen3.5-9B-Q4_K_M.gguf';
+const NAMES = Object.keys(realDigests).filter((name) => name !== SUMMARY_FILE);
 const TOOLS = [
   'scrb-capture',
   'whisper-cli',
@@ -174,6 +179,7 @@ describe('resolvePackagedSetup', () => {
     const script = readFileSync(join(__dirname, '../../../../scripts/dev-assets.sh'), 'utf8');
     for (const [name, { sha256 }] of Object.entries(realDigests)) {
       if (name === 'segmentation-model.int8.onnx') continue; // extracted from a hash-checked archive
+      if (name === SUMMARY_FILE) continue; // optional download, not installed by the script
       expect(script).toContain(sha256);
     }
   });
@@ -233,7 +239,191 @@ describe('listModelRows', () => {
   it('uses the pinned digests by default', async () => {
     const list = await listModelRows(dir, join(dir, 'verified.json'));
     expect(list.reduce((sum, row) => sum + row.sizeBytes, 0)).toBe(
-      Object.values(realDigests).reduce((sum, entry) => sum + entry.bytes, 0),
+      NAMES.reduce((sum, name) => sum + (realDigests as DigestTable)[name]!.bytes, 0),
     );
+  });
+});
+
+describe('summary model and server (optional)', () => {
+  let dir: string;
+  let resources: string;
+  let models: string;
+  let table: DigestTable;
+  const model = Buffer.from('invented summary model');
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'scrb-sum-'));
+    resources = join(dir, 'Resources');
+    models = join(dir, 'models');
+    mkdirSync(join(resources, 'bin'), { recursive: true });
+    mkdirSync(models, { recursive: true });
+    table = {
+      [SUMMARY_FILE]: {
+        sha256: createHash('sha256').update(model).digest('hex'),
+        bytes: model.length,
+      },
+    };
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const resolve = (platform: NodeJS.Platform = 'darwin') =>
+    resolveSummaryPaths({
+      resourcesPath: resources,
+      modelsDir: models,
+      cacheFile: join(dir, 'verified.json'),
+      digests: table,
+      platform,
+    });
+  const putModel = () => writeFileSync(join(models, SUMMARY_FILE), model);
+  const putServer = (name = 'llama-server') => writeFileSync(join(resources, 'bin', name), 'x');
+
+  it('pins the real summary model: 5,680,522,464 bytes and the dev-assets digest', () => {
+    expect(realDigests[SUMMARY_FILE as keyof typeof realDigests]).toEqual({
+      sha256: '03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8',
+      bytes: 5680522464,
+    });
+  });
+
+  it('returns both paths when the server exists and the model verifies', async () => {
+    putModel();
+    putServer();
+    expect(await resolve()).toEqual({
+      serverPath: join(resources, 'bin', 'llama-server'),
+      modelPath: join(models, SUMMARY_FILE),
+    });
+  });
+
+  it('uses the .exe name on Windows', async () => {
+    putModel();
+    putServer('llama-server.exe');
+    expect((await resolve('win32')).serverPath).toBe(join(resources, 'bin', 'llama-server.exe'));
+  });
+
+  it('writes no config file', async () => {
+    putModel();
+    putServer();
+    await resolve();
+    expect(existsSync(join(dir, 'config'))).toBe(false);
+  });
+
+  it.each([
+    ['model missing', false, true, ['the summary model']],
+    ['server missing', true, false, ['the llama.cpp server']],
+    ['both missing', false, false, ['the llama.cpp server', 'the summary model']],
+  ])(
+    'refuses with a message naming Settings > Models when %s',
+    async (_n, withModel, withServer) => {
+      if (withModel) putModel();
+      if (withServer) putServer();
+      await expect(resolve()).rejects.toThrow(/Settings > Models/);
+      await expect(resolve()).rejects.toBeInstanceOf(SummaryUnavailableError);
+    },
+  );
+
+  it('rejects a model with the wrong size or digest', async () => {
+    putServer();
+    writeFileSync(join(models, SUMMARY_FILE), 'invented summary modeX');
+    await expect(resolve()).rejects.toThrow(/summary model/);
+    writeFileSync(join(models, SUMMARY_FILE), 'short');
+    await expect(resolve()).rejects.toThrow(/summary model/);
+  });
+
+  it('finds a file that appears after the first call, with no restart', async () => {
+    putServer();
+    await expect(resolve()).rejects.toThrow();
+    putModel();
+    await expect(resolve()).resolves.toMatchObject({ modelPath: join(models, SUMMARY_FILE) });
+  });
+
+  it('lists the summary row as not installed with its expected size, then installed', async () => {
+    const row = () => listSummaryRow(models, join(dir, 'verified.json'), table);
+    expect(await row()).toEqual({
+      role: 'summary',
+      name: 'Summary model',
+      version: SUMMARY_FILE,
+      installed: false,
+      sizeBytes: model.length,
+    });
+    putModel();
+    expect((await row()).installed).toBe(true);
+  });
+
+  it('does not block recording when only the summary files are missing', async () => {
+    const full: DigestTable = { ...table };
+    for (const tool of TOOLS) writeFileSync(join(resources, 'bin', tool), '#!/bin/sh\n');
+    NAMES.forEach((name, index) => {
+      const bytes = Buffer.from(`invented model ${index}`);
+      writeFileSync(join(models, name), bytes);
+      full[name] = {
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        bytes: bytes.length,
+      };
+    });
+    const setup = await resolvePackagedSetup({
+      resourcesPath: resources,
+      userDataPath: join(dir, 'userData'),
+      modelsDir: models,
+      digests: full,
+      platform: 'darwin',
+    });
+    expect(setup.missing).toEqual([]);
+    expect(setup.helper).not.toBeNull();
+    expect(setup.models.map((m) => m.role)).not.toContain('summary');
+  });
+});
+
+describe('summaryPathsReader', () => {
+  let dir: string;
+  const model = Buffer.from('invented summary model');
+  const table: DigestTable = {
+    [SUMMARY_FILE]: {
+      sha256: createHash('sha256').update(model).digest('hex'),
+      bytes: model.length,
+    },
+  };
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'scrb-rdr-'));
+    mkdirSync(join(dir, 'Resources', 'bin'), { recursive: true });
+    mkdirSync(join(dir, 'models'), { recursive: true });
+    writeFileSync(join(dir, 'Resources', 'bin', 'llama-server'), 'x');
+    writeFileSync(join(dir, 'models', SUMMARY_FILE), model);
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const reader = (packaged: boolean, finalPassConfig: string | undefined) =>
+    summaryPathsReader({
+      packaged,
+      finalPassConfig,
+      resourcesPath: join(dir, 'Resources'),
+      modelsDir: join(dir, 'models'),
+      cacheFile: join(dir, 'verified.json'),
+      digests: table,
+      platform: 'darwin',
+    });
+
+  it('packaged, SCRB_FINAL_PASS_CONFIG not set: finds the bundled server and the model', async () => {
+    delete process.env['SCRB_FINAL_PASS_CONFIG'];
+    const paths = await reader(true, undefined)();
+    expect(paths.modelPath).toBe(join(dir, 'models', SUMMARY_FILE));
+  });
+
+  it('packaged, SCRB_FINAL_PASS_CONFIG set to a stale file: still uses the packaged paths', async () => {
+    process.env['SCRB_FINAL_PASS_CONFIG'] = join(dir, 'does-not-exist.json');
+    try {
+      const paths = await reader(true, process.env['SCRB_FINAL_PASS_CONFIG'])();
+      expect(paths.serverPath).toBe(join(dir, 'Resources', 'bin', 'llama-server'));
+    } finally {
+      delete process.env['SCRB_FINAL_PASS_CONFIG'];
+    }
+  });
+
+  it('unpackaged: reads the developer config file, unchanged', async () => {
+    await expect(reader(false, undefined)()).rejects.toThrow(/No setup file/);
+    const config = join(dir, 'dev.json');
+    writeFileSync(
+      config,
+      JSON.stringify({
+        tools: { llamaServer: join(dir, 'Resources', 'bin', 'llama-server') },
+        models: { summary: join(dir, 'models', SUMMARY_FILE) },
+      }),
+    );
+    expect((await reader(false, config)()).modelPath).toBe(join(dir, 'models', SUMMARY_FILE));
   });
 });

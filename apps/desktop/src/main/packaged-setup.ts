@@ -3,6 +3,7 @@ import { createReadStream, existsSync, mkdirSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ModelInfo } from '@scrb/contracts';
+import { readSummaryPaths, SummaryUnavailableError, type SummaryPaths } from './summary.ts';
 import digests from '../../../../scripts/model-digests.json';
 
 /** Folder name of the app's own data; fixed so the app name never decides where data lives. */
@@ -67,6 +68,14 @@ export const MODELS: ModelRow[] = [
   },
 ];
 
+/** Optional: a missing file never blocks recording, so it is kept out of `MODELS`. */
+export const SUMMARY_MODEL: ModelRow = {
+  file: 'Qwen3.5-9B-Q4_K_M.gguf',
+  role: 'summary',
+  label: 'Summary model',
+};
+const SUMMARY_SERVER = 'llama-server';
+
 function sha256(file: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha256');
@@ -129,6 +138,70 @@ export async function listModelRows(
       sizeBytes: table[row.file]?.bytes ?? 0,
     });
   return rows;
+}
+
+/** The optional summary model as the setup screen lists it; not part of the five required rows. */
+export async function listSummaryRow(
+  modelsDir: string,
+  cacheFile: string,
+  table: DigestTable = DIGESTS,
+): Promise<ModelInfo> {
+  const { file, role, label } = SUMMARY_MODEL;
+  return {
+    role,
+    name: label,
+    version: file,
+    installed: await verified(path.join(modelsDir, file), file, cacheFile, table),
+    sizeBytes: table[file]?.bytes ?? 0,
+  };
+}
+
+/**
+ * The summary model and the bundled `llama-server`, checked at each call so a model that finishes
+ * downloading is found without a restart. Writes nothing. Throws when either is missing.
+ */
+export async function resolveSummaryPaths(options: {
+  resourcesPath: string;
+  modelsDir: string;
+  cacheFile: string;
+  digests?: DigestTable;
+  platform?: NodeJS.Platform;
+}): Promise<SummaryPaths> {
+  const table = options.digests ?? DIGESTS;
+  const serverPath = path.join(
+    options.resourcesPath,
+    'bin',
+    toolFileName(SUMMARY_SERVER, options.platform ?? process.platform),
+  );
+  const modelPath = path.join(options.modelsDir, SUMMARY_MODEL.file);
+  const missing = [
+    ...(existsSync(serverPath) ? [] : ['the llama.cpp server']),
+    ...((await verified(modelPath, SUMMARY_MODEL.file, options.cacheFile, table))
+      ? []
+      : ['the summary model']),
+  ];
+  if (missing.length > 0)
+    throw new SummaryUnavailableError(
+      `Summaries need the summary model and llama.cpp. Missing: ${missing.join(' and ')}. Open Settings > Models to download the summary model. Your audio and transcript are safe.`,
+    );
+  return { serverPath, modelPath };
+}
+
+/**
+ * Chosen by the packaged state, never by whether SCRB_FINAL_PASS_CONFIG is set: a packaged process
+ * with that variable set must still find the summary files.
+ */
+export function summaryPathsReader(options: {
+  packaged: boolean;
+  finalPassConfig: string | undefined;
+  resourcesPath: string;
+  modelsDir: string;
+  cacheFile: string;
+  digests?: DigestTable;
+  platform?: NodeJS.Platform;
+}): () => Promise<SummaryPaths> {
+  return () =>
+    options.packaged ? resolveSummaryPaths(options) : readSummaryPaths(options.finalPassConfig);
 }
 
 export interface PackagedSetup {

@@ -18,5 +18,9 @@
   "segmentation-model.int8.onnx": {
     "sha256": "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
     "bytes": 1540506
+  },
+  "Qwen3.5-9B-Q4_K_M.gguf": {
+    "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+    "bytes": 5680522464
   }
 }

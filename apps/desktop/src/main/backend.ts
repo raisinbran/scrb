@@ -26,7 +26,7 @@ import { RecordingController, recoverInterrupted } from './recording.ts';
 import { applyLivePerformance, readLiveSetup, readWhisperOverride } from './live-feed.ts';
 import { ImportCoordinator } from './imports.ts';
 import { createExportHandlers, ExportRefused } from './export.ts';
-import { readSummaryPaths, SummaryController, type SummaryEngine } from './summary.ts';
+import { SummaryController, type SummaryEngine } from './summary.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
 import { createSetupStatusHandler } from './setup-status.ts';
@@ -38,6 +38,8 @@ import {
   listModelRows,
   verified,
   resolvePackagedSetup,
+  summaryPathsReader,
+  listSummaryRow,
   type PackagedSetup,
 } from './packaged-setup.ts';
 import { ContractError } from '@scrb/contracts';
@@ -80,13 +82,23 @@ export async function openBackend(
       extractItems,
       writeSummary,
     };
+    // Chosen by the packaged state, not by SCRB_FINAL_PASS_CONFIG; the config variable below is read lazily.
+    const summaryPaths = summaryPathsReader({
+      packaged: app.isPackaged,
+      get finalPassConfig() {
+        return finalPassConfig;
+      },
+      resourcesPath: process.resourcesPath,
+      modelsDir: modelsDirFor(os.homedir()),
+      cacheFile: path.join(app.getPath('userData'), 'config', 'model-verified.json'),
+    });
     const summaries = new SummaryController({
       library,
       emit,
       gate: modelGate,
       engine,
       recordingActive: () => recording?.isBusy() ?? false,
-      readPaths: () => readSummaryPaths(finalPassConfig),
+      readPaths: summaryPaths,
       pidFile: path.join(app.getPath('userData'), 'summary-server.pid'),
     });
     await summaries.stopStaleServer();
@@ -95,7 +107,7 @@ export async function openBackend(
       gate: modelGate,
       engine,
       recordingActive: () => recording?.isBusy() ?? false,
-      readPaths: () => readSummaryPaths(finalPassConfig),
+      readPaths: summaryPaths,
       pidFile: path.join(app.getPath('userData'), 'summary-server.pid'),
       generate: generateTitle,
     });
@@ -311,7 +323,12 @@ export async function openBackend(
           helper,
           finalPassConfig,
           liveConfig,
-          readModels: packaged ? () => listModelRows(modelsDir, verifiedCache) : undefined,
+          readModels: packaged
+            ? async () => [
+                ...(await listModelRows(modelsDir, verifiedCache)),
+                await listSummaryRow(modelsDir, verifiedCache),
+              ]
+            : undefined,
           downloading: () => modelDownloader?.isRunning() ?? false,
           microphoneStatus:
             process.platform === 'darwin' || process.platform === 'win32'
