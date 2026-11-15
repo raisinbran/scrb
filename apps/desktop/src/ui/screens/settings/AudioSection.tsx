@@ -1,4 +1,5 @@
 import { cloneElement, Fragment, type ReactElement } from 'react';
+import { IconButton } from '../../components/IconButton.tsx';
 import type { AudioSettings, InputDevice, MeetingApp, NoiseSuppression } from '@scrb/contracts';
 import { Tooltip } from '../../components/Tooltip.tsx';
 import { PRESET_OPTIONS, presetPatch, type PresetControls } from './presets.ts';
@@ -67,6 +68,9 @@ interface AudioSectionProps {
   apps: MeetingApp[];
   onChange(patch: Partial<AudioSettings>): void;
 }
+
+const PRESET_TIP =
+  'Your original recording is never changed. A preset only cleans a copy of the audio that the speech recognizer listens to.';
 
 export function AudioSection({ audio, devices, apps, onChange }: AudioSectionProps) {
   const systemDefault = devices.find((device) => device.isSystemDefault);
@@ -144,8 +148,10 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
       </div>
 
       <fieldset className={styles.group}>
-        <legend className={styles.groupLabel}>Preset</legend>
-        <p className={styles.help}>Presets change only the copy sent to the transcriber.</p>
+        <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
+          Preset
+          <IconButton label="About presets" icon="info" tip={PRESET_TIP} />
+        </legend>
         {PRESET_OPTIONS.map((option) => (
           <label key={option.value} className={styles.check}>
             <input

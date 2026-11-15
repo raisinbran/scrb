@@ -1125,7 +1125,7 @@ describe('Recordings', () => {
       const dialog = await openExport(/Depot rollout/);
       const call = vi.spyOn(backend, 'call');
       fireEvent.click(within(dialog).getByRole('radio', { name: 'Both' }));
-      fireEvent.click(within(dialog).getByRole('radio', { name: 'PDF' }));
+      fireEvent.click(within(dialog).getByRole('radio', { name: '.pdf' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
       fireEvent.click(await button('Open folder', SLOW));
       expect(call).toHaveBeenCalledWith(

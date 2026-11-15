@@ -159,7 +159,7 @@ test.describe('Gate 7 walkthrough', () => {
 
       // Export both formats through the dialog.
       const exportsDir = join(folder, 'exports');
-      for (const format of ['DOCX', 'PDF']) {
+      for (const format of ['.docx', '.pdf']) {
         await page.getByRole('button', { name: 'Export', exact: true }).click();
         const dialog = page.getByRole('dialog', { name: 'Export meeting' });
         await dialog.getByLabel(format, { exact: true }).check();
