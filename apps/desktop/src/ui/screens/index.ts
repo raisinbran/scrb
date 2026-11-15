@@ -28,7 +28,7 @@ export const SCREENS: ScreenEntry[] = [
     id: 'recordings',
     label: 'Recordings',
     component: RecordingsScreen,
-    icon: 'M4 6h16M4 12h16M4 18h16',
+    icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.5 12A5.5 5.5 0 0 1 12 6.5',
   },
   {
     id: 'speakers',
