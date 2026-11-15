@@ -308,6 +308,27 @@ describe('MiniRecording', () => {
     );
   });
 
+  it('keeps a long, multiline warning inside the window on hover and keyboard focus', async () => {
+    const long =
+      'The microphone changed.\nScribe switched to the built-in microphone for this meeting.';
+    await showRecording(65_000, {
+      ...warned,
+      warnings: [{ kind: 'deviceChanged', message: long, atMs: 1000 }],
+    });
+    const flag = screen.getByRole('img', { name: long });
+    fireEvent.mouseOver(flag);
+    fireEvent.focus(flag);
+    expect(flag.dataset.tip).toBe(long);
+    const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
+    const rule = css.match(/\.flag\[data-tip\]::after \{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/position: fixed/);
+    expect(rule).toMatch(/left:/);
+    expect(rule).toMatch(/right:/);
+    expect(rule).toMatch(/white-space: normal/);
+    expect(rule).toMatch(/line-clamp: 4/);
+    expect(css).toMatch(/\[data-tip\]:focus-visible::after/);
+  });
+
   it('shows the warning flag with the warning as its tooltip and name, reachable by keyboard', async () => {
     await showRecording(65_000, warned);
     const flag = screen.getByRole('img', { name: 'Microphone changed' });
