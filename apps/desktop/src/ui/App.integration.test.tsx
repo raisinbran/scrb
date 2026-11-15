@@ -286,14 +286,20 @@ describe('recording dot in the sidebar', () => {
 
   it('shows on the Live tab from every screen while recording, and goes when it stops', async () => {
     await renderApp();
-    expect(screen.queryByRole('img', { name: 'Recording in progress' })).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /^Recording( and transcription)? in progress$/ }),
+    ).toBeNull();
     await startRecording();
     await goTo('Vocabulary');
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('img', { name: 'Recording in progress' })).toBeTruthy();
+    expect(
+      within(nav).getByRole('img', { name: /^Recording( and transcription)? in progress$/ }),
+    ).toBeTruthy();
     await goTo('Live');
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     await advance(0);
-    expect(screen.queryByRole('img', { name: 'Recording in progress' })).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /^Recording( and transcription)? in progress$/ }),
+    ).toBeNull();
   });
 });

@@ -1,0 +1,16 @@
+/* While recording, the dot fades softly in and out. Paused and idle dots stay still. */
+.pulse {
+  animation: recording-fade 2s ease-in-out infinite;
+}
+
+@keyframes recording-fade {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

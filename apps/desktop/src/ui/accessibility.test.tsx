@@ -118,7 +118,9 @@ describe('accessibility', () => {
       true,
     );
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('img', { name: 'Recording in progress' })).toBeTruthy();
+    expect(
+      within(nav).getByRole('img', { name: /^Recording( and transcription)? in progress$/ }),
+    ).toBeTruthy();
   });
 });
 

@@ -1,3 +1,4 @@
+import { isTranscribing, pulseClass, recordingTip } from '../components/RecordingDot.tsx';
 import { Tooltip } from '../components/Tooltip.tsx';
 import { SCREENS, type ScreenEntry, type ScreenId } from '../screens/index.ts';
 import { useRecordingStatus } from './use-recording-status.ts';
@@ -14,31 +15,42 @@ const GEAR_ICON =
   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z';
 
 export function Sidebar({ selected, settingsOpen, onSelect, onOpenSettings }: SidebarProps) {
-  const { recording } = useRecordingStatus();
+  const { recording, lag } = useRecordingStatus();
   const dot =
     recording.status === 'recording' || recording.status === 'paused' ? recording.status : null;
-  const item = (screen: ScreenEntry) => (
-    <button
-      key={screen.id}
-      type="button"
-      className={styles.item}
-      aria-current={screen.id === selected ? 'page' : undefined}
-      onClick={() => onSelect(screen.id)}
-    >
-      <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-        <path d={screen.icon} />
-      </svg>
-      {screen.label}
-      {screen.id === 'live' && dot && (
-        <span
-          role="img"
-          className={styles.dot}
-          data-state={dot}
-          aria-label={dot === 'paused' ? 'Recording paused' : 'Recording in progress'}
-        />
-      )}
-    </button>
-  );
+  const tip = dot ? recordingTip(dot, isTranscribing(lag)) : '';
+  const item = (screen: ScreenEntry) => {
+    const button = (
+      <button
+        type="button"
+        className={styles.item}
+        aria-current={screen.id === selected ? 'page' : undefined}
+        onClick={() => onSelect(screen.id)}
+      >
+        <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+          <path d={screen.icon} />
+        </svg>
+        {screen.label}
+        {screen.id === 'live' && dot && (
+          <span
+            role="img"
+            className={`${styles.dot} ${pulseClass(dot)}`}
+            data-state={dot}
+            aria-label={tip}
+          />
+        )}
+      </button>
+    );
+    // The button is the focus target, so its tooltip explains the dot for keyboard users too.
+    // The Live item is always wrapped, so the button is not remounted when a recording starts.
+    return screen.id === 'live' ? (
+      <Tooltip key={screen.id} label={tip}>
+        {button}
+      </Tooltip>
+    ) : (
+      button
+    );
+  };
   const help = SCREENS.find((screen) => screen.id === 'help');
 
   return (

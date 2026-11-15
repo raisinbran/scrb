@@ -87,7 +87,7 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    expect(screen.getByText(/Recording/)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toMatch(/Recording/);
     expect(screen.getByText('Microphone changed')).toBeTruthy();
   });
 
@@ -134,7 +134,7 @@ describe('MiniRecording', () => {
         transcription: null,
       }),
     );
-    expect(document.body.textContent).toBe('Recording 01:05');
+    expect(screen.getByRole('status').textContent).toBe('Recording 01:05');
   });
 
   it('keeps the status row and one fixed slot when the warning comes and goes', async () => {

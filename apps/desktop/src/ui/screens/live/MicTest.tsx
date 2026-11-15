@@ -42,19 +42,21 @@ export function MicTest({
   };
 
   return (
-    <div className={styles.controls}>
-      <button type="button" className={styles.button} disabled={!sources} onClick={toggle}>
+    <div className={styles.testRow}>
+      <button type="button" className={styles.testButton} disabled={!sources} onClick={toggle}>
         {active ? 'Stop test' : 'Test mic'}
       </button>
-      {(active || handsFree || showFailure) && (
-        <span className={styles.hint} role="status">
-          {check && (active || showFailure) ? MIC_RESULT[check.micResult] : null}
-          {handsFree &&
-            (active
-              ? '. This headset is in call mode, so sound quality is lower.'
-              : `${showFailure ? '. ' : ''}Testing this headset turns on call mode and may lower sound quality.`)}
-        </span>
-      )}
+      <div className={styles.testNote}>
+        {(active || handsFree || showFailure) && (
+          <span className={styles.hint} role="status">
+            {check && (active || showFailure) ? MIC_RESULT[check.micResult] : null}
+            {handsFree &&
+              (active
+                ? '. This headset is in call mode, so sound quality is lower.'
+                : `${showFailure ? '. ' : ''}Testing this headset turns on call mode and may lower sound quality.`)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

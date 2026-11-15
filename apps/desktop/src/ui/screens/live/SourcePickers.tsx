@@ -43,7 +43,7 @@ export function SourcePickers({
 
   return (
     <div className={styles.pickers} aria-busy={switching}>
-      <div className={styles.picker}>
+      <div className={`${styles.picker} ${styles.appPicker}`}>
         <label htmlFor={appId}>Meeting app</label>
         <select
           id={appId}
@@ -58,25 +58,26 @@ export function SourcePickers({
             </option>
           ))}
         </select>
-        {!app.isRunning && (
-          <p className={styles.hint}>
-            {app.name} is not running.{' '}
-            <button
-              type="button"
-              className={styles.linkButton}
-              disabled={switching}
-              onClick={() => onSelect({ ...selection, meetingAppId: WHOLE_COMPUTER_SOURCE_ID })}
-            >
-              Use Whole computer audio
-            </button>
-          </p>
-        )}
-        {switching && <p className={styles.hint}>Switching…</p>}
-        {app.kind === 'browser' && (
-          <p className={styles.hint}>Records the entire browser, including other tabs.</p>
-        )}
+        <div className={styles.hintSlot}>
+          {switching ? (
+            <p className={styles.hint}>Switching…</p>
+          ) : !app.isRunning ? (
+            <p className={styles.hint}>
+              Not running.{' '}
+              <button
+                type="button"
+                className={styles.linkButton}
+                onClick={() => onSelect({ ...selection, meetingAppId: WHOLE_COMPUTER_SOURCE_ID })}
+              >
+                Use Whole computer audio
+              </button>
+            </p>
+          ) : app.kind === 'browser' ? (
+            <p className={styles.hint}>Records the entire browser, including other tabs.</p>
+          ) : null}
+        </div>
       </div>
-      <div className={styles.picker}>
+      <div className={`${styles.picker} ${styles.micPicker}`}>
         <label htmlFor={micId}>Microphone</label>
         <select
           id={micId}
@@ -91,9 +92,11 @@ export function SourcePickers({
             </option>
           ))}
         </select>
-        {(mic ?? defaultMic)?.transport === 'bluetoothHandsFree' && (
-          <p className={styles.hint}>Hands-free Bluetooth lowers the audio quality.</p>
-        )}
+        <div className={styles.hintSlot}>
+          {(mic ?? defaultMic)?.transport === 'bluetoothHandsFree' && (
+            <p className={styles.hint}>Hands-free Bluetooth lowers the audio quality.</p>
+          )}
+        </div>
       </div>
     </div>
   );

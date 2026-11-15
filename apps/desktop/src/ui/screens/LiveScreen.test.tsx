@@ -223,6 +223,75 @@ describe('LiveScreen', () => {
     expect(mic?.getAttribute('aria-valuenow')).toBe('-30');
   });
 
+  describe('recording dot and timer tooltips', () => {
+    const tipAfterFocus = (element: HTMLElement) => {
+      fireEvent.focus(element);
+      return screen.getByRole('tooltip').textContent;
+    };
+
+    it('explain the dot by keyboard focus, naming transcription only when it runs', async () => {
+      const real = new MockBackend();
+      try {
+        render(
+          <BackendProvider backend={createHybridBackend(real, backend)}>
+            <LiveScreen />
+          </BackendProvider>,
+        );
+        await advance(0);
+        fireEvent.click(button('Start'));
+        await advance(0);
+        act(() => real.emit('transcriptionLag', { status: 'off', lagMs: 0 }));
+        const dot = screen.getByRole('img', { name: 'Recording in progress' });
+        expect(dot.tabIndex).toBe(0);
+        expect(tipAfterFocus(dot)).toBe('Recording in progress');
+        fireEvent.blur(dot);
+
+        act(() => real.emit('transcriptionLag', { status: 'ok', lagMs: 0 }));
+        const live = screen.getByRole('img', { name: 'Recording and transcription in progress' });
+        expect(tipAfterFocus(live)).toBe('Recording and transcription in progress');
+      } finally {
+        real.dispose();
+      }
+    });
+
+    it('name the elapsed timer', async () => {
+      await startMeeting();
+      expect(tipAfterFocus(screen.getByText('00:03'))).toBe('Elapsed recording time');
+    });
+
+    it('fade the dot only while recording, and never with reduced motion', () => {
+      const css = readFileSync(
+        join(__dirname, '..', 'components', 'RecordingDot.module.css'),
+        'utf8',
+      );
+      expect(css).toMatch(/\.pulse \{[^}]*animation: recording-fade/);
+      expect(css).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.pulse \{\s*animation: none/);
+    });
+  });
+
+  describe('fixed layout', () => {
+    it('gives the pickers fixed widths and every helper line a reserved slot', async () => {
+      const css = readFileSync(join(__dirname, 'LiveScreen.module.css'), 'utf8');
+      const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
+      expect(rule('appPicker')).toMatch(/width: \d+px/);
+      expect(rule('micPicker')).toMatch(/width: \d+px/);
+      expect(rule('picker')).toMatch(/flex: none/);
+      expect(rule('hintSlot')).toMatch(/height:/);
+      expect(rule('testButton')).toMatch(/width: \d+px/);
+      expect(rule('testNote')).toMatch(/height:/);
+      expect(rule('sources')).toMatch(/padding-block: var\(--space-4\)/);
+    });
+
+    it('keeps one helper slot per picker whether or not a hint shows', async () => {
+      await renderLive();
+      const slots = () => document.querySelectorAll('[class*="hintSlot"]').length;
+      expect(slots()).toBe(2);
+      fireEvent.change(screen.getByLabelText('Meeting app'), { target: { value: 'app-zoom' } });
+      await advance(0);
+      expect(slots()).toBe(2);
+    });
+  });
+
   describe('warnings', () => {
     it('shows real live and failed transcript states', async () => {
       const real = new MockBackend();
