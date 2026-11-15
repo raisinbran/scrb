@@ -551,6 +551,40 @@ describe('createMeetingHandlers', () => {
     });
   });
 
+  it('re-processes a finished meeting and remembers its status', async () => {
+    const meeting = await recorded('Synthetic reprocess', '2026-10-15T10:00:00.000Z');
+    const paths = library.meetingPaths(meeting.id);
+    writeFileSync(join(paths.audioMicrophone, '000.opus'), 'invented');
+    writeFileSync(
+      join(paths.audioMicrophone, 'chunks.json'),
+      JSON.stringify({ chunks: [{ file: '000.opus', startNs: 0, endNs: 1_000_000 }] }),
+    );
+    const enqueue = vi.fn();
+    handlers = createMeetingHandlers(library, vi.fn(), undefined, { enqueue } as never);
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({ ok: true });
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(meeting.id);
+    expect(await library.getMeeting(meeting.id)).toMatchObject({
+      status: 'finalPassRunning',
+      statusBeforeReprocess: 'ready',
+    });
+    await library.updateMeeting(meeting.id, { status: 'ready' });
+    const busy = vi.fn();
+    handlers = createMeetingHandlers(library, vi.fn(), undefined, {
+      enqueue: busy,
+      isBusy: () => true,
+    } as never);
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
+      ok: false,
+      error: { code: 'conflict' },
+    });
+    expect(busy).not.toHaveBeenCalled();
+    await library.updateMeeting(meeting.id, { status: 'recording' });
+    expect(await call('retryFinalPass', { meetingId: meeting.id })).toMatchObject({
+      ok: false,
+      error: { code: 'conflict' },
+    });
+  });
+
   it('applies the origin and date filter', async () => {
     const october = await recorded('October', '2026-10-15T10:00:00.000Z');
     await recorded('November', '2026-11-15T10:00:00.000Z');

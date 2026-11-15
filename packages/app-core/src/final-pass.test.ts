@@ -6,11 +6,12 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import type { FinalTranscript } from '@scrb/transcription';
 import {
@@ -244,6 +245,80 @@ describe('final pass after Stop', () => {
     await queue.idle();
     expect(reports.map((r) => r.stage)).toEqual(['queued', 'transcribing']);
     expect((await library.getMeeting(id)).status).toBe('transcriptionFailed');
+  });
+
+  it('keeps a finished meeting readable when its re-run fails, and clears the marker on success', async () => {
+    const { id } = await sealedMeeting();
+    await library.updateMeeting(id, { status: 'recovered', statusBeforeReprocess: 'recovered' });
+    const failing = new FinalPassQueue(library, async () => {
+      throw new Error('boom');
+    });
+    failing.enqueue(id);
+    await failing.idle();
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'recovered',
+      statusBeforeReprocess: null,
+      transcriptionFailure: null,
+    });
+    await library.updateMeeting(id, { status: 'finalPassRunning', statusBeforeReprocess: 'ready' });
+    const working = new FinalPassQueue(library, async () => TRANSCRIPT);
+    working.enqueue(id);
+    await working.idle();
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'ready',
+      statusBeforeReprocess: null,
+    });
+  });
+
+  it('restores the old status when a queued re-run loses its audio while waiting', async () => {
+    const first = await sealedMeeting('First');
+    const { id, audio } = await sealedMeeting('Re-run');
+    // The re-run meeting already has a finished transcript from an earlier pass.
+    await runQueue(id, async () => TRANSCRIPT);
+    const before = await library.readTranscript(id);
+    expect(before.segments.length).toBeGreaterThan(0);
+    await library.updateMeeting(id, { status: 'finalPassRunning', statusBeforeReprocess: 'ready' });
+    let release: () => void = () => undefined;
+    const run = vi.fn(async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return TRANSCRIPT;
+    });
+    const queue = new FinalPassQueue(library, run);
+    queue.enqueue(first.id);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    queue.enqueue(id);
+    rmSync(audio, { recursive: true, force: true });
+    release();
+    await queue.idle();
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(await library.getMeeting(id)).toMatchObject({
+      status: 'ready',
+      statusBeforeReprocess: null,
+    });
+    expect(await library.readTranscript(id)).toEqual(before);
+  });
+
+  it('reports a meeting busy until the pass and matching finish', async () => {
+    const { id } = await sealedMeeting();
+    let release: () => void = () => undefined;
+    const matching = async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return undefined;
+    };
+    const queue = new FinalPassQueue(
+      library,
+      async () => TRANSCRIPT,
+      undefined,
+      (() => matching) as never,
+    );
+    expect(queue.isBusy(id)).toBe(false);
+    queue.enqueue(id);
+    expect(queue.isBusy(id)).toBe(true);
+    await vi.waitFor(async () => expect((await library.getMeeting(id)).status).toBe('ready'));
+    expect(queue.isBusy(id)).toBe(true);
+    release();
+    await queue.idle();
+    expect(queue.isBusy(id)).toBe(false);
   });
 
   it('stops reporting when the pass is cancelled', async () => {

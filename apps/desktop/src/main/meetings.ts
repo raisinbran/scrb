@@ -354,12 +354,16 @@ export function createMeetingHandlers(
       // The status check alone lets a double click queue the pass twice.
       if (
         retrying.has(meetingId) ||
-        meeting.status !== 'transcriptionFailed' ||
+        // Ready is set before optional speaker matching ends, so the status alone is not enough.
+        finalPasses?.isBusy?.(meetingId) ||
+        (meeting.status !== 'transcriptionFailed' &&
+          meeting.status !== 'ready' &&
+          meeting.status !== 'recovered') ||
         !hasSavedAudio(library, meeting)
       ) {
         throw new ContractError({
           code: 'conflict',
-          message: 'No failed pass with saved audio can be retried.',
+          message: 'Only a finished or failed meeting with saved audio can be re-processed.',
         });
       }
       if (!finalPasses) {
@@ -383,6 +387,7 @@ export function createMeetingHandlers(
         await library.updateMeeting(meetingId, {
           status: 'finalPassRunning',
           transcriptionFailure: null,
+          statusBeforeReprocess: meeting.status === 'transcriptionFailed' ? null : meeting.status,
         });
         emit?.('meetingChanged', await itemOf(await requireMeeting(library, meetingId)));
         finalPasses.enqueue(meetingId);

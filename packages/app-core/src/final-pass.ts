@@ -240,6 +240,7 @@ function finalPassDir(library: Library, meetingId: string): string {
 /** Runs final passes one at a time, so only one large model is ever loaded. */
 export class FinalPassQueue {
   private waiting: string[] = [];
+  private readonly active = new Set<string>();
   private running: Promise<void> | null = null;
   private closing = false;
   private readonly abort = new AbortController();
@@ -255,8 +256,14 @@ export class FinalPassQueue {
 
   enqueue(meetingId: string): void {
     if (this.closing) return;
+    this.active.add(meetingId);
     this.waiting.push(meetingId);
     this.running ??= this.drain();
+  }
+
+  /** True from enqueue until the pass and its optional speaker matching have finished. */
+  isBusy(meetingId: string): boolean {
+    return this.active.has(meetingId);
   }
 
   /** Resolves once nothing is queued or running. */
@@ -268,13 +275,18 @@ export class FinalPassQueue {
   async shutdown(): Promise<void> {
     this.closing = true;
     this.waiting = [];
+    this.active.clear();
     this.abort.abort();
     await this.running;
   }
 
   private async drain(): Promise<void> {
     for (let id = this.waiting.shift(); id !== undefined; id = this.waiting.shift()) {
-      await this.process(id);
+      try {
+        await this.process(id);
+      } finally {
+        this.active.delete(id);
+      }
     }
     this.running = null;
   }
@@ -304,6 +316,10 @@ export class FinalPassQueue {
     try {
       report('queued', 0);
       const tracks = sealedTracks(this.library.meetingPaths(meetingId).audio);
+      // A re-run whose audio vanished must not report success over the old transcript.
+      if (tracks.length === 0 && (await this.library.getMeeting(meetingId)).statusBeforeReprocess) {
+        throw new Error('No readable sealed tracks');
+      }
       if (tracks.length > 0) {
         const job = () =>
           this.run({
@@ -328,7 +344,11 @@ export class FinalPassQueue {
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       this.abort.signal.throwIfAborted();
-      await this.library.updateMeeting(meetingId, { status: 'ready', transcriptionFailure: null });
+      await this.library.updateMeeting(meetingId, {
+        status: 'ready',
+        transcriptionFailure: null,
+        statusBeforeReprocess: null,
+      });
       report('finishing', 1);
       if (transcript && matching) {
         let edit: ProfileAssignmentEdit | undefined;
@@ -360,13 +380,24 @@ export class FinalPassQueue {
   private async fail(meetingId: string, error: unknown): Promise<void> {
     this.library.logger.log('error', 'final-pass-failed', { meetingId, ...errorFields(error) });
     try {
-      await this.library.updateMeeting(meetingId, {
-        status: 'transcriptionFailed',
-        transcriptionFailure:
-          error instanceof FinalPassUnavailableError
-            ? MISSING_TOOLS_MESSAGE
-            : WORKER_FAILED_MESSAGE,
-      });
+      const { statusBeforeReprocess } = await this.library.getMeeting(meetingId);
+      // A failed re-run of a finished meeting must not hide its good transcript.
+      await this.library.updateMeeting(
+        meetingId,
+        statusBeforeReprocess
+          ? {
+              status: statusBeforeReprocess,
+              transcriptionFailure: null,
+              statusBeforeReprocess: null,
+            }
+          : {
+              status: 'transcriptionFailed',
+              transcriptionFailure:
+                error instanceof FinalPassUnavailableError
+                  ? MISSING_TOOLS_MESSAGE
+                  : WORKER_FAILED_MESSAGE,
+            },
+      );
     } catch (saveError) {
       // The status stays `finalPassRunning`, so the pass is tried again on the next launch.
       this.library.logger.log('error', 'final-pass-status-failed', {
@@ -386,10 +417,17 @@ export async function resumeFinalPasses(
     if (queue) queue.enqueue(meetingId);
     else {
       await rm(finalPassDir(library, meetingId), { recursive: true, force: true });
-      await library.updateMeeting(meetingId, {
-        status: 'transcriptionFailed',
-        transcriptionFailure: NOT_ENABLED_MESSAGE,
-      });
+      const { statusBeforeReprocess } = await library.getMeeting(meetingId);
+      await library.updateMeeting(
+        meetingId,
+        statusBeforeReprocess
+          ? {
+              status: statusBeforeReprocess,
+              transcriptionFailure: null,
+              statusBeforeReprocess: null,
+            }
+          : { status: 'transcriptionFailed', transcriptionFailure: NOT_ENABLED_MESSAGE },
+      );
     }
   }
 }

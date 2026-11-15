@@ -10,12 +10,7 @@ export type MeetingSource = 'recorded' | 'imported';
  * - `transcriptionFailed`: the final pass could not finish; the audio is kept.
  */
 export type MeetingStatus =
-  | 'recording'
-  | 'importing'
-  | 'ready'
-  | 'recovered'
-  | 'finalPassRunning'
-  | 'transcriptionFailed';
+  'recording' | 'importing' | 'ready' | 'recovered' | 'finalPassRunning' | 'transcriptionFailed';
 
 const STATUSES: readonly string[] = [
   'recording',
@@ -43,6 +38,8 @@ export interface MeetingMeta {
   buildVoiceProfiles: boolean;
   /** Shown to the user. Plain text written by the app, never tool output. */
   transcriptionFailure?: string | null;
+  /** Set while a finished meeting is being re-processed: the status to restore if the run fails. */
+  statusBeforeReprocess?: 'ready' | 'recovered' | null;
 }
 
 function validateMeeting(doc: JsonObject): MeetingMeta {
@@ -53,10 +50,18 @@ function validateMeeting(doc: JsonObject): MeetingMeta {
   assertFormat(typeof doc['durationMs'] === 'number', 'durationMs');
   assertFormat(doc['source'] === 'recorded' || doc['source'] === 'imported', 'source');
   assertFormat(STATUSES.includes(doc['status'] as string), 'status');
-  assertFormat(doc['audioDeletedAt'] === null || typeof doc['audioDeletedAt'] === 'string', 'audio');
+  assertFormat(
+    doc['audioDeletedAt'] === null || typeof doc['audioDeletedAt'] === 'string',
+    'audio',
+  );
   assertFormat(typeof doc['buildVoiceProfiles'] === 'boolean', 'buildVoiceProfiles');
   const failure = doc['transcriptionFailure'];
   assertFormat(failure == null || typeof failure === 'string', 'transcriptionFailure');
+  const before = doc['statusBeforeReprocess'];
+  assertFormat(
+    before == null || before === 'ready' || before === 'recovered',
+    'statusBeforeReprocess',
+  );
   return doc as unknown as MeetingMeta;
 }
 
