@@ -11,6 +11,10 @@ interface RecordingControlsProps {
   busy: boolean;
   /** True while live transcription is running, for the dot's tooltip. */
   transcribing: boolean;
+  /** True while the speech models are not downloaded: recording cannot start. */
+  startBlocked?: boolean;
+  /** Said to screen readers and in the tooltip while Start is disabled for setup. */
+  startBlockedReason?: string | undefined;
   onStart(): void;
   onPause(): void;
   onResume(): void;
@@ -25,21 +29,52 @@ const STATUS_TEXT: Record<RecordingStatus, string> = {
   stopping: 'Stopping…',
 };
 
+const SR_ONLY = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+
 export function RecordingControls(props: RecordingControlsProps) {
-  const { status, elapsedMs, pauseReason, busy, transcribing, onStart, onPause, onResume, onStop } =
-    props;
+  const {
+    status,
+    elapsedMs,
+    pauseReason,
+    busy,
+    transcribing,
+    startBlocked = false,
+    startBlockedReason,
+    onStart,
+    onPause,
+    onResume,
+    onStop,
+  } = props;
   const active = status === 'recording' || status === 'paused';
   return (
     <div className={styles.controls} role="group" aria-label="Recording controls">
       {status === 'idle' || status === 'starting' ? (
-        <button
-          type="button"
-          className={styles.startButton}
-          disabled={busy || status === 'starting'}
-          onClick={onStart}
-        >
-          Start
-        </button>
+        <>
+          <button
+            type="button"
+            className={styles.startButton}
+            disabled={busy || status === 'starting' || startBlocked}
+            title={startBlocked ? startBlockedReason : undefined}
+            aria-describedby={
+              startBlocked && startBlockedReason ? 'start-blocked-reason' : undefined
+            }
+            onClick={onStart}
+          >
+            Start
+          </button>
+          {startBlocked && startBlockedReason && (
+            <span id="start-blocked-reason" style={SR_ONLY}>
+              {startBlockedReason}
+            </span>
+          )}
+        </>
       ) : (
         <>
           {status === 'paused' ? (

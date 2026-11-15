@@ -46,6 +46,7 @@ import {
   MEETING_APPS,
   MODELS,
   MODEL_UPDATES,
+  REQUIRED_MODELS,
   VOCABULARY_SUGGESTIONS,
   VOCABULARY_TERMS,
   VOICE_PROFILES,
@@ -123,6 +124,9 @@ export type ArmedFault =
   | 'summaryFails'
   | 'summaryStalls'
   | 'modelDownloadFails'
+  | 'downloadOffline'
+  | 'downloadDiskSpace'
+  | 'downloadChecksum'
   | 'profileDeleteFails'
   | 'permissionDenied'
   | 'noModelInfo'
@@ -288,6 +292,10 @@ export class MockBackend implements Backend {
   private suggestions: VocabularySuggestion[] = VOCABULARY_SUGGESTIONS.map((s) => ({ ...s }));
   private readonly meetingSpeakers = new Map<string, Speaker[]>();
   private readonly updatedModels = new Set<string>();
+  /** The required files finished so far, while `modelsMissing` is armed. */
+  private readonly requiredInstalled = new Set<string>();
+  private downloadTimers: Timer[] | null = null;
+  private downloadStepMs = 250;
   private readonly modelUpdateTimers = new Map<ModelRole, Timer[]>();
   private recording: RecordingState = {
     status: 'idle',
@@ -378,6 +386,8 @@ export class MockBackend implements Backend {
     for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
     this.modelUpdateTimers.clear();
     this.updatedModels.clear();
+    this.stopDownload();
+    this.requiredInstalled.clear();
   }
 
   private finalPassStarts = new Map<string, string>();
@@ -422,6 +432,7 @@ export class MockBackend implements Backend {
   }
 
   dispose(): void {
+    this.stopDownload();
     this.stopRecordingTimers();
     for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
     this.modelUpdateTimers.clear();
@@ -638,6 +649,92 @@ export class MockBackend implements Backend {
     );
     this.changeSpeakers(meetingId, speakers, [updated]);
     return updated;
+  }
+
+  /** Tests: how long each step of the simulated model download takes. */
+  setDownloadStepMs(ms: number): void {
+    this.downloadStepMs = ms;
+  }
+
+  private stopDownload(): void {
+    this.downloadTimers?.forEach(clearTimeout);
+    this.downloadTimers = null;
+  }
+
+  /**
+   * Simulates the real download of the missing required files: one run at a time, per-file and
+   * overall bytes, cancel keeps the files finished so far, and a failure ends the run.
+   */
+  private runDownload(): void {
+    if (this.downloadTimers || !this.armed.has('modelsMissing')) return;
+    const todo = REQUIRED_MODELS.filter((model) => !this.requiredInstalled.has(model.version));
+    if (todo.length === 0) return;
+    const overallBytesTotal = todo.reduce((sum, model) => sum + model.sizeBytes, 0);
+    const fault = (
+      [
+        ['downloadDiskSpace', 'diskSpace'],
+        ['downloadChecksum', 'checksum'],
+        ['downloadOffline', 'offline'],
+        ['modelDownloadFails', 'offline'],
+      ] as const
+    ).find(([armed]) => this.armed.delete(armed));
+    const timers: Timer[] = [];
+    this.downloadTimers = timers;
+    let at = 0;
+    let finished = 0;
+    const later = (action: () => void) => {
+      at += this.downloadStepMs;
+      timers.push(setTimeout(action, at));
+    };
+    const event = (
+      model: ModelInfo,
+      state: ModelDownloadProgress['state'],
+      fraction: number,
+      extra: Partial<ModelDownloadProgress> = {},
+    ) => {
+      const bytesDone = Math.round(model.sizeBytes * fraction);
+      this.emit('modelDownloadProgress', {
+        role: model.role,
+        modelName: model.name,
+        state,
+        bytesDone,
+        bytesTotal: model.sizeBytes,
+        overallBytesDone: finished + (state === 'done' ? 0 : bytesDone),
+        overallBytesTotal,
+        ...extra,
+      });
+    };
+    const fail = (model: ModelInfo, reason: 'offline' | 'checksum' | 'diskSpace', done: number) =>
+      later(() => {
+        this.downloadTimers = null;
+        event(model, 'failed', done, {
+          reason,
+          message:
+            reason === 'checksum'
+              ? 'The downloaded file did not match its checksum and was deleted.'
+              : reason === 'diskSpace'
+                ? 'Not enough free disk space. Free up about 1062 MB and try again.'
+                : 'The download stopped. Check your connection and retry.',
+        });
+      });
+    if (fault?.[1] === 'diskSpace') return fail(todo[0] as ModelInfo, 'diskSpace', 0);
+    for (const [index, model] of todo.entries()) {
+      later(() => event(model, 'downloading', 0.3));
+      // A network or checksum failure strikes in the second file, or the only one left.
+      if (fault && index === Math.min(1, todo.length - 1)) return fail(model, fault[1], 0.3);
+      later(() => event(model, 'downloading', 0.8));
+      later(() => event(model, 'verifying', 1));
+      later(() => {
+        this.requiredInstalled.add(model.version);
+        finished += model.sizeBytes;
+        const last = index === todo.length - 1;
+        if (last) {
+          this.downloadTimers = null;
+          this.armed.delete('modelsMissing');
+        }
+        event(model, 'done', 1, last ? { message: 'Models ready. Reopen Scribe to finish.' } : {});
+      });
+    }
   }
 
   private emitModelProgress(
@@ -1557,6 +1654,16 @@ export class MockBackend implements Backend {
     getSetupStatus: () => {
       const missing = this.armed.has('modelsMissing');
       const denied = this.armed.has('permissionDenied');
+      if (missing)
+        return {
+          models: REQUIRED_MODELS.map((model) => ({
+            ...model,
+            installed: this.requiredInstalled.has(model.version),
+          })),
+          permissions: { microphone: denied ? 'denied' : 'granted', meetingAudio: 'granted' },
+          locationSet: this.settings.location.country !== null,
+          complete: false,
+        };
       return {
         models: MODELS.map((model) => ({
           ...model,
@@ -1571,18 +1678,8 @@ export class MockBackend implements Backend {
         complete: !missing && !denied,
       };
     },
-    startModelDownload: () => {
-      const fails = this.armed.delete('modelDownloadFails');
-      this.emit('modelDownloadProgress', {
-        role: 'summary',
-        modelName: 'summary 8B (4-bit)',
-        state: fails ? 'failed' : 'downloading',
-        bytesDone: 1_200_000_000,
-        bytesTotal: 5_000_000_000,
-        ...(fails ? { message: 'The download stopped. Check your connection and retry.' } : {}),
-      });
-    },
-    cancelModelDownload: () => undefined,
+    startModelDownload: () => this.runDownload(),
+    cancelModelDownload: () => this.stopDownload(),
     requestPermission: ({ permission }) => {
       void permission;
       return this.armed.has('permissionDenied') ? 'denied' : 'granted';
