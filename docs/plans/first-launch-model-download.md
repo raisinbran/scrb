@@ -1,0 +1,79 @@
+# First-launch model download: wiring plan
+
+**Status:** plan only, 2026-11-15, base main `f258188f`. Independent review: pending. Contract changes are **proposals, NEEDS OWNER APPROVAL**. Builds on `docs/plans/model-download.md` (manager, merged in #201) and `task-31-first-launch.md`.
+
+**Goal:** a fresh install (packaged Mac or Windows app, no dev assets) can fetch what it needs and record a real meeting, with no terminal step.
+
+## 1. Audit of main
+
+| Piece                                                                                                                                                                   | State                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Manager `main/model-download.ts`: https allowlist, redirects re-checked, Range resume, 3 retries, disk check (+256 MB), SHA-256, atomic rename, cancel, archive extract | **Done, tested** with a local server. Never run against the real hosts.                                                                                                                                |
+| Contract: `startModelDownload`, `cancelModelDownload`, `modelDownloadProgress` (with `overallBytes*`, `reason`), `getSetupStatus`, `ModelRole` incl. `summary`          | **Already approved and present.**                                                                                                                                                                      |
+| `backend.ts` wiring                                                                                                                                                     | Handlers exist only when `app.isPackaged` and a model is missing. Emits progress events.                                                                                                               |
+| `hybrid-backend.ts` routing                                                                                                                                             | **Gap A:** `startModelDownload`, `cancelModelDownload` and `modelDownloadProgress` are not in `REAL_CALLS` / `REAL_EVENTS`, so the UI reaches the **mock**, never the real downloader.                 |
+| `getSetupStatus` (real)                                                                                                                                                 | **Gap B:** models come from the config files, so a missing model is absent from the list or has `sizeBytes: 0`; no expected size, no summary role, `complete` ignores disk and download.               |
+| First-run UI                                                                                                                                                            | **Gap C:** `FirstLaunchLocation` only asks the country. `Settings > Models` shows rows and a progress bar but no "Download" button, cancel, retry or free-space text. Nothing prompts a fresh install. |
+| Packaged missing-models message (`packaged-setup.ts`)                                                                                                                   | Tells the owner to run `package-mac.sh --install-models` or copy files on Windows. Still the only path today.                                                                                          |
+| After download                                                                                                                                                          | **Gap D:** config files are rewritten only at next launch; the last event says "Reopen Scribe".                                                                                                        |
+| Summary LLM                                                                                                                                                             | No digest, URL or llama.cpp binary in the app; summaries are M1-optional (`summaries.md` section 7).                                                                                                   |
+| Models folder                                                                                                                                                           | `modelsDirFor`: Mac `~/Library/Application Support/Scribe/models`, Windows `%LOCALAPPDATA%\Scribe\models`. Right already.                                                                              |
+
+## 2. What a fresh install needs
+
+**Required for a real meeting (five files, 806 MB, digests in `scripts/model-digests.json`):** live speech `ggml-small.en-q5_1.bin` 190 MB, final speech `ggml-large-v3-turbo-q5_0.bin` 574 MB, VAD `ggml-silero-v6.2.0.bin` 0.9 MB, speaker embedding 39.6 MB, speaker segmentation 1.5 MB (from a tar.bz2, extracted and re-hashed). Sources are Hugging Face (`ggerganov/whisper.cpp`, `ggml-org/whisper-vad`) and GitHub (k2-fsa/sherpa-onnx release); the digest is the pin. Tools are in the app bundle, not downloaded.
+
+**Optional, later: summary LLM** `Qwen3.5-9B-Q4_K_M.gguf`, 5.68 GB, HF `unsloth/Qwen3.5-9B-GGUF` at a pinned commit, SHA-256 `03b74727…b7e8` (already in `dev-assets.sh`). Needs the pinned llama.cpp `llama-server` in the bundle (Mac Metal build; Windows has only a CUDA build, no CPU build recorded) and its own digest entry. A missing summary model must never block recording or `complete`.
+
+**Behaviour (already in the manager, to be confirmed on a real run):** progress per file and overall; resume after drop or app restart; cancel keeps the `.part`; retry = call start again; a bad hash is deleted and not retried; offline fails with `reason: offline` and nothing is half-installed; free disk must cover the remaining bytes plus 256 MB (about 1.1 GB for the five). After install nothing touches the network.
+
+**Mac vs Windows:** same files, digests and flow. Differences: folder (above), tool names `.exe`, `tar` for the segmentation archive (Windows 11 ships bsdtar; bz2 support unverified), SmartScreen/Gatekeeper do not apply to data files. Mac is ad-hoc signed; the app writes only to user folders, so no admin on either.
+
+**Packaging:** `package-mac.sh --install-models` and the Windows handover folder stay as the offline/owner path and as the fallback if a host is down. They need no change; the in-app download is the same files to the same folder, so the two never conflict (the manager skips files that verify).
+
+## 3. Contract additions (NEEDS OWNER APPROVAL; `packages/contracts/` untouched until approved)
+
+1. **`getModelDownloadPlan`**: `{ request: void; response: ModelDownloadPlan }`.
+   `ModelDownloadPlan = { files: { role: ModelRole; name: string; bytes: number; installed: boolean; optional: boolean }[]; remainingBytes: number; freeBytes: number | null; running: boolean }`. Lets the screen show "806 MB to download, 41 GB free" before the click and re-attach to a running download after a reload. No paths.
+2. **`startModelDownload` request** changes from `void` to `{ includeOptional?: boolean } | void`, to fetch the summary model when the owner opts in. Not needed for M1; may be deferred to slice 5.
+3. **`ModelInfo.sizeBytes`** keeps its shape but is documented as the expected size when `installed` is false (today it is 0). Semantics only.
+
+Not needed: any change to `ModelDownloadProgress`, `cancelModelDownload`, or `getSetupStatus` shape. No new event: `modelDownloadProgress` already carries everything. No paths cross the boundary; the renderer sees names, roles and byte counts only.
+
+## 4. Slices
+
+| #   | Slice                                                                                                                                                                                                                                                                                                                                                                                                                       | Side                  | Hours | Contract                   | Where it can run                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ----- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Smallest unblock.** Route the three download names through the real backend (Gap A); real `getSetupStatus` lists all five files with expected sizes and `installed` from verified state (Gap B); a **Download models** button, progress, cancel, retry and failure text in `Settings > Models` and a first-run notice when models are missing (Gap C); re-read config after the last file so no restart is needed (Gap D) | UI + backend, two PRs | 8-10  | none (uses existing calls) | Code on any machine. Real-host run: Mac for Mac, W10 or Regiurn for Windows.                                           |
+| 2   | `getModelDownloadPlan`, free-space and "running" display, reload re-attach                                                                                                                                                                                                                                                                                                                                                  | both                  | 4-5   | #1, #3                     | Any; needs approval first.                                                                                             |
+| 3   | First-run guided screen (location + models + microphone in one flow), offline message with Retry, "models missing" blocks Record with a link here instead of the terminal command                                                                                                                                                                                                                                           | UI                    | 5-6   | none                       | Any (mock-driven tests).                                                                                               |
+| 4   | Real-host verification: one clean-profile download on each OS, confirm CDN hostnames against the allowlist, fix the allowlist if needed, time and resume test (kill mid-file)                                                                                                                                                                                                                                               | backend               | 3-4   | none                       | **Mac and Regiurn separately** (needs the real packaged app and a clean user folder). Under 20 min each; no recording. |
+| 5   | Optional summary model: digest entry, pinned llama.cpp in the bundle, `includeOptional`, UI row "Summaries (5.7 GB, optional)"                                                                                                                                                                                                                                                                                              | both                  | 8-10  | #2                         | Mac first; Windows needs a CPU llama.cpp build decision.                                                               |
+
+**Smallest slice that unblocks a fresh-install real meeting: slice 1.** It needs no contract change and no approval beyond independent review. Until then the owner uses the existing script or handover folder.
+
+## 5. Tests
+
+- Unit: hybrid routing sends the three names to the real backend (extend `hybrid-backend.test.ts`); real `getSetupStatus` with an empty folder lists five uninstalled rows with sizes; partial folder; all verified; config re-read after the last `done`.
+- UI (mock backend, `screens.test.tsx` style): button starts, progress and overall bar, cancel, `offline`, `diskSpace` and `checksum` messages each show the right next step, retry resumes, Record disabled while models are missing.
+- Existing manager tests stay the guard for hash, resume, redirect and cancel; add none that fetch a real model.
+- Manual (slice 4): clean user folder, packaged app, real hosts, airplane-mode start, kill during the 574 MB file, reopen and finish, corrupt one byte and relaunch.
+
+## 6. Risks
+
+| Risk                                                                                 | Handling                                                                                        |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Hugging Face or GitHub changes or removes a file, or the `resolve/main` branch moves | The digest rejects a changed file; the failure says so. Mirror we control is an owner decision. |
+| Real CDN hostnames not on the parent-domain allowlist                                | Slice 4 finds out on one real run; fix is a one-line allowlist change.                          |
+| Download looks stalled on a slow link                                                | Progress and speed text; resume on retry.                                                       |
+| Hot-reload of config (Gap D) races with a running capture                            | Re-read only while idle; otherwise keep "Reopen Scribe".                                        |
+| Windows bsdtar cannot read `tar.bz2`                                                 | Unverified; slice 4 on Windows tests it, fallback is shipping the 1.5 MB model in the bundle.   |
+| Two PRs touching `hybrid-backend.ts` and `ModelsSection.tsx`                         | Slice 1 owns both; other UI sessions rebase on it.                                              |
+
+## 7. Owner decisions
+
+1. Approve slice 1 now (no contract change) and treat it as the M1 unblock?
+2. Approve `getModelDownloadPlan` and the `sizeBytes` wording (contract items 1 and 3)?
+3. Is the summary model in M1 (slice 5, 5.7 GB download plus a bundled llama.cpp) or after M1?
+4. Keep third-party hosts as the only source, or host a mirror we control?
+5. Download starts only on a click (recommended, matches Task 31) versus automatically on first launch with a visible banner?
