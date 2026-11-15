@@ -1,8 +1,10 @@
-# Phase 0 Third-Party Sources
+# Third-Party Sources and Notices
 
-These sources are used only for throwaway feasibility work.  Any code later
-adapted into Meeting Scribe must be reviewed and recorded again in the
-production repository.
+## Phase 0 sources
+
+These sources are used only for throwaway feasibility work. Any code later
+adapted into Meeting Scribe must be reviewed and recorded in the relevant
+production notice section.
 
 ## Meetily
 
@@ -57,4 +59,17 @@ production repository.
 - Models used: int8 Pyannote 3.0 segmentation and 3D-Speaker ERes2Net
   embedding models from the sherpa-onnx model distribution
 - Local changes: none
+
+## Packaged macOS dependency: llama.cpp
+
+- Repository: https://github.com/ggml-org/llama.cpp
+- Commit: `369dcf309c8b274370e692ac2d42d9708597ae04`
+- Source path: `upstream/llama.cpp/build/bin/llama-server` and the dynamic
+  libraries it loads
+- License: MIT
+- Copyright: Copyright (c) 2023-2026 The ggml authors
+- Local changes: the pinned `llama-server` and its required dylibs are staged
+  into the macOS application bundle with local rpaths and ad-hoc signatures.
+- Full license text: `licenses/llama.cpp-MIT.txt` (copied to
+  `Contents/Resources/bin/licenses/llama.cpp-MIT.txt` in the Mac app).
 
