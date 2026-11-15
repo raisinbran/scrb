@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { Speaker, SpeakerId } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
+import { isTranscribing, RecordingDot } from '../components/RecordingDot.tsx';
+import { Tooltip } from '../components/Tooltip.tsx';
 import { formatElapsed } from '../lib/format.ts';
 import { useRecordingStatus } from './use-recording-status.ts';
 import styles from './MiniRecording.module.css';
@@ -96,7 +98,7 @@ function Icon({ children }: { children: ReactNode }) {
 
 /** The small window shown over other apps: status and time only, never transcript text. */
 export function MiniRecording() {
-  const { recording, recordingAt, health } = useRecordingStatus();
+  const { recording, recordingAt, health, lag } = useRecordingStatus();
   const { heard, label } = useLastSpeaker(recording.meetingId);
   const [now, setNow] = useState(() => Date.now());
   const backend = useBackend();
@@ -150,9 +152,17 @@ export function MiniRecording() {
       <TitleStrip />
       <div className={styles.body} role="status">
         <span className={styles.line}>
-          <span className={styles.dot} data-state={recording.status} aria-hidden="true" />
+          <RecordingDot
+            status={recording.status === 'paused' ? 'paused' : 'recording'}
+            transcribing={isTranscribing(lag)}
+            className={styles.dot}
+          />
           {recording.status === 'recording' ? 'Recording' : 'Paused'}{' '}
-          <span className={styles.elapsed}>{formatElapsed(elapsed)}</span>
+          <Tooltip label="Elapsed recording time">
+            <span className={styles.elapsed} tabIndex={0}>
+              {formatElapsed(elapsed)}
+            </span>
+          </Tooltip>
           {compact && warning ? (
             <span className={styles.flag} role="img" aria-label={warning} title={warning}>
               !

@@ -6,6 +6,7 @@ import type {
   MeetingApp,
   SourceSelection,
 } from '@scrb/contracts';
+import { isTranscribing } from '../components/RecordingDot.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
@@ -138,6 +139,7 @@ export function LiveScreen() {
           elapsedMs={recording.elapsedMs}
           pauseReason={recording.pauseReason}
           busy={busy}
+          transcribing={isTranscribing(lag)}
           onStart={start}
           onPause={pause}
           onResume={resume}
@@ -158,7 +160,11 @@ export function LiveScreen() {
             onSelect={selectSources}
           />
         )}
-        {status === 'idle' && <MicTest sources={selection} devices={sources.devices} />}
+        {status === 'idle' ? (
+          <MicTest sources={selection} devices={sources.devices} />
+        ) : (
+          <div className={styles.testRow} aria-hidden="true" />
+        )}
         <LevelMeters active={status === 'recording'} />
       </div>
       <div className={styles.alertsSlot}>

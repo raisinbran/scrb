@@ -40,8 +40,8 @@ export function Tooltip({
   }, []);
   const show = useCallback(() => {
     const box = wrapper.current?.getBoundingClientRect();
-    if (box) setPoint({ x: box.left + box.width / 2, y: box.bottom + 6 });
-  }, []);
+    if (box && label) setPoint({ x: box.left + box.width / 2, y: box.bottom + 6 });
+  }, [label]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
