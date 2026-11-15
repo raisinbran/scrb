@@ -6,13 +6,13 @@ Source of truth: tokens in `apps/desktop/src/ui/theme/tokens.css`, shared pieces
 
 ## Status: implemented vs pending
 
-Checked against `origin/main` (39591254) on 2026-11-15. Statements below say which is which; a sentence marked **Pending** describes an open PR and is not on main until it merges.
+Checked against `origin/main` (60a58d67) on 2026-11-15. Statements below say which is which; a sentence marked **Pending** describes an open PR and is not on main until it merges.
 
-**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms, themed), PopupLayer/PopupBanner (used on 6 screen files), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating and equaliser bars; MicTest and LevelMeters on Live.
+**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms, themed), PopupLayer/PopupBanner (as a sticky zero-height layer; today it is not yet anchored to each panel, see Pending), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating, equaliser bars, Hide as a minimise-dash button immediately left of Open Scribe, no expand toggle, and the warning flag with its tooltip (PR #305, merged); MicTest and LevelMeters on Live.
 
-**Pending (open PRs):** #288 (meters beside pickers under "Levels", Test mic in Settings above Preset, fixed 220px sensitivity bar); #305 (mini window Hide as minimise dash, expand toggle removed, warning flag always shown).
+**Pending (open PRs):** #288 (meters beside pickers under "Levels", Test mic in Settings above Preset, fixed 220px sensitivity bar); #315 (mic test meter and spacing, "Levels" gap, banners placed inside the panel they belong to).
 
-**Owner rules not yet fully in code:** the Hide icon, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip`; remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
+**Owner rules not yet fully in code:** panel-anchored banners (the rule is firm, the code is pending #315), the mic-test meter and spacing, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip`; remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
 
 ## 1. How to use this guide (short version)
 
@@ -151,7 +151,7 @@ Grid is 4px, steps are tokens:
 
 **Dialogs:** `Dialog` / `ActionDialog` (440px wide, 24px padding, title at `--text-lg`, actions right aligned with `--space-2` gap, 24px above them). Focus is trapped, Escape closes unless the dialog is required, focus returns to the opener.
 
-**Mini recording window:** always-on-top, frameless, draggable (`-webkit-app-region: drag`, buttons are `no-drag`). Shows the speaker label only while a track is above -40 dBFS, equaliser bars (static with reduced motion), elapsed time, warning flag, then the button row. **On main:** Pause/Resume, Stop, a Make larger/smaller toggle, Hide (a small window icon with a dash, tooltip "Hide (recording continues)") immediately left of Open Scribe. **Pending (open PR #305):** Hide becomes a plain minimise-dash button named "Hide mini window", the expand toggle is removed, and the warning flag shows whenever there is a warning. Owner rule either way: Hide sits immediately left of "Open Scribe". Note: the mini window styles its tooltips with its own `data-tip` CSS rather than the shared `Tooltip`; a known inconsistency, do not copy it elsewhere.
+**Mini recording window:** always-on-top, frameless, draggable (`-webkit-app-region: drag`, buttons are `no-drag`). Shows the speaker label only while a track is above -40 dBFS, equaliser bars (static with reduced motion), elapsed time, warning flag, then the button row: Pause/Resume, Stop, Hide (a minimise-dash button named "Hide mini window", tooltip "Hide (recording continues)") immediately left of Open Scribe. There is no expand toggle. The warning flag is focusable and its tooltip is the warning text. All on main since PR #305. Note: the mini window styles its tooltips with its own `data-tip` CSS rather than the shared `Tooltip`; a known inconsistency, do not copy it elsewhere.
 
 ## 8. Component catalogue
 
@@ -171,7 +171,7 @@ Variants: `secondary` (default, bordered, transparent), `primary` (accent fill, 
 
 ### IconButton (`components/IconButton.tsx`)
 
-30×30 square, 16px stroke icon from `ICONS` (24-unit grid, 1.75 stroke, round caps). `label` is required: it is the accessible name **and** the tooltip. Use `tip` for longer explanation. Add a new icon to `ICONS`, drawn as strokes, matching the others. Standard icons (owner rule; the mini window's Hide icon still differs on main until PR #305 merges): minimise is a **dash** ("-"), dismiss is an **X**, back is a chevron, delete is the trash. Never repurpose an icon.
+30×30 square, 16px stroke icon from `ICONS` (24-unit grid, 1.75 stroke, round caps). `label` is required: it is the accessible name **and** the tooltip. Use `tip` for longer explanation. Add a new icon to `ICONS`, drawn as strokes, matching the others. Standard icons (owner rule): minimise is a **dash** ("-"), dismiss is an **X**, back is a chevron, delete is the trash. Never repurpose an icon.
 
 ```tsx
 <IconButton label="Export" icon="export" onClick={openExport} />
@@ -185,7 +185,7 @@ Wraps one control. Shows after 100ms hover, instantly on keyboard focus, 120ms f
 
 ### PopupLayer and PopupBanner (`components/PopupBanner.tsx`)
 
-For transient notices (errors, re-process notes, "final transcript is still being processed" with a `Progress` bar). `PopupLayer` is a zero-height sticky layer placed **first inside the panel it belongs to**; banners overlay the panel's top, centred, max 640px, and never push content. `level`: `info` (accent edge), `warning`, `danger`. `role="alert"` only for errors the person must notice, otherwise `status`. Add `onDismiss` wherever dismissing makes sense.
+For transient notices (errors, re-process notes, "final transcript is still being processed" with a `Progress` bar). `PopupLayer` is a zero-height sticky layer meant to be placed **first inside the panel it belongs to** (on main some layers still sit at a wider level; panel-anchoring is pending PR #315); banners overlay the panel's top, centred, max 640px, and never push content. `level`: `info` (accent edge), `warning`, `danger`. `role="alert"` only for errors the person must notice, otherwise `status`. Add `onDismiss` wherever dismissing makes sense.
 
 ```tsx
 <PopupLayer>
