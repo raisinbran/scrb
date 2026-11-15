@@ -22,11 +22,9 @@ export function cachedSources(): Sources | null {
   return cached;
 }
 
-/** Use the last lists if there are any and refresh them behind the screen; otherwise wait for them. */
+/** The last lists if there are any, so a screen can draw at once; otherwise waits for them. The caller refreshes them behind the screen with `fetchSources`. */
 export function sourcesNow(backend: Backend): Promise<Sources> {
-  if (!cached) return fetchSources(backend);
-  void fetchSources(backend).catch(() => undefined);
-  return Promise.resolve(cached);
+  return cached ? Promise.resolve(cached) : fetchSources(backend);
 }
 
 /** A device was plugged in or removed: the remembered lists can no longer be trusted. */

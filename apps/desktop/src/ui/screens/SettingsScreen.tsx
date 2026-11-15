@@ -1,4 +1,4 @@
-import { forgetSources, sourcesNow } from '../lib/sources-cache.ts';
+import { cachedSources, fetchSources, forgetSources, sourcesNow } from '../lib/sources-cache.ts';
 import { useEffect, useState } from 'react';
 import type {
   AppSettings,
@@ -294,6 +294,21 @@ function SettingsForm({
 export function SettingsScreen() {
   const backend = useBackend();
   const { state, reload } = useBackendData(load);
+  // Lists shown from the cache are refreshed once behind the screen; the screen reloads only if they differ.
+  useEffect(() => {
+    const before = cachedSources();
+    if (!before) return;
+    let current = true;
+    fetchSources(backend).then(
+      (fresh) => {
+        if (current && JSON.stringify(fresh) !== JSON.stringify(before)) reload();
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [backend, reload]);
   useEffect(
     () =>
       backend.on('deviceChanged', () => {
