@@ -70,6 +70,8 @@ echo "  output:       $repo/apps/desktop/release/mac-arm64/Scribe.app"
 
 cd "$repo/apps/desktop"
 node "$repo/scripts/stage-mac-tools.mjs" build/mac-stage "$capture" "$whisper" "$tools" "$llama" "$sherpa_lib"
+mkdir -p build/mac-stage/bin/licenses
+cp "$repo/third_party/licenses/llama.cpp-MIT.txt" build/mac-stage/bin/licenses/llama.cpp-MIT.txt
 npm run build
 rm -rf release
 npx electron-builder --mac dir --arm64 --publish never
