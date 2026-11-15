@@ -1,0 +1,1 @@
+| 2026-11-14 | Claude Code / Sonnet 5.5 / Windows desktop (REGIURN) | Packaged-build check of SP-08 null-origin fix; handoff note | unavailable | unavailable | unavailable | unavailable | unavailable | Verification / Sonnet 5.5 / default effort | A-398 | Review pending | allowance not read in this task; other sessions run. |
