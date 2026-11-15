@@ -1073,7 +1073,7 @@ describe('Recordings', () => {
     it('keeps banners in flow ahead of the Brief/Full toggle, so none covers it', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
-      const banner = await screen.findByText('May be outdated — regenerate?');
+      const banner = await screen.findByRole('button', { name: 'Regenerate' });
       const layer = banner.closest('[class*="inline"]');
       expect(layer).not.toBeNull();
       const toggle = screen.getByRole('radiogroup', { name: 'Summary length' });
