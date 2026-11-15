@@ -275,6 +275,24 @@ export const DEV_TRIGGERS: DevTrigger[] = [
     run: (b) => b.arm('modelsMissing'),
   },
   {
+    id: 'download-offline',
+    group: 'Setup',
+    label: 'Next model download: offline',
+    run: (b) => b.arm('downloadOffline'),
+  },
+  {
+    id: 'download-disk-space',
+    group: 'Setup',
+    label: 'Next model download: disk full',
+    run: (b) => b.arm('downloadDiskSpace'),
+  },
+  {
+    id: 'download-checksum',
+    group: 'Setup',
+    label: 'Next model download: bad checksum',
+    run: (b) => b.arm('downloadChecksum'),
+  },
+  {
     id: 'download-fails',
     group: 'Setup',
     label: 'Next model download fails',

@@ -4,6 +4,8 @@ import { WHOLE_COMPUTER_SOURCE_ID, type DeviceChange, type SourceSelection } fro
 import { isTranscribing } from '../components/RecordingDot.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useSetupBlocked } from '../lib/mock-mode.tsx';
+import { useModelsNeeded, useOpenModels } from '../lib/models-missing.tsx';
+import { formatFileSize } from '../lib/format.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
@@ -120,6 +122,8 @@ export function LiveScreen() {
 
   const meetingId = recording.meetingId ?? lastMeetingId;
   const setupBlocked = useSetupBlocked();
+  const models = useModelsNeeded();
+  const openModels = useOpenModels();
 
   return (
     <div className={styles.live}>
@@ -131,6 +135,7 @@ export function LiveScreen() {
           pauseReason={recording.pauseReason}
           busy={busy}
           transcribing={isTranscribing(lag)}
+          startBlocked={models.missing}
           onStart={start}
           onPause={pause}
           onResume={resume}
@@ -183,11 +188,22 @@ export function LiveScreen() {
       ) : (
         <div className={styles.idle}>
           <p className={styles.idleTitle}>
-            {setupBlocked ? 'Cannot record yet' : 'Ready to record'}
+            {models.missing
+              ? 'Models needed'
+              : setupBlocked
+                ? 'Cannot record yet'
+                : 'Ready to record'}
           </p>
           <p className={styles.idleBody}>
-            {setupBlocked ?? 'Choose your sources, then press Start.'}
+            {models.missing
+              ? `Scribe needs to download its speech models (${formatFileSize(models.bytes)}) before it can record.`
+              : (setupBlocked ?? 'Choose your sources, then press Start.')}
           </p>
+          {models.missing && (
+            <button type="button" className={styles.button} onClick={openModels}>
+              Download models
+            </button>
+          )}
         </div>
       )}
     </div>

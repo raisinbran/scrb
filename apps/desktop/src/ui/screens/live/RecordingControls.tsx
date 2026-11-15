@@ -11,6 +11,8 @@ interface RecordingControlsProps {
   busy: boolean;
   /** True while live transcription is running, for the dot's tooltip. */
   transcribing: boolean;
+  /** True while the speech models are not downloaded: recording cannot start. */
+  startBlocked?: boolean;
   onStart(): void;
   onPause(): void;
   onResume(): void;
@@ -26,8 +28,18 @@ const STATUS_TEXT: Record<RecordingStatus, string> = {
 };
 
 export function RecordingControls(props: RecordingControlsProps) {
-  const { status, elapsedMs, pauseReason, busy, transcribing, onStart, onPause, onResume, onStop } =
-    props;
+  const {
+    status,
+    elapsedMs,
+    pauseReason,
+    busy,
+    transcribing,
+    startBlocked = false,
+    onStart,
+    onPause,
+    onResume,
+    onStop,
+  } = props;
   const active = status === 'recording' || status === 'paused';
   return (
     <div className={styles.controls} role="group" aria-label="Recording controls">
@@ -35,7 +47,7 @@ export function RecordingControls(props: RecordingControlsProps) {
         <button
           type="button"
           className={styles.startButton}
-          disabled={busy || status === 'starting'}
+          disabled={busy || status === 'starting' || startBlocked}
           onClick={onStart}
         >
           Start

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ContractError,
   CALL_NAMES,
+  type ModelDownloadProgress,
   type TranscriptChanged,
   type TranscriptSegment,
 } from '@scrb/contracts';
@@ -830,5 +831,48 @@ describe('MockBackend', () => {
 
   it('runs every developer trigger without throwing', () => {
     for (const trigger of DEV_TRIGGERS) expect(() => trigger.run(backend)).not.toThrow();
+  });
+
+  describe('model download', () => {
+    it('lists the five required files with expected sizes while models are missing', async () => {
+      backend.arm('modelsMissing');
+      const status = await backend.call('getSetupStatus');
+      expect(status.models).toHaveLength(5);
+      expect(status.models.every((model) => !model.installed && model.sizeBytes > 0)).toBe(true);
+      expect(status.models.reduce((sum, model) => sum + model.sizeBytes, 0)).toBe(806_159_241);
+      expect(status.complete).toBe(false);
+    });
+
+    it('downloads one run at a time, reports overall bytes, and installs everything at the end', async () => {
+      backend.arm('modelsMissing');
+      backend.setDownloadStepMs(1);
+      const events: ModelDownloadProgress[] = [];
+      backend.on('modelDownloadProgress', (event) => events.push(event));
+      await backend.call('startModelDownload');
+      await backend.call('startModelDownload'); // a second start while running does nothing
+      await vi.waitFor(() => expect(events.at(-1)?.state).toBe('done'));
+      expect(events.filter((event) => event.state === 'done')).toHaveLength(5);
+      expect(events.at(-1)).toMatchObject({
+        overallBytesDone: 806_159_241,
+        overallBytesTotal: 806_159_241,
+      });
+      expect((await backend.call('getSetupStatus')).models.every((model) => model.installed)).toBe(
+        true,
+      );
+    });
+
+    it('keeps finished files when cancelled, and a failure carries its reason', async () => {
+      backend.arm('modelsMissing');
+      backend.setDownloadStepMs(1);
+      const events: ModelDownloadProgress[] = [];
+      backend.on('modelDownloadProgress', (event) => events.push(event));
+      backend.arm('downloadChecksum');
+      await backend.call('startModelDownload');
+      await vi.waitFor(() => expect(events.at(-1)?.state).toBe('failed'));
+      expect(events.at(-1)?.reason).toBe('checksum');
+      const installed = (await backend.call('getSetupStatus')).models.filter((m) => m.installed);
+      expect(installed).toHaveLength(1);
+      await backend.call('cancelModelDownload'); // idle: does nothing
+    });
   });
 });

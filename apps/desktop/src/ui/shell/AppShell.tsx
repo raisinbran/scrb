@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
@@ -51,6 +52,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
     <div className={styles.shell}>
       <TitleBar />
       <PrivacyBanner />
+      <ModelsNotice />
       <div className={styles.body}>
         <div className={styles.sidebar} style={{ width: SIDEBAR_WIDTH }}>
           <Sidebar selected={screenId} onSelect={onSelectScreen} />

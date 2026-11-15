@@ -307,6 +307,45 @@ export function createSummary(
   };
 }
 
+/** The five files a fresh install downloads, as the real setup status lists them (806 MB). */
+export const REQUIRED_MODELS: ModelInfo[] = [
+  {
+    role: 'liveSpeech',
+    name: 'Live speech model',
+    version: 'ggml-small.en-q5_1.bin',
+    installed: true,
+    sizeBytes: 190_098_681,
+  },
+  {
+    role: 'finalSpeech',
+    name: 'Final-pass speech model',
+    version: 'ggml-large-v3-turbo-q5_0.bin',
+    installed: true,
+    sizeBytes: 574_041_195,
+  },
+  {
+    role: 'liveSpeech',
+    name: 'Voice activity model',
+    version: 'ggml-silero-v6.2.0.bin',
+    installed: true,
+    sizeBytes: 885_098,
+  },
+  {
+    role: 'speaker',
+    name: 'Speaker segmentation model',
+    version: 'segmentation-model.int8.onnx',
+    installed: true,
+    sizeBytes: 1_540_506,
+  },
+  {
+    role: 'speaker',
+    name: 'Speaker embedding model',
+    version: '3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
+    installed: true,
+    sizeBytes: 39_593_761,
+  },
+];
+
 export const MODELS: ModelInfo[] = [
   {
     role: 'liveSpeech',
