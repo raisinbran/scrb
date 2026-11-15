@@ -15,9 +15,12 @@
   min-height: 0;
 }
 
+/* A column, so the zero-size wrapper of the corner button never adds an empty line above a screen. */
 .workspace {
   position: relative;
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   overflow-y: auto;
   background: var(--color-surface);
