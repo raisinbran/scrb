@@ -15,7 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "eval": "tsx eval/run.ts",
-    "eval:private": "tsx eval/private/run.ts"
+    "eval:private": "tsx eval/private/run.ts",
+    "eval:model": "tsx eval/model-test/cli.ts"
   },
   "dependencies": {
     "@scrb/summary": "*"
