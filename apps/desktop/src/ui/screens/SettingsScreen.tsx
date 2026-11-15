@@ -1,3 +1,4 @@
+import { forgetSources, sourcesNow } from '../lib/sources-cache.ts';
 import { useEffect, useState } from 'react';
 import type {
   AppSettings,
@@ -25,11 +26,9 @@ import { ModelsSection } from './settings/ModelsSection.tsx';
 import styles from './SettingsScreen.module.css';
 
 const load = (backend: Backend) =>
-  Promise.all([
-    backend.call('getSettings'),
-    backend.call('listInputDevices'),
-    backend.call('listMeetingApps'),
-  ]);
+  Promise.all([backend.call('getSettings'), sourcesNow(backend)]).then(
+    ([settings, { devices, apps }]) => [settings, devices, apps] as const,
+  );
 
 // Kept across screens, so leaving Settings and coming back never loses an unsaved change.
 const DRAFT_KEY = 'scrb.settings.draft';
@@ -295,7 +294,14 @@ function SettingsForm({
 export function SettingsScreen() {
   const backend = useBackend();
   const { state, reload } = useBackendData(load);
-  useEffect(() => backend.on('deviceChanged', reload), [backend, reload]);
+  useEffect(
+    () =>
+      backend.on('deviceChanged', () => {
+        forgetSources();
+        reload();
+      }),
+    [backend, reload],
+  );
   return (
     <Screen title="Settings">
       <DataView state={state}>

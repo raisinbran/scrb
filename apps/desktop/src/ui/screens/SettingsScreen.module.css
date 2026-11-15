@@ -101,7 +101,10 @@
 
 .slider output {
   flex: none;
+  /* "Automatic" and "-100 dB" take the same room, so the slider never changes length. */
+  min-width: 9ch;
   font-weight: 400;
+  text-align: end;
 }
 
 .inline {
