@@ -1,6 +1,6 @@
 # Gate 6 evidence: summary recall, precision and links (2026-11-13)
 
-**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (primary 189/189, secondary 33/33); judged precision was **not run**. The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
+**Result: not met on recall.** Pooled recall on the three held-out AMI meetings is **27/40 = 68%** against the 80% target. Links are all real (primary 189/189, secondary 33/33); judged precision is added below (**54/171 = 32%**, a self-judge of unknown accuracy; see the section). The set is tiny (40 reference sentences, 3 meetings), so every number moves several points per item.
 
 ## What was run
 
@@ -29,8 +29,25 @@ A reference sentence is **recovered** when one output action or decision contain
 
 Extraction took 820 s (IS1004d), 906 s (ES2015c) and 880 s (TS3005b), peak llama-server memory 1.9 to 6.2 GiB as sampled (the sampler may have missed the real peak). The three runs went back to back for about 44 minutes, which **overran the 20-minute limit** (see the incident file).
 
+## Judged precision (2026-11-14)
+
+Run with `gate6.js ... --judge` on the **same saved extractions** (no re-extraction), same Mac and model (Qwen3.5-9B Q4_K_M, Metal). About 24 minutes in all (the first 21 minutes passed the 20-minute approval; paused, owner extended, see A-399). The judge sees each item with the cited line plus 3 lines either side and answers `genuine` or `not_an_item`; the output only counts, so "unsupported" and "non-item" cannot be told apart.
+
+| Meeting | Items judged | Genuine | Judged precision | Not genuine | Reference-precision (lower bound) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| IS1004d | 51 | 16 | 31% | 35 | 35% |
+| ES2015c | 58 | 16 | 28% | 42 | 45% |
+| TS3005b | 62 | 22 | 35% | 40 | 60% |
+| **Pooled** | **171** | **54** | **32%** | **117 (68%)** | 47% |
+
+- **Against the hand reading:** earlier hand reading found about 16% non-items and 22% repeats (up to about 38% unusable, if they do not overlap). The judge calls 68% not genuine, about twice that, so the two readings disagree widely.
+- **The judge may be biased in either direction:** its genuine share (32%) is below the share of items that match an annotator's reference (47%). That does not show which measure is right (word-overlap matching can credit near-misses, and the judge sees only 7 lines and rejects a suggestion nobody took up), only that they disagree.
+- **Which problem is bigger:** not established. Recall (68% against 80%, 13 of 40 reference sentences missed) is a measured, rule-based number. True precision is **unknown**: the judge's 32% may be biased in either direction by an unknown amount, and the earlier hand reading is a different, unmatched sample. Human calibration (grading a sample of the 117 rejected items) is required before concluding anything about precision.
+- **Evidence:** numbers-only receipt in [gate-6/judge-receipt.md](gate-6/judge-receipt.md) (counts, extraction hashes, model and run details). Per-item verdicts were not saved.
+- **Caveat:** the judge is the same model grading its own output, with a narrow context window and a strict prompt; treat these as an estimate of unknown accuracy and bias. The set is three meetings. Per-item verdicts are not saved, so the rejected items cannot be inspected without rerunning.
+
 ## Not covered / next
 
-- Judged precision (run `gate6.js ... --judge`, about 10 more minutes; needs owner approval).
+- A human grade of a sample of judge-rejected items, to calibrate the judge.
 - Reaching 80%: recall is the open problem; plan slice 6 (precision, cross-section check, model comparison).
 - A larger set: only these six AMI meetings have transcripts locally; the other 140 have annotations and could be prepared the same way, but each costs about 15 minutes of model time.
