@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -439,7 +440,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
       changed = true;
       // Rows above the viewport must not push the text being read.
       const index = current.rows.findIndex((row) => row.key === key);
-      if (element && index >= 0 && (current.offsets[index] as number) < element.scrollTop) {
+      const top = current.offsets[index];
+      if (element && top !== undefined && top + Math.max(previous, height) < element.scrollTop) {
         shiftAbove += height - previous;
       }
     }
@@ -452,6 +454,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
   // Only the reader's own wheel, touch, scrollbar or keys stop following; scrolling done here
   // never does, so the tracking cannot switch itself off.
   const [followPlayback, setFollowPlayback] = useState(true);
+  const [jumpToCurrentNonce, setJumpToCurrentNonce] = useState(0);
+  const alignedJump = useRef<{ nonce: number; rowHeight: number | undefined } | null>(null);
   const stopFollowing = useCallback(() => setFollowPlayback(false), []);
   const wasPlaying = useRef(false);
   useEffect(() => {
@@ -568,6 +572,26 @@ export function TranscriptTab(props: TranscriptTabProps) {
         ? placedNow.wordId
         : currentWordId(activeRow.segment, positionMs)
       : undefined;
+  const activeRowHeight = activeRow ? heights.get(activeRow.key) : undefined;
+  useLayoutEffect(() => {
+    if (
+      !jumpToCurrentNonce ||
+      (alignedJump.current?.nonce === jumpToCurrentNonce &&
+        alignedJump.current.rowHeight === activeRowHeight)
+    )
+      return;
+    const element = scroller.current;
+    const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+    if (!element || !word) return;
+    const viewport = element.getBoundingClientRect();
+    const bounds = word.getBoundingClientRect();
+    const top = viewport.top + FOLLOW_MARGIN_PX;
+    const bottom = viewport.top + element.clientHeight - FOLLOW_MARGIN_PX;
+    const shift =
+      bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0;
+    if (shift !== 0) element.scrollTop += shift;
+    alignedJump.current = { nonce: jumpToCurrentNonce, rowHeight: activeRowHeight };
+  }, [jumpToCurrentNonce, scrollTop, activeWordKey, activeRow?.key, activeRowHeight]);
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
@@ -639,6 +663,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
         tabIndex={0}
         role="region"
         aria-label="Transcript"
+        aria-busy={loading}
         onScroll={(event) => {
           setScrollTop(event.currentTarget.scrollTop);
           if (restoreKey && restored.current)
@@ -703,10 +728,14 @@ export function TranscriptTab(props: TranscriptTabProps) {
           className={styles.jumpToPosition}
           onClick={() => {
             setFollowPlayback(true);
+            setJumpToCurrentNonce((nonce) => nonce + 1);
             const element = scroller.current;
             const top = offsets[activeIndex];
             if (element && top !== undefined) {
-              element.scrollTop = Math.max(0, top - FOLLOW_MARGIN_PX);
+              const destination = Math.max(0, top - FOLLOW_MARGIN_PX);
+              element.scrollTop = destination;
+              // Render the destination's virtual window directly; do not wait for a scroll event.
+              setScrollTop(destination);
             }
             element?.focus();
           }}

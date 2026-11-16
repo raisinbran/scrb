@@ -505,6 +505,49 @@ export class MockBackend implements Backend {
       const generated = generateTranscript(meetingId, words, meetingId.length * 7919).segments;
       const finalPass = this.findMeeting(meetingId).status === 'finalPassRunning';
       segments = withWordStates(generated, finalPass ? 'provisional' : 'final');
+      if (meetingId === LONG_MEETING_ID) {
+        // Invented stress fixture for virtualized jumps: a very long turn with a short overlap.
+        const startMs = 4 * 60 * 60_000;
+        const state = finalPass ? 'provisional' : 'final';
+        const turnId = `${meetingId}-long-turn`;
+        const longTurn: TranscriptSegment = {
+          id: turnId,
+          speakerId: 'sp-2',
+          track: 'meeting',
+          startMs,
+          endMs: startMs + 420 * 345,
+          words: Array.from({ length: 420 }, (_, index) => ({
+            id: `${turnId}-w-${index}`,
+            text: 'extended',
+            startMs: startMs + index * 345,
+            endMs: startMs + (index + 1) * 345,
+            state,
+            correctionId: null,
+          })),
+        };
+        const overlapId = `${meetingId}-overlap`;
+        const overlapStart = startMs + 60_000;
+        const overlap: TranscriptSegment = {
+          id: overlapId,
+          speakerId: 'sp-3',
+          track: 'meeting',
+          startMs: overlapStart,
+          endMs: overlapStart + 4 * 345,
+          words: Array.from({ length: 4 }, (_, index) => ({
+            id: `${overlapId}-w-${index}`,
+            text: 'overlap',
+            startMs: overlapStart + index * 345,
+            endMs: overlapStart + (index + 1) * 345,
+            state,
+            correctionId: null,
+          })),
+        };
+        segments = segments.filter(
+          (segment) => segment.endMs <= startMs || segment.startMs >= longTurn.endMs,
+        );
+        segments.push(longTurn, overlap);
+        segments.sort((a, b) => a.startMs - b.startMs);
+      }
       this.transcripts.set(meetingId, segments);
     }
     return segments;
