@@ -120,8 +120,8 @@ export function scanGaps(chunks, toleranceMs, isMarked, markedMaxMs = Infinity) 
 /**
  * Independent sample evidence for one track, from its chunk log (one JSON line per chunk). Frame counts are
  * counted samples, not timestamps. Every chunk must hold the frame count its own stamped span implies (within
- * one frame), every chunk closed by a rollover must hold the same count as the others, and none may carry a
- * padded span. A chunk with a missingCause is excused only when it is matched to a distinct helper-marked gap
+ * one frame), every chunk closed by a rollover must hold the same count as others at that sample rate, and none may
+ * carry a padded span. A chunk with a missingCause is excused only when it is matched to a distinct helper-marked gap
  * span (markedSpans, each {startNs, endNs}, at most maxGapMs long) that touches the chunk; the number of
  * missingCause chunks must equal the number of marked spans, and an unmatched or too-long one is "bad". Missing or
  * unreadable data is "absent", never a pass.
@@ -138,11 +138,19 @@ export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs
   if (chunkCount !== undefined && rows.length !== chunkCount) {
     return { status: 'absent', detail: `chunk log has ${rows.length} lines for ${chunkCount} chunks` };
   }
-  const counts = new Map();
+  const countsByRate = new Map();
   for (const r of rows) {
-    if (r.closeReason === 'rollover') counts.set(r.frames, (counts.get(r.frames) ?? 0) + 1);
+    if (r.closeReason === 'rollover') {
+      const counts = countsByRate.get(r.rate) ?? new Map();
+      counts.set(r.frames, (counts.get(r.frames) ?? 0) + 1);
+      countsByRate.set(r.rate, counts);
+    }
   }
-  const expected = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const expectedByRate = new Map();
+  for (const [rate, counts] of countsByRate) {
+    const expected = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    expectedByRate.set(rate, expected);
+  }
   let wrong = 0;
   let padded = 0;
   let caused = 0;
@@ -151,7 +159,7 @@ export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs
   for (const r of rows) {
     const implied = (r.rate * (r.endNs - r.startNs)) / 1e9;
     const spanOk = Number.isInteger(r.frames) && r.rate > 0 && Math.abs(r.frames - implied) <= 1;
-    const rolloverOk = r.closeReason !== 'rollover' || r.frames === expected;
+    const rolloverOk = r.closeReason !== 'rollover' || r.frames === expectedByRate.get(r.rate);
     if (!spanOk || !rolloverOk) wrong += 1;
     if (Array.isArray(r.paddedSpans) && r.paddedSpans.length > 0) padded += 1;
     if (r.missingCause) {
@@ -173,9 +181,13 @@ export function checkChunkFrames(logText, chunkCount, markedSpans = [], maxGapMs
     }
   }
   const unusedSpans = free.length;
+  const expectedCounts = [...expectedByRate]
+    .map(([rate, frames]) => `${frames} at ${rate} Hz`)
+    .join(', ');
+  const expectedCountText = expectedCounts || 'none closed by rollover';
   const detail =
-    `${rows.length} chunks, ${wrong} without the expected frame count (${expected ?? 'none closed by rollover'} ` +
-    `at rollover), ${padded} with a padded span, ${caused} with a missingCause not matched to a marked gap, ` +
+    `${rows.length} chunks, ${wrong} without the expected frame count (${expectedCountText} at rollover), ` +
+    `${padded} with a padded span, ${caused} with a missingCause not matched to a marked gap, ` +
     `${inconsistent} whose missingBeforeMs disagrees with the marked span, ` +
     `${unusedSpans} marked gaps without a missingCause chunk`;
   return { status: wrong + padded + caused + inconsistent + unusedSpans === 0 ? 'ok' : 'bad', detail };

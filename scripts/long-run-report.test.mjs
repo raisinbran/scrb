@@ -14,16 +14,20 @@ afterEach(() => {
 });
 
 /** Builds one track: gapFor(i) is the signed difference (ns) before chunk i; frames/closeReason per chunk. */
-function track(gapFor, { frameFor = () => 240000, causeFor = () => '', missingFor = () => 0 } = {}) {
+function track(
+  gapFor,
+  { frameFor = () => 240000, rateFor = () => 48000, durationFor = () => 5e9, causeFor = () => '', missingFor = () => 0 } = {},
+) {
   const chunks = [];
   const log = [];
   let at = 0;
   for (let i = 0; i < CHUNKS; i += 1) {
     const startNs = i === 0 ? 0 : at + gapFor(i);
-    const endNs = startNs + 5e9;
+    const rate = rateFor(i);
+    const endNs = startNs + durationFor(i, rate);
     chunks.push({ seq: i, startNs, endNs, openReason: i === 0 ? 'start' : 'rollover', closeReason: 'rollover', state: 'complete' });
     log.push(JSON.stringify({
-      file: `${String(i).padStart(6, '0')}.opus`, seq: i, startNs, endNs, frames: frameFor(i), rate: 48000,
+      file: `${String(i).padStart(6, '0')}.opus`, seq: i, startNs, endNs, frames: frameFor(i, rate), rate,
       closeReason: 'rollover', allZero: false, missingBeforeMs: missingFor(i), missingCause: causeFor(i), overlapMs: 0, paddedSpans: [],
     }));
     at = endNs;
@@ -79,6 +83,59 @@ describe('overnight.mjs --report on synthetic evidence', () => {
     expect(r.code).toBe(2);
     expect(r.text).toMatch(/INCONCLUSIVE {2}microphone no lost audio/);
     expect(r.text).not.toContain('FAIL ');
+  });
+
+  it('PASSES valid 48 kHz to 24 kHz microphone rollovers with each rate’s frame count', () => {
+    const rateFor = (i) => (i < 175 ? 48000 : 24000);
+    const mic = track(steady, { rateFor, frameFor: (_i, rate) => rate * 5 });
+    const r = report(evidence({ mic, meeting: track(steady) }));
+    expect(r.result).toBe('RESULT: PASS');
+    expect(r.text).toMatch(/PASS {2}microphone no lost audio/);
+    expect(r.text).toContain('sample evidence: ok (200 chunks, 0 without the expected frame count');
+  });
+
+  it.each([
+    { rate: 48000, changedIndex: 100, durationNs: 4.9975e9, frames: 239880 },
+    { rate: 24000, changedIndex: 180, durationNs: 4.995e9, frames: 119880 },
+  ])(
+    'rejects a rollover-count outlier within the $rate Hz group',
+    ({ changedIndex, durationNs, frames }) => {
+      const rateFor = (i) => (i < 175 ? 48000 : 24000);
+      const markedAt = changedIndex + 1;
+      const gapNs = 5e9 - durationNs;
+      const mic = track((i) => (i === markedAt ? gapNs : 0), {
+        rateFor,
+        durationFor: (i) => (i === changedIndex ? durationNs : 5e9),
+        frameFor: (i, stampedRate) => (i === changedIndex ? frames : stampedRate * 5),
+        causeFor: (i) => (i === markedAt ? 'unknown' : ''),
+        missingFor: (i) => (i === markedAt ? gapNs / 1e6 : 0),
+      });
+      const r = report(evidence({ mic, meeting: track(steady) }));
+      expect(r.result).toBe('RESULT: INCONCLUSIVE');
+      expect(r.text).toMatch(/INCONCLUSIVE {2}microphone no lost audio/);
+      expect(r.text).toContain('sample evidence: bad (200 chunks, 1 without the expected frame count');
+    },
+  );
+
+  it('rejects a frame count that disagrees with its own stamped rate and span', () => {
+    const rateFor = (i) => (i < 175 ? 48000 : 24000);
+    const mic = track(steady, {
+      rateFor,
+      frameFor: (i, rate) => (i === 180 ? rate * 5 + 2 : rate * 5),
+    });
+    const r = report(evidence({ mic, meeting: track(steady) }));
+    expect(r.result).toBe('RESULT: INCONCLUSIVE');
+    expect(r.text).toMatch(/INCONCLUSIVE {2}microphone no lost audio/);
+    expect(r.text).toContain('sample evidence: bad (200 chunks, 1 without the expected frame count');
+  });
+
+  it('continues to fail the 50 ms drift limit when 25 rollover changes accumulate to 65.81 ms', () => {
+    const driftStep = 2.6324e6;
+    const mic = track((i) => (i <= 25 ? driftStep : 0));
+    const r = report(evidence({ mic, meeting: track(steady) }));
+    expect(r.text).toMatch(
+      /FAIL {2}drift between tracks under 50 ms in any 4 h: worst 63\.18 ms .*65\.81 ms over the whole run/,
+    );
   });
 
   it('is INCONCLUSIVE when the chunk logs are absent', () => {
