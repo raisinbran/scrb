@@ -15,26 +15,10 @@ $helper = Join-Path $native 'build\bin\scrb-capture.exe'
 $mute = Join-Path $native 'tools\windows-mute\Mute.exe'
 $tone = Join-Path $native 'tools\windows-tone-player\TonePlayer.exe'
 foreach ($file in @($helper, $mute, $tone)) { if (-not (Test-Path $file)) { throw "missing $file : build native\windows-capture first (build.cmd)" } }
-if (Test-Path Env:\SCRB_NODE_EXE) {
-  $nodeOverride = [Environment]::GetEnvironmentVariable('SCRB_NODE_EXE', 'Process')
-  $isAbsolute = ($nodeOverride -match '^[A-Za-z]:\\') -or $nodeOverride.StartsWith('\\')
-  if (-not $isAbsolute) { throw 'SCRB_NODE_EXE must be an absolute path to node.exe' }
-  if ([System.IO.Path]::GetExtension($nodeOverride) -ine '.exe') { throw 'SCRB_NODE_EXE must point to node.exe' }
-  if (-not (Test-Path -LiteralPath $nodeOverride -PathType Leaf)) { throw "SCRB_NODE_EXE does not exist: $nodeOverride" }
-  $nodePath = (Resolve-Path -LiteralPath $nodeOverride).Path
-  $node = Get-Command -Name $nodePath -CommandType Application -ErrorAction Stop
-} else {
-  $node = Get-Command node -ErrorAction SilentlyContinue
-}
-if (-not $node) { throw 'node is not on PATH' }
-$nodeExe = $node.Source
-if (-not $nodeExe) { throw 'selected node command has no executable path' }
-$nodeVersion = & $nodeExe --version
-$nodeVersionExit = $LASTEXITCODE
-if ($nodeVersionExit -ne 0) { throw "selected node failed --version (exit $nodeVersionExit): $nodeExe" }
-$nodeVersion = ($nodeVersion -join ' ').Trim()
-if (-not $nodeVersion) { throw "selected node returned no version: $nodeExe" }
-Write-Host "node: $nodeExe ($nodeVersion)"
+. (Join-Path $PSScriptRoot 'node-runtime.ps1')
+$nodeRuntime = Get-ScrbNodeRuntime
+$nodeExe = $nodeRuntime.Executable
+Write-Host (Format-ScrbNodeRuntime $nodeRuntime)
 if (-not $Out) {
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
   $Out = Join-Path $env:LOCALAPPDATA ('scrb-long-run\' + $(if ($Hours -le 0) { 'smoke-' } else { '' }) + $stamp)

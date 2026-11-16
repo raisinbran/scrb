@@ -42,6 +42,8 @@ powershell -ExecutionPolicy Bypass -File scripts\long-run\overnight-win.ps1
 
 If PowerShell resolves the wrong Node from `PATH`, set `SCRB_NODE_EXE` to an absolute `node.exe` path for that process. The driver validates and prints the selected executable and version. When the override is absent, it keeps the existing `Get-Command node` behavior.
 
+Run the committed Windows Node-selection regression checks with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/long-run/node-runtime.test.ps1`.
+
 Expect `RESULT: PASS` at the end. It is labelled SMOKE and is not Gate 8 evidence.
 
 ## 4. The real run (needs the approval in section 7)
