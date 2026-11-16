@@ -242,28 +242,35 @@ export function MeetingSpeakers({
   const available = meetings.filter((meeting) => !UNAVAILABLE.has(meeting.status));
   const [meetingId, setMeetingId] = useRemembered<MeetingId | null>('speakers.meeting', null);
   const selected = available.some((meeting) => meeting.id === meetingId) ? meetingId : null;
-  if (available.length === 0) return null;
   return (
     <section aria-labelledby="meeting-speakers">
       <h2 id="meeting-speakers" className={styles.heading}>
         Speakers in a meeting
       </h2>
-      <p className={styles.muted}>Rename, merge or split the speakers of one meeting.</p>
-      <label className={`${fieldStyles.field} ${styles.picker}`}>
-        Meeting
-        <select
-          value={selected ?? ''}
-          onChange={(event) => setMeetingId(event.target.value || null)}
-        >
-          <option value="">Choose a meeting…</option>
-          {available.map((meeting) => (
-            <option key={meeting.id} value={meeting.id}>
-              {meeting.title} ({formatMeetingDate(meeting.startedAt)})
-            </option>
-          ))}
-        </select>
-      </label>
-      {selected && <SpeakersOfMeeting key={selected} meetingId={selected} onChanged={onChanged} />}
+      {available.length === 0 ? (
+        <p className={styles.muted}>No meetings are currently available for speaker editing.</p>
+      ) : (
+        <>
+          <p className={styles.muted}>Rename, merge or split the speakers of one meeting.</p>
+          <label className={`${fieldStyles.field} ${styles.picker}`}>
+            Meeting
+            <select
+              value={selected ?? ''}
+              onChange={(event) => setMeetingId(event.target.value || null)}
+            >
+              <option value="">Choose a meeting…</option>
+              {available.map((meeting) => (
+                <option key={meeting.id} value={meeting.id}>
+                  {meeting.title} ({formatMeetingDate(meeting.startedAt)})
+                </option>
+              ))}
+            </select>
+          </label>
+          {selected && (
+            <SpeakersOfMeeting key={selected} meetingId={selected} onChanged={onChanged} />
+          )}
+        </>
+      )}
     </section>
   );
 }
