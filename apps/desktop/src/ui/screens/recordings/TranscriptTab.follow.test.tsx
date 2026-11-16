@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
 import { TranscriptTab } from './TranscriptTab.tsx';
@@ -286,6 +286,85 @@ describe('TranscriptTab follow-along', () => {
     expect(scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(region);
     spy.mockRestore();
+  });
+
+  it('does not apply a whole long-row height correction after aligning its active word', () => {
+    const words = Array.from({ length: 420 }, (_, i) => ({
+      id: `invented-resize-${i}`,
+      text: 'invented',
+      startMs: i * 1000,
+      endMs: i * 1000 + 900,
+      state: 'final' as const,
+      correctionId: null,
+    }));
+    const long: TranscriptData = {
+      segments: [
+        {
+          id: 'invented-resize-turn',
+          speakerId: 'invented-speaker',
+          track: 'meeting',
+          startMs: 0,
+          endMs: words.at(-1)!.endMs,
+          words,
+        },
+      ],
+      speakers: [],
+      totalSegments: 1,
+      loading: false,
+      error: null,
+    };
+    const observers: { callback(entries: ResizeObserverEntry[]): void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: (entries: ResizeObserverEntry[]) => void) {
+          observers.push({ callback: this.callback });
+        }
+        observe = () => undefined;
+        unobserve = () => undefined;
+        disconnect = () => undefined;
+      },
+    );
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => 1500,
+    });
+    const rect = (top: number, height = 20) => ({ top, bottom: top + height }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute('aria-current') === 'true') return rect(900);
+        if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
+        return rect(0);
+      });
+    render(
+      <TranscriptTab
+        transcript={long}
+        gaps={[]}
+        fontPx={15}
+        positionMs={210_000}
+        showPosition
+        playing={false}
+        jump={null}
+        onPlay={onPlay}
+        onPlace={onPlace}
+      />,
+    );
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    expect(region.scrollTop).toBe(644);
+
+    const row = document.querySelector('[data-row="invented-resize-turn"]');
+    expect(row).not.toBeNull();
+    act(() => {
+      observers[0]?.callback([{ target: row } as ResizeObserverEntry]);
+    });
+    // The active row begins above the viewport but extends through it. Measuring its full
+    // height must not move the aligned word out of view.
+    expect(region.scrollTop).toBe(644);
+    spy.mockRestore();
+    Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
   });
 
   it('aligns the active word after a far virtualized jump renders a long turn', () => {

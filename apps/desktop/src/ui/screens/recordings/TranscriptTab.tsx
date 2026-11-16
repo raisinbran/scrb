@@ -401,7 +401,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
       changed = true;
       // Rows above the viewport must not push the text being read.
       const index = current.rows.findIndex((row) => row.key === key);
-      if (element && index >= 0 && (current.offsets[index] as number) < element.scrollTop) {
+      const top = current.offsets[index];
+      if (element && top !== undefined && top + Math.max(previous, height) < element.scrollTop) {
         shiftAbove += height - previous;
       }
     }
