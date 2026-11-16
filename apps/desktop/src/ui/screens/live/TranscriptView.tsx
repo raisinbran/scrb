@@ -421,7 +421,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   return (
     <section className={styles.transcript} aria-label="Transcript">
       <div className={styles.toolbar}>
-        <IconButton label="Text styles" tip={STYLE_HELP} icon="info" className={styles.toolIcon} />
+        <IconButton label="Text styles" tip={STYLE_HELP} icon="info" />
         {playback.positionMs !== null && (
           <span className={styles.playing} role="status">
             Playing {formatElapsed(playback.positionMs)}

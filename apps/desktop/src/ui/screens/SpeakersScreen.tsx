@@ -248,38 +248,42 @@ export function SpeakersScreen() {
     <Screen title="Speakers">
       <DataView state={state}>
         {([profiles, meetings]) => (
-          <>
-            {suggestions.length > 0 && (
-              <section aria-labelledby="speaker-suggestions" className={styles.section}>
-                <h2 id="speaker-suggestions" className={styles.heading}>
-                  Suggested matches
-                </h2>
-                <ul className={styles.list}>
-                  {suggestions.map((suggestion) => (
-                    <SuggestionRow
-                      key={`${suggestion.meetingId}/${suggestion.speakerId}`}
-                      suggestion={suggestion}
-                      meetings={meetings}
-                      onAnswered={reload}
-                    />
-                  ))}
-                </ul>
-              </section>
-            )}
-            <section aria-labelledby="voice-profiles" className={styles.section}>
-              <h2 id="voice-profiles" className={styles.heading}>
-                Voice profiles
-              </h2>
-              {profiles.length === 0 ? (
-                <EmptyState compact title="No voice profiles yet">
-                  Profiles appear after your first recording.
-                </EmptyState>
-              ) : (
-                <Profiles profiles={profiles} onChanged={reload} />
+          <div className={styles.columns} data-testid="speakers-columns">
+            <div className={styles.profileColumn} data-testid="voice-profile-column">
+              {suggestions.length > 0 && (
+                <section aria-labelledby="speaker-suggestions" className={styles.section}>
+                  <h2 id="speaker-suggestions" className={styles.heading}>
+                    Suggested matches
+                  </h2>
+                  <ul className={styles.list}>
+                    {suggestions.map((suggestion) => (
+                      <SuggestionRow
+                        key={`${suggestion.meetingId}/${suggestion.speakerId}`}
+                        suggestion={suggestion}
+                        meetings={meetings}
+                        onAnswered={reload}
+                      />
+                    ))}
+                  </ul>
+                </section>
               )}
-            </section>
-            <MeetingSpeakers meetings={meetings} onChanged={reload} />
-          </>
+              <section aria-labelledby="voice-profiles" className={styles.section}>
+                <h2 id="voice-profiles" className={styles.heading}>
+                  Voice profiles
+                </h2>
+                {profiles.length === 0 ? (
+                  <EmptyState title="No voice profiles yet">
+                    Profiles appear after your first recording.
+                  </EmptyState>
+                ) : (
+                  <Profiles profiles={profiles} onChanged={reload} />
+                )}
+              </section>
+            </div>
+            <div className={styles.meetingColumn} data-testid="meeting-speakers-column">
+              <MeetingSpeakers meetings={meetings} onChanged={reload} />
+            </div>
+          </div>
         )}
       </DataView>
     </Screen>

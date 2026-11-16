@@ -34,6 +34,7 @@ export function Tooltip({
   // The bubble stays mounted at its last place so it can fade out; `open` drives visibility.
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
+  const tip = useRef<HTMLSpanElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const hide = useCallback(() => {
@@ -42,10 +43,28 @@ export function Tooltip({
   }, []);
   const show = useCallback(() => {
     const box = wrapper.current?.getBoundingClientRect();
-    if (box && label) {
-      setPoint({ x: box.left + box.width / 2, y: box.bottom + 6 });
-      setOpen(true);
-    }
+    const tipBox = tip.current?.getBoundingClientRect();
+    if (!box || !tipBox || !label) return;
+
+    const edge = 8;
+    const gap = 6;
+    const width = tipBox.width;
+    const height = tipBox.height;
+    const center = box.left + box.width / 2;
+    const x =
+      width + edge * 2 >= window.innerWidth
+        ? window.innerWidth / 2
+        : Math.min(Math.max(center, width / 2 + edge), window.innerWidth - width / 2 - edge);
+    const below = box.bottom + gap;
+    const above = box.top - height - gap;
+    const y =
+      below + height <= window.innerHeight - edge
+        ? below
+        : above >= edge
+          ? above
+          : Math.max(edge, Math.min(below, window.innerHeight - height - edge));
+    setPoint({ x, y });
+    setOpen(true);
   }, [label]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -54,9 +73,16 @@ export function Tooltip({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') hide();
     };
+    const onResize = () => {
+      if (open) show();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, hide]);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open, hide, show]);
 
   // Focus that follows a mouse press is not keyboard focus, so it shows no instant tip.
   const pressed = useRef(false);
@@ -91,6 +117,7 @@ export function Tooltip({
       {cloneElement(children, open ? { 'aria-describedby': id } : {})}
       {createPortal(
         <span
+          ref={tip}
           id={id}
           role="tooltip"
           className={styles.tip}

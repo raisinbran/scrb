@@ -50,14 +50,39 @@ describe('screens', () => {
       expect(await screen.findByText('No voice profiles yet')).toBeTruthy();
     });
 
-    it('keeps the empty profile list compact, with the meeting section right after it', async () => {
+    it('uses the standard centered empty state inside the profile column', async () => {
       backend.setProfiles([]);
       renderScreen(backend, <SpeakersScreen />);
       const empty = (await screen.findByText('No voice profiles yet')).parentElement;
-      expect(empty?.className).toMatch(/emptyCompact/);
-      expect(empty?.className).not.toMatch(/(^|\s)\S*_empty_/);
+      expect(empty?.className).toMatch(/empty/);
+      expect(empty?.className).not.toMatch(/emptyCompact/);
+      expect(empty?.closest('[data-testid="voice-profile-column"]')).toBeTruthy();
       const css = readFileSync(join(__dirname, 'Screen.module.css'), 'utf8');
-      expect(css.match(/\.emptyCompact \{([^}]*)\}/)?.[1]).not.toMatch(/space-7/);
+      expect(css.match(/\.empty \{([^}]*)\}/)?.[1]).toMatch(/text-align: center/);
+      expect(css.match(/\.empty \{([^}]*)\}/)?.[1]).toMatch(/--space-7/);
+      expect(readFileSync(join(__dirname, 'SpeakersScreen.module.css'), 'utf8')).not.toMatch(
+        /\.empty\b/,
+      );
+    });
+
+    it('keeps profile suggestions and meeting controls in separate columns', async () => {
+      renderScreen(backend, <SpeakersScreen />);
+      await screen.findByText('Voice profiles');
+      backend.emit('speakerSuggestion', {
+        meetingId: 'meeting-outdated',
+        speakerId: 'sp-3',
+        profileId: 'profile-2',
+        profileName: 'Tomas Lindgren',
+      });
+      await screen.findByRole('heading', { name: 'Suggested matches' });
+      const left = screen.getByTestId('voice-profile-column');
+      const right = screen.getByTestId('meeting-speakers-column');
+      expect(left.contains(screen.getByRole('heading', { name: 'Suggested matches' }))).toBe(true);
+      expect(left.contains(screen.getByText('Voice profiles'))).toBe(true);
+      expect(right.contains(screen.getByRole('heading', { name: 'Speakers in a meeting' }))).toBe(
+        true,
+      );
+      expect(right.contains(screen.getByRole('combobox', { name: 'Meeting' }))).toBe(true);
     });
 
     it('renames a profile', async () => {
