@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -413,6 +414,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
   // Only the reader's own wheel, touch, scrollbar or keys stop following; scrolling done here
   // never does, so the tracking cannot switch itself off.
   const [followPlayback, setFollowPlayback] = useState(true);
+  const [jumpToCurrentNonce, setJumpToCurrentNonce] = useState(0);
+  const alignedJump = useRef(0);
   const stopFollowing = useCallback(() => setFollowPlayback(false), []);
   const wasPlaying = useRef(false);
   useEffect(() => {
@@ -529,6 +532,20 @@ export function TranscriptTab(props: TranscriptTabProps) {
         ? placedNow.wordId
         : currentWordId(activeRow.segment, positionMs)
       : undefined;
+  useLayoutEffect(() => {
+    if (!jumpToCurrentNonce || alignedJump.current === jumpToCurrentNonce) return;
+    const element = scroller.current;
+    const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+    if (!element || !word) return;
+    const viewport = element.getBoundingClientRect();
+    const bounds = word.getBoundingClientRect();
+    const top = viewport.top + FOLLOW_MARGIN_PX;
+    const bottom = viewport.top + element.clientHeight - FOLLOW_MARGIN_PX;
+    const shift =
+      bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0;
+    if (shift !== 0) element.scrollTop += shift;
+    alignedJump.current = jumpToCurrentNonce;
+  }, [jumpToCurrentNonce, scrollTop, activeWordKey]);
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
@@ -636,6 +653,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
           className={styles.jumpToPosition}
           onClick={() => {
             setFollowPlayback(true);
+            setJumpToCurrentNonce((nonce) => nonce + 1);
             const element = scroller.current;
             const top = offsets[activeIndex];
             if (element && top !== undefined) {

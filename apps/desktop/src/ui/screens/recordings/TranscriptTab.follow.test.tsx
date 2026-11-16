@@ -231,4 +231,59 @@ describe('TranscriptTab follow-along', () => {
     spy.mockRestore();
     Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
   });
+
+  it('jumps directly to the current word inside a 400-word turn', () => {
+    const words = Array.from({ length: 420 }, (_, i) => ({
+      id: `invented-long-jump-${i}`,
+      text: 'invented',
+      startMs: i * 1000,
+      endMs: i * 1000 + 900,
+      state: 'final' as const,
+      correctionId: null,
+    }));
+    const long: TranscriptData = {
+      segments: [
+        {
+          id: 'invented-long-jump',
+          speakerId: 'invented-speaker',
+          track: 'meeting',
+          startMs: 0,
+          endMs: words.length * 1000,
+          words,
+        },
+      ],
+      speakers: [],
+      totalSegments: 1,
+      loading: false,
+      error: null,
+    };
+    const rect = (top: number, height = 20) => ({ top, bottom: top + height }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute('aria-current') === 'true') return rect(900);
+        if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
+        return rect(0);
+      });
+    render(
+      <TranscriptTab
+        transcript={long}
+        gaps={[]}
+        fontPx={15}
+        positionMs={210_000}
+        showPosition
+        playing={false}
+        jump={null}
+        onPlay={onPlay}
+        onPlace={onPlace}
+      />,
+    );
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    expect(region.scrollTop).toBe(644);
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(region);
+    spy.mockRestore();
+  });
 });
