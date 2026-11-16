@@ -1,4 +1,4 @@
-### A-513 — 2026-11-15 — ChatGPT Chat (GPT-6) / cloud — historical handoff link pointed to wrong branch
+### A-535 — 2026-11-15 — ChatGPT Chat (GPT-6) / cloud — historical handoff link pointed to wrong branch
 - **Status / attribution:** Confirmed documentation error; corrected on the existing handoff PR. No product code or private evidence was affected.
 - **What failed:** The recovery audit and planner handoff used a relative Markdown link to `planner-handoff-20261115.md`. That file exists only on PR #301's historical head, not on the branch containing PR #318, causing GitHub to return 404.
 - **Impact:** Owner could not open the historical handoff from either newly authored document.

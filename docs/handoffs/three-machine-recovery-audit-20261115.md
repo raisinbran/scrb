@@ -4,6 +4,8 @@
 
 **Evidence basis:** read-only local audit reports for Mac, BCHEN-W10, and Regiurn supplied to the project planner, plus GitHub checks at `main` `97080d05`. Local files and raw evidence were **not** independently opened by the planner. File counts and unpublished-state findings below are audit reports, not independently reproduced measurements. All three audits reported no local changes and no tests.
 
+**Later status check (2026-11-15 PT; `main` `6634637`):** The resumption queue below is a dated assignment record, not authorization to rerun work. Summary install backend slice 3a [#320](https://github.com/raisinbran/scrb/pull/320) and llama-server packaging [#321](https://github.com/raisinbran/scrb/pull/321) subsequently merged. UI slice 3b [#322](https://github.com/raisinbran/scrb/pull/322) and the Windows Node fix [#324](https://github.com/raisinbran/scrb/pull/324) are open drafts. Other local outcomes have not been independently verified by this document; check fresh reports.
+
 ## Inventory and disposition
 
 | Machine | Reported checkout state | Unique work / preservation | Disposition |
@@ -32,7 +34,7 @@ Events between approximately **05:26:49–05:29:00 PST** show microphone stream 
 
 1. **Mac, preservation (short, isolated):** make verified durable copies of only the unique detached Phase 4/5 specs/commit, process note, and historical Gate 2 evidence; keep source worktrees intact. Avoid reading real audio or transcripts.
 2. **BCHEN-W10, targeted preflight:** use `docs/handoffs/long-run-report-w10-failures.md` to identify the Node executable/version and run the short long-run-report tests on a clean current worktree. Do **not** launch an eight-hour recording. Separately label the two deletion-heavy scratchpads as archived/unknown after metadata comparison; do not reset `main`.
-3. **Mac, summaries implementation:** slice **3a** of `docs/plans/summaries-on-install.md` following merged slice 1 [#316](https://github.com/raisinbran/scrb/pull/316), model manager [#306](https://github.com/raisinbran/scrb/pull/306) and UI [#307](https://github.com/raisinbran/scrb/pull/307). Use existing `installModelUpdate({ role: 'summary' })`, no contract change, digest-pinned downloader, summary-only success without relaunch, tests, one focused PR.
+3. **Mac, summaries implementation (superseded task):** the originally assigned slice **3a** has since merged in [#320](https://github.com/raisinbran/scrb/pull/320), following [#316](https://github.com/raisinbran/scrb/pull/316), [#306](https://github.com/raisinbran/scrb/pull/306), and [#307](https://github.com/raisinbran/scrb/pull/307). The separate llama-server packaging slice merged in [#321](https://github.com/raisinbran/scrb/pull/321). UI slice **3b** is in draft [#322](https://github.com/raisinbran/scrb/pull/322). Do not restart merged work; verify current CI and review status for the draft.
 4. **Regiurn, speaker-separation benchmark (separate workstream):** approved benchmark planning is not the completed [#214](https://github.com/raisinbran/scrb/pull/214) diagnosis. Work only with public fixtures or separately authorized private ground-truth evidence; no long run by default. Avoid interference with the closed disk investigation.
 5. **Docs:** [#301](https://github.com/raisinbran/scrb/pull/301) remains a dated historical handoff, not the current executable task queue. Review and merge this reconciliation separately; the owner handles all merges.
 
