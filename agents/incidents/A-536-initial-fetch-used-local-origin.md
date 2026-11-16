@@ -1,4 +1,4 @@
-### A-532 — 2026-11-16 — Codex / BCHEN-W10 — initial fetch used local origin
+### A-536 — 2026-11-16 — Codex / BCHEN-W10 — initial fetch used local origin
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** The first `git fetch origin main` used this checkout's local-path `origin` (`C:\Users\bchen\Documents\GitHub\scrb`) instead of GitHub. It returned `f95c059...`, so the assignment SHA guard correctly prevented creating a worktree from that result. No branch or worktree was created from it.

@@ -1,4 +1,4 @@
-### A-534 — 2026-11-16 — Codex / BCHEN-W10 — temporary Vitest config placed in restricted Temp
+### A-538 — 2026-11-16 — Codex / BCHEN-W10 — temporary Vitest config placed in restricted Temp
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** The focused Vitest run was first given a temporary config under `%TEMP%`. Node could not resolve that config because Windows denied traversal of the `AppData` path (`EPERM` at `C:\Users\bchen\AppData`). The test did not start. Cleanup of that temporary path was also denied.
