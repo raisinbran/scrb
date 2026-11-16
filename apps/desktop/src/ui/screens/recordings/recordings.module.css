@@ -501,7 +501,18 @@
 
 .transcriptBox {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   height: 100%;
+}
+
+.copyTranscript {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-6);
 }
 
 .jumpToPosition {
@@ -554,7 +565,8 @@
 
 .transcript {
   position: relative;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   padding-inline: var(--space-6);
   overflow-y: auto;
   overflow-anchor: none;
