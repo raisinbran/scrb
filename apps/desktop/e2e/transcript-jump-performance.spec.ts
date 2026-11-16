@@ -83,7 +83,7 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
       });
     });
     const observations: { targetMs: number; elapsedMs: number }[] = [];
-    for (const targetMs of [30, 59, 240, 470].map((minutes) => minutes * 60_000)) {
+    for (const targetMs of [30, 59, 242, 470].map((minutes) => minutes * 60_000)) {
       await slider.evaluate((input, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         setter?.call(input, String(value));
@@ -145,6 +145,9 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
           { timeout: 5_000 },
         )
         .toBe(true);
+      if (targetMs === 242 * 60_000) {
+        await expect(page.locator('[data-ms][aria-current="true"]')).toHaveText('extended');
+      }
       observations.push(
         await page.evaluate((targetMs) => {
           const state = window as Window & { transcriptJumpTrace?: JumpTrace };
