@@ -42,7 +42,7 @@ createInterface({ input: worker.stdout }).on('line', (line) => {
   const message = JSON.parse(line);
   if (message.type === 'ack') onAck(message);
   else if (message.event === 'health') meetingDb = message.meetingDb;
-  else if (!['trackHealth', 'chunkClosed'].includes(message.event)) {
+  else if (!['meter', 'trackHealth', 'chunkClosed'].includes(message.event)) {
     console.log(line);
     events.push(message);
     for (const wake of waiters) wake();

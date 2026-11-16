@@ -125,7 +125,7 @@ async function main() {
     if (name === 'trackHealth') {
       latest[message.track] = message;
       if (!facts.deviceNames.includes(message.device)) facts.deviceNames.push(message.device);
-    } else if (name !== 'health' && name !== 'chunkClosed') {
+    } else if (name !== 'meter' && name !== 'health' && name !== 'chunkClosed') {
       say(`EVENT ${line}`);
     }
   });

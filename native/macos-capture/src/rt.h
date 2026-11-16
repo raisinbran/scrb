@@ -144,6 +144,7 @@ static inline int rt_slot_silent(const RtSlot *slot) {
   return 1;
 }
 static inline uint32_t rt_peak(RtRing *ring) { return atomic_load(&ring->peak); }
+static inline void rt_reset_peak(RtRing *ring) { atomic_store(&ring->peak, 0); }
 static inline int rt_empty(RtRing *ring) { return atomic_load(&ring->tail) == atomic_load(&ring->head); }
 static inline uint64_t rt_take_dropped(RtRing *ring) { return atomic_exchange(&ring->dropped, 0); }
 

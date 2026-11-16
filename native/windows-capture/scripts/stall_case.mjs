@@ -144,7 +144,7 @@ let onAck = () => undefined;
 createInterface({ input: worker.stdout }).on('line', (line) => {
   const message = JSON.parse(line);
   if (message.type === 'ack') onAck(message);
-  else if (!['health', 'trackHealth', 'chunkClosed'].includes(message.event)) events.push(line);
+  else if (!['meter', 'health', 'trackHealth', 'chunkClosed'].includes(message.event)) events.push(line);
 });
 const send = (id, fields) =>
   new Promise((done) => {

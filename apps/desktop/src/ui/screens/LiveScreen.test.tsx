@@ -241,6 +241,21 @@ describe('LiveScreen', () => {
     expect(mic?.getAttribute('aria-valuenow')).toBe('-30');
   });
 
+  it('clears both meter fills after Stop', async () => {
+    await startMeeting();
+    const [mic, meeting] = screen.getAllByRole('meter');
+    act(() => backend.emit('levelMeter', { micDb: -24, meetingDb: -12 }));
+    expect((mic as HTMLElement).style.getPropertyValue('--level')).toBe('0.6');
+    expect((meeting as HTMLElement).style.getPropertyValue('--level')).toBe('0.8');
+
+    fireEvent.click(button('Stop'));
+    await advance(0);
+    expect((mic as HTMLElement).style.getPropertyValue('--level')).toBe('0');
+    expect((meeting as HTMLElement).style.getPropertyValue('--level')).toBe('0');
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-100');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-100');
+  });
+
   describe('recording dot and timer tooltips', () => {
     const tipAfterFocus = (element: HTMLElement) => {
       fireEvent.focus(element);

@@ -312,7 +312,7 @@ export class RecordingController {
           });
         }
         adapter.onEvent((event) => {
-          if (event.type === 'health') {
+          if (event.type === 'meter') {
             this.emit('levelMeter', { micDb: event.micDb, meetingDb: event.meetingDb });
           } else if (event.type === 'meetingSilent') {
             this.warn(

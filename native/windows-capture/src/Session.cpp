@@ -17,6 +17,8 @@ namespace scrb {
 namespace {
 
 constexpr int64_t kStallNs = 500 * kNsPerMs;  // D3
+constexpr int64_t kMeterIntervalNs = 125 * kNsPerMs;
+constexpr int64_t kMeterStaleNs = 250 * kNsPerMs;
 constexpr int64_t kRetryNs = kNsPerSec;
 // Long enough that a mic which drops briefly comes back instead of being swapped.
 constexpr int64_t kMicFallbackNs = 5 * kNsPerSec;
@@ -770,6 +772,19 @@ void Session::TickSecond(int64_t now) {
     }
 }
 
+void Session::TickMeter(int64_t now) {
+    if (now - lastMeterNs_ < kMeterIntervalNs) return;
+    lastMeterNs_ = now;
+    auto level = [this, now](int index) {
+        const auto& track = slots_[index].track;
+        if (sleeping_ || !track || !track->streamOpen()) return -100.0;
+        int64_t arrival = track->lastArrivalNs.load();
+        if (arrival <= 0 || now < arrival || now - arrival > kMeterStaleNs) return -100.0;
+        return track->levelCentiDb.load() / 100.0;
+    };
+    Emit("meter", JsonObject().Num("micDb", level(kMic)).Num("meetingDb", level(kMeeting)));
+}
+
 void Session::Tick() {
     int64_t now = NowNs();
     if (micDebounce_.Due(now)) ApplyMicDebounce();
@@ -781,6 +796,7 @@ void Session::Tick() {
         if (dead != S_OK && !s.needReopen && s.track->streamOpen()) MarkDead(i, "deviceSignal", dead);
         if (s.needReopen && !sleeping_) TryReopen(i, now);
     }
+    TickMeter(now);
     if (now - lastSecondNs_ >= kNsPerSec) {
         lastSecondNs_ = now;
         TickSecond(now);

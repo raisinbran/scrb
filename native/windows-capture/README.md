@@ -67,7 +67,8 @@ Events (`{"type":"event"}`): `chunkClosed`, `discontinuity`, `streamStalled`,
 `defaultApplied`, `rateChanged`, `permissionLost`,
 `permissionRestored`, `sleeping`, `woke`, `sourceChanged`, `micFallback`,
 `micReturned`, `micSuggestion`, `handsFreeMic`, `clockFault`, `writeError`,
-`health` (`micDb`, `meetingDb`), `trackHealth`.
+`meter` (`micDb`, `meetingDb`, approximately 8 Hz), `health` (`micDb`,
+`meetingDb`, approximately 1 Hz), `trackHealth`.
 
 Files, per `docs/plans/crash-safe-chunks.md`, under `<outputDir>/audio/`:
 `{microphone,meeting}/NNNNNN.opus`, first written as `.opus.part`, each with
