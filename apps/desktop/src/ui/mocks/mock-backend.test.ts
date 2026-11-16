@@ -848,8 +848,9 @@ describe('MockBackend', () => {
       expect(status.complete).toBe(false);
     });
 
-    it('downloads one run at a time, reports overall bytes, and installs everything at the end', async () => {
+    it('downloads required models one run at a time without requiring the summary model', async () => {
       backend.arm('modelsMissing');
+      backend.setSummaryModelInstalled(false);
       backend.setDownloadStepMs(1);
       const events: ModelDownloadProgress[] = [];
       backend.on('modelDownloadProgress', (event) => events.push(event));
@@ -861,9 +862,12 @@ describe('MockBackend', () => {
         overallBytesDone: 806_159_241,
         overallBytesTotal: 806_159_241,
       });
-      expect((await backend.call('getSetupStatus')).models.every((model) => model.installed)).toBe(
-        true,
-      );
+      const status = await backend.call('getSetupStatus');
+      expect(
+        status.models.filter((model) => model.role !== 'summary').every((m) => m.installed),
+      ).toBe(true);
+      expect(status.models.find((model) => model.role === 'summary')?.installed).toBe(false);
+      expect(status.complete).toBe(true);
     });
 
     it('keeps finished files when cancelled, and a failure carries its reason', async () => {
