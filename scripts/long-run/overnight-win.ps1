@@ -2,6 +2,7 @@
 # Default is a 5-minute smoke. Anything longer needs an explicit -Hours (and the owner's approval).
 # The evidence folder must be new or empty and outside the repo; the driver checks that before anything starts.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\long-run\overnight-win.ps1 [-Hours N] [-Out <folder outside git>]
+# Optional: set SCRB_NODE_EXE to an absolute Node executable path to bypass PATH lookup.
 # Keeps the PC awake with SetThreadExecutionState (no admin; lasts while this window runs), mutes the
 # speakers with the repo's Mute.exe (the capture records before the volume), records a generated 880 Hz tone
 # on the meeting track and the default mic, then checks the result.
@@ -14,8 +15,26 @@ $helper = Join-Path $native 'build\bin\scrb-capture.exe'
 $mute = Join-Path $native 'tools\windows-mute\Mute.exe'
 $tone = Join-Path $native 'tools\windows-tone-player\TonePlayer.exe'
 foreach ($file in @($helper, $mute, $tone)) { if (-not (Test-Path $file)) { throw "missing $file : build native\windows-capture first (build.cmd)" } }
-$node = Get-Command node -ErrorAction SilentlyContinue
+if (Test-Path Env:\SCRB_NODE_EXE) {
+  $nodeOverride = [Environment]::GetEnvironmentVariable('SCRB_NODE_EXE', 'Process')
+  $isAbsolute = ($nodeOverride -match '^[A-Za-z]:\\') -or $nodeOverride.StartsWith('\\')
+  if (-not $isAbsolute) { throw 'SCRB_NODE_EXE must be an absolute path to node.exe' }
+  if ([System.IO.Path]::GetExtension($nodeOverride) -ine '.exe') { throw 'SCRB_NODE_EXE must point to node.exe' }
+  if (-not (Test-Path -LiteralPath $nodeOverride -PathType Leaf)) { throw "SCRB_NODE_EXE does not exist: $nodeOverride" }
+  $nodePath = (Resolve-Path -LiteralPath $nodeOverride).Path
+  $node = Get-Command -Name $nodePath -CommandType Application -ErrorAction Stop
+} else {
+  $node = Get-Command node -ErrorAction SilentlyContinue
+}
 if (-not $node) { throw 'node is not on PATH' }
+$nodeExe = $node.Source
+if (-not $nodeExe) { throw 'selected node command has no executable path' }
+$nodeVersion = & $nodeExe --version
+$nodeVersionExit = $LASTEXITCODE
+if ($nodeVersionExit -ne 0) { throw "selected node failed --version (exit $nodeVersionExit): $nodeExe" }
+$nodeVersion = ($nodeVersion -join ' ').Trim()
+if (-not $nodeVersion) { throw "selected node returned no version: $nodeExe" }
+Write-Host "node: $nodeExe ($nodeVersion)"
 if (-not $Out) {
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
   $Out = Join-Path $env:LOCALAPPDATA ('scrb-long-run\' + $(if ($Hours -le 0) { 'smoke-' } else { '' }) + $stamp)
@@ -34,7 +53,7 @@ Write-Host "evidence: $Out"
 Write-Host "stop early: New-Item '$Out\STOP'   (or Ctrl+C once)"
 try {
   & $mute on
-  & $node.Source @arguments
+  & $nodeExe @arguments
   $code = $LASTEXITCODE
 } finally {
   if (-not $wasMuted) { & $mute off }
