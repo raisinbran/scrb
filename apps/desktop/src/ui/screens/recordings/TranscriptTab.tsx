@@ -14,6 +14,7 @@ import { formatElapsed } from '../../lib/format.ts';
 import { recall, remember } from '../../lib/tab-memory.ts';
 import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
+import { formatTranscriptForCopy } from './copy-transcript.ts';
 import type { TranscriptData } from './use-transcript.ts';
 import styles from './recordings.module.css';
 
@@ -23,6 +24,31 @@ const DEFAULT_VIEWPORT_PX = 600;
 /** Room kept above the current row when following, so the line before it stays visible. */
 const FOLLOW_MARGIN_PX = 24;
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
+
+async function writeClipboardText(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // The app denies renderer clipboard permissions; try the user-gesture copy command instead.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.setAttribute('aria-hidden', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.append(textarea);
+  try {
+    textarea.select();
+    if (!document.execCommand('copy')) throw new Error('Clipboard copy failed.');
+  } finally {
+    textarea.remove();
+  }
+}
 
 const TRACK_NAMES: Record<TimelineGap['track'], string> = {
   microphone: 'Microphone audio',
@@ -366,12 +392,25 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportPx, setViewportPx] = useState(DEFAULT_VIEWPORT_PX);
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map());
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const rows = useMemo(() => buildRows(segments, gaps), [segments, gaps]);
   const labels = useMemo(
     () => new Map(speakers.map((speaker: Speaker) => [speaker.id, speaker.label])),
     [speakers],
   );
+  const copyTranscript = useCallback(async () => {
+    setCopyError(null);
+    setCopied(false);
+    if (loading || error || segments.length !== totalSegments || segments.length === 0) return;
+    try {
+      await writeClipboardText(formatTranscriptForCopy(segments, speakers));
+      setCopied(true);
+    } catch {
+      setCopyError('The transcript could not be copied.');
+    }
+  }, [error, loading, segments, speakers, totalSegments]);
   const offsets = useMemo(() => {
     const values = new Float64Array(rows.length + 1);
     rows.forEach((row: TranscriptRow, index) => {
@@ -558,13 +597,41 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
   const contentHeight = (offsets[rows.length] as number) + unloaded;
   const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
-  if (error) return <p role="alert">{error}</p>;
+  const copyControl = (
+    <div className={styles.copyTranscript}>
+      <button
+        type="button"
+        className={styles.button}
+        disabled={
+          loading || Boolean(error) || segments.length !== totalSegments || segments.length === 0
+        }
+        onClick={() => void copyTranscript()}
+      >
+        Copy transcript
+      </button>
+      {copied && <span role="status">Transcript copied.</span>}
+      {copyError && <span role="alert">{copyError}</span>}
+    </div>
+  );
+  if (error)
+    return (
+      <div className={styles.transcriptBox}>
+        {copyControl}
+        <p role="alert">{error}</p>
+      </div>
+    );
   if (!showList) {
-    return <p className={styles.muted}>There is no transcript text yet.</p>;
+    return (
+      <div className={styles.transcriptBox}>
+        {copyControl}
+        <p className={styles.muted}>There is no transcript text yet.</p>
+      </div>
+    );
   }
 
   return (
     <div className={styles.transcriptBox}>
+      {copyControl}
       <div
         ref={scroller}
         className={styles.transcript}
