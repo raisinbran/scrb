@@ -1,4 +1,4 @@
-### A-600 — 2026-11-16 — Codex / Mac desktop — local checks invoked with unavailable package manager
+### A-616 — 2026-11-16 — Codex / Mac desktop — local checks invoked with unavailable package manager
 
 - **Status / attribution:** Confirmed agent tool-invocation error; no source effect.
 - **What failed:** `npm` was absent from this shell. I then invoked `pnpm` against an npm-managed workspace; pnpm started an install, moved seven existing development-tool packages into `node_modules/.ignored`, and failed to resolve the package registry in the network-restricted environment.

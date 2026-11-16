@@ -1,4 +1,4 @@
-### A-605 — 2026-11-16 — Codex / Mac desktop — loading-status lifecycle wait timed out after loading had completed
+### A-621 — 2026-11-16 — Codex / Mac desktop — loading-status lifecycle wait timed out after loading had completed
 
 - **Status / attribution:** Confirmed test-harness correction error prompted by independent review; no product failure.
 - **What failed:** The revised Electron test waited for the loading text to attach and then detach. Mac CI timed out waiting for attachment because transcript loading had already completed before the test reached that wait.

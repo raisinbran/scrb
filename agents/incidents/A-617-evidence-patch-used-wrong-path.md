@@ -1,4 +1,4 @@
-### A-601 — 2026-11-16 — Codex / Mac desktop — evidence patch used the wrong path
+### A-617 — 2026-11-16 — Codex / Mac desktop — evidence patch used the wrong path
 
 - **Status / attribution:** Confirmed agent path-selection mistake; no data loss.
 - **What failed:** An `apply_patch` request targeted the evidence note as though it lived inside the worktree. The actual file is in `/private/tmp`, so the update failed with a file-not-found response.

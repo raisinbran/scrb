@@ -1,4 +1,4 @@
-### A-604 — 2026-11-16 — Codex / Mac desktop — loading-readiness wait could pass before indicator mounted
+### A-620 — 2026-11-16 — Codex / Mac desktop — loading-readiness wait could pass before indicator mounted
 
 - **Status / attribution:** Confirmed test reliability gap identified by independent review; no production defect.
 - **What failed:** The Electron probe waited only for the transcript loading status to detach. That wait can succeed immediately if the status has not mounted yet, allowing timed jumps to begin while later transcript pages are unavailable.
