@@ -181,9 +181,11 @@ test('Live Meeting meter row aligns with the source dropdown', async () => {
   const dropdownBounds = await appDropdown.boundingBox();
   expect(rowBounds).not.toBeNull();
   expect(dropdownBounds).not.toBeNull();
-  expect(Math.abs(
-    (rowBounds!.y + rowBounds!.height / 2) - (dropdownBounds!.y + dropdownBounds!.height / 2),
-  )).toBeLessThanOrEqual(3);
+  expect(
+    Math.abs(
+      rowBounds!.y + rowBounds!.height / 2 - (dropdownBounds!.y + dropdownBounds!.height / 2),
+    ),
+  ).toBeLessThanOrEqual(3);
 
   const layout = await page.evaluate(() => {
     const levels = document.querySelector<HTMLElement>('[class*="levels"]');
