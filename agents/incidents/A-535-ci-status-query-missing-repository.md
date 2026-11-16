@@ -1,4 +1,4 @@
-### A-528 — 2026-11-16 — Codex / BCHEN-W10 — omitted repository parameter in CI status query
+### A-535 — 2026-11-16 — Codex / BCHEN-W10 — omitted repository parameter in CI status query
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** One read-only GitHub workflow-status query omitted its required `repo_full_name` argument and was rejected by connector schema validation.

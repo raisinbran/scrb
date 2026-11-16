@@ -1,4 +1,4 @@
-### A-526 — 2026-11-16 — Codex / BCHEN-W10 — failed patch context for Node runtime extraction
+### A-533 — 2026-11-16 — Codex / BCHEN-W10 — failed patch context for Node runtime extraction
 
 - **Status / attribution:** Confirmed agent error; no application defect.
 - **What failed:** An `apply_patch` attempt to extract the existing PowerShell Node-selection block used an exact hunk that did not match the worktree's source text. The patch was rejected without changing files.
