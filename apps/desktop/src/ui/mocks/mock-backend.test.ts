@@ -837,9 +837,14 @@ describe('MockBackend', () => {
     it('lists the five required files with expected sizes while models are missing', async () => {
       backend.arm('modelsMissing');
       const status = await backend.call('getSetupStatus');
-      expect(status.models).toHaveLength(5);
-      expect(status.models.every((model) => !model.installed && model.sizeBytes > 0)).toBe(true);
-      expect(status.models.reduce((sum, model) => sum + model.sizeBytes, 0)).toBe(806_159_241);
+      const required = status.models.filter((model) => model.role !== 'summary');
+      expect(required).toHaveLength(5);
+      expect(required.every((model) => !model.installed && model.sizeBytes > 0)).toBe(true);
+      expect(required.reduce((sum, model) => sum + model.sizeBytes, 0)).toBe(806_159_241);
+      expect(status.models.find((model) => model.role === 'summary')).toMatchObject({
+        installed: true,
+        sizeBytes: 5_680_522_464,
+      });
       expect(status.complete).toBe(false);
     });
 
@@ -870,7 +875,9 @@ describe('MockBackend', () => {
       await backend.call('startModelDownload');
       await vi.waitFor(() => expect(events.at(-1)?.state).toBe('failed'));
       expect(events.at(-1)?.reason).toBe('checksum');
-      const installed = (await backend.call('getSetupStatus')).models.filter((m) => m.installed);
+      const installed = (await backend.call('getSetupStatus')).models.filter(
+        (m) => m.role !== 'summary' && m.installed,
+      );
       expect(installed).toHaveLength(1);
       await backend.call('cancelModelDownload'); // idle: does nothing
     });
