@@ -3,4 +3,4 @@
 - **Status / attribution:** Confirmed documentation maintenance error; no application defect.
 - **What failed:** Independent re-review found three incident correction sections still described completed work as pending, and the rebase-task usage row had an earlier-than-final end time and allowance reading.
 - **Impact:** The records understated completed corrections and current task usage until found; no code or evidence was affected.
-- **Correction / remaining risk:** Update the three descriptions to completed-state wording and refresh the task row with the latest allowance observation. Low.
+- **Correction / remaining risk:** Updated the three descriptions to completed-state wording and refreshed the task row with the latest allowance observation. Low.
