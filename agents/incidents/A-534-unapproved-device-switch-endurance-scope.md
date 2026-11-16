@@ -1,0 +1,6 @@
+### A-534 — 2026-11-15 — ChatGPT Chat (GPT-6) / cloud planning — proposed expansion of endurance-test scope without approval
+- **Status / attribution:** Confirmed planning error; corrected in the same conversation. No code change, test launch, or evidence modification resulted.
+- **What failed:** Proposed making planned AirPods/input-device switching part of the next long Mac endurance run. The owner pointed out that this went outside the original Gate 8 endurance scope. This recommendation was unnecessary and risked turning a targeted device-transition question into an additional lengthy acceptance requirement.
+- **Impact:** Extra planning discussion and owner correction. No new acceptance requirement was implemented.
+- **Source evidence:** Session handoff in docs/handoffs/planner-session-handoff-20261115.md, section 2, and the associated owner decision.
+- **Correction / remaining risk:** Preserve the original endurance scope. The owner separately exempts the three observed microphone gaps associated with an accidental AirPods transition for this run, without changing the original saved FAIL report or waiving the unresolved 65.81-ms drift check. Investigate handover gaps only with short targeted checks if warranted. Ensure stale handoffs do not reintroduce planned device switches as a long-run requirement.
