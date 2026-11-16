@@ -248,6 +248,37 @@ describe('screens', () => {
   });
 
   describe('Settings', () => {
+    it('groups profile-controlled settings before the other audio and microphone controls', async () => {
+      renderScreen(backend, <SettingsScreen />);
+      const section = await screen.findByRole('region', { name: 'Audio' });
+      const profile = within(section).getByRole('group', { name: /^Input Profile/ });
+      expect(within(profile).getByRole('radio', { name: /^Voice Isolation/ })).toBeTruthy();
+      expect(within(profile).getByRole('radio', { name: /^Studio/ })).toBeTruthy();
+      expect(within(profile).getByRole('radio', { name: /^Custom/ })).toBeTruthy();
+      expect(within(profile).getByRole('button', { name: 'About presets' })).toBeTruthy();
+
+      const ordered = [
+        profile,
+        within(section).getByRole('combobox', { name: 'Noise suppression' }),
+        within(section).getByRole('checkbox', { name: /Echo cancellation/ }),
+        within(section).getByRole('checkbox', { name: /Automatic gain control/ }),
+        within(section).getByRole('checkbox', { name: /Bypass system audio/ }),
+        within(section).getByLabelText('Input sensitivity'),
+        within(section).getByRole('checkbox', { name: /Advanced voice activity/ }),
+        within(section).getByRole('checkbox', { name: /No audio detected warning/ }),
+        within(section).getByRole('checkbox', { name: /Audio device suggestions/ }),
+        within(section).getByRole('combobox', { name: 'Microphone' }),
+        within(section).getByRole('combobox', { name: 'Meeting app' }),
+        within(section).getByRole('button', { name: 'Test mic' }),
+      ];
+      for (let index = 0; index < ordered.length - 1; index++) {
+        expect(
+          ordered[index]!.compareDocumentPosition(ordered[index + 1]!) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+    });
+
     it('applies Studio to the controls and marks the draft unsaved', async () => {
       renderScreen(backend, <SettingsScreen />);
       fireEvent.click(await screen.findByRole('radio', { name: /^Studio/ }));
