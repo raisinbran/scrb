@@ -50,6 +50,16 @@ describe('screens', () => {
       expect(await screen.findByText('No voice profiles yet')).toBeTruthy();
     });
 
+    it('explains when there are no meetings to edit while keeping the meeting card', async () => {
+      backend.setLibrary([]);
+      renderScreen(backend, <SpeakersScreen />);
+      const column = await screen.findByTestId('meeting-speakers-column');
+      expect(within(column).getByRole('heading', { name: 'Speakers in a meeting' })).toBeTruthy();
+      expect(
+        within(column).getByText('No meetings are currently available for speaker editing.'),
+      ).toBeTruthy();
+    });
+
     it('uses the standard centered empty state inside the profile column', async () => {
       backend.setProfiles([]);
       renderScreen(backend, <SpeakersScreen />);
