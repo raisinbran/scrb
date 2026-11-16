@@ -596,6 +596,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
         tabIndex={0}
         role="region"
         aria-label="Transcript"
+        aria-busy={loading}
         onScroll={(event) => {
           setScrollTop(event.currentTarget.scrollTop);
           if (restoreKey && restored.current)
