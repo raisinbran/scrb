@@ -333,7 +333,10 @@ describe('TranscriptTab follow-along', () => {
     const spy = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockImplementation(function (this: HTMLElement) {
-        if (this.getAttribute('aria-current') === 'true') return rect(900);
+        if (this.getAttribute('aria-current') === 'true') {
+          const region = document.querySelector<HTMLElement>('[aria-label="Transcript"]');
+          return rect(900 - (region?.scrollTop ?? 0));
+        }
         if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
         return rect(0);
       });
@@ -363,6 +366,8 @@ describe('TranscriptTab follow-along', () => {
     // The active row begins above the viewport but extends through it. Measuring its full
     // height must not move the aligned word out of view.
     expect(region.scrollTop).toBe(644);
+    const activeWord = region.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+    expect(activeWord?.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
     spy.mockRestore();
     Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
   });

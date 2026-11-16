@@ -416,7 +416,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
   // never does, so the tracking cannot switch itself off.
   const [followPlayback, setFollowPlayback] = useState(true);
   const [jumpToCurrentNonce, setJumpToCurrentNonce] = useState(0);
-  const alignedJump = useRef(0);
+  const alignedJump = useRef<{ nonce: number; rowHeight: number | undefined } | null>(null);
   const stopFollowing = useCallback(() => setFollowPlayback(false), []);
   const wasPlaying = useRef(false);
   useEffect(() => {
@@ -533,8 +533,14 @@ export function TranscriptTab(props: TranscriptTabProps) {
         ? placedNow.wordId
         : currentWordId(activeRow.segment, positionMs)
       : undefined;
+  const activeRowHeight = activeRow ? heights.get(activeRow.key) : undefined;
   useLayoutEffect(() => {
-    if (!jumpToCurrentNonce || alignedJump.current === jumpToCurrentNonce) return;
+    if (
+      !jumpToCurrentNonce ||
+      (alignedJump.current?.nonce === jumpToCurrentNonce &&
+        alignedJump.current.rowHeight === activeRowHeight)
+    )
+      return;
     const element = scroller.current;
     const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
     if (!element || !word) return;
@@ -545,8 +551,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
     const shift =
       bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0;
     if (shift !== 0) element.scrollTop += shift;
-    alignedJump.current = jumpToCurrentNonce;
-  }, [jumpToCurrentNonce, scrollTop, activeWordKey]);
+    alignedJump.current = { nonce: jumpToCurrentNonce, rowHeight: activeRowHeight };
+  }, [jumpToCurrentNonce, scrollTop, activeWordKey, activeRow?.key, activeRowHeight]);
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
