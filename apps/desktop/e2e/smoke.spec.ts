@@ -165,3 +165,48 @@ test('launches and shows every screen against the mock backend', async () => {
   expect(errors).toEqual([]);
   await app.close();
 });
+
+test('Live Meeting meter row aligns with the source dropdown', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-live-alignment-'));
+  pointAtTestLibrary(userData);
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  const page = await app.firstWindow();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await answerFirstLaunch(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Live' })).toBeVisible();
+
+  const meetingRow = page.locator('[class*="meterRow"]').filter({ hasText: 'Meeting' });
+  const appDropdown = page.getByLabel('Meeting app');
+  const rowBounds = await meetingRow.boundingBox();
+  const dropdownBounds = await appDropdown.boundingBox();
+  expect(rowBounds).not.toBeNull();
+  expect(dropdownBounds).not.toBeNull();
+  expect(
+    Math.abs(
+      rowBounds!.y + rowBounds!.height / 2 - (dropdownBounds!.y + dropdownBounds!.height / 2),
+    ),
+  ).toBeLessThanOrEqual(3);
+
+  const layout = await page.evaluate(() => {
+    const levels = document.querySelector<HTMLElement>('[class*="levels"]');
+    const rows = [...document.querySelectorAll<HTMLElement>('[class*="meterRow"]')];
+    if (!levels || rows.length < 2) return null;
+    const transform = getComputedStyle(levels).transform;
+    const yOffset = transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42;
+    return {
+      yOffset,
+      childTransforms: rows.map((row) => getComputedStyle(row).transform),
+      rowGap: getComputedStyle(levels).rowGap,
+      rows: rows.map((row) => {
+        const bounds = row.getBoundingClientRect();
+        return { top: bounds.top, bottom: bounds.bottom };
+      }),
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout!.yOffset).toBeLessThan(0);
+  expect(layout!.childTransforms).toEqual(['none', 'none']);
+  expect(layout!.rows[1]!.top - layout!.rows[0]!.bottom).toBeGreaterThan(0);
+  expect(layout!.rowGap).toBe('8px');
+  await app.close();
+});

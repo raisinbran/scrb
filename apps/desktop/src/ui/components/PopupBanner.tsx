@@ -33,6 +33,7 @@ interface PopupBannerProps {
   level?: 'info' | 'warning' | 'danger';
   dismissLabel?: string;
   onDismiss?(): void;
+  className?: string | undefined;
   children: ReactNode;
 }
 
@@ -41,10 +42,15 @@ export function PopupBanner({
   level = 'info',
   dismissLabel = 'Dismiss notice',
   onDismiss,
+  className,
   children,
 }: PopupBannerProps) {
   return (
-    <div className={styles.banner} data-level={level} role={role}>
+    <div
+      className={[styles.banner, className].filter(Boolean).join(' ')}
+      data-level={level}
+      role={role}
+    >
       <div className={styles.body}>{children}</div>
       {onDismiss && <DismissButton label={dismissLabel} onClick={onDismiss} />}
     </div>

@@ -242,6 +242,58 @@ describe('Recordings', () => {
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
     });
 
+    it('shows the banner again after leaving and reopening the same processing meeting', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
+      await button(/Budget review/);
+      await openMeeting(/Budget review/);
+      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+    });
+
+    it('keeps a dismissed banner hidden while switching tabs in the same meeting', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+    });
+
+    it('keeps the narrower banner and progress bar within the same content width', async () => {
+      renderScreen();
+      await openMeeting(/Budget review/);
+      const banner = screen
+        .getByText(/Final transcript is still being processed/)
+        .closest('[class*="processingBanner"]');
+      const progress = screen.getByRole('progressbar', { name: 'Final transcript processing' });
+      expect(banner?.contains(progress)).toBe(true);
+      const bannerCss = readFileSync(
+        join(__dirname, '../../screens/recordings/recordings.module.css'),
+        'utf8',
+      );
+      const popupCss = readFileSync(
+        join(__dirname, '../../components/PopupBanner.module.css'),
+        'utf8',
+      );
+      const progressCss = readFileSync(
+        join(__dirname, '../../components/Progress.module.css'),
+        'utf8',
+      );
+      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/max-width: 448px/);
+      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(
+        /font-size: var\(--text-sm\)/,
+      );
+      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
+      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(
+        /width: min\(640px, calc\(100% - var\(--space-5\) \* 2\)\)/,
+      );
+      expect(progressCss.match(/\.track \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
+    });
+
     it('marks the library row as changing', async () => {
       renderScreen();
       await screen.findByText('Processing final transcript');
