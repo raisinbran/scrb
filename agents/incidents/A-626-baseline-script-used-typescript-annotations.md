@@ -1,4 +1,4 @@
-### A-593 — 2026-11-16 — Codex / model and effort unavailable / Mac desktop — starting the temporary hover-inspection harness
+### A-626 — 2026-11-16 — Codex / model and effort unavailable / Mac desktop — starting the temporary hover-inspection harness
 
 - **Status / attribution:** Confirmed script-authoring error; Electron did not launch and no app state changed.
 - **What failed:** A temporary `.mjs` inspection harness contained TypeScript type annotations, so Node rejected the script with a syntax error before the browser launch.

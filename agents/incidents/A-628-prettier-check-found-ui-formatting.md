@@ -1,4 +1,4 @@
-### A-595 — 2026-11-16 — Codex / model and effort unavailable / Mac desktop — formatting the UI changes
+### A-628 — 2026-11-16 — Codex / model and effort unavailable / Mac desktop — formatting the UI changes
 
 - **Status / attribution:** Confirmed author formatting omission; no runtime defect.
 - **What failed:** The first focused Prettier check found formatting differences in the new Speakers E2E spec and Tooltip placement code.
