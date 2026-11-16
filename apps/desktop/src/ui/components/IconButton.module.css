@@ -17,8 +17,16 @@
 }
 
 .info {
+  appearance: none;
+  padding: 0;
+  background-color: transparent;
   border: 0;
   border-radius: 50%;
+}
+
+.info:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus);
 }
 
 .button:disabled {

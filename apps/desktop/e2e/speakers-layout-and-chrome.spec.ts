@@ -328,6 +328,23 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
         path: join(evidenceDir, `after-info-hover-${theme.toLowerCase()}.png`),
       });
 
+      await focusByTab(page, info);
+      const infoFocusStyle = await info.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          outlineStyle: style.outlineStyle,
+          boxShadow: style.boxShadow,
+          borderRadius: style.borderRadius,
+        };
+      });
+      expect(infoFocusStyle.outlineStyle).toBe('none');
+      expect(infoFocusStyle.boxShadow).not.toBe('none');
+      expect(infoFocusStyle.borderRadius).toBe('50%');
+      await expect(page.locator('[role="tooltip"][data-open="true"]')).toHaveCount(1);
+      await page.screenshot({
+        path: join(evidenceDir, `after-info-keyboard-focus-${theme.toLowerCase()}.png`),
+      });
+
       await focusByTab(page, selectedButton);
       const focusStyle = await selectedButton.evaluate((element) => {
         const style = getComputedStyle(element);

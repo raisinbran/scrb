@@ -24,5 +24,8 @@ describe('IconButton info variant', () => {
     const infoRule = css.match(/\.info \{([^}]*)\}/)?.[1] ?? '';
     expect(infoRule).toMatch(/border: 0/);
     expect(infoRule).toMatch(/border-radius: 50%/);
+    const focusRule = css.match(/\.info:focus-visible \{([^}]*)\}/)?.[1] ?? '';
+    expect(focusRule).toMatch(/outline: none/);
+    expect(focusRule).toMatch(/box-shadow: 0 0 0 2px var\(--color-focus\)/);
   });
 });
