@@ -59,6 +59,9 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
     await page.getByRole('button', { name: 'Recordings', exact: true }).click();
     await page.getByRole('button', { name: /Depot rollout planning workshop/ }).click();
     await page.getByRole('tab', { name: 'Transcript' }).waitFor();
+    // The 8-hour mock spans several paginated backend replies. Do not time an out-of-range
+    // jump while the transcript is still filling in.
+    await page.getByText('Loading the transcript…').waitFor({ state: 'detached' });
     const slider = page.getByRole('slider', { name: 'Playback position' });
     const scroller = page.getByRole('region', { name: 'Transcript' });
     await scroller.evaluate((element) => {
@@ -131,20 +134,65 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
         );
       });
       await jump.click();
-      await expect
-        .poll(
-          () =>
-            page.evaluate(() => {
-              const region = document.querySelector('[aria-label="Transcript"]');
-              const word = region?.querySelector('[data-ms][aria-current="true"]');
-              if (!region || !word) return false;
-              const viewport = region.getBoundingClientRect();
-              const target = word.getBoundingClientRect();
-              return target.top >= viewport.top && target.bottom <= viewport.bottom;
+      try {
+        await expect
+          .poll(
+            () =>
+              page.evaluate(() => {
+                const region = document.querySelector('[aria-label="Transcript"]');
+                const word = region?.querySelector('[data-ms][aria-current="true"]');
+                if (!region || !word) return false;
+                const viewport = region.getBoundingClientRect();
+                const target = word.getBoundingClientRect();
+                return target.top >= viewport.top && target.bottom <= viewport.bottom;
+              }),
+            { timeout: 5_000 },
+          )
+          .toBe(true);
+      } catch (error) {
+        console.log(
+          JSON.stringify({
+            failedTargetMs: targetMs,
+            elapsedMs: await page.evaluate(() => {
+              const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                .transcriptJumpTrace;
+              return trace ? performance.now() - trace.started : null;
             }),
-          { timeout: 5_000 },
-        )
-        .toBe(true);
+            failedState: await page.evaluate(() => {
+              const region = document.querySelector<HTMLElement>('[aria-label="Transcript"]');
+              const word = region?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+              const viewport = region?.getBoundingClientRect();
+              const target = word?.getBoundingClientRect();
+              const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                .transcriptJumpTrace;
+              return {
+                loading: document.body.innerText.includes('Loading the transcript…'),
+                sliderValue: document.querySelector<HTMLInputElement>(
+                  '[aria-label="Playback position"]',
+                )?.value,
+                scrollTop: region?.scrollTop,
+                scrollHeight: region?.scrollHeight,
+                viewportHeight: region?.clientHeight,
+                renderedRows: region?.querySelectorAll('[data-row]').length,
+                activeRow: word?.closest<HTMLElement>('[data-row]')?.dataset['row'],
+                activeWord: word?.textContent,
+                wordTop: target?.top,
+                wordBottom: target?.bottom,
+                viewportTop: viewport?.top,
+                viewportBottom: viewport?.bottom,
+                firstScrollMs: trace?.firstScrollMs,
+                firstMutationMs: trace?.firstMutationMs,
+                mutationBatches: trace?.mutationBatches,
+                resizeCallbacks: trace?.resizeCallbacks,
+                resizeCallbackMs: trace?.resizeCallbackMs,
+                scrollEvents: trace?.scrollEvents,
+                distinctScrollPositions: trace?.scrollPositions.length,
+              };
+            }),
+          }),
+        );
+        throw error;
+      }
       if (targetMs === 242 * 60_000) {
         await expect(page.locator('[data-ms][aria-current="true"]')).toHaveText('extended');
       }
