@@ -80,10 +80,11 @@ test('copies an invented saved transcript through the Electron clipboard', async
 
     // Native select-all here covers rendered page text only. It does not stand in for
     // the dedicated action's full-transcript copy, which reads TranscriptData directly.
-    await page.keyboard.press('Control+A');
+    const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${modifier}+A`);
     const selectedText = await page.evaluate(() => window.getSelection()?.toString() ?? '');
     expect(selectedText).toContain('invented corrected text');
-    await page.keyboard.press('Control+C');
+    await page.keyboard.press(`${modifier}+C`);
     const nativeClipboardText = await app.evaluate(({ clipboard }) => clipboard.readText());
     expect(nativeClipboardText).toContain('invented corrected text');
   } finally {
