@@ -2,6 +2,7 @@ import { _electron as electron, expect, test, type Locator, type Page } from '@p
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Library } from '@scrb/storage';
 
 const evidenceDir = '/private/tmp/scrb-ui-evidence-20261116';
 
@@ -189,7 +190,20 @@ test('Speakers columns stack at narrow width and real 200% zoom', async () => {
 });
 
 test('keeps populated voice-profile actions inside their card at 900px', async () => {
-  const { app, page } = await openMockApp(testUserData('scrb-speakers-profile-900-'));
+  const userData = testUserData('scrb-speakers-profile-900-');
+  const library = await Library.open({ root: join(userData, 'library') });
+  library.voiceProfiles.create({
+    modelId: 'invented-test-model',
+    embedding: new Float32Array([1, 0]),
+    name: 'Invented Profile One',
+  });
+  library.voiceProfiles.create({
+    modelId: 'invented-test-model',
+    embedding: new Float32Array([0, 1]),
+    name: 'Invented Profile Two',
+  });
+  await library.close();
+  const { app, page } = await openMockApp(userData);
   try {
     await page.setViewportSize({ width: 900, height: 720 });
     await page.getByRole('button', { name: 'Speakers', exact: true }).click();
@@ -200,14 +214,14 @@ test('keeps populated voice-profile actions inside their card at 900px', async (
     const card = page.getByTestId('voice-profile-column');
     const actions = card
       .locator('li')
-      .filter({ hasText: 'Tomas Lindgren' })
+      .filter({ hasText: 'Invented Profile One' })
       .locator('[class*="actions"]');
     await expect(actions).toBeVisible();
     const names = [
-      'Play sample of Tomas Lindgren',
-      'Rename Tomas Lindgren',
-      'Merge Tomas Lindgren',
-      'Delete Tomas Lindgren',
+      'Play sample of Invented Profile One',
+      'Rename Invented Profile One',
+      'Merge Invented Profile One',
+      'Delete Invented Profile One',
     ];
     const cardBounds = await card.boundingBox();
     expect(cardBounds).not.toBeNull();
