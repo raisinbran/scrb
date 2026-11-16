@@ -1,4 +1,4 @@
-### A-562 — 2026-11-15 — Codex / Mac desktop — npm test could not find the pinned Node runtime
+### A-601 — 2026-11-15 — Codex / Mac desktop — npm test could not find the pinned Node runtime
 
 - **Status / attribution:** Confirmed task setup error; the test process did not start.
 - **What failed:** I launched npm through the explicit Node binary, but the npm script uses `env node` for its Vitest executable and the managed shell's `PATH` did not include the pinned Node directory.

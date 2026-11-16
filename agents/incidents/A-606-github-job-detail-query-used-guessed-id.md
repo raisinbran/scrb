@@ -1,4 +1,4 @@
-### A-567 — 2026-11-15 — Codex / Mac desktop — GitHub job-detail query used a guessed job ID
+### A-606 — 2026-11-15 — Codex / Mac desktop — GitHub job-detail query used a guessed job ID
 
 - **Status / attribution:** Confirmed diagnostic error; no repository state changed.
 - **What failed:** I queried a job-detail URL using an unverified numeric job ID. The GitHub connector rejected the URL before returning job data.

@@ -1,4 +1,4 @@
-### A-561 — 2026-11-15 — Codex / Mac desktop — branch creation targeted the read-only primary Git metadata
+### A-600 — 2026-11-15 — Codex / Mac desktop — branch creation targeted the read-only primary Git metadata
 
 - **Status / attribution:** Confirmed agent setup error; no source change or repository state loss.
 - **What failed:** I attempted to create the task branch with `git worktree add` from the primary checkout. The sandbox denied writing `.git/refs/heads/...lock`, because that checkout's Git metadata is read-only here. An earlier chained availability probe also stopped on `rg`'s expected no-match exit before its final path check.
