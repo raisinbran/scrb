@@ -155,15 +155,38 @@ const FINAL_PASS_MODELS = ['speechFinal', 'vad', 'segmentation', 'embedding'] as
 interface FinalPassConfig {
   tools: Partial<ToolPaths>;
   models: Partial<ModelPaths>;
+  whisper?: unknown;
 }
 
-async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models: ModelPaths }> {
-  let config: FinalPassConfig;
+function configuredWhisperUseGpu(config: unknown): boolean | undefined {
+  if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+    throw new FinalPassUnavailableError('config must be an object');
+  }
+  const whisper = (config as Record<string, unknown>)['whisper'];
+  if (whisper === undefined) return undefined;
+  if (whisper === null || typeof whisper !== 'object' || Array.isArray(whisper)) {
+    throw new FinalPassUnavailableError('config whisper must be an object');
+  }
+  const useGpu = (whisper as Record<string, unknown>)['useGpu'];
+  if (useGpu === undefined) return undefined;
+  if (typeof useGpu !== 'boolean') {
+    throw new FinalPassUnavailableError('config whisper.useGpu must be a boolean');
+  }
+  return useGpu;
+}
+
+async function loadSetup(
+  configPath: string,
+  includeWhisperSettings = false,
+): Promise<{ tools: ToolPaths; models: ModelPaths; useGpu?: boolean }> {
+  let parsed: unknown;
   try {
-    config = JSON.parse(await readFile(configPath, 'utf8')) as FinalPassConfig;
+    parsed = JSON.parse(await readFile(configPath, 'utf8')) as unknown;
   } catch (error) {
     throw new FinalPassUnavailableError('config unreadable', { cause: error });
   }
+  const useGpu = includeWhisperSettings ? configuredWhisperUseGpu(parsed) : undefined;
+  const config = parsed as FinalPassConfig;
   const tools = config.tools ?? {};
   const models = config.models ?? {};
   const paths = [
@@ -172,7 +195,11 @@ async function loadSetup(configPath: string): Promise<{ tools: ToolPaths; models
   ];
   const missing = paths.filter((path) => !path || !existsSync(path));
   if (missing.length > 0) throw new FinalPassUnavailableError(`${missing.length} paths missing`);
-  return { tools: toolsIn('', tools), models: models as ModelPaths };
+  return {
+    tools: toolsIn('', tools),
+    models: models as ModelPaths,
+    ...(useGpu === undefined ? {} : { useGpu }),
+  };
 }
 
 /** Imports never publish partial results; the library owns the final meeting commit. */
@@ -216,7 +243,7 @@ export function createFinalPassRunner(
     onDiagnostics,
     onProgress,
   }) => {
-    const { tools, models } = await loadSetup(configPath);
+    const { tools, models, useGpu } = await loadSetup(configPath, true);
     const threads = getThreads?.();
     onEmbeddingModel?.(models.embedding);
     return runFinalPass({
@@ -225,6 +252,7 @@ export function createFinalPassRunner(
       tracks,
       workDir,
       signal,
+      ...(useGpu === undefined ? {} : { useGpu }),
       ...(threads ? { threads } : {}),
       ...(hint ? { vocabularyHint: hint } : {}),
       ...(onDiagnostics ? { onDiagnostics } : {}),
