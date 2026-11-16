@@ -56,15 +56,15 @@ The source-of-truth chart data is [phase-progress-history.csv](phase-progress-hi
 
 | Phase / gate validation | Oct 31 11:23 PM PDT | Nov 1 3:23 AM PST | Nov 1 9:17 PM PST | Nov 3 6:24 PM PST | Nov 9 2:52 PM PST | Nov 11 1:12 PM PST | Nov 13 5:18 PM PST | Nov 15 11:43 AM PST |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 — Feasibility | 100% | 100% | 100% | 100% | 100% | 100% | 100%  100% |
-| 1 — Foundation | 100% | 100% | 100% | 100% | 100% | 100% | 100%  100% |
-| 2 — Recording | 65% | 100% | 100% | 100% | 100% | 100% | 100%  100% |
-| 3 — Transcription | 0%† | 0%† | 35% | **70%** | **70%** | **80%** | **85%**  **90%** |
-| 4 — Speakers | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%†  0%† |
-| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%†  0%† |
-| 6 — Summaries | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%†  0%† |
-| 7 — Library and export | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%†  0%† |
-| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%†  0%† |
+| 0 — Feasibility | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 1 — Foundation | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 2 — Recording | 65% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| 3 — Transcription | 0%† | 0%† | 35% | **70%** | **70%** | **80%** | **85%** | **90%** |
+| 4 — Speakers | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 5 — Corrections and vocabulary | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 6 — Summaries | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 7 — Library and export | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
+| 8 — Packaging and hardening | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† | 0%† |
 | **Formally approved gates** | **2/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** | **3/9** |
 
 † **Unassessed:** zero is a historical chart placeholder, *not* an observation of 0% engineering work or no progress. The CSV's corresponding `phase_N_assessment_status` is `not_assessed`; consumers should treat that cell as missing data in percentage analyses. Formally approved gates and subjective readiness estimates have different meanings.
