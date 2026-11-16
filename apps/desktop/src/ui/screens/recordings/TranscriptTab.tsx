@@ -657,7 +657,10 @@ export function TranscriptTab(props: TranscriptTabProps) {
             const element = scroller.current;
             const top = offsets[activeIndex];
             if (element && top !== undefined) {
-              element.scrollTop = Math.max(0, top - FOLLOW_MARGIN_PX);
+              const destination = Math.max(0, top - FOLLOW_MARGIN_PX);
+              element.scrollTop = destination;
+              // Render the destination's virtual window directly; do not wait for a scroll event.
+              setScrollTop(destination);
             }
             element?.focus();
           }}

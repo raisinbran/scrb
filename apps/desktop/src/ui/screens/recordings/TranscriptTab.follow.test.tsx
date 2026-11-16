@@ -119,8 +119,9 @@ describe('TranscriptTab follow-along', () => {
     expect(document.activeElement).not.toBe(jump);
     fireEvent.click(jump);
     expect(banner()).toBeNull();
+    // jsdom places the active word at viewport top, so word alignment adds one more margin.
     expect((screen.getByRole('region', { name: 'Transcript' }) as HTMLElement).scrollTop).toBe(
-      20 * ROW_PX - 24,
+      20 * ROW_PX - 48,
     );
     rerender(tab(atRow(25), true));
     expect(scrollTo).toHaveBeenCalledWith({ top: 25 * ROW_PX - 24, behavior: 'smooth' });
@@ -283,6 +284,64 @@ describe('TranscriptTab follow-along', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
     expect(region.scrollTop).toBe(644);
     expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(region);
+    spy.mockRestore();
+  });
+
+  it('aligns the active word after a far virtualized jump renders a long turn', () => {
+    const longStart = ROWS * 6000;
+    const turnId = 'invented-far-long-turn';
+    const longWords = Array.from({ length: 420 }, (_, i) => ({
+      id: `${turnId}-${i}`,
+      text: 'invented',
+      startMs: longStart + i * 1000,
+      endMs: longStart + i * 1000 + 900,
+      state: 'final' as const,
+      correctionId: null,
+    }));
+    const long: TranscriptData = {
+      ...data(),
+      segments: [
+        ...data().segments,
+        {
+          id: turnId,
+          speakerId: 'invented-speaker',
+          track: 'meeting',
+          startMs: longStart,
+          endMs: longWords.at(-1)!.endMs,
+          words: longWords,
+        },
+      ],
+      totalSegments: ROWS + 1,
+    };
+    const rect = (top: number, height = 20) => ({ top, bottom: top + height }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        const region = document.querySelector<HTMLElement>('[aria-label="Transcript"]');
+        if (this.getAttribute('aria-current') === 'true') {
+          return rect(ROWS * ROW_PX - (region?.scrollTop ?? 0) + 900);
+        }
+        if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
+        return rect(0);
+      });
+    render(
+      <TranscriptTab
+        transcript={long}
+        gaps={[]}
+        fontPx={15}
+        positionMs={longStart + 60_100}
+        showPosition
+        playing={false}
+        jump={null}
+        onPlay={onPlay}
+        onPlace={onPlace}
+      />,
+    );
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    expect(region.scrollTop).toBe(3524);
     expect(document.activeElement).toBe(region);
     spy.mockRestore();
   });
