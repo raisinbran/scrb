@@ -71,7 +71,7 @@ describe('mic test during a recording', () => {
 });
 
 describe('MicTest layout', () => {
-  it('keeps a fixed-size button and note slot, and Settings places it above the Preset', async () => {
+  it('keeps a fixed-size button and note slot, and Settings places it after the profile controls', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const css = readFileSync(join(__dirname, 'MicTest.module.css'), 'utf8');
@@ -80,7 +80,8 @@ describe('MicTest layout', () => {
     expect(rule('testNote')).toMatch(/height:/);
     const audio = readFileSync(join(__dirname, '../settings/AudioSection.tsx'), 'utf8');
     expect(audio.indexOf('<MicTest')).toBeGreaterThan(0);
-    expect(audio.indexOf('<MicTest')).toBeLessThan(audio.search(/>\s*Preset\s*</));
+    expect(audio.indexOf('<MicTest')).toBeGreaterThan(audio.search(/>\s*Input Profile\s*</));
+    expect(audio.indexOf('<MicTest')).toBeGreaterThan(audio.indexOf('OTHER_TOGGLES.map'));
   });
 });
 

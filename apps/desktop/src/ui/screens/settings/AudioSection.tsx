@@ -63,6 +63,9 @@ const isPresetControl = (key: string): key is keyof PresetControls =>
     'bypassSystemInputProcessing',
   ].includes(key);
 
+const PRESET_TOGGLES = TOGGLES.filter(({ key }) => isPresetControl(key));
+const OTHER_TOGGLES = TOGGLES.filter(({ key }) => !isPresetControl(key));
+
 interface AudioSectionProps {
   audio: AudioSettings;
   devices: InputDevice[];
@@ -110,52 +113,9 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
       <h2 id="settings-audio" className={styles.legend}>
         Audio
       </h2>
-      <div className={styles.fields}>
-        <label className={styles.field}>
-          Microphone
-          <select
-            value={audio.micDeviceId ?? ''}
-            onChange={(event) => onChange({ micDeviceId: event.target.value || null })}
-          >
-            <option value="">System default ({systemDefault?.name ?? 'none found'})</option>
-            {devices.map((device) => (
-              <option key={device.id} value={device.id}>
-                {device.name}
-              </option>
-            ))}
-            {micMissing && (
-              <option value={audio.micDeviceId ?? ''}>Selected microphone not connected</option>
-            )}
-          </select>
-        </label>
-        {selectedMic?.transport === 'bluetoothHandsFree' && (
-          <p role="status" className={styles.warning}>
-            This Bluetooth headset is in hands-free mode, which lowers its sound quality.
-          </p>
-        )}
-        <label className={styles.field}>
-          Meeting app
-          <select
-            value={audio.meetingAppId}
-            onChange={(event) => onChange({ meetingAppId: event.target.value })}
-          >
-            {apps.map((app) => (
-              <option key={app.id} value={app.id}>
-                {app.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <MicTest
-        sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
-        devices={devices}
-      />
-
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
-          Preset
+          Input Profile
           <IconButton label="About presets" icon="info" tip={PRESET_TIP} />
         </legend>
         {PRESET_OPTIONS.map((option) => (
@@ -194,6 +154,28 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
             </select>
           </label>,
         )}
+        {PRESET_TOGGLES.map((toggle) => (
+          <Fragment key={toggle.key}>
+            {lockable(
+              toggle.key,
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  disabled={locked && isPresetControl(toggle.key)}
+                  checked={audio[toggle.key]}
+                  onChange={(event) => change({ [toggle.key]: event.target.checked })}
+                />
+                <span>
+                  {toggle.label}
+                  <span className={styles.help}>{toggle.description}</span>
+                </span>
+              </label>,
+            )}
+          </Fragment>
+        ))}
+      </div>
+
+      <div className={styles.fields}>
         <div className={styles.field}>
           <label htmlFor="input-sensitivity">Input sensitivity</label>
           <div className={styles.slider}>
@@ -226,10 +208,7 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
             Sets what the transcriber treats as speech. It never cuts audio from the recording.
           </p>
         </div>
-      </div>
-
-      <div className={styles.toggles}>
-        {TOGGLES.map((toggle) => (
+        {OTHER_TOGGLES.map((toggle) => (
           <Fragment key={toggle.key}>
             {lockable(
               toggle.key,
@@ -249,6 +228,48 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
           </Fragment>
         ))}
       </div>
+
+      <div className={styles.fields}>
+        <label className={styles.field}>
+          Microphone
+          <select
+            value={audio.micDeviceId ?? ''}
+            onChange={(event) => onChange({ micDeviceId: event.target.value || null })}
+          >
+            <option value="">System default ({systemDefault?.name ?? 'none found'})</option>
+            {devices.map((device) => (
+              <option key={device.id} value={device.id}>
+                {device.name}
+              </option>
+            ))}
+            {micMissing && (
+              <option value={audio.micDeviceId ?? ''}>Selected microphone not connected</option>
+            )}
+          </select>
+        </label>
+        {selectedMic?.transport === 'bluetoothHandsFree' && (
+          <p role="status" className={styles.warning}>
+            This Bluetooth headset is in hands-free mode, which lowers its sound quality.
+          </p>
+        )}
+        <label className={styles.field}>
+          Meeting app
+          <select
+            value={audio.meetingAppId}
+            onChange={(event) => onChange({ meetingAppId: event.target.value })}
+          >
+            {apps.map((app) => (
+              <option key={app.id} value={app.id}>
+                {app.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <MicTest
+        sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
+        devices={devices}
+      />
     </section>
   );
 }
