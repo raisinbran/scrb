@@ -40,10 +40,18 @@ export function useFocusFallback() {
   return heading;
 }
 
-export function Screen({ title, children }: { title: string; children: ReactNode }) {
+export function Screen({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   const heading = useFocusFallback();
   return (
-    <div className={styles.screen}>
+    <div className={[styles.screen, className].filter(Boolean).join(' ')}>
       <h1 ref={heading} className={styles.title} tabIndex={-1}>
         {title}
       </h1>

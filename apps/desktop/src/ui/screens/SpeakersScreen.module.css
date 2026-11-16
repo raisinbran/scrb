@@ -1,3 +1,7 @@
+.screen {
+  max-width: none;
+}
+
 .columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7,6 +11,10 @@
 .profileColumn,
 .meetingColumn {
   min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sidebar);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
 }
 
 .section {

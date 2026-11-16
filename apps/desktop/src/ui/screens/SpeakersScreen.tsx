@@ -245,7 +245,7 @@ export function SpeakersScreen() {
   const { state, reload } = useBackendData(load);
   const { suggestions } = useSpeakerSuggestions();
   return (
-    <Screen title="Speakers">
+    <Screen title="Speakers" className={styles.screen ?? ''}>
       <DataView state={state}>
         {([profiles, meetings]) => (
           <div className={styles.columns} data-testid="speakers-columns">

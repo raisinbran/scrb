@@ -44,7 +44,8 @@ async function inspectNoHorizontalOverflow(page: Page, width: number) {
     const columns = document.querySelector<HTMLElement>('[data-testid="speakers-columns"]');
     const left = document.querySelector<HTMLElement>('[data-testid="voice-profile-column"]');
     const right = document.querySelector<HTMLElement>('[data-testid="meeting-speakers-column"]');
-    if (!columns || !left || !right) return null;
+    const workspace = document.querySelector<HTMLElement>('main');
+    if (!columns || !left || !right || !workspace) return null;
     const box = (element: HTMLElement) => {
       const rect = element.getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -55,6 +56,15 @@ async function inspectNoHorizontalOverflow(page: Page, width: number) {
       columns: box(columns),
       left: box(left),
       right: box(right),
+      workspace: box(workspace),
+      leftStyle: {
+        backgroundColor: getComputedStyle(left).backgroundColor,
+        borderTopWidth: getComputedStyle(left).borderTopWidth,
+      },
+      rightStyle: {
+        backgroundColor: getComputedStyle(right).backgroundColor,
+        borderTopWidth: getComputedStyle(right).borderTopWidth,
+      },
       leftScrollWidth: left.scrollWidth,
       rightScrollWidth: right.scrollWidth,
       rightClientWidth: right.clientWidth,
@@ -144,11 +154,16 @@ test('Speakers columns stack at narrow width and real 200% zoom', async () => {
       0,
     );
     expect(rightBounds!.x).toBeGreaterThan(leftBounds!.x + leftBounds!.width);
+    const layout = await inspectNoHorizontalOverflow(page, 1280);
+    const dividerCenter = (layout.left.x + layout.left.width + layout.right.x) / 2;
+    expect(dividerCenter).toBeCloseTo(layout.workspace.x + layout.workspace.width / 2, 0);
+    expect(layout.leftStyle.backgroundColor).toBe(layout.rightStyle.backgroundColor);
+    expect(layout.leftStyle.borderTopWidth).toBe('1px');
+    expect(layout.rightStyle.borderTopWidth).toBe('1px');
     expect(emptyBounds!.x + emptyBounds!.width / 2).toBeCloseTo(
       leftBounds!.x + leftBounds!.width / 2,
       0,
     );
-    await inspectNoHorizontalOverflow(page, 1280);
     await page.screenshot({ path: join(evidenceDir, 'after-speakers-wide-light.png') });
 
     await page.setViewportSize({ width: 760, height: 720 });
