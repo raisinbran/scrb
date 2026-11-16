@@ -3,6 +3,13 @@
   color: var(--color-text-muted);
 }
 
+.processingBanner {
+  width: 100%;
+  max-width: 448px;
+  margin-inline: auto;
+  font-size: var(--text-sm);
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

@@ -722,6 +722,19 @@ describe('Live row alignment', () => {
     expect(heightOf('.button,\n.startButton,\n.stopButton')).toBe('var(--control-height)');
     expect(heightOf('.meters')).toBe('var(--control-height)');
   });
+
+  it('moves the Levels group as one unit while preserving its internal gaps', () => {
+    const css = readFileSync(join(import.meta.dirname, 'LiveScreen.module.css'), 'utf8').replace(
+      /\r\n/g,
+      '\n',
+    );
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('levels')).toMatch(/transform: translateY\(calc\(-1 \* var\(--space-5\)\)\)/);
+    expect(rule('levels')).toMatch(/gap: var\(--meter-gap\)/);
+    expect(rule('meters')).toMatch(/gap: var\(--meter-gap\)/);
+    expect(rule('meterRow')).not.toMatch(/transform|margin-block-start/);
+    expect(css).toMatch(/@media \(max-width: 840px\)[\s\S]*?\.levels \{\s*transform: none/);
+  });
 });
 
 describe('Live text styles help', () => {
