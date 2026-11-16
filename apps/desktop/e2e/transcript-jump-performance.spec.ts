@@ -61,7 +61,9 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
     await page.getByRole('tab', { name: 'Transcript' }).waitFor();
     // The 8-hour mock spans several paginated backend replies. Do not time an out-of-range
     // jump while the transcript is still filling in.
-    await page.getByText('Loading the transcript…').waitFor({ state: 'detached' });
+    const transcriptLoading = page.getByText('Loading the transcript…');
+    await transcriptLoading.waitFor({ state: 'attached' });
+    await transcriptLoading.waitFor({ state: 'detached' });
     const slider = page.getByRole('slider', { name: 'Playback position' });
     const scroller = page.getByRole('region', { name: 'Transcript' });
     await scroller.evaluate((element) => {
