@@ -188,6 +188,52 @@ test('Speakers columns stack at narrow width and real 200% zoom', async () => {
   }
 });
 
+test('keeps populated voice-profile actions inside their card at 900px', async () => {
+  const { app, page } = await openMockApp(testUserData('scrb-speakers-profile-900-'));
+  try {
+    await page.setViewportSize({ width: 900, height: 720 });
+    await page.getByRole('button', { name: 'Speakers', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Voice profiles' })).toBeVisible();
+    const layout = await inspectNoHorizontalOverflow(page, 900);
+    expect(layout.right.x).toBeGreaterThan(layout.left.x + layout.left.width);
+
+    const card = page.getByTestId('voice-profile-column');
+    const actions = card
+      .locator('li')
+      .filter({ hasText: 'Tomas Lindgren' })
+      .locator('[class*="actions"]');
+    await expect(actions).toBeVisible();
+    const names = [
+      'Play sample of Tomas Lindgren',
+      'Rename Tomas Lindgren',
+      'Merge Tomas Lindgren',
+      'Delete Tomas Lindgren',
+    ];
+    const cardBounds = await card.boundingBox();
+    expect(cardBounds).not.toBeNull();
+    for (const name of names) {
+      const button = card.getByRole('button', { name, exact: true });
+      await expect(button).toBeVisible();
+      const bounds = await button.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(cardBounds!.x - 1);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(cardBounds!.x + cardBounds!.width + 1);
+      expect(bounds!.y).toBeGreaterThanOrEqual(cardBounds!.y - 1);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+        cardBounds!.y + cardBounds!.height + 1,
+      );
+    }
+    const actionOverflow = await actions.evaluate((element) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+    }));
+    expect(actionOverflow.scrollWidth).toBeLessThanOrEqual(actionOverflow.clientWidth + 1);
+    await page.screenshot({ path: join(evidenceDir, 'after-speakers-900-populated-profile.png') });
+  } finally {
+    await app.close();
+  }
+});
+
 test('keeps sidebar tooltips visible and information buttons circular in both themes', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-button-polish-'));
   try {
