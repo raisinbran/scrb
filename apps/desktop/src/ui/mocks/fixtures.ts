@@ -370,10 +370,10 @@ export const MODELS: ModelInfo[] = [
   },
   {
     role: 'summary',
-    name: 'summary 8B (4-bit)',
-    version: 'mock-1',
+    name: 'Summary model',
+    version: 'Qwen3.5-9B-Q4_K_M.gguf',
     installed: true,
-    sizeBytes: 5_000_000_000,
+    sizeBytes: 5_680_522_464,
   },
 ];
 

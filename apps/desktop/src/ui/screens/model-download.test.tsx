@@ -147,6 +147,83 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
       expect(screen.queryByRole('progressbar', { name: 'Overall model download' })).toBeNull();
     });
+
+    it('downloads the optional summary model with separate progress and an installed state', async () => {
+      backend = new MockBackend();
+      backend.setSummaryModelInstalled(false);
+      backend.arm('modelsMissing');
+      renderWith(backend, <SettingsScreen />);
+      const downloadSummary = await screen.findByRole('button', {
+        name: 'Download summary model',
+      });
+      expect(screen.getByText('Summaries (5.7 GB, optional)')).toBeTruthy();
+      fireEvent.click(downloadSummary);
+
+      expect(
+        await screen.findByRole('progressbar', { name: 'Summary model download' }),
+      ).toBeTruthy();
+      expect(screen.queryByRole('progressbar', { name: 'Overall model download' })).toBeNull();
+      expect(
+        await screen.findByRole('button', { name: 'Cancel summary model download' }),
+      ).toBeTruthy();
+      expect(await screen.findByText('Installed', {}, FAST)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Download summary model' })).toBeNull();
+      expect(screen.getByRole('button', { name: /^Download models/ })).toBeTruthy();
+    });
+
+    it('cancels the summary transfer and keeps retry available', async () => {
+      backend = new MockBackend();
+      backend.setSummaryModelInstalled(false);
+      backend.arm('modelsMissing');
+      backend.setDownloadStepMs(500);
+      renderWith(backend, <SettingsScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Download summary model' }));
+      expect(
+        await screen.findByRole('button', { name: 'Cancel summary model download' }),
+      ).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel summary model download' }));
+      expect(await screen.findByText(/Download cancelled/)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Download summary model' })).toBeTruthy();
+      expect(screen.queryByRole('progressbar', { name: 'Summary model download' })).toBeNull();
+    });
+
+    it.each([
+      [
+        'downloadOffline',
+        /Could not reach the download server\. Check your internet connection, then press Retry/,
+      ],
+      [
+        'downloadDiskSpace',
+        /not enough free disk space\. Free up about 5\.9 GB .* then press Retry/,
+      ],
+      ['downloadChecksum', /did not match its expected checksum.*Press Retry to download it again/],
+    ] as const)(
+      'shows the optional summary %s failure and retries successfully',
+      async (fault, text) => {
+        backend = new MockBackend();
+        backend.setSummaryModelInstalled(false);
+        backend.setDownloadStepMs(5);
+        backend.arm(fault);
+        renderWith(backend, <SettingsScreen />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Download summary model' }));
+        expect((await screen.findByRole('alert', {}, FAST)).textContent).toMatch(text);
+        fireEvent.click(screen.getByRole('button', { name: 'Retry summary model download' }));
+        expect(await screen.findByText('Installed', {}, FAST)).toBeTruthy();
+        expect(screen.queryByRole('alert')).toBeNull();
+      },
+    );
+
+    it('does not let summary cancellation interrupt an active speech-model download', async () => {
+      backend.setSummaryModelInstalled(false);
+      backend.setDownloadStepMs(500);
+      renderWith(backend, <SettingsScreen />);
+      fireEvent.click(await download());
+      const summaryDownload = await screen.findByRole('button', {
+        name: 'Download summary model',
+      });
+      expect((summaryDownload as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+    });
   });
 
   describe('first-run notice', () => {
@@ -189,6 +266,19 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
         false,
       );
       expect(screen.queryByRole('button', { name: 'Download models' })).toBeNull();
+    });
+
+    it('keeps recording available when only the optional summary model is missing', async () => {
+      backend = new MockBackend();
+      backend.setSummaryModelInstalled(false);
+      renderWith(backend, <LiveScreen />);
+      expect(await screen.findByText('Ready to record')).toBeTruthy();
+      expect((screen.getByRole('button', { name: 'Start' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
+      const setup = await backend.call('getSetupStatus');
+      expect(setup.complete).toBe(true);
+      expect(setup.models.find((model) => model.role === 'summary')?.installed).toBe(false);
     });
 
     it('keeps Start disabled after the download until the restart, saying why', async () => {

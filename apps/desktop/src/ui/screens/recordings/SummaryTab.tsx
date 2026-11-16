@@ -1,4 +1,5 @@
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { Button } from '../../components/Button.tsx';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type {
@@ -19,6 +20,7 @@ import type {
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
+import { useOpenModels } from '../../lib/models-missing.tsx';
 import { DataView } from '../Screen.tsx';
 import {
   ACTION_STATUS_LABELS,
@@ -29,6 +31,8 @@ import {
 } from './labels.ts';
 import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
+
+const loadSetupStatus = (backend: Backend) => backend.call('getSetupStatus');
 
 function TimeLink({ ms, onPlay }: { ms: number; onPlay(ms: number): void }) {
   return (
@@ -418,12 +422,14 @@ interface SummaryTabProps {
 
 export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: SummaryTabProps) {
   const backend = useBackend();
+  const openModels = useOpenModels();
   const meetingId = meeting.id;
   const load = useCallback(
     (client: Backend) => client.call('getSummary', { meetingId }),
     [meetingId],
   );
   const { state, reload } = useBackendData(load);
+  const { state: setupState } = useBackendData(loadSetupStatus);
   const [length, setLength] = useState(defaultLength);
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
   const [saved, setSaved] = useState<MeetingSummaryDoc | null>(null);
@@ -472,6 +478,9 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
   };
 
   const unfinished = isUnfinished(meeting.status);
+  const summaryModelMissing =
+    setupState.status === 'ready' &&
+    !setupState.data.models.some((model) => model.role === 'summary' && model.installed);
 
   return (
     <div className={styles.summary}>
@@ -479,6 +488,16 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
         <p role="alert" className={styles.bannerDanger}>
           {error}
         </p>
+      )}
+      {summaryModelMissing && (
+        <div className={styles.generating} role="status">
+          <p className={styles.fileName}>Summary model not installed</p>
+          <p className={styles.muted}>
+            Install the optional summary model in Settings &gt; Models to create or update
+            summaries. Recording and speech transcription do not need this model.
+          </p>
+          <Button onClick={openModels}>Open Settings &gt; Models</Button>
+        </div>
       )}
       <DataView state={state}>
         {(loaded) => {
@@ -501,22 +520,26 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
             return (
               <div className={styles.generating}>
                 <p className={styles.fileName}>No summary yet</p>
-                <p className={styles.muted}>
-                  {unfinished
-                    ? 'A summary can be generated when the final pass is done.'
-                    : 'Summaries are made on this computer from the finished transcript.'}
-                </p>
-                <div className={styles.inlineActions}>
-                  <LengthToggle length={length} onChange={setLength} />
-                  <button
-                    type="button"
-                    className={styles.primary}
-                    disabled={unfinished}
-                    onClick={() => void generate(length)}
-                  >
-                    Generate Summary
-                  </button>
-                </div>
+                {!summaryModelMissing && (
+                  <p className={styles.muted}>
+                    {unfinished
+                      ? 'A summary can be generated when the final pass is done.'
+                      : 'Summaries are made on this computer from the finished transcript.'}
+                  </p>
+                )}
+                {!summaryModelMissing && (
+                  <div className={styles.inlineActions}>
+                    <LengthToggle length={length} onChange={setLength} />
+                    <button
+                      type="button"
+                      className={styles.primary}
+                      disabled={unfinished}
+                      onClick={() => void generate(length)}
+                    >
+                      Generate Summary
+                    </button>
+                  </div>
+                )}
               </div>
             );
           }

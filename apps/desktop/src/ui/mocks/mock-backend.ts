@@ -295,6 +295,8 @@ export class MockBackend implements Backend {
   /** The required files finished so far, while `modelsMissing` is armed. */
   private readonly requiredInstalled = new Set<string>();
   private downloadTimers: Timer[] | null = null;
+  private summaryDownloadTimers: Timer[] | null = null;
+  private summaryInstalled = true;
   private downloadStepMs = 250;
   private readonly modelUpdateTimers = new Map<ModelRole, Timer[]>();
   private recording: RecordingState = {
@@ -433,6 +435,7 @@ export class MockBackend implements Backend {
 
   dispose(): void {
     this.stopDownload();
+    this.stopSummaryDownload();
     this.stopRecordingTimers();
     for (const timers of this.modelUpdateTimers.values()) timers.forEach(clearTimeout);
     this.modelUpdateTimers.clear();
@@ -659,6 +662,76 @@ export class MockBackend implements Backend {
   private stopDownload(): void {
     this.downloadTimers?.forEach(clearTimeout);
     this.downloadTimers = null;
+  }
+
+  setSummaryModelInstalled(installed: boolean): void {
+    this.summaryInstalled = installed;
+  }
+
+  private stopSummaryDownload(): void {
+    this.summaryDownloadTimers?.forEach(clearTimeout);
+    this.summaryDownloadTimers = null;
+  }
+
+  private runSummaryDownload(): void {
+    if (this.summaryDownloadTimers || this.summaryInstalled) return;
+    const timers: Timer[] = [];
+    this.summaryDownloadTimers = timers;
+    const summary = MODELS.find((model) => model.role === 'summary') as ModelInfo;
+    const fault = (
+      [
+        ['downloadDiskSpace', 'diskSpace'],
+        ['downloadChecksum', 'checksum'],
+        ['downloadOffline', 'offline'],
+      ] as const
+    ).find(([armed]) => this.armed.delete(armed));
+    let at = 0;
+    const later = (action: () => void) => {
+      at += this.downloadStepMs;
+      timers.push(
+        setTimeout(() => {
+          if (this.summaryDownloadTimers !== timers) return;
+          action();
+        }, at),
+      );
+    };
+    if (fault) {
+      later(() => {
+        this.summaryDownloadTimers = null;
+        this.emit('modelDownloadProgress', {
+          role: 'summary',
+          modelName: summary.name,
+          state: 'failed',
+          bytesDone: 0,
+          bytesTotal: summary.sizeBytes,
+          reason: fault[1],
+          message:
+            fault[1] === 'diskSpace'
+              ? 'Not enough free disk space. Free up about 5.9 GB and try again.'
+              : fault[1] === 'checksum'
+                ? 'The downloaded summary file did not match its checksum and was deleted.'
+                : 'The download stopped. Check your connection and retry.',
+        });
+      });
+      return;
+    }
+    const emit = (state: ModelDownloadProgress['state'], fraction: number) => {
+      this.emit('modelDownloadProgress', {
+        role: 'summary',
+        modelName: summary.name,
+        state,
+        bytesDone: Math.round(summary.sizeBytes * fraction),
+        bytesTotal: summary.sizeBytes,
+      });
+    };
+    later(() => emit('downloading', 0.3));
+    later(() => emit('downloading', 0.8));
+    later(() => emit('verifying', 1));
+    later(() => {
+      this.summaryDownloadTimers = null;
+      this.summaryInstalled = true;
+      emit('done', 1);
+    });
   }
 
   /**
@@ -1616,6 +1689,10 @@ export class MockBackend implements Backend {
     },
     checkModelUpdates: () => MODEL_UPDATES.filter((update) => !this.updatedModels.has(update.role)),
     installModelUpdate: ({ role }) => {
+      if (role === 'summary') {
+        this.runSummaryDownload();
+        return;
+      }
       if (
         this.modelUpdateTimers.has(role) ||
         this.updatedModels.has(role) ||
@@ -1656,10 +1733,16 @@ export class MockBackend implements Backend {
       const denied = this.armed.has('permissionDenied');
       if (missing)
         return {
-          models: REQUIRED_MODELS.map((model) => ({
-            ...model,
-            installed: this.requiredInstalled.has(model.version),
-          })),
+          models: [
+            ...REQUIRED_MODELS.map((model) => ({
+              ...model,
+              installed: this.requiredInstalled.has(model.version),
+            })),
+            {
+              ...(MODELS.find((model) => model.role === 'summary') as ModelInfo),
+              installed: this.summaryInstalled,
+            },
+          ],
           permissions: { microphone: denied ? 'denied' : 'granted', meetingAudio: 'granted' },
           locationSet: this.settings.location.country !== null,
           complete: false,
@@ -1667,7 +1750,7 @@ export class MockBackend implements Backend {
       return {
         models: MODELS.map((model) => ({
           ...model,
-          installed: !missing,
+          installed: model.role === 'summary' ? this.summaryInstalled : !missing,
           version: this.updatedModels.has(model.role)
             ? (MODEL_UPDATES.find((update) => update.role === model.role)?.availableVersion ??
               model.version)
@@ -1679,7 +1762,10 @@ export class MockBackend implements Backend {
       };
     },
     startModelDownload: () => this.runDownload(),
-    cancelModelDownload: () => this.stopDownload(),
+    cancelModelDownload: () => {
+      this.stopDownload();
+      this.stopSummaryDownload();
+    },
     requestPermission: ({ permission }) => {
       void permission;
       return this.armed.has('permissionDenied') ? 'denied' : 'granted';

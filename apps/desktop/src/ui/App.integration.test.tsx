@@ -4,6 +4,7 @@ import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
 import { MockBackend } from './mocks/index.ts';
 import { MOCK_SPEAKERS } from './mocks/transcript.ts';
+import { ThemeProvider } from './theme/ThemeProvider.tsx';
 
 let backend: MockBackend;
 
@@ -19,7 +20,9 @@ async function renderApp(usState: string | null = null) {
   await backend.call('updateSettings', { location: { country: 'US', usState } });
   render(
     <BackendProvider backend={backend}>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </BackendProvider>,
   );
   await advance(0);
@@ -49,6 +52,16 @@ async function openMeeting(title: RegExp) {
   fireEvent.click(screen.getByRole('button', { name: title }));
   await advance(0);
 }
+
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('screens working together on the mock', () => {
   beforeEach(() => {
@@ -268,6 +281,23 @@ describe('leaving a tab and coming back', () => {
     await goTo('Vocabulary');
     await goTo('Recordings');
     expect(screen.getByRole('tab', { name: 'Summary' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('opens Settings > Models from the Summary tab when the optional model is absent', async () => {
+    backend.setSummaryModelInstalled(false);
+    await renderApp();
+    await openMeeting(/Budget review/);
+    fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+    await advance(0);
+
+    expect(screen.getByText('Summary model not installed')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Generate Summary' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Settings > Models' }));
+    await advance(0);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Models' })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Models' }));
   });
 });
 

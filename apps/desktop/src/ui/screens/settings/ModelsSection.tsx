@@ -151,6 +151,7 @@ export function ModelsSection() {
   const [progress, setProgress] = useState<Record<string, ModelDownloadProgress>>({});
   const [overall, setOverall] = useState<{ done: number; total: number } | null>(null);
   const [run, setRun] = useState<RunState>({ kind: 'idle', cancelled: false });
+  const [summaryRun, setSummaryRun] = useState<RunState>({ kind: 'idle', cancelled: false });
   const [confirming, setConfirming] = useState<ModelUpdate | null>(null);
   const { busy, error, run: act } = useAction();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -173,6 +174,17 @@ export function ModelsSection() {
     () =>
       backend.on('modelDownloadProgress', (event) => {
         setProgress((current) => ({ ...current, [event.modelName]: event }));
+        if (event.role === 'summary') {
+          setSummaryRun(
+            event.state === 'failed'
+              ? { kind: 'failed', reason: event.reason, message: event.message }
+              : event.state === 'done'
+                ? { kind: 'done', message: event.message }
+                : { kind: 'running' },
+          );
+          if (event.state === 'done') reload();
+          return;
+        }
         // Only a download this section started moves the run; a model update's events do not.
         setRun((current) => {
           if (current.kind !== 'running') return current;
@@ -221,11 +233,46 @@ export function ModelsSection() {
       }
     });
 
+  const downloadSummary = () =>
+    void act(async () => {
+      setSummaryRun({ kind: 'running' });
+      setProgress((current) => {
+        const next = { ...current };
+        for (const [name, event] of Object.entries(next)) {
+          if (event.role === 'summary') delete next[name];
+        }
+        return next;
+      });
+      try {
+        await backend.call('installModelUpdate', { role: 'summary' });
+      } catch (failure) {
+        setSummaryRun({
+          kind: 'failed',
+          reason: undefined,
+          message: failure instanceof Error ? failure.message : undefined,
+        });
+      }
+    });
+
   const cancel = () =>
     void act(async () => {
       await backend.call('cancelModelDownload');
       setRun({ kind: 'idle', cancelled: true });
       setProgress({});
+      reload();
+    });
+
+  const cancelSummary = () =>
+    void act(async () => {
+      await backend.call('cancelModelDownload');
+      setSummaryRun({ kind: 'idle', cancelled: true });
+      setProgress((current) => {
+        const next = { ...current };
+        for (const [name, event] of Object.entries(next)) {
+          if (event.role === 'summary') delete next[name];
+        }
+        return next;
+      });
       reload();
     });
 
@@ -237,8 +284,21 @@ export function ModelsSection() {
       <DataView state={state}>
         {({ models }) => {
           const absent = models.filter((model) => model.role !== 'summary' && !model.installed);
+          const summaryModel = models.find((model) => model.role === 'summary');
           const remaining = absent.reduce((sum, model) => sum + model.sizeBytes, 0);
           const needsDownload = absent.length > 0 || run.kind === 'running';
+          const activeRequiredDownload =
+            run.kind === 'running' ||
+            Object.values(progress).some(
+              (event) =>
+                event.role !== 'summary' &&
+                (event.state === 'downloading' || event.state === 'verifying'),
+            );
+          const summaryProgress = summaryModel ? progress[summaryModel.name] : undefined;
+          const activeSummaryDownload =
+            summaryRun.kind === 'running' ||
+            summaryProgress?.state === 'downloading' ||
+            summaryProgress?.state === 'verifying';
           return (
             <>
               {needsDownload && (
@@ -273,15 +333,23 @@ export function ModelsSection() {
                   )}
                   <div className={styles.inline}>
                     {run.kind === 'running' ? (
-                      <Button disabled={busy} onClick={cancel}>
+                      <Button disabled={busy || activeSummaryDownload} onClick={cancel}>
                         Cancel
                       </Button>
                     ) : run.kind === 'failed' ? (
-                      <Button variant="primary" disabled={busy} onClick={download}>
+                      <Button
+                        variant="primary"
+                        disabled={busy || activeRequiredDownload || activeSummaryDownload}
+                        onClick={download}
+                      >
                         Retry
                       </Button>
                     ) : (
-                      <Button variant="primary" disabled={busy} onClick={download}>
+                      <Button
+                        variant="primary"
+                        disabled={busy || activeRequiredDownload || activeSummaryDownload}
+                        onClick={download}
+                      >
                         {`Download models (${formatSize(remaining)})`}
                       </Button>
                     )}
@@ -293,21 +361,104 @@ export function ModelsSection() {
                   {run.message ?? 'Models ready.'}
                 </p>
               )}
+              {summaryModel && (
+                <ul className={styles.models}>
+                  <li className={styles.model}>
+                    <div className={styles.modelMain}>
+                      <div className={styles.modelText}>
+                        <span>Summaries (5.7 GB, optional)</span>
+                        <span className={styles.help}>
+                          {summaryModel.installed
+                            ? 'Used to create summaries on this computer.'
+                            : 'Download uses about 5.7 GB of disk space. This model is only needed to generate summaries.'}
+                        </span>
+                      </div>
+                      <div className={styles.actions}>
+                        {summaryModel.installed ? (
+                          <span className={styles.help}>Installed</span>
+                        ) : summaryRun.kind === 'done' ? (
+                          <Button disabled>Installed</Button>
+                        ) : activeSummaryDownload ? (
+                          <Button
+                            aria-label="Cancel summary model download"
+                            disabled={busy || activeRequiredDownload}
+                            onClick={cancelSummary}
+                          >
+                            Cancel
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="primary"
+                            aria-label={
+                              summaryRun.kind === 'failed'
+                                ? 'Retry summary model download'
+                                : 'Download summary model'
+                            }
+                            disabled={busy || activeRequiredDownload || activeSummaryDownload}
+                            onClick={downloadSummary}
+                          >
+                            {summaryRun.kind === 'failed' ? 'Retry' : 'Download'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {activeSummaryDownload && (
+                      <div className={styles.progress} role="status">
+                        <span className={styles.help}>
+                          {summaryProgress
+                            ? progressText(summaryProgress)
+                            : 'Starting summary download…'}
+                        </span>
+                        <Progress
+                          label="Summary model download"
+                          fraction={
+                            summaryProgress && summaryProgress.bytesTotal > 0
+                              ? summaryProgress.bytesDone / summaryProgress.bytesTotal
+                              : undefined
+                          }
+                        />
+                      </div>
+                    )}
+                    {summaryRun.kind === 'failed' && (
+                      <p role="alert" className={styles.error}>
+                        {failureText(
+                          summaryRun.reason,
+                          Math.max(0, summaryModel.sizeBytes - (summaryProgress?.bytesDone ?? 0)),
+                          summaryRun.message,
+                        )}
+                      </p>
+                    )}
+                    {summaryRun.kind === 'idle' && summaryRun.cancelled && (
+                      <p role="status" className={styles.help}>
+                        Download cancelled. Files already downloaded are kept; press Download to
+                        continue.
+                      </p>
+                    )}
+                    {summaryRun.kind === 'done' && (
+                      <p role="status" className={styles.help}>
+                        {summaryRun.message ?? 'Summary model installed.'}
+                      </p>
+                    )}
+                  </li>
+                </ul>
+              )}
               <ul className={styles.models}>
-                {models.map((model) => (
-                  <ModelRow
-                    key={model.version + model.name}
-                    model={model}
-                    update={updates?.find((update) => update.role === model.role)}
-                    progress={progress[model.name]}
-                    disabled={busy}
-                    downloading={needsDownload}
-                    onInstall={(update) =>
-                      update.invalidatesVoiceProfiles ? setConfirming(update) : install(update)
-                    }
-                    onRevert={revert}
-                  />
-                ))}
+                {models
+                  .filter((model) => model.role !== 'summary')
+                  .map((model) => (
+                    <ModelRow
+                      key={model.version + model.name}
+                      model={model}
+                      update={updates?.find((update) => update.role === model.role)}
+                      progress={progress[model.name]}
+                      disabled={busy || activeRequiredDownload || activeSummaryDownload}
+                      downloading={needsDownload}
+                      onInstall={(update) =>
+                        update.invalidatesVoiceProfiles ? setConfirming(update) : install(update)
+                      }
+                      onRevert={revert}
+                    />
+                  ))}
               </ul>
             </>
           );
