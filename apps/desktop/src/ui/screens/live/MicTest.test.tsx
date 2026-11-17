@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
@@ -98,6 +98,10 @@ describe('mic test level meter', () => {
     expect(screen.queryByRole('meter', { name: 'Meeting level' })).toBeNull();
     expect(meter.getAttribute('aria-valuenow')).toBe('-100');
     screen.getByRole('button', { name: 'Test mic' }).click();
+    // The first sample is emitted before React commits the active subscription.
+    // A later sample must move the meter once the mic test is active.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Stop test' })).toBeTruthy());
+    act(() => backend.emit('levelMeter', { micDb: -24, meetingDb: null }));
     await waitFor(() => expect(meter.getAttribute('aria-valuenow')).toBe('-24'));
   });
 });
