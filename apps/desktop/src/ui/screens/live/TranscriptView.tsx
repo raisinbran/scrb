@@ -100,6 +100,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const jumpCancel = useRef<(() => void) | null>(null);
   const followCancel = useRef<(() => void) | null>(null);
   const jumpingToLive = useRef(false);
+  const animatedScrollTop = useRef<number | null>(null);
   const reachedBottomByCode = useRef(false);
   const anchorRef = useRef<{ id: string | null; index: number; top: number } | null>(null);
 
@@ -197,11 +198,16 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     if (Math.abs(element.scrollTop - bottom) >= 1) {
       followCancel.current?.();
       reachedBottomByCode.current = true;
+      animatedScrollTop.current = element.scrollTop;
       followCancel.current = animateTranscriptScroll(element, bottom, {
         maxDurationMs: 240,
-        onPosition: setScrollTop,
+        onPosition: (top) => {
+          animatedScrollTop.current = top;
+          setScrollTop(top);
+        },
         onComplete: () => {
           followCancel.current = null;
+          animatedScrollTop.current = null;
           reachedBottomByCode.current = true;
         },
       });
@@ -212,7 +218,21 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     const element = scrollRef.current;
     if (!element) return;
     if (jumpingToLive.current || followCancel.current) {
-      // Animated scroll events must not mark the reader as manually scrolling.
+      // Only ignore movement that came from our own animation. A manual scrollbar drag,
+      // keyboard scroll, or restored scroll position can occur while it is in flight.
+      if (
+        animatedScrollTop.current === null ||
+        Math.abs(element.scrollTop - animatedScrollTop.current) > 1
+      ) {
+        jumpCancel.current?.();
+        followCancel.current?.();
+        jumpCancel.current = null;
+        followCancel.current = null;
+        jumpingToLive.current = false;
+        animatedScrollTop.current = null;
+        reachedBottomByCode.current = false;
+        setFollowing(false);
+      }
     } else if (reachedBottomByCode.current) {
       reachedBottomByCode.current = false;
     } else {
@@ -243,6 +263,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     jumpCancel.current = null;
     followCancel.current?.();
     followCancel.current = null;
+    animatedScrollTop.current = null;
     jumpingToLive.current = false;
     if (animated) setFollowing(false);
   };
@@ -260,12 +281,17 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     followCancel.current?.();
     followCancel.current = null;
     jumpingToLive.current = true;
+    animatedScrollTop.current = element.scrollTop;
     const bottom = Math.max(store.heights.totalHeight(store.rowCount) - element.clientHeight, 0);
     jumpCancel.current = animateTranscriptScroll(element, bottom, {
-      onPosition: setScrollTop,
+      onPosition: (top) => {
+        animatedScrollTop.current = top;
+        setScrollTop(top);
+      },
       onComplete: () => {
         jumpingToLive.current = false;
         jumpCancel.current = null;
+        animatedScrollTop.current = null;
         reachedBottomByCode.current = true;
         setFollowing(true);
       },
