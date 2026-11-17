@@ -235,14 +235,13 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   };
 
   const interruptJump = () => {
+    const animated = jumpingToLive.current || followCancel.current !== null;
     jumpCancel.current?.();
     jumpCancel.current = null;
     followCancel.current?.();
     followCancel.current = null;
-    if (jumpingToLive.current) {
-      jumpingToLive.current = false;
-      setFollowing(false);
-    }
+    jumpingToLive.current = false;
+    if (animated) setFollowing(false);
   };
 
   const jumpToLive = useCallback(() => {
@@ -361,6 +360,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
 
   const onKeyDown = (event: KeyboardEvent) => {
     const move = CURSOR_KEYS[event.key];
+    if (['PageUp', 'PageDown'].includes(event.key)) interruptJump();
     if (move) {
       interruptJump();
       event.preventDefault();
@@ -526,10 +526,19 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           data-testid="transcript"
           data-following={following}
           onScroll={onScroll}
-          onWheel={() => { interruptJump(); setFollowing(false); }}
-          onTouchMove={() => { interruptJump(); setFollowing(false); }}
+          onWheel={() => {
+            interruptJump();
+            setFollowing(false);
+          }}
+          onTouchMove={() => {
+            interruptJump();
+            setFollowing(false);
+          }}
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) interruptJump();
+            if (event.target === event.currentTarget) {
+              interruptJump();
+              setFollowing(false);
+            }
           }}
           onKeyDown={onKeyDown}
           onCopy={onCopy}
