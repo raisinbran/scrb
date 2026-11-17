@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconButton } from '../../components/IconButton.tsx';
 import { formatTranscriptForCopy } from './copy-transcript.ts';
 import type { TranscriptData } from './use-transcript.ts';
@@ -37,18 +37,17 @@ export function CopyTranscriptAction({
   onError?(message: string | null): void;
 }) {
   const { segments, speakers, totalSegments, loading, error } = transcript;
-  const [copied, setCopied] = useState(false);
+  const [copiedSegments, setCopiedSegments] = useState<TranscriptData['segments'] | null>(null);
+  const copied = copiedSegments === segments;
   const ready = !loading && !error && segments.length === totalSegments && segments.length > 0;
-
-  useEffect(() => setCopied(false), [segments, totalSegments]);
 
   const copyTranscript = async () => {
     if (!ready) return;
-    setCopied(false);
+    setCopiedSegments(null);
     onError?.(null);
     try {
       await writeClipboardText(formatTranscriptForCopy(segments, speakers));
-      setCopied(true);
+      setCopiedSegments(segments);
     } catch {
       onError?.('The transcript could not be copied.');
     }
