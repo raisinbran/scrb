@@ -1,4 +1,4 @@
-### A-644 — 2026-11-16 — Codex desktop — boundary check skipped on nonstandard branch prefix
+### A-705 — 2026-11-16 — Codex desktop — boundary check skipped on nonstandard branch prefix
 - **Status / attribution:** Confirmed agent setup error; no product defect.
 - **What failed:** The first boundary-check invocation used a `cuc/` branch name, so the script correctly skipped branches outside `ui/` and `backend/`.
 - **Impact:** That invocation did not validate the change boundary.
