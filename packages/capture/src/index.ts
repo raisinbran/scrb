@@ -97,6 +97,7 @@ export type CaptureEvent =
   /** The target app is making sound but the meeting track hears none. */
   | { type: 'meetingSilent' }
   | { type: 'health'; micDb: number; meetingDb: number }
+  | { type: 'meter'; micDb: number; meetingDb: number }
   | { type: 'micLevel'; micDb: number }
   | { type: 'micCheckEnded'; reason: 'timedOut' | 'deviceLost' }
   /** No `track` means the whole session, such as a session log write. */

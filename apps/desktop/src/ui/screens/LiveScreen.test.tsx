@@ -241,6 +241,47 @@ describe('LiveScreen', () => {
     expect(mic?.getAttribute('aria-valuenow')).toBe('-30');
   });
 
+  it('ignores levels while paused or stopped and resumes only when recording', async () => {
+    await startMeeting();
+    const [mic, meeting] = screen.getAllByRole('meter');
+    act(() => backend.emit('levelMeter', { micDb: -24, meetingDb: -12 }));
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-24');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-12');
+
+    fireEvent.click(button('Pause'));
+    await advance(0);
+    act(() => backend.emit('levelMeter', { micDb: -6, meetingDb: -3 }));
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-100');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-100');
+
+    fireEvent.click(button('Resume'));
+    await advance(0);
+    act(() => backend.emit('levelMeter', { micDb: -30, meetingDb: -18 }));
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-30');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-18');
+
+    fireEvent.click(button('Stop'));
+    await advance(0);
+    act(() => backend.emit('levelMeter', { micDb: -9, meetingDb: -9 }));
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-100');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-100');
+  });
+
+  it('clears both meter fills after Stop', async () => {
+    await startMeeting();
+    const [mic, meeting] = screen.getAllByRole('meter');
+    act(() => backend.emit('levelMeter', { micDb: -24, meetingDb: -12 }));
+    expect((mic as HTMLElement).style.getPropertyValue('--level')).toBe('0.6');
+    expect((meeting as HTMLElement).style.getPropertyValue('--level')).toBe('0.8');
+
+    fireEvent.click(button('Stop'));
+    await advance(0);
+    expect((mic as HTMLElement).style.getPropertyValue('--level')).toBe('0');
+    expect((meeting as HTMLElement).style.getPropertyValue('--level')).toBe('0');
+    expect(mic?.getAttribute('aria-valuenow')).toBe('-100');
+    expect(meeting?.getAttribute('aria-valuenow')).toBe('-100');
+  });
+
   describe('recording dot and timer tooltips', () => {
     const tipAfterFocus = (element: HTMLElement) => {
       fireEvent.focus(element);

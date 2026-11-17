@@ -511,6 +511,8 @@ void Track::CloseStream() {
     renderService_.Reset();
     renderClient_.Reset();
     streamOpen_ = false;
+    lastArrivalNs = 0;
+    levelCentiDb = -10000;
 }
 
 void Track::TopUpRender() {

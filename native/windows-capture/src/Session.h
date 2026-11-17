@@ -58,6 +58,7 @@ private:
     std::string ActiveTracks() const;
     void Emit(const std::string& name, const JsonObject& fields);
     void Tick();
+    void TickMeter(int64_t now);
     void TickSecond(int64_t now);
     void WatchdogLoop();
     void DoOpen(const Command& cmd);
@@ -99,6 +100,7 @@ private:
     int64_t originNs_ = 0;
     bool continuing_ = false;
     int64_t lastSecondNs_ = 0;
+    int64_t lastMeterNs_ = 0;
 
     std::thread watchdog_;
     std::atomic<bool> watchdogStop_{false};

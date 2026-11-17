@@ -109,7 +109,7 @@ try { $tone.Kill() } catch {}
 if ($TreeTarget) { Stop-Process -Name TonePlayer -Force -ErrorAction SilentlyContinue }
 
 $verify = & "$bin\ChunkVerify.exe" "$out"
-$names = Get-Content $events | ForEach-Object { if ($_ -match '"event":"([^"]+)"') { $Matches[1] } } | Where-Object { $_ -notin 'health', 'trackHealth', 'chunkClosed' }
+$names = Get-Content $events | ForEach-Object { if ($_ -match '"event":"([^"]+)"') { $Matches[1] } } | Where-Object { $_ -notin 'meter', 'health', 'trackHealth', 'chunkClosed' }
 $counts = ($names | Group-Object | ForEach-Object { "$($_.Name)=$($_.Count)" }) -join ' '
 $report = @("case=$Case helperExit=$($p.ExitCode)", $verify, "events: $counts") + (Get-Content "$out\stderr.txt" -ErrorAction SilentlyContinue)
 $report | Set-Content (Join-Path $results "$Case.txt")

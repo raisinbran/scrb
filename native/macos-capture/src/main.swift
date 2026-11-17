@@ -385,10 +385,16 @@ final class Session {
     private func startWriter() {
         let thread = Thread { [self] in
             var lastHealth = Date()
+            var lastMeter = mach_absolute_time()
             while !Thread.current.isCancelled {
                 micTrack.drain(session: self)
                 meetingTrack.drain(session: self)
                 Thread.sleep(forTimeInterval: 0.02)
+                let now = mach_absolute_time()
+                if ticksToNs(Int64(now - lastMeter)) >= 125_000_000 {
+                    lastMeter = now
+                    meter()
+                }
                 if Date().timeIntervalSince(lastHealth) >= 1 {
                     lastHealth = Date()
                     health()
@@ -398,6 +404,21 @@ final class Session {
         thread.qualityOfService = .userInitiated
         thread.start()
         writerThread = thread
+    }
+
+    private func meterDb(_ track: Track, now: UInt64) -> Double {
+        let last = rt_last_packet(track.ring)
+        guard !asleep, !stopping, last != 0, now >= last,
+              ticksToNs(Int64(now - last)) <= 250_000_000 else { return -100 }
+        let peak = rt_peak(track.ring)
+        return peak == 0 ? -100 : 20 * log10(Double(peak) / 32767)
+    }
+
+    private func meter() {
+        let now = mach_absolute_time()
+        say(["type": "event", "event": "meter",
+             "micDb": meterDb(micTrack, now: now),
+             "meetingDb": meterDb(meetingTrack, now: now)])
     }
 
     private func health() {
@@ -472,6 +493,7 @@ final class Session {
 
     private func reopen(_ track: Track, reason: String, quiet: Bool = false) -> String? {
         track.close(reason: reason)
+        rt_reset_peak(track.ring)
         let error: String?
         if track === micTrack {
             closeMic()

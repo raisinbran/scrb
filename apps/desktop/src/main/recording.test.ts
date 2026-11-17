@@ -537,7 +537,8 @@ describe('Start while the previous recording is finishing', () => {
     send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
     send({ type: 'writeError', track: 'microphone', message: 'disk write failed' });
     send({ type: 'writeError', message: 'session.log write failed' });
-    send({ type: 'health', micDb: -20, meetingDb: -30 });
+    send({ type: 'meter', micDb: -20, meetingDb: -30 });
+    send({ type: 'health', micDb: -19, meetingDb: -29 });
 
     const health = emit.mock.calls.filter(([name]) => name === 'recordingHealth');
     expect(health).toHaveLength(2);
@@ -549,6 +550,7 @@ describe('Start while the previous recording is finishing', () => {
       ],
     });
     expect(emit).toHaveBeenCalledWith('levelMeter', { micDb: -20, meetingDb: -30 });
+    expect(emit).not.toHaveBeenCalledWith('levelMeter', { micDb: -19, meetingDb: -29 });
     await controller.shutdown();
   });
 
