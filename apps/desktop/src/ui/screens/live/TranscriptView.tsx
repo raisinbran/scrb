@@ -103,12 +103,15 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const reachedBottomByCode = useRef(false);
   const anchorRef = useRef<{ id: string | null; index: number; top: number } | null>(null);
 
-  useEffect(() => () => {
-    clearTimeout(clickTimer.current);
-    jumpCancel.current?.();
-    followCancel.current?.();
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(clickTimer.current);
+      jumpCancel.current?.();
+      followCancel.current?.();
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const element = scrollRef.current;
