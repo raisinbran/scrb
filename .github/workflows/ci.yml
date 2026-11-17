@@ -63,6 +63,6 @@ jobs:
       - name: Check boundaries
         run: npm run check:boundaries
         env:
-          CONTRACT_APPROVED: ${{ github.event_name == 'pull_request' && github.head_ref == 'backend/manual-correction-word-id-20261116' && '1' || '0' }}
+          CONTRACT_APPROVED: ${{ github.event.pull_request.number == 342 && github.event.pull_request.head.repo.full_name == 'raisinbran/scrb' && '1' || '0' }}
       - run: npm run build
       - run: npm run test:smoke
