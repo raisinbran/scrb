@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -62,6 +63,9 @@ function fixture() {
     sourceDirectories: [runtime, whisper, sherpa, ffmpeg],
     system32Path: system32,
     inspectDependencies,
+    pinnedRuntimeHashes: {
+      'msvcp140.dll': createHash('sha256').update('msvc runtime').digest('hex'),
+    },
     noticesPath: notices,
     licensesDirectory: licenses,
     provenance: { fixture: true },
@@ -119,6 +123,14 @@ describe('stage-win-tools', () => {
     writeFileSync(path.join(config.system32Path, 'msvcp140.dll'), 'system copy');
     expect(() => stageWindowsTools({ ...config, verifyTools: () => {} })).toThrow(
       /cannot locate non-system dependency MSVCP140\.dll/,
+    );
+  });
+
+  it('rejects an MSVC runtime DLL that does not match its pinned hash', () => {
+    const config = fixture();
+    writeFileSync(path.join(config.sourceDirectories[0], 'msvcp140.dll'), 'unexpected runtime');
+    expect(() => stageWindowsTools({ ...config, verifyTools: () => {} })).toThrow(
+      /MSVC runtime hash mismatch for MSVCP140\.dll/,
     );
   });
 

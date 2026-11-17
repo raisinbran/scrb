@@ -34,6 +34,14 @@ export const PINNED_INPUT_HASHES = {
   'sherpa-onnx-c-api.dll': '71728fb12b3a15a9ab7c4961fceafc6dd802f7fc038f461f5ea59e07d7104bec',
 };
 
+export const PINNED_MSVC_RUNTIME_HASHES = {
+  'msvcp140.dll': '0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9',
+  'msvcp140_1.dll': 'bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d',
+  'vcomp140.dll': '55aba23cdcd6484fbb06f4155b8ca75adfce7a881f10afd0c49457165e677164',
+  'vcruntime140.dll': 'd5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066',
+  'vcruntime140_1.dll': '1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f',
+};
+
 export const SHERPA_RELEASE_SHA256 =
   '11fd6a50b97eed38b54fb16d8219f49b16aa7f6a8e43a042316469ef47652e82';
 export const WHISPER_COMMIT = '284029c07012d2000941a08d38a31ffb71f4734e';
@@ -90,6 +98,7 @@ export function stageWindowsTools({
   sourceDirectories,
   system32Path,
   inspectDependencies,
+  pinnedRuntimeHashes = {},
   additionalFiles = [],
   verifyTools,
   provenance,
@@ -186,6 +195,19 @@ export function stageWindowsTools({
         throw new Error(
           `cannot locate non-system dependency ${dependency} needed by ${item.source}`,
         );
+      }
+
+      if (MSVC_RUNTIME.test(dependency)) {
+        const expectedHash = pinnedRuntimeHashes[dependencyKey];
+        if (!expectedHash) {
+          throw new Error(`MSVC runtime dependency has no pinned hash: ${dependency}`);
+        }
+        const actualHash = digest(source);
+        if (actualHash !== expectedHash) {
+          throw new Error(
+            `MSVC runtime hash mismatch for ${dependency}: expected ${expectedHash}, got ${actualHash}`,
+          );
+        }
       }
 
       const destination = path.join(out, dependency);
@@ -406,8 +428,10 @@ function main() {
       profile: 'static; file/pipe protocols; network, GPL and nonfree disabled',
     },
     msvcRedistributable: {
-      version: '14.44.35112',
+      redistVersion: '14.44.35112',
+      dllFileVersion: '14.44.35211.0',
       architecture: 'x64',
+      dllSha256: PINNED_MSVC_RUNTIME_HASHES,
       license: 'Microsoft Visual C++ Redistributable',
     },
   };
@@ -418,6 +442,7 @@ function main() {
     sourceDirectories: [...runtimeDirs, sherpaLib, whisperBin, ffmpegBin, sherpaBin],
     system32Path,
     inspectDependencies: dumpbinInspector(dumpbin),
+    pinnedRuntimeHashes: PINNED_MSVC_RUNTIME_HASHES,
     additionalFiles: [path.join(sherpaLib, 'onnxruntime_providers_shared.dll')],
     verifyTools: (directory, system32) => verifyStagedTools(directory, system32),
     provenance,
