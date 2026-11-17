@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -776,6 +777,82 @@ describe('createMeetingHandlers', () => {
       ok: true,
       value: { canUndo: true, canRedo: false },
     });
+  });
+
+  it('dispatches generated live word IDs for remembered and unremembered corrections across reopen', async () => {
+    const root = library.paths.root;
+    const meetingId = (await recorded('Invented live correction', '2026-11-16T10:00:00Z')).id;
+    const sourceId = 'invented-live-segment';
+    const liveWordId = (startMs: number) => {
+      const text = 'Austin';
+      const prefix = `live-word-${createHash('sha256').update(sourceId).digest('hex')}-`;
+      const key = JSON.stringify([sourceId, startMs, startMs + 250, text]);
+      return `${prefix}${createHash('sha256').update(key).update('0').digest('hex')}`;
+    };
+    const unrememberedId = liveWordId(1200);
+    const rememberedId = liveWordId(1600);
+    expect(unrememberedId).toHaveLength(139);
+    expect(rememberedId).toHaveLength(139);
+    await library.appendSegments(meetingId, [
+      {
+        id: sourceId,
+        track: 'meeting',
+        speakerId: 'speaker-1',
+        pass: 'live',
+        words: [
+          { id: unrememberedId, text: 'Austin', startMs: 1200, endMs: 1450 },
+          { id: rememberedId, text: 'Austin', startMs: 1600, endMs: 1850 },
+        ],
+      },
+    ]);
+    const edits = createMeetingHandlers(library);
+    const read = async () =>
+      (await value('getTranscript', { meetingId, offset: 0, limit: 10 })) as TranscriptPage;
+    const apply = (wordId: string, remember: boolean) =>
+      dispatchCall(edits, 'applyCorrection', {
+        meetingId,
+        range: { firstWordId: wordId, lastWordId: wordId },
+        text: 'Alstom',
+        remember,
+      });
+
+    expect(await apply(unrememberedId, false)).toMatchObject({
+      ok: true,
+      value: { canUndo: true, canRedo: false },
+    });
+    expect((await read()).segments[0]?.words.map((word) => word.text)).toEqual([
+      'Alstom',
+      'Austin',
+    ]);
+    expect(library.vocabulary.list().some((term) => term.term === 'Alstom')).toBe(false);
+    expect(await dispatchCall(edits, 'undo', { meetingId })).toMatchObject({ ok: true });
+    expect((await read()).segments[0]?.words[0]?.text).toBe('Austin');
+    expect(await dispatchCall(edits, 'redo', { meetingId })).toMatchObject({ ok: true });
+    expect((await read()).segments[0]?.words[0]?.text).toBe('Alstom');
+
+    expect(await apply(rememberedId, true)).toMatchObject({
+      ok: true,
+      value: { canUndo: true, canRedo: false },
+    });
+    expect((await read()).segments[0]?.words.map((word) => word.text)).toEqual([
+      'Alstom',
+      'Alstom',
+    ]);
+    expect(library.vocabulary.list().some((term) => term.term === 'Alstom')).toBe(true);
+    expect(await dispatchCall(edits, 'undo', { meetingId })).toMatchObject({ ok: true });
+    expect((await read()).segments[0]?.words[1]?.text).toBe('Austin');
+    expect(await dispatchCall(edits, 'redo', { meetingId })).toMatchObject({ ok: true });
+
+    await library.close();
+    library = await Library.open({ root });
+    handlers = createMeetingHandlers(library);
+    const reopened = (await value('getTranscript', {
+      meetingId,
+      offset: 0,
+      limit: 10,
+    })) as TranscriptPage;
+    expect(reopened.segments[0]?.words.map((word) => word.text)).toEqual(['Alstom', 'Alstom']);
+    expect(library.vocabulary.list().some((term) => term.term === 'Alstom')).toBe(true);
   });
 
   it('keeps a single-word correction and a speaker rename in one meeting, across a reopen', async () => {

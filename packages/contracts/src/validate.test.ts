@@ -68,6 +68,59 @@ describe('isValidRequest', () => {
     expect(isValidRequest('getMeeting', { meetingId: 'a'.repeat(129) })).toBe(false);
   });
 
+  it('accepts generated live word IDs in word ranges without relaxing other ID checks', () => {
+    const wordId = 'a'.repeat(139);
+    const range = { firstWordId: wordId, lastWordId: wordId };
+    expect(
+      isValidRequest('applyCorrection', {
+        meetingId: 'm-1',
+        range,
+        text: 'Alstom',
+        remember: false,
+      }),
+    ).toBe(true);
+    expect(
+      isValidRequest('reassignSpeaker', { meetingId: 'm-1', range, speakerId: 'speaker-1' }),
+    ).toBe(true);
+    expect(isValidRequest('splitSpeaker', { meetingId: 'm-1', range, newLabel: 'Guest' })).toBe(
+      true,
+    );
+
+    for (const invalidWordId of ['a'.repeat(140), `${'a'.repeat(138)}/`]) {
+      const invalidRange = { firstWordId: invalidWordId, lastWordId: invalidWordId };
+      expect(
+        isValidRequest('applyCorrection', {
+          meetingId: 'm-1',
+          range: invalidRange,
+          text: 'Alstom',
+          remember: false,
+        }),
+      ).toBe(false);
+      expect(
+        isValidRequest('reassignSpeaker', {
+          meetingId: 'm-1',
+          range: invalidRange,
+          speakerId: 'speaker-1',
+        }),
+      ).toBe(false);
+      expect(
+        isValidRequest('splitSpeaker', {
+          meetingId: 'm-1',
+          range: invalidRange,
+          newLabel: 'Guest',
+        }),
+      ).toBe(false);
+    }
+    expect(
+      isValidRequest('applyCorrection', {
+        meetingId: 'm-'.concat('a'.repeat(127)),
+        range,
+        text: 'Alstom',
+        remember: false,
+      }),
+    ).toBe(false);
+  });
+
   it('validates speaker suggestion queries without allowing filesystem keys', () => {
     expect(isValidRequest('listSpeakerSuggestions', {})).toBe(true);
     expect(isValidRequest('listSpeakerSuggestions', { meetingId: 'm-1' })).toBe(true);
