@@ -1,0 +1,6 @@
+### A-710 — 2026-11-16 — cloud implementation — render-time ref update broke meter CI
+
+- **Observed effect:** The first remediation of PR #330's paused-meter defect introduced `activeRef.current = active` during rendering in `LevelMeters.tsx`. Exact-head macOS and Windows CI run [44013707961](https://github.com/raisinbran/scrb/actions/runs/44013707961) failed ESLint (`react-hooks/refs`) before reaching tests.
+- **Source and attribution:** The new assignment to `activeRef.current` was authored in commit `41f40c2065eb34732143c6e7f39df7a6d4111f57` as part of the cloud fix; the independent [PR review](https://github.com/raisinbran/scrb/pull/330#pullrequestreview-5932734936) confirmed the violation. This is an implementation mistake, not a native-capture or CI infrastructure failure.
+- **Correction:** Commit `dc048a3a4d2a0be30d6771aec6fc48b0e5b0f96e` removes the render-time ref update and uses an effect subscription closed over `active` with dependencies `[backend, active]`. The Pause / Resume / Stop regression test remains in place.
+- **Remaining risk:** Exact-head macOS/Windows CI and independent review are still required; the older intermittent Windows summary-retention test failure is not proven resolved, and acoustic validation requires native hardware. No owner recordings were accessed.
