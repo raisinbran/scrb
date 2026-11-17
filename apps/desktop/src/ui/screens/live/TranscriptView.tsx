@@ -98,6 +98,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | null>(null);
   const jumpCancel = useRef<(() => void) | null>(null);
+  const followCancel = useRef<(() => void) | null>(null);
   const jumpingToLive = useRef(false);
   const reachedBottomByCode = useRef(false);
   const anchorRef = useRef<{ id: string | null; index: number; top: number } | null>(null);
@@ -105,6 +106,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   useEffect(() => () => {
     clearTimeout(clickTimer.current);
     jumpCancel.current?.();
+    followCancel.current?.();
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
   }, []);
 
@@ -189,17 +191,24 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     const element = scrollRef.current;
     if (!element || !following || jumpingToLive.current) return;
     const bottom = Math.max(totalHeight - element.clientHeight, 0);
-    if (element.scrollTop !== bottom) {
+    if (Math.abs(element.scrollTop - bottom) >= 1) {
+      followCancel.current?.();
       reachedBottomByCode.current = true;
-      element.scrollTop = bottom;
-      setScrollTop(element.scrollTop);
+      followCancel.current = animateTranscriptScroll(element, bottom, {
+        maxDurationMs: 240,
+        onPosition: setScrollTop,
+        onComplete: () => {
+          followCancel.current = null;
+          reachedBottomByCode.current = true;
+        },
+      });
     }
   }, [following, totalHeight, viewport.height, measureTick]);
 
   const onScroll = () => {
     const element = scrollRef.current;
     if (!element) return;
-    if (jumpingToLive.current) {
+    if (jumpingToLive.current || followCancel.current) {
       // Animated scroll events must not mark the reader as manually scrolling.
     } else if (reachedBottomByCode.current) {
       reachedBottomByCode.current = false;
@@ -228,6 +237,8 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const interruptJump = () => {
     jumpCancel.current?.();
     jumpCancel.current = null;
+    followCancel.current?.();
+    followCancel.current = null;
     if (jumpingToLive.current) {
       jumpingToLive.current = false;
       setFollowing(false);
@@ -244,6 +255,8 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       return;
     }
     jumpCancel.current?.();
+    followCancel.current?.();
+    followCancel.current = null;
     jumpingToLive.current = true;
     const bottom = Math.max(store.heights.totalHeight(store.rowCount) - element.clientHeight, 0);
     jumpCancel.current = animateTranscriptScroll(element, bottom, {
