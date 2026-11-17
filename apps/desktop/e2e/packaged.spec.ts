@@ -56,8 +56,12 @@ test('packaged app keeps the saved library, is named Scribe, and refuses to reco
   );
   await page.reload();
   await page.getByRole('button', { name: 'Live', exact: true }).click();
-  await page.getByRole('button', { name: 'Start' }).click();
+  const start = page.getByRole('button', { name: 'Start' });
+  await expect(start).toBeDisabled();
+  await expect(start).toHaveAttribute('title', 'Download the speech models first');
+  await expect(page.locator('#start-blocked-reason')).toHaveText(
+    'Download the speech models first',
+  );
   await expect(page.getByTestId('recording-indicator')).toHaveCount(0);
-  await expect(page.getByText(refusal).first()).toBeVisible();
   await app.close();
 });

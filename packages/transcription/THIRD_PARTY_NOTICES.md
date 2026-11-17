@@ -35,10 +35,15 @@ None of the binaries or models below are committed.  Installer packaging
 | Electron's bundled ffmpeg through WebAudio | Decodes the whole file into memory; unusable for 8-hour files and tied to a renderer |
 | `afconvert` / Media Foundation | Platform-specific: two code paths to build and test |
 
-**Windows binary (open).** `scripts/build-ffmpeg.sh` is macOS and Linux only.
-The same configure line needs running under MSYS2, or a published LGPL Windows
-build (for example BtbN's `win64-lgpl`) can be used at the cost of a much larger
-parser surface.  Not done or tested tonight.
+**Windows binary (slice 2 verification, 2026-11-16).** The staged FFmpeg 9.0
+and ffprobe 9.0 binaries report a static build with file/pipe protocols,
+networking disabled, and GPL/nonfree options absent. Their SHA-256 values are
+pinned in `scripts/stage-win-tools.mjs` and matched the Gate 3 manifest. The
+stager preserves these hashes, probes `-buildconf` and `-L`, and copies this
+LGPL text into the bundle. The original Windows binary's exact source/build
+recipe and relinkable object files are not established by this audit; retain
+that as a distribution follow-up before wider redistribution. The capture
+helper is not part of this slice.
 
 **Patents (owner decision).** Software copyright licensing does not settle
 patents.  MP3 patents have expired.  AAC decoding is covered by a patent pool
