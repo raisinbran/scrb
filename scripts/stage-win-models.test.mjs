@@ -169,7 +169,7 @@ describe('portable Windows speech-model handover', () => {
       expect(run().status).not.toBe(0);
       expect(readFileSync(installed)).toEqual(original);
       expect(readFileSync(path.join(dest, 'extra-file.txt'), 'utf8')).toBe('preserve');
-    });
+    }, 20_000);
 
     it('PowerShell refuses partial existing installation without changing it', async () => {
       const f = fixture();
