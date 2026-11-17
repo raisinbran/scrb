@@ -16,6 +16,7 @@ import type { MeetingId } from '@scrb/contracts';
 import { IconButton } from '../../components/IconButton.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
+import { animateTranscriptScroll } from '../../lib/transcript-scroll.ts';
 import { CorrectionEditor } from './CorrectionEditor.tsx';
 import { TranscriptRow } from './TranscriptRow.tsx';
 import { TranscriptStore, type WordPosition, type WordRef } from './transcript-store.ts';
@@ -96,10 +97,16 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const dragRef = useRef<{ anchor: WordRef; moved: boolean } | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | null>(null);
+  const jumpCancel = useRef<(() => void) | null>(null);
+  const jumpingToLive = useRef(false);
   const reachedBottomByCode = useRef(false);
   const anchorRef = useRef<{ id: string | null; index: number; top: number } | null>(null);
 
-  useEffect(() => () => clearTimeout(clickTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(clickTimer.current);
+    jumpCancel.current?.();
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+  }, []);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -161,7 +168,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     }
     const count = store.rowCount;
     const anchor = anchorRef.current;
-    if (anchor && !following) {
+    if (anchor && !following && !jumpingToLive.current) {
       const row = (anchor.id !== null ? store.rowOf(anchor.id) : null) ?? anchor.index;
       const moved = store.heights.topOf(row, count) - anchor.top;
       if (moved !== 0) {
@@ -180,7 +187,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
-    if (!element || !following) return;
+    if (!element || !following || jumpingToLive.current) return;
     const bottom = Math.max(totalHeight - element.clientHeight, 0);
     if (element.scrollTop !== bottom) {
       reachedBottomByCode.current = true;
@@ -192,7 +199,9 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const onScroll = () => {
     const element = scrollRef.current;
     if (!element) return;
-    if (reachedBottomByCode.current) {
+    if (jumpingToLive.current) {
+      // Animated scroll events must not mark the reader as manually scrolling.
+    } else if (reachedBottomByCode.current) {
       reachedBottomByCode.current = false;
     } else {
       const gap = element.scrollHeight - element.scrollTop - element.clientHeight;
@@ -216,13 +225,38 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     }
   };
 
+  const interruptJump = () => {
+    jumpCancel.current?.();
+    jumpCancel.current = null;
+    if (jumpingToLive.current) {
+      jumpingToLive.current = false;
+      setFollowing(false);
+    }
+  };
+
   const jumpToLive = useCallback(() => {
     setSelection(null);
     setEditing(false);
     setCursor(null);
-    setFollowing(true);
-    scrollRef.current?.focus();
-  }, []);
+    const element = scrollRef.current;
+    if (!element) {
+      setFollowing(true);
+      return;
+    }
+    jumpCancel.current?.();
+    jumpingToLive.current = true;
+    const bottom = Math.max(store.heights.totalHeight(store.rowCount) - element.clientHeight, 0);
+    jumpCancel.current = animateTranscriptScroll(element, bottom, {
+      onPosition: setScrollTop,
+      onComplete: () => {
+        jumpingToLive.current = false;
+        jumpCancel.current = null;
+        reachedBottomByCode.current = true;
+        setFollowing(true);
+      },
+    });
+    element.focus();
+  }, [store]);
 
   useImperativeHandle(ref, () => ({ jumpToLive, undo: undoState.undo, redo: undoState.redo }), [
     jumpToLive,
@@ -315,6 +349,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const onKeyDown = (event: KeyboardEvent) => {
     const move = CURSOR_KEYS[event.key];
     if (move) {
+      interruptJump();
       event.preventDefault();
       moveCursor(move, event.shiftKey);
     } else if (event.key === 'Enter') {
@@ -478,6 +513,11 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           data-testid="transcript"
           data-following={following}
           onScroll={onScroll}
+          onWheel={() => { interruptJump(); setFollowing(false); }}
+          onTouchMove={() => { interruptJump(); setFollowing(false); }}
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) interruptJump();
+          }}
           onKeyDown={onKeyDown}
           onCopy={onCopy}
         >
