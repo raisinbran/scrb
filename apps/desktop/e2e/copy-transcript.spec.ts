@@ -63,9 +63,13 @@ test('copies an invented saved transcript through the Electron clipboard', async
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   try {
     const page = await app.firstWindow();
+    // Reload after direct IPC setup: the first-launch dialog caches getSetupStatus
+    // and does not observe an out-of-band updateSettings write.
     await page.evaluate(() =>
       window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
     );
+    await page.reload();
+    await expect(page.getByRole('dialog', { name: 'Where are you based?' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Recordings', exact: true }).click();
     await page.getByText('Invented copy meeting').first().click();
     await expect(page.getByRole('button', { name: 'Copy transcript' })).toBeEnabled();
