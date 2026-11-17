@@ -9,6 +9,7 @@ import type { BackendCalls, CallName, CallRequest } from './backend.ts';
 export const MAX_TRANSCRIPT_PAGE = 2000;
 
 const MAX_ID = 128;
+const MAX_WORD_ID = 139;
 const MAX_DEVICE_ID = 512;
 const MAX_NAME = 300;
 const MAX_TEXT = 20_000;
@@ -32,6 +33,8 @@ const filled =
 
 const id: Check<string> = (value): value is string =>
   filled(MAX_ID)(value) && ID_PATTERN.test(value);
+const wordId: Check<string> = (value): value is string =>
+  filled(MAX_WORD_ID)(value) && ID_PATTERN.test(value);
 
 const date: Check<string> = (value): value is string =>
   filled(40)(value) && DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(value));
@@ -88,7 +91,7 @@ const either =
 
 const meeting = shape({ meetingId: id });
 const meetingFilter = shape({}, { origin: oneOf('recorded', 'imported'), from: date, to: date });
-const wordRange = shape({ firstWordId: id, lastWordId: id });
+const wordRange = shape({ firstWordId: wordId, lastWordId: wordId });
 const modelRole = oneOf('liveSpeech', 'finalSpeech', 'speaker', 'summary');
 
 const evidence = {
