@@ -16,6 +16,22 @@ $required = @(
     'segmentation-model.int8.onnx'
 )
 
+# Use the .NET SHA-256 implementation: a fresh Windows PowerShell test process may not load
+# the Get-FileHash module, but integrity checks must still run on PowerShell 5.1+.
+function Get-Sha256Hex([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            return [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+        } finally {
+            $sha256.Dispose()
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 function Assert-File($file) {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing required file: $file" }
     $item = Get-Item -LiteralPath $file -Force
@@ -37,14 +53,14 @@ function Assert-Models($folder, $digests) {
             throw "Invalid digest entry: $name"
         }
         if ($item.Length -ne [long]$value.bytes) { throw "Size mismatch: $name" }
-        $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+        $actual = Get-Sha256Hex $file
         if ($actual -cne $value.sha256) { throw "SHA-256 mismatch: $name" }
     }
 }
 
 $manifestPath = Join-Path $PSScriptRoot 'model-digests.json'
 $manifestFile = Assert-File $manifestPath
-$actualManifestSha256 = (Get-FileHash -LiteralPath $manifestFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+$actualManifestSha256 = Get-Sha256Hex $manifestFile.FullName
 if ($actualManifestSha256 -cne $expectedManifestSha256) {
     throw 'Handover manifest SHA-256 mismatch; refusing installation'
 }
