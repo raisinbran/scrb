@@ -24,4 +24,16 @@ describe('Windows .cmd launchers', () => {
       expect(text).toMatch(/^exit \/b %ERRORLEVEL%\r?$/m);
     },
   );
+
+  it('keeps slice 1 optional and verifies packaged resources for slices 2 and 3', () => {
+    const script = readFileSync(join(root, 'scripts/package-win.ps1'), 'utf8');
+    expect(script).toContain("[ValidateSet('1', '2', '3')]");
+    expect(script).toContain("if ($Slice -eq '1')");
+    expect(script).toContain(
+      'elseif (-not (Test-Path -LiteralPath $stageBin -PathType Container))',
+    );
+    expect(script).toContain("if ($Slice -in @('2', '3'))");
+    expect(script).toContain('scripts\\verify-win-package.mjs');
+    expect(script).toContain('--packaged $packagedBin --slice $Slice');
+  });
 });
