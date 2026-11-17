@@ -361,12 +361,7 @@ void app.whenReady().then(async () => {
         if (window.isMinimized()) window.restore();
         window.focus();
       },
-      () =>
-        createMainWindow(
-          backend.warning,
-          backend.recovery,
-          stopPlayback,
-        ),
+      () => createMainWindow(backend.warning, backend.recovery, stopPlayback),
     );
   app.on('activate', restoreApp);
 });
