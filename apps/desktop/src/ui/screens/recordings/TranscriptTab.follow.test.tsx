@@ -125,6 +125,9 @@ describe('TranscriptTab follow-along', () => {
     expect(halfway).toBeLessThan(25 * ROW_PX - 24);
     runFrame(640);
     expect(region.scrollTop).toBeGreaterThan(halfway);
+    // The final rendered word may need a short second eased alignment.
+    runFrame(656);
+    runFrame(836);
     expect(region.scrollTop).toBeLessThanOrEqual(25 * ROW_PX - 24);
     expect(banner()).toBeNull();
   });
