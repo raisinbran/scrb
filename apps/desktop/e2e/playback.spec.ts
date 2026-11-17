@@ -5,7 +5,7 @@ import {
   type ElectronApplication,
   type Page,
 } from '@playwright/test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MEETING_TONE, MICROPHONE_TONE } from './playback-tones.ts';
@@ -152,11 +152,14 @@ const sample = (page: Page): Promise<Sample> =>
     };
   });
 
-async function openMeeting(): Promise<{ app: ElectronApplication; page: Page }> {
+async function openMeeting(
+  seed?: (folder: string) => void,
+): Promise<{ app: ElectronApplication; page: Page; userData: string }> {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-playback-'));
   const library = join(userData, 'library');
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
   writeMeeting(library);
+  seed?.(join(library, 'meetings', 'Tone meeting'));
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   const page = await app.firstWindow();
   await page.evaluate(() =>
@@ -166,7 +169,7 @@ async function openMeeting(): Promise<{ app: ElectronApplication; page: Page }> 
   await page.getByRole('button', { name: 'Recordings', exact: true }).click();
   await page.getByText('Tone meeting').first().click();
   await page.getByRole('tab', { name: 'Transcript' }).click();
-  return { app, page };
+  return { app, page, userData };
 }
 
 test('a transcript click plays both tracks in sync across a chunk, a gap and one track', async () => {
@@ -283,4 +286,102 @@ test('a reload ends playback and its URLs', async () => {
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.playbackLog.positions.length)).toBe(0);
   await app.close();
+});
+
+test('reopens a completed invented two-track transcript with labels, seek and full copy', async () => {
+  test.setTimeout(120_000);
+  const count = 1_010; // More than the 1,000-segment transcript page, and mostly offscreen.
+  const labels = ['You', 'Speaker 1', 'Speaker 2'] as const;
+  const expected = Array.from(
+    { length: count },
+    (_, index) => `${labels[index % labels.length]}: invented${index}`,
+  ).join('\n');
+
+  // Uses the real library and actual Opus playback, but seeded transcript data:
+  // this does not exercise microphone capture, live ASR or final-pass inference.
+  const { app: first, page, userData } = await openMeeting((folder) => {
+    const file = join(folder, 'transcript.json');
+    const transcript = JSON.parse(readFileSync(file, 'utf8')) as {
+      speakers: unknown[];
+      segments: unknown[];
+    };
+    transcript.speakers = labels.map((label, index) => ({
+      id: `m1-speaker-${index}`,
+      label,
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+    }));
+    transcript.segments = Array.from({ length: count }, (_, index) => {
+      const startMs = 1000 + index * 28;
+      return {
+        id: `m1-segment-${index}`,
+        speakerId: `m1-speaker-${index % labels.length}`,
+        track: index % labels.length === 0 ? 'microphone' : 'meeting',
+        pass: 'final',
+        words: [
+          {
+            id: `m1-word-${index}`,
+            text: `invented${index}`,
+            startMs,
+            endMs: startMs + 20,
+          },
+        ],
+      };
+    });
+    writeFileSync(file, JSON.stringify(transcript));
+
+    // Reuse the existing two-track Opus tones and chunk-manifest writer.
+    const chunks = Array.from({ length: 16 }, (_, index) => ({
+      file: `${String(index).padStart(6, '0')}.opus`,
+      startMs: index * 2000,
+      endMs: (index + 1) * 2000,
+    }));
+    writeTrack(join(folder, 'audio'), 'microphone', MICROPHONE_TONE, chunks);
+    writeTrack(join(folder, 'audio'), 'meeting', MEETING_TONE, chunks);
+  });
+  try {
+    await expect(page.getByRole('button', { name: 'Copy transcript' })).toBeEnabled();
+  } finally {
+    await first.close();
+  }
+
+  // Opening a new Electron process proves the completed meeting is reloaded
+  // from disk, not retained in the previous renderer's memory.
+  const restarted = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+  try {
+    const reopened = await restarted.firstWindow();
+    await watchPlayback(reopened);
+    await reopened.getByRole('button', { name: 'Recordings', exact: true }).click();
+    await reopened.getByText('Tone meeting').first().click();
+    await reopened.getByRole('tab', { name: 'Transcript' }).click();
+    const transcript = reopened.getByRole('region', { name: 'Transcript' });
+    const copy = reopened.getByRole('button', { name: 'Copy transcript' });
+    await expect(copy).toBeEnabled();
+    await expect(transcript.getByText('You', { exact: true }).first()).toBeVisible();
+    await expect(transcript.getByText('Speaker 1', { exact: true }).first()).toBeVisible();
+    await expect(transcript.getByText('Speaker 2', { exact: true }).first()).toBeVisible();
+    await expect(transcript.locator('[data-word="m1-word-1009"]')).toHaveCount(0);
+
+    await copy.click();
+    await expect(reopened.getByRole('status')).toHaveText('Transcript copied.');
+    const clipboardText = await restarted.evaluate(({ clipboard }) => clipboard.readText());
+    expect(clipboardText).toBe(expected);
+
+    // The final row was not rendered when copying; now scroll to it and use
+    // its actual timestamp control to seek into the two stored audio tracks.
+    await transcript.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(transcript.locator('[data-word="m1-word-1009"]')).toBeVisible();
+    await transcript.getByRole('button', { name: 'Play from 00:29' }).last().click();
+    await expect.poll(async () => (await sample(reopened)).playing.length).toBe(2);
+    const playback = await sample(reopened);
+    expect(playback.positionMs).toBeGreaterThanOrEqual(29_000);
+    expect(playback.positionMs).toBeLessThan(32_000);
+    expect(playback.playing.every(({ failed }) => !failed)).toBe(true);
+  } finally {
+    await restarted.close();
+  }
 });
