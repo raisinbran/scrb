@@ -101,6 +101,34 @@ describe('TranscriptTab follow-along', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 20 * ROW_PX - 24, behavior: 'auto' });
   });
 
+  it('eases Jump to current position instead of snapping instantly', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const runFrame = (at: number) => {
+      const callback = frames.shift();
+      if (!callback) throw new Error('transcript scroll frame was not scheduled');
+      act(() => callback(at));
+    };
+    render(tab(atRow(25), false));
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    expect(region.scrollTop).toBe(0);
+    runFrame(0);
+    runFrame(320);
+    const halfway = region.scrollTop;
+    expect(halfway).toBeGreaterThan(0);
+    expect(halfway).toBeLessThan(25 * ROW_PX - 24);
+    runFrame(640);
+    expect(region.scrollTop).toBeGreaterThan(halfway);
+    expect(region.scrollTop).toBeLessThanOrEqual(25 * ROW_PX - 24);
+    expect(banner()).toBeNull();
+  });
+
   it('does not scroll while paused', () => {
     const { rerender } = render(tab(atRow(0), false));
     rerender(tab(atRow(20), false));
