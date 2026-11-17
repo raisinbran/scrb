@@ -99,7 +99,8 @@ export async function openBackend(
     const userData = app.getPath('userData');
     const root = await readLibraryLocation(userData, fallback);
     const libraryLocationFile = path.join(userData, 'library-location.json');
-    let isolatedTemporaryPaths = false;
+    let isolatedTemporaryPaths: { userData: string; libraryRoot: string; tempRoot: string } | null =
+      null;
     if (
       process.env['SCRB_DEV_AUTO_LOCATION'] === '1' &&
       !app.isPackaged &&
@@ -119,8 +120,13 @@ export async function openBackend(
             !path.isAbsolute(relative)
           );
         };
-        isolatedTemporaryPaths =
-          withinTemp(profilePath) && withinTemp(libraryPath) && profilePath !== libraryPath;
+        if (withinTemp(profilePath) && withinTemp(libraryPath) && profilePath !== libraryPath) {
+          isolatedTemporaryPaths = {
+            userData: profilePath,
+            libraryRoot: libraryPath,
+            tempRoot: tempPath,
+          };
+        }
       } catch {
         // A missing or unresolved explicit test path fails closed; normal startup still proceeds.
       }
@@ -130,13 +136,13 @@ export async function openBackend(
     const hardware = { cores: os.availableParallelism(), memoryBytes: os.totalmem() };
     const settings = createSettingsHandlers(library.settings, root, recommendQuality(hardware));
     const syntheticLocation = ensureSyntheticDevelopmentLocation(settings, {
-      enabled: isolatedTemporaryPaths,
+      enabled: isolatedTemporaryPaths !== null,
       packaged: app.isPackaged,
       explicitUserData: app.commandLine.hasSwitch('user-data-dir'),
       explicitLibrary: existsSync(libraryLocationFile),
-      userData,
-      libraryRoot: root,
-      tempRoot: app.getPath('temp'),
+      userData: isolatedTemporaryPaths?.userData ?? userData,
+      libraryRoot: isolatedTemporaryPaths?.libraryRoot ?? root,
+      tempRoot: isolatedTemporaryPaths?.tempRoot ?? app.getPath('temp'),
       appData: app.getPath('appData'),
       appName: app.getName(),
       platform: process.platform,
