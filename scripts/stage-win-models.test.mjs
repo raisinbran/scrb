@@ -146,7 +146,8 @@ describe('portable Windows speech-model handover', () => {
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
         '-Destination', dest, ...args,
       ], { encoding: 'utf8' });
-      expect(run(['-VerifyOnly']).status).toBe(0);
+      const verification = run(['-VerifyOnly']);
+      expect(verification.status, verification.stderr || verification.stdout).toBe(0);
       expect(existsSync(dest)).toBe(false);
       const first = run();
       expect(first.status, first.stderr).toBe(0);
