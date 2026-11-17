@@ -40,17 +40,14 @@ export function LevelMeters({ active, micOnly = false }: { active: boolean; micO
   const backend = useBackend();
   const micRef = useRef<HTMLDivElement>(null);
   const meetingRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef(active);
-  activeRef.current = active;
-
   useEffect(
     () =>
       backend.on('levelMeter', ({ micDb, meetingDb }) => {
-        if (!activeRef.current) return;
+        if (!active) return;
         setLevel(micRef.current, micDb);
         setLevel(meetingRef.current, meetingDb ?? -100);
       }),
-    [backend],
+    [backend, active],
   );
 
   useEffect(() => {
