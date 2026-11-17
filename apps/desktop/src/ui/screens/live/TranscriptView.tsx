@@ -277,6 +277,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   ]);
 
   const startSelection = (next: WordSelection) => {
+    interruptJump();
     setSelection(next);
     setCursor(next.focus);
     setFollowing(false);
