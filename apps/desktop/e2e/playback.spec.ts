@@ -299,7 +299,11 @@ test('reopens a completed invented two-track transcript with labels, seek and fu
 
   // Uses the real library and actual Opus playback, but seeded transcript data:
   // this does not exercise microphone capture, live ASR or final-pass inference.
-  const { app: first, page, userData } = await openMeeting((folder) => {
+  const {
+    app: first,
+    page,
+    userData,
+  } = await openMeeting((folder) => {
     const file = join(folder, 'transcript.json');
     const transcript = JSON.parse(readFileSync(file, 'utf8')) as {
       speakers: unknown[];
