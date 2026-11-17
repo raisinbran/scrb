@@ -129,7 +129,15 @@ describe('focus styles', () => {
     const offenders = files.filter((file) => {
       const css = readFileSync(join(uiDir, file), 'utf8');
       const removed = [...css.matchAll(/([^{}]+)\{[^{}]*outline:\s*(none|0)\b[^{}]*\}/g)];
-      return removed.some((m) => !/h1\[tabindex='-1'\]:focus-visible/.test(m[1] as string));
+      return removed.some((match) => {
+        const selector = match[1] as string;
+        const block = match[0];
+        const focusedHeading = /h1\[tabindex='-1'\]:focus-visible/.test(selector);
+        const circularInfoRing =
+          /\.info:focus-visible/.test(selector) &&
+          /box-shadow:\s*0 0 0 2px var\(--color-focus\)/.test(block);
+        return !focusedHeading && !circularInfoRing;
+      });
     });
     expect(offenders).toEqual([]);
   });

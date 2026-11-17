@@ -28,9 +28,16 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   danger?: boolean;
 }
 
-/** A fixed-size square button that shows only an icon; the label is its name and tooltip. */
+/** A fixed-size icon button; the label is its accessible name and tooltip. */
 export function IconButton({ label, icon, tip, danger, className, ...props }: IconButtonProps) {
-  const classes = [styles.button, danger && styles.danger, className].filter(Boolean).join(' ');
+  const classes = [
+    styles.button,
+    icon === 'info' && styles.info,
+    danger && styles.danger,
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
     <Tooltip label={tip ?? label}>
       <button type="button" aria-label={label} {...props} className={classes}>
