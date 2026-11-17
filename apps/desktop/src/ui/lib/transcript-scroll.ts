@@ -37,9 +37,10 @@ export function animateTranscriptScroll(
     startedAt ??= now;
     const progress = Math.min((now - startedAt) / duration, 1);
     // Cubic easing accelerates and decelerates instead of jumping instantly.
-    const eased = progress < 0.5
-      ? 4 * progress * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    const eased =
+      progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
     element.scrollTop = progress === 1 ? destination : from + distance * eased;
     options.onPosition?.(element.scrollTop);
     if (progress < 1) {
