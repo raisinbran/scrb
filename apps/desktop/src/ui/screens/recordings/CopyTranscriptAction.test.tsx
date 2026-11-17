@@ -96,13 +96,11 @@ describe('CopyTranscriptAction', () => {
     rerender(
       <CopyTranscriptAction
         transcript={data([segment(0)], { totalSegments: 2, error: 'Page failed.' })}
-       
       />,
     );
     expect(screen.getByRole('button', { name: 'Copy transcript' }).hasAttribute('disabled')).toBe(
       true,
     );
-    expect(screen.getByRole('button', { name: 'Copy transcript' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('reports clipboard rejection when both clipboard paths fail', async () => {
@@ -122,7 +120,9 @@ describe('CopyTranscriptAction', () => {
     originalExecCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
     Object.defineProperty(document, 'execCommand', {
       configurable: true,
-      value: () => { throw new Error('copy failed'); },
+      value: () => {
+        throw new Error('copy failed');
+      },
     });
     const onError = vi.fn();
     render(<CopyTranscriptAction transcript={data([segment(0)])} onError={onError} />);
@@ -130,5 +130,4 @@ describe('CopyTranscriptAction', () => {
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(document.querySelectorAll('textarea')).toHaveLength(0);
   });
-
 });
