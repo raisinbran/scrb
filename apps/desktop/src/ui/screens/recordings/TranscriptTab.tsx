@@ -550,15 +550,27 @@ export function TranscriptTab(props: TranscriptTabProps) {
       return;
     const element = scroller.current;
     const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
-    if (!element || !word) return;
+    if (!element) return;
+    if (!word) {
+      setFollowPlayback(true);
+      return;
+    }
     const viewport = element.getBoundingClientRect();
     const bounds = word.getBoundingClientRect();
     const top = viewport.top + FOLLOW_MARGIN_PX;
     const bottom = viewport.top + element.clientHeight - FOLLOW_MARGIN_PX;
     const shift =
       bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0;
-    if (shift !== 0) element.scrollTop += shift;
     alignedJump.current = { nonce: jumpToCurrentNonce, rowHeight: activeRowHeight };
+    jumpCancel.current?.();
+    jumpCancel.current = animateTranscriptScroll(element, element.scrollTop + shift, {
+      maxDurationMs: 180,
+      onPosition: setScrollTop,
+      onComplete: () => {
+        jumpCancel.current = null;
+        setFollowPlayback(true);
+      },
+    });
   }, [jumpToCurrentNonce, scrollTop, activeWordKey, activeRow?.key, activeRowHeight]);
   useEffect(() => {
     const element = scroller.current;
@@ -689,7 +701,6 @@ export function TranscriptTab(props: TranscriptTabProps) {
                 onComplete: () => {
                   jumpCancel.current = null;
                   setJumpToCurrentNonce((nonce) => nonce + 1);
-                  setFollowPlayback(true);
                 },
               },
             );
