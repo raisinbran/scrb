@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Speaker, TranscriptSegment } from '@scrb/contracts';
-import { TranscriptTab } from './TranscriptTab.tsx';
+import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
 import type { TranscriptData } from './use-transcript.ts';
 
 const speakers: Speaker[] = [
@@ -48,16 +48,6 @@ function data(
   };
 }
 
-const props = {
-  gaps: [],
-  fontPx: 15,
-  positionMs: 0,
-  showPosition: false,
-  jump: null,
-  onPlay: () => undefined,
-  onPlace: () => undefined,
-};
-
 let originalExecCommand: PropertyDescriptor | undefined;
 
 afterEach(() => {
@@ -68,13 +58,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('TranscriptTab copy action', () => {
+describe('CopyTranscriptAction', () => {
+  it('uses the standard labelled overlapping-documents copy icon', () => {
+    render(<CopyTranscriptAction transcript={data([segment(0)])} />);
+    const control = screen.getByRole('button', { name: 'Copy transcript' });
+    expect(control.querySelector('svg path')?.getAttribute('d')).toMatch(/^M10 8h10/);
+    expect(control.textContent).toBe('');
+  });
+
   it('copies all 4,800 segments with labels, corrected words, and chronological order', async () => {
     const segments = Array.from({ length: 4800 }, (_, index) => segment(4799 - index));
     segments[2399] = segment(2400, 'corrected-word');
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
-    render(<TranscriptTab transcript={data(segments)} {...props} />);
+    render(<CopyTranscriptAction transcript={data(segments)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
@@ -91,32 +88,30 @@ describe('TranscriptTab copy action', () => {
 
   it('disables copying until every segment is loaded or when loading failed', () => {
     const partial = data([segment(0)], { totalSegments: 2, loading: true });
-    const { rerender } = render(<TranscriptTab transcript={partial} {...props} />);
+    const { rerender } = render(<CopyTranscriptAction transcript={partial} />);
     expect(screen.getByRole('button', { name: 'Copy transcript' }).hasAttribute('disabled')).toBe(
       true,
     );
 
     rerender(
-      <TranscriptTab
+      <CopyTranscriptAction
         transcript={data([segment(0)], { totalSegments: 2, error: 'Page failed.' })}
-        {...props}
       />,
     );
     expect(screen.getByRole('button', { name: 'Copy transcript' }).hasAttribute('disabled')).toBe(
       true,
     );
-    expect(screen.getByRole('alert').textContent).toBe('Page failed.');
   });
 
-  it('reports clipboard rejection', async () => {
+  it('reports clipboard rejection when both clipboard paths fail', async () => {
     vi.stubGlobal('navigator', {
       clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
     });
-    render(<TranscriptTab transcript={data([segment(0)])} {...props} />);
-
+    const onError = vi.fn();
+    render(<CopyTranscriptAction transcript={data([segment(0)])} onError={onError} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'The transcript could not be copied.',
+    await vi.waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('The transcript could not be copied.'),
     );
   });
 
@@ -129,10 +124,10 @@ describe('TranscriptTab copy action', () => {
         throw new Error('copy failed');
       },
     });
-    render(<TranscriptTab transcript={data([segment(0)])} {...props} />);
-
+    const onError = vi.fn();
+    render(<CopyTranscriptAction transcript={data([segment(0)])} onError={onError} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
-    expect(await screen.findByRole('alert')).toBeTruthy();
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(document.querySelectorAll('textarea')).toHaveLength(0);
   });
 });

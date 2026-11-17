@@ -63,12 +63,36 @@ test('copies an invented saved transcript through the Electron clipboard', async
   const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
   try {
     const page = await app.firstWindow();
+    // Reload after direct IPC setup: the first-launch dialog caches getSetupStatus
+    // and does not observe an out-of-band updateSettings write.
     await page.evaluate(() =>
       window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
     );
+    await page.reload();
+    await expect(page.getByRole('dialog', { name: 'Where are you based?' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Recordings', exact: true }).click();
     await page.getByText('Invented copy meeting').first().click();
     await expect(page.getByRole('button', { name: 'Copy transcript' })).toBeEnabled();
+    // A shared icon action in the existing meeting header, not a new transcript-control row.
+    const copy = page.getByRole('button', { name: 'Copy transcript' });
+    const header = page.locator('header').filter({
+      has: page.getByRole('button', { name: 'Export', exact: true }),
+    });
+    await expect(header.getByRole('button', { name: 'Copy transcript' })).toBeVisible();
+    await expect(header.locator('[class*="actions"] button').last()).toHaveAttribute(
+      'aria-label',
+      'Copy transcript',
+    );
+    await expect(
+      page.locator('#meeting-panel').getByRole('button', { name: 'Copy transcript' }),
+    ).toHaveCount(0);
+    await expect(copy.locator('svg path')).toHaveAttribute('d', /^M10 8h10/);
+    const exportBox = await header.getByRole('button', { name: 'Export' }).boundingBox();
+    const copyBox = await copy.boundingBox();
+    expect(copyBox?.y).toBe(exportBox?.y);
+    await copy.hover();
+    await expect(page.getByRole('tooltip', { name: 'Copy transcript' })).toBeVisible();
+
     // Avoid the browser's normal mouse-focus change so the assertion covers only
     // whether native keyboard selection and copying still work after this action.
     await page

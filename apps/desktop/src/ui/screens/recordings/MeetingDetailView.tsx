@@ -12,6 +12,7 @@ import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/form
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, useFocusFallback } from '../Screen.tsx';
+import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
@@ -550,6 +551,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const [popupSlot, setPopupSlot] = useState<HTMLDivElement | null>(null);
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const playback = useMeetingPlayback(meetingId);
   const transcript = useTranscript(meetingId, meeting.status);
@@ -711,6 +713,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             disabled={unfinished || meeting.status === 'deleting'}
             onClick={() => setDialog('delete')}
           />
+          <CopyTranscriptAction transcript={transcript} onError={setCopyError} />
         </div>
       </header>
 
@@ -784,6 +787,11 @@ function LoadedDetail(props: LoadedDetailProps) {
         )}
         {undoState.error && <p role="alert">{undoState.error}</p>}
         <PopupLayer stackRef={setPopupSlot} inline={tab === 'Summary'}>
+          {copyError && (
+            <PopupBanner role="alert" level="danger" onDismiss={() => setCopyError(null)}>
+              <p>{copyError}</p>
+            </PopupBanner>
+          )}
           {folderError && (
             <PopupBanner role="alert" level="danger" onDismiss={() => setFolderError(null)}>
               <p>{folderError}</p>
