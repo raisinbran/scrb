@@ -117,7 +117,9 @@ describe('TranscriptTab follow-along', () => {
     expect(jump.tagName).toBe('BUTTON');
     // Showing the banner must not take the focus from where the reader is.
     expect(document.activeElement).not.toBe(jump);
+    reduced = true;
     fireEvent.click(jump);
+    reduced = false;
     expect(banner()).toBeNull();
     // jsdom places the active word at viewport top, so word alignment adds one more margin.
     expect((screen.getByRole('region', { name: 'Transcript' }) as HTMLElement).scrollTop).toBe(
@@ -233,7 +235,8 @@ describe('TranscriptTab follow-along', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
   });
 
-  it('jumps directly to the current word inside a 400-word turn', () => {
+  it('reaches the current word immediately when reduced motion is requested', () => {
+    reduced = true;
     const words = Array.from({ length: 420 }, (_, i) => ({
       id: `invented-long-jump-${i}`,
       text: 'invented',
@@ -289,6 +292,7 @@ describe('TranscriptTab follow-along', () => {
   });
 
   it('does not apply a whole long-row height correction after aligning its active word', () => {
+    reduced = true;
     const words = Array.from({ length: 420 }, (_, i) => ({
       id: `invented-resize-${i}`,
       text: 'invented',
@@ -373,6 +377,7 @@ describe('TranscriptTab follow-along', () => {
   });
 
   it('aligns the active word after a far virtualized jump renders a long turn', () => {
+    reduced = true;
     const longStart = ROWS * 6000;
     const turnId = 'invented-far-long-turn';
     const longWords = Array.from({ length: 420 }, (_, i) => ({
