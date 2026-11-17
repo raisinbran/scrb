@@ -13,7 +13,8 @@ import {
   needsPrivacyBanner,
   privacyJurisdictions,
 } from '@scrb/app-core';
-import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
+import { createSharedLibraryNotice } from './library-notice.ts';
+import { ensureSyntheticDevelopmentLocation } from './synthetic-location.ts';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, generateTitle, writeSummary } from '@scrb/summary';
 import { AutoTitleController } from './auto-title.ts';
@@ -63,8 +64,6 @@ export interface OpenedBackend {
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null;
   /** Shown once the window is up: a message box with no window blocks launch on macOS. */
   warning: string | null;
-  /** Called once the person has seen `warning`; it is then not shown again by later windows. */
-  acknowledgeWarning(): void;
   close(): Promise<void>;
 }
 
@@ -80,6 +79,15 @@ export async function openBackend(
     const playback = new PlaybackMedia(library, emit);
     const hardware = { cores: os.availableParallelism(), memoryBytes: os.totalmem() };
     const settings = createSettingsHandlers(library.settings, root, recommendQuality(hardware));
+    ensureSyntheticDevelopmentLocation(settings, {
+      packaged: app.isPackaged,
+      userData: app.getPath('userData'),
+      libraryRoot: root,
+      tempRoot: app.getPath('temp'),
+      appData: app.getPath('appData'),
+      appName: app.getName(),
+      platform: process.platform,
+    });
     const plan = () => resolvePerformance(settings.getSettings().transcriptionQuality, hardware);
     const modelGate = new LargeModelGate();
     // Recording always wins: a recording that starts stops any running summary.
@@ -315,7 +323,7 @@ export async function openBackend(
         : packaged && packaged.missing.length > 0
           ? missingMessage(packaged.missing)
           : null;
-    let sharedNotice = sharedFolderNotice(library.settings, library.rootMayBeShared);
+    const sharedNotice = createSharedLibraryNotice(library.settings, library.rootMayBeShared);
     return {
       playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
@@ -333,6 +341,8 @@ export async function openBackend(
         listImports: async () => imports?.list() ?? [],
         ...imports?.handlers,
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
+        getSharedLibraryNotice: async () => sharedNotice.get(),
+        dismissSharedLibraryNotice: async () => sharedNotice.dismiss(),
         getSettings: async () => settings.getSettings(),
         updateSettings: async (request) => settings.updateSettings(request as SettingsPatch),
         getSetupStatus: createSetupStatusHandler({
@@ -430,14 +440,7 @@ export async function openBackend(
           : {}),
       },
       get warning() {
-        return (
-          [baseWarning, sharedNotice].filter((m): m is string => m !== null).join('\n\n') || null
-        );
-      },
-      acknowledgeWarning: () => {
-        if (sharedNotice === null) return;
-        markSharedNoticeShown(library.settings);
-        sharedNotice = null;
+        return baseWarning;
       },
       close: async () => {
         cancelModelDownloadersOnClose(modelDownloader, summaryModelDownloader);
@@ -462,7 +465,6 @@ export async function openBackend(
       },
       handlers: {},
       playback: null,
-      acknowledgeWarning: () => undefined,
       warning:
         code === 'INDEX_SPACE'
           ? 'There is not enough disk space to upgrade the library. Its files were kept. Free some space and reopen the app.'

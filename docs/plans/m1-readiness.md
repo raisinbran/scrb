@@ -4,6 +4,10 @@
 
 **M1** = a build the owner can run on real ongoing meetings (dev build, not packaged): accurate transcription, speaker grouping, corrections that become vocabulary suggestions, record + playback + export.
 
+## Isolated development location
+
+Every isolated non-packaged development or test profile and library under the OS temporary directory uses a new random fictional US state, persisted through the normal `updateSettings` handler. Packaged builds, the default profile, and libraries outside the temporary directory retain existing behavior. Tests for a specific jurisdiction set an explicit fixture location after launch and before checking behavior. Keep the profile and library separate from the owner's production data.
+
 ## 1. Feature status in the Electron app today
 
 How the app decides: `apps/desktop/src/ui/lib/hybrid-backend.ts` sends a call to the real backend when it is in `REAL_CALLS` or names a real meeting (`MEETING_CALLS`); otherwise to the mock. `apps/desktop/src/main/backend.ts` builds the real handlers. A real-meeting call with no handler returns "This feature is not available yet" (`dispatch.ts:32`); it does not fall back to the mock.

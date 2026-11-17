@@ -1719,6 +1719,8 @@ export class MockBackend implements Backend {
       countries: ['GB', 'DE', 'FR', 'IE'],
       usStates: ['IL', 'TX', 'WA', 'CA', 'CO'],
     }),
+    getSharedLibraryNotice: () => null,
+    dismissSharedLibraryNotice: () => undefined,
     getSettings: () => this.settings,
     updateSettings: (patch) => {
       this.settings = mergeSettings(this.settings, patch);

@@ -27,6 +27,23 @@ describe('createHybridBackend', () => {
     expect((await mock.call('getSettings')).location.usState).toBe('IL');
   });
 
+  it('routes shared-library notice reads and dismissals to the real library', async () => {
+    const realCall = vi.fn(async (name: string) =>
+      name === 'getSharedLibraryNotice' ? 'Shared library notice.' : undefined,
+    );
+    const real = { call: realCall, on: vi.fn() } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call');
+    const backend = createHybridBackend(real, mock);
+
+    await expect(backend.call('getSharedLibraryNotice')).resolves.toBe('Shared library notice.');
+    await backend.call('dismissSharedLibraryNotice');
+
+    expect(realCall).toHaveBeenCalledWith('getSharedLibraryNotice', undefined);
+    expect(realCall).toHaveBeenCalledWith('dismissSharedLibraryNotice', undefined);
+    expect(mockCall).not.toHaveBeenCalledWith('getSharedLibraryNotice', undefined);
+    expect(mockCall).not.toHaveBeenCalledWith('dismissSharedLibraryNotice', undefined);
+  });
+
   it('leaves other calls on the mock', async () => {
     const real = await realReturning();
     await createHybridBackend(real, mock).call('checkModelUpdates');

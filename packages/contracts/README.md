@@ -26,6 +26,8 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 | `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                        |
 | `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                              |
 | `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                      |
+| `getSharedLibraryNotice`, `dismissSharedLibraryNotice`      | Shows the per-library shared-folder warning without blocking startup and saves its dismissal in that library. Owner approved for issue #349, 2026-11-17. |
+| `getSharedLibraryNotice`, `dismissSharedLibraryNotice`      | Shows the shared-library permissions warning as a non-blocking UI notice and stores its dismissal in that library. Owner approved for issue #349, 2026-11-17. |
 
 ## Decisions
 

@@ -50,6 +50,8 @@ Existing Windows setup docs: only the Gate 3 runbook (`docs/gates/gate-3-windows
 - PowerShell, **not as administrator**, except the one-time Build Tools install in B5. Every block names its folder. Use one PowerShell window and leave it open.
 - Files are never deleted. Keep the test recording; do not delete it (gate-evidence policy). Do not use a real confidential meeting.
 - **Time limit:** the whole test, from starting the app in step 8 through the final pass and your checks in step 10, including setup of the test and cleanup, must stay within 20 minutes. That is a 2-minute recording plus a final pass that may take up to about 15 minutes. If the final pass is still running at 20 minutes, stop and ask before waiting longer; do not quit the app or start another test. One-time builds (steps 2-7) are setup, not the test.
+- **Isolated profile and fictional location:** Put a separate `--user-data-dir` and its test library under `%TEMP%`; point that profile's `library-location.json` at that library. A non-packaged profile and library both under the OS temporary directory automatically save a new random fictional US state through the real settings handler at launch. Do not ask the owner for a location or use the owner's actual location. A test of jurisdiction-specific behavior must set its own known fixture state after launch and before checking behavior. Do not use the default profile or library for M1 tests.
+- `scripts\m1.cmd` does not forward `--user-data-dir`; use the documented direct Electron launch after the build when the run requires profile isolation. A normal quit or startup observation must not be inferred from an absent process alone; record whether the window was closed through its UI and then verify process exit.
 
 ## 3. Procedure
 

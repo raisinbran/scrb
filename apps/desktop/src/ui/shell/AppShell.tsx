@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
+import { SharedLibraryNotice } from '../components/SharedLibraryNotice.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
 import { Sidebar } from './Sidebar.tsx';
@@ -51,6 +52,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
   return (
     <div className={styles.shell}>
       <TitleBar />
+      <SharedLibraryNotice />
       <PrivacyBanner />
       <ModelsNotice />
       <div className={styles.body}>
