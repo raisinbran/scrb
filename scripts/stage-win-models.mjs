@@ -104,7 +104,7 @@ export async function stageWindowsModels({
     try {
       execFileSync('tar', ['-xjf', archive, '-C', extracted], { stdio: 'pipe' });
     } catch (error) {
-      throw new Error(`segmentation archive extraction failed: ${error.message}`);
+      throw new Error(`segmentation archive extraction failed: ${error.message}`, { cause: error });
     }
     const source = path.join(extracted, EXTRACTED);
     const extractedParent = path.dirname(source);
