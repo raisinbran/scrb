@@ -1,14 +1,22 @@
-# Builds the unpacked Windows app: apps\desktop\release\win-unpacked\Scribe.exe (slice 1).
+# Builds the unpacked Windows app: apps\desktop\release\win-unpacked\Scribe.exe.
 #
 # Run in PowerShell (not as administrator) from the scrb folder on a Windows 11 PC with Node.
-# No tools are staged yet, so the bundle's resources\bin is empty and Scribe reports the
-# missing tools instead of recording. Library, settings and models are never touched.
+param(
+    [ValidateSet('1', '2', '3')]
+    [string]$Slice = '1'
+)
+
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location (Join-Path $repo 'apps\desktop')
 
-# win.extraResources copies this folder to resources\bin; slice 2 fills it.
-New-Item -ItemType Directory -Force -Path 'build\win-stage\bin' | Out-Null
+$stageBin = Join-Path $PWD 'build\win-stage\bin'
+if ($Slice -eq '1') {
+    # Slice 1 intentionally builds the shell without runtime tools.
+    New-Item -ItemType Directory -Force -Path $stageBin | Out-Null
+} elseif (-not (Test-Path -LiteralPath $stageBin -PathType Container)) {
+    throw "Slice $Slice requires staged runtime tools at $stageBin. Run scripts\stage-win-tools.mjs first."
+}
 
 npm run build
 if ($LASTEXITCODE -ne 0) { throw 'npm run build failed' }
@@ -22,4 +30,9 @@ if ($LASTEXITCODE -ne 0) { throw 'electron-builder failed' }
 
 $exe = Join-Path $PWD 'release\win-unpacked\Scribe.exe'
 if (-not (Test-Path $exe)) { throw "Build did not produce $exe" }
+if ($Slice -in @('2', '3')) {
+    $packagedBin = Join-Path $PWD 'release\win-unpacked\resources\bin'
+    node (Join-Path $repo 'scripts\verify-win-package.mjs') --staging $stageBin --packaged $packagedBin --slice $Slice
+    if ($LASTEXITCODE -ne 0) { throw "Packaged slice $Slice runtime verification failed" }
+}
 Write-Host "Built: $exe"

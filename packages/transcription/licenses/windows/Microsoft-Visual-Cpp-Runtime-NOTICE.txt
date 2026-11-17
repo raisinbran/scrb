@@ -1,0 +1,11 @@
+Microsoft Visual C++ Runtime, x64, redist version 14.44.35112
+
+This package contains only the Microsoft runtime DLLs required by the bundled
+Whisper and sherpa tools. The DLLs are copied application-locally from the
+Visual Studio redistributable directories Microsoft documents for local
+deployment. Their file hashes are recorded in PROVENANCE.json.
+
+Microsoft's redistribution guidance and Visual Studio license terms:
+https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files
+https://learn.microsoft.com/cpp/windows/choosing-a-deployment-method
+https://visualstudio.microsoft.com/license-terms/
