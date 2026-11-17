@@ -251,6 +251,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 
 - Motion only reports real state: mic fade, disc spin, equaliser bars, tooltip fade (120ms), meter smoothing (100ms).
 - Every animation has a `prefers-reduced-motion: reduce` branch that stops it and keeps the information another way (colour, badge, static bars). Existing files with reduced-motion handling: tooltip, sidebar, progress, playing indicator, recording dot, mini window.
+- Transcript navigation is functional feedback, not decoration: **Jump to Live** and **Jump to current position** should visibly accelerate and decelerate, and finish within one second even for distant virtualized rows. Live follow-along also moves smoothly. Never remove the motion to meet the time limit; bound its duration instead. Reduced-motion users get an immediate move.
 - No bounce, slide-in, parallax or auto-playing decoration. Banners appear without moving content.
 - Feedback for a click is immediate (hover fill, pressed state, busy state from `useAction`). Long actions show `Progress` or a busy label.
 
