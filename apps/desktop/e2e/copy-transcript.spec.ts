@@ -79,7 +79,9 @@ test('copies an invented saved transcript through the Electron clipboard', async
       'aria-label',
       'Copy transcript',
     );
-    await expect(page.locator('#meeting-panel').getByRole('button', { name: 'Copy transcript' })).toHaveCount(0);
+    await expect(
+      page.locator('#meeting-panel').getByRole('button', { name: 'Copy transcript' }),
+    ).toHaveCount(0);
     await expect(copy.locator('svg path')).toHaveAttribute('d', /^M10 8h10/);
     const exportBox = await header.getByRole('button', { name: 'Export' }).boundingBox();
     const copyBox = await copy.boundingBox();
