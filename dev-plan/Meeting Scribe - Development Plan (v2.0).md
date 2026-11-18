@@ -140,6 +140,8 @@ Capture adapters behind one shared interface, the app picker and fallback, the m
 
 **Gate 2:** a 4-hour recording with pauses, a device change and a forced crash loses no saved audio and stays within the drift target. On both operating systems: a real Teams or Zoom call has its start offset and drift measured from a shared sound in both tracks; a stopped stream, including an audio-service restart, is detected and either recovers or warns the user, with the missing span marked; and mic audio lost under representative load is measured against a stated limit, reported apart from sync.
 
+**Owner clarification, 2026-11-16:** Gate 2 stays **approved and closed**. Audio-settings functionality in the original Phase 2 scope that was not demonstrated by the recording-integrity gate must be completed for V1 before Gate 8; see the V1 closure workstream below. This is not a retroactive Gate 2 failure.
+
 ### Phase 3: Live and final transcription
 
 The live speech worker reading saved chunks through a bounded queue, provisional text labeled "You" or "Meeting," the final pass after Stop, word timing, click-to-play, the lag indicator, and a transcript view that stays fast at 8 hours. Also the audio file import pipeline: decode and convert a supported file into a meeting's `audio/meeting/` folder and run the final pass on it, with progress, cancel and clean failure. Check the decoder's license before choosing it, and keep a recording in progress ahead of any import work.
@@ -194,9 +196,11 @@ The Recordings list and search, the Import audio file action, meeting detail tab
 
 Installers, the first-launch model download with checksums, offline operation, upgrade from an older build, repeated long-session tests, accessibility checks, the About screen, the finished User Manual with screenshots, and a final security and privacy review. Manual sections are drafted at the end of each earlier phase, so Phase 8 only finishes and checks them.
 
+**V1 input-settings completion (owner decision, 2026-11-16):** Treat all promised microphone/Input Profile controls as an explicit **V1** workstream, not an M1 blocker or an already-completed Phase 2 deliverable. This includes functional Voice Isolation, Studio and Custom behavior; noise suppression, echo cancellation, gain control, bypass system processing; recognition input sensitivity and advanced voice activity; no-audio warnings and device suggestions. Assign Mac native feasibility and verification to **MacBook Air M5** and Windows feasibility and verification to **Regiurn (Windows 11)**, with BCHEN-W10 as a secondary Windows compatibility device when available. Evaluate safe native OS effects first, with an independently reviewed local-processing fallback where needed. The workstream, safeguards and cross-platform slices are in [the V1 Input Profile closure plan](../docs/plans/v1-input-settings-closure.md) (tracked by [issue #335](https://github.com/raisinbran/scrb/issues/335)); implementation and tests still require the normal approvals.
+
 Before Gate 8, test real speech recording with a USB microphone at 44.1 kHz on macOS. This is a Phase 8 compatibility test, not a Gate 2 requirement; the USB microphone is used primarily on Windows.
 
-**Gate 8:** every V1 completion criterion passes on installed builds on both machines, with no open recording, data-loss or privacy bugs.
+**Gate 8:** every V1 completion criterion passes on installed builds on both machines, with no open recording, data-loss or privacy bugs. All enabled microphone/Input Profile controls require **measured functional behavior**, preserved unprocessed originals, no output ducking, and Mac/Windows verification against [Gate 8 input-settings acceptance](../docs/gates/gate-8-input-settings-acceptance.md). A UI-only Settings save, simulated response, or unavailable native effect does not satisfy the criterion.
 
 ## Quality targets
 
