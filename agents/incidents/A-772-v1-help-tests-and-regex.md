@@ -1,6 +1,6 @@
-### A-772 — 2026-11-18 — ChatGPT Chat / cloud GitHub — initial offline-manual test assertions needed correction
+### A-772 — 2026-11-18 — ChatGPT Chat / cloud GitHub — offline-manual test and CI failures corrected
 
-- **Status / attribution:** Confirmed authoring mistakes, corrected before CI; not an application defect.
+- **Status / attribution:** Confirmed authoring mistakes, identified through self-review and CI; not an application defect.
 - **What failed:** The initial new Help tests over-escaped the third-party license regex, used an unscoped role=status query that could collide with asynchronous About/license status elements, and looked for an Overview-only privacy phrase while section 1 was selected. The new Markdown renderer also assumed a RegExpMatchArray match index and several array members were always present, contrary to the repository's strict unchecked-index types.
 - **CI-discovered failure:** A subsequent automated text substitution inserted an entire previous assertion inside the version-regex string literal in `HelpScreen.test.tsx`. Windows CI run `44367805344` (job `135026149078`) reported `SyntaxError: Invalid character (34:162)` during the Prettier step. This was a real author-induced failed check, not a runner flake. The first CI run `44367265243` also failed because the new TypeScript was not Prettier-clean.
 - **Agent-controlled cause:** Draft tests and TypeScript without verifying selector scope, selected-section text and token-index typing against the actual code.
