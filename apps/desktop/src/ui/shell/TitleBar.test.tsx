@@ -76,10 +76,7 @@ describe('TitleBar mini window control', () => {
   });
 });
 
-const processingMeeting = (
-  id: string,
-  status: MeetingListItem['status'],
-): MeetingListItem => ({
+const processingMeeting = (id: string, status: MeetingListItem['status']): MeetingListItem => ({
   id,
   title: 'Invented meeting',
   startedAt: '2026-11-18T08:00:00Z',
@@ -99,8 +96,7 @@ function processingBackend(initial: MeetingListItem[], pending = false) {
       })
     : Promise.resolve(initial);
   const backend = {
-    call: (name: string) =>
-      name === 'listMeetings' ? list : new Promise(() => undefined),
+    call: (name: string) => (name === 'listMeetings' ? list : new Promise(() => undefined)),
     on: (name: string, listener: (value: unknown) => void) => {
       if (!listeners.has(name)) listeners.set(name, new Set());
       listeners.get(name)!.add(listener);
