@@ -1,4 +1,4 @@
-### A-775 — 2026-11-18 — cloud implementation session — Title Bar test formatting failures
+### A-781 — 2026-11-18 — cloud implementation session — Title Bar test formatting failures
 
 - **Status / attribution:** Confirmed avoidable formatting errors from the PR #360 implementation workflow, not an application defect.
 - **What failed:** The initial Windows/macOS CI run 44366200668 rejected new `TitleBar.test.tsx` helper layout as not Prettier-clean. After later functional test edits, run 44367876651 again rejected an extra blank line at the end of that same test file.
