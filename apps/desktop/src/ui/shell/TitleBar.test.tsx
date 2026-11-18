@@ -90,13 +90,20 @@ const processingMeeting = (id: string, status: MeetingListItem['status']): Meeti
 function processingBackend(initial: MeetingListItem[], pending = false) {
   const listeners = new Map<string, Set<(value: unknown) => void>>();
   let resolveList: ((meetings: MeetingListItem[]) => void) | undefined;
-  const list = pending
-    ? new Promise<MeetingListItem[]>((resolve) => {
-        resolveList = resolve;
-      })
-    : Promise.resolve(initial);
+  let current = initial;
+  let first = true;
   const backend = {
-    call: (name: string) => (name === 'listMeetings' ? list : new Promise(() => undefined)),
+    call: (name: string) => {
+      if (name !== 'listMeetings') return new Promise(() => undefined);
+      if (first && pending) {
+        first = false;
+        return new Promise<MeetingListItem[]>((resolve) => {
+          resolveList = resolve;
+        });
+      }
+      first = false;
+      return Promise.resolve(current);
+    },
     on: (name: string, listener: (value: unknown) => void) => {
       if (!listeners.has(name)) listeners.set(name, new Set());
       listeners.get(name)!.add(listener);
@@ -108,6 +115,9 @@ function processingBackend(initial: MeetingListItem[], pending = false) {
     emit: (name: string, payload: unknown) =>
       listeners.get(name)?.forEach((listener) => listener(payload)),
     resolve: () => resolveList?.(initial),
+    setMeetings: (meetings: MeetingListItem[]) => {
+      current = meetings;
+    },
   };
 }
 
@@ -245,4 +255,33 @@ describe('TitleBar background processing', () => {
     expect(document.activeElement).toBe(button);
     expect(screen.queryByTestId('background-processing-status')).toBeNull();
   });
+  it.each(['importFinished', 'importFailed', 'importCancelled'] as const)(
+    'reconciles a removed import on %s without a meetingChanged event',
+    async (event) => {
+      const source = processingBackend([processingMeeting('m1', 'importing')]);
+      render(view(source.backend));
+      await screen.findByTestId('background-processing-status');
+      // Import cleanup deletes the meeting row without emitting another meetingChanged.
+      source.setMeetings([]);
+      await act(async () => {
+        source.emit(event, { importId: 'invented', meetingId: 'm1' });
+      });
+      expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    },
+  );
+
+  it('ignores a late initial list after an import failure has been reconciled', async () => {
+    const source = processingBackend([processingMeeting('m1', 'importing')], true);
+    render(view(source.backend));
+    act(() => source.emit('meetingChanged', processingMeeting('m1', 'importing')));
+    expect(screen.getByTestId('background-processing-status')).toBeTruthy();
+    source.setMeetings([]);
+    await act(async () => {
+      source.emit('importFailed', { importId: 'invented' });
+    });
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    await act(async () => source.resolve());
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+  });
+
 });
