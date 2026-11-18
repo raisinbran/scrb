@@ -13,6 +13,7 @@ import {
   replaceLiveSegments,
   resolveDisplay,
   revertCorrection,
+  splitSpeaker,
   undo,
   verifyCorrectionsIntact,
 } from '../src/corrections.ts';
@@ -335,6 +336,56 @@ describe('speakers', () => {
     const moved = reassignSpeaker(withB, ids(w, 2, 5), 'b');
     expect(resolveDisplay(moved).map((s) => s.speakerId)).toEqual(['a', 'b', 'a']);
     expect(resolveDisplay(undo(moved)).map((s) => s.speakerId)).toEqual(['a']);
+  });
+
+  it('rejects a reassignment that would also move an overlapping unselected meeting word', () => {
+    const unselected: Word = {
+      id: 'overlap-prior',
+      text: 'interjection',
+      startMs: 800,
+      endMs: 1900,
+    };
+    const selected: Word[] = [
+      { id: 'overlap-first', text: 'first', startMs: 1000, endMs: 1400 },
+      { id: 'overlap-second', text: 'second', startMs: 1450, endMs: 1800 },
+    ];
+    const t = transcript(
+      [segment('prior', 'a', [unselected]), segment('selected', 'a', selected)],
+      [speaker('a'), speaker('b')],
+    );
+    const selection = selected.map((word) => word.id);
+    // The predecessor is outside the consecutive selection, but its midpoint is 1350 ms.
+    expect(() => reassignSpeaker(t, selection, 'b')).toThrow(
+      'The selected words overlap other speech.',
+    );
+    expect(() => splitSpeaker(t, selection, 'New speaker')).toThrow(
+      'The selected words overlap other speech.',
+    );
+    expect(t.speakerOverrides).toEqual([]);
+    expect(t.undoStack).toEqual([]);
+  });
+
+  it('reassigns an exact span without touching another track and preserves undo/redo', () => {
+    const meeting: Word[] = [
+      { id: 'left', text: 'before', startMs: 200, endMs: 700 },
+      { id: 'first', text: 'first', startMs: 1000, endMs: 1400 },
+      { id: 'second', text: 'second', startMs: 1450, endMs: 1800 },
+    ];
+    const mic: Word = { id: 'mic', text: 'mic', startMs: 1100, endMs: 1700 };
+    const t = transcript(
+      [segment('meeting', 'a', meeting), segment('mic', 'you', [mic], 'live', 'microphone')],
+      [speaker('a'), speaker('b'), speaker('you')],
+    );
+    const edited = reassignSpeaker(t, ['first', 'second'], 'b');
+    const meetingSpeakers = (value: TranscriptFile): string[] =>
+      resolveDisplay(value)
+        .filter((row) => row.track === 'meeting')
+        .map((row) => row.speakerId);
+    expect(meetingSpeakers(edited)).toEqual(['a', 'b']);
+    expect(resolveDisplay(edited).find((row) => row.track === 'microphone')?.speakerId).toBe('you');
+    const undone = undo(edited);
+    expect(meetingSpeakers(undone)).toEqual(['a']);
+    expect(meetingSpeakers(redo(undone))).toEqual(['a', 'b']);
   });
 
   it('merges speakers, refuses a loop', () => {

@@ -332,6 +332,24 @@ export function mergeSpeakers(
   );
 }
 
+/** Refuses a time-range override that would change any word outside its selection. */
+function assertSpeakerOverrideSelection(transcript: TranscriptFile, span: PlacedWord[]): void {
+  const first = span[0] as PlacedWord;
+  const last = span.at(-1) as PlacedWord;
+  const startMs = first.word.startMs;
+  const endMs = last.word.endMs;
+  const selectedIds = new Set(span.map(({ word }) => word.id));
+  const changesDifferentWords = trackWords(transcript.segments, first.segment.track).some(
+    ({ word }) => {
+      const at = midpoint(word);
+      return selectedIds.has(word.id) !== (at >= startMs && at <= endMs);
+    },
+  );
+  if (changesDifferentWords) {
+    throw new CorrectionConflictError('The selected words overlap other speech.');
+  }
+}
+
 export function splitSpeaker(
   transcript: TranscriptFile,
   wordIds: string[],
@@ -349,19 +367,7 @@ export function splitSpeaker(
   }
   const first = span[0] as PlacedWord;
   const last = span.at(-1) as PlacedWord;
-  const startMs = first.word.startMs;
-  const endMs = last.word.endMs;
-  const selectedIds = new Set(span.map(({ word }) => word.id));
-  // A timestamp override must change exactly the selected words under midpoint display rules.
-  const changesDifferentWords = trackWords(transcript.segments, first.segment.track).some(
-    ({ word }) => {
-      const at = midpoint(word);
-      return selectedIds.has(word.id) !== (at >= startMs && at <= endMs);
-    },
-  );
-  if (changesDifferentWords) {
-    throw new CorrectionConflictError('The selected words overlap other speech.');
-  }
+  assertSpeakerOverrideSelection(transcript, span);
   const speaker: Speaker = {
     id: randomUUID(),
     label: newLabel,
@@ -399,6 +405,7 @@ export function reassignSpeaker(
 ): TranscriptFile {
   findSpeaker(transcript, speakerId);
   const span = selectSpan(transcript, wordIds);
+  assertSpeakerOverrideSelection(transcript, span);
   const override: SpeakerOverride = {
     id: randomUUID(),
     track: (span[0] as PlacedWord).segment.track,
