@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Backend, MeetingId, MeetingStatus } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
 
-/** Processing is reported by the existing meeting states; no separate backend owner. */
+/** Processing is reported by existing meeting states; no separate backend owner. */
 export function useProcessingCounts(): { finalPass: number; importing: number } {
   const backend = useBackend();
   const [snapshot, setSnapshot] = useState<{
@@ -12,29 +12,45 @@ export function useProcessingCounts(): { finalPass: number; importing: number } 
 
   useEffect(() => {
     let live = true;
-    let listed: ReadonlyMap<MeetingId, MeetingStatus> | null = null;
-    // Events received while listMeetings is in flight take precedence over its older snapshot.
-    const heard = new Map<MeetingId, MeetingStatus>();
-    const publish = () => {
-      const statuses = new Map<MeetingId, MeetingStatus>(listed ?? []);
-      for (const [id, status] of heard) statuses.set(id, status);
-      setSnapshot({ backend, statuses });
+    let serial = 0;
+    let request = 0;
+    let current = new Map<MeetingId, MeetingStatus>();
+    const observed = new Map<MeetingId, { status: MeetingStatus; serial: number }>();
+    const publish = () => setSnapshot({ backend, statuses: new Map(current) });
+    const refresh = () => {
+      const startedAt = serial;
+      const requestId = ++request;
+      void backend
+        .call('listMeetings', {})
+        .then((meetings) => {
+          if (!live || requestId !== request) return;
+          const next = new Map<MeetingId, MeetingStatus>();
+          for (const meeting of meetings) next.set(meeting.id, meeting.status);
+          // Only events newer than this particular list request override its result.
+          for (const [id, update] of observed) {
+            if (update.serial > startedAt) next.set(id, update.status);
+          }
+          current = next;
+          publish();
+        })
+        .catch(() => undefined);
     };
-    const off = backend.on('meetingChanged', (meeting) => {
-      heard.set(meeting.id, meeting.status);
-      publish();
-    });
-    void backend
-      .call('listMeetings', {})
-      .then((meetings) => {
+    const stops = [
+      backend.on('meetingChanged', (meeting) => {
         if (!live) return;
-        listed = new Map(meetings.map(({ id, status }) => [id, status]));
+        observed.set(meeting.id, { status: meeting.status, serial: ++serial });
+        current.set(meeting.id, meeting.status);
         publish();
-      })
-      .catch(() => undefined);
+      }),
+      // A failed/cancelled import can delete its meeting without a final meetingChanged event.
+      backend.on('importFinished', refresh),
+      backend.on('importFailed', refresh),
+      backend.on('importCancelled', refresh),
+    ];
+    refresh();
     return () => {
       live = false;
-      off();
+      stops.forEach((stop) => stop());
     };
   }, [backend]);
 
