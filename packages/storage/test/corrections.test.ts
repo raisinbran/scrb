@@ -350,10 +350,7 @@ describe('speakers', () => {
       { id: 'overlap-second', text: 'second', startMs: 1450, endMs: 1800 },
     ];
     const t = transcript(
-      [
-        segment('prior', 'a', [unselected]),
-        segment('selected', 'a', selected),
-      ],
+      [segment('prior', 'a', [unselected]), segment('selected', 'a', selected)],
       [speaker('a'), speaker('b')],
     );
     const selection = selected.map((word) => word.id);
@@ -376,10 +373,7 @@ describe('speakers', () => {
     ];
     const mic: Word = { id: 'mic', text: 'mic', startMs: 1100, endMs: 1700 };
     const t = transcript(
-      [
-        segment('meeting', 'a', meeting),
-        segment('mic', 'you', [mic], 'live', 'microphone'),
-      ],
+      [segment('meeting', 'a', meeting), segment('mic', 'you', [mic], 'live', 'microphone')],
       [speaker('a'), speaker('b'), speaker('you')],
     );
     const edited = reassignSpeaker(t, ['first', 'second'], 'b');
