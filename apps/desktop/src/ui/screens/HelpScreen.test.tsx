@@ -45,7 +45,9 @@ describe('HelpScreen', () => {
     fireEvent.click(within(nav).getByRole('link', { name: 'Known issues' }));
     expect(screen.getByText(/Every sound on that device is recorded/)).toBeTruthy();
     fireEvent.change(search, { target: { value: 'nonexistent searchable phrase 4923' } });
-    expect(screen.getByRole('status').textContent).toBe('No manual sections match your search.');
+    expect(screen.getByRole('status', { name: 'Manual search results' }).textContent).toBe(
+      'No manual sections match your search.',
+    );
     expect(screen.getByText('Try another word or phrase.')).toBeTruthy();
     fireEvent.change(search, { target: { value: '' } });
     expect(within(screen.getByRole('navigation', { name: 'Manual sections' })).getAllByRole('link')).toHaveLength(17);
@@ -89,7 +91,7 @@ describe('HelpScreen', () => {
     ).toBeTruthy();
     expect(screen.getByText(/Scribe keeps your data on this computer/)).toBeTruthy();
     expect(screen.getByText(/development-only sources are not part of the app/)).toBeTruthy();
-    expect(await screen.findByText(/Electron 45\\.1\\.0 \\(MIT\\)/)).toBeTruthy();
+    expect(await screen.findByText(/Electron 45\.1\.0 \(MIT\)/)).toBeTruthy();
     backend.dispose();
   });
 
