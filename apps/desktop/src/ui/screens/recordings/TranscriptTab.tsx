@@ -557,7 +557,6 @@ export function TranscriptTab(props: TranscriptTabProps) {
         missingWordRetry.current = jumpToCurrentNonce;
         const rowTop = layout.current.offsets[activeIndex];
         if (rowTop !== undefined) {
-          jumpCancel.current?.();
           jumpCancel.current = animateTranscriptScroll(
             element,
             Math.max(0, rowTop - FOLLOW_MARGIN_PX),
