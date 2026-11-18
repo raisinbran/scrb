@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, isAbsolute } from 'node:path';
 import type { AppSettings, ModelInfo, PermissionState, SetupStatus } from '@scrb/contracts';
+import { DIGESTS, MODELS, SUMMARY_MODEL, verified, type DigestTable } from './packaged-setup.ts';
 
 export interface SetupStatusSources {
   readSettings: () => AppSettings;
@@ -46,6 +47,48 @@ async function readConfig(path: string | undefined): Promise<{ tools: Paths; mod
   } catch {
     return empty;
   }
+}
+
+/** Verified inventory of only the model paths explicitly provided by trusted development setup. */
+export async function readVerifiedConfiguredModels(options: {
+  finalPassConfig?: string;
+  liveConfig?: string;
+  cacheFile: string;
+  digests?: DigestTable;
+}): Promise<ModelInfo[]> {
+  const [final, live] = await Promise.all([
+    readConfig(options.finalPassConfig),
+    readConfig(options.liveConfig),
+  ]);
+  const candidates: { file: string | undefined; role: ModelInfo['role'] }[] = [
+    { file: live.models['speechLive'], role: 'liveSpeech' },
+    { file: live.models['vad'], role: 'liveSpeech' },
+    { file: final.models['speechFinal'], role: 'finalSpeech' },
+    { file: final.models['vad'], role: 'liveSpeech' },
+    { file: final.models['segmentation'], role: 'speaker' },
+    { file: final.models['embedding'], role: 'speaker' },
+    { file: final.models['summary'], role: 'summary' },
+  ];
+  const table = options.digests ?? DIGESTS;
+  const approved = [...MODELS, SUMMARY_MODEL];
+  const installed: ModelInfo[] = [];
+  const seen = new Set<string>();
+  for (const { file, role } of candidates) {
+    if (!file || !isAbsolute(file)) continue;
+    const name = basename(file);
+    const model = approved.find((row) => row.file === name && row.role === role);
+    if (!model || seen.has(name)) continue;
+    if (!(await verified(file, name, options.cacheFile, table))) continue;
+    seen.add(name);
+    installed.push({
+      role: model.role,
+      name: model.label,
+      version: model.file,
+      installed: true,
+      sizeBytes: table[model.file]?.bytes ?? 0,
+    });
+  }
+  return installed;
 }
 
 const present = (path: string | undefined): path is string => !!path && existsSync(path);
