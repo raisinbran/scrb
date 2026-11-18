@@ -117,9 +117,7 @@ export async function verified(
       : null;
   const cacheName = identity ? `configured:${name}:${identity}` : name;
   const stamp =
-    scope === 'configured'
-      ? `${info.mtimeMs}:${info.ctimeMs}`
-      : `${Math.trunc(info.mtimeMs)}`;
+    scope === 'configured' ? `${info.mtimeMs}:${info.ctimeMs}` : `${Math.trunc(info.mtimeMs)}`;
   const key = `${info.size}:${stamp}:${want.sha256}`;
   let cache: Record<string, string> = {};
   try {
