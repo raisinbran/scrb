@@ -1,40 +1,35 @@
 import { useEffect, useState } from 'react';
-import type { MeetingId, MeetingStatus } from '@scrb/contracts';
+import type { Backend, MeetingId, MeetingStatus } from '@scrb/contracts';
 import { useBackend } from '../lib/backend-context.tsx';
 
-/** A recording is being worked on while its final pass runs or its audio is being imported. */
-const BUSY: ReadonlySet<MeetingStatus> = new Set(['finalPassRunning', 'importing']);
-
-/** True while any meeting is in its final pass or being imported. Starts from the list, then follows changes. */
-export function useAnyProcessing(): boolean {
+/** Processing is reported by the existing meeting states; no separate backend owner. */
+export function useProcessingCounts(): { finalPass: number; importing: number } {
   const backend = useBackend();
-  const [busy, setBusy] = useState<ReadonlySet<MeetingId>>(new Set());
+  const [snapshot, setSnapshot] = useState<{
+    backend: Backend;
+    statuses: ReadonlyMap<MeetingId, MeetingStatus>;
+  }>(() => ({ backend, statuses: new Map() }));
+
   useEffect(() => {
     let live = true;
-    /** Meetings a later event has already spoken for: an older list answer must not override them. */
-    const heard = new Set<MeetingId>();
-    const change = (id: MeetingId, status: MeetingStatus): void => {
-      heard.add(id);
-      setBusy((previous) => {
-        if (BUSY.has(status) === previous.has(id)) return previous;
-        const next = new Set(previous);
-        if (BUSY.has(status)) next.add(id);
-        else next.delete(id);
-        return next;
-      });
+    let listed: ReadonlyMap<MeetingId, MeetingStatus> | null = null;
+    // Events received while listMeetings is in flight take precedence over its older snapshot.
+    const heard = new Map<MeetingId, MeetingStatus>();
+    const publish = () => {
+      const statuses = new Map<MeetingId, MeetingStatus>(listed ?? []);
+      for (const [id, status] of heard) statuses.set(id, status);
+      setSnapshot({ backend, statuses });
     };
-    const off = backend.on('meetingChanged', (meeting) => change(meeting.id, meeting.status));
-    backend
+    const off = backend.on('meetingChanged', (meeting) => {
+      heard.set(meeting.id, meeting.status);
+      publish();
+    });
+    void backend
       .call('listMeetings', {})
       .then((meetings) => {
         if (!live) return;
-        setBusy((previous) => {
-          const next = new Set(previous);
-          for (const meeting of meetings) {
-            if (!heard.has(meeting.id) && BUSY.has(meeting.status)) next.add(meeting.id);
-          }
-          return next;
-        });
+        listed = new Map(meetings.map(({ id, status }) => [id, status]));
+        publish();
       })
       .catch(() => undefined);
     return () => {
@@ -42,5 +37,20 @@ export function useAnyProcessing(): boolean {
       off();
     };
   }, [backend]);
-  return busy.size > 0;
+
+  // Do not display a prior backend's processing state while a different backend loads.
+  const statuses = snapshot.backend === backend ? snapshot.statuses : [];
+  let finalPass = 0;
+  let importing = 0;
+  for (const status of statuses.values()) {
+    if (status === 'finalPassRunning') finalPass += 1;
+    if (status === 'importing') importing += 1;
+  }
+  return { finalPass, importing };
+}
+
+/** Existing sidebar indicator uses the same authoritative meeting-status derivation. */
+export function useAnyProcessing(): boolean {
+  const { finalPass, importing } = useProcessingCounts();
+  return finalPass + importing > 0;
 }
