@@ -132,6 +132,50 @@ describe('TranscriptTab follow-along', () => {
     expect(banner()).toBeNull();
   });
 
+  it('keeps reader control after a completed jump and allows a new explicit jump', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      const id = ++nextFrame;
+      frames.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames.delete(id);
+    });
+    const finishAnimations = () => {
+      let at = 0;
+      for (let i = 0; i < 12 && frames.size > 0; i++) {
+        const [id, callback] = frames.entries().next().value!;
+        frames.delete(id);
+        act(() => callback(at));
+        at += 240;
+      }
+      expect(frames.size).toBe(0);
+    };
+
+    render(tab(atRow(25), false));
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    finishAnimations();
+    expect(region.scrollTop).toBeGreaterThan(0);
+    expect(banner()).toBeNull();
+
+    // Wheel/scrollbar input after the jump is complete must retire its alignment state.
+    fireEvent.wheel(region);
+    region.scrollTop = 0;
+    fireEvent.scroll(region);
+    finishAnimations();
+    expect(region.scrollTop).toBe(0);
+    expect(banner()).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    finishAnimations();
+    expect(region.scrollTop).toBeGreaterThan(0);
+    expect(banner()).toBeNull();
+  });
+
   it('rechecks active-word visibility after a late virtual-row shift', () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
