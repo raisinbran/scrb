@@ -132,6 +132,56 @@ describe('TranscriptTab follow-along', () => {
     expect(banner()).toBeNull();
   });
 
+  it('rechecks active-word visibility after a late virtual-row shift', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const runFrame = (at: number) => {
+      const callback = frames.shift();
+      if (!callback) throw new Error('transcript scroll frame was not scheduled');
+      act(() => callback(at));
+    };
+    let drift = 0;
+    const rect = (top: number, height: number) =>
+      ({ top, bottom: top + height }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
+        if (this.getAttribute('aria-current') === 'true') {
+          const region = document.querySelector<HTMLElement>('[aria-label="Transcript"]');
+          return rect(25 * ROW_PX - (region?.scrollTop ?? 0) + drift, 20);
+        }
+        return rect(0, 0);
+      });
+    try {
+      render(tab(atRow(25), false));
+      const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+      fireEvent.wheel(region);
+      fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+      runFrame(0);
+      runFrame(240);
+      runFrame(480);
+      expect(banner()).toBeNull();
+      drift = -43;
+      region.scrollTop += 0.5;
+      fireEvent.scroll(region);
+      // The word shifted above the viewport after its first alignment; smoothly recover.
+      const word = region.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+      expect(word?.getBoundingClientRect().top).toBeLessThan(0);
+      runFrame(500);
+      runFrame(620);
+      expect(word?.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+      expect(word?.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+      expect(banner()).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('does not scroll while paused', () => {
     const { rerender } = render(tab(atRow(0), false));
     rerender(tab(atRow(20), false));
