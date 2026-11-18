@@ -283,5 +283,4 @@ describe('TitleBar background processing', () => {
     await act(async () => source.resolve());
     expect(screen.queryByTestId('background-processing-status')).toBeNull();
   });
-
 });
