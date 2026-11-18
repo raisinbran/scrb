@@ -12,7 +12,7 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
   for (const match of text.matchAll(pattern)) {
     const start = match.index ?? position;
     if (start > position) pieces.push(text.slice(position, start));
-    const token = match[0];
+    const token = match[0] ?? '';
     const key = start;
     if (token.startsWith('**')) {
       pieces.push(<strong key={key}>{token.slice(2, -2)}</strong>);
@@ -55,7 +55,7 @@ export function ManualText({ content, onNavigate }: Props) {
     <>
       {blocks.map((block, index) => {
         const lines = block.trim().split(/\r?\n/);
-        const first = lines[0];
+        const first = lines[0] ?? '';
         if (first.startsWith('## ')) {
           return <h4 key={index}>{first.slice(3)}</h4>;
         }
@@ -63,7 +63,7 @@ export function ManualText({ content, onNavigate }: Props) {
           return <h5 key={index}>{first.slice(4)}</h5>;
         }
         if (first.startsWith('|') && lines.length >= 3) {
-          const [head, , ...rows] = lines;
+          const [head = '', , ...rows] = lines;
           return (
             <table key={index}>
               <thead>
