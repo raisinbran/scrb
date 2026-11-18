@@ -131,6 +131,45 @@ describe('createHybridBackend', () => {
     expect((await mock.call('getSettings')).audio.meetingAppId).toBe('app-teams');
   });
 
+  it('routes the idle microphone check and its status to real capture', async () => {
+    const listeners = new Map<string, (payload: never) => void>();
+    const real = {
+      call: vi.fn(async (name: string) =>
+        name === 'getSettings' ? mock.call('getSettings') : undefined,
+      ),
+      on: vi.fn((name: string, listener: (payload: never) => void) => {
+        listeners.set(name, listener);
+        return () => {
+          listeners.delete(name);
+        };
+      }),
+    } as unknown as Backend;
+    const mockCall = vi.spyOn(mock, 'call');
+    const backend = createHybridBackend(real, mock);
+    const sources = { micDeviceId: null, meetingAppId: 'whole-computer' };
+    const observer = vi.fn();
+    const off = backend.on('audioCheck', observer);
+    expect(real.on).toHaveBeenCalledWith('audioCheck', observer);
+
+    await backend.call('startAudioCheck', { sources });
+    expect(real.call).toHaveBeenCalledWith('startAudioCheck', { sources });
+    expect(mockCall).not.toHaveBeenCalledWith('startAudioCheck', { sources });
+    const status = {
+      active: true,
+      micDevice: null,
+      micResult: 'hearing',
+      meetingResult: 'notChecked',
+    };
+    listeners.get('audioCheck')?.(status as never);
+    expect(observer).toHaveBeenCalledWith(status);
+
+    await backend.call('stopAudioCheck');
+    expect(real.call).toHaveBeenCalledWith('stopAudioCheck', undefined);
+    expect(mockCall).not.toHaveBeenCalledWith('stopAudioCheck', undefined);
+    off();
+    expect(listeners.has('audioCheck')).toBe(false);
+  });
+
   it('brings the mock up to date before any other call', async () => {
     const real = await realReturning();
     await createHybridBackend(real, mock).call('checkModelUpdates');
