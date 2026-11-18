@@ -54,7 +54,7 @@ export function HelpScreen() {
           onChange={(event) => setQuery(event.target.value)}
         />
         {term && (
-          <p role="status" className={styles.status}>
+          <p role="status" aria-label="Manual search results" className={styles.status}>
             {results.length === 0
               ? 'No manual sections match your search.'
               : results.length + (results.length === 1 ? ' section found.' : ' sections found.')}
