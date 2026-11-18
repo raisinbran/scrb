@@ -546,6 +546,16 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const activeRowHeight = activeRow ? heights.get(activeRow.key) : undefined;
   useLayoutEffect(() => {
     if (!jumpToCurrentNonce || jumpCancel.current) return;
+    if (
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true &&
+      alignedJump.current?.nonce === jumpToCurrentNonce &&
+      alignedJump.current.rowHeight === activeRowHeight
+    ) {
+      // An immediate jump must not reapply the same alignment delta on re-render.
+      // A genuinely changed row height can still trigger another correction.
+      setFollowPlayback(true);
+      return;
+    }
     const element = scroller.current;
     const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
     if (!element) return;
