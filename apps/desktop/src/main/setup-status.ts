@@ -78,7 +78,7 @@ export async function readVerifiedConfiguredModels(options: {
     const name = basename(file);
     const model = approved.find((row) => row.file === name && row.role === role);
     if (!model || seen.has(name)) continue;
-    if (!(await verified(file, name, options.cacheFile, table))) continue;
+    if (!(await verified(file, name, options.cacheFile, table, 'configured'))) continue;
     seen.add(name);
     installed.push({
       role: model.role,

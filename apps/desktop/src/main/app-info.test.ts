@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -101,6 +101,37 @@ describe('real getAppInfo model inventory', () => {
     put(0, Buffer.from('invented modeX 0'));
     const later = new Date(Date.now() + 10_000);
     utimesSync(join(models, MODELS[0]!.file), later, later);
+    expect((await handler()).models).toEqual([]);
+  });
+
+  it('does not reuse a verified digest when a configured path switches to a different file', async () => {
+    const goodDir = join(root, 'good');
+    const badDir = join(root, 'bad');
+    mkdirSync(goodDir);
+    mkdirSync(badDir);
+    const name = MODELS[1]!.file;
+    const good = join(goodDir, name);
+    const bad = join(badDir, name);
+    writeFileSync(good, contents(1));
+    writeFileSync(bad, Buffer.from('invented modeX 1'));
+    const timestamp = new Date('2024-01-02T03:04:05Z');
+    utimesSync(good, timestamp, timestamp);
+    utimesSync(bad, timestamp, timestamp);
+    expect(statSync(bad).size).toBe(statSync(good).size);
+    expect(Math.trunc(statSync(bad).mtimeMs)).toBe(Math.trunc(statSync(good).mtimeMs));
+
+    const config = join(root, 'live-path-switch.json');
+    const select = (file: string) =>
+      writeFileSync(config, JSON.stringify({ models: { speechLive: file } }));
+    const handler = createAppInfoHandler({
+      getName: () => 'Scribe',
+      getVersion: () => '0.1.0',
+      readVerifiedModels: () =>
+        readVerifiedConfiguredModels({ liveConfig: config, cacheFile: cache, digests: table }),
+    });
+    select(good);
+    expect((await handler()).models.map((model) => model.role)).toEqual(['liveSpeech']);
+    select(bad);
     expect((await handler()).models).toEqual([]);
   });
 
