@@ -31,7 +31,7 @@ describe('HelpScreen', () => {
     expect(screen.getByRole('table')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Check first' })).toBeTruthy();
     expect(
-      await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\    expect(await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\$&')))).toBeTruthy();'))),
+      await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\$&'))),
     ).toBeTruthy();
     backend.dispose();
   });
