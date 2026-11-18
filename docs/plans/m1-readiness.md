@@ -4,6 +4,10 @@
 
 **M1** = a build the owner can run on real ongoing meetings (dev build, not packaged): accurate transcription, speaker grouping, corrections that become vocabulary suggestions, record + playback + export.
 
+### Isolated development startup
+
+For any unpackaged real-backend startup that needs location onboarding, use a fresh profile under the OS temporary directory with an explicit `--user-data-dir`, and put a `library-location.json` in that profile pointing to a separate temporary test library. Set `SCRB_DEV_AUTO_LOCATION=1` for that launch. The backend persists one random fictional US state before opening the first window and reuses it on later launches. Do not interact with the location dialog manually or through UI automation. Keep this flag off for packaged builds and never point the profile or library at production data. For tests of a particular jurisdiction, set that fixture location after startup.
+
 ## 1. Feature status in the Electron app today
 
 How the app decides: `apps/desktop/src/ui/lib/hybrid-backend.ts` sends a call to the real backend when it is in `REAL_CALLS` or names a real meeting (`MEETING_CALLS`); otherwise to the mock. `apps/desktop/src/main/backend.ts` builds the real handlers. A real-meeting call with no handler returns "This feature is not available yet" (`dispatch.ts:32`); it does not fall back to the mock.

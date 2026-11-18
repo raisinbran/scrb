@@ -1,4 +1,5 @@
 import { app, dialog, shell, systemPreferences, type BrowserWindow } from 'electron';
+import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import {
   createConfiguredImportRunner,
@@ -14,6 +15,7 @@ import {
   privacyJurisdictions,
 } from '@scrb/app-core';
 import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
+import { ensureSyntheticDevelopmentLocation } from './synthetic-location.ts';
 import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, generateTitle, writeSummary } from '@scrb/summary';
 import { AutoTitleController } from './auto-title.ts';
@@ -56,6 +58,25 @@ import os from 'node:os';
 
 const FORMAT_NAMES = { docx: 'Word document', pdf: 'PDF', vtt: 'WebVTT captions' } as const;
 
+/** Resolves a not-yet-created library path through its nearest existing ancestor. */
+function resolveForIsolation(target: string): string {
+  let candidate = path.resolve(target);
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      lstatSync(candidate);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    const parent = path.dirname(candidate);
+    if (parent === candidate) throw new Error('Unable to resolve isolated library path.');
+    suffix.unshift(path.basename(candidate));
+    candidate = parent;
+  }
+  return path.resolve(realpathSync(candidate), ...suffix);
+}
+
 export interface OpenedBackend {
   handlers: CallHandlers;
   /** Null when no library opened, so there is no audio to serve. */
@@ -75,11 +96,61 @@ export async function openBackend(
 ): Promise<OpenedBackend> {
   const fallback = path.join(app.getPath('documents'), 'Meeting Scribe');
   try {
-    const root = await readLibraryLocation(app.getPath('userData'), fallback);
+    const userData = app.getPath('userData');
+    const root = await readLibraryLocation(userData, fallback);
+    const libraryLocationFile = path.join(userData, 'library-location.json');
+    let isolatedTemporaryPaths: { userData: string; libraryRoot: string; tempRoot: string } | null =
+      null;
+    if (
+      process.env['SCRB_DEV_AUTO_LOCATION'] === '1' &&
+      !app.isPackaged &&
+      app.commandLine.hasSwitch('user-data-dir') &&
+      existsSync(libraryLocationFile)
+    ) {
+      try {
+        const profilePath = realpathSync(userData);
+        const libraryPath = resolveForIsolation(root);
+        const tempPath = realpathSync(app.getPath('temp'));
+        const withinTemp = (target: string) => {
+          const relative = path.relative(tempPath, target);
+          return (
+            relative !== '' &&
+            relative !== '..' &&
+            !relative.startsWith(`..${path.sep}`) &&
+            !path.isAbsolute(relative)
+          );
+        };
+        if (withinTemp(profilePath) && withinTemp(libraryPath) && profilePath !== libraryPath) {
+          isolatedTemporaryPaths = {
+            userData: profilePath,
+            libraryRoot: libraryPath,
+            tempRoot: tempPath,
+          };
+        }
+      } catch {
+        // A missing or unresolved explicit test path fails closed; normal startup still proceeds.
+      }
+    }
     const library = await Library.open({ root });
     const playback = new PlaybackMedia(library, emit);
     const hardware = { cores: os.availableParallelism(), memoryBytes: os.totalmem() };
     const settings = createSettingsHandlers(library.settings, root, recommendQuality(hardware));
+    const syntheticLocation = ensureSyntheticDevelopmentLocation(settings, {
+      enabled: isolatedTemporaryPaths !== null,
+      packaged: app.isPackaged,
+      explicitUserData: app.commandLine.hasSwitch('user-data-dir'),
+      explicitLibrary: existsSync(libraryLocationFile),
+      userData: isolatedTemporaryPaths?.userData ?? userData,
+      libraryRoot: isolatedTemporaryPaths?.libraryRoot ?? root,
+      tempRoot: isolatedTemporaryPaths?.tempRoot ?? app.getPath('temp'),
+      appData: app.getPath('appData'),
+      appName: app.getName(),
+      platform: process.platform,
+    });
+    if (syntheticLocation)
+      console.info(
+        `[development] Saved synthetic location US/${syntheticLocation} to test library.`,
+      );
     const plan = () => resolvePerformance(settings.getSettings().transcriptionQuality, hardware);
     const modelGate = new LargeModelGate();
     // Recording always wins: a recording that starts stops any running summary.

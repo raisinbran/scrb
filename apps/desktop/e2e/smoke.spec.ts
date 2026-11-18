@@ -51,6 +51,43 @@ test('settings survive a restart and go to the real library', async () => {
   await second.close();
 });
 
+test('opted-in isolated development startup persists location before onboarding renders', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'scrb-auto-location-profile-'));
+  const libraryParent = mkdtempSync(join(tmpdir(), 'scrb-auto-location-library-'));
+  const library = join(libraryParent, 'library');
+  pointAtTestLibrary(userData, library);
+  const launch = () =>
+    electron.launch({
+      args: ['.', `--user-data-dir=${userData}`],
+      env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
+    });
+
+  const first = await launch();
+  const firstPage = await first.firstWindow();
+  const firstSettings = await firstPage.evaluate(() =>
+    window.scribeBridge?.invoke('getSettings', undefined),
+  );
+  expect(firstSettings).toMatchObject({ ok: true, value: { location: { country: 'US' } } });
+  if (!firstSettings?.ok) throw new Error('Settings were not available after startup.');
+  const savedLocation = (
+    firstSettings.value as { location: { country: string | null; usState: string | null } }
+  ).location;
+  expect(savedLocation.usState).toMatch(/^[A-Z]{2}$/);
+  await expect(firstPage.getByRole('heading', { name: 'Where are you based?' })).toHaveCount(0);
+  await expect
+    .poll(() => firstPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)))
+    .toMatchObject({ ok: true, value: { locationSet: true } });
+  await first.close();
+
+  const second = await launch();
+  const secondPage = await second.firstWindow();
+  await expect(secondPage.getByRole('heading', { name: 'Where are you based?' })).toHaveCount(0);
+  await expect
+    .poll(() => secondPage.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)))
+    .toMatchObject({ ok: true, value: { location: savedLocation } });
+  await second.close();
+});
+
 test('a library that cannot open leaves the app usable', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-nolib-'));
   const blocked = join(userData, 'not-a-folder');
