@@ -20,7 +20,12 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
       pieces.push(<code key={key}>{token.slice(1, -1)}</code>);
     } else {
       const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
-      const id = link?.[2] === 'known-issues.md' ? 'known-issues' : link?.[2] === 'README.md' ? 'overview' : null;
+      const id =
+        link?.[2] === 'known-issues.md'
+          ? 'known-issues'
+          : link?.[2] === 'README.md'
+            ? 'overview'
+            : null;
       pieces.push(
         id ? (
           <a
@@ -34,7 +39,7 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
             {link?.[1]}
           </a>
         ) : (
-          link?.[1] ?? token
+          (link?.[1] ?? token)
         ),
       );
     }
@@ -45,7 +50,10 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
 }
 
 function cells(row: string): string[] {
-  return row.split('|').slice(1, -1).map((part) => part.trim());
+  return row
+    .split('|')
+    .slice(1, -1)
+    .map((part) => part.trim());
 }
 
 /** Render only the Markdown constructs used by the two bundled, trusted manual documents. */
@@ -69,7 +77,9 @@ export function ManualText({ content, onNavigate }: Props) {
               <thead>
                 <tr>
                   {cells(head).map((cell, column) => (
-                    <th key={column} scope="col">{inline(cell, onNavigate)}</th>
+                    <th key={column} scope="col">
+                      {inline(cell, onNavigate)}
+                    </th>
                   ))}
                 </tr>
               </thead>
