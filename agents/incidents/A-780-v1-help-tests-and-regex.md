@@ -1,4 +1,4 @@
-### A-774 — 2026-11-18 — ChatGPT Chat / cloud GitHub — offline-manual test and CI failures corrected
+### A-780 — 2026-11-18 — ChatGPT Chat / cloud GitHub — offline-manual test and CI failures corrected
 
 - **Status / attribution:** Confirmed authoring mistakes, identified through self-review and CI; not an application defect.
 - **What failed:** The initial new Help tests over-escaped the third-party license regex, used an unscoped role=status query that could collide with asynchronous About/license status elements, and looked for an Overview-only privacy phrase while section 1 was selected. The new Markdown renderer also assumed a RegExpMatchArray match index and several array members were always present, contrary to the repository's strict unchecked-index types.
@@ -8,3 +8,5 @@
 - **Evidence:** Branch `rosmont/v1-offline-manual`, Windows CI logs `44367265243` and `44367805344`, repaired malformed assertion in `795eb2b05e42e84e0b02fb3be111e56282095f6b`, focused follow-up commits `415fb973`, `8749c7f1`, `44cc1421` and subsequent CI.
 - **Correction / prevention:** Scoped the search status with an accessible name, corrected the license regex and privacy assertion, and guarded token, heading and table/paragraph array indices. Replaced the corrupted assertion by copying the verified identical assertion elsewhere in the same test file, then inspected the full corrected line. Await exact-head CI before describing tests as passed.
 - **Owner approval:** No merge or long physical test authorized; standard PR and CI are within assignment scope.
+
+- **ID reconciliation (2026-11-18):** This same incident originally bore A-772 (collision with earlier PR #361), then provisional A-774 (collision with Mac's still-unpublished A-774). Reassigned A-780 before merge; the pre-renumber evidence is preserved in Git history.
