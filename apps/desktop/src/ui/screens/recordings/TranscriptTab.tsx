@@ -420,6 +420,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const [followPlayback, setFollowPlayback] = useState(true);
   const [jumpToCurrentNonce, setJumpToCurrentNonce] = useState(0);
   const alignedJump = useRef<{ nonce: number; rowHeight: number | undefined } | null>(null);
+  const missingWordRetry = useRef<number | null>(null);
   const stopFollowing = useCallback(() => {
     jumpCancel.current?.();
     jumpCancel.current = null;
@@ -552,7 +553,27 @@ export function TranscriptTab(props: TranscriptTabProps) {
     const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
     if (!element) return;
     if (!word) {
-      setFollowPlayback(true);
+      // Height measurements collected while scrolling can move the active row beyond the
+      // original estimated destination. Re-anchor once using the latest virtual layout,
+      // then wait for React to render the word before claiming the jump is complete.
+      if (missingWordRetry.current !== jumpToCurrentNonce) {
+        missingWordRetry.current = jumpToCurrentNonce;
+        const rowTop = layout.current.offsets[activeIndex];
+        if (rowTop !== undefined) {
+          jumpCancel.current?.();
+          jumpCancel.current = animateTranscriptScroll(
+            element,
+            Math.max(0, rowTop - FOLLOW_MARGIN_PX),
+            {
+              maxDurationMs: 120,
+              onPosition: setScrollTop,
+              onComplete: () => {
+                jumpCancel.current = null;
+              },
+            },
+          );
+        }
+      }
       return;
     }
     const viewport = element.getBoundingClientRect();
@@ -564,7 +585,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
     alignedJump.current = { nonce: jumpToCurrentNonce, rowHeight: activeRowHeight };
     jumpCancel.current?.();
     jumpCancel.current = animateTranscriptScroll(element, element.scrollTop + shift, {
-      maxDurationMs: 180,
+      maxDurationMs: 140,
       onPosition: setScrollTop,
       onComplete: () => {
         jumpCancel.current = null;
@@ -696,6 +717,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
               element,
               Math.max(0, top - FOLLOW_MARGIN_PX),
               {
+                maxDurationMs: 480,
                 // Keep the virtual window moving with the visible scroll animation.
                 onPosition: setScrollTop,
                 onComplete: () => {
