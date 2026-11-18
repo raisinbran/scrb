@@ -426,6 +426,10 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const stopFollowing = useCallback(() => {
     jumpCancel.current?.();
     jumpCancel.current = null;
+    // A completed explicit jump must not resume aligning after the reader takes control.
+    setJumpToCurrentNonce(0);
+    alignedJump.current = null;
+    missingWordRetry.current = null;
     setFollowPlayback(false);
   }, []);
   const wasPlaying = useRef(false);
