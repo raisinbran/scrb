@@ -7,7 +7,7 @@ Checked against the app on `main` on 2026-11-13 by reading the app's screens and
 ## 1. Before you start
 
 - **Setup.** The app needs its helper tools and speech models on the computer. If something is missing, the title bar shows **Setup incomplete** (hover it for the reason) and recording is blocked. A build that is not set up for real recording shows a simulated mode and says so in the title bar; do not use it for real meetings.
-- **Models** are installed separately from the app. **Settings > Models** is simulated today: its model list, update check, install and revert do not work on real models yet. Do not rely on them.
+- **Models** are downloaded separately from the app and kept on this computer. In packaged builds, **Settings > Models** can download required models and the optional summary model. Updating or reverting speech models is **not implemented** on the real backend; do not rely on those controls. A fully offline installed workflow on both platforms remains **(unverified)**.
 - **Permissions.** Allow the microphone, and on Mac the system-audio permission, when asked. If you refused, change it in the system settings and try again. **(unverified on a clean install)**
 - **Where files go.** The first time, you choose a library folder. All meetings, exports and voice profiles live there. If you pick a folder that is synced to the cloud (for example iCloud Drive, OneDrive or Dropbox), your operating system or that service may upload the files even though Scribe itself never does.
 
@@ -24,7 +24,7 @@ Switching the microphone or the meeting app during a recording is supported on M
 
 **Warnings.** Alerts such as **Mic silent**, **Low disk**, **Device changed**, **Permission lost**, **Audio missing** and **Meeting app closed** appear on the Live screen. **Audio missing** means sound was not saved; it is not a pause you chose.
 
-**Mini window.** While you record, a small always-on-top window shows the status, **Pause/Resume**, **Stop**, **Make smaller/larger** and **Show Scribe**. It cannot be minimized with the usual system button. A **Hide** button is not in this build.
+**Mini window.** While you record, a small always-on-top window shows the status, **Pause/Resume**, **Stop**, **Hide** and **Open Scribe**. **Hide** hides this window without ending the recording. There is no expand or resize toggle.
 
 ## 3. After you stop: the final pass
 
@@ -70,7 +70,7 @@ On **Recordings**, choose **Import** and pick a WAV, MP3, M4A, FLAC, Opus or Ogg
 
 ## 12. Settings
 
-**Audio:** microphone, preset (**Voice Isolation**, **Studio**, **Custom**) and input sensitivity. **Transcription quality:** Fast, Balanced or Accurate. **Summary default length.** **Theme:** Light, Dark or System. Changes are saved with the save bar.
+**Audio:** microphone, preset (**Voice Isolation**, **Studio**, **Custom**) and input sensitivity. These preset choices are saved, but real noise suppression, echo cancellation and automatic gain effects are not yet verified; do not assume they are applied to your recording. **Transcription quality:** Fast, Balanced or Accurate. **Summary default length.** **Theme:** Light, Dark or System. Changes are saved with the save bar.
 
 ## 13. Packaged app and Windows
 
@@ -80,7 +80,7 @@ On **Recordings**, choose **Import** and pick a WAV, MP3, M4A, FLAC, Opus or Ogg
 
 ## 14. Help and About
 
-**Help** (F1) shows the version, credits, third-party notices and where this manual is. Its path is `docs/user-manual`; it is not displayed inside the app.
+**Help** (F1) contains this searchable User Manual, Troubleshooting and Known issues, alongside the version, credits and verified third-party notices. The manual is included in the installed app and can be read without an internet connection.
 
 ## Troubleshooting
 
