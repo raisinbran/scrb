@@ -1,4 +1,4 @@
-### A-772 — 2026-11-18 — ChatGPT Chat / cloud GitHub — offline-manual test and CI failures corrected
+### A-774 — 2026-11-18 — ChatGPT Chat / cloud GitHub — offline-manual test and CI failures corrected
 
 - **Status / attribution:** Confirmed authoring mistakes, identified through self-review and CI; not an application defect.
 - **What failed:** The initial new Help tests over-escaped the third-party license regex, used an unscoped role=status query that could collide with asynchronous About/license status elements, and looked for an Overview-only privacy phrase while section 1 was selected. The new Markdown renderer also assumed a RegExpMatchArray match index and several array members were always present, contrary to the repository's strict unchecked-index types.
