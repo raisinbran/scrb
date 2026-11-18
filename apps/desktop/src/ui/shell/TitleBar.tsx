@@ -6,6 +6,7 @@ import { formatElapsed } from '../lib/format.ts';
 import { useMockMode, useSetupBlocked } from '../lib/mock-mode.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
 import { useRecordingStatus } from './use-recording-status.ts';
+import { useProcessingCounts } from './use-processing.ts';
 import styles from './TitleBar.module.css';
 
 const LAG_TEXT: Partial<Record<TranscriptionLag['status'], string>> = {
@@ -36,6 +37,7 @@ export function TitleBar() {
   const mockMode = useMockMode();
   const backend = useBackend();
   const miniHidden = useMiniHidden();
+  const { finalPass, importing } = useProcessingCounts();
   const setupBlocked = useSetupBlocked();
   const active = recording.status === 'recording' || recording.status === 'paused';
   const warning = active ? healthText(health) : null;
@@ -43,6 +45,15 @@ export function TitleBar() {
     active && lag && !(lag.status === 'lagging' && lag.lagMs < LAG_NOTICE_MS)
       ? LAG_TEXT[lag.status]
       : undefined;
+  const processingTotal = finalPass + importing;
+  const processingText =
+    mockMode || processingTotal === 0
+      ? null
+      : finalPass && importing
+        ? `Background processing · ${processingTotal} meetings`
+        : finalPass
+          ? `Final transcription in progress · ${finalPass} ${finalPass === 1 ? 'meeting' : 'meetings'}`
+          : `Import in progress · ${importing} ${importing === 1 ? 'meeting' : 'meetings'}`;
   return (
     <header className={styles.bar}>
       <span className={styles.name}>Scribe</span>
@@ -60,6 +71,17 @@ export function TitleBar() {
               Mock backend
             </span>
           </Tooltip>
+        )}
+        {processingText && (
+          <span
+            className={styles.lag}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-testid="background-processing-status"
+          >
+            {processingText}
+          </span>
         )}
         {lagText && (
           <span
