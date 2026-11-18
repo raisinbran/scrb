@@ -78,7 +78,7 @@ describe('HelpScreen', () => {
     fireEvent.click(screen.getByRole('link', { name: 'User Manual' }));
     const nav = screen.getByRole('navigation', { name: 'Manual sections' });
     fireEvent.click(within(nav).getByRole('link', { name: '1. Before you start' }));
-    expect(screen.getByText(/cloud-synced folder/)).toBeTruthy();
+    expect(screen.getByText(/folder that is synced to the cloud/)).toBeTruthy();
     expect(screen.getByText(/not implemented/)).toBeTruthy();
     backend.dispose();
   });
