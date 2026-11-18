@@ -60,6 +60,7 @@ describe('LiveScreen', () => {
   afterEach(() => {
     cleanup();
     backend.dispose();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -570,6 +571,8 @@ describe('LiveScreen', () => {
     });
 
     it('pauses auto-scroll on a selection and offers Jump to Live', async () => {
+      // This test exercises reduced-motion completion; eased movement has separate coverage.
+      vi.stubGlobal('matchMedia', () => ({ matches: true }));
       await startMeeting();
       expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
       dragAcross(words()[0] as HTMLElement, words()[1] as HTMLElement);
@@ -686,6 +689,8 @@ describe('LiveScreen', () => {
       fireEvent.scroll(element);
       element.scrollTop = 200_000;
       fireEvent.scroll(element);
+      // A reader scroll overrides an in-flight follow animation, even without a wheel event.
+      expect(element.dataset['following']).toBe('false');
       await advance(1000);
       const id = document.querySelectorAll('[data-segment-id]')[8]?.getAttribute('data-segment-id');
       const screenTop = () => {
