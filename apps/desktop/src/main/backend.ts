@@ -31,7 +31,8 @@ import { createExportHandlers, ExportRefused } from './export.ts';
 import { SummaryController, type SummaryEngine } from './summary.ts';
 import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
-import { createSetupStatusHandler } from './setup-status.ts';
+import { createSetupStatusHandler, readVerifiedConfiguredModels } from './setup-status.ts';
+import { createAppInfoHandler } from './app-info.ts';
 import {
   DIGESTS,
   MODELS,
@@ -391,13 +392,20 @@ export async function openBackend(
       playback,
       recovery: library.retainedIndexSnapshot ? { kind: 'retainedCopy', folder: root } : null,
       handlers: {
-        getAppInfo: async () => ({
-          name: app.getName(),
-          version: app.getVersion(),
-          buildDate: 'Not recorded',
-          copyright: '© 2026 BJC, all rights reserved; personal use only',
-          storageStatement: 'Recordings, transcripts and voice profiles stay on this computer.',
-          models: [],
+        getAppInfo: createAppInfoHandler({
+          getName: () => app.getName(),
+          getVersion: () => app.getVersion(),
+          readVerifiedModels: async () =>
+            packaged
+              ? [
+                  ...(await listModelRows(modelsDir, verifiedCache)),
+                  await listSummaryRow(modelsDir, verifiedCache),
+                ]
+              : readVerifiedConfiguredModels({
+                  finalPassConfig,
+                  liveConfig,
+                  cacheFile: verifiedCache,
+                }),
         }),
         // An empty list is explicit until redistribution licenses are verified.
         getLicenses: async () => [],
