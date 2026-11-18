@@ -51,8 +51,8 @@ async function readConfig(path: string | undefined): Promise<{ tools: Paths; mod
 
 /** Verified inventory of only the model paths explicitly provided by trusted development setup. */
 export async function readVerifiedConfiguredModels(options: {
-  finalPassConfig?: string;
-  liveConfig?: string;
+  finalPassConfig?: string | undefined;
+  liveConfig?: string | undefined;
   cacheFile: string;
   digests?: DigestTable;
 }): Promise<ModelInfo[]> {
