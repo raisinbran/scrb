@@ -10,9 +10,10 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
   const pattern = /(\*\*[^*]+\*\*|\x60[^\x60]+\x60|\[[^\]]+\]\([^)]+\))/g;
   let position = 0;
   for (const match of text.matchAll(pattern)) {
-    if (match.index > position) pieces.push(text.slice(position, match.index));
+    const start = match.index ?? position;
+    if (start > position) pieces.push(text.slice(position, start));
     const token = match[0];
-    const key = match.index;
+    const key = start;
     if (token.startsWith('**')) {
       pieces.push(<strong key={key}>{token.slice(2, -2)}</strong>);
     } else if (token.startsWith('\x60')) {
@@ -37,7 +38,7 @@ function inline(text: string, onNavigate: Props['onNavigate']): ReactNode[] {
         ),
       );
     }
-    position = match.index + token.length;
+    position = start + token.length;
   }
   if (position < text.length) pieces.push(text.slice(position));
   return pieces;
