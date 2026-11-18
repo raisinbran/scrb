@@ -371,7 +371,8 @@ test('reopens a completed invented two-track transcript with labels, seek and fu
     await copy.click();
     await expect(reopened.getByRole('status')).toHaveText('Transcript copied.');
     const clipboardText = await restarted.evaluate(({ clipboard }) => clipboard.readText());
-    expect(clipboardText).toBe(expected);
+    // Windows clipboard text may use CRLF; preserve exact content and line order.
+    expect(clipboardText.replace(/\r\n?/g, '\n')).toBe(expected);
 
     // The final row was not rendered when copying; now scroll to it and use
     // its actual timestamp control to seek into the two stored audio tracks.
