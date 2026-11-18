@@ -145,8 +145,7 @@ describe('TranscriptTab follow-along', () => {
       act(() => callback(at));
     };
     let drift = 0;
-    const rect = (top: number, height: number) =>
-      ({ top, bottom: top + height }) as DOMRect;
+    const rect = (top: number, height: number) => ({ top, bottom: top + height }) as DOMRect;
     const spy = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockImplementation(function (this: HTMLElement) {

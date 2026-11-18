@@ -607,7 +607,14 @@ export function TranscriptTab(props: TranscriptTabProps) {
         else setAlignmentCheck((check) => check + 1);
       },
     });
-  }, [jumpToCurrentNonce, scrollTop, activeWordKey, activeRow?.key, activeRowHeight, alignmentCheck]);
+  }, [
+    jumpToCurrentNonce,
+    scrollTop,
+    activeWordKey,
+    activeRow?.key,
+    activeRowHeight,
+    alignmentCheck,
+  ]);
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
