@@ -381,6 +381,32 @@ describe('createMeetingHandlers', () => {
 
   it('maps library rows to list items, newest first', async () => {
     const older = await recorded('Older', '2026-10-01T10:00:00.000Z');
+    await library.applyFinalPass(older.id, {
+      segments: [
+        {
+          id: 'segment-a',
+          speakerId: 'speaker-a',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'word-a', text: 'hello', startMs: 10, endMs: 20 }],
+        },
+        {
+          id: 'segment-b',
+          speakerId: 'speaker-b',
+          track: 'meeting',
+          pass: 'final',
+          words: [{ id: 'word-b', text: 'there', startMs: 30, endMs: 40 }],
+        },
+      ],
+      speakers: ['speaker-a', 'speaker-b'].map((id) => ({
+        id,
+        label: id,
+        name: null,
+        profileId: null,
+        userNamed: false,
+        mergedInto: null,
+      })),
+    });
     const newer = await library.createMeeting({
       title: 'Newer',
       date: '2026-10-02T10:00:00.000Z',
@@ -399,8 +425,14 @@ describe('createMeetingHandlers', () => {
         summaryState: 'notGenerated',
         speakerCount: 0,
       },
-      expect.objectContaining({ id: older.id, origin: 'recorded', status: 'ready' }),
+      expect.objectContaining({
+        id: older.id,
+        origin: 'recorded',
+        status: 'ready',
+        speakerCount: 2,
+      }),
     ]);
+    expect(await value('getMeeting', { meetingId: older.id })).toMatchObject({ speakerCount: 2 });
   });
 
   it('passes needsManualResolution to the UI only when a speaker is flagged', async () => {
