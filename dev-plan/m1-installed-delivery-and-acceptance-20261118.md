@@ -1,7 +1,7 @@
 # M1 plan — deliver and certify installed Scribe on three computers
 
 **Version:** 2.1, November 18, 2026 (Pacific)  
-**Status:** Two-milestone strategy independently reviewed and approved with sequencing corrections. **Phase A0 preflight authorized**; physical long tests, risky implementation, and numeric Milestone B acceptance require their separate approval gates.  
+**Status:** Two-milestone strategy independently reviewed and approved with sequencing corrections. **Phase A0 preflight authorized by the owner's November 18 follow-up** (recorded in [issue #340](https://github.com/raisinbran/scrb/issues/340#issuecomment-6993657203)); physical long tests, risky implementation, and numeric Milestone B acceptance require their separate approval gates.  
 **Repository:** [raisinbran/scrb](https://github.com/raisinbran/scrb)  
 **Development starting baseline:** [e0ff737f3b928283f53cd9abbd1b294bbe90e584](https://github.com/raisinbran/scrb/commit/e0ff737f3b928283f53cd9abbd1b294bbe90e584)  
 **Final release-candidate (RC) SHA:** **TBD only after packaging/installer implementation PRs merge**  
@@ -77,7 +77,7 @@ Do not conflate Scribe app startup with actual process-target Teams loopback. Pr
 4. Conduct the first candidate GUI launch in a **supported owner-host/Finder context**, not through an already denied Codex Terminal/GUI sandbox. Use an explicitly isolated user-data profile and library where supported; do not infer the backend storage identity just from passing an environment flag.
 5. No new signed candidate replaces the known-working /Applications app until its isolated launch and backup/rollback gates are PASS.
 
-**Change management:** scope W1, W2 and any Mac rollback code separately; use stacked PRs only if a tightly coupled integration genuinely exceeds an independently reviewable diff. Preserve source ownership and Electron security/IPC contracts; obtain an approved risky-change plan before crossing those boundaries. Run targeted checks then exact-head Windows/macOS CI, obtain a separate-session formal review, and merge only under the owner's standing authorization for a reviewed, unconditional APPROVE. Do not merge P1-rejected or administrative-hold reviews just because their tests are green.
+**Change management:** scope W1, W2 and any Mac rollback code separately; use stacked PRs only if a tightly coupled integration genuinely exceeds an independently reviewable diff. Preserve source ownership and Electron security/IPC contracts; obtain an approved risky-change plan before crossing those boundaries. Run targeted checks then exact-head Windows/macOS CI, obtain a separate-session formal review, and merge only when the owner has authorized the relevant PR or scoped merge activity, exact-head checks pass, and a separate-session independent formal review gives an unconditional APPROVE. Do not merge P1-rejected or administrative-hold reviews just because their tests are green.
 
 ## 5. Phase A2 — select and reproduce the final RC
 
@@ -153,7 +153,7 @@ For **each** final-RC installation, execute **one** reference scenario with the 
 1. Classify each issue as **packaging/installation, storage identity, native capture/routing, live ASR, live diarization, final ASR/diarization, seeking/playback, clipboard/UI or external execution environment**.
 2. Preserve the original failing evidence, exact tested RC identity and diagnostic. Use the narrowest invented-data/public fixture that reproduces the issue. Do not read other private meetings.
 3. Make one small, owner-reviewable implementation PR per distinct defect domain. If a feature is large and tightly dependent, use individually reviewable stacked branches rather than a multi-thousand-line undifferentiated PR.
-4. Run focused checks and exact-head CI on Windows/macOS **before** a separate-session formal review. Approval must be for the final head; then merge under the owner's standing rules. If the head changes, redo only affected checks/review.
+4. Run focused checks and exact-head CI on Windows/macOS **before** a separate-session formal review. Approval must be for the final head; then merge only under applicable explicit owner authorization for that PR or scoped activity. If the head changes, redo only affected checks/review.
 5. Build a **new** RC from the corrected source and rerun only the failed and materially affected installed checks, preserving earlier results for unaffected components while keeping final certification tied to the final installed RC.
 6. A known Codex sandbox restriction is **not** a reason to relax an actual Scribe product requirement. Do not rerun restricted GUI launchers or modify OS security without an identified, owner-approved need.
 
@@ -164,7 +164,7 @@ For **each** final-RC installation, execute **one** reference scenario with the 
 - **REGIURN:** Windows 11 clean-host receiving/install and M1 installed validation; do not repeat the failing **development electron.exe** launch.
 - **Mac M5:** native tool provenance, build-only signed app, backup and safe rollback, supported normal GUI launch, M1 installed validation.
 - **Independent reviewer(s):** after CI, formally comment on each PR's current head with an explicit APPROVE or rejection and precise findings; treat original QA criticism on its merits, not as automatically correct.
-- **Owner:** approve any risky scope, platform exception, physical planned >20-minute test, final B thresholds and final M1 certification. The standing merge authorization covers PRs with successful CI and unconditional independent separate-comment APPROVE, not P1 rejects or unresolved administrative holds.
+- **Owner:** approve any risky scope, platform exception, physical planned >20-minute test, final B thresholds and final M1 certification. The owner's November 18 follow-up authorizes scoped preflight and merge activities (see #340), but does not grant a permanent reviewer-triggered merge delegation. Verify explicit applicable owner authority, successful exact-head CI and separate-session unconditional formal APPROVE for each PR; never merge P1 rejects or unresolved administrative holds.
 
 Per [AGENTS.md](../AGENTS.md), every task including BLOCKED must report the actual model/effort (or source-specific unavailability), PT observations, five-hour and weekly remaining values or unavailable reason, resets/overlap, retries, outcome, new **12-column** row under [agents/usage-log](../agents/usage-log/README.md), incident disposition and staged/PR/merged status. Never infer shared-credit expenditure. [Issue #358](https://github.com/raisinbran/scrb/issues/358) stays open until genuine compliance evidence. Reconcile unpublished Mac/REGIURN incident identifiers against current main/open branches before publication; merged #360/#362 already use A-780/A-781/A-782.
 
@@ -178,8 +178,8 @@ M1 certification is not V1 approval. Remaining V1-only work includes production 
 
 | Checkpoint | Required deliverable | Who can authorize continuation |
 | --- | --- | --- |
-| **A0** | Windows winver x2, Mac OS and known-app backup, verified asset provenance, precise packaging gaps, one PASS/BLOCKED per machine | Phase A0 already approved; proceed with bounded A1 when prerequisites pass |
-| **A1** | Seven-tool Windows package and safe Mac candidate; separate per-user installer and rollback provisions, passing exact-head CI + independent formal review/merges | Owner's established PR merge authority; risky changes require separate approval |
+| **A0** | Windows winver x2, Mac OS and known-app backup, verified asset provenance, precise packaging gaps, one PASS/BLOCKED per machine | Owner authorized A0 in the November 18 follow-up (#340); bounded A1 begins only after verified prerequisites and applicable risky-change approvals |
+| **A1** | Seven-tool Windows package and safe Mac candidate; separate per-user installer and rollback provisions, passing exact-head CI + independent formal review/merges | Verify the applicable explicit owner merge authorization for each PR or scoped activity; risky changes require separate approval |
 | **A2** | New frozen FINAL_RC_SHA, reproducible or accurately qualified artifact manifests and package hashes | Coordinator verifies exact-source/dep consistency |
 | **A3 / Milestone A** | All three installed builds launch/record from a normal GUI, preserve libraries, verified rollback and two tracks | Owner confirms Milestone A |
 | **B0** | Approved voices/script/routing, global ID matching, exact speaker, seek, sync and gap thresholds and total test budget | **Explicit owner approval required before Milestone B tests** |
