@@ -19,13 +19,13 @@ export const MANUAL_SECTIONS: ManualSection[] = [
   },
   ...chapters.map((chapter) => {
     const heading = /^## ([^\n]+)\n?/.exec(chapter);
-    if (!heading) throw new Error('Unexpected User Manual heading');
-    const number = /^(\d+)\. /.exec(heading[1]);
-    const title = heading[1];
+    const title = heading?.[1];
+    if (!heading || !title) throw new Error('Unexpected User Manual heading');
+    const number = /^(\d+)\. /.exec(title)?.[1];
     return {
-      id: number ? 'section-' + number[1] : title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      id: number ? 'section-' + number : title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title,
-      content: chapter.slice(heading[0].length).trim(),
+      content: chapter.slice((heading[0] ?? '').length).trim(),
     };
   }),
   {
