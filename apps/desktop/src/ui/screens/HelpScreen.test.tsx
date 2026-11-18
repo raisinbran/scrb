@@ -30,7 +30,9 @@ describe('HelpScreen', () => {
     fireEvent.click(within(nav).getByRole('link', { name: 'Troubleshooting' }));
     expect(screen.getByRole('table')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Check first' })).toBeTruthy();
-    expect(await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\$&')))).toBeTruthy();
+    expect(
+      await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\    expect(await screen.findByText(new RegExp(APP_INFO.version.replace(/[().]/g, '\\$&')))).toBeTruthy();'))),
+    ).toBeTruthy();
     backend.dispose();
   });
 
@@ -50,16 +52,21 @@ describe('HelpScreen', () => {
     );
     expect(screen.getByText('Try another word or phrase.')).toBeTruthy();
     fireEvent.change(search, { target: { value: '' } });
-    expect(within(screen.getByRole('navigation', { name: 'Manual sections' })).getAllByRole('link')).toHaveLength(17);
+    expect(
+      within(screen.getByRole('navigation', { name: 'Manual sections' })).getAllByRole('link'),
+    ).toHaveLength(17);
     backend.dispose();
   });
 
   it('uses native keyboard-operable links and focuses the selected section heading', async () => {
     const backend = new MockBackend();
     show(backend);
-    const link = within(screen.getByRole('navigation', { name: 'Manual sections' })).getByRole('link', {
-      name: '11. Delete and storage',
-    });
+    const link = within(screen.getByRole('navigation', { name: 'Manual sections' })).getByRole(
+      'link',
+      {
+        name: '11. Delete and storage',
+      },
+    );
     expect(link.getAttribute('href')).toBe('#manual-section-11');
     link.focus();
     fireEvent.click(link);
