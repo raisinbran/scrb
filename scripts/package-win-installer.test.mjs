@@ -10,19 +10,19 @@ const script = readFileSync(path.join(root, 'scripts/package-win-installer.ps1')
 describe('per-user Windows installer configuration', () => {
   it('adds only the x64 NSIS target and keeps Windows resources mapped to resources/bin', () => {
     expect(config).toMatch(
-      /win:\r?\n  icon: assets\/icons\/icon\.ico\r?\n  target:\r?\n    - target: dir\r?\n      arch: x64\r?\n    - target: nsis\r?\n      arch: x64\r?\n  extraResources:\r?\n    - from: build\/win-stage\/bin\r?\n      to: bin/,
+      /win:\r?\n\x20{2}icon: assets\/icons\/icon\.ico\r?\n\x20{2}target:\r?\n\x20{4}- target: dir\r?\n\x20{6}arch: x64\r?\n\x20{4}- target: nsis\r?\n\x20{6}arch: x64\r?\n\x20{2}extraResources:\r?\n\x20{4}- from: build\/win-stage\/bin\r?\n\x20{6}to: bin/,
     );
   });
 
   it('leaves Mac packaging on its existing resource path and target', () => {
     expect(config).toMatch(
-      /mac:[\s\S]*?extraResources:\r?\n    - from: build\/mac-stage\/bin\r?\n      to: bin[\s\S]*?target:\r?\n    - target: dir\r?\n      arch: arm64/,
+      /mac:[\s\S]*?extraResources:\r?\n\x20{4}- from: build\/mac-stage\/bin\r?\n\x20{6}to: bin[\s\S]*?target:\r?\n\x20{4}- target: dir\r?\n\x20{6}arch: arm64/,
     );
   });
 
   it('forces a per-user one-click install and preserves user data on uninstall', () => {
     expect(config).toMatch(
-      /nsis:\r?\n  oneClick: true\r?\n  perMachine: false\r?\n  allowElevation: false\r?\n  deleteAppDataOnUninstall: false\r?\n  createStartMenuShortcut: true\r?\n  createDesktopShortcut: false\r?\n  runAfterFinish: false/,
+      /nsis:\r?\n\x20{2}oneClick: true\r?\n\x20{2}perMachine: false\r?\n\x20{2}allowElevation: false\r?\n\x20{2}deleteAppDataOnUninstall: false\r?\n\x20{2}createStartMenuShortcut: true\r?\n\x20{2}createDesktopShortcut: false\r?\n\x20{2}runAfterFinish: false/,
     );
   });
 
