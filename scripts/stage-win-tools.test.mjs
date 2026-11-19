@@ -3,7 +3,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseDumpbinDependencies, REQUIRED_TOOLS, stageWindowsTools } from './stage-win-tools.mjs';
+import {
+  CAPTURE_TOOL,
+  parseDumpbinArchitecture,
+  parseDumpbinDependencies,
+  REQUIRED_TOOLS,
+  stageWindowsTools,
+} from './stage-win-tools.mjs';
 
 const temporary = [];
 afterEach(() => {
@@ -81,6 +87,12 @@ describe('stage-win-tools', () => {
     ).toEqual(['KERNEL32.dll', 'whisper.dll']);
   });
 
+  it('identifies the capture helper architecture from dumpbin headers', () => {
+    expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  8664 machine (x64)\r\n')).toBe('x64');
+    expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  14c machine (x86)\r\n')).toBe('x86');
+    expect(parseDumpbinArchitecture('no machine header')).toBeUndefined();
+  });
+
   it('copies six tools and recursively stages their non-system DLLs and notices', () => {
     const config = fixture();
     let verified = false;
@@ -107,6 +119,53 @@ describe('stage-win-tools', () => {
         (edge) => edge.from === 'ggml.dll' && edge.resolution === 'System32',
       ),
     ).toBe(true);
+  });
+
+  it('stages the source-identified capture helper and audits its runtime closure', () => {
+    const config = fixture();
+    const captureDirectory = path.join(config.root, 'capture');
+    mkdirSync(captureDirectory);
+    const capturePath = path.join(captureDirectory, CAPTURE_TOOL);
+    writeFileSync(capturePath, 'capture helper fixture');
+    config.toolSources[CAPTURE_TOOL] = capturePath;
+    config.sourceDirectories.push(captureDirectory);
+    const inspectBase = config.inspectDependencies;
+    config.inspectDependencies = (file) =>
+      path.basename(file) === CAPTURE_TOOL ? ['MSVCP140.dll', 'kernel32.dll'] : inspectBase(file);
+    let verified = false;
+
+    const audit = stageWindowsTools({
+      ...config,
+      includeCapture: true,
+      captureProvenance: {
+        sourceCommit: 'a'.repeat(40),
+        sourceTreeSha256: 'b'.repeat(64),
+        opusSourceCommit: 'c'.repeat(40),
+        opusLibrarySha256: 'd'.repeat(64),
+      },
+      verifyTools: (directory) => {
+        expect(existsSync(path.join(directory, CAPTURE_TOOL))).toBe(true);
+        verified = true;
+      },
+    });
+
+    expect(verified).toBe(true);
+    expect(audit.files.filter((file) => file.name.endsWith('.exe'))).toHaveLength(7);
+    expect(
+      audit.dependencyEdges.some(
+        (edge) => edge.from === CAPTURE_TOOL && edge.dependency === 'MSVCP140.dll',
+      ),
+    ).toBe(true);
+  });
+
+  it('requires source provenance when staging the capture helper', () => {
+    const config = fixture();
+    const capturePath = path.join(config.root, CAPTURE_TOOL);
+    writeFileSync(capturePath, 'capture helper fixture');
+    config.toolSources[CAPTURE_TOOL] = capturePath;
+    expect(() => stageWindowsTools({ ...config, includeCapture: true })).toThrow(
+      /capture source provenance is required/,
+    );
   });
 
   it('fails when a required tool is missing', () => {

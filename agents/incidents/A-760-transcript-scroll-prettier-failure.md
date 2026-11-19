@@ -1,4 +1,4 @@
-# A-760 — Transcript scrolling PR failed the first macOS formatting check
+### A-760 — Transcript scrolling PR failed the first macOS formatting check
 
 - **Status / attribution:** Confirmed agent-authored formatting error; no user-data impact.
 - **What failed:** The initial PR #352 macOS CI at head `1baa9ab3` failed the changed-TypeScript Prettier check. It would rewrite a multiline cubic easing ternary in `apps/desktop/src/ui/lib/transcript-scroll.ts` and the effect-cleanup layout in `apps/desktop/src/ui/screens/live/TranscriptView.tsx`.

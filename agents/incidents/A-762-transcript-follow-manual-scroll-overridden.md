@@ -1,4 +1,4 @@
-# A-762 — Animated transcript follow suppressed manual scrolling
+### A-762 — Animated transcript follow suppressed manual scrolling
 
 - **Status / attribution:** Confirmed application regression introduced in PR #352; correction committed and validation pending.
 - **What failed:** Exact-head Windows and macOS CI at `36032a94` both failed the existing LiveScreen regression **“stays on the text being read when a row above it goes away”** with `TypeError` at `LiveScreen.test.tsx:697`: the expected virtualized row was not rendered after a manual scroll. This must not be dismissed as a flaky or unrelated test.

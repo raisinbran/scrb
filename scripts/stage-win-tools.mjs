@@ -24,6 +24,7 @@ export const REQUIRED_TOOLS = [
   'ffmpeg.exe',
   'ffprobe.exe',
 ];
+export const CAPTURE_TOOL = 'scrb-capture.exe';
 
 export const PINNED_INPUT_HASHES = {
   'ffmpeg.exe': 'e41cab268e561618eacd9b9190134464f87eded52327bdb0d2a4576b220ec030',
@@ -53,8 +54,32 @@ const API_SET = /^(api|ext)-ms-win-.*\.dll$/i;
 const digest = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const key = (name) => name.toLowerCase();
 
+function digestSourceTree(directory) {
+  const files = [];
+  const visit = (current) => {
+    for (const name of readdirSync(current).sort()) {
+      const file = path.join(current, name);
+      const info = statSync(file);
+      if (info.isDirectory()) visit(file);
+      else if (info.isFile()) files.push(file);
+    }
+  };
+  visit(directory);
+  const hash = createHash('sha256');
+  for (const file of files.sort()) {
+    hash.update(path.relative(directory, file).replaceAll('\\', '/'));
+    hash.update('\0');
+    hash.update(readFileSync(file));
+  }
+  return hash.digest('hex');
+}
+
 export function parseDumpbinDependencies(output) {
   return [...output.matchAll(/^\s*([\w.+-]+\.dll)\s*$/gim)].map((match) => match[1]);
+}
+
+export function parseDumpbinArchitecture(output) {
+  return output.match(/^\s*[0-9a-f]{1,4}\s+machine\s+\(([^)]+)\)/im)?.[1].toLowerCase();
 }
 
 function findFile(name, directories) {
@@ -95,6 +120,8 @@ function copyWithoutCollision(source, destination, sourcesByName) {
 export function stageWindowsTools({
   outputDir,
   toolSources,
+  includeCapture = false,
+  captureProvenance,
   sourceDirectories,
   system32Path,
   inspectDependencies,
@@ -105,7 +132,11 @@ export function stageWindowsTools({
   noticesPath,
   licensesDirectory,
 }) {
-  for (const name of REQUIRED_TOOLS) {
+  const requiredTools = includeCapture ? [...REQUIRED_TOOLS, CAPTURE_TOOL] : REQUIRED_TOOLS;
+  if (includeCapture && !captureProvenance) {
+    throw new Error('capture source provenance is required when staging scrb-capture.exe');
+  }
+  for (const name of requiredTools) {
     const source = toolSources[name];
     if (!source || !existsSync(source) || !statSync(source).isFile()) {
       throw new Error(`missing required tool ${name}: ${source ?? '(no source path)'}`);
@@ -126,7 +157,7 @@ export function stageWindowsTools({
   const edges = [];
   const systemDlls = new Set();
 
-  for (const name of REQUIRED_TOOLS) {
+  for (const name of requiredTools) {
     const source = path.resolve(toolSources[name]);
     const destination = path.join(out, name);
     const hash = copyWithoutCollision(source, destination, sourceByName);
@@ -255,6 +286,7 @@ export function stageWindowsTools({
     ],
     systemDependencies: audit.systemDependencies,
   };
+  if (includeCapture) manifest.sources.capture = captureProvenance;
   writeFileSync(path.join(out, 'PROVENANCE.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   verifyTools(out, system32Path);
   return audit;
@@ -370,6 +402,13 @@ function main() {
   const ffmpegBin = requiredPath(options, 'ffmpeg-bin');
   const sherpaArchive = requiredPath(options, 'sherpa-archive');
   const dumpbin = requiredPath(options, 'dumpbin');
+  const captureBin = options['capture-bin'] ? requiredPath(options, 'capture-bin') : undefined;
+  const includeCapture = Boolean(captureBin);
+  const captureSource = path.join(repo, 'native', 'windows-capture');
+  const expectedCaptureBin = path.join(captureSource, 'build', 'bin', CAPTURE_TOOL);
+  if (includeCapture && path.resolve(captureBin) !== path.resolve(expectedCaptureBin)) {
+    throw new Error(`capture helper must be built by this checkout at ${expectedCaptureBin}`);
+  }
   const runtimeDirs = options.runtimeDirs ?? [];
   if (runtimeDirs.length === 0 || runtimeDirs.some((directory) => !existsSync(directory))) {
     throw new Error(
@@ -402,6 +441,7 @@ function main() {
       ),
     ]),
   );
+  if (includeCapture) toolSources[CAPTURE_TOOL] = captureBin;
   const sherpaSource = path.join(repo, 'packages', 'transcription', 'native', 'scrb-sherpa.cpp');
   const provenance = {
     operatingSystemBuild: os.release(),
@@ -435,11 +475,65 @@ function main() {
       license: 'Microsoft Visual C++ Redistributable',
     },
   };
+  let captureProvenance;
+  if (includeCapture) {
+    const captureHeaders = execFileSync(dumpbin, ['/nologo', '/headers', captureBin], {
+      encoding: 'utf8',
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const architecture = parseDumpbinArchitecture(captureHeaders);
+    if (architecture !== 'x64') {
+      throw new Error(
+        `capture helper must be an x64 executable; dumpbin reports ${architecture ?? 'unknown'}`,
+      );
+    }
+    const captureSrc = path.join(captureSource, 'src');
+    const opusSource = path.join(captureSource, 'third_party', 'opus');
+    const opusLibrary = path.join(captureSource, 'build', 'opus', 'opus.lib');
+    const opusFetchScript = readFileSync(
+      path.join(captureSource, 'scripts', 'fetch-opus.ps1'),
+      'utf8',
+    );
+    const pinnedOpusCommit = opusFetchScript.match(/\$commit\s*=\s*'([a-f0-9]{40})'/i)?.[1];
+    if (!pinnedOpusCommit)
+      throw new Error('capture build does not identify its pinned libopus commit');
+    const opusCommit = gitHead(opusSource);
+    if (opusCommit !== pinnedOpusCommit) {
+      throw new Error(`unexpected libopus source commit: ${opusCommit}`);
+    }
+    if (!existsSync(opusLibrary) || !statSync(opusLibrary).isFile()) {
+      throw new Error(`capture helper is missing its built libopus input: ${opusLibrary}`);
+    }
+    captureProvenance = {
+      architecture,
+      sourceCommit: gitHead(repo),
+      sourceFileCommit: execFileSync(
+        'git',
+        ['-C', repo, 'log', '-1', '--format=%H', '--', 'native/windows-capture/src/main.cpp'],
+        { encoding: 'utf8' },
+      ).trim(),
+      sourceTreeSha256: digestSourceTree(captureSrc),
+      opusSourceCommit: opusCommit,
+      opusLibrarySha256: digest(opusLibrary),
+      runtimePolicy: 'MSVC /MD; required runtime DLLs are staged only by pinned SHA-256',
+      compileFlags: '/O2 /MD /std:c++17',
+    };
+  }
 
   const audit = stageWindowsTools({
     outputDir: out,
     toolSources,
-    sourceDirectories: [...runtimeDirs, sherpaLib, whisperBin, ffmpegBin, sherpaBin],
+    includeCapture,
+    captureProvenance,
+    sourceDirectories: [
+      ...runtimeDirs,
+      sherpaLib,
+      whisperBin,
+      ffmpegBin,
+      sherpaBin,
+      ...(includeCapture ? [path.dirname(captureBin)] : []),
+    ],
     system32Path,
     inspectDependencies: dumpbinInspector(dumpbin),
     pinnedRuntimeHashes: PINNED_MSVC_RUNTIME_HASHES,
@@ -450,7 +544,7 @@ function main() {
     licensesDirectory: path.join(repo, 'packages', 'transcription', 'licenses', 'windows'),
   });
   process.stdout.write(
-    `Staged ${REQUIRED_TOOLS.length} tools and ${audit.files.length - REQUIRED_TOOLS.length} DLLs in ${out}; staged-tool smoke passed with PATH limited to ${system32Path}.\n`,
+    `Staged ${REQUIRED_TOOLS.length + Number(includeCapture)} tools and ${audit.files.length - REQUIRED_TOOLS.length - Number(includeCapture)} DLLs in ${out}; six known-tool smoke checks passed with PATH limited to ${system32Path}${includeCapture ? '; capture helper dependencies were audited without executing the helper' : ''}.\n`,
   );
 }
 
