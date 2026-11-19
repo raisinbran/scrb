@@ -1,0 +1,11 @@
+### A-848 — 2026-11-18 — Assumed Windows W1 PR branch name during cloud review
+
+- **Status / attribution:** Confirmed self-induced read-only GitHub lookup error during M1 installed-delivery coordination; not an application, runner, or packaging defect.
+- **What failed:** Before checking the exact `head` field of [PR #368](https://github.com/raisinbran/scrb/pull/368), the coordinator queried the nonexistent branch `rosmont/w1-win-seven-tool-package-20261118`. GitHub returned a branch-not-found 404. The actual PR branch is `codex/w1-win-recording-helper-20261118` at the reviewed head `89a713e2b625ea613559e9cf590b55856d505330`.
+- **Cause:** Inferred a `rosmont/*` branch name from project conventions rather than using the exact PR head metadata.
+- **Impact:** One unnecessary failed read and another query to verify the correct branch. No write, CI run, build, host access, package modification, recording or data loss was caused by this lookup. Quota impact is not individually measurable.
+- **Correction:** Obtained the actual head branch and SHA through the PR metadata; subsequent reviews, job retry and W2 stacked-branch directions refer to the verified head. No retry against the guessed path.
+- **Evidence:** GitHub connector branch 404 in the current cloud task, [PR #368](https://github.com/raisinbran/scrb/pull/368), its [focused Windows failed-job retry decision](https://github.com/raisinbran/scrb/pull/368#issuecomment-6997311350), and the same task's `agents/usage-log/2026-11-18-m1-packaging-cloud-coordination.md` row.
+- **Remaining risk:** Previously provisionally reserved as A-800, now renumbered to A-820 after Mac PR #369 independently used A-800. This incident ID is published only on an unreviewed coordination branch; reconcile against current main, all open PRs, and unavailable local reservations before a future reviewed merge. Do not overwrite an independently reserved local A-848 if one emerges. Keep issue #358 open.
+
+- **ID reconciliation:** Previously reserved under A-820 on an unmerged coordination-only branch. Renumbered to A-848 because merged Mac PR #369 owns A-820 for an unrelated event. Original commit remains in Git history.
