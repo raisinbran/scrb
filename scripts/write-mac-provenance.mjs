@@ -4,7 +4,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { collectSourceChanges, summarizeProbe } from './mac-provenance-utils.mjs';
+import {
+  collectSourceChanges,
+  summarizeProbe,
+  validateFfmpegBuildConfig,
+} from './mac-provenance-utils.mjs';
 
 const [appArg, repoArg, assetsArg, captureArg, whisperArg, toolsArg, llamaArg, sherpaLibArg] =
   process.argv.slice(2);
@@ -57,7 +61,7 @@ const requiredLicenses = [
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const run = (command, args, options = {}) =>
   execFileSync(command, args, { encoding: 'utf8', ...options }).trim();
-const runProbe = (name, args, expectedStatus = 0, pattern) => {
+const runProbe = (name, args, expectedStatus = 0, pattern, validateOutput) => {
   const result = spawnSync(path.join(bin, name), args, {
     encoding: 'utf8',
     timeout: 15_000,
@@ -69,12 +73,14 @@ const runProbe = (name, args, expectedStatus = 0, pattern) => {
       `${name} probe failed (status=${result.status ?? 'none'}): ${result.error?.message ?? output.slice(0, 800)}`,
     );
   }
-  return summarizeProbe({
+  const validation = validateOutput?.(output);
+  const summary = summarizeProbe({
     args,
     status: result.status,
     output,
     matchedExpectedOutput: !pattern || pattern.test(output),
   });
+  return validation ? { ...summary, validation } : summary;
 };
 
 for (const [name, relative] of Object.entries({
@@ -234,9 +240,13 @@ const probes = [
   runProbe('ffprobe', ['-version'], 0, /ffprobe version 9\.0/i),
   runProbe('llama-server', ['--version'], 0, /version: 0\.8\.0-dev.*commit 369dcf3/i),
 ];
-const buildConf = runProbe('ffmpeg', ['-buildconf'], 0, /--disable-network/);
-if (/--enable-(gpl|nonfree)/i.test(buildConf.output))
-  throw new Error('FFmpeg package enables GPL or nonfree code');
+const buildConf = runProbe(
+  'ffmpeg',
+  ['-buildconf'],
+  0,
+  /--disable-network/,
+  validateFfmpegBuildConfig,
+);
 const ffmpegLicense = runProbe('ffmpeg', ['-L'], 0, /GNU Lesser General Public\s+License/i);
 
 const plist = path.join(app, 'Contents', 'Info.plist');

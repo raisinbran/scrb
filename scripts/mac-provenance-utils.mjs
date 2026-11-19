@@ -41,3 +41,13 @@ export function summarizeProbe({ args, status, output, matchedExpectedOutput }) 
     matchedExpectedOutput,
   };
 }
+
+export function validateFfmpegBuildConfig(output) {
+  if (!/--disable-network\b/i.test(output)) {
+    throw new Error('FFmpeg build config must disable network access');
+  }
+  if (/--enable-(?:gpl|nonfree)\b/i.test(output)) {
+    throw new Error('FFmpeg build config must not enable GPL or nonfree code');
+  }
+  return { networkDisabled: true, gplEnabled: false, nonfreeEnabled: false };
+}

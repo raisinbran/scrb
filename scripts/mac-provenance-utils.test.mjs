@@ -4,7 +4,11 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectSourceChanges, summarizeProbe } from './mac-provenance-utils.mjs';
+import {
+  collectSourceChanges,
+  summarizeProbe,
+  validateFfmpegBuildConfig,
+} from './mac-provenance-utils.mjs';
 
 const temporary = [];
 afterEach(() => {
@@ -54,6 +58,46 @@ describe('Mac packaging provenance helpers', () => {
       matchedExpectedOutput: true,
     });
     expect(JSON.stringify(summary)).not.toContain('configuration from synthetic build root');
+  });
+
+  it('accepts a network-disabled LGPL configuration without GPL or nonfree flags', () => {
+    expect(validateFfmpegBuildConfig('configuration: --disable-network --enable-static')).toEqual({
+      networkDisabled: true,
+      gplEnabled: false,
+      nonfreeEnabled: false,
+    });
+  });
+
+  it('rejects GPL even when networking is disabled', () => {
+    expect(() =>
+      validateFfmpegBuildConfig('configuration: --disable-network --enable-gpl'),
+    ).toThrow('must not enable GPL or nonfree code');
+  });
+
+  it('rejects nonfree even when networking is disabled', () => {
+    expect(() =>
+      validateFfmpegBuildConfig('configuration: --disable-network --enable-nonfree'),
+    ).toThrow('must not enable GPL or nonfree code');
+  });
+
+  it('keeps FFmpeg build paths and raw configuration out of the embedded probe manifest', () => {
+    const rawOutput = 'configuration: --disable-network from /Users/private/build/ffmpeg-9.0';
+    const manifest = {
+      probes: [
+        summarizeProbe({
+          args: ['-buildconf'],
+          status: 0,
+          output: rawOutput,
+          matchedExpectedOutput: true,
+        }),
+      ],
+      ffmpegBuildConfig: validateFfmpegBuildConfig(rawOutput),
+    };
+    const serialized = JSON.stringify(manifest);
+    expect(serialized).toContain('outputSha256');
+    expect(serialized).toContain('networkDisabled');
+    expect(serialized).not.toContain('/Users/private/build/ffmpeg-9.0');
+    expect(serialized).not.toContain('--disable-network from');
   });
 
   it('pins upstream source and uses tools from the checkout being packaged', () => {
