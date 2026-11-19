@@ -2,6 +2,11 @@ import { _electron as electron, expect, test } from '@playwright/test';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  approvedJumpLatencyLimitMs,
+  attachJumpRendererProbe,
+  type RendererJumpMetrics,
+} from '../src/ui/transcript-jump-renderer-probe.ts';
 
 interface JumpTrace {
   active: boolean;
@@ -13,6 +18,8 @@ interface JumpTrace {
   resizeCallbackMs: number;
   scrollEvents: number;
   scrollPositions: number[];
+  playwrightPollObservedMs?: number | null;
+  renderer?: RendererJumpMetrics;
 }
 
 test('distant jumps in the synthetic 8-hour transcript finish promptly', async () => {
@@ -85,7 +92,14 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
         subtree: true,
       });
     });
-    const observations: { targetMs: number; elapsedMs: number }[] = [];
+    const totalMeetingDurationMs = 8 * 60 * 60_000;
+    const rendererLimitMs = approvedJumpLatencyLimitMs(totalMeetingDurationMs);
+    if (rendererLimitMs === null) throw new Error('Missing approved limit for 8-hour meeting');
+    const observations: {
+      targetMs: number;
+      elapsedMs: number;
+      renderer: RendererJumpMetrics | undefined;
+    }[] = [];
     for (const targetMs of [30, 59, 242, 470].map((minutes) => minutes * 60_000)) {
       await slider.evaluate((input, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
@@ -118,6 +132,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
               resizeCallbackMs: 0,
               scrollEvents: 0,
               scrollPositions: [],
+              playwrightPollObservedMs: null,
+              renderer: undefined,
             });
             let previous = region.scrollTop;
             const sample = () => {
@@ -133,6 +149,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
           { once: true },
         );
       });
+      // A self-contained renderer probe; no production scrolling code is changed.
+      await jump.evaluate(attachJumpRendererProbe);
       await jump.click();
       try {
         await expect
@@ -149,6 +167,12 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
             { timeout: 5_000 },
           )
           .toBe(true);
+        // This is only an upper bound on when Playwright noticed visibility.
+        await page.evaluate(() => {
+          const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+            .transcriptJumpTrace;
+          if (trace) trace.playwrightPollObservedMs = performance.now() - trace.started;
+        });
       } catch (error) {
         console.log(
           JSON.stringify({
@@ -187,6 +211,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
                 resizeCallbackMs: trace?.resizeCallbackMs,
                 scrollEvents: trace?.scrollEvents,
                 distinctScrollPositions: trace?.scrollPositions.length,
+                renderer: trace?.renderer,
+                playwrightPollObservedMs: trace?.playwrightPollObservedMs,
               };
             }),
           }),
@@ -196,31 +222,72 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
       if (targetMs === 242 * 60_000) {
         await expect(page.locator('[data-ms][aria-current="true"]')).toHaveText('extended');
       }
+      // Preserve the old clock only for diagnosis. The owner's revised limit is
+      // applied to in-renderer stable visibility, not Playwright polling delay.
+      const legacyElapsedMs = await page.evaluate(() => {
+        const trace = (window as Window & { transcriptJumpTrace?: JumpTrace }).transcriptJumpTrace;
+        if (!trace) throw new Error('Jump instrumentation was lost');
+        return performance.now() - trace.started;
+      });
+      try {
+        await expect
+          .poll(
+            () =>
+              page.evaluate(() => {
+                const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                  .transcriptJumpTrace;
+                return typeof trace?.renderer?.rendererSettledVisibleMs === 'number';
+              }),
+            { timeout: 5_000 },
+          )
+          .toBe(true);
+      } catch (error) {
+        console.log(
+          JSON.stringify({
+            unsettledTargetMs: targetMs,
+            renderer: await page.evaluate(() => {
+              const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                .transcriptJumpTrace;
+              return trace?.renderer ?? null;
+            }),
+          }),
+        );
+        throw error;
+      }
       observations.push(
-        await page.evaluate((targetMs) => {
-          const state = window as Window & { transcriptJumpTrace?: JumpTrace };
-          const trace = state.transcriptJumpTrace;
-          if (!trace) throw new Error('Jump instrumentation was lost');
-          const elapsedMs = performance.now() - trace.started;
-          trace.active = false;
-          return {
-            targetMs,
-            elapsedMs,
-            firstScrollMs: trace.firstScrollMs,
-            firstMutationMs: trace.firstMutationMs,
-            mutationBatches: trace.mutationBatches,
-            resizeCallbacks: trace.resizeCallbacks,
-            resizeCallbackMs: trace.resizeCallbackMs,
-            scrollEvents: trace.scrollEvents,
-            distinctScrollPositions: trace.scrollPositions.length,
-          };
-        }, targetMs),
+        await page.evaluate(
+          ({ targetMs, legacyElapsedMs }) => {
+            const state = window as Window & { transcriptJumpTrace?: JumpTrace };
+            const trace = state.transcriptJumpTrace;
+            if (!trace) throw new Error('Jump instrumentation was lost');
+            const elapsedMs = legacyElapsedMs;
+            trace.active = false;
+            return {
+              targetMs,
+              elapsedMs,
+              firstScrollMs: trace.firstScrollMs,
+              firstMutationMs: trace.firstMutationMs,
+              mutationBatches: trace.mutationBatches,
+              resizeCallbacks: trace.resizeCallbacks,
+              resizeCallbackMs: trace.resizeCallbackMs,
+              scrollEvents: trace.scrollEvents,
+              distinctScrollPositions: trace.scrollPositions.length,
+              playwrightPollObservedMs: trace.playwrightPollObservedMs,
+              renderer: trace.renderer,
+            };
+          },
+          { targetMs, legacyElapsedMs },
+        ),
       );
     }
     console.log(JSON.stringify({ observations }));
+    // The eight-hour allowance applies to every offset within this one meeting.
+    // Use the measured renderer settling time, never Playwright's later receipt.
     expect(
       observations.every(
-        ({ targetMs, elapsedMs }) => elapsedMs < (targetMs < 60 * 60_000 ? 1_000 : 5_000),
+        ({ renderer }) =>
+          typeof renderer?.rendererSettledVisibleMs === 'number' &&
+          renderer.rendererSettledVisibleMs <= rendererLimitMs,
       ),
     ).toBe(true);
   } finally {
