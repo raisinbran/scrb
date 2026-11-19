@@ -1,4 +1,4 @@
-### A-822 — 2026-11-18 — current-turn metadata lookup called a non-function
+### A-836 — 2026-11-18 — current-turn metadata lookup called a non-function
 
 - **Status / attribution:** Confirmed agent tooling error; no repository state changed.
 - **What failed:** I called `nodeRepl.requestMeta()` although the current node-repl surface does not expose that method.

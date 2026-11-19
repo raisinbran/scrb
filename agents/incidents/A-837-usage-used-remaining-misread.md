@@ -1,4 +1,4 @@
-### A-823 — 2026-11-18 — quota used percentage was reported as remaining
+### A-837 — 2026-11-18 — quota used percentage was reported as remaining
 
 - **Status / attribution:** Confirmed agent reporting error; no account setting changed.
 - **What failed:** I read `usedPercent: 2` from Codex's limits response as 2% remaining instead of calculating 98% remaining.

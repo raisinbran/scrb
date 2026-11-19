@@ -1,4 +1,4 @@
-### A-814 — 2026-11-18 — Node version check used a mistyped path
+### A-828 — 2026-11-18 — Node version check used a mistyped path
 
 - **Status / attribution:** Confirmed agent command error; no environment defect.
 - **What failed:** I used `node-v22.3.4` instead of the verified `node-v22.23.4` path.
