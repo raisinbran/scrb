@@ -19,7 +19,7 @@ afterEach(() => {
   for (const directory of temporary.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
-function fixture() {
+function fixture(slice = 2) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'scrb-verify-win-package-'));
   temporary.push(root);
   const stagingDir = path.join(root, 'stage');
@@ -28,7 +28,8 @@ function fixture() {
   mkdirSync(licensesDir, { recursive: true });
   mkdirSync(packagedDir, { recursive: true });
 
-  const entries = [...tools, 'msvcp140.dll'].map((name) => {
+  const packageTools = slice === 3 ? [...tools, 'scrb-capture.exe'] : tools;
+  const entries = [...packageTools, 'msvcp140.dll'].map((name) => {
     const bytes = `fixture:${name}`;
     writeFileSync(path.join(stagingDir, name), bytes);
     return { name, sha256: createHash('sha256').update(bytes).digest('hex') };
@@ -38,7 +39,24 @@ function fixture() {
   const licenseFiles = ['THIRD_PARTY_NOTICES.md', 'licenses/MIT.txt'];
   writeFileSync(
     path.join(stagingDir, 'PROVENANCE.json'),
-    JSON.stringify({ stagedFiles: entries, licenseFiles }),
+    JSON.stringify({
+      stagedFiles: entries,
+      licenseFiles,
+      sources:
+        slice === 3
+          ? {
+              capture: {
+                architecture: 'x64',
+                sourceCommit: 'a'.repeat(40),
+                sourceFileCommit: 'b'.repeat(40),
+                sourceTreeSha256: 'c'.repeat(64),
+                opusSourceCommit: 'd'.repeat(40),
+                opusLibrarySha256: 'e'.repeat(64),
+                runtimePolicy: 'MSVC /MD',
+              },
+            }
+          : {},
+    }),
   );
   writeFileSync(path.join(stagingDir, 'DEPENDENCY-AUDIT.json'), JSON.stringify({ files: entries }));
   cpSync(stagingDir, packagedDir, { recursive: true });
@@ -90,6 +108,28 @@ describe('verify-win-package', () => {
 
     expect(() => verifyWindowsPackage({ ...config, slice: 2 })).toThrow(
       /staging required executable set mismatch/,
+    );
+  });
+
+  it('accepts a seven-tool package with capture source and runtime provenance', () => {
+    const config = fixture(3);
+    expect(verifyWindowsPackage({ ...config, slice: 3 })).toEqual({
+      executableCount: 7,
+      dllCount: 1,
+      licenseFileCount: 2,
+    });
+  });
+
+  it('rejects a slice-3 package without source-compatible helper provenance', () => {
+    const config = fixture(3);
+    const provenancePath = path.join(config.stagingDir, 'PROVENANCE.json');
+    const provenance = JSON.parse(readFileSync(provenancePath, 'utf8'));
+    delete provenance.sources.capture;
+    writeFileSync(provenancePath, JSON.stringify(provenance));
+    const packagedPath = path.join(config.packagedDir, 'PROVENANCE.json');
+    writeFileSync(packagedPath, JSON.stringify(provenance));
+    expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
+      /capture helper provenance is missing/,
     );
   });
 });

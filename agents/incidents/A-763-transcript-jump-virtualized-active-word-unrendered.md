@@ -1,4 +1,4 @@
-# A-763 — Animated distant transcript jump failed synthetic Electron smoke
+### A-763 — Animated distant transcript jump failed synthetic Electron smoke
 
 - **Status / attribution:** Confirmed PR #352 behavioral regression on macOS Electron smoke, not yet verified fixed.
 - **What failed:** [CI run 44203702056](https://github.com/raisinbran/scrb/actions/runs/44203702056) passed unit tests but failed `e2e/transcript-jump-performance.spec.ts` at the first 30-minute target in a synthetic eight-hour meeting. After five seconds, the transcript had moved through about 30 different scroll positions but no active word was visible. The test timed out rather than verifying a successful jump.
