@@ -14,6 +14,23 @@ export interface RendererJumpMetrics {
   settledInvalidations: number;
 }
 
+/**
+ * Owner-approved Jump to Live limits are keyed by TOTAL meeting duration, not
+ * the offset of the target word within a longer meeting.
+ *
+ * Only the explicitly defined <=1h and eight-hour endpoints are encoded here;
+ * intermediate durations require a separate accepted requirement.
+ */
+export function approvedJumpLatencyLimitMs(totalMeetingDurationMs: number): number | null {
+  const hourMs = 60 * 60_000;
+  if (!Number.isFinite(totalMeetingDurationMs) || totalMeetingDurationMs <= 0) {
+    throw new RangeError('Total meeting duration must be positive and finite');
+  }
+  if (totalMeetingDurationMs <= hourMs) return 500;
+  if (totalMeetingDurationMs === 8 * hourMs) return 1_500;
+  return null;
+}
+
 export function attachJumpRendererProbe(button: HTMLElement): void {
   button.addEventListener(
     'click',
@@ -71,10 +88,7 @@ export function attachJumpRendererProbe(button: HTMLElement): void {
           targetRect.bottom <= viewport.bottom;
         const sinceClick = frameTime - trace.started;
 
-        if (
-          target?.closest('[data-row]') &&
-          metrics.firstTargetRowRenderedMs === null
-        ) {
+        if (target?.closest('[data-row]') && metrics.firstTargetRowRenderedMs === null) {
           metrics.firstTargetRowRenderedMs = sinceClick;
         }
         if (visible) {

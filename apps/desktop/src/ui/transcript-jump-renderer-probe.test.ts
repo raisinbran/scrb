@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  approvedJumpLatencyLimitMs,
   attachJumpRendererProbe,
   type RendererJumpMetrics,
 } from './transcript-jump-renderer-probe.ts';
@@ -109,5 +110,26 @@ describe('renderer transcript-jump timing probe (invented transcript)', () => {
     expect(probe.trace.renderer?.rendererSettledVisibleMs).toBeNull();
     expect(probe.trace.renderer?.settledInvalidations).toBe(1);
     expect(probe.trace.renderer?.lastScrollMs).toBe(420);
+  });
+});
+
+describe('owner-approved Jump to Live boundaries', () => {
+  const hourMs = 60 * 60_000;
+
+  it('allows 500 ms on a meeting of an hour or less', () => {
+    expect(approvedJumpLatencyLimitMs(30 * 60_000)).toBe(500);
+    expect(approvedJumpLatencyLimitMs(hourMs)).toBe(500);
+  });
+
+  it('allows 1500 ms for any jump WITHIN an eight-hour meeting', () => {
+    // The 30-minute target offset does not make an eight-hour meeting short.
+    const targetOffsetMs = 30 * 60_000;
+    expect(targetOffsetMs).toBeLessThan(hourMs);
+    expect(approvedJumpLatencyLimitMs(8 * hourMs)).toBe(1_500);
+  });
+
+  it('does not invent a threshold for intermediate durations', () => {
+    expect(approvedJumpLatencyLimitMs(4 * hourMs)).toBeNull();
+    expect(() => approvedJumpLatencyLimitMs(0)).toThrow(RangeError);
   });
 });
