@@ -40,6 +40,9 @@ $verify = Join-Path $repo 'scripts\verify-win-package.mjs'
 & node $verify --staging $staging --packaged (Join-Path $prepackaged 'resources\bin') --slice 3
 if ($LASTEXITCODE -ne 0) { throw 'Seven-tool prepackaged input failed verification' }
 
+if ($BuilderCli) {
+    $BuilderCli = [IO.Path]::GetFullPath($BuilderCli)
+}
 if (-not $BuilderCli) {
     Push-Location $appDir
     try {

@@ -32,6 +32,7 @@ describe('per-user Windows installer configuration', () => {
     expect(script).toContain('--prepackaged $prepackaged');
     expect(script).toContain('--publish never');
     expect(script).toContain('Get-FileHash -LiteralPath $installer -Algorithm SHA256');
+    expect(script).toContain('[IO.Path]::GetFullPath($BuilderCli)');
     expect(script).not.toMatch(/Start-Process|Invoke-Expression|Remove-Item/);
   });
 });
