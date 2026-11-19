@@ -1,0 +1,9 @@
+### A-853 — 2026-11-19 — Diagnostic PR #371 initially failed exact-head CI Prettier
+
+- **Attribution/status:** Confirmed self-induced source-formatting failure in the cloud-authored test-harness PR, not a Scribe runtime or Windows installer defect.
+- **Failure:** The first exact-head CI at PR #371 head `b84151885099a6876f90bb5f3ff2b956224141a7`, run `44484971114`, failed `Check Prettier on changed TypeScript` on both Windows and macOS. The CI logs show only test-harness formatting mismatches (the `page.evaluate` callback wrapping, one renderer trace assignment and one conditional expression); the substantive tests were not reached.
+- **Cause:** Cloud authoring did not run the repository's Prettier pass on the three new/modified TypeScript files before publishing. The author inferred formatting manually; the automated checker disagreed.
+- **Impact:** One wasted cross-platform CI attempt; no user recording, app install, production UI changes or direct main push. Actual account quota impact cannot be isolated.
+- **Correction:** Apply the exact formatting changes shown in the CI diff while making the authorized owner-limit correction: meeting duration <=1 hour allows 500 ms and the synthetic 8-hour transcript allows 1500 ms, measured by the stable renderer state. Avoid treating 30-minute target offset as a 30-minute total meeting. Run the next exact-head CI and independent review; do not retry the old failed run or auto-merge.
+- **Original evidence:** CI https://github.com/raisinbran/scrb/actions/runs/44484971114 and owner-limit record in issue #340. Draft PR #371 code and task row `agents/usage-log/2026-11-19-transcript-jump-owner-limit-correction.md`.
+- **Publication:** PR branch only, not `main`; ID A-853 checked against main and current open PRs, with unknown unpublished local reservations still requiring reconciliation before merge.
