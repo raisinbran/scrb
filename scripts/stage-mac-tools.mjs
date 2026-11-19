@@ -4,8 +4,18 @@
 // Usage: node scripts/stage-mac-tools.mjs <out> <capture> <whisper-bin-dir> <tools-dir> <llama-bin-dir> <extra-lib-dir>...
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const [out, capture, whisperDir, toolsDir, llamaDir, ...extraLibDirs] = process.argv.slice(2);
 if (!out || !capture || !whisperDir || !toolsDir || !llamaDir) {
@@ -31,6 +41,10 @@ const tools = {
 
 const bin = path.join(out, 'bin');
 const lib = path.join(bin, 'lib');
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const assets = path.resolve(
+  process.env.SCRB_DEV_ASSETS ?? path.join(process.env.HOME ?? '', 'scrb-dev-assets'),
+);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(lib, { recursive: true });
 
@@ -138,4 +152,66 @@ if (problems.length > 0) {
   console.error(`References outside the bundle:\n  ${problems.join('\n  ')}`);
   process.exit(1);
 }
+
+const revision = (directory) => run('git', ['-C', directory, 'rev-parse', 'HEAD']).trim();
+const lineageFor = (source) => {
+  const relativeToRepo = path.relative(repo, source);
+  if (
+    relativeToRepo !== '..' &&
+    !relativeToRepo.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativeToRepo)
+  ) {
+    return { artifact: `repository/${relativeToRepo}`, sourceCommit: revision(repo) };
+  }
+  const relativeToAssets = path.relative(assets, source);
+  if (
+    relativeToAssets !== '..' &&
+    !relativeToAssets.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativeToAssets)
+  ) {
+    const upstreamMatch = relativeToAssets.match(/^upstream\/([^/]+)/);
+    const upstreamRoot = upstreamMatch
+      ? path.join(assets, 'upstream', upstreamMatch[1])
+      : undefined;
+    return {
+      artifact: `dev-assets/${relativeToAssets}`,
+      sourceCommit:
+        upstreamRoot && existsSync(path.join(upstreamRoot, '.git')) ? revision(upstreamRoot) : null,
+    };
+  }
+  return { artifact: path.basename(source), sourceCommit: null };
+};
+const sourceEntries = [
+  ...Object.entries(tools).map(([name, source]) => ({
+    name,
+    source: realpathSync(source),
+    staged: path.join(bin, name),
+  })),
+  ...[...new Set(libs.values())].map(({ file, name }) => ({
+    name: `lib/${name}`,
+    source: file,
+    staged: path.join(lib, name),
+  })),
+];
+const stagedFiles = sourceEntries.map(({ name, source, staged }) => ({
+  name,
+  ...lineageFor(source),
+  sourceSha256: createHash('sha256').update(readFileSync(source)).digest('hex'),
+  stagedSha256: createHash('sha256').update(readFileSync(staged)).digest('hex'),
+}));
+const sourceToName = new Map(sourceEntries.map(({ name, source }) => [realpathSync(source), name]));
+const dependencyEdges = [];
+for (const [source, edges] of dependencyTargets) {
+  for (const edge of edges) {
+    dependencyEdges.push({
+      from: sourceToName.get(source) ?? path.basename(source),
+      installName: edge.ref,
+      to: `lib/${edge.name}`,
+    });
+  }
+}
+writeFileSync(
+  path.join(bin, 'DEPENDENCY-AUDIT.json'),
+  `${JSON.stringify({ schemaVersion: 1, files: stagedFiles, dependencyEdges }, null, 2)}\n`,
+);
 console.log(`Staged ${Object.keys(tools).length} tools and ${libs.size} libraries in ${bin}`);
