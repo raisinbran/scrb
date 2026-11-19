@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { collectSourceChanges, summarizeProbe } from './mac-provenance-utils.mjs';
 
 const temporary = [];
@@ -56,7 +57,10 @@ describe('Mac packaging provenance helpers', () => {
   });
 
   it('pins upstream source and uses tools from the checkout being packaged', () => {
-    const script = readFileSync(new URL('./package-mac.sh', import.meta.url), 'utf8');
+    const script = readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'package-mac.sh'),
+      'utf8',
+    );
     expect(script).toContain('assert_asset_commit "${assets}/upstream/whisper.cpp"');
     expect(script).toContain('capture="$repo/native/macos-capture/build/scrb-capture"');
     expect(script).toContain('tools="$repo/packages/transcription/.bin"');
