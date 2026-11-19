@@ -2,6 +2,10 @@ import { _electron as electron, expect, test } from '@playwright/test';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  attachJumpRendererProbe,
+  type RendererJumpMetrics,
+} from '../src/ui/transcript-jump-renderer-probe.ts';
 
 interface JumpTrace {
   active: boolean;
@@ -13,6 +17,8 @@ interface JumpTrace {
   resizeCallbackMs: number;
   scrollEvents: number;
   scrollPositions: number[];
+  playwrightPollObservedMs?: number | null;
+  renderer?: RendererJumpMetrics;
 }
 
 test('distant jumps in the synthetic 8-hour transcript finish promptly', async () => {
@@ -118,6 +124,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
               resizeCallbackMs: 0,
               scrollEvents: 0,
               scrollPositions: [],
+              playwrightPollObservedMs: null,
+              renderer: undefined,
             });
             let previous = region.scrollTop;
             const sample = () => {
@@ -133,6 +141,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
           { once: true },
         );
       });
+      // A self-contained renderer probe; no production scrolling code is changed.
+      await jump.evaluate(attachJumpRendererProbe);
       await jump.click();
       try {
         await expect
@@ -149,6 +159,12 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
             { timeout: 5_000 },
           )
           .toBe(true);
+        // This is only an upper bound on when Playwright noticed visibility.
+        await page.evaluate(() => {
+          const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+            .transcriptJumpTrace;
+          if (trace) trace.playwrightPollObservedMs = performance.now() - trace.started;
+        });
       } catch (error) {
         console.log(
           JSON.stringify({
@@ -187,6 +203,8 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
                 resizeCallbackMs: trace?.resizeCallbackMs,
                 scrollEvents: trace?.scrollEvents,
                 distinctScrollPositions: trace?.scrollPositions.length,
+                renderer: trace?.renderer,
+                playwrightPollObservedMs: trace?.playwrightPollObservedMs,
               };
             }),
           }),
@@ -196,12 +214,45 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
       if (targetMs === 242 * 60_000) {
         await expect(page.locator('[data-ms][aria-current="true"]')).toHaveText('extended');
       }
+      // Preserve the original strict clock for comparison. The separate renderer
+      // timestamp below is diagnostic, NOT an easier replacement assertion.
+      const legacyElapsedMs = await page.evaluate(() => {
+        const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+          .transcriptJumpTrace;
+        if (!trace) throw new Error('Jump instrumentation was lost');
+        return performance.now() - trace.started;
+      });
+      try {
+        await expect
+          .poll(
+            () =>
+              page.evaluate(() => {
+                const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                  .transcriptJumpTrace;
+                return typeof trace?.renderer?.rendererSettledVisibleMs === 'number';
+              }),
+            { timeout: 5_000 },
+          )
+          .toBe(true);
+      } catch (error) {
+        console.log(
+          JSON.stringify({
+            unsettledTargetMs: targetMs,
+            renderer: await page.evaluate(() => {
+              const trace = (window as Window & { transcriptJumpTrace?: JumpTrace })
+                .transcriptJumpTrace;
+              return trace?.renderer ?? null;
+            }),
+          }),
+        );
+        throw error;
+      }
       observations.push(
-        await page.evaluate((targetMs) => {
+        await page.evaluate(({ targetMs, legacyElapsedMs }) => {
           const state = window as Window & { transcriptJumpTrace?: JumpTrace };
           const trace = state.transcriptJumpTrace;
           if (!trace) throw new Error('Jump instrumentation was lost');
-          const elapsedMs = performance.now() - trace.started;
+          const elapsedMs = legacyElapsedMs;
           trace.active = false;
           return {
             targetMs,
@@ -213,8 +264,10 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
             resizeCallbackMs: trace.resizeCallbackMs,
             scrollEvents: trace.scrollEvents,
             distinctScrollPositions: trace.scrollPositions.length,
+            playwrightPollObservedMs: trace.playwrightPollObservedMs,
+            renderer: trace.renderer,
           };
-        }, targetMs),
+        }, { targetMs, legacyElapsedMs }),
       );
     }
     console.log(JSON.stringify({ observations }));
