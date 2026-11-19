@@ -26,3 +26,4 @@ native/windows-capture/tools/**/*.obj
 # Packaged app staging and output
 /apps/desktop/build/
 /apps/desktop/release/
+/apps/desktop/release-installer/
