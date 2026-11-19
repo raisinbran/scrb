@@ -1,4 +1,4 @@
-### A-831 — 2026-11-18 — W2 CI rejected literal regex indentation
+### A-845 — 2026-11-18 — W2 CI rejected literal regex indentation
 
 - **Status / attribution:** Confirmed agent implementation error; no product defect.
 - **What failed:** The focused installer test used repeated literal spaces in regexes, triggering ESLint `no-regex-spaces` on both CI platforms.
