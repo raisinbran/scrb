@@ -30,6 +30,16 @@ win:
   target:
     - target: dir
       arch: x64
+    - target: nsis
+      arch: x64
   extraResources:
     - from: build/win-stage/bin
       to: bin
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  deleteAppDataOnUninstall: false
+  createStartMenuShortcut: true
+  createDesktopShortcut: false
+  runAfterFinish: false
