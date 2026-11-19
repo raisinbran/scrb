@@ -50,11 +50,12 @@ export const SHERPA_COMMIT = 'af2d8d81dbfa61c4cea4c568da78f3982edca005';
 
 const MSVC_RUNTIME = /^(msvcp|vcruntime|vcomp)\d.*\.dll$/i;
 const API_SET = /^(api|ext)-ms-win-.*\.dll$/i;
+export const CAPTURE_COMPILE_FLAGS = '/O2 /MD /std:c++17';
 
-const digest = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+export const digest = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const key = (name) => name.toLowerCase();
 
-function digestSourceTree(directory) {
+export function digestSourceTree(directory) {
   const files = [];
   const visit = (current) => {
     for (const name of readdirSync(current).sort()) {
@@ -372,10 +373,65 @@ function sha256Matches(file, expected, label) {
   return actual;
 }
 
-function gitHead(directory) {
+export function gitHead(directory) {
   return execFileSync('git', ['-C', directory, 'rev-parse', '--verify', 'HEAD'], {
     encoding: 'utf8',
   }).trim();
+}
+
+export function createCaptureBuildManifest({
+  repositoryHead,
+  sourceFileCommit,
+  captureBinary,
+  captureSource,
+  buildScript,
+  opusSourceCommit,
+  opusLibrary,
+}) {
+  return {
+    schemaVersion: 1,
+    generatedAtUtc: new Date().toISOString(),
+    repositoryHeadAtBuild: repositoryHead,
+    sourceFileCommit,
+    sourceTreeSha256: digestSourceTree(captureSource),
+    captureBinarySha256: digest(captureBinary),
+    buildScriptSha256: digest(buildScript),
+    opusSourceCommit,
+    opusLibrarySha256: digest(opusLibrary),
+    compileFlags: CAPTURE_COMPILE_FLAGS,
+  };
+}
+
+export function validateCaptureBuildManifest(
+  manifest,
+  { captureBinary, captureSource, buildScript, sourceFileCommit, opusSourceCommit, opusLibrary },
+) {
+  if (!manifest || manifest.schemaVersion !== 1) {
+    throw new Error('capture build manifest is missing or has an unsupported schema');
+  }
+  const expected = {
+    sourceFileCommit,
+    sourceTreeSha256: digestSourceTree(captureSource),
+    captureBinarySha256: digest(captureBinary),
+    buildScriptSha256: digest(buildScript),
+    opusSourceCommit,
+    opusLibrarySha256: digest(opusLibrary),
+    compileFlags: CAPTURE_COMPILE_FLAGS,
+  };
+  for (const [field, value] of Object.entries(expected)) {
+    if (manifest[field] !== value) {
+      throw new Error(`capture build manifest ${field} does not match the current build inputs`);
+    }
+  }
+  return manifest;
+}
+
+function sourceFileCommit(repo) {
+  return execFileSync(
+    'git',
+    ['-C', repo, 'log', '-1', '--format=%H', '--', 'native/windows-capture/src/main.cpp'],
+    { encoding: 'utf8' },
+  ).trim();
 }
 
 function dumpbinInspector(dumpbin) {
@@ -505,19 +561,26 @@ function main() {
     if (!existsSync(opusLibrary) || !statSync(opusLibrary).isFile()) {
       throw new Error(`capture helper is missing its built libopus input: ${opusLibrary}`);
     }
+    const buildManifestPath = path.join(captureSource, 'build', 'capture-build-manifest.json');
+    if (!existsSync(buildManifestPath)) {
+      throw new Error(`capture helper build manifest is missing: ${buildManifestPath}`);
+    }
+    const buildManifest = validateCaptureBuildManifest(
+      JSON.parse(readFileSync(buildManifestPath, 'utf8')),
+      {
+        captureBinary: captureBin,
+        captureSource: captureSrc,
+        buildScript: path.join(captureSource, 'build.cmd'),
+        sourceFileCommit: sourceFileCommit(repo),
+        opusSourceCommit: opusCommit,
+        opusLibrary,
+      },
+    );
     captureProvenance = {
       architecture,
-      sourceCommit: gitHead(repo),
-      sourceFileCommit: execFileSync(
-        'git',
-        ['-C', repo, 'log', '-1', '--format=%H', '--', 'native/windows-capture/src/main.cpp'],
-        { encoding: 'utf8' },
-      ).trim(),
-      sourceTreeSha256: digestSourceTree(captureSrc),
-      opusSourceCommit: opusCommit,
-      opusLibrarySha256: digest(opusLibrary),
+      ...buildManifest,
+      buildManifestSha256: digest(buildManifestPath),
       runtimePolicy: 'MSVC /MD; required runtime DLLs are staged only by pinned SHA-256',
-      compileFlags: '/O2 /MD /std:c++17',
     };
   }
 
