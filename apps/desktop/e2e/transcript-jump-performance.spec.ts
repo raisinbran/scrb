@@ -98,7 +98,7 @@ test('distant jumps in the synthetic 8-hour transcript finish promptly', async (
     const observations: {
       targetMs: number;
       elapsedMs: number;
-      renderer?: RendererJumpMetrics;
+      renderer: RendererJumpMetrics | undefined;
     }[] = [];
     for (const targetMs of [30, 59, 242, 470].map((minutes) => minutes * 60_000)) {
       await slider.evaluate((input, value) => {
