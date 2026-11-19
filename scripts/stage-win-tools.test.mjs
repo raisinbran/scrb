@@ -5,10 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   CAPTURE_TOOL,
+  createCaptureBuildManifest,
   parseDumpbinArchitecture,
   parseDumpbinDependencies,
   REQUIRED_TOOLS,
   stageWindowsTools,
+  validateCaptureBuildManifest,
 } from './stage-win-tools.mjs';
 
 const temporary = [];
@@ -78,6 +80,33 @@ function fixture() {
   };
 }
 
+function captureBuildFixture() {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'scrb-capture-build-manifest-'));
+  temporary.push(root);
+  const captureSource = path.join(root, 'capture-src');
+  const opusSource = path.join(root, 'opus-src');
+  mkdirSync(captureSource);
+  mkdirSync(opusSource);
+  const captureBinary = path.join(root, CAPTURE_TOOL);
+  const buildScript = path.join(root, 'build.cmd');
+  const opusLibrary = path.join(root, 'opus.lib');
+  writeFileSync(path.join(captureSource, 'main.cpp'), 'capture source v1');
+  writeFileSync(captureBinary, 'capture binary v1');
+  writeFileSync(buildScript, 'cl /O2 /MD /std:c++17');
+  writeFileSync(opusLibrary, 'opus library v1');
+  const commits = { repositoryHead: 'a'.repeat(40), sourceFileCommit: 'b'.repeat(40) };
+  const opusSourceCommit = 'c'.repeat(40);
+  const manifest = createCaptureBuildManifest({
+    ...commits,
+    captureBinary,
+    captureSource,
+    buildScript,
+    opusSourceCommit,
+    opusLibrary,
+  });
+  return { captureBinary, captureSource, buildScript, opusSourceCommit, opusLibrary, manifest };
+}
+
 describe('stage-win-tools', () => {
   it('parses DLL imports from dumpbin output', () => {
     expect(
@@ -91,6 +120,60 @@ describe('stage-win-tools', () => {
     expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  8664 machine (x64)\r\n')).toBe('x64');
     expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  14c machine (x86)\r\n')).toBe('x86');
     expect(parseDumpbinArchitecture('no machine header')).toBeUndefined();
+  });
+
+  it('accepts a capture helper only when the binary and current build inputs match its manifest', () => {
+    const config = captureBuildFixture();
+    expect(
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toEqual(config.manifest);
+
+    writeFileSync(path.join(config.captureSource, 'main.cpp'), 'capture source v2');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/sourceTreeSha256 does not match/);
+  });
+
+  it('rejects a capture binary or libopus input changed after the attested build', () => {
+    const config = captureBuildFixture();
+    writeFileSync(config.captureBinary, 'stale or replaced capture binary');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/captureBinarySha256 does not match/);
+
+    writeFileSync(config.captureBinary, 'capture binary v1');
+    writeFileSync(config.opusLibrary, 'different opus library');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/opusLibrarySha256 does not match/);
   });
 
   it('copies six tools and recursively stages their non-system DLLs and notices', () => {
