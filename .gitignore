@@ -27,3 +27,4 @@ native/windows-capture/tools/**/*.obj
 /apps/desktop/build/
 /apps/desktop/release/
 /apps/desktop/release-installer/
+/apps/desktop/release-installer-build-*/

@@ -13,7 +13,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $appDir = Join-Path $repo 'apps\desktop'
-$outputDir = Join-Path $appDir 'release-installer'
+$outputFolder = "release-installer-build-$([guid]::NewGuid().ToString('N'))"
+$outputDir = Join-Path $appDir $outputFolder
 $staging = [IO.Path]::GetFullPath($StagingDirectory)
 $prepackaged = [IO.Path]::GetFullPath($PrepackagedDirectory)
 $output = [IO.Path]::GetFullPath($outputDir)
@@ -30,6 +31,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $prepackaged 'Scribe.exe') -PathType
 if ($prepackaged.StartsWith($output + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Prepackaged input must be outside release-installer output'
 }
+if (Test-Path -LiteralPath $output) {
+    throw "Refusing to reuse pre-existing installer output directory: $output"
+}
+New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null
 
 $nodeVersion = (& node --version).Trim()
 if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v22\.') {
@@ -60,7 +65,7 @@ if (-not (Test-Path -LiteralPath $BuilderCli -PathType Leaf)) {
 
 Push-Location $appDir
 try {
-    & node $BuilderCli --win nsis --x64 --publish never --prepackaged $prepackaged '--config.directories.output=release-installer'
+    & node $BuilderCli --win nsis --x64 --publish never --prepackaged $prepackaged "--config.directories.output=$outputFolder"
     if ($LASTEXITCODE -ne 0) { throw 'electron-builder NSIS packaging failed' }
 } finally {
     Pop-Location

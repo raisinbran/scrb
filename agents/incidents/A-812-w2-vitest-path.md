@@ -1,4 +1,4 @@
-### A-800 — 2026-11-18 — focused W2 test invoked through a nonexistent path
+### A-812 — 2026-11-18 — focused W2 test invoked through a nonexistent path
 
 - **Status / attribution:** Confirmed agent command error; no product defect.
 - **What failed:** I tried to invoke Vitest from `apps/desktop/node_modules/vitest/vitest.mjs`, but this workspace installs dependencies at the repository root.

@@ -35,4 +35,11 @@ describe('per-user Windows installer configuration', () => {
     expect(script).toContain('[IO.Path]::GetFullPath($BuilderCli)');
     expect(script).not.toMatch(/Start-Process|Invoke-Expression|Remove-Item/);
   });
+
+  it('builds into a fresh per-run directory and refuses stale output', () => {
+    expect(script).toContain("release-installer-build-$([guid]::NewGuid().ToString('N'))");
+    expect(script).toContain('Refusing to reuse pre-existing installer output directory');
+    expect(script).toContain('New-Item -ItemType Directory -Path $output');
+    expect(script).toContain('"--config.directories.output=$outputFolder"');
+  });
 });

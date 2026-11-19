@@ -1,4 +1,4 @@
-### A-801 — 2026-11-18 — focused W2 test blocked by Vitest token permissions
+### A-813 — 2026-11-18 — focused W2 test blocked by Vitest token permissions
 
 - **Status / attribution:** Confirmed setup error; no product defect.
 - **What failed:** The first focused Vitest invocation could not create its API token in the sandbox.

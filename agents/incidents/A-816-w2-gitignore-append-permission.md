@@ -1,4 +1,4 @@
-### A-804 — 2026-11-18 — generated-output ignore rule append was denied
+### A-816 — 2026-11-18 — generated-output ignore rule append was denied
 
 - **Status / attribution:** Confirmed agent command error; no source defect.
 - **What failed:** I attempted to append the installer-output ignore rule with `Add-Content`; the filesystem denied that write.
