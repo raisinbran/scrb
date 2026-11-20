@@ -35,6 +35,24 @@ describe('Tooltip', () => {
     expect(button.getAttribute('aria-describedby')).toBeNull();
   });
 
+  it('preserves an existing accessible description while hovered', () => {
+    render(
+      <>
+        <span id="start-blocked-reason">Download speech models first</span>
+        <Tooltip label="Download speech models first">
+          <button type="button" aria-describedby="start-blocked-reason">
+            Start
+          </button>
+        </Tooltip>
+      </>,
+    );
+    const button = screen.getByRole('button', { name: 'Start' });
+    fireEvent.pointerEnter(button.parentElement as HTMLElement);
+    expect(button.getAttribute('aria-describedby')).toBe(`start-blocked-reason ${tip().id}`);
+    fireEvent.pointerLeave(button.parentElement as HTMLElement);
+    expect(button.getAttribute('aria-describedby')).toBe('start-blocked-reason');
+  });
+
   it('hides immediately on leave and stays hidden until another entry', () => {
     const button = setup();
     const wrapper = button.parentElement as HTMLElement;
