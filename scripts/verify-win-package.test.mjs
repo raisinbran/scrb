@@ -47,7 +47,7 @@ function fixture(slice = 2) {
           ? {
               capture: {
                 architecture: 'x64',
-                sourceCommit: 'a'.repeat(40),
+                repositoryHeadAtBuild: 'a'.repeat(40),
                 sourceFileCommit: 'b'.repeat(40),
                 sourceTreeSha256: 'c'.repeat(64),
                 opusSourceCommit: 'd'.repeat(40),
@@ -130,6 +130,63 @@ describe('verify-win-package', () => {
     writeFileSync(packagedPath, JSON.stringify(provenance));
     expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
       /capture helper provenance is missing/,
+    );
+  });
+  it.each([
+    'repositoryHeadAtBuild',
+    'sourceFileCommit',
+    'sourceTreeSha256',
+    'opusSourceCommit',
+    'opusLibrarySha256',
+    'runtimePolicy',
+  ])('rejects slice-3 provenance missing %s', (field) => {
+    const config = fixture(3);
+    const stagedPath = path.join(config.stagingDir, 'PROVENANCE.json');
+    const provenance = JSON.parse(readFileSync(stagedPath, 'utf8'));
+    delete provenance.sources.capture[field];
+    const changed = JSON.stringify(provenance);
+    writeFileSync(stagedPath, changed);
+    writeFileSync(path.join(config.packagedDir, 'PROVENANCE.json'), changed);
+    expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
+      /capture helper provenance is missing/,
+    );
+  });
+
+  it.each([
+    ['malformed', 'invalid-revision'],
+    ['wrong-length', 'a'.repeat(39)],
+  ])('rejects %s repositoryHeadAtBuild in slice-3 provenance', (_case, identity) => {
+    const config = fixture(3);
+    const stagedPath = path.join(config.stagingDir, 'PROVENANCE.json');
+    const provenance = JSON.parse(readFileSync(stagedPath, 'utf8'));
+    provenance.sources.capture.repositoryHeadAtBuild = identity;
+    const changed = JSON.stringify(provenance);
+    writeFileSync(stagedPath, changed);
+    writeFileSync(path.join(config.packagedDir, 'PROVENANCE.json'), changed);
+    expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
+      /capture helper provenance is missing/,
+    );
+  });
+
+  it('does not accept a legacy sourceCommit in place of repositoryHeadAtBuild', () => {
+    const config = fixture(3);
+    const stagedPath = path.join(config.stagingDir, 'PROVENANCE.json');
+    const provenance = JSON.parse(readFileSync(stagedPath, 'utf8'));
+    delete provenance.sources.capture.repositoryHeadAtBuild;
+    provenance.sources.capture.sourceCommit = 'a'.repeat(40);
+    const changed = JSON.stringify(provenance);
+    writeFileSync(stagedPath, changed);
+    writeFileSync(path.join(config.packagedDir, 'PROVENANCE.json'), changed);
+    expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
+      /capture helper provenance is missing/,
+    );
+  });
+
+  it('rejects changed packaged capture-helper bytes despite valid provenance', () => {
+    const config = fixture(3);
+    writeFileSync(path.join(config.packagedDir, 'scrb-capture.exe'), 'tampered capture executable');
+    expect(() => verifyWindowsPackage({ ...config, slice: 3 })).toThrow(
+      /packaged resources\/bin hash mismatch for scrb-capture\.exe/,
     );
   });
 });

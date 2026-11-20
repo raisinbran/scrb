@@ -92,7 +92,7 @@ export function verifyWindowsPackage({ stagingDir, packagedDir, slice }) {
     if (
       !capture ||
       capture.architecture !== 'x64' ||
-      !/^[a-f0-9]{40}$/i.test(capture.sourceCommit ?? '') ||
+      !/^[a-f0-9]{40}$/i.test(capture.repositoryHeadAtBuild ?? '') ||
       !/^[a-f0-9]{40}$/i.test(capture.sourceFileCommit ?? '') ||
       !/^[a-f0-9]{64}$/i.test(capture.sourceTreeSha256 ?? '') ||
       !/^[a-f0-9]{40}$/i.test(capture.opusSourceCommit ?? '') ||
