@@ -16,14 +16,23 @@ if ($head -ne $commit) {
     git -C $src checkout -q $commit
     if ($LASTEXITCODE) { throw "libopus checkout of $commit failed (git exit $LASTEXITCODE)." }
 }
-$cmake = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
-$ninja = 'C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
+$cmake = $env:SCRB_CMAKE_EXE
+if (-not $cmake) {
+    $cmakeCommand = Get-Command cmake.exe -ErrorAction SilentlyContinue
+    if ($cmakeCommand) { $cmake = $cmakeCommand.Source }
+}
+if (-not $cmake -or -not (Test-Path -LiteralPath $cmake -PathType Leaf)) {
+    throw 'CMake is required; install Visual Studio C++ tools or set SCRB_CMAKE_EXE.'
+}
 $bld = Join-Path $root 'build\opus'
-$cfg = "call C:\BuildTools\VC\Auxiliary\Build\vcvars64.bat >nul && " +
-    "`"$cmake`" -S `"$src`" -B `"$bld`" -G Ninja -DCMAKE_MAKE_PROGRAM=`"$ninja`" -DCMAKE_BUILD_TYPE=Release " +
-    "-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_POLICY_DEFAULT_CMP0091=NEW " +
-    "-DOPUS_BUILD_SHARED_LIBRARY=OFF -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF >nul && " +
-    "`"$cmake`" --build `"$bld`""
-cmd /c $cfg
+& $cmake -S $src -B $bld -G 'Visual Studio 17 2022' -A x64 `
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
+    -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
+    -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+    -DOPUS_BUILD_SHARED_LIBRARY=OFF `
+    -DOPUS_BUILD_TESTING=OFF `
+    -DOPUS_BUILD_PROGRAMS=OFF
+if ($LASTEXITCODE) { throw "libopus configuration failed: $LASTEXITCODE" }
+& $cmake --build $bld --config Release
 if ($LASTEXITCODE) { throw "libopus build failed: $LASTEXITCODE" }
-"libopus $commit built: $bld\opus.lib"
+"libopus $commit built: $bld\Release\opus.lib"
