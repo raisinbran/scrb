@@ -222,14 +222,17 @@ describe('final pass after Stop', () => {
     });
 
     expect(
-      inputTracks.map(({ kind, source }) => ({
-        kind,
-        chunks: source.chunks.map(({ path, startMs, durationMs }) => ({
-          path,
-          startMs,
-          durationMs,
-        })),
-      })),
+      inputTracks.map(({ kind, source }) => {
+        if (!('chunks' in source)) throw new Error('Expected final-pass inputs from sealed chunks');
+        return {
+          kind,
+          chunks: source.chunks.map(({ path, startMs, durationMs }) => ({
+            path,
+            startMs,
+            durationMs,
+          })),
+        };
+      }),
     ).toEqual([
       {
         kind: 'mic',
