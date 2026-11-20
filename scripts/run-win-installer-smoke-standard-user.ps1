@@ -42,19 +42,45 @@ try {
     if ($exitCode -ne 0) { throw "Standard-user behavioral guard probe failed with exit code $exitCode" }
 
 } finally {
-    if ($account) { Remove-LocalUser -Name $userName -ErrorAction SilentlyContinue }
-    if ($sid) {
-        $profile = Get-CimInstance Win32_UserProfile -Filter "SID='$sid'" -ErrorAction SilentlyContinue
-        if ($profile -and -not $profile.Loaded) { $profile | Remove-CimInstance -ErrorAction SilentlyContinue }
-        $remainingProfile = Get-CimInstance Win32_UserProfile -Filter "SID='$sid'" -ErrorAction SilentlyContinue
-        if ($remainingProfile) { throw 'Temporary standard-user profile could not be removed safely' }
-    }
-    if (Test-Path -LiteralPath $scratch) {
-        $fullScratch = [IO.Path]::GetFullPath($scratch)
-        if (-not $fullScratch.StartsWith(($RunnerTemp.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Refusing cleanup outside RUNNER_TEMP' }
-        Remove-Item -LiteralPath $fullScratch -Recurse -Force
-    }
-    $securePassword.Dispose()
+    $cleanupFailures = [Collections.Generic.List[string]]::new()
+    try {
+        if ($userName) {
+            try {
+                $existingAccount = Get-LocalUser -Name $userName -ErrorAction SilentlyContinue
+                if ($existingAccount) { Remove-LocalUser -Name $userName -ErrorAction Stop }
+                $remainingAccount = Get-LocalUser -Name $userName -ErrorAction SilentlyContinue
+                if ($remainingAccount) { $cleanupFailures.Add('Temporary local account still exists after cleanup') }
+            } catch { $cleanupFailures.Add("Temporary local account cleanup failed: $($_.Exception.Message)") }
+        }
+    } catch { $cleanupFailures.Add("Temporary local account verification failed: $($_.Exception.Message)") }
+
+    try {
+        if ($sid) {
+            $profile = Get-CimInstance Win32_UserProfile -Filter "SID='$sid'" -ErrorAction SilentlyContinue
+            if ($profile -and $profile.Loaded) {
+                $cleanupFailures.Add('Temporary user profile is still loaded')
+            } elseif ($profile) {
+                try { $profile | Remove-CimInstance -ErrorAction Stop }
+                catch { $cleanupFailures.Add("Temporary user profile removal failed: $($_.Exception.Message)") }
+            }
+            $remainingProfile = Get-CimInstance Win32_UserProfile -Filter "SID='$sid'" -ErrorAction SilentlyContinue
+            if ($remainingProfile) { $cleanupFailures.Add('Temporary user profile still exists after cleanup') }
+        }
+    } catch { $cleanupFailures.Add("Temporary user profile verification failed: $($_.Exception.Message)") }
+
+    try {
+        if (Test-Path -LiteralPath $scratch) {
+            $fullScratch = [IO.Path]::GetFullPath($scratch)
+            if (-not $fullScratch.StartsWith(($RunnerTemp.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                throw 'Refusing cleanup outside RUNNER_TEMP'
+            }
+            Remove-Item -LiteralPath $fullScratch -Recurse -Force -ErrorAction Stop
+        }
+        if (Test-Path -LiteralPath $scratch) { $cleanupFailures.Add('Temporary scratch directory still exists after cleanup') }
+    } catch { $cleanupFailures.Add("Temporary scratch cleanup failed: $($_.Exception.Message)") }
+
+    if ($securePassword) { $securePassword.Dispose() }
+    if ($cleanupFailures.Count -gt 0) { throw ('Cleanup failed: ' + ($cleanupFailures -join '; ')) }
 }
 if ($exitCode -ne 0) { exit $exitCode }
 Write-Output 'Disposable hosted standard-user bootstrap and behavioral checks PASS'
