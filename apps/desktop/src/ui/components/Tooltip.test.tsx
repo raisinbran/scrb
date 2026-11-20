@@ -1,6 +1,6 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Tooltip, TOOLTIP_DELAY_MS } from './Tooltip.tsx';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Tooltip } from './Tooltip.tsx';
 
 function setup() {
   render(
@@ -13,19 +13,15 @@ function setup() {
 const tip = () => document.querySelector('[role="tooltip"]') as HTMLElement;
 
 describe('Tooltip', () => {
-  beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('shows after the hover delay, not before', () => {
+  it('shows immediately on pointer enter without a timer', () => {
     const button = setup();
     fireEvent.pointerEnter(button.parentElement as HTMLElement);
-    act(() => void vi.advanceTimersByTime(TOOLTIP_DELAY_MS - 1));
-    expect(tip().dataset.open).toBeUndefined();
-    act(() => void vi.advanceTimersByTime(1));
     expect(tip().dataset.open).toBe('true');
     expect(button.getAttribute('aria-describedby')).toBe(tip().id);
   });
@@ -39,13 +35,16 @@ describe('Tooltip', () => {
     expect(button.getAttribute('aria-describedby')).toBeNull();
   });
 
-  it('hides on leave and cancels a pending show', () => {
+  it('hides immediately on leave and stays hidden until another entry', () => {
     const button = setup();
     const wrapper = button.parentElement as HTMLElement;
     fireEvent.pointerEnter(wrapper);
+    expect(tip().dataset.open).toBe('true');
     fireEvent.pointerLeave(wrapper);
-    act(() => void vi.advanceTimersByTime(1000));
     expect(tip().dataset.open).toBeUndefined();
+    expect(button.getAttribute('aria-describedby')).toBeNull();
+    fireEvent.pointerEnter(wrapper);
+    expect(tip().dataset.open).toBe('true');
   });
 
   it('keeps a bottom-left tooltip inside the viewport by placing it above the control', () => {
