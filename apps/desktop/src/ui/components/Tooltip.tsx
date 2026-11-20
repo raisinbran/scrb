@@ -10,9 +10,6 @@ import {
 import { createPortal } from 'react-dom';
 import styles from './Tooltip.module.css';
 
-/** Pointer hover waits this long; keyboard focus shows the tip at once. */
-export const TOOLTIP_DELAY_MS = 100;
-
 interface Point {
   x: number;
   y: number;
@@ -35,12 +32,8 @@ export function Tooltip({
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
   const tip = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const hide = useCallback(() => {
-    clearTimeout(timer.current);
-    setOpen(false);
-  }, []);
+  const hide = useCallback(() => setOpen(false), []);
   const show = useCallback(() => {
     const box = wrapper.current?.getBoundingClientRect();
     const tipBox = tip.current?.getBoundingClientRect();
@@ -67,7 +60,6 @@ export function Tooltip({
     setOpen(true);
   }, [label]);
 
-  useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -90,7 +82,6 @@ export function Tooltip({
     const keyboard = !pressed.current;
     pressed.current = false;
     if (keyboard) {
-      clearTimeout(timer.current);
       show();
     }
   };
@@ -99,10 +90,7 @@ export function Tooltip({
     <span
       ref={wrapper}
       className={styles.wrapper}
-      onPointerEnter={() => {
-        clearTimeout(timer.current);
-        timer.current = setTimeout(show, TOOLTIP_DELAY_MS);
-      }}
+      onPointerEnter={show}
       onPointerLeave={hide}
       onPointerDown={() => {
         pressed.current = true;
