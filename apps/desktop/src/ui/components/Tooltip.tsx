@@ -86,6 +86,10 @@ export function Tooltip({
     }
   };
 
+  // Keep the control's existing description (e.g., why Start is disabled) when the tip opens.
+  const originalDescription = children.props['aria-describedby'];
+  const activeDescription = [originalDescription, id].filter(Boolean).join(' ');
+
   return (
     <span
       ref={wrapper}
@@ -102,7 +106,7 @@ export function Tooltip({
       onFocus={onFocus}
       onBlur={hide}
     >
-      {cloneElement(children, open ? { 'aria-describedby': id } : {})}
+      {cloneElement(children, open ? { 'aria-describedby': activeDescription } : {})}
       {createPortal(
         <span
           ref={tip}
