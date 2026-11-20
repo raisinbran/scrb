@@ -1,0 +1,37 @@
+name: Windows installer smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-installer-smoke.yml'
+      - 'scripts/run-win-installer-smoke-standard-user.ps1'
+      - 'scripts/test-win-installer-smoke-guards.ps1'
+      - 'scripts/test-win-installer-smoke.ps1'
+      - 'scripts/win-installer-smoke-guards.psm1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-standard-user-guards:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap a disposable standard user and execute behavioral guards
+        shell: pwsh
+        run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
+      - name: Report installer delivery and test scope
+        if: always()
+        shell: pwsh
+        run: |
+          @'
+          ## Windows installer smoke status
+
+          - Hosted disposable standard-user bootstrap and executable identity, hash, path-containment, and cleanup guards: see the preceding job step.
+          - Actual installer install/uninstall and shortcut-target checks: **NOT VERIFIED**. The exact candidate is not available through an agent-owned private artifact producer or transfer channel.
+          - Installer integrity and five-model handover: **OWNER VERIFIED; NOT RETESTED**.
+          - Scribe launch, real recording, and transcript checks: **NOT TESTED**.
+          '@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
