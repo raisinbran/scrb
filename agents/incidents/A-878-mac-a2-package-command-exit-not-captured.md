@@ -1,4 +1,4 @@
-### A-872 — 2026-11-19 — Mac A2 packaging command exit status and raw log not preserved
+### A-878 — 2026-11-19 — Mac A2 packaging command exit status and raw log not preserved
 
 - **Status / attribution:** Confirmed reporting/evidence-capture omission; no application or installation impact.
 - **What failed:** The packaging command emitted its final “Built and verified” line, but the terminal session ended before its process exit code was captured. The full raw build output was not redirected to a durable log.
