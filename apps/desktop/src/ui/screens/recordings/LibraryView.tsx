@@ -46,11 +46,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
         </span>
         <span className={styles.badges}>
           {meeting.origin === 'imported' && <span className={styles.badge}>Imported</span>}
-          {status && (
-            <span className={styles.badgeStrong}>
-              {status}
-            </span>
-          )}
+          {status && <span className={styles.badgeStrong}>{status}</span>}
           {meeting.status === 'finalPassRunning' && (
             <span className={styles.muted}>Text will change</span>
           )}
