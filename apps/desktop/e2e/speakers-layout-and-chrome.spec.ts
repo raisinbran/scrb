@@ -323,7 +323,24 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       await info.hover();
       const infoHover = await info.evaluate((element) => getComputedStyle(element).backgroundColor);
       expect(infoHover).toBe(hoverToken);
-      await expect(page.locator('[role="tooltip"][data-open="true"]')).toHaveCount(1);
+      const openTip = page.locator('[role="tooltip"][data-open="true"]');
+      await expect(openTip).toHaveCount(1);
+      const tipColors = await openTip.evaluate((node) => {
+        const tip = getComputedStyle(node);
+        const sample = document.createElement('span');
+        sample.style.backgroundColor = 'var(--color-surface-raised)';
+        sample.style.color = 'var(--color-text)';
+        sample.style.borderColor = 'var(--color-border)';
+        document.body.append(sample);
+        const tokens = getComputedStyle(sample);
+        const result = {
+          actual: [tip.backgroundColor, tip.color, tip.borderTopColor],
+          expected: [tokens.backgroundColor, tokens.color, tokens.borderTopColor],
+        };
+        sample.remove();
+        return result;
+      });
+      expect(tipColors.actual).toEqual(tipColors.expected);
       await page.screenshot({
         path: join(evidenceDir, `after-info-hover-${theme.toLowerCase()}.png`),
       });
