@@ -8,11 +8,11 @@ Source of truth: tokens in `apps/desktop/src/ui/theme/tokens.css`, shared pieces
 
 Checked against `origin/main` (60a58d67) on 2026-11-15. Statements below say which is which; a sentence marked **Pending** describes an open PR and is not on main until it merges.
 
-**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms, themed), PopupLayer/PopupBanner (as a sticky zero-height layer; today it is not yet anchored to each panel, see Pending), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating, equaliser bars, Hide as a minimise-dash button immediately left of Open Scribe, no expand toggle, and the warning flag with its tooltip (PR #305, merged); MicTest and LevelMeters on Live.
+**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (no hover wait, themed), PopupLayer/PopupBanner (as a sticky zero-height layer; today it is not yet anchored to each panel, see Pending), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating, equaliser bars, Hide as a minimise-dash button immediately left of Open Scribe, no expand toggle, and the warning flag with its tooltip (PR #305, merged); MicTest and LevelMeters on Live.
 
 **Pending (open PRs):** #288 (meters beside pickers under "Levels", Test mic in Settings above Preset, fixed 220px sensitivity bar); #315 (mic test meter and spacing, "Levels" gap, banners placed inside the panel they belong to).
 
-**Owner rules not yet fully in code:** panel-anchored banners (the rule is firm, the code is pending #315), the mic-test meter and spacing, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip`; remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
+**Owner rules not yet fully in code:** panel-anchored banners (the rule is firm, the code is pending #315), the mic-test meter and spacing, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip` (also immediate and themed, pending component consolidation); remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
 
 ## 1. How to use this guide (short version)
 
@@ -181,7 +181,7 @@ Variants: `secondary` (default, bordered, transparent), `primary` (accent fill, 
 
 ### Tooltip (`components/Tooltip.tsx`)
 
-Wraps one control. Shows after 100ms hover, instantly on keyboard focus, 120ms fade, hides on leave, blur, Escape or click. Themed (raised surface, border, `--text-xs`). Max 240px; `\n` makes a line break. Use it for: icon-only names, why a control is disabled or locked ("Set by Studio"), short explanations that replace a permanent paragraph. Never put essential information only in a tooltip: the control must still be usable and named without it. Do not use the `title` attribute for tips.
+Wraps one control. Opens without a hover delay, instantly on keyboard focus, then fades in and out over 80ms; hides on leave, blur, Escape or click. Themed (raised surface, border, `--text-xs`) using the resolved Light/Dark/System color tokens. Existing accessible descriptions are preserved when the tooltip is open. Max 240px; `\n` makes a line break. Use it for: icon-only names, why a control is disabled or locked ("Set by Studio"), short explanations that replace a permanent paragraph. Never put essential information only in a tooltip: the control must still be usable and named without it. Do not use the `title` attribute for tips.
 
 ### PopupLayer and PopupBanner (`components/PopupBanner.tsx`)
 
