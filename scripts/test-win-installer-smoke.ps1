@@ -12,6 +12,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$guardsModule = Join-Path $PSScriptRoot 'win-installer-smoke-guards.psm1'
+if (-not (Test-Path -LiteralPath $guardsModule -PathType Leaf)) {
+    $guardsModule = Join-Path $PSScriptRoot '..\scripts\win-installer-smoke-guards.psm1'
+}
+Import-Module $guardsModule -Force
 $expectedInstallerBytes = 131037432
 $expectedInstallerSha256 = 'ec5c1ecd5207d44049d7b7dc065b2da7deb607497f04b7ca12488e78e37718d6'
 $expectedApplicationSha256 = '31817c8b75c860fa36ddd0055677d5cbd374f4a564fa02097ccc77449993ae31'
@@ -40,12 +45,8 @@ $failure = $null
 $uninstallExe = $null
 
 function Assert-Within([string]$Child, [string]$Parent, [string]$Label) {
-    $childFull = [IO.Path]::GetFullPath($Child).TrimEnd([IO.Path]::DirectorySeparatorChar)
-    $parentFull = [IO.Path]::GetFullPath($Parent).TrimEnd([IO.Path]::DirectorySeparatorChar)
-    $prefix = $parentFull + [IO.Path]::DirectorySeparatorChar
-    if (-not $childFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "$Label is outside its disposable parent"
-    }
+    try { [void](Get-SmokeChildPath -Path $Child -Parent $Parent) }
+    catch { throw "$Label is outside its disposable parent" }
 }
 
 function Assert-TimeRemaining {
@@ -105,28 +106,15 @@ try {
     if (-not $env:RUNNER_TEMP -or -not $env:APPDATA -or -not $env:USERPROFILE) {
         throw 'Required GitHub runner and user-profile roots are unavailable'
     }
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    if ($identity.IsSystem -or $identity.Name -match 'CodexSandboxOffline' -or
-        $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw 'Refusing a system, restricted Codex, or elevated identity'
-    }
+    [void](Assert-SmokeIdentity)
     $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
     $profile = [IO.Path]::GetFullPath($env:USERPROFILE)
     $appData = [IO.Path]::GetFullPath($env:APPDATA)
     Assert-Within $appData $profile 'Roaming user-data root'
     $stepStatuses.runnerEligibility = 'PASS'
 
-    $installer = [IO.Path]::GetFullPath($InstallerPath)
-    Assert-Within $installer (Join-Path $runnerTemp 'scribe-installer-artifact') 'Installer artifact'
-    if ([IO.Path]::GetFileName($installer) -cne $expectedInstallerName -or
-        -not (Test-Path -LiteralPath $installer -PathType Leaf)) {
-        throw "Expected $expectedInstallerName in the downloaded artifact"
-    }
-    $installerInfo = Get-Item -LiteralPath $installer
-    if ($installerInfo.Length -ne $expectedInstallerBytes) { throw 'Installer byte size does not match the pinned candidate' }
-    $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($installerHash -cne $expectedInstallerSha256) { throw 'Installer SHA-256 does not match the pinned candidate' }
+    $installerParent = Join-Path $runnerTemp 'scribe-installer-artifact'
+    $installer = Assert-SmokeArtifact -Path $InstallerPath -Parent $installerParent -ExpectedName $expectedInstallerName -ExpectedBytes $expectedInstallerBytes -ExpectedSha256 $expectedInstallerSha256
     $stepStatuses.installerIntegrity = 'PASS'
 
     $userDataRoot = Join-Path $appData '@scrb\desktop'
@@ -168,6 +156,11 @@ try {
     $stepStatuses.perUserInstall = 'PASS'
 
     if (-not (Test-Path -LiteralPath $shortcutPath -PathType Leaf)) { throw 'Scribe Start Menu shortcut was not created' }
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcutTarget = [IO.Path]::GetFullPath($shell.CreateShortcut($shortcutPath).TargetPath)
+    if (-not [string]::Equals($shortcutTarget, [IO.Path]::GetFullPath($appExe), [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Scribe Start Menu shortcut does not target the installed Scribe.exe'
+    }
     $stepStatuses.startMenuShortcut = 'PASS'
 
     Invoke-BoundedProcess $uninstallExe @('/S') 'Per-user uninstaller'

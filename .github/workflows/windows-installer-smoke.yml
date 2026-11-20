@@ -1,84 +1,37 @@
 name: Windows installer smoke
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-installer-smoke.yml'
+      - 'scripts/run-win-installer-smoke-standard-user.ps1'
+      - 'scripts/test-win-installer-smoke-guards.ps1'
+      - 'scripts/test-win-installer-smoke.ps1'
+      - 'scripts/win-installer-smoke-guards.psm1'
   workflow_dispatch:
-    inputs:
-      artifact_run_id:
-        description: Run ID containing the scribe-windows-installer artifact
-        required: true
-        type: string
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
-  install-smoke:
+  hosted-standard-user-guards:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Validate artifact run ID
+      - name: Bootstrap a disposable standard user and execute behavioral guards
         shell: pwsh
-        env:
-          ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
-        run: |
-          if ($env:ARTIFACT_RUN_ID -notmatch '^\d+$') { throw 'Artifact run ID must be numeric' }
-      - name: Download the pinned installer artifact
-        id: download_installer
-        uses: actions/download-artifact@v4
-        with:
-          name: scribe-windows-installer
-          path: ${{ runner.temp }}\scribe-installer-artifact
-          run-id: ${{ inputs.artifact_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install, verify shortcut, uninstall, and check synthetic data preservation
-        id: run_smoke
-        shell: pwsh
-        env:
-          INSTALLER_PATH: ${{ runner.temp }}\scribe-installer-artifact\Scribe Setup 0.1.0.exe
-        run: ./scripts/test-win-installer-smoke.ps1 -InstallerPath $env:INSTALLER_PATH
-      - name: Write a machine-readable blocked summary if the smoke did not start
+        run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
+      - name: Report installer delivery and test scope
         if: always()
         shell: pwsh
-        env:
-          DOWNLOAD_OUTCOME: ${{ steps.download_installer.outcome }}
-          SMOKE_OUTCOME: ${{ steps.run_smoke.outcome }}
         run: |
-          $summaryPath = Join-Path $env:RUNNER_TEMP 'scribe-installer-smoke-summary.json'
-          if (-not (Test-Path -LiteralPath $summaryPath)) {
-            $summary = [ordered]@{
-              schemaVersion = 1
-              result = 'NOT VERIFIED'
-              canExecuteAutonomously = $false
-              a2Integrity = 'NOT VERIFIED'
-              modelHandover = @{
-                status = 'OWNER VERIFIED; NOT RETESTED'
-                manifestSha256 = '30f854def12121d612a4089c4a0b009c03983d3e22c100251f8d8a3e47d282b6'
-              }
-              isolatedInstallUninstall = 'NOT VERIFIED'
-              sourceCommit = '73e899d0a45234617b9fbc81cf8f599747ec652b'
-              runnerEnvironment = $env:RUNNER_ENVIRONMENT
-              steps = [ordered]@{
-                runnerEligibility = 'NOT VERIFIED'
-                installerIntegrity = 'NOT VERIFIED'
-                applicationExecutableIntegrity = 'NOT VERIFIED'
-                perUserInstall = 'NOT VERIFIED'
-                startMenuShortcut = 'NOT VERIFIED'
-                uninstall = 'NOT VERIFIED'
-                syntheticUserDataPreserved = 'NOT VERIFIED'
-                twoTrackRealCapture = 'NOT TESTED'
-                finalTranscriptSeekCopy = 'NOT TESTED'
-                cleanup = 'NOT VERIFIED'
-              }
-              elapsedSeconds = $null
-              failure = "Smoke did not produce a report; artifact download: $env:DOWNLOAD_OUTCOME; smoke step: $env:SMOKE_OUTCOME"
-              blocker = 'The workflow artifact or smoke step was unavailable'
-              scribeLaunched = $false
-              recordingTested = $false
-              securityPolicyChanged = $false
-            }
-            $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
-          }
-          Get-Content -LiteralPath $summaryPath -Raw | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          @'
+          ## Windows installer smoke status
+
+          - Hosted disposable standard-user bootstrap and executable identity, hash, path-containment, and cleanup guards: see the preceding job step.
+          - Actual installer install/uninstall and shortcut-target checks: **NOT VERIFIED**. The exact candidate is not available through an agent-owned private artifact producer or transfer channel.
+          - Installer integrity and five-model handover: **OWNER VERIFIED; NOT RETESTED**.
+          - Scribe launch, real recording, and transcript checks: **NOT TESTED**.
+          '@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
