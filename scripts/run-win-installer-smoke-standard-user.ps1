@@ -11,7 +11,7 @@ $runnerRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
 if (-not [string]::Equals($RunnerTemp.TrimEnd('\'), $runnerRoot.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Bootstrap workspace must be exactly RUNNER_TEMP' }
 
 $suffix = [guid]::NewGuid().ToString('N').Substring(0, 12)
-$userName = "scribe-smoke-$suffix"
+$userName = "s-smk-$suffix"
 $scratch = Join-Path $RunnerTemp 'standard-user-test'
 $securePassword = ConvertTo-SecureString ([guid]::NewGuid().ToString('N') + 'aA1!') -AsPlainText -Force
 $account = $null
