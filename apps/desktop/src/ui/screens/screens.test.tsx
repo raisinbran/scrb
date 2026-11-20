@@ -283,7 +283,7 @@ describe('screens', () => {
   });
 
   describe('Settings', () => {
-    it('groups profile-controlled settings before the other audio and microphone controls', async () => {
+    it('positions Test mic above Input Profile and groups controls beneath it', async () => {
       renderScreen(backend, <SettingsScreen />);
       const section = await screen.findByRole('region', { name: 'Audio' });
       const profile = within(section).getByRole('group', { name: /^Input Profile/ });
@@ -292,7 +292,14 @@ describe('screens', () => {
       expect(within(profile).getByRole('radio', { name: /^Custom/ })).toBeTruthy();
       expect(within(profile).getByRole('button', { name: 'About presets' })).toBeTruthy();
 
+      const testMic = within(section).getByRole('button', { name: 'Test mic' });
+      const micMeter = within(section).getByRole('meter', { name: 'Mic level' });
+      expect(testMic.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(testMic.compareDocumentPosition(micMeter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(section).queryByRole('meter', { name: 'Meeting level' })).toBeNull();
+
       const ordered = [
+        testMic,
         profile,
         within(section).getByRole('combobox', { name: 'Noise suppression' }),
         within(section).getByRole('checkbox', { name: /Echo cancellation/ }),
@@ -304,7 +311,6 @@ describe('screens', () => {
         within(section).getByRole('checkbox', { name: /Audio device suggestions/ }),
         within(section).getByRole('combobox', { name: 'Microphone' }),
         within(section).getByRole('combobox', { name: 'Meeting app' }),
-        within(section).getByRole('button', { name: 'Test mic' }),
       ];
       for (let index = 0; index < ordered.length - 1; index++) {
         expect(
