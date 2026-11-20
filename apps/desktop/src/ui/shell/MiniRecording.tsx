@@ -252,7 +252,7 @@ export function MiniRecording() {
         </span>
         {/* One fixed-height slot: a warning takes it over, so the row above never moves. */}
         {warning ? (
-          <span className={styles.slot} data-kind="warning" title={warning}>
+          <span className={styles.slot} data-kind="warning">
             {warning}
           </span>
         ) : (
