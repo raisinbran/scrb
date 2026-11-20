@@ -7,11 +7,7 @@ export const PLAYING_LABEL = 'Playing audio';
 export function PlayingIndicator({ className }: { className?: string | undefined }) {
   return (
     <Tooltip label={PLAYING_LABEL}>
-      <span
-        role="img"
-        aria-label={PLAYING_LABEL}
-        className={`${styles.bars} ${className ?? ''}`}
-      >
+      <span role="img" aria-label={PLAYING_LABEL} className={`${styles.bars} ${className ?? ''}`}>
         <span className={styles.bar} />
         <span className={styles.bar} />
         <span className={styles.bar} />
