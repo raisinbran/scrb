@@ -221,14 +221,16 @@ describe('final pass after Stop', () => {
       return TRANSCRIPT;
     });
 
-    expect(inputTracks.map(({ kind, source }) => ({
-      kind,
-      chunks: source.chunks.map(({ path, startMs, durationMs }) => ({
-        path,
-        startMs,
-        durationMs,
+    expect(
+      inputTracks.map(({ kind, source }) => ({
+        kind,
+        chunks: source.chunks.map(({ path, startMs, durationMs }) => ({
+          path,
+          startMs,
+          durationMs,
+        })),
       })),
-    }))).toEqual([
+    ).toEqual([
       {
         kind: 'mic',
         chunks: [{ path: join(audio, 'microphone', '000001.opus'), startMs: 0, durationMs: 2000 }],
