@@ -449,6 +449,30 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       await expect(
         page.locator('[role="tooltip"]').filter({ hasText: 'Settings' }),
       ).toHaveAttribute('data-open', 'true');
+
+      // Suppressing pointer-only outlines must not obscure keyboard focus on either selector.
+      for (const target of [
+        unselected.button,
+        page.getByRole('button', { name: 'Live', exact: true }),
+      ]) {
+        await focusByTab(page, target);
+        await expect(target).toBeFocused();
+        const keyboardFocus = await target.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            focusVisible: element.matches(':focus-visible'),
+            outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            outlineOffset: style.outlineOffset,
+          };
+        });
+        expect(keyboardFocus).toEqual({
+          focusVisible: true,
+          outlineStyle: 'solid',
+          outlineWidth: '2px',
+          outlineOffset: '2px',
+        });
+      }
     }
 
     await page.getByRole('button', { name: 'Live', exact: true }).click();
