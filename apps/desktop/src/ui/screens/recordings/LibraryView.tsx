@@ -47,14 +47,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
         <span className={styles.badges}>
           {meeting.origin === 'imported' && <span className={styles.badge}>Imported</span>}
           {status && (
-            <span
-              className={styles.badgeStrong}
-              title={
-                meeting.status === 'finalPassRunning'
-                  ? 'The transcript is provisional and will change.'
-                  : undefined
-              }
-            >
+            <span className={styles.badgeStrong}>
               {status}
             </span>
           )}
