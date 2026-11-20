@@ -248,6 +248,60 @@ test('keeps populated voice-profile actions inside their card at 900px', async (
   }
 });
 
+test('places Live meters beside the source pickers and Settings Test mic above Input Profile', async () => {
+  const { app, page } = await openMockApp(testUserData('scrb-audio-layout-'));
+  try {
+    const micPicker = page.getByRole('combobox', { name: 'Microphone', exact: true });
+    const meetingPicker = page.getByRole('combobox', { name: 'Meeting app', exact: true });
+    const micMeter = page.getByRole('meter', { name: 'Mic level' });
+    const meetingMeter = page.getByRole('meter', { name: 'Meeting level' });
+    await expect(micPicker).toBeVisible();
+    await expect(meetingPicker).toBeVisible();
+    await expect(micMeter).toBeVisible();
+    await expect(meetingMeter).toBeVisible();
+    await expect(page.getByText('Levels', { exact: true })).toBeVisible();
+
+    const [micPickerBox, meetingPickerBox, micMeterBox, meetingMeterBox] = await Promise.all([
+      micPicker.boundingBox(),
+      meetingPicker.boundingBox(),
+      micMeter.boundingBox(),
+      meetingMeter.boundingBox(),
+    ]);
+    expect(micPickerBox).not.toBeNull();
+    expect(meetingPickerBox).not.toBeNull();
+    expect(micMeterBox).not.toBeNull();
+    expect(meetingMeterBox).not.toBeNull();
+    const pickersRight = Math.max(
+      micPickerBox!.x + micPickerBox!.width,
+      meetingPickerBox!.x + meetingPickerBox!.width,
+    );
+    expect(micMeterBox!.x).toBeGreaterThan(pickersRight);
+    expect(meetingMeterBox!.x).toBe(micMeterBox!.x);
+    expect(micMeterBox!.y).toBeLessThan(meetingMeterBox!.y);
+
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const testMic = page.getByRole('button', { name: 'Test mic', exact: true });
+    const micOnlyMeter = page.getByRole('meter', { name: 'Mic level' });
+    const inputProfile = page.getByRole('group', { name: /^Input Profile/ });
+    await expect(testMic).toBeVisible();
+    await expect(micOnlyMeter).toBeVisible();
+    await expect(inputProfile).toBeVisible();
+    await expect(page.getByRole('meter', { name: 'Meeting level' })).toHaveCount(0);
+    const [testMicBox, compactMeterBox, profileBox] = await Promise.all([
+      testMic.boundingBox(),
+      micOnlyMeter.boundingBox(),
+      inputProfile.boundingBox(),
+    ]);
+    expect(testMicBox).not.toBeNull();
+    expect(compactMeterBox).not.toBeNull();
+    expect(profileBox).not.toBeNull();
+    expect(testMicBox!.y + testMicBox!.height).toBeLessThan(profileBox!.y + 1);
+    expect(Math.abs(compactMeterBox!.y - testMicBox!.y)).toBeLessThanOrEqual(20);
+  } finally {
+    await app.close();
+  }
+});
+
 test('keeps sidebar tooltips visible and information buttons circular in both themes', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-button-polish-'));
   try {
