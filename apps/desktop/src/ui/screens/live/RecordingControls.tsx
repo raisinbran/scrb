@@ -57,7 +57,9 @@ export function RecordingControls(props: RecordingControlsProps) {
     <div className={styles.controls} role="group" aria-label="Recording controls">
       {status === 'idle' || status === 'starting' ? (
         <>
-          <Tooltip label={startBlocked && startBlockedReason ? startBlockedReason : 'Start recording'}>
+          <Tooltip
+            label={startBlocked && startBlockedReason ? startBlockedReason : 'Start recording'}
+          >
             <button
               type="button"
               className={styles.startButton}
