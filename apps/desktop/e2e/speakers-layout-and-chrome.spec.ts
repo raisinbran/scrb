@@ -320,7 +320,12 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       const selected = await tooltipBounds(page, 'Settings');
       const selectedStyle = await selected.button.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { background: style.backgroundColor, shadow: style.boxShadow };
+        return {
+          background: style.backgroundColor,
+          shadow: style.boxShadow,
+          underline: style.textDecorationLine,
+          borderBottom: style.borderBottomWidth,
+        };
       });
       const selectedToken = await page.evaluate(() => {
         const probe = document.createElement('div');
@@ -332,6 +337,9 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       });
       expect(selectedStyle.background).toBe(selectedToken);
       expect(selectedStyle.shadow).toBe('none');
+      expect(selectedStyle.underline).toBe('none');
+      expect(selectedStyle.borderBottom).toBe('0px');
+      await expect(selected.button).not.toHaveAttribute('title');
       expect(selected.bounds.y).toBeLessThan((await selected.button.boundingBox())!.y);
       await page.screenshot({
         path: join(evidenceDir, `after-settings-hover-${theme.toLowerCase()}.png`),
@@ -340,7 +348,12 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       const unselected = await tooltipBounds(page, 'Help');
       const unselectedStyle = await unselected.button.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { background: style.backgroundColor, shadow: style.boxShadow };
+        return {
+          background: style.backgroundColor,
+          shadow: style.boxShadow,
+          underline: style.textDecorationLine,
+          borderBottom: style.borderBottomWidth,
+        };
       });
       const hoverToken = await page.evaluate(() => {
         const probe = document.createElement('div');
@@ -352,6 +365,9 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       });
       expect(unselectedStyle.background).toBe(hoverToken);
       expect(unselectedStyle.shadow).toBe('none');
+      expect(unselectedStyle.underline).toBe('none');
+      expect(unselectedStyle.borderBottom).toBe('0px');
+      await expect(unselected.button).not.toHaveAttribute('title');
       await page.screenshot({
         path: join(evidenceDir, `after-help-hover-${theme.toLowerCase()}.png`),
       });
