@@ -123,6 +123,7 @@ npx electron-builder --mac dir --arm64 --publish never
 
 app="release/mac-arm64/Scribe.app"
 [[ -d "$app" ]] || { echo "Build did not produce $app" >&2; exit 1; }
+node "$repo/scripts/verify-mac-renderer.mjs" dist "$app/Contents/Resources/app/dist"
 # Inside-out ad-hoc signing: libraries and tools first, then the whole bundle.
 find "$app/Contents/Resources/bin" -type f \( -name '*.dylib' -o -perm -111 \) -exec codesign --force --sign - {} \;
 node "$repo/scripts/write-mac-provenance.mjs" "$app" "$repo" "$assets" "$capture" "$whisper" "$tools" "$llama" "$sherpa_lib"
