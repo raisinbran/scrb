@@ -294,8 +294,12 @@ describe('screens', () => {
 
       const testMic = within(section).getByRole('button', { name: 'Test mic' });
       const micMeter = within(section).getByRole('meter', { name: 'Mic level' });
-      expect(testMic.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(testMic.compareDocumentPosition(micMeter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        testMic.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        testMic.compareDocumentPosition(micMeter) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
       expect(within(section).queryByRole('meter', { name: 'Meeting level' })).toBeNull();
 
       const ordered = [

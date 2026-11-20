@@ -92,9 +92,7 @@ describe('Sidebar footer buttons', () => {
     expect(rule('.iconButton')).toMatch(/border-radius: var\(--radius\)/);
     expect(rule('.iconButton')).toMatch(/text-decoration: none/);
     expect(rule('.iconButton')).toMatch(/box-shadow: none/);
-    expect(css).toMatch(
-      /\.iconButton:focus:not\(:focus-visible\)\s*\{\s*outline: none/,
-    );
+    expect(css).toMatch(/\.iconButton:focus:not\(:focus-visible\)\s*\{\s*outline: none/);
     expect(rule('.iconButton:hover')).toMatch(/--color-surface-hover/);
     expect(css).toMatch(
       /\.iconButton\[aria-current='page'\],\s*\.iconButton\[aria-expanded='true'\] \{[^}]*--color-surface-selected/,
