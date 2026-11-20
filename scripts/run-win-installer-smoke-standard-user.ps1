@@ -25,7 +25,8 @@ try {
 
     New-Item -ItemType Directory -Path $scratch | Out-Null
     $acl = Get-Acl -LiteralPath $scratch
-    $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, 'Modify, Synchronize', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+    $sidReference = [Security.Principal.SecurityIdentifier]::new($sid)
+    $rule = [Security.AccessControl.FileSystemAccessRule]::new($sidReference, 'Modify, Synchronize', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
     $acl.SetAccessRule($rule)
     Set-Acl -LiteralPath $scratch -AclObject $acl
     $scriptCopy = Join-Path $scratch 'scripts'
