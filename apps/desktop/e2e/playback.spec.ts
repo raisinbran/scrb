@@ -369,7 +369,9 @@ test('reopens a completed invented two-track transcript with labels, seek and fu
     await expect(transcript.locator('[data-word="m1-word-1009"]')).toHaveCount(0);
 
     await copy.click();
-    await expect(reopened.getByRole('status')).toHaveText('Transcript copied.');
+    await expect(reopened.getByRole('status').filter({ hasText: 'Transcript copied.' })).toHaveText(
+      'Transcript copied.',
+    );
     const clipboardText = await restarted.evaluate(({ clipboard }) => clipboard.readText());
     // Windows clipboard text may use CRLF; preserve exact content and line order.
     expect(clipboardText.replace(/\r\n?/g, '\n')).toBe(expected);

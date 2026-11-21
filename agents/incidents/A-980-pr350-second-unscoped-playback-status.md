@@ -1,0 +1,6 @@
+### A-980 — 2026-11-20 — ChatGPT Chat — PR #350 missed a second global status selector
+
+- **Status / attribution:** Confirmed self-induced incomplete test-integration audit; the added in-app status was valid.
+- **What failed:** After correcting `e2e/copy-transcript.spec.ts`, I did not initially search every Electron smoke spec for other unscoped `getByRole('status')` selectors. Exact-head [run 44877315408](https://github.com/raisinbran/scrb/actions/runs/44877315408) at `c93d89a1b74a7b602763f5bdb1819425d4bf11fb` passed the initial corrected copy smoke on macOS but failed `apps/desktop/e2e/playback.spec.ts:372` on the same strict-mode collision: valid shared-library warning status and the transcript-copy announcement status.
+- **Impact:** Another failed hosted macOS smoke run and avoidable delay; Windows verdict from the same run is separately reported. No recordings, models, installed application, production library, or Electron security settings changed.
+- **Correction / remaining risk:** Search all repository `getByRole('status')` sites. Scope the second *global Electron* copy confirmation assertion by its intended status text; retain both accessibility roles. Other occurrences are component-scoped or isolated unit tests and did not require adjustment. Verify the corrected exact head in macOS and Windows CI; report other failures separately.
