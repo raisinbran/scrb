@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -42,7 +43,7 @@ describe('adjacent runtime dependency identity', () => {
     writeFileSync(join(f.bin, 'onnxruntime.dll'), 'runtime dll bytes');
     writeFileSync(join(f.bin, 'ffmpeg.exe'), 'tool');
     await expect(collectAdjacentDlls(f.bin)).resolves.toMatchObject({
-      'runtimeDll:onnxruntime.dll': join(f.bin, 'onnxruntime.dll'),
+      'runtimeDll:onnxruntime.dll': realpathSync(join(f.bin, 'onnxruntime.dll')),
     });
   });
 
