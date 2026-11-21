@@ -122,4 +122,3 @@ describe('final speaker diagnostics', () => {
     expect(diagnostics.closestRawSimilarity).toBe(0);
   });
 });
-
