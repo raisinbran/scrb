@@ -73,3 +73,20 @@ export async function readAmiSegmentAnnotations(ami, meeting) {
   if (rows.length === 0) throw new Error('no AMI segment annotations found for meeting');
   return rows.sort((a, b) => a.file.localeCompare(b.file));
 }
+
+
+/** Return every regular DLL directly beside a packaged executable, rejecting symlinks. */
+export async function collectAdjacentDlls(root) {
+  const canonicalRoot = await realpath(resolve(root));
+  if (!(await lstat(canonicalRoot)).isDirectory()) {
+    throw new Error('tool directory must be a real directory');
+  }
+  const dlls = {};
+  for (const entry of await readdir(canonicalRoot, { withFileTypes: true })) {
+    if (!/\.dll$/i.test(entry.name)) continue;
+    const path = join(canonicalRoot, entry.name);
+    if (!(await lstat(path)).isFile()) throw new Error('runtime DLL must be a regular file');
+    dlls['runtimeDll:' + entry.name] = assertStrictChild(canonicalRoot, await realpath(path));
+  }
+  return dlls;
+}

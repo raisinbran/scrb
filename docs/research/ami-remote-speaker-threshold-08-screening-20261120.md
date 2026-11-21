@@ -86,3 +86,7 @@ physical recording or unauthorized >20-minute inference was launched.
 The runner now emits schema-version 2 reports only from a clean source tree. Paired reports must carry matching SHA-256 values for the source mix, generated window clip, exact annotation bytes, model inputs and tool binaries. Annotation paths are checked as regular files beneath the canonical AMI corpus before reading. These values establish paired-input identity; they do not establish diarization accuracy.
 
 The multi-voice oversplit flag is a screening heuristic: it warns when a candidate emits more speakers than the number of sustained annotated speakers in that window. It does not determine which output labels are correct and is not DER or an M1 acceptance criterion.
+
+Adjacent non-system DLLs in each executable folder are part of the tool hash; the report also records operating-system, architecture, and Node runtime identity. Windows system DLLs are deliberately outside this bundle hash.
+
+The runner resolves its own repository root from the script location before checking Git cleanliness and commit identity, so launching it from another directory cannot attest the caller's unrelated repository.

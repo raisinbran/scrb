@@ -6,9 +6,12 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { lstat, realpath, writeFile } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
+import { release } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import {
   assertStrictChild,
+  collectAdjacentDlls,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
@@ -40,12 +43,19 @@ async function sha256FilesWithin(root, files) {
   return hash.digest('hex');
 }
 
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
 function requireCleanSourceCommit() {
-  const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
-    encoding: 'utf8',
-  });
+  const status = execFileSync(
+    'git',
+    ['-C', repositoryRoot, 'status', '--porcelain', '--untracked-files=all'],
+    { cwd: repositoryRoot, encoding: 'utf8' },
+  );
   if (status.trim()) throw new Error('AMI research requires a clean source tree');
-  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-C', repositoryRoot, 'rev-parse', 'HEAD'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  }).trim();
 }
 
 const [meeting, startArg, durationArg, outputArg, thresholdArg] = process.argv.slice(2);
@@ -187,8 +197,17 @@ try {
       ),
     };
   });
+  const toolDlls = await collectAdjacentDlls(workspace.toolRoot);
+  const whisperBin = join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin');
+  const whisperDlls = await collectAdjacentDlls(whisperBin);
   const report = {
     schemaVersion: 2,
+    runtimeIdentity: {
+      platform: process.platform,
+      architecture: process.arch,
+      nodeVersion: process.versions.node,
+      operatingSystemRelease: release(),
+    },
     sourceCommit,
     sourceTreeClean: true,
     sourceAudioSha256: await sha256File(sourceWav),
@@ -234,13 +253,15 @@ try {
       ffmpeg: toolPaths.ffmpeg,
       ffprobe: toolPaths.ffprobe,
       sherpaSidecar: toolPaths.sherpaSidecar,
+      ...toolDlls,
     }),
     whisperToolSha256: await sha256FilesWithin(
-      join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin'),
+      whisperBin,
       {
         whisperCli: toolPaths.whisperCli,
         whisperServer: toolPaths.whisperServer,
         whisperVad: toolPaths.whisperVad,
+        ...whisperDlls,
       },
     ),
   };

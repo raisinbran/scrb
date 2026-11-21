@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import {
   assertStrictChild,
+  collectAdjacentDlls,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
@@ -34,6 +35,25 @@ function fixture() {
   writeFileSync(join(ami, 'ES2004a.Mix-Headset.wav'), 'invented audio bytes');
   return { root, assets, ami, bin };
 }
+
+describe('adjacent runtime dependency identity', () => {
+  it('collects sibling DLL inputs by name', async () => {
+    const f = fixture();
+    writeFileSync(join(f.bin, 'onnxruntime.dll'), 'runtime dll bytes');
+    writeFileSync(join(f.bin, 'ffmpeg.exe'), 'tool');
+    await expect(collectAdjacentDlls(f.bin)).resolves.toMatchObject({
+      'runtimeDll:onnxruntime.dll': join(f.bin, 'onnxruntime.dll'),
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')('rejects symlinked DLL inputs', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'runtime.dll');
+    writeFileSync(outside, 'external runtime');
+    symlinkSync(outside, join(f.bin, 'runtime.dll'));
+    await expect(collectAdjacentDlls(f.bin)).rejects.toThrow(/regular file/);
+  });
+});
 
 describe('AMI annotation containment', () => {
   it('reads regular annotations only from the canonical AMI corpus', async () => {

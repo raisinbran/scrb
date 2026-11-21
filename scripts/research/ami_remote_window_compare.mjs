@@ -82,6 +82,15 @@ function isSha256(value) {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }
 
+function isRuntimeIdentity(value) {
+  return (
+    value &&
+    ['platform', 'architecture', 'nodeVersion', 'operatingSystemRelease'].every(
+      (key) => typeof value[key] === 'string' && value[key].length > 0,
+    )
+  );
+}
+
 export function evaluatePair(baseline, candidate) {
   const window = validatedWindow(baseline?.sourceWindow);
   if (
@@ -91,6 +100,9 @@ export function evaluatePair(baseline, candidate) {
     baseline.sourceTreeClean !== true ||
     candidate.sourceTreeClean !== true ||
     baseline.sourceCommit !== candidate.sourceCommit ||
+    !isRuntimeIdentity(baseline.runtimeIdentity) ||
+    !isRuntimeIdentity(candidate.runtimeIdentity) ||
+    JSON.stringify(baseline.runtimeIdentity) !== JSON.stringify(candidate.runtimeIdentity) ||
     baseline.sourceAudio !== candidate.sourceAudio ||
     ['sourceAudioSha256', 'windowAudioSha256', 'referenceAnnotationSha256', 'modelSha256', 'toolSha256', 'whisperToolSha256'].some(
       (key) => !isSha256(baseline[key]) || baseline[key] !== candidate[key],

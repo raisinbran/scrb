@@ -16,6 +16,12 @@ function report(threshold, bOutput, dOutput, outputCount = 2, refs = reference) 
     schemaVersion: 2,
     sourceCommit: 'invented-source',
     sourceTreeClean: true,
+    runtimeIdentity: {
+      platform: 'win32',
+      architecture: 'x64',
+      nodeVersion: '22.23.4',
+      operatingSystemRelease: 'invented-windows-build',
+    },
     sourceAudioSha256: 'a'.repeat(64),
     windowAudioSha256: 'b'.repeat(64),
     referenceAnnotationSha256: 'c'.repeat(64),
@@ -88,6 +94,9 @@ describe('paired AMI threshold screening', () => {
     expect(() => evaluatePair(a, { ...b, sourceTreeClean: false })).toThrow(/match/);
     expect(() => evaluatePair(a, { ...b, windowAudioSha256: '0'.repeat(64) })).toThrow(/hashes/);
     expect(() => evaluatePair(a, { ...b, modelSha256: 'invalid' })).toThrow(/hashes/);
+    expect(() => evaluatePair(a, { ...b, toolSha256: '0'.repeat(64) })).toThrow(/hashes/);
+    expect(() => evaluatePair(a, { ...b, runtimeIdentity: { ...b.runtimeIdentity, nodeVersion: 'other' } })).toThrow(/match/);
+    expect(() => evaluatePair(a, { ...b, runtimeIdentity: undefined })).toThrow(/match/);
   });
 
   it.each([3, 4])('warns when two sustained speakers produce %i output speakers', (count) => {
