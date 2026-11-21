@@ -10,10 +10,12 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { realpath } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import {
   assertStrictChild,
   collectAdjacentDlls,
+  collectResearchRuntimeLibraries,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
@@ -53,6 +55,40 @@ describe('adjacent runtime dependency identity', () => {
     writeFileSync(outside, 'external runtime');
     symlinkSync(outside, join(f.bin, 'runtime.dll'));
     await expect(collectAdjacentDlls(f.bin)).rejects.toThrow(/regular file/);
+  });
+});
+
+describe('macOS research tool bundle hashing', () => {
+  it('includes direct and lib/ sibling dylibs in input identity', async () => {
+    const f = fixture();
+    mkdirSync(join(f.bin, 'lib'));
+    writeFileSync(join(f.bin, 'libdirect.dylib'), 'invented direct dylib');
+    writeFileSync(join(f.bin, 'lib', 'libruntime.dylib'), 'invented staged dylib');
+    const libraries = await collectResearchRuntimeLibraries(f.bin, 'darwin');
+    expect(Object.keys(libraries).sort()).toEqual([
+      'runtimeDylib:lib/libruntime.dylib',
+      'runtimeDylib:libdirect.dylib',
+    ]);
+    expect(libraries['runtimeDylib:lib/libruntime.dylib']).toBe(await realpath(join(f.bin, 'lib', 'libruntime.dylib')));
+  });
+
+  it.skipIf(process.platform === 'win32')('rejects linked dylibs and linked lib directories', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'outside.dylib');
+    writeFileSync(outside, 'private file');
+    symlinkSync(outside, join(f.bin, 'linked.dylib'));
+    await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(/regular file/);
+    rmSync(join(f.bin, 'linked.dylib'));
+    symlinkSync(f.root, join(f.bin, 'lib'), 'dir');
+    await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(/real directory/);
+  });
+
+  it('preserves the existing Windows DLL identity behavior', async () => {
+    const f = fixture();
+    writeFileSync(join(f.bin, 'onnxruntime.dll'), 'invented DLL');
+    expect(await collectResearchRuntimeLibraries(f.bin, 'win32')).toEqual(
+      await collectAdjacentDlls(f.bin),
+    );
   });
 });
 
@@ -140,6 +176,35 @@ describe('AMI runner path ownership', () => {
     expect(existsSync(workspace.runRoot)).toBe(false);
     expect(readFileSync(join(sibling, 'sentinel'), 'utf8')).toBe('important unrelated evidence');
     expect(readFileSync(join(oldScratch, 'sentinel'), 'utf8')).toBe('old evidence');
+  });
+
+  it('uses an explicitly separate scratch root without writing into a packaged tool directory', async () => {
+    const f = fixture();
+    const scratch = join(f.root, 'disposable-scratch');
+    mkdirSync(scratch);
+    const workspace = await createAmiWorkspace({
+      assets: f.assets,
+      bin: f.bin,
+      meeting: 'ES2004a',
+      scratch,
+    });
+    expect(workspace.scratchRoot).toBe(await realpath(scratch));
+    expect(workspace.runRoot.startsWith((await realpath(scratch)) + sep)).toBe(true);
+    expect(readdirSync(f.bin)).toEqual([]);
+    await workspace.cleanup();
+    expect(readdirSync(scratch)).toEqual([]);
+  });
+
+  it.skipIf(process.platform === 'win32')('refuses a linked external scratch root', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'external');
+    mkdirSync(outside);
+    const linked = join(f.root, 'scratch-link');
+    symlinkSync(outside, linked, 'dir');
+    await expect(
+      createAmiWorkspace({ assets: f.assets, bin: f.bin, meeting: 'ES2004a', scratch: linked }),
+    ).rejects.toThrow(/real directory/);
+    expect(readdirSync(f.bin)).toEqual([]);
   });
 
   it('uses unique workspaces and does not remove a separate concurrent run', async () => {
