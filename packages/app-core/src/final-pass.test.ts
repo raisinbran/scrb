@@ -138,7 +138,10 @@ describe('final pass after Stop', () => {
 
   afterEach(() => library.close());
 
-  const sealedMeeting = async (title = 'Sync'): Promise<{ id: string; audio: string }> => {
+  const sealedMeeting = async (
+    title = 'Sync',
+    withMicrophone = false,
+  ): Promise<{ id: string; audio: string }> => {
     const { id } = await library.createMeeting({ title, status: 'finalPassRunning' });
     const { audio } = library.meetingPaths(id);
     mkdirSync(join(audio, 'meeting'), { recursive: true });
@@ -151,7 +154,18 @@ describe('final pass after Stop', () => {
         gaps: [],
       }),
     );
-    writeFileSync(join(audio, 'microphone', 'chunks.json'), '{"chunks":[],"gaps":[]}');
+    if (withMicrophone) {
+      writeFileSync(join(audio, 'microphone', '000001.opus'), 'invented microphone audio');
+      writeFileSync(
+        join(audio, 'microphone', 'chunks.json'),
+        JSON.stringify({
+          chunks: [{ file: '000001.opus', startNs: 0, endNs: 2_000 * MS }],
+          gaps: [],
+        }),
+      );
+    } else {
+      writeFileSync(join(audio, 'microphone', 'chunks.json'), '{"chunks":[],"gaps":[]}');
+    }
     return { id, audio };
   };
 
@@ -197,6 +211,48 @@ describe('final pass after Stop', () => {
     expect((await library.getMeeting(id)).status).toBe('ready');
     expect((await library.readTranscript(id)).segments).toHaveLength(2);
     expect(workDir.startsWith(library.meetingPaths(id).folder)).toBe(false);
+  });
+
+  it('passes both saved tracks through the final pass and persists their speaker labels', async () => {
+    const { id, audio } = await sealedMeeting('Two tracks', true);
+    let inputTracks: Parameters<RunFinalPass>[0]['tracks'] = [];
+    await runQueue(id, async (input) => {
+      inputTracks = input.tracks;
+      return TRANSCRIPT;
+    });
+
+    expect(
+      inputTracks.map(({ kind, source }) => {
+        if (!('chunks' in source)) throw new Error('Expected final-pass inputs from sealed chunks');
+        return {
+          kind,
+          chunks: source.chunks.map(({ path, startMs, durationMs }) => ({
+            path,
+            startMs,
+            durationMs,
+          })),
+        };
+      }),
+    ).toEqual([
+      {
+        kind: 'mic',
+        chunks: [{ path: join(audio, 'microphone', '000001.opus'), startMs: 0, durationMs: 2000 }],
+      },
+      {
+        kind: 'meeting',
+        chunks: [{ path: join(audio, 'meeting', '000001.opus'), startMs: 5000, durationMs: 5000 }],
+      },
+    ]);
+
+    const transcript = await library.readTranscript(id);
+    expect(transcript.segments.map(({ track, speakerId }) => [track, speakerId])).toEqual([
+      ['microphone', 'you'],
+      ['meeting', 'speaker-1'],
+    ]);
+    expect(transcript.speakers.map(({ id: speakerId, label }) => [speakerId, label])).toEqual([
+      ['you', 'You'],
+      ['speaker-1', 'Speaker 2'],
+    ]);
   });
 
   it('calls onReady once the meeting is ready, and a throwing listener does not fail the pass', async () => {

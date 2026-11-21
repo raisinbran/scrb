@@ -546,7 +546,7 @@ function main() {
     }
     const captureSrc = path.join(captureSource, 'src');
     const opusSource = path.join(captureSource, 'third_party', 'opus');
-    const opusLibrary = path.join(captureSource, 'build', 'opus', 'opus.lib');
+    const opusLibrary = path.join(captureSource, 'build', 'opus', 'Release', 'opus.lib');
     const opusFetchScript = readFileSync(
       path.join(captureSource, 'scripts', 'fetch-opus.ps1'),
       'utf8',

@@ -9,6 +9,37 @@ permissions:
   contents: read
 
 jobs:
+  windows-capture-source-build:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Build pinned libopus and Windows capture helper
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) { throw 'vswhere.exe is missing from the Windows 2022 runner' }
+          $vsInstall = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsInstall) { throw 'Visual Studio 2022 x64 C++ tools are missing from the runner' }
+          $env:SCRB_VCVARS64 = Join-Path $vsInstall 'VC\Auxiliary\Build\vcvars64.bat'
+          if (-not (Test-Path -LiteralPath $env:SCRB_VCVARS64 -PathType Leaf)) { throw 'Visual Studio x64 environment setup script is missing' }
+          & .\native\windows-capture\scripts\fetch-opus.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned libopus build failed' }
+          & .\native\windows-capture\build.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'Windows capture helper build failed' }
+      - name: Run capture pipeline tests
+        shell: pwsh
+        run: |
+          & .\native\windows-capture\build\bin\PipelineTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Capture pipeline tests failed' }
+          & .\native\windows-capture\build\bin\LivePcmTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Live PCM feed tests failed' }
+
   check:
     strategy:
       fail-fast: false
