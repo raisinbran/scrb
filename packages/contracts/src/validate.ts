@@ -329,6 +329,8 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   revealExport: shape({ exportId: id }),
 
   getPrivacyJurisdictions: nothing,
+  getSharedLibraryNotice: nothing,
+  dismissSharedLibraryNotice: nothing,
   getSettings: nothing,
   updateSettings: settingsPatch,
   pickStorageLocation: nothing,

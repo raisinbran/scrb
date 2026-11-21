@@ -26,6 +26,7 @@ These were not in the UI Specification's contract table. Each is tagged `@additi
 | `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                        |
 | `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                              |
 | `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                      |
+| `getSharedLibraryNotice`, `dismissSharedLibraryNotice`      | Display a nonblocking, library-specific shared-folder notice and persist explicit dismissal; **contract addition pending the owner's explicit decision for issue #349**. |
 
 ## Decisions
 

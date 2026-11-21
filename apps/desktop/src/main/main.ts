@@ -241,7 +241,6 @@ function createMainWindow(
   warning: string | null = null,
   recovery: { kind: 'blocked' | 'retainedCopy'; folder: string } | null = null,
   stopPlayback: () => void = () => undefined,
-  onWarningShown: () => void = () => undefined,
 ): void {
   const window = new BrowserWindow({
     width: 1280,
@@ -298,7 +297,6 @@ function createMainWindow(
           noLink: true,
         })
         .then(async ({ response }) => {
-          onWarningShown();
           if (available && response === 0) return;
           if (response === (available ? 1 : 0)) {
             app.relaunch();
@@ -313,9 +311,7 @@ function createMainWindow(
           app.quit();
         });
     } else if (warning) {
-      void dialog
-        .showMessageBox(window, { type: 'warning', message: warning })
-        .then(onWarningShown);
+      void dialog.showMessageBox(window, { type: 'warning', message: warning });
     }
   });
   void window.loadURL(appUrl);
@@ -355,7 +351,7 @@ void app.whenReady().then(async () => {
   };
   registerCallHandlers(backend.handlers, (event) => isTrustedSenderEvent(event, appTrust));
   closeBeforeQuit(app, backend.close);
-  createMainWindow(backend.warning, backend.recovery, stopPlayback, backend.acknowledgeWarning);
+  createMainWindow(backend.warning, backend.recovery, stopPlayback);
   // The mini window does not count as the app: with only it open, a second launch or the dock
   // must bring the main window back through this same path.
   restoreApp = () =>
@@ -365,13 +361,7 @@ void app.whenReady().then(async () => {
         if (window.isMinimized()) window.restore();
         window.focus();
       },
-      () =>
-        createMainWindow(
-          backend.warning,
-          backend.recovery,
-          stopPlayback,
-          backend.acknowledgeWarning,
-        ),
+      () => createMainWindow(backend.warning, backend.recovery, stopPlayback),
     );
   app.on('activate', restoreApp);
 });
