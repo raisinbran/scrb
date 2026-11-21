@@ -35,7 +35,7 @@ import type {
 } from './types.js';
 import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 
-/** Sherpa runs under the usable band on purpose; speakers are merged afterwards. */
+/** Conservative default retained from the full-meeting AMI evaluations below. */
 export const OVERSPLIT_THRESHOLD = 1.0;
 const TURN_GAP_MS = 1500;
 /** A turn longer than this is cut into paragraphs. */
@@ -71,6 +71,8 @@ export interface FinalPassOptions {
   language?: string;
   vocabularyHint?: string;
   relabel?: RelabelOptions;
+  /** Explicit override for bounded threshold evaluation; normal app calls keep the default. */
+  finalDiarizationThreshold?: number;
   /** Called once per pass with counts and similarities only: no audio, text or names. */
   onDiagnostics?: (fields: FinalPassDiagnostics) => void;
   signal?: AbortSignal;
@@ -166,7 +168,11 @@ async function diarizeTrack(
 ): Promise<DecidedSpeakers> {
   const sherpa = await SherpaWorker.start(o.tools, o.models, threads, o.signal);
   try {
-    const raw = await sherpa.diarizeFile(wavPath, OVERSPLIT_THRESHOLD, onFraction);
+    const raw = await sherpa.diarizeFile(
+      wavPath,
+      resolveFinalSpeakerThreshold(o.finalDiarizationThreshold),
+      onFraction,
+    );
     const toEmbed = embeddingSpans(raw);
     const vectors = await sherpa.embedSpans(wavPath, toEmbed);
     await sherpa.close();
@@ -183,6 +189,14 @@ async function diarizeTrack(
 export interface EmbeddedSegment {
   segment: RawSegment;
   vector: number[];
+}
+
+export function resolveFinalSpeakerThreshold(override: number | undefined): number {
+  if (override === undefined) return OVERSPLIT_THRESHOLD;
+  if (!Number.isFinite(override) || override <= 0 || override >= 2) {
+    throw new Error('final diarization threshold must be a finite number between 0 and 2');
+  }
+  return override;
 }
 
 export interface DecidedSpeakers {
