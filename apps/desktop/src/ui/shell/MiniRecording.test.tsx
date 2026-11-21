@@ -457,16 +457,19 @@ describe('MiniRecording', () => {
     expect(screen.getAllByRole('button', { name: 'Hide mini window' })).toHaveLength(1);
   });
 
-  it('shows tooltips from CSS within 400 ms, with no slow native title on the buttons', async () => {
+  it('shows immediate theme-token tooltips with no native button titles', async () => {
     await showRecording(65_000);
     for (const button of screen.getAllByRole('button')) {
       expect(button.getAttribute('title')).toBeNull();
       expect(button.dataset.tip).toBeTruthy();
     }
     const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
-    const delay = css.match(/\[data-tip\]:hover::after[^{]*\{[^}]*transition-delay: (\d+)ms/);
-    expect(Number(delay?.[1])).toBeLessThanOrEqual(400);
+    expect(css).toMatch(/\[data-tip\]:hover::after/);
     expect(css).toMatch(/\[data-tip\]:focus-visible::after/);
+    expect(css).toMatch(/transition-delay: 0ms/);
+    expect(css).toMatch(/color: var\(--color-text\)/);
+    expect(css).toMatch(/background: var\(--color-surface-raised\)/);
+    expect(css).toMatch(/border: 1px solid var\(--color-border\)/);
   });
 
   it('no button changes size with its state: pause and resume share one box', () => {

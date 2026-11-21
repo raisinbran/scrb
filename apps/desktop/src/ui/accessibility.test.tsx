@@ -130,13 +130,20 @@ describe('focus styles', () => {
       const css = readFileSync(join(uiDir, file), 'utf8');
       const removed = [...css.matchAll(/([^{}]+)\{[^{}]*outline:\s*(none|0)\b[^{}]*\}/g)];
       return removed.some((match) => {
-        const selector = match[1] as string;
+        const selector = (match[1] as string).replace(/\/\*[\s\S]*?\*\//g, '').trim();
         const block = match[0];
         const focusedHeading = /h1\[tabindex='-1'\]:focus-visible/.test(selector);
         const circularInfoRing =
           /\.info:focus-visible/.test(selector) &&
           /box-shadow:\s*0 0 0 2px var\(--color-focus\)/.test(block);
-        return !focusedHeading && !circularInfoRing;
+        // Only pointer-focused sidebar buttons may suppress the outline.
+        // Electron Tab navigation checks the visible focus rings on both selector classes.
+        const pointerOnlySidebar =
+          file.replaceAll('\\', '/') === 'shell/Sidebar.module.css' &&
+          /^\.item:focus:not\(:focus-visible\),\s*\.iconButton:focus:not\(:focus-visible\)$/.test(
+            selector,
+          );
+        return !focusedHeading && !circularInfoRing && !pointerOnlySidebar;
       });
     });
     expect(offenders).toEqual([]);

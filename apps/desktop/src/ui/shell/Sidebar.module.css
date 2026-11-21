@@ -140,6 +140,8 @@
   background: none;
   border: 0;
   border-radius: var(--radius);
+  text-decoration: none;
+  box-shadow: none;
 }
 
 .iconButton:hover {
@@ -153,11 +155,11 @@
   background: var(--color-surface-selected);
 }
 
-/* A mouse click leaves no ring on the footer buttons or tab items; keyboard focus keeps the shared
-   :focus-visible ring from tokens.css. */
+/* Pointer focus never adds an underline, ring or shadow. Keyboard :focus-visible retains
+   the shared accessibility outline from tokens.css. */
 .item:focus:not(:focus-visible),
 .iconButton:focus:not(:focus-visible) {
-  outline-color: transparent;
+  outline: none;
 }
 
 /* Read by screen readers, never seen: the icon's own state is drawn, not written. */

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const evidenceDir = '/private/tmp/scrb-settings-audio-20261116';
 
-test('Input Profile controls precede other audio controls at normal size and zoom', async () => {
+test('places Test mic above Input Profile and preserves downstream audio order', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-settings-audio-'));
   writeFileSync(
     join(userData, 'library-location.json'),
@@ -85,7 +85,7 @@ test('Input Profile controls precede other audio controls at normal size and zoo
     );
     const otherBottom = Math.max(...boxes.otherControls.map((box) => box!.bottom));
     expect(Math.min(boxes.mic!.top, boxes.meeting!.top)).toBeGreaterThan(otherBottom);
-    expect(boxes.testMic!.top).toBeGreaterThan(Math.max(boxes.mic!.bottom, boxes.meeting!.bottom));
+    expect(boxes.testMic!.bottom).toBeLessThan(boxes.profile!.top + 1);
     expect(boxes.horizontalOverflow).toBe(false);
     await page.screenshot({
       path: join(evidenceDir, 'settings-audio-normal-1280x720.png'),

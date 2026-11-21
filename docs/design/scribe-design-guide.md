@@ -1,18 +1,18 @@
 # Scribe design guide
 
-Read this before any UI work. It describes the app as it is, so a change looks like it was always there. Everything here was checked against the code on `main` at 2026-11-15; where something is not built, the text says **not implemented**. If this guide and the code disagree, the code wins: fix the guide in the same PR.
+Read this before any UI work. It describes the app as it is, so a change looks like it was always there. Baseline source was checked against `main` at `73e899d0` on 2026-11-20; pending PR #383 changes are explicitly distinguished from already-merged behavior. If this guide and the code disagree, the code wins: fix the guide in the same PR.
 
 Source of truth: tokens in `apps/desktop/src/ui/theme/tokens.css`, shared pieces in `apps/desktop/src/ui/components/`, screens in `apps/desktop/src/ui/screens/`, shell in `apps/desktop/src/ui/shell/`. Screen list and states: `dev-plan/Meeting Scribe - UI Specification.md`.
 
 ## Status: implemented vs pending
 
-Checked against `origin/main` (60a58d67) on 2026-11-15. Statements below say which is which; a sentence marked **Pending** describes an open PR and is not on main until it merges.
+Checked against `origin/main` (`73e899d0`) on 2026-11-20. **Proposed** describes work on draft PR #383, not on main until merged and rebuilt.
 
-**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms, themed), PopupLayer/PopupBanner (as a sticky zero-height layer; today it is not yet anchored to each panel, see Pending), Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and the preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip instead of a permanent row; mini window label gating, equaliser bars, Hide as a minimise-dash button immediately left of Open Scribe, no expand toggle, and the warning flag with its tooltip (PR #305, merged); MicTest and LevelMeters on Live.
+**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms hover delay, theme tokens); PopupLayer/PopupBanner, Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip; mini recording label gating, equaliser bars, Hide as a dash button left of Open Scribe, warning flag (PR #305); Live Mic/Meeting levels beside the two pickers (PR #288/#315); and Test mic with mic-only level meter inside Settings (PR #288/#315).
 
-**Pending (open PRs):** #288 (meters beside pickers under "Levels", Test mic in Settings above Preset, fixed 220px sensitivity bar); #315 (mic test meter and spacing, "Levels" gap, banners placed inside the panel they belong to).
+**Proposed on draft PR #383:** instant themed tooltips (including the mini window), removal of Settings/Help pointer underlines/shadows, regression coverage for their hover tips, and positioning Settings Test mic above Input Profile. These source changes are not proof that the already-built Mac A2 package contains them.
 
-**Owner rules not yet fully in code:** panel-anchored banners (the rule is firm, the code is pending #315), the mic-test meter and spacing, the "Levels" row and the 220px bar above; the mini window's own `data-tip` tooltip instead of the shared `Tooltip`; remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
+**Owner rules not yet fully in code:** the mini window still uses its own `data-tip` tooltip instead of the shared component (PR #383 makes it immediate and themed); remaining row-style notices (import voice-profile notice, Live and mini-window alerts, Settings inline error line).
 
 ## 1. How to use this guide (short version)
 
@@ -139,13 +139,13 @@ Grid is 4px, steps are tokens:
 
 **Window:** 40px title bar (`--titlebar-height`) with the recording indicator and elapsed time; sidebar fixed at 160px (no drag handle); workspace scrolls inside the remaining area on `--color-surface`. Usable at 1280×720 and up. The spec's right-hand **inspector panel and draggable panel sizes are not implemented**; do not add them.
 
-**Sidebar** (`shell/Sidebar`): Live, Recordings, Speakers, Vocabulary; Settings and Help icon buttons in the footer. Items use muted text, hover fill, and `--color-surface-selected` + weight 600 for the current page (`aria-current="page"`). A mouse click shows no ring; keyboard focus does. Status lives on the icon: the Live mic turns red and fades while recording (steady amber when paused); the Recordings disc spins while any recording is processing or importing; with reduced motion the animation stops and a small accent badge appears instead.
+**Sidebar** (`shell/Sidebar`): Live, Recordings, Speakers, Vocabulary; Settings and Help icon buttons in the footer. Items use muted text, hover fill, and `--color-surface-selected` + weight 600 for the current page (`aria-current="page"`). Footer hover/pointer focus never adds an underline or drop-shadow; keyboard focus keeps a visible focus ring. Settings/Help must both show an immediate theme-matched tooltip. Status lives on the icon: the Live mic turns red and fades while recording (steady amber when paused); the Recordings disc spins while any recording is processing or importing; with reduced motion the animation stops and a small accent badge appears instead.
 
-**Live:** Start/Pause/Stop controls, two source pickers (meeting app, microphone), the Mic and Meeting meters (`LevelMeters`), elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. `MicTest` renders on Live on main. **Pending (open PR #288):** meters move into the same row as the pickers under a "Levels" label, and Test mic moves to Settings above Preset. Follow whichever is merged.
+**Live:** Start/Pause/Stop controls; Meeting app and Microphone pickers with the Mic and Meeting meters beside them in the same row, under a "Levels" label; elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. **Settings**, not Live, contains Test mic and its mic-only level meter; PR #383 positions them directly above Input Profile.
 
 **Recordings:** list view with search and filters, import action; detail view with a back link, title, meta line, one action row (export, open meeting folder, open audio folder, optional Re-process, delete, Copy transcript at the far right), tabs Transcript / Summary / Audio. Copy transcript uses a shared icon button with the standard overlapping-documents icon and hover tooltip; it never adds a second row above transcript text. Tabs use `role="tablist"`, arrow keys move between them, the selected tab has an accent underline. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
 
-**Settings:** stack of boxed sections (audio, transcription, summary, storage, auto-delete, theme and others). Unsaved changes show a **save bar docked to the bottom of the panel**, out of the layout flow, with space always reserved so the last section is never covered and nothing shifts when it appears.
+**Settings:** stack of boxed sections (audio, transcription, summary, storage, auto-delete, theme and others). The Test mic button and mic-only meter sit together immediately above Input Profile inside the Audio section. Unsaved changes show a **save bar docked to the bottom of the panel**, out of the layout flow, with space always reserved so the last section is never covered and nothing shifts when it appears.
 
 **Speakers / Vocabulary:** `Screen` + `ItemList` rows (`--space-2` vertical padding, 1px border-bottom). Empty states use `EmptyState`.
 
@@ -181,7 +181,7 @@ Variants: `secondary` (default, bordered, transparent), `primary` (accent fill, 
 
 ### Tooltip (`components/Tooltip.tsx`)
 
-Wraps one control. Shows after 100ms hover, instantly on keyboard focus, 120ms fade, hides on leave, blur, Escape or click. Themed (raised surface, border, `--text-xs`). Max 240px; `\n` makes a line break. Use it for: icon-only names, why a control is disabled or locked ("Set by Studio"), short explanations that replace a permanent paragraph. Never put essential information only in a tooltip: the control must still be usable and named without it. Do not use the `title` attribute for tips.
+Wraps one control. Opens without a hover delay, instantly on keyboard focus, then fades in and out over 80ms; hides on leave, blur, Escape or click. Themed (raised surface, border, `--text-xs`) using the resolved Light/Dark/System color tokens. Existing accessible descriptions are preserved when the tooltip is open. Max 240px; `\n` makes a line break. Use it for: icon-only names, why a control is disabled or locked ("Set by Studio"), short explanations that replace a permanent paragraph. Never put essential information only in a tooltip: the control must still be usable and named without it. Do not use the `title` attribute for tips.
 
 ### PopupLayer and PopupBanner (`components/PopupBanner.tsx`)
 
@@ -283,7 +283,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 ## 13. Owner rules (hard rules, learned from feedback)
 
 1. **Banners never cover controls.** They anchor to their own panel via `PopupLayer`, not the whole page. Example: the "final transcript still being processed" banner overlays the meeting panel's top-right but must not hide the title, the icon-button row or the tabs; if it would, shorten it or move the layer.
-2. **Audio input shows the Live meter.** Anything that lets someone check or choose an input (Test mic, pickers) uses `LevelMeters`/`Meter`, same size and colour. Pending (PR #288): in the Live row the meters sit beside the two pickers under a "Levels" label.
+2. **Audio input shows live levels.** Anything that lets someone check or choose an input (Test mic, pickers) uses `LevelMeters`/`Meter`, same size and colour. On Live, Mic/Meeting meters stay beside both pickers under "Levels"; in Settings, Test mic's mic-only meter sits directly above Input Profile.
 3. **Add a new button to the existing row, in a consistent position.** Do not float it or add a new row. Example: Hide is in the mini window's button row immediately left of "Open Scribe"; export, folder, audio folder and delete sit together in the meeting icon row.
 4. **Icons are standard.** Minimise is "-", dismiss is X, trash is delete. One icon, one meaning, everywhere.
 5. **One spacing token between sibling items.** See section 6.

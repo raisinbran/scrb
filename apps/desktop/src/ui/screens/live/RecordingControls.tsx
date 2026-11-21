@@ -57,18 +57,21 @@ export function RecordingControls(props: RecordingControlsProps) {
     <div className={styles.controls} role="group" aria-label="Recording controls">
       {status === 'idle' || status === 'starting' ? (
         <>
-          <button
-            type="button"
-            className={styles.startButton}
-            disabled={busy || status === 'starting' || startBlocked}
-            title={startBlocked ? startBlockedReason : undefined}
-            aria-describedby={
-              startBlocked && startBlockedReason ? 'start-blocked-reason' : undefined
-            }
-            onClick={onStart}
+          <Tooltip
+            label={startBlocked && startBlockedReason ? startBlockedReason : 'Start recording'}
           >
-            Start
-          </button>
+            <button
+              type="button"
+              className={styles.startButton}
+              disabled={busy || status === 'starting' || startBlocked}
+              aria-describedby={
+                startBlocked && startBlockedReason ? 'start-blocked-reason' : undefined
+              }
+              onClick={onStart}
+            >
+              Start
+            </button>
+          </Tooltip>
           {startBlocked && startBlockedReason && (
             <span id="start-blocked-reason" style={SR_ONLY}>
               {startBlockedReason}
