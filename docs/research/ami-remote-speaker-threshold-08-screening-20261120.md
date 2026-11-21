@@ -102,10 +102,12 @@ Documents library, owner's recording, or an arbitrary system `ffmpeg`.
 
 - `SCRB_DEV_ASSETS`: verified public AMI `downloads/ami/*.Mix-Headset.wav`,
   `downloads/ami/ann/segments`, pinned `models/whisper`, pinned
-  `models/sherpa-onnx`, and built Whisper programs in
-  `upstream/whisper.cpp/build/bin`.
+  `models/sherpa-onnx`. No Mac Whisper source build is required if
+  the complete, verified Mac tool bundle is supplied separately.
 - `SCRB_BIN`: a separately verified Mac runtime `bin` containing extensionless
-  `ffmpeg`, `ffprobe` and `scrb-sherpa`. Adjacent and `lib/` Mac
+  `ffmpeg`, `ffprobe`, `scrb-sherpa`, `whisper-cli`, `whisper-server`
+  and `whisper-vad-speech-segments`. On Windows, the runner retains the
+  upstream Whisper-build paths. Adjacent and `lib/` Mac
   `.dylib` files enter the per-run bundle hash; source build artifacts outside
   those two directories are not claimed to be a complete dependency closure.
 - `SCRB_AMI_SCRATCH` (optional but preferred for packaged/read-only tools):
