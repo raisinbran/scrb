@@ -85,11 +85,11 @@ async function verifyOptionalMacAudit(platform, toolRoot, toolPaths, libraries) 
     throw new Error('research Mac dependency audit must be a regular file');
   }
   const audit = JSON.parse(await readFile(auditPath, 'utf8'));
-  if (audit.schemaVersion !== 1 || !Array.isArray(audit.stagedFiles)) {
+  if (audit.schemaVersion !== 1 || !Array.isArray(audit.files)) {
     throw new Error('research Mac dependency audit has an invalid staged file list');
   }
   const seen = new Set();
-  for (const entry of audit.stagedFiles) {
+  for (const entry of audit.files) {
     if (
       typeof entry.name !== 'string' ||
       !/^(?:lib\/)?[A-Za-z0-9._+-]+$/.test(entry.name) ||
