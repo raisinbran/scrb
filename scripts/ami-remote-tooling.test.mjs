@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import {
   resolveAmiResearchToolPaths,
   verifyAmiResearchToolPaths,
@@ -98,9 +99,29 @@ describe('AMI cross-platform research executables', () => {
     const launch = vi.fn();
     writeFileSync(join(f.toolRoot, 'DEPENDENCY-AUDIT.json'), JSON.stringify({
       schemaVersion: 1,
-      stagedFiles: [{ name: 'ffmpeg', stagedSha256: '0'.repeat(64) }],
+      files: [{ name: 'ffmpeg', stagedSha256: '0'.repeat(64) }],
     }));
     await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/hash mismatch/);
+    expect(launch).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid Mac producer files audit and rejects incomplete entries before launch', async () => {
+    const f = fixture('darwin');
+    const launch = vi.fn(() => 'launched');
+    const files = Object.values(f.toolPaths).map((file) => ({
+      name: basename(file),
+      stagedSha256: createHash('sha256').update(readFileSync(file)).digest('hex'),
+    }));
+    const audit = join(f.toolRoot, 'DEPENDENCY-AUDIT.json');
+
+    // Match the files/dependencyEdges contract written by stage-mac-tools.mjs.
+    writeFileSync(audit, JSON.stringify({ schemaVersion: 1, files, dependencyEdges: [] }));
+    await expect(withVerifiedAmiResearchRuntime(f, launch)).resolves.toBe('launched');
+    expect(launch).toHaveBeenCalledOnce();
+
+    launch.mockClear();
+    writeFileSync(audit, JSON.stringify({ schemaVersion: 1, files: files.slice(1), dependencyEdges: [] }));
+    await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/missing a runtime input/);
     expect(launch).not.toHaveBeenCalled();
   });
 
