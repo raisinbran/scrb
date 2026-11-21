@@ -114,7 +114,8 @@ function Write-SmokeSummary([string]$Result) {
         schemaVersion = 1
         result = $Result
         canExecuteAutonomously = ($stepStatuses.runnerEligibility -eq 'PASS')
-        a2Integrity = if ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
+        a2Integrity = if ($isCurrentCandidate) { 'NOT APPLICABLE' } elseif ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
+        currentCandidateIntegrity = if (-not $isCurrentCandidate) { 'NOT APPLICABLE' } elseif ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
         modelHandover = @{
             status = if ($isCurrentCandidate) { 'NOT VERIFIED' } else { 'OWNER VERIFIED; NOT RETESTED' }
             manifestSha256 = if ($isCurrentCandidate) { $null } else { '30f854def12121d612a4089c4a0b009c03983d3e22c100251f8d8a3e47d282b6' }
