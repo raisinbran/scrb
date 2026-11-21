@@ -35,8 +35,8 @@ import type {
 } from './types.js';
 import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 
-/** Sherpa runs under the usable band on purpose; speakers are merged afterwards. */
-export const OVERSPLIT_THRESHOLD = 1.0;
+/** Keep distinct remote voices in public AMI windows; final relabeling absorbs oversplits. */
+export const OVERSPLIT_THRESHOLD = 0.8;
 const TURN_GAP_MS = 1500;
 /** A turn longer than this is cut into paragraphs. */
 export const MAX_PARAGRAPH_MS = 60_000;
