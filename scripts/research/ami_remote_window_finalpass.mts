@@ -11,11 +11,15 @@ import { release } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   assertStrictChild,
-  collectAdjacentDlls,
+  collectResearchRuntimeLibraries,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
 } from './ami_remote_workspace.mjs';
+import {
+  resolveAmiResearchToolPaths,
+  verifyAmiResearchToolPaths,
+} from './ami_remote_tooling.mjs';
 import {
   OVERSPLIT_THRESHOLD,
   runFinalPass,
@@ -88,13 +92,28 @@ if (!assets || !bin) throw new Error('SCRB_DEV_ASSETS and SCRB_BIN are required'
 const sourceCommit = requireCleanSourceCommit();
 const outputPath = resolve(outputArg);
 if (existsSync(outputPath)) throw new Error('refusing to overwrite existing report evidence');
-const workspace = await createAmiWorkspace({ assets, bin, meeting });
+const workspace = await createAmiWorkspace({
+  assets,
+  bin,
+  meeting,
+  scratch: process.env['SCRB_AMI_SCRATCH'],
+});
 try {
   const ami = workspace.ami;
   const modelsRoot = join(workspace.assetRoot, 'models');
   const wav = workspace.wav;
   const sourceWav = workspace.sourceWav;
-  execFileSync(join(workspace.toolRoot, 'ffmpeg.exe'), [
+  const { toolPaths, whisperBin } = resolveAmiResearchToolPaths({
+    platform: process.platform,
+    assetRoot: workspace.assetRoot,
+    toolRoot: workspace.toolRoot,
+  });
+  await verifyAmiResearchToolPaths({
+    toolPaths,
+    toolRoot: workspace.toolRoot,
+    whisperBin,
+  });
+  execFileSync(toolPaths.ffmpeg, [
     '-hide_banner',
     '-loglevel',
     'error',
@@ -115,14 +134,6 @@ try {
     wav,
   ]);
 
-  const toolPaths = {
-    ffmpeg: join(workspace.toolRoot, 'ffmpeg.exe'),
-    ffprobe: join(workspace.toolRoot, 'ffprobe.exe'),
-    whisperCli: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-cli.exe'),
-    whisperServer: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-server.exe'),
-    whisperVad: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-vad-speech-segments.exe'),
-    sherpaSidecar: join(workspace.toolRoot, 'scrb-sherpa.exe'),
-  };
   const models = {
     speechFinal: join(modelsRoot, 'whisper/ggml-large-v3-turbo-q5_0.bin'),
     speechLive: join(modelsRoot, 'whisper/ggml-small.en-q5_1.bin'),
@@ -197,9 +208,8 @@ try {
       ),
     };
   });
-  const toolDlls = await collectAdjacentDlls(workspace.toolRoot);
-  const whisperBin = join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin');
-  const whisperDlls = await collectAdjacentDlls(whisperBin);
+  const toolLibraries = await collectResearchRuntimeLibraries(workspace.toolRoot, process.platform);
+  const whisperLibraries = await collectResearchRuntimeLibraries(whisperBin, process.platform);
   const report = {
     schemaVersion: 2,
     runtimeIdentity: {
@@ -253,7 +263,7 @@ try {
       ffmpeg: toolPaths.ffmpeg,
       ffprobe: toolPaths.ffprobe,
       sherpaSidecar: toolPaths.sherpaSidecar,
-      ...toolDlls,
+      ...toolLibraries,
     }),
     whisperToolSha256: await sha256FilesWithin(
       whisperBin,
@@ -261,7 +271,7 @@ try {
         whisperCli: toolPaths.whisperCli,
         whisperServer: toolPaths.whisperServer,
         whisperVad: toolPaths.whisperVad,
-        ...whisperDlls,
+        ...whisperLibraries,
       },
     ),
   };
