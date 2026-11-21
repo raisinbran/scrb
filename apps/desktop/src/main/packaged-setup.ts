@@ -89,12 +89,15 @@ function sha256(file: string): Promise<string> {
 /**
  * True when the file has the pinned size and hash. A passing result is remembered by size and
  * modification time, so the 800 MB are hashed once, not at every launch.
+ * Configured files use a separate path-and-file-identity cache key, because different directories
+ * can contain same-named files with identical size and mtime.
  */
 export async function verified(
   file: string,
   name: string,
   cacheFile: string,
   table: DigestTable,
+  scope: 'packaged' | 'configured' = 'packaged',
 ): Promise<boolean> {
   const want = table[name];
   if (!want) return false;
@@ -105,16 +108,26 @@ export async function verified(
     return false;
   }
   if (info.size !== want.bytes) return false;
-  const key = `${info.size}:${Math.trunc(info.mtimeMs)}:${want.sha256}`;
+  const identity =
+    scope === 'configured'
+      ? createHash('sha256')
+          .update(path.resolve(file))
+          .update(`:${info.dev}:${info.ino}`)
+          .digest('hex')
+      : null;
+  const cacheName = identity ? `configured:${name}:${identity}` : name;
+  const stamp =
+    scope === 'configured' ? `${info.mtimeMs}:${info.ctimeMs}` : `${Math.trunc(info.mtimeMs)}`;
+  const key = `${info.size}:${stamp}:${want.sha256}`;
   let cache: Record<string, string> = {};
   try {
     cache = JSON.parse(await readFile(cacheFile, 'utf8')) as Record<string, string>;
   } catch {
     /* no cache yet */
   }
-  if (cache[name] === key) return true;
+  if (cache[cacheName] === key) return true;
   if ((await sha256(file)) !== want.sha256) return false;
-  cache[name] = key;
+  cache[cacheName] = key;
   await writeFile(cacheFile, JSON.stringify(cache)).catch(() => undefined);
   return true;
 }
