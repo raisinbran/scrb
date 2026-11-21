@@ -10,9 +10,14 @@ export function resolveAmiResearchToolPaths({ platform, assetRoot, toolRoot }) {
   }
   if (!assetRoot || !toolRoot) throw new Error('research asset and tool roots are required');
   const suffix = platform === 'win32' ? '.exe' : '';
-  const whisperBin = join(resolve(assetRoot), 'upstream', 'whisper.cpp', 'build', 'bin');
-  const binary = (name) => name + suffix;
   const tools = resolve(toolRoot);
+  // The verified macOS bundle stages Whisper beside FFmpeg and Sherpa.
+  // Preserve the Windows research runner's existing upstream Whisper layout.
+  const whisperBin =
+    platform === 'darwin'
+      ? tools
+      : join(resolve(assetRoot), 'upstream', 'whisper.cpp', 'build', 'bin');
+  const binary = (name) => name + suffix;
   return {
     whisperBin,
     toolPaths: {
