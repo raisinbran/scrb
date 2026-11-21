@@ -90,3 +90,41 @@ The multi-voice oversplit flag is a screening heuristic: it warns when a candida
 Adjacent non-system DLLs in each executable folder are part of the tool hash; the report also records operating-system, architecture, and Node runtime identity. Windows system DLLs are deliberately outside this bundle hash.
 
 The runner resolves its own repository root from the script location before checking Git cleanliness and commit identity, so launching it from another directory cannot attest the caller's unrelated repository.
+
+## macOS tooling preflight (research runner portability, November 21)
+
+The research runner can resolve extensionless `ffmpeg`, `ffprobe`,
+`scrb-sherpa`, and Whisper executables on Apple Silicon Macs; Windows keeps
+its `.exe` paths. No model, tool, annotation or audio is downloaded or
+installed by this runner. Both `SCRB_DEV_ASSETS` and `SCRB_BIN` must still
+be set explicitly to existing, trusted local roots. Never substitute a default
+Documents library, owner's recording, or an arbitrary system `ffmpeg`.
+
+- `SCRB_DEV_ASSETS`: verified public AMI `downloads/ami/*.Mix-Headset.wav`,
+  `downloads/ami/ann/segments`, pinned `models/whisper`, pinned
+  `models/sherpa-onnx`, and built Whisper programs in
+  `upstream/whisper.cpp/build/bin`.
+- `SCRB_BIN`: a separately verified Mac runtime `bin` containing extensionless
+  `ffmpeg`, `ffprobe` and `scrb-sherpa`. Adjacent and `lib/` Mac
+  `.dylib` files enter the per-run bundle hash; source build artifacts outside
+  those two directories are not claimed to be a complete dependency closure.
+- `SCRB_AMI_SCRATCH` (optional but preferred for packaged/read-only tools):
+  an **existing, real, disposable** directory whose exclusively generated child
+  receives the clip and final-pass work. The runner rejects symlinked scratch
+  roots and removes only its own new child. If omitted, it retains the older
+  `SCRB_BIN`-resident scratch behavior.
+
+**Before running any inference**, the assigned Mac agent must verify a clean,
+separately authorized checkout of one pinned runner commit; executable/model
+presence and expected hashes; available disk space; the six-meeting held-out
+manifest; and a bounded runtime estimate. The current M5 dirty/recovery
+worktrees are not an appropriate checkout for this runner. A read-only/sandbox
+Git metadata failure is not authorization to bypass ACLs or force-checkout.
+If any required input cannot be verified, report the exact missing requirement
+and **do not start the study**. Under the project policy, obtain fresh approval
+before any planned Mac inference/test exceeding 20 minutes. The unrelated
+previously authorized W10 hosted test is not transferable.
+
+The paired reporter still requires both thresholds to be executed on the **same
+platform, source commit, input hashes, tool hashes and models**. Screens remain
+non-DER, and the application default remains **1.0**.
