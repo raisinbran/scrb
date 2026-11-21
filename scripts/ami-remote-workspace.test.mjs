@@ -75,7 +75,7 @@ describe('AMI runner path ownership', () => {
       bin: f.bin,
       meeting: 'ES2004a',
     });
-    expect(workspace.runRoot.startsWith(f.bin + sep)).toBe(true);
+    expect(workspace.runRoot.startsWith(workspace.toolRoot + sep)).toBe(true);
     expect(workspace.workDir.startsWith(workspace.runRoot + sep)).toBe(true);
     expect(workspace.wav.startsWith(workspace.runRoot + sep)).toBe(true);
     expect(readdirSync(workspace.runRoot).length).toBe(1);
