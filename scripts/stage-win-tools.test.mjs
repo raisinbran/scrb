@@ -3,7 +3,15 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseDumpbinDependencies, REQUIRED_TOOLS, stageWindowsTools } from './stage-win-tools.mjs';
+import {
+  CAPTURE_TOOL,
+  createCaptureBuildManifest,
+  parseDumpbinArchitecture,
+  parseDumpbinDependencies,
+  REQUIRED_TOOLS,
+  stageWindowsTools,
+  validateCaptureBuildManifest,
+} from './stage-win-tools.mjs';
 
 const temporary = [];
 afterEach(() => {
@@ -72,6 +80,33 @@ function fixture() {
   };
 }
 
+function captureBuildFixture() {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'scrb-capture-build-manifest-'));
+  temporary.push(root);
+  const captureSource = path.join(root, 'capture-src');
+  const opusSource = path.join(root, 'opus-src');
+  mkdirSync(captureSource);
+  mkdirSync(opusSource);
+  const captureBinary = path.join(root, CAPTURE_TOOL);
+  const buildScript = path.join(root, 'build.cmd');
+  const opusLibrary = path.join(root, 'opus.lib');
+  writeFileSync(path.join(captureSource, 'main.cpp'), 'capture source v1');
+  writeFileSync(captureBinary, 'capture binary v1');
+  writeFileSync(buildScript, 'cl /O2 /MD /std:c++17');
+  writeFileSync(opusLibrary, 'opus library v1');
+  const commits = { repositoryHead: 'a'.repeat(40), sourceFileCommit: 'b'.repeat(40) };
+  const opusSourceCommit = 'c'.repeat(40);
+  const manifest = createCaptureBuildManifest({
+    ...commits,
+    captureBinary,
+    captureSource,
+    buildScript,
+    opusSourceCommit,
+    opusLibrary,
+  });
+  return { captureBinary, captureSource, buildScript, opusSourceCommit, opusLibrary, manifest };
+}
+
 describe('stage-win-tools', () => {
   it('parses DLL imports from dumpbin output', () => {
     expect(
@@ -79,6 +114,66 @@ describe('stage-win-tools', () => {
         'Image has the following dependencies:\r\n  KERNEL32.dll\r\n  whisper.dll\r\n  \r\n',
       ),
     ).toEqual(['KERNEL32.dll', 'whisper.dll']);
+  });
+
+  it('identifies the capture helper architecture from dumpbin headers', () => {
+    expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  8664 machine (x64)\r\n')).toBe('x64');
+    expect(parseDumpbinArchitecture('FILE HEADER VALUES\r\n  14c machine (x86)\r\n')).toBe('x86');
+    expect(parseDumpbinArchitecture('no machine header')).toBeUndefined();
+  });
+
+  it('accepts a capture helper only when the binary and current build inputs match its manifest', () => {
+    const config = captureBuildFixture();
+    expect(
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toEqual(config.manifest);
+
+    writeFileSync(path.join(config.captureSource, 'main.cpp'), 'capture source v2');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/sourceTreeSha256 does not match/);
+  });
+
+  it('rejects a capture binary or libopus input changed after the attested build', () => {
+    const config = captureBuildFixture();
+    writeFileSync(config.captureBinary, 'stale or replaced capture binary');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/captureBinarySha256 does not match/);
+
+    writeFileSync(config.captureBinary, 'capture binary v1');
+    writeFileSync(config.opusLibrary, 'different opus library');
+    expect(() =>
+      validateCaptureBuildManifest(config.manifest, {
+        captureBinary: config.captureBinary,
+        captureSource: config.captureSource,
+        buildScript: config.buildScript,
+        sourceFileCommit: 'b'.repeat(40),
+        opusSourceCommit: config.opusSourceCommit,
+        opusLibrary: config.opusLibrary,
+      }),
+    ).toThrow(/opusLibrarySha256 does not match/);
   });
 
   it('copies six tools and recursively stages their non-system DLLs and notices', () => {
@@ -107,6 +202,53 @@ describe('stage-win-tools', () => {
         (edge) => edge.from === 'ggml.dll' && edge.resolution === 'System32',
       ),
     ).toBe(true);
+  });
+
+  it('stages the source-identified capture helper and audits its runtime closure', () => {
+    const config = fixture();
+    const captureDirectory = path.join(config.root, 'capture');
+    mkdirSync(captureDirectory);
+    const capturePath = path.join(captureDirectory, CAPTURE_TOOL);
+    writeFileSync(capturePath, 'capture helper fixture');
+    config.toolSources[CAPTURE_TOOL] = capturePath;
+    config.sourceDirectories.push(captureDirectory);
+    const inspectBase = config.inspectDependencies;
+    config.inspectDependencies = (file) =>
+      path.basename(file) === CAPTURE_TOOL ? ['MSVCP140.dll', 'kernel32.dll'] : inspectBase(file);
+    let verified = false;
+
+    const audit = stageWindowsTools({
+      ...config,
+      includeCapture: true,
+      captureProvenance: {
+        sourceCommit: 'a'.repeat(40),
+        sourceTreeSha256: 'b'.repeat(64),
+        opusSourceCommit: 'c'.repeat(40),
+        opusLibrarySha256: 'd'.repeat(64),
+      },
+      verifyTools: (directory) => {
+        expect(existsSync(path.join(directory, CAPTURE_TOOL))).toBe(true);
+        verified = true;
+      },
+    });
+
+    expect(verified).toBe(true);
+    expect(audit.files.filter((file) => file.name.endsWith('.exe'))).toHaveLength(7);
+    expect(
+      audit.dependencyEdges.some(
+        (edge) => edge.from === CAPTURE_TOOL && edge.dependency === 'MSVCP140.dll',
+      ),
+    ).toBe(true);
+  });
+
+  it('requires source provenance when staging the capture helper', () => {
+    const config = fixture();
+    const capturePath = path.join(config.root, CAPTURE_TOOL);
+    writeFileSync(capturePath, 'capture helper fixture');
+    config.toolSources[CAPTURE_TOOL] = capturePath;
+    expect(() => stageWindowsTools({ ...config, includeCapture: true })).toThrow(
+      /capture source provenance is required/,
+    );
   });
 
   it('fails when a required tool is missing', () => {

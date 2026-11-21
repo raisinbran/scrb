@@ -224,6 +224,7 @@ export function toEngineTranscript(transcript: TranscriptFile): {
 function toListItem(
   meeting: MeetingFacts,
   summaryState: SummaryState = 'notGenerated',
+  speakerCount = 0,
 ): MeetingListItem {
   return {
     id: meeting.id,
@@ -233,8 +234,20 @@ function toListItem(
     origin: meeting.source,
     status: toContractStatus(meeting.status),
     summaryState,
-    speakerCount: 0,
+    speakerCount,
   };
+}
+
+async function readSpeakerCount(library: Library, meetingId: string): Promise<number> {
+  try {
+    return activeSpeakers(await library.readTranscript(meetingId)).length;
+  } catch (error) {
+    library.logger.log('warn', 'meeting-speakers-unreadable', {
+      meetingId,
+      ...errorFields(error),
+    });
+    return 0;
+  }
 }
 
 /** Reads a meeting's real facts, turning a missing one into the error the contract names. */
@@ -268,13 +281,13 @@ export function timelineGaps(library: Library, meeting: MeetingMeta): TimelineGa
   }
 }
 
-function toDetail(
+async function toDetail(
   library: Library,
   meeting: MeetingMeta,
   summaryState: SummaryState,
-): MeetingDetail {
+): Promise<MeetingDetail> {
   return {
-    ...toListItem(meeting, summaryState),
+    ...toListItem(meeting, summaryState, await readSpeakerCount(library, meeting.id)),
     gaps: timelineGaps(library, meeting),
     hasAudio: hasSavedAudio(library, meeting),
     ...(meeting.status === 'transcriptionFailed' && {
@@ -337,8 +350,13 @@ export function createMeetingHandlers(
   summaryRunning: (meetingId: string) => boolean = () => false,
 ): CallHandlers {
   const retrying = new Set<string>();
-  const itemOf = async (meeting: MeetingFacts): Promise<MeetingListItem> =>
-    toListItem(meeting, await readSummaryState(library, meeting.id, summaryRunning));
+  const itemOf = async (meeting: MeetingFacts): Promise<MeetingListItem> => {
+    const [summaryState, speakerCount] = await Promise.all([
+      readSummaryState(library, meeting.id, summaryRunning),
+      readSpeakerCount(library, meeting.id),
+    ]);
+    return toListItem(meeting, summaryState, speakerCount);
+  };
   return {
     listMeetings: async (request) => {
       const { filter = {} } = request as { filter?: MeetingFilter };

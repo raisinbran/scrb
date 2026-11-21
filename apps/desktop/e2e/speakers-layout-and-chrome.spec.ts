@@ -248,6 +248,60 @@ test('keeps populated voice-profile actions inside their card at 900px', async (
   }
 });
 
+test('places Live meters beside the source pickers and Settings Test mic above Input Profile', async () => {
+  const { app, page } = await openMockApp(testUserData('scrb-audio-layout-'));
+  try {
+    const micPicker = page.getByRole('combobox', { name: 'Microphone', exact: true });
+    const meetingPicker = page.getByRole('combobox', { name: 'Meeting app', exact: true });
+    const micMeter = page.getByRole('meter', { name: 'Mic level' });
+    const meetingMeter = page.getByRole('meter', { name: 'Meeting level' });
+    await expect(micPicker).toBeVisible();
+    await expect(meetingPicker).toBeVisible();
+    await expect(micMeter).toBeVisible();
+    await expect(meetingMeter).toBeVisible();
+    await expect(page.getByText('Levels', { exact: true })).toBeVisible();
+
+    const [micPickerBox, meetingPickerBox, micMeterBox, meetingMeterBox] = await Promise.all([
+      micPicker.boundingBox(),
+      meetingPicker.boundingBox(),
+      micMeter.boundingBox(),
+      meetingMeter.boundingBox(),
+    ]);
+    expect(micPickerBox).not.toBeNull();
+    expect(meetingPickerBox).not.toBeNull();
+    expect(micMeterBox).not.toBeNull();
+    expect(meetingMeterBox).not.toBeNull();
+    const pickersRight = Math.max(
+      micPickerBox!.x + micPickerBox!.width,
+      meetingPickerBox!.x + meetingPickerBox!.width,
+    );
+    expect(micMeterBox!.x).toBeGreaterThan(pickersRight);
+    expect(meetingMeterBox!.x).toBe(micMeterBox!.x);
+    expect(micMeterBox!.y).toBeLessThan(meetingMeterBox!.y);
+
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const testMic = page.getByRole('button', { name: 'Test mic', exact: true });
+    const micOnlyMeter = page.getByRole('meter', { name: 'Mic level' });
+    const inputProfile = page.getByRole('group', { name: /^Input Profile/ });
+    await expect(testMic).toBeVisible();
+    await expect(micOnlyMeter).toBeVisible();
+    await expect(inputProfile).toBeVisible();
+    await expect(page.getByRole('meter', { name: 'Meeting level' })).toHaveCount(0);
+    const [testMicBox, compactMeterBox, profileBox] = await Promise.all([
+      testMic.boundingBox(),
+      micOnlyMeter.boundingBox(),
+      inputProfile.boundingBox(),
+    ]);
+    expect(testMicBox).not.toBeNull();
+    expect(compactMeterBox).not.toBeNull();
+    expect(profileBox).not.toBeNull();
+    expect(testMicBox!.y + testMicBox!.height).toBeLessThan(profileBox!.y + 1);
+    expect(Math.abs(compactMeterBox!.y - testMicBox!.y)).toBeLessThanOrEqual(20);
+  } finally {
+    await app.close();
+  }
+});
+
 test('keeps sidebar tooltips visible and information buttons circular in both themes', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-button-polish-'));
   try {
@@ -266,7 +320,12 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       const selected = await tooltipBounds(page, 'Settings');
       const selectedStyle = await selected.button.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { background: style.backgroundColor, shadow: style.boxShadow };
+        return {
+          background: style.backgroundColor,
+          shadow: style.boxShadow,
+          underline: style.textDecorationLine,
+          borderBottom: style.borderBottomWidth,
+        };
       });
       const selectedToken = await page.evaluate(() => {
         const probe = document.createElement('div');
@@ -278,6 +337,9 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       });
       expect(selectedStyle.background).toBe(selectedToken);
       expect(selectedStyle.shadow).toBe('none');
+      expect(selectedStyle.underline).toBe('none');
+      expect(selectedStyle.borderBottom).toBe('0px');
+      await expect(selected.button).not.toHaveAttribute('title');
       expect(selected.bounds.y).toBeLessThan((await selected.button.boundingBox())!.y);
       await page.screenshot({
         path: join(evidenceDir, `after-settings-hover-${theme.toLowerCase()}.png`),
@@ -286,7 +348,12 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       const unselected = await tooltipBounds(page, 'Help');
       const unselectedStyle = await unselected.button.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { background: style.backgroundColor, shadow: style.boxShadow };
+        return {
+          background: style.backgroundColor,
+          shadow: style.boxShadow,
+          underline: style.textDecorationLine,
+          borderBottom: style.borderBottomWidth,
+        };
       });
       const hoverToken = await page.evaluate(() => {
         const probe = document.createElement('div');
@@ -298,6 +365,9 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       });
       expect(unselectedStyle.background).toBe(hoverToken);
       expect(unselectedStyle.shadow).toBe('none');
+      expect(unselectedStyle.underline).toBe('none');
+      expect(unselectedStyle.borderBottom).toBe('0px');
+      await expect(unselected.button).not.toHaveAttribute('title');
       await page.screenshot({
         path: join(evidenceDir, `after-help-hover-${theme.toLowerCase()}.png`),
       });
@@ -323,7 +393,24 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       await info.hover();
       const infoHover = await info.evaluate((element) => getComputedStyle(element).backgroundColor);
       expect(infoHover).toBe(hoverToken);
-      await expect(page.locator('[role="tooltip"][data-open="true"]')).toHaveCount(1);
+      const openTip = page.locator('[role="tooltip"][data-open="true"]');
+      await expect(openTip).toHaveCount(1);
+      const tipColors = await openTip.evaluate((node) => {
+        const tip = getComputedStyle(node);
+        const sample = document.createElement('span');
+        sample.style.backgroundColor = 'var(--color-surface-raised)';
+        sample.style.color = 'var(--color-text)';
+        sample.style.borderColor = 'var(--color-border)';
+        document.body.append(sample);
+        const tokens = getComputedStyle(sample);
+        const result = {
+          actual: [tip.backgroundColor, tip.color, tip.borderTopColor],
+          expected: [tokens.backgroundColor, tokens.color, tokens.borderTopColor],
+        };
+        sample.remove();
+        return result;
+      });
+      expect(tipColors.actual).toEqual(tipColors.expected);
       await page.screenshot({
         path: join(evidenceDir, `after-info-hover-${theme.toLowerCase()}.png`),
       });
@@ -362,6 +449,30 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
       await expect(
         page.locator('[role="tooltip"]').filter({ hasText: 'Settings' }),
       ).toHaveAttribute('data-open', 'true');
+
+      // Suppressing pointer-only outlines must not obscure keyboard focus on either selector.
+      for (const target of [
+        unselected.button,
+        page.getByRole('button', { name: 'Live', exact: true }),
+      ]) {
+        await focusByTab(page, target);
+        await expect(target).toBeFocused();
+        const keyboardFocus = await target.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            focusVisible: element.matches(':focus-visible'),
+            outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            outlineOffset: style.outlineOffset,
+          };
+        });
+        expect(keyboardFocus).toEqual({
+          focusVisible: true,
+          outlineStyle: 'solid',
+          outlineWidth: '2px',
+          outlineOffset: '2px',
+        });
+      }
     }
 
     await page.getByRole('button', { name: 'Live', exact: true }).click();

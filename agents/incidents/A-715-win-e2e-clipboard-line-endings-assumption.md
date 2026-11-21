@@ -1,0 +1,7 @@
+### A-715 — 2026-11-17 — Windows Electron E2E used a platform-specific clipboard newline assumption
+
+- **Status/attribution:** Confirmed self-induced regression-test portability defect; not a production clipboard, storage or capture defect.
+- **Observed failure:** PR #345 exact head `41d112a5`, [CI run 44028177644 attempt 2](https://github.com/raisinbran/scrb/actions/runs/44028177644), passed Windows unit tests (including the formerly timed-out storage scale test) but failed `apps/desktop/e2e/playback.spec.ts:374` on an exact clipboard string assertion. The Playwright diff showed all expected speaker-prefixed lines with Windows-formatted line separators, unlike the test's LF-only expected string. Mac Electron smoke had passed on the same head.
+- **Impact:** Windows CI remained red and the new test did not reach the seek assertions; a test-only correction and fresh exact-head CI were required. No private recording, storage format or application behavior was changed.
+- **Correction:** Normalize Windows-style CRLF (and CR-only) line breaks to LF solely in the test's clipboard assertion. Continue exact byte-for-byte equality of all 1,010 speaker-prefixed lines after newline normalization; do not alter production clipboard handling.
+- **Remaining risk:** Reverify Windows clipboard and both-track seek assertions on the new PR head. Do not misclassify the initial unrelated storage timeout as a confirmed production regression.

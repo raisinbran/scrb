@@ -113,6 +113,10 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
       <h2 id="settings-audio" className={styles.legend}>
         Audio
       </h2>
+      <MicTest
+        sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
+        devices={devices}
+      />
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
           Input Profile
@@ -266,10 +270,6 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
           </select>
         </label>
       </div>
-      <MicTest
-        sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
-        devices={devices}
-      />
     </section>
   );
 }

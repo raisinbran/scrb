@@ -101,6 +101,130 @@ describe('TranscriptTab follow-along', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 20 * ROW_PX - 24, behavior: 'auto' });
   });
 
+  it('eases Jump to current position instead of snapping instantly', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const runFrame = (at: number) => {
+      const callback = frames.shift();
+      if (!callback) throw new Error('transcript scroll frame was not scheduled');
+      act(() => callback(at));
+    };
+    render(tab(atRow(25), false));
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    expect(region.scrollTop).toBe(0);
+    runFrame(0);
+    runFrame(320);
+    const halfway = region.scrollTop;
+    expect(halfway).toBeGreaterThan(0);
+    expect(halfway).toBeLessThan(25 * ROW_PX - 24);
+    runFrame(640);
+    expect(region.scrollTop).toBeGreaterThan(halfway);
+    // The final rendered word may need a short second eased alignment.
+    runFrame(656);
+    runFrame(836);
+    expect(region.scrollTop).toBeLessThanOrEqual(25 * ROW_PX - 24);
+    expect(banner()).toBeNull();
+  });
+
+  it('keeps reader control after a completed jump and allows a new explicit jump', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      const id = ++nextFrame;
+      frames.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames.delete(id);
+    });
+    const finishAnimations = () => {
+      let at = 0;
+      for (let i = 0; i < 12 && frames.size > 0; i++) {
+        const [id, callback] = frames.entries().next().value!;
+        frames.delete(id);
+        act(() => callback(at));
+        at += 240;
+      }
+      expect(frames.size).toBe(0);
+    };
+
+    render(tab(atRow(25), false));
+    const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+    fireEvent.wheel(region);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    finishAnimations();
+    expect(region.scrollTop).toBeGreaterThan(0);
+    expect(banner()).toBeNull();
+
+    // Wheel/scrollbar input after the jump is complete must retire its alignment state.
+    fireEvent.wheel(region);
+    region.scrollTop = 0;
+    fireEvent.scroll(region);
+    finishAnimations();
+    expect(region.scrollTop).toBe(0);
+    expect(banner()).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+    finishAnimations();
+    expect(region.scrollTop).toBeGreaterThan(0);
+    expect(banner()).toBeNull();
+  });
+
+  it('rechecks active-word visibility after a late virtual-row shift', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const runFrame = (at: number) => {
+      const callback = frames.shift();
+      if (!callback) throw new Error('transcript scroll frame was not scheduled');
+      act(() => callback(at));
+    };
+    let drift = 0;
+    const rect = (top: number, height: number) => ({ top, bottom: top + height }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute('aria-label') === 'Transcript') return rect(0, 300);
+        if (this.getAttribute('aria-current') === 'true') {
+          const region = document.querySelector<HTMLElement>('[aria-label="Transcript"]');
+          return rect(25 * ROW_PX - (region?.scrollTop ?? 0) + drift, 20);
+        }
+        return rect(0, 0);
+      });
+    try {
+      render(tab(atRow(25), false));
+      const region = screen.getByRole('region', { name: 'Transcript' }) as HTMLElement;
+      fireEvent.wheel(region);
+      fireEvent.click(screen.getByRole('button', { name: 'Jump to current position' }));
+      runFrame(0);
+      runFrame(240);
+      runFrame(480);
+      expect(banner()).toBeNull();
+      drift = -43;
+      region.scrollTop += 0.5;
+      fireEvent.scroll(region);
+      // The word shifted above the viewport after its first alignment; smoothly recover.
+      const word = region.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
+      expect(word?.getBoundingClientRect().top).toBeLessThan(0);
+      runFrame(500);
+      runFrame(620);
+      expect(word?.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+      expect(word?.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+      expect(banner()).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('does not scroll while paused', () => {
     const { rerender } = render(tab(atRow(0), false));
     rerender(tab(atRow(20), false));
@@ -117,7 +241,9 @@ describe('TranscriptTab follow-along', () => {
     expect(jump.tagName).toBe('BUTTON');
     // Showing the banner must not take the focus from where the reader is.
     expect(document.activeElement).not.toBe(jump);
+    reduced = true;
     fireEvent.click(jump);
+    reduced = false;
     expect(banner()).toBeNull();
     // jsdom places the active word at viewport top, so word alignment adds one more margin.
     expect((screen.getByRole('region', { name: 'Transcript' }) as HTMLElement).scrollTop).toBe(
@@ -233,7 +359,8 @@ describe('TranscriptTab follow-along', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
   });
 
-  it('jumps directly to the current word inside a 400-word turn', () => {
+  it('reaches the current word immediately when reduced motion is requested', () => {
+    reduced = true;
     const words = Array.from({ length: 420 }, (_, i) => ({
       id: `invented-long-jump-${i}`,
       text: 'invented',
@@ -289,6 +416,7 @@ describe('TranscriptTab follow-along', () => {
   });
 
   it('does not apply a whole long-row height correction after aligning its active word', () => {
+    reduced = true;
     const words = Array.from({ length: 420 }, (_, i) => ({
       id: `invented-resize-${i}`,
       text: 'invented',
@@ -373,6 +501,7 @@ describe('TranscriptTab follow-along', () => {
   });
 
   it('aligns the active word after a far virtualized jump renders a long turn', () => {
+    reduced = true;
     const longStart = ROWS * 6000;
     const turnId = 'invented-far-long-turn';
     const longWords = Array.from({ length: 420 }, (_, i) => ({

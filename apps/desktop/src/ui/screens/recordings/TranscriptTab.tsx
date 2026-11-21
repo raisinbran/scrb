@@ -12,6 +12,7 @@ import {
 } from 'react';
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
+import { animateTranscriptScroll } from '../../lib/transcript-scroll.ts';
 import { recall, remember } from '../../lib/tab-memory.ts';
 import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
@@ -364,6 +365,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const { segments, speakers, totalSegments, loading, error } = transcript;
   const scroller = useRef<HTMLDivElement>(null);
   const observer = useRef<ResizeObserver | null>(null);
+  const jumpCancel = useRef<(() => void) | null>(null);
+  useEffect(() => () => jumpCancel.current?.(), []);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportPx, setViewportPx] = useState(DEFAULT_VIEWPORT_PX);
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map());
@@ -416,8 +419,19 @@ export function TranscriptTab(props: TranscriptTabProps) {
   // never does, so the tracking cannot switch itself off.
   const [followPlayback, setFollowPlayback] = useState(true);
   const [jumpToCurrentNonce, setJumpToCurrentNonce] = useState(0);
+  const [alignmentCheck, setAlignmentCheck] = useState(0);
+  const alignmentAttempts = useRef(0);
   const alignedJump = useRef<{ nonce: number; rowHeight: number | undefined } | null>(null);
-  const stopFollowing = useCallback(() => setFollowPlayback(false), []);
+  const missingWordRetry = useRef<number | null>(null);
+  const stopFollowing = useCallback(() => {
+    jumpCancel.current?.();
+    jumpCancel.current = null;
+    // A completed explicit jump must not resume aligning after the reader takes control.
+    setJumpToCurrentNonce(0);
+    alignedJump.current = null;
+    missingWordRetry.current = null;
+    setFollowPlayback(false);
+  }, []);
   const wasPlaying = useRef(false);
   useEffect(() => {
     if (playing && !wasPlaying.current) setFollowPlayback(true);
@@ -535,24 +549,85 @@ export function TranscriptTab(props: TranscriptTabProps) {
       : undefined;
   const activeRowHeight = activeRow ? heights.get(activeRow.key) : undefined;
   useLayoutEffect(() => {
+    if (!jumpToCurrentNonce || jumpCancel.current) return;
     if (
-      !jumpToCurrentNonce ||
-      (alignedJump.current?.nonce === jumpToCurrentNonce &&
-        alignedJump.current.rowHeight === activeRowHeight)
-    )
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true &&
+      alignedJump.current?.nonce === jumpToCurrentNonce &&
+      alignedJump.current.rowHeight === activeRowHeight
+    ) {
+      // An immediate jump must not reapply the same alignment delta on re-render.
+      // A genuinely changed row height can still trigger another correction.
+      setFollowPlayback(true);
       return;
+    }
     const element = scroller.current;
     const word = element?.querySelector<HTMLElement>('[data-ms][aria-current="true"]');
-    if (!element || !word) return;
+    if (!element) return;
+    if (!word) {
+      // Height measurements collected while scrolling can move the active row beyond the
+      // original estimated destination. Re-anchor once using the latest virtual layout,
+      // then wait for React to render the word before claiming the jump is complete.
+      if (missingWordRetry.current !== jumpToCurrentNonce) {
+        missingWordRetry.current = jumpToCurrentNonce;
+        const rowTop = layout.current.offsets[activeIndex];
+        if (rowTop !== undefined) {
+          jumpCancel.current = animateTranscriptScroll(
+            element,
+            Math.max(0, rowTop - FOLLOW_MARGIN_PX),
+            {
+              maxDurationMs: 120,
+              onPosition: setScrollTop,
+              onComplete: () => {
+                jumpCancel.current = null;
+                setAlignmentCheck((check) => check + 1);
+              },
+            },
+          );
+        }
+      }
+      return;
+    }
     const viewport = element.getBoundingClientRect();
     const bounds = word.getBoundingClientRect();
     const top = viewport.top + FOLLOW_MARGIN_PX;
     const bottom = viewport.top + element.clientHeight - FOLLOW_MARGIN_PX;
+    const visible = bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
+    if (
+      visible &&
+      alignedJump.current?.nonce === jumpToCurrentNonce &&
+      alignedJump.current.rowHeight === activeRowHeight
+    ) {
+      setFollowPlayback(true);
+      return;
+    }
+    // A resize may shift a measured row after the first animation. Retry only while the
+    // word is actually outside the viewport, with a strict two-pass motion budget.
+    if (alignmentAttempts.current >= 2) {
+      setFollowPlayback(true);
+      return;
+    }
+    alignmentAttempts.current += 1;
     const shift =
       bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0;
-    if (shift !== 0) element.scrollTop += shift;
     alignedJump.current = { nonce: jumpToCurrentNonce, rowHeight: activeRowHeight };
-  }, [jumpToCurrentNonce, scrollTop, activeWordKey, activeRow?.key, activeRowHeight]);
+    jumpCancel.current = animateTranscriptScroll(element, element.scrollTop + shift, {
+      maxDurationMs: 120,
+      onPosition: setScrollTop,
+      onComplete: () => {
+        jumpCancel.current = null;
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true)
+          setFollowPlayback(true);
+        else setAlignmentCheck((check) => check + 1);
+      },
+    });
+  }, [
+    jumpToCurrentNonce,
+    scrollTop,
+    activeWordKey,
+    activeRow?.key,
+    activeRowHeight,
+    alignmentCheck,
+  ]);
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing || !followPlayback || activeIndex < 0) return;
@@ -669,17 +744,27 @@ export function TranscriptTab(props: TranscriptTabProps) {
           type="button"
           className={styles.jumpToPosition}
           onClick={() => {
-            setFollowPlayback(true);
-            setJumpToCurrentNonce((nonce) => nonce + 1);
             const element = scroller.current;
             const top = offsets[activeIndex];
-            if (element && top !== undefined) {
-              const destination = Math.max(0, top - FOLLOW_MARGIN_PX);
-              element.scrollTop = destination;
-              // Render the destination's virtual window directly; do not wait for a scroll event.
-              setScrollTop(destination);
-            }
-            element?.focus();
+            if (!element || top === undefined) return;
+            jumpCancel.current?.();
+            alignmentAttempts.current = 0;
+            missingWordRetry.current = null;
+            alignedJump.current = null;
+            jumpCancel.current = animateTranscriptScroll(
+              element,
+              Math.max(0, top - FOLLOW_MARGIN_PX),
+              {
+                maxDurationMs: 480,
+                // Keep the virtual window moving with the visible scroll animation.
+                onPosition: setScrollTop,
+                onComplete: () => {
+                  jumpCancel.current = null;
+                  setJumpToCurrentNonce((nonce) => nonce + 1);
+                },
+              },
+            );
+            element.focus();
           }}
         >
           Jump to current position

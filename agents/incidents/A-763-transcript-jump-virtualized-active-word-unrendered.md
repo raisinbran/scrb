@@ -1,0 +1,9 @@
+### A-763 — Animated distant transcript jump failed synthetic Electron smoke
+
+- **Status / attribution:** Confirmed PR #352 behavioral regression on macOS Electron smoke, not yet verified fixed.
+- **What failed:** [CI run 44203702056](https://github.com/raisinbran/scrb/actions/runs/44203702056) passed unit tests but failed `e2e/transcript-jump-performance.spec.ts` at the first 30-minute target in a synthetic eight-hour meeting. After five seconds, the transcript had moved through about 30 different scroll positions but no active word was visible. The test timed out rather than verifying a successful jump.
+- **Evidence:** Sanitized Playwright failure output showed `failedTargetMs=1800000`, `scrollTop=18945`, 31 rendered rows, 30 scroll events and no active word. This tests rendering, not private speech or hardware.
+- **Likely cause, not proved:** During an extended eased scroll, virtual row height measurements can invalidate the offset estimated at click time; the implementation also marked follow-along complete when the active word was absent instead of retrying its alignment. These are code risks supported by inspection and the missing-word outcome, not a confirmed unique causal trace.
+- **Correction attempted:** Commit `cde28d4a` retains easing, bounds the primary jump to 480ms, retries once for a missing active word using the latest virtual-layout offset (120ms), then eases final word alignment (140ms). The performance assertion was not relaxed.
+- **Remaining risk:** Await exact-head macOS/Windows unit and Electron smoke tests. If the active word still fails to appear, gather target offset, rendered window and active-word state before further code changes; do not raise timeouts or revert to an instant jump to hide the defect.
+- **Prevention:** Preserve distant virtualized timeline tests for every change to transcript animation and include active-word rendering as an acceptance requirement.

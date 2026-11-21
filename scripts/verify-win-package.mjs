@@ -87,6 +87,21 @@ export function verifyWindowsPackage({ stagingDir, packagedDir, slice }) {
   const provenance = JSON.parse(
     readFileSync(requiredFile(stagingDir, 'PROVENANCE.json', 'staging provenance'), 'utf8'),
   );
+  if (slice === 3) {
+    const capture = provenance.sources?.capture;
+    if (
+      !capture ||
+      capture.architecture !== 'x64' ||
+      !/^[a-f0-9]{40}$/i.test(capture.repositoryHeadAtBuild ?? '') ||
+      !/^[a-f0-9]{40}$/i.test(capture.sourceFileCommit ?? '') ||
+      !/^[a-f0-9]{64}$/i.test(capture.sourceTreeSha256 ?? '') ||
+      !/^[a-f0-9]{40}$/i.test(capture.opusSourceCommit ?? '') ||
+      !/^[a-f0-9]{64}$/i.test(capture.opusLibrarySha256 ?? '') ||
+      !capture.runtimePolicy?.includes('/MD')
+    ) {
+      throw new Error('capture helper provenance is missing source, libopus, or runtime identity');
+    }
+  }
   const audit = JSON.parse(
     readFileSync(
       requiredFile(stagingDir, 'DEPENDENCY-AUDIT.json', 'staging dependency audit'),

@@ -4,9 +4,9 @@
 
 **M1** = a build the owner can run on real ongoing meetings (dev build, not packaged): accurate transcription, speaker grouping, corrections that become vocabulary suggestions, record + playback + export.
 
-## Isolated development location
+### Isolated development startup
 
-Every isolated non-packaged development or test profile and library under the OS temporary directory uses a new random fictional US state, persisted through the normal `updateSettings` handler. Packaged builds, the default profile, and libraries outside the temporary directory retain existing behavior. Tests for a specific jurisdiction set an explicit fixture location after launch and before checking behavior. Keep the profile and library separate from the owner's production data.
+For any unpackaged real-backend startup that needs location onboarding, use a fresh profile under the OS temporary directory with an explicit `--user-data-dir`, and put a `library-location.json` in that profile pointing to a separate temporary test library. Set `SCRB_DEV_AUTO_LOCATION=1` for that launch. The backend persists one random fictional US state before opening the first window and reuses it on later launches. Do not interact with the location dialog manually or through UI automation. Keep this flag off for packaged builds and never point the profile or library at production data. For tests of a particular jurisdiction, set that fixture location after startup.
 
 ## 1. Feature status in the Electron app today
 

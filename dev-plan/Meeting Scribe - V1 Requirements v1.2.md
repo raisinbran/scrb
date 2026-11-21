@@ -106,6 +106,8 @@ The app records the way Teams' recording feature appears to: your microphone plu
 - **Studio:** all processing off.
 - **Custom:** individual toggles above.
 
+**Owner confirmation, Nov 16, 2026:** these are functional V1 microphone-processing commitments, not merely selectable settings. M1 can defer their implementation while maintaining truthful UI disclosures. V1 must verify the effect of each control in real installed Mac and Windows workflows, following the [V1 input-settings workstream](../docs/plans/v1-input-settings-closure.md) and [Gate 8 checklist](../docs/gates/gate-8-input-settings-acceptance.md). The existing requirement to keep the unprocessed original and never alter another app's output volume remains unchanged.
+
 Excluded from Discord: push to talk, voice-channel warnings, quality of service and global attenuation. Global attenuation would lower other apps' volume, which this app must never do.
 
 ## Recording integrity and pause/resume
@@ -309,5 +311,5 @@ V1 is done when each item below works on the installed app, on both a Windows 11
 - [ ] Generates Brief and Full summaries, each with complete action-item and decision tables linked to timestamps.
 - [ ] Exports transcript, summary or both to DOCX and PDF.
 - [ ] Opens meeting and audio folders, deletes meetings fully, and auto-deletes on the chosen schedule.
-- [ ] Offers the three audio presets and Light/Dark/System themes, and stays within the quality targets in the Development Plan.
+- [ ] Offers the three **functioning** audio presets, with measured audio-processing effects and verified supporting microphone/voice controls on both platforms (not just persisted settings); offers Light/Dark/System themes and stays within the quality targets in the Development Plan.
 - [ ] Shows an About screen and a User Manual that matches the installed version.

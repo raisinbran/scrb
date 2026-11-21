@@ -98,7 +98,9 @@ test('copies an invented saved transcript through the Electron clipboard', async
     await page
       .getByRole('button', { name: 'Copy transcript' })
       .evaluate((button) => (button as HTMLButtonElement).click());
-    await expect(page.getByRole('status')).toHaveText('Transcript copied.');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Transcript copied.' }),
+    ).toHaveText('Transcript copied.');
     const clipboardText = await app.evaluate(({ clipboard }) => clipboard.readText());
     expect(clipboardText).toBe('Invented speaker: invented corrected text');
 
@@ -111,6 +113,18 @@ test('copies an invented saved transcript through the Electron clipboard', async
     await page.keyboard.press(`${modifier}+C`);
     const nativeClipboardText = await app.evaluate(({ clipboard }) => clipboard.readText());
     expect(nativeClipboardText).toContain('invented corrected text');
+
+    // Both notices must keep their own status role; dismissal is a native keyboard action.
+    const sharedNotice = page.getByRole('status').filter({ hasText: 'The library folder may be' });
+    await expect(sharedNotice).toBeVisible();
+    const dismiss = sharedNotice.getByRole('button', {
+      name: 'Dismiss shared library permissions notice',
+    });
+    await dismiss.focus();
+    await page.keyboard.press('Enter');
+    await expect(sharedNotice).toHaveCount(0);
+    await page.reload();
+    await expect(sharedNotice).toHaveCount(0);
   } finally {
     await app.close();
   }

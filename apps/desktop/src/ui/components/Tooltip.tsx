@@ -10,9 +10,6 @@ import {
 import { createPortal } from 'react-dom';
 import styles from './Tooltip.module.css';
 
-/** Pointer hover waits this long; keyboard focus shows the tip at once. */
-export const TOOLTIP_DELAY_MS = 100;
-
 interface Point {
   x: number;
   y: number;
@@ -35,12 +32,8 @@ export function Tooltip({
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
   const tip = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const hide = useCallback(() => {
-    clearTimeout(timer.current);
-    setOpen(false);
-  }, []);
+  const hide = useCallback(() => setOpen(false), []);
   const show = useCallback(() => {
     const box = wrapper.current?.getBoundingClientRect();
     const tipBox = tip.current?.getBoundingClientRect();
@@ -67,7 +60,6 @@ export function Tooltip({
     setOpen(true);
   }, [label]);
 
-  useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -90,19 +82,19 @@ export function Tooltip({
     const keyboard = !pressed.current;
     pressed.current = false;
     if (keyboard) {
-      clearTimeout(timer.current);
       show();
     }
   };
+
+  // Keep the control's existing description (e.g., why Start is disabled) when the tip opens.
+  const originalDescription = children.props['aria-describedby'];
+  const activeDescription = [originalDescription, id].filter(Boolean).join(' ');
 
   return (
     <span
       ref={wrapper}
       className={styles.wrapper}
-      onPointerEnter={() => {
-        clearTimeout(timer.current);
-        timer.current = setTimeout(show, TOOLTIP_DELAY_MS);
-      }}
+      onPointerEnter={show}
       onPointerLeave={hide}
       onPointerDown={() => {
         pressed.current = true;
@@ -114,7 +106,7 @@ export function Tooltip({
       onFocus={onFocus}
       onBlur={hide}
     >
-      {cloneElement(children, open ? { 'aria-describedby': id } : {})}
+      {cloneElement(children, open ? { 'aria-describedby': activeDescription } : {})}
       {createPortal(
         <span
           ref={tip}
