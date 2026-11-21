@@ -93,30 +93,19 @@ $candidateArgs = @(
 )
 & node @candidateArgs
 if ($LASTEXITCODE -ne 0) { throw 'Installer candidate integrity manifest generation failed' }
-# On an independently trusted hosted producer job ONLY, publish the digest evidence
-# through GITHUB_OUTPUT (a job-output channel), NOT inside the downloadable artifact.
-# The consumer must receive needs.verified-installer-producer.outputs.* from its
-# protected workflow. Do not promote these values from an artifact JSON.
+# Publish independent evidence only through a protected hosted producer's job
+# output channel. A downloaded installer/manifest is NEVER an attestation source.
 if ($env:GITHUB_ACTIONS -eq 'true') {
     if ($env:GITHUB_JOB -cne 'verified-installer-producer' -or
         $env:GITHUB_REPOSITORY -cne 'raisinbran/scrb' -or
         $env:GITHUB_SHA -cne $sourceCommit -or
         $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
-        $env:GITHUB_RUN_ID -notmatch '^[0-9]+
-Write-Host "NSIS installer: $installer"
-Write-Host "SHA-256: $hash"
-Write-Host "Candidate integrity manifest: $candidateManifest"
- -or
-        $env:GITHUB_RUN_ATTEMPT -notmatch '^[1-9][0-9]*
-Write-Host "NSIS installer: $installer"
-Write-Host "SHA-256: $hash"
-Write-Host "Candidate integrity manifest: $candidateManifest"
- -or
+        $env:GITHUB_RUN_ID -notmatch '^[0-9]+$' -or
+        $env:GITHUB_RUN_ATTEMPT -notmatch '^[1-9][0-9]*$' -or
         [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
         throw 'Trusted hosted installer producer source and output channel are unavailable'
     }
-    # Reverify the seven-tool stage and prepackaged DLL/license closure immediately
-    # before issuing attestations. The candidate manifest already binds these files.
+    # Both metadata digests must describe the same verified stage and package inputs.
     & node $verify --staging $staging --packaged (Join-Path $prepackaged 'resources\bin') --slice 3
     if ($LASTEXITCODE -ne 0) { throw 'Trusted producer stage revalidation failed' }
     $candidate = Get-Content -LiteralPath $candidateManifest -Raw | ConvertFrom-Json
