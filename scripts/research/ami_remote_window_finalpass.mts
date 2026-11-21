@@ -11,14 +11,13 @@ import { release } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   assertStrictChild,
-  collectResearchRuntimeLibraries,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
 } from './ami_remote_workspace.mjs';
 import {
   resolveAmiResearchToolPaths,
-  verifyAmiResearchToolPaths,
+  withVerifiedAmiResearchRuntime,
 } from './ami_remote_tooling.mjs';
 import {
   OVERSPLIT_THRESHOLD,
@@ -108,31 +107,53 @@ try {
     assetRoot: workspace.assetRoot,
     toolRoot: workspace.toolRoot,
   });
-  await verifyAmiResearchToolPaths({
-    toolPaths,
-    toolRoot: workspace.toolRoot,
-    whisperBin,
-  });
-  execFileSync(toolPaths.ffmpeg, [
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-nostdin',
-    '-n',
-    '-ss',
-    String(startSec),
-    '-i',
-    sourceWav,
-    '-t',
-    String(durationSec),
-    '-ac',
-    '1',
-    '-ar',
-    '16000',
-    '-c:a',
-    'pcm_s16le',
-    wav,
-  ]);
+  // This preflight is the native-execution gate, not post-inference reporting.
+  // Reject linked dylibs, linked lib/ directories and out-of-assets Windows
+  // Whisper ancestors; bind tool and dependency hashes before launching FFmpeg.
+  const { toolSha256, whisperToolSha256 } = await withVerifiedAmiResearchRuntime(
+    {
+      platform: process.platform,
+      assetRoot: workspace.assetRoot,
+      toolRoot: workspace.toolRoot,
+      whisperBin,
+      toolPaths,
+    },
+    async ({ toolLibraries, whisperLibraries }) => {
+      const toolSha256 = await sha256FilesWithin(workspace.toolRoot, {
+        ffmpeg: toolPaths.ffmpeg,
+        ffprobe: toolPaths.ffprobe,
+        sherpaSidecar: toolPaths.sherpaSidecar,
+        ...toolLibraries,
+      });
+      const whisperToolSha256 = await sha256FilesWithin(whisperBin, {
+        whisperCli: toolPaths.whisperCli,
+        whisperServer: toolPaths.whisperServer,
+        whisperVad: toolPaths.whisperVad,
+        ...whisperLibraries,
+      });
+      execFileSync(toolPaths.ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-nostdin',
+        '-n',
+        '-ss',
+        String(startSec),
+        '-i',
+        sourceWav,
+        '-t',
+        String(durationSec),
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        '-c:a',
+        'pcm_s16le',
+        wav,
+      ]);
+      return { toolSha256, whisperToolSha256 };
+    },
+  );
 
   const models = {
     speechFinal: join(modelsRoot, 'whisper/ggml-large-v3-turbo-q5_0.bin'),
@@ -208,8 +229,6 @@ try {
       ),
     };
   });
-  const toolLibraries = await collectResearchRuntimeLibraries(workspace.toolRoot, process.platform);
-  const whisperLibraries = await collectResearchRuntimeLibraries(whisperBin, process.platform);
   const report = {
     schemaVersion: 2,
     runtimeIdentity: {
@@ -259,21 +278,8 @@ try {
       embedding: models.embedding,
       vad: models.vad,
     }),
-    toolSha256: await sha256FilesWithin(workspace.toolRoot, {
-      ffmpeg: toolPaths.ffmpeg,
-      ffprobe: toolPaths.ffprobe,
-      sherpaSidecar: toolPaths.sherpaSidecar,
-      ...toolLibraries,
-    }),
-    whisperToolSha256: await sha256FilesWithin(
-      whisperBin,
-      {
-        whisperCli: toolPaths.whisperCli,
-        whisperServer: toolPaths.whisperServer,
-        whisperVad: toolPaths.whisperVad,
-        ...whisperLibraries,
-      },
-    ),
+    toolSha256,
+    whisperToolSha256,
   };
   await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   console.log(JSON.stringify(report));
