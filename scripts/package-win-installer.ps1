@@ -77,18 +77,21 @@ if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
     throw "electron-builder did not produce the expected NSIS installer: $installer"
 }
 $sourceCommit = (& git -C $repo rev-parse --verify HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-fA-F0-9]{40}
-) {
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-fA-F0-9]{40}$') {
     throw 'Cannot identify the exact source commit for installer candidate'
 }
 $candidateManifest = Join-Path $output 'scribe-installer-candidate.json'
-& node (Join-Path $repo 'scripts\win-installer-candidate-manifest.mjs') create `
-    --installer $installer `
-    --application (Join-Path $prepackaged 'Scribe.exe') `
-    --provenance (Join-Path $staging 'PROVENANCE.json') `
-    --audit (Join-Path $staging 'DEPENDENCY-AUDIT.json') `
-    --commit $sourceCommit `
-    --manifest $candidateManifest
+$candidateScript = Join-Path $repo 'scripts\win-installer-candidate-manifest.mjs'
+$candidateArgs = @(
+    $candidateScript, 'create',
+    '--installer', $installer,
+    '--application', (Join-Path $prepackaged 'Scribe.exe'),
+    '--provenance', (Join-Path $staging 'PROVENANCE.json'),
+    '--audit', (Join-Path $staging 'DEPENDENCY-AUDIT.json'),
+    '--commit', $sourceCommit,
+    '--manifest', $candidateManifest
+)
+& node @candidateArgs
 if ($LASTEXITCODE -ne 0) { throw 'Installer candidate integrity manifest generation failed' }
 $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host "NSIS installer: $installer"
