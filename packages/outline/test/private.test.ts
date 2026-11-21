@@ -95,16 +95,16 @@ describe('splitNotes', () => {
 });
 
 describe('alignNotes', () => {
-  it('labels each part of a meeting with its notes section, in order', () => {
-    const r = loadPrivateMeeting(join(fixtures, 'meeting-a'));
+  it('labels each part of a meeting with its notes section, in order', async () => {
+    const r = await loadPrivateMeeting(join(fixtures, 'meeting-a'));
     if (!r.ok) throw new Error('fixture');
     const al = alignNotes(r.meeting.words, r.meeting.bodies);
     expect(al.alignedItems).toBe(3);
     const labels = al.blocks.map((b) => al.wordItem[b.first]);
     expect(labels).toEqual([0, 0, 0, 1, 1, 2, 2]);
   });
-  it('survives typos and a mis-heard word', () => {
-    const r = loadPrivateMeeting(join(fixtures, 'meeting-a'));
+  it('survives typos and a mis-heard word', async () => {
+    const r = await loadPrivateMeeting(join(fixtures, 'meeting-a'));
     if (!r.ok) throw new Error('fixture');
     const noisy = parseTranscript(
       'Pat: ok lets start with the budjet the quarterly spend on cloud hostin is over forecast by ten percent\n' +
@@ -121,10 +121,13 @@ describe('alignNotes', () => {
 });
 
 describe('loader', () => {
-  it('lists folders by name and loads or skips with a code', () => {
+  it('lists folders by name and loads or skips with a code', async () => {
     expect(listPrivateMeetings(fixtures)).toEqual(['meeting-a', 'meeting-b']);
-    expect(loadPrivateMeeting(join(fixtures, 'meeting-a')).ok).toBe(true);
-    expect(loadPrivateMeeting(join(fixtures, 'nope'))).toEqual({ ok: false, code: 'noOutline' });
+    expect((await loadPrivateMeeting(join(fixtures, 'meeting-a'))).ok).toBe(true);
+    expect(await loadPrivateMeeting(join(fixtures, 'nope'))).toEqual({
+      ok: false,
+      code: 'noOutline',
+    });
   });
 });
 

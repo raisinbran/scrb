@@ -20,7 +20,7 @@ const root = resolve(
 );
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
-function main(): void {
+async function main(): Promise<void> {
   if (!existsSync(root)) throw new RunError('E_INPUT_MISSING');
   const outFile = safeOutputPath(process.argv[3] ?? join(root, '_results.txt'), repoRoot, root);
   const pct = (a: number, b: number): string =>
@@ -55,29 +55,29 @@ function main(): void {
   let alignedTotal = 0;
 
   const folders = listPrivateMeetings(root);
-  folders.forEach((folder, idx) => {
+  for (const [idx, folder] of folders.entries()) {
     const label = `meeting ${idx + 1}`;
     let loaded;
     try {
-      loaded = loadPrivateMeeting(join(root, folder));
+      loaded = await loadPrivateMeeting(join(root, folder));
     } catch {
       lines.push(`${label}: skipped (unreadable)`);
       skipped += 1;
-      return;
+      continue;
     }
     if (!loaded.ok) {
       lines.push(`${label}: skipped (${loaded.code})`);
       skipped += 1;
-      return;
+      continue;
     }
-    const { items, words, bodies } = loaded.meeting;
+    const { items, words, bodies, agenda, ignored } = loaded.meeting;
     const al = alignNotes(words, bodies);
     if (al.alignedItems < 2) {
       lines.push(
         `${label}: skipped (fewer than 2 outline items aligned to the notes; items ${items.length}, aligned ${al.alignedItems})`,
       );
       skipped += 1;
-      return;
+      continue;
     }
     used += 1;
     const total = words.reduce((a, w) => a + (w.endMs - w.startMs), 0);
@@ -91,7 +91,7 @@ function main(): void {
     alignedTotal += al.alignedItems;
     const truth = al.wordItem.map((i) => (i === null ? null : items[i]!.id));
     lines.push(
-      `${label}: words ${words.length}, blocks ${al.blocks.length}, outline items ${items.length}, aligned to notes ${al.alignedItems}, not aligned ${items.length - al.alignedItems}, time with a reference heading ${pct(labelled, total)}, mean alignment score ${al.meanScore.toFixed(2)}`,
+      `${label}: words ${words.length}, blocks ${al.blocks.length}, outline items ${items.length}, aligned to notes ${al.alignedItems}, not aligned ${items.length - al.alignedItems}, time with a reference heading ${pct(labelled, total)}, mean alignment score ${al.meanScore.toFixed(2)}${agenda ? `, agenda lines kept ${agenda.kept} of ${agenda.seen}` : ''}${ignored ? `, other candidate files ignored ${ignored}` : ''}`,
     );
     configs.forEach((c, ci) => {
       const placed = matchOutline(words, items, { tuning: c.tuning });
@@ -107,7 +107,7 @@ function main(): void {
       scoreLabels(words, found, conf, truth, pooled[ci]!);
       lines.push(`  ${c.name}: ${describe(t)}`);
     });
-  });
+  }
 
   lines.push(
     '',
@@ -127,10 +127,8 @@ function main(): void {
   console.log(lines.join('\n'));
 }
 
-try {
-  main();
-} catch (e) {
+main().catch((e: unknown) => {
   const code: ErrorCode = e instanceof RunError ? e.code : 'E_UNKNOWN';
   console.error(messageFor(code));
   process.exitCode = 1;
-}
+});

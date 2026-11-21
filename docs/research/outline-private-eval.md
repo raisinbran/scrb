@@ -12,6 +12,15 @@ Optional arguments after `--`: meetings folder, then output file. Defaults: fold
 
 ## Folder format
 
+The runner reads the owner's original formats directly, so no manual conversion is needed. Per meeting folder, by fixed priority (the first name in sorted order wins; the output reports only how many other candidates were ignored): outline `outline.md`, then `.eml`, then `.pdf`; notes `final-notes.md`, then `.docx`; transcript `transcript.txt`, then another `.txt`, then a `.md` that is not the outline or notes. Recordings are never opened.
+
+- `.eml`: the plain-text body, else the HTML body stripped of tags. Headers and addresses are never kept.
+- `.pdf`: text through a pinned dev-only parser (`unpdf`).
+- `.docx`: read as zip and XML with no library. One line per paragraph in document order; table cells are walked in order so a row's topic cell and notes cell are separate lines; list items (bulleted or numbered) stay plain lines because agenda topics are often Word list paragraphs.
+- Text from `.eml` or `.pdf` is trimmed to agenda items: everything from the first sign-off line on is dropped, as are greetings, links and addresses, meeting logistics (join, dial-in, passcode, "When:"), time and date lines, lines under 2 words, and prose over 20 words; in a structured agenda (3 or more marked or indented lines) an unmarked line ending in a period or colon is an intro or closing sentence and is dropped. The per-meeting line reports "agenda lines kept X of Y". `outline.md` is used as written.
+
+The sections below describe the plain-text layout.
+
 One sub-folder per meeting: `outline.md`, `transcript.txt`, `final-notes.md`.
 
 - `transcript.txt`: plain text. Optional per-line `[mm:ss]` or `[hh:mm:ss]` prefix and optional `Name:` speaker prefix. Without times, each line is a separate turn (2.5 s apart, 0.4 s per word). Times affect block cutting and the time-weighted score.
