@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   symlinkSync,
@@ -68,7 +69,7 @@ describe('macOS research tool bundle hashing', () => {
       'runtimeDylib:lib/libruntime.dylib',
       'runtimeDylib:libdirect.dylib',
     ]);
-    expect(libraries['runtimeDylib:lib/libruntime.dylib']).toBe(join(f.bin, 'lib', 'libruntime.dylib'));
+    expect(libraries['runtimeDylib:lib/libruntime.dylib']).toBe(realpathSync(join(f.bin, 'lib', 'libruntime.dylib')));
   });
 
   it.skipIf(process.platform === 'win32')('rejects linked dylibs and linked lib directories', async () => {
@@ -187,8 +188,8 @@ describe('AMI runner path ownership', () => {
       meeting: 'ES2004a',
       scratch,
     });
-    expect(workspace.scratchRoot).toBe(scratch);
-    expect(workspace.runRoot.startsWith(scratch + sep)).toBe(true);
+    expect(workspace.scratchRoot).toBe(realpathSync(scratch));
+    expect(workspace.runRoot.startsWith(realpathSync(scratch) + sep)).toBe(true);
     expect(readdirSync(f.bin)).toEqual([]);
     await workspace.cleanup();
     expect(readdirSync(scratch)).toEqual([]);
