@@ -36,6 +36,11 @@ describe('AMI cross-platform research executables', () => {
     expect(f.toolPaths.ffmpeg.endsWith(ffmpeg)).toBe(true);
     expect(f.toolPaths.sherpaSidecar.endsWith(sherpa)).toBe(true);
     expect(f.toolPaths.whisperCli.endsWith(whisper)).toBe(true);
+    expect(f.whisperBin).toBe(
+      platform === 'darwin'
+        ? f.toolRoot
+        : join(f.assetRoot, 'upstream', 'whisper.cpp', 'build', 'bin'),
+    );
     await expect(verifyAmiResearchToolPaths(f)).resolves.toBeUndefined();
   });
 
