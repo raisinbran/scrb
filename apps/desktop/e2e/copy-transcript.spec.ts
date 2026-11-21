@@ -98,9 +98,9 @@ test('copies an invented saved transcript through the Electron clipboard', async
     await page
       .getByRole('button', { name: 'Copy transcript' })
       .evaluate((button) => (button as HTMLButtonElement).click());
-    await expect(
-      page.getByRole('status').filter({ hasText: 'Transcript copied.' }),
-    ).toHaveText('Transcript copied.');
+    await expect(page.getByRole('status').filter({ hasText: 'Transcript copied.' })).toHaveText(
+      'Transcript copied.',
+    );
     const clipboardText = await app.evaluate(({ clipboard }) => clipboard.readText());
     expect(clipboardText).toBe('Invented speaker: invented corrected text');
 
