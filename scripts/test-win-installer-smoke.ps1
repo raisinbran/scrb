@@ -8,7 +8,18 @@ param(
     [string]$InstallerPath,
 
     [ValidateRange(1, 19)]
-    [int]$TimeBudgetMinutes = 15
+    [int]$TimeBudgetMinutes = 15,
+
+    # Current packages use per-run verified candidate hashes, not the frozen A2 pins.
+    [string]$CandidateManifestPath,
+
+    # These MUST be independent, protected producer-job outputs, never artifact fields.
+    [string]$TrustedManifestSha256,
+    [string]$TrustedSourceCommit,
+    [string]$TrustedProvenanceSha256,
+    [string]$TrustedDependencyAuditSha256,
+    [string]$TrustedProducerRunId,
+    [string]$TrustedProducerRunAttempt
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,10 +28,13 @@ if (-not (Test-Path -LiteralPath $guardsModule -PathType Leaf)) {
     $guardsModule = Join-Path $PSScriptRoot '..\scripts\win-installer-smoke-guards.psm1'
 }
 Import-Module $guardsModule -Force
+Import-Module (Join-Path $PSScriptRoot 'win-installer-candidate-trust.psm1') -Force
 $expectedInstallerBytes = 131037432
 $expectedInstallerSha256 = 'ec5c1ecd5207d44049d7b7dc065b2da7deb607497f04b7ca12488e78e37718d6'
 $expectedApplicationSha256 = '31817c8b75c860fa36ddd0055677d5cbd374f4a564fa02097ccc77449993ae31'
 $expectedInstallerName = 'Scribe Setup 0.1.0.exe'
+$isCurrentCandidate = -not [string]::IsNullOrWhiteSpace($CandidateManifestPath)
+$candidateSourceCommit = if ($isCurrentCandidate) { $null } else { '73e899d0a45234617b9fbc81cf8f599747ec652b' }
 $stepStatuses = [ordered]@{
     runnerEligibility = 'NOT VERIFIED'
     installerIntegrity = 'NOT VERIFIED'
@@ -71,13 +85,14 @@ function Write-SmokeSummary([string]$Result) {
         schemaVersion = 1
         result = $Result
         canExecuteAutonomously = ($stepStatuses.runnerEligibility -eq 'PASS')
-        a2Integrity = if ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
+        a2Integrity = if ($isCurrentCandidate) { 'NOT APPLICABLE' } elseif ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
+        currentCandidateIntegrity = if (-not $isCurrentCandidate) { 'NOT APPLICABLE' } elseif ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
         modelHandover = @{
-            status = 'OWNER VERIFIED; NOT RETESTED'
-            manifestSha256 = '30f854def12121d612a4089c4a0b009c03983d3e22c100251f8d8a3e47d282b6'
+            status = if ($isCurrentCandidate) { 'NOT VERIFIED' } else { 'OWNER VERIFIED; NOT RETESTED' }
+            manifestSha256 = if ($isCurrentCandidate) { $null } else { '30f854def12121d612a4089c4a0b009c03983d3e22c100251f8d8a3e47d282b6' }
         }
         isolatedInstallUninstall = if ($stepStatuses.perUserInstall -eq 'PASS' -and $stepStatuses.uninstall -eq 'PASS') { 'PASS' } else { 'NOT VERIFIED' }
-        sourceCommit = '73e899d0a45234617b9fbc81cf8f599747ec652b'
+        sourceCommit = $candidateSourceCommit
         runnerEnvironment = $env:RUNNER_ENVIRONMENT
         steps = $stepStatuses
         elapsedSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
@@ -114,8 +129,14 @@ try {
     $stepStatuses.runnerEligibility = 'PASS'
 
     $installerParent = Join-Path $runnerTemp 'scribe-installer-artifact'
-    $installer = Assert-SmokeArtifact -Path $InstallerPath -Parent $installerParent -ExpectedName $expectedInstallerName -ExpectedBytes $expectedInstallerBytes -ExpectedSha256 $expectedInstallerSha256
-    $stepStatuses.installerIntegrity = 'PASS'
+    if ($isCurrentCandidate) {
+        # Candidate-provided names, hashes and commit are NOT trusted here.
+        # No candidate executable can start until Invoke-TrustedCandidateInstall succeeds.
+        $installer = $null
+    } else {
+        $installer = Assert-SmokeArtifact -Path $InstallerPath -Parent $installerParent -ExpectedName $expectedInstallerName -ExpectedBytes $expectedInstallerBytes -ExpectedSha256 $expectedInstallerSha256
+        $stepStatuses.installerIntegrity = 'PASS'
+    }
 
     $userDataRoot = Join-Path $appData '@scrb\desktop'
     $libraryRoot = Join-Path $runnerTemp 'scribe-installer-smoke-library'
@@ -145,7 +166,30 @@ try {
     $locationHash = (Get-FileHash -LiteralPath $locationPath -Algorithm SHA256).Hash
     $libraryHash = (Get-FileHash -LiteralPath $libraryMarker -Algorithm SHA256).Hash
 
-    Invoke-BoundedProcess $installer @('/S', "/D=$installRoot") 'Per-user installer'
+    if ($isCurrentCandidate) {
+        $trust = @{
+            CandidateManifestPath = $CandidateManifestPath
+            InstallerPath = $InstallerPath
+            ArtifactRoot = $installerParent
+            TrustedManifestSha256 = $TrustedManifestSha256
+            TrustedSourceCommit = $TrustedSourceCommit
+            TrustedProvenanceSha256 = $TrustedProvenanceSha256
+            TrustedDependencyAuditSha256 = $TrustedDependencyAuditSha256
+            TrustedProducerRunId = $TrustedProducerRunId
+            TrustedProducerRunAttempt = $TrustedProducerRunAttempt
+        }
+        # The SAME guard-to-launch function is used by the joint-substitution test.
+        # Missing/mismatched trusted producer evidence throws before this callback.
+        $verified = Invoke-TrustedCandidateInstall -Verification $trust -Launch {
+            param([string]$verifiedInstaller)
+            Invoke-BoundedProcess $verifiedInstaller @('/S', "/D=$installRoot") 'Per-user installer'
+        }
+        $expectedApplicationSha256 = $verified.ApplicationSha256
+        $candidateSourceCommit = $verified.SourceCommit
+        $stepStatuses.installerIntegrity = 'PASS'
+    } else {
+        Invoke-BoundedProcess $installer @('/S', "/D=$installRoot") 'Per-user installer'
+    }
     $appExe = Join-Path $installRoot 'Scribe.exe'
     if (-not (Test-Path -LiteralPath $appExe -PathType Leaf)) { throw 'Installed Scribe.exe is missing' }
     $installedHash = (Get-FileHash -LiteralPath $appExe -Algorithm SHA256).Hash.ToLowerInvariant()
