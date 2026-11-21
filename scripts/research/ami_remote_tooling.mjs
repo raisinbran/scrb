@@ -112,7 +112,11 @@ async function verifyOptionalMacAudit(platform, toolRoot, toolPaths, libraries) 
     }
   }
   for (const file of [...Object.values(toolPaths), ...Object.values(libraries)]) {
-    const name = relative(base, file).split(sep).join('/');
+    // macOS can spell the same directory /var/... or /private/var/....
+    // Resolve both operands before comparing them, without weakening
+    // the strict tool-bundle containment check.
+    const canonicalFile = assertStrictChild(base, await realpath(file));
+    const name = relative(base, canonicalFile).split(sep).join('/');
     if (!seen.has(name)) throw new Error('Mac audit is missing a runtime input: ' + name);
   }
 }
