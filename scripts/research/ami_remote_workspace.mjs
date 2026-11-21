@@ -19,7 +19,7 @@ export function assertStrictChild(root, candidate) {
 }
 
 /** Both generated audio and runFinalPass's recursively deleted workDir are owned by root. */
-export async function createAmiWorkspace({ assets, bin, meeting }) {
+export async function createAmiWorkspace({ assets, bin, meeting, scratch }) {
   const id = requireAmiMeetingId(meeting); // Validate before touching any filesystem path.
   const assetRoot = await realpath(resolve(assets));
   const toolRoot = await realpath(resolve(bin));
@@ -28,7 +28,13 @@ export async function createAmiWorkspace({ assets, bin, meeting }) {
   // Do not follow an AMI source symlink: it could access a private file outside the corpus.
   if (!(await lstat(sourceFile)).isFile()) throw new Error('AMI source must be a regular file');
   const sourceWav = assertStrictChild(ami, await realpath(sourceFile));
-  const runRoot = await mkdtemp(join(toolRoot, 'scrb-ami-eval-'));
+  // An explicitly selected scratch directory keeps writes out of a packaged Mac bin.
+  const requestedScratch = scratch ? resolve(scratch) : toolRoot;
+  if (scratch && !(await lstat(requestedScratch)).isDirectory()) {
+    throw new Error('AMI scratch root must be a real directory');
+  }
+  const scratchRoot = await realpath(requestedScratch);
+  const runRoot = await mkdtemp(join(scratchRoot, 'scrb-ami-eval-'));
   try {
     const workDir = await mkdtemp(join(runRoot, 'final-pass-'));
     const wav = assertStrictChild(runRoot, join(runRoot, 'clip.wav'));
@@ -37,6 +43,7 @@ export async function createAmiWorkspace({ assets, bin, meeting }) {
       ami,
       toolRoot,
       assetRoot,
+      scratchRoot,
       sourceWav,
       workDir,
       wav,
@@ -89,4 +96,39 @@ export async function collectAdjacentDlls(root) {
     dlls['runtimeDll:' + entry.name] = assertStrictChild(canonicalRoot, await realpath(path));
   }
   return dlls;
+}
+
+/** Hash adjacent bundled Mac dylibs (including lib/), without following links. */
+export async function collectResearchRuntimeLibraries(root, platform) {
+  if (platform === 'win32') return collectAdjacentDlls(root);
+  if (platform !== 'darwin') throw new Error('research libraries support macOS or Windows');
+  const canonicalRoot = await realpath(resolve(root));
+  if (!(await lstat(canonicalRoot)).isDirectory()) {
+    throw new Error('tool directory must be a real directory');
+  }
+  const found = {};
+  for (const [folder, prefix] of [[canonicalRoot, ''], [join(canonicalRoot, 'lib'), 'lib/']]) {
+    let folderStat;
+    try {
+      folderStat = await lstat(folder);
+    } catch (error) {
+      if (prefix && error?.code === 'ENOENT') continue;
+      throw error;
+    }
+    if (!folderStat.isDirectory() || folderStat.isSymbolicLink()) {
+      throw new Error('runtime dylib directory must be a real directory');
+    }
+    for (const entry of await readdir(folder, { withFileTypes: true })) {
+      if (!/\.dylib$/i.test(entry.name)) continue;
+      const file = join(folder, entry.name);
+      if (!(await lstat(file)).isFile()) {
+        throw new Error('runtime dylib must be a regular file');
+      }
+      found['runtimeDylib:' + prefix + entry.name] = assertStrictChild(
+        canonicalRoot,
+        await realpath(file),
+      );
+    }
+  }
+  return found;
 }
