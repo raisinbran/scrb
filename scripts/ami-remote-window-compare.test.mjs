@@ -71,7 +71,7 @@ describe('paired AMI threshold screening', () => {
     expect(() => evaluatePair(a, { ...b, sourceCommit: 'other' })).toThrow(/match/);
     expect(() => evaluatePair(a, { ...b, evaluatedShortMergeLine: 0.6 })).toThrow(/match/);
     expect(() => evaluatePair(a, { ...b, sourceWindow: { ...window, startSeconds: 530 } })).toThrow(
-      /source windows/,
+      /paired reports must match/,
     );
   });
 
