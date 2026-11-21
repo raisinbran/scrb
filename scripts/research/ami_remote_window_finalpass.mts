@@ -1,16 +1,24 @@
 // Reproducible offline check of speaker attribution on a bounded public AMI window.
-// Usage: tsx scripts/research/ami_remote_window_finalpass.mts <meeting> <start-sec> <duration-sec> <report.json>
+// Usage: tsx scripts/research/ami_remote_window_finalpass.mts <meeting> <start-sec> <duration-sec> <report.json> [threshold]
 // Requires SCRB_DEV_ASSETS and SCRB_BIN; output includes counts only, never audio, text, or embeddings.
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
-import { OVERSPLIT_THRESHOLD, runFinalPass } from '../../packages/transcription/src/finalPass.js';
+import {
+  OVERSPLIT_THRESHOLD,
+  runFinalPass,
+  resolveFinalSpeakerThreshold,
+} from '../../packages/transcription/src/finalPass.js';
 import type { FinalSpeaker, SpeakerSpan } from '../../packages/transcription/src/types.js';
 
-const [meeting, startArg, durationArg, outputArg] = process.argv.slice(2);
+const [meeting, startArg, durationArg, outputArg, thresholdArg] = process.argv.slice(2);
 if (!meeting || !startArg || !durationArg || !outputArg) {
   throw new Error('usage: <meeting> <start-sec> <duration-sec> <report.json>');
+}
+if (!/^[A-Z]{2}\d{4}[a-z]$/.test(meeting)) {
+  throw new Error('meeting must be an AMI meeting ID such as ES2004a');
 }
 const startSec = Number(startArg);
 const durationSec = Number(durationArg);
@@ -23,13 +31,21 @@ if (
 ) {
   throw new Error('window must be 0–60 seconds with nonnegative start');
 }
+const finalDiarizationThreshold = thresholdArg === undefined ? 0.8 : Number(thresholdArg);
+if (
+  !Number.isFinite(finalDiarizationThreshold) ||
+  finalDiarizationThreshold <= 0 ||
+  finalDiarizationThreshold >= 2
+) {
+  throw new Error('threshold must be a finite number between 0 and 2');
+}
 const assets = process.env['SCRB_DEV_ASSETS'];
 const bin = process.env['SCRB_BIN'];
 if (!assets || !bin) throw new Error('SCRB_DEV_ASSETS and SCRB_BIN are required');
 const ami = join(assets, 'downloads/ami');
 const modelsRoot = join(assets, 'models');
 const outputPath = resolve(outputArg);
-const wav = join(bin, `${meeting}-${startSec}-${durationSec}-${basename(outputPath, '.json')}.wav`);
+const wav = join(bin, `${meeting}-${startSec}-${durationSec}-${randomUUID()}.wav`);
 const sourceWav = join(ami, `${meeting}.Mix-Headset.wav`);
 if (existsSync(wav) || existsSync(outputPath))
   throw new Error('refusing to overwrite existing audio or report evidence');
@@ -74,11 +90,14 @@ const models = {
   ),
 };
 const diagnostics: Record<string, unknown> = {};
+// These overrides are research-only; product callers keep the validated production defaults.
 const final = await runFinalPass({
   tools: toolPaths,
   models,
   tracks: [{ kind: 'meeting', source: { wavPath: wav } }],
-  workDir: join(bin, `${meeting}-final-pass-work`),
+  workDir: await mkdtemp(join(bin, `${meeting}-final-pass-work-`)),
+  finalDiarizationThreshold,
+  relabel: { shortMergeLine: 0.85 },
   onDiagnostics: (value) => Object.assign(diagnostics, value),
 });
 
@@ -131,7 +150,9 @@ const referenceAttribution = referenceSummary.map(({ speaker }) => {
 const report = {
   schemaVersion: 1,
   sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-  diarizationThreshold: OVERSPLIT_THRESHOLD,
+  defaultDiarizationThreshold: OVERSPLIT_THRESHOLD,
+  evaluatedDiarizationThreshold: resolveFinalSpeakerThreshold(finalDiarizationThreshold),
+  evaluatedShortMergeLine: 0.85,
   sourceWindow: { meeting, startSeconds: startSec, durationSeconds: durationSec },
   sourceAudio: basename(sourceWav),
   referenceSpeakers: referenceSummary,
@@ -162,3 +183,4 @@ const report = {
 };
 await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report));
+

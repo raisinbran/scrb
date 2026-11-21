@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { decideSpeakers } from '../src/finalPass.js';
+import {
+  decideSpeakers,
+  OVERSPLIT_THRESHOLD,
+  resolveFinalSpeakerThreshold,
+} from '../src/finalPass.js';
 import type { RawSegment } from '../src/sherpa.js';
 
 function fixture(seconds: number) {
@@ -13,6 +17,15 @@ function fixture(seconds: number) {
   }));
   return { raw, embedded };
 }
+
+describe('final diarization threshold', () => {
+  it('keeps the evaluated production default unless a research override is explicit', () => {
+    expect(OVERSPLIT_THRESHOLD).toBe(1.0);
+    expect(resolveFinalSpeakerThreshold(undefined)).toBe(1.0);
+    expect(resolveFinalSpeakerThreshold(0.8)).toBe(0.8);
+    expect(() => resolveFinalSpeakerThreshold(2)).toThrow(/between 0 and 2/);
+  });
+});
 
 describe('final speaker absorption', () => {
   it('keeps a distinct 14 s voice separate from a large cluster', () => {
@@ -109,3 +122,4 @@ describe('final speaker diagnostics', () => {
     expect(diagnostics.closestRawSimilarity).toBe(0);
   });
 });
+

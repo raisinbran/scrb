@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 6299)
+Total output lines: 707
+
 import { mkdir, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { assembleChunks } from './audio.js';
@@ -35,8 +38,8 @@ import type {
 } from './types.js';
 import { transcribeWholeFile, type WhisperWord } from './whisper.js';
 
-/** Keep distinct remote voices in public AMI windows; final relabeling absorbs oversplits. */
-export const OVERSPLIT_THRESHOLD = 0.8;
+/** Conservative default retained from the full-meeting AMI evaluations below. */
+export const OVERSPLIT_THRESHOLD = 1.0;
 const TURN_GAP_MS = 1500;
 /** A turn longer than this is cut into paragraphs. */
 export const MAX_PARAGRAPH_MS = 60_000;
@@ -71,6 +74,8 @@ export interface FinalPassOptions {
   language?: string;
   vocabularyHint?: string;
   relabel?: RelabelOptions;
+  /** Explicit override for bounded threshold evaluation; normal app calls keep the default. */
+  finalDiarizationThreshold?: number;
   /** Called once per pass with counts and similarities only: no audio, text or names. */
   onDiagnostics?: (fields: FinalPassDiagnostics) => void;
   signal?: AbortSignal;
@@ -166,7 +171,11 @@ async function diarizeTrack(
 ): Promise<DecidedSpeakers> {
   const sherpa = await SherpaWorker.start(o.tools, o.models, threads, o.signal);
   try {
-    const raw = await sherpa.diarizeFile(wavPath, OVERSPLIT_THRESHOLD, onFraction);
+    const raw = await sherpa.diarizeFile(
+      wavPath,
+      resolveFinalSpeakerThreshold(o.finalDiarizationThreshold),
+      onFraction,
+    );
     const toEmbed = embeddingSpans(raw);
     const vectors = await sherpa.embedSpans(wavPath, toEmbed);
     await sherpa.close();
@@ -183,6 +192,14 @@ async function diarizeTrack(
 export interface EmbeddedSegment {
   segment: RawSegment;
   vector: number[];
+}
+
+export function resolveFinalSpeakerThreshold(override: number | undefined): number {
+  if (override === undefined) return OVERSPLIT_THRESHOLD;
+  if (!Number.isFinite(override) || override <= 0 || override >= 2) {
+    throw new Error('final diarization threshold must be a finite number between 0 and 2');
+  }
+  return override;
 }
 
 export interface DecidedSpeakers {
@@ -279,129 +296,7 @@ export function decideSpeakers(
   const totals = new Map<number, { speechMs: number; sum: number[] | null; segments: number }>();
   for (const c of clusters.values()) {
     const index = map.get(c.raw) ?? 0;
-    const t = totals.get(index) ?? { speechMs: 0, sum: null, segments: 0 };
-    t.speechMs += c.speechMs;
-    if (c.sum) {
-      const sum = c.sum;
-      t.sum = t.sum ? t.sum.map((x, i) => x + sum[i]!) : [...sum];
-      t.segments += c.embeddedSegments;
-    }
-    totals.set(index, t);
-  }
-  const speakers: FinalSpeaker[] = [...totals.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([index, t]) => ({
-      id: id(index),
-      label: `Speaker ${index + 1}`,
-      speechMs: Math.round(t.speechMs),
-      ...(t.sum ? { embedding: unit(t.sum) } : {}),
-      embeddingSegments: t.segments,
-    }));
-  const diagnostics: SpeakerDiagnostics = {
-    clustersBefore: clusters.size,
-    clustersAfter: speakers.length,
-    clusterSecondsBefore: joinSeconds([...clusters.values()].map((c) => c.speechMs)),
-    clusterSecondsAfter: joinSeconds(speakers.map((s) => s.speechMs)),
-    closestRawSimilarity: closestSimilarity(
-      [...clusters.values()].flatMap((c) => (c.embedding ? [c.embedding] : [])),
-    ),
-    closestFinalSimilarity: closestSimilarity(
-      speakers.flatMap((s) => (s.embedding ? [s.embedding] : [])),
-    ),
-    mergeLine: relabel.mergeLine ?? RELABEL_DEFAULTS.mergeLine,
-    minSpeakerSeconds: (relabel.minSpeakerMs ?? RELABEL_DEFAULTS.minSpeakerMs) / 1000,
-    shortSpeakerSeconds: Number.isFinite(relabel.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs)
-      ? (relabel.shortSpeakerMs ?? RELABEL_DEFAULTS.shortSpeakerMs) / 1000
-      : -1,
-    shortMergeLine: relabel.shortMergeLine ?? RELABEL_DEFAULTS.shortMergeLine,
-  };
-  return { spans, speakers, diagnostics };
-}
-
-export function assemble(
-  tracks: TrackResult[],
-  spans: Span[],
-  speakers: FinalSpeaker[],
-  echoAudio?: EchoAudio,
-): Pick<FinalTranscript, 'version' | 'durationMs' | 'words' | 'turns' | 'speakers' | 'spans'> {
-  const words: Word[] = [];
-  const all = [...speakers];
-  const meetingWords = tracks.filter((t) => t.kind === 'meeting').flatMap((t) => t.words);
-  for (const t of tracks) {
-    if (t.kind === 'mic') {
-      t.words = dropRoomEcho(t.words, meetingWords, echoAudio);
-      for (const w of t.words) words.push({ ...w, track: 'mic', speakerId: YOU_ID });
-      if (t.words.length > 0) {
-        all.unshift({
-          id: YOU_ID,
-          label: 'You',
-          speechMs: speechOf(t.words),
-          embeddingSegments: 0,
-        });
-      }
-    } else {
-      const ids = assignSpeakers(t.words, spans, 'speaker-1');
-      t.words.forEach((w, i) => words.push({ ...w, track: 'meeting', speakerId: ids[i]! }));
-    }
-  }
-  // Words stay grouped by track, each in time order, because a turn is a range of words.
-  // One merged timeline made a mic that hears the room alternate with the meeting track,
-  // one word per turn.  Turns are ordered by time instead.
-  words.sort((a, b) => trackRank(a) - trackRank(b) || a.startMs - b.startMs || a.endMs - b.endMs);
-  const lastSpan = spans.reduce((end, s) => Math.max(end, s.endMs), 0);
-  return {
-    version: 1,
-    durationMs: words.reduce((end, w) => Math.max(end, w.endMs), lastSpan),
-    words,
-    turns: cutTurns(words, buildTurns(words)),
-    speakers: all,
-    spans: spans.map(({ startMs, endMs, speakerId }) => ({ startMs, endMs, speakerId })),
-  };
-}
-
-/** Loudness of both saved tracks; undefined when either is not a plain final-pass WAV. */
-async function readEchoAudio(micPath: string, meetingPath: string): Promise<EchoAudio | undefined> {
-  const [mic, meeting] = await Promise.all([
-    readWavEnvelope(micPath),
-    readWavEnvelope(meetingPath),
-  ]);
-  return mic && meeting ? { mic, meeting } : undefined;
-}
-
-const trackRank = (w: Word): number => (w.track === 'meeting' ? 0 : 1);
-
-export const bare = (text: string): string => text.toLowerCase().replace(/[^a-z0-9']/g, '');
-
-/** Loudness patterns (see echoEnvelope.ts) of the two saved tracks. */
-export interface EchoAudio {
-  mic: Float32Array;
-  meeting: Float32Array;
-}
-
-/** A word whose own loudness follows the meeting's this closely is echo even if the text differs. */
-const ENV_CORR = 0.8;
-const ENV_SPREAD_DB = 5;
-/** Echo has the room's gain; a word this much louder or quieter than that is not the same sound. */
-const ENV_GAIN_DB = 6;
-/** Looser bar for a word whose text already nearly matched. */
-const FUZZY_CORR = 0.6;
-/** Loudness-only echo words need this many in a row when no text-matched echo sits beside them. */
-const ENV_ALONE_RUN = 3;
-
-type EchoWord = { text: string; startMs: number; endMs?: number };
-
-/**
- * Removes mic words that re-capture the meeting audio from the speakers.
- *
- * Text rule: runs of at least ECHO_MIN_RUN mic words, each at most TURN_GAP_MS after the
- * previous, that match distinct meeting words, within ECHO_WINDOW_MS, in the same order.
- * A match is exact, or a near spelling (a word heard slightly differently); a run of only
- * near spellings counts when `audio` shows their loudness following the meeting's.
- *
- * Loudness rule (needs `audio`): once the recording shows echo at a steady delay, a mic word
- * whose loudness pattern follows the meeting's at that delay is echo, if it sits in a chain
- * with text-matched echo or in a chain of ENV_ALONE_RUN such words.  The user's own words
- * over the meeting usually do not follow its pattern and are kept, but some are lost when
+    const t = to…1299 tokens truncated…o not follow its pattern and are kept, but some are lost when
  * they are no louder than the echo.  Not an echo canceller.
  */
 export function dropRoomEcho<W extends EchoWord>(
@@ -690,3 +585,4 @@ function capPieces(words: Word[], pieces: Range[]): Range[] {
   }
   return out;
 }
+
