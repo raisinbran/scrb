@@ -2,16 +2,51 @@
 // Usage: tsx scripts/research/ami_remote_window_finalpass.mts <meeting> <start-sec> <duration-sec> <report.json> [threshold]
 // Requires SCRB_DEV_ASSETS and SCRB_BIN; output includes counts only, never audio, text, or embeddings.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { existsSync } from 'node:fs';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, realpath, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
-import { createAmiWorkspace, requireAmiMeetingId } from './ami_remote_workspace.mjs';
+import {
+  assertStrictChild,
+  createAmiWorkspace,
+  readAmiSegmentAnnotations,
+  requireAmiMeetingId,
+} from './ami_remote_workspace.mjs';
 import {
   OVERSPLIT_THRESHOLD,
   runFinalPass,
   resolveFinalSpeakerThreshold,
 } from '../../packages/transcription/src/finalPass.js';
 import type { FinalSpeaker, SpeakerSpan } from '../../packages/transcription/src/types.js';
+
+
+async function sha256File(path) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest('hex');
+}
+
+async function sha256FilesWithin(root, files) {
+  const canonicalRoot = await realpath(root);
+  const hash = createHash('sha256');
+  for (const [name, path] of Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!(await lstat(path)).isFile()) throw new Error('research input must be a regular file');
+    const canonicalPath = assertStrictChild(canonicalRoot, await realpath(path));
+    hash.update(name + '\\0');
+    for await (const chunk of createReadStream(canonicalPath)) hash.update(chunk);
+    hash.update('\\0');
+  }
+  return hash.digest('hex');
+}
+
+function requireCleanSourceCommit() {
+  const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+    encoding: 'utf8',
+  });
+  if (status.trim()) throw new Error('AMI research requires a clean source tree');
+  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+}
 
 const [meeting, startArg, durationArg, outputArg, thresholdArg] = process.argv.slice(2);
 if (!meeting || !startArg || !durationArg || !outputArg) {
@@ -40,6 +75,7 @@ if (
 const assets = process.env['SCRB_DEV_ASSETS'];
 const bin = process.env['SCRB_BIN'];
 if (!assets || !bin) throw new Error('SCRB_DEV_ASSETS and SCRB_BIN are required');
+const sourceCommit = requireCleanSourceCommit();
 const outputPath = resolve(outputArg);
 if (existsSync(outputPath)) throw new Error('refusing to overwrite existing report evidence');
 const workspace = await createAmiWorkspace({ assets, bin, meeting });
@@ -90,6 +126,7 @@ try {
       'sherpa-onnx/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx',
     ),
   };
+  const annotationRows = await readAmiSegmentAnnotations(ami, meeting);
   const diagnostics: Record<string, unknown> = {};
   // Research overrides only; product callers retain the production defaults.
   const final = await runFinalPass({
@@ -104,16 +141,18 @@ try {
 
   type Interval = { start: number; end: number; speaker: string };
   const references: Interval[] = [];
-  for (const file of await readdir(join(ami, 'ann/segments'))) {
-    if (!file.startsWith(`${meeting}.`) || !file.endsWith('.segments.xml')) continue;
-    const speaker = file.split('.')[1]!;
-    const xml = await readFile(join(ami, 'ann/segments', file), 'utf8');
-    for (const match of xml.matchAll(/transcriber_start="([\d.]+)"\s+transcriber_end="([\d.]+)"/g)) {
+  const annotationHash = createHash('sha256');
+  for (const { file, speaker, bytes, xml } of annotationRows) {
+    annotationHash.update(file + '\\0');
+    annotationHash.update(bytes);
+    annotationHash.update('\\0');
+    for (const match of xml.matchAll(/transcriber_start="([\\d.]+)"\\s+transcriber_end="([\\d.]+)"/g)) {
       const start = Math.max(Number(match[1]) - startSec, 0);
       const end = Math.min(Number(match[2]) - startSec, durationSec);
       if (end > start) references.push({ start, end, speaker });
     }
   }
+  const referenceAnnotationSha256 = annotationHash.digest('hex');
   const referenceSummary = [...new Set(references.map((r) => r.speaker))].sort().map((speaker) => {
     const rows = references.filter((r) => r.speaker === speaker);
     return {
@@ -149,8 +188,12 @@ try {
     };
   });
   const report = {
-    schemaVersion: 1,
-    sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    schemaVersion: 2,
+    sourceCommit,
+    sourceTreeClean: true,
+    sourceAudioSha256: await sha256File(sourceWav),
+    windowAudioSha256: await sha256File(wav),
+    referenceAnnotationSha256,
     defaultDiarizationThreshold: OVERSPLIT_THRESHOLD,
     evaluatedDiarizationThreshold: resolveFinalSpeakerThreshold(finalDiarizationThreshold),
     evaluatedShortMergeLine: 0.85,
@@ -181,6 +224,25 @@ try {
       segmentationModel: basename(models.segmentation),
       embeddingModel: basename(models.embedding),
     },
+    modelSha256: await sha256FilesWithin(modelsRoot, {
+      speechFinal: models.speechFinal,
+      segmentation: models.segmentation,
+      embedding: models.embedding,
+      vad: models.vad,
+    }),
+    toolSha256: await sha256FilesWithin(workspace.toolRoot, {
+      ffmpeg: toolPaths.ffmpeg,
+      ffprobe: toolPaths.ffprobe,
+      sherpaSidecar: toolPaths.sherpaSidecar,
+    }),
+    whisperToolSha256: await sha256FilesWithin(
+      join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin'),
+      {
+        whisperCli: toolPaths.whisperCli,
+        whisperServer: toolPaths.whisperServer,
+        whisperVad: toolPaths.whisperVad,
+      },
+    ),
   };
   await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   console.log(JSON.stringify(report));

@@ -1,6 +1,6 @@
 // All temporary paths in the AMI evaluation are created exclusively below SCRB_BIN.
 // Never construct a final-pass work directory from untrusted command-line input.
-import { lstat, mkdtemp, realpath, rm } from 'node:fs/promises';
+import { lstat, mkdtemp, readdir, readFile, realpath, rm } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export function requireAmiMeetingId(value) {
@@ -48,4 +48,28 @@ export async function createAmiWorkspace({ assets, bin, meeting }) {
     await rm(runRoot, { recursive: true, force: true });
     throw error;
   }
+}
+
+
+/** Read only regular AMI segment annotation files contained by the canonical corpus. */
+export async function readAmiSegmentAnnotations(ami, meeting) {
+  const id = requireAmiMeetingId(meeting);
+  const canonicalAmi = await realpath(resolve(ami));
+  const segmentsPath = join(canonicalAmi, 'ann', 'segments');
+  const segmentsStat = await lstat(segmentsPath);
+  if (!segmentsStat.isDirectory()) throw new Error('AMI annotation directory must be a real directory');
+  const segmentsRoot = assertStrictChild(canonicalAmi, await realpath(segmentsPath));
+  const rows = [];
+  for (const file of await readdir(segmentsRoot)) {
+    const match = file.match(new RegExp('^' + id + '\\.([^.\\\\/]+)\\.segments\\.xml$'));
+    if (!match) continue;
+    const path = join(segmentsRoot, file);
+    const stat = await lstat(path);
+    if (!stat.isFile()) throw new Error('AMI annotation must be a regular file');
+    const canonicalFile = assertStrictChild(segmentsRoot, await realpath(path));
+    const bytes = await readFile(canonicalFile);
+    rows.push({ file, speaker: match[1], bytes, xml: bytes.toString('utf8') });
+  }
+  if (rows.length === 0) throw new Error('no AMI segment annotations found for meeting');
+  return rows.sort((a, b) => a.file.localeCompare(b.file));
 }

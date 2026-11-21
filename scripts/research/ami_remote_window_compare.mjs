@@ -78,14 +78,23 @@ function score(report) {
   };
 }
 
+function isSha256(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
 export function evaluatePair(baseline, candidate) {
   const window = validatedWindow(baseline?.sourceWindow);
   if (
     JSON.stringify(window) !== JSON.stringify(validatedWindow(candidate?.sourceWindow)) ||
-    baseline.schemaVersion !== 1 ||
-    candidate.schemaVersion !== 1 ||
+    baseline.schemaVersion !== 2 ||
+    candidate.schemaVersion !== 2 ||
+    baseline.sourceTreeClean !== true ||
+    candidate.sourceTreeClean !== true ||
     baseline.sourceCommit !== candidate.sourceCommit ||
     baseline.sourceAudio !== candidate.sourceAudio ||
+    ['sourceAudioSha256', 'windowAudioSha256', 'referenceAnnotationSha256', 'modelSha256', 'toolSha256', 'whisperToolSha256'].some(
+      (key) => !isSha256(baseline[key]) || baseline[key] !== candidate[key],
+    ) ||
     baseline.defaultDiarizationThreshold !== 1 ||
     candidate.defaultDiarizationThreshold !== 1 ||
     baseline.evaluatedDiarizationThreshold !== 1 ||
@@ -97,7 +106,7 @@ export function evaluatePair(baseline, candidate) {
       (key) => baseline.diagnostics?.[key] !== candidate.diagnostics?.[key],
     )
   ) {
-    throw new Error('paired reports must match their sources, models and relabel options');
+    throw new Error('paired reports must match their sources, models, hashes and relabel options');
   }
   const a = score(baseline);
   const b = score(candidate);
@@ -111,7 +120,7 @@ export function evaluatePair(baseline, candidate) {
   if (a.sustainedReferenceCount === 1 && b.outputCount > a.outputCount) {
     regressions.push('possible-solo-oversplit');
   }
-  if (a.sustainedReferenceCount >= 2 && b.outputCount > a.outputCount + 2) {
+  if (a.sustainedReferenceCount >= 2 && b.outputCount > b.sustainedReferenceCount) {
     regressions.push('possible-multivoice-oversplit');
   }
   return { window, baseline: a, candidate: b, regressions };
@@ -138,7 +147,7 @@ export function summarizePairs(pairs) {
     cohorts.busy >= 3;
   const regressions = pairs.filter((p) => p.regressions.length > 0);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baselineThreshold: 1,
     candidateThreshold: 0.8,
     pairedWindowCount: pairs.length,

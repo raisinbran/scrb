@@ -13,8 +13,15 @@ const reference = [
 
 function report(threshold, bOutput, dOutput, outputCount = 2, refs = reference) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sourceCommit: 'invented-source',
+    sourceTreeClean: true,
+    sourceAudioSha256: 'a'.repeat(64),
+    windowAudioSha256: 'b'.repeat(64),
+    referenceAnnotationSha256: 'c'.repeat(64),
+    modelSha256: 'd'.repeat(64),
+    toolSha256: 'e'.repeat(64),
+    whisperToolSha256: 'f'.repeat(64),
     sourceWindow: window,
     sourceAudio: 'ES2004a.Mix-Headset.wav',
     defaultDiarizationThreshold: 1,
@@ -73,6 +80,22 @@ describe('paired AMI threshold screening', () => {
     expect(() => evaluatePair(a, { ...b, sourceWindow: { ...window, startSeconds: 530 } })).toThrow(
       /paired reports must match/,
     );
+  });
+
+  it('rejects dirty source trees and mismatched content hashes', () => {
+    const a = report(1, 'speaker-1', 'speaker-2');
+    const b = report(0.8, 'speaker-1', 'speaker-2');
+    expect(() => evaluatePair(a, { ...b, sourceTreeClean: false })).toThrow(/match/);
+    expect(() => evaluatePair(a, { ...b, windowAudioSha256: '0'.repeat(64) })).toThrow(/hashes/);
+    expect(() => evaluatePair(a, { ...b, modelSha256: 'invalid' })).toThrow(/hashes/);
+  });
+
+  it.each([3, 4])('warns when two sustained speakers produce %i output speakers', (count) => {
+    const result = evaluatePair(
+      report(1, 'speaker-1', 'speaker-2', 2),
+      report(0.8, 'speaker-1', 'speaker-2', count),
+    );
+    expect(result.regressions).toContain('possible-multivoice-oversplit');
   });
 
   it('rejects traversal and duplicate windows before scoring another cohort', () => {

@@ -14,6 +14,7 @@ import { join, resolve, sep } from 'node:path';
 import {
   assertStrictChild,
   createAmiWorkspace,
+  readAmiSegmentAnnotations,
   requireAmiMeetingId,
 } from './research/ami_remote_workspace.mjs';
 
@@ -33,6 +34,39 @@ function fixture() {
   writeFileSync(join(ami, 'ES2004a.Mix-Headset.wav'), 'invented audio bytes');
   return { root, assets, ami, bin };
 }
+
+describe('AMI annotation containment', () => {
+  it('reads regular annotations only from the canonical AMI corpus', async () => {
+    const f = fixture();
+    const segments = join(f.ami, 'ann', 'segments');
+    mkdirSync(segments, { recursive: true });
+    const xml = '<segments transcriber_start="1.0" transcriber_end="2.0" />';
+    writeFileSync(join(segments, 'ES2004a.B.segments.xml'), xml);
+    const rows = await readAmiSegmentAnnotations(f.ami, 'ES2004a');
+    expect(rows.map((row) => row.speaker)).toEqual(['B']);
+    expect(rows[0]?.xml).toBe(xml);
+  });
+
+  it.skipIf(process.platform === 'win32')('rejects a symlinked annotation directory outside AMI', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'outside-segments');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'ES2004a.B.segments.xml'), '<segments />');
+    mkdirSync(join(f.ami, 'ann'));
+    symlinkSync(outside, join(f.ami, 'ann', 'segments'), 'dir');
+    await expect(readAmiSegmentAnnotations(f.ami, 'ES2004a')).rejects.toThrow(/directory|escapes/);
+  });
+
+  it.skipIf(process.platform === 'win32')('rejects a symlinked annotation file', async () => {
+    const f = fixture();
+    const segments = join(f.ami, 'ann', 'segments');
+    mkdirSync(segments, { recursive: true });
+    const outside = join(f.root, 'outside.xml');
+    writeFileSync(outside, '<segments />');
+    symlinkSync(outside, join(segments, 'ES2004a.B.segments.xml'));
+    await expect(readAmiSegmentAnnotations(f.ami, 'ES2004a')).rejects.toThrow(/regular file/);
+  });
+});
 
 describe('AMI runner path ownership', () => {
   it.each([
