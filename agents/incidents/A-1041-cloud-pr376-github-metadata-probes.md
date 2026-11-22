@@ -1,0 +1,10 @@
+### A-1041 — 2026-11-21 — Cloud PR #376 merge clearance used two unsupported GitHub metadata reads
+
+- **Status / attribution:** Confirmed self-induced read-only tool selection errors; no application defect.
+- **Observed failures:** A branch metadata request using a percent-encoded slash inside the GitHub fetch URL was rejected as an invalid repository path (400). A subsequent branch-protection request returned 403 because the connected integration does not expose that administrative endpoint.
+- **Effect:** Two unnecessary read-only connector requests. No Git ref, PR, CI job, installation, or recording was affected by the failed reads; shared-account credit impact cannot be isolated.
+- **Correction:** Verified the preserved branch via the supported Git ref endpoint and the live PR/commit APIs. Required exact-head checks and formal reviews were independently read; GitHub's merge API enforced applicable merge restrictions. Did not bypass protection or claim knowledge of protected-branch rules hidden from the integration.
+- **Prevention:** Prefer supported `/git/ref/heads/...` reads for slash-bearing branch names; do not probe branch-protection endpoints requiring installation permissions that this connector does not have.
+- **Remaining risk / publication:** Hidden branch-protection rule details were not independently enumerated, though GitHub reported a successful squash merge. No other incidents from these reads identified. Submitted in a separate accounting PR without altering the merged #376 head.
+
+- **Nov 21 publication conflict resolution:** Earlier draft PR #412 had already published A-1039 for the distinct PR #411 original Prettier authoring failure. This later draft PR #413's incident was therefore renamed A-1041, preserving event facts. A-1041 had no filename collision in current `main` (9f8c4a1e) or any of the 43 then-open PR changed-file inventories; unpublished host reservations were unavailable, not presumed clear. See #358 for cross-machine reconciliation.
