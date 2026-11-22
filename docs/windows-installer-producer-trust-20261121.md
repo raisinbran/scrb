@@ -1,5 +1,7 @@
 # Windows NSIS candidate — hosted producer/consumer trust boundary
 
+**Superseding owner decision (November 21 PT): Keep `raisinbran/scrb` public, but DO NOT publish a plaintext unsigned Scribe installer to public Actions artifacts.** This decision supersedes the historical public-plaintext Option A recommendation in the original document. The existing source implementation still permits a public plaintext artifact under its old dual input gate, but that path is **NOT AUTHORIZED**. Encrypted producer-to-consumer transfer is **approved as a design direction only; it is NOT YET IMPLEMENTED, CI-TESTED OR RUN**. The controlling implementation requirements and prerequisite workflow-protection assessment are in [issue #419](https://github.com/raisinbran/scrb/issues/419) and [the independent plan assessment](https://github.com/raisinbran/scrb/pull/415#issuecomment-7076212593).
+
 **Status: source-integrated on `main`; genuine hosted build, NSIS install/uninstall,
 and app launch NOT VERIFIED (November 21, 2026 PT).** PR #402 merged as
 `d74ca8594c67085ffad17b8c73d8f2ff7ba947da`. The reviewed starting
@@ -132,36 +134,79 @@ A separate reviewed, bounded launch check using an isolated synthetic
 profile is required for that evidence. This workflow does not test real
 microphone/meeting recording, transcription, models or M1 acceptance.
 
-## Delivery choices and approval boundary
+## Controlling artifact-delivery decision — plaintext path prohibited
 
-**A — Existing public Actions artifact (implemented, not authorized):**
-A manual, owner-actor dispatch with both booleans true uses the above
-one-day artifact channel. For this public repository, signed-in GitHub
-users with repository read access may download that **unsigned** installer
-during its retention period. The source workflow limits its contents to
-the five public-source-only candidate files; no private asset should
-enter this path. **Explicit owner approval of public exposure** is
-required separately from authorization of the long hosted test. It is
-not silently approved by a successful guard run.
+**Owner decision:** Keep the repository public and preserve the separate
+verified producer and consumer jobs. **Do not dispatch the existing workflow
+with `permit_public_unsigned_test_artifact=true`**; its implementation
+uploads five original plaintext files, which is not an acceptable transfer.
+The existing false-default gates and actor condition are not approval. No
+public unsigned installer upload or genuine long run has been authorized.
 
-**B — Private transfer (design option, NOT implemented):** Instead of
-uploading unsigned bytes to the public repository's artifact channel,
-use a separately reviewed private object store with GitHub OIDC
-short-lived, branch/run/attempt-scoped identities for producer upload
-and consumer read, private access policy, bounded retention and cleanup.
-Transfer the same five files, but retain the six **independent producer
-job outputs** and enforce the identical SHA/source/run/attempt trust gate
-before execution. Review credentials, permissions, read-back integrity,
-expiry and deletion failure cases; do not fall back to public upload.
-This requires new infrastructure, workflow code, CI and independent
-review before it is executable.
+**Selected future approach, NOT YET IMPLEMENTED:** Add encrypted cross-job
+transfer in a separately reviewed source PR, tracked in
+[issue #419](https://github.com/raisinbran/scrb/issues/419). The producer
+will encrypt an exactly-five-file candidate archive using a pinned recipient
+public key and upload **only one authenticated ciphertext** as a one-day
+artifact. A controlled consumer will decrypt in temporary scratch and must
+retain all six independently protected producer outputs and source/run/file
+integrity checks. Encryption protects transfer confidentiality but does not
+authenticate who originally produced the installer.
 
-**Disposition:** A is the shortest path to genuinely observed hosted
-installer behavior **if** the owner affirmatively accepts brief public
-exposure of an unsigned, public-source-only test candidate. B offers
-stronger artifact confidentiality but cannot be dispatched from this
-repository today. Neither option authorizes a long run or establishes
-app launch, physical recording or five-step M1 acceptance.
+**Decryption key and GitHub enforcement, NOT YET CONFIGURED/VERIFIED:**
+The private identity belongs in a dedicated GitHub **Environment secret**,
+not a general repository secret. Restrict the Environment explicitly to
+`main`, apply deployment review where practical, and grant the key only to
+the intended consumer job. Protect edits to workflow files and their trusted
+scripts from unauthorized main-branch changes: the observed
+`GreatFirewall` ruleset (ID `27257173`) currently protects only
+deletion/non-fast-forward and does not require PR review; no
+`.github/CODEOWNERS` file exists. An Environment alone does not confine
+secrets to one named workflow. A single-owner account must avoid an
+unfulfillable native multi-account approval requirement. Do not provision
+the private key until the actual enforcement approach is independently
+reviewed and demonstrably effective.
+
+**Fresh-run authorization and input shape:** Fail closed unless the event is
+an explicit approved manual dispatch on `refs/heads/main`, repository and
+initial/triggering actors are the expected owner, the workflow ref is the
+reviewed path and `github.run_attempt == 1`. A rerun must not inherit
+previous approval or reach the decryption Environment. Replace the old
+plaintext consent input with a new default-false encrypted-run mode; never
+silently maintain a usable plaintext fallback.
+
+**Archive and lifecycle hardening:** Before extraction, bound encrypted
+and decrypted archive sizes, total expanded bytes and compression ratio.
+Reject path traversal, absolute/ADS paths, duplicate or case-colliding
+entries, missing or extra files, links and reparse points. Extract only
+the five expected regular top-level files into fresh temporary storage,
+then verify manifest SHA-256 before parsing, each independently bound
+producer SHA-256 and exact source/run/attempt. Prevent any process launch
+when a negative test fails. Clean scratch on all exits (not a claim of
+forensic secure erase). Never disclose private keys in logs, arguments,
+artifacts, job outputs, source or comments.
+
+**Separate installed-app launch gap:** The current consumer explicitly
+reports `scribeLaunched = false`. Before the expensive genuine installer
+run, a reviewed bounded test must start the installed `Scribe.exe` as the
+disposable nonadmin user with an isolated invented-data profile, assert a
+real application-ready condition and clean exit, and not mistake file
+existence or process creation for a launch PASS. No physical microphone or
+meeting recording is part of that hosted smoke.
+
+**Approval sequence:** implement the encrypted transfer and launch test in
+separately reviewable source slices; execute short synthetic secret/transport
+and refusal-path tests; complete exact-head CI and independent formal
+review; obtain owner merge authorization. Then seek **separate** owner
+permission for one encrypted handoff and for the actual 105-minute producer
+plus 20-minute consumer run with its expected overhead. No other source,
+test, merged PR or plan review authorizes dispatch.
+
+**Historical alternatives — not selected:** A publicly retrievable plain
+installer is **rejected**, even if restricted to one day. Private external
+object storage with OIDC remains a fallback requiring additional approved
+infrastructure and security review. Neither is currently an authorized
+operational route.
 
 ## Required evidence after separate authorization
 
@@ -169,8 +214,5 @@ Capture the exact `main` SHA, workflow run ID/attempt, all producer and
 consumer job conclusions (never count SKIPPED as PASS), installer SHA-256
 and size, source/staged/packaged seven-tool and DLL manifests, trusted
 transfer checks, standard-user token, per-user installation,
-installed executable hash, Start Menu target, uninstall, invented-data
-preservation and account/profile/scratch cleanup. Report app launch
-**NOT VERIFIED** until separately checked; never infer it from existence
-of `Scribe.exe`. Record failures and per-task usage with normal incident
-accounting. Do not automatically rerun an inconclusive or failed test.
+installed executable hash, Start Menu target, actual bounded app-ready launch, uninstall, invented-data
+preservation and account/profile/scratch cleanup. Record ciphertext-only transfer, Environment authorization, source/run/attempt binding and rejection evidence separately. Report app launch **NOT VERIFIED** until a genuine startup readiness signal and clean termination are independently checked; never infer it from existence of `Scribe.exe`. Record failures and per-task usage with normal incident accounting. Do not automatically rerun an inconclusive or failed test.
