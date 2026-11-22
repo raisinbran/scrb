@@ -84,8 +84,8 @@ function Invoke-BoundedProcess([string]$FilePath, [string[]]$Arguments, [string]
 }
 
 function Write-SmokeSummary([string]$Result) {
-    $readinessPath = Join-Path $env:RUNNER_TEMP 'scribe-installed-app-readiness.json'
-    $readinessEvidence = if (Test-Path -LiteralPath $readinessPath -PathType Leaf) {
+    $readinessPath = if ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'scribe-installed-app-readiness.json' } else { $null }
+    $readinessEvidence = if ($readinessPath -and (Test-Path -LiteralPath $readinessPath -PathType Leaf)) {
         Get-Content -LiteralPath $readinessPath -Raw | ConvertFrom-Json -ErrorAction Stop
     } else { $null }
     $summary = [ordered]@{
