@@ -7,6 +7,24 @@ export interface QuitActivity {
   recovering: boolean;
 }
 
+/**
+ * Library opening can reconcile recording metadata and migrate indexes before the dedicated
+ * recovery tasks start. Treat the whole startup as critical until the backend (or its blocked
+ * fallback) is ready, including failures. Keep later recording/final-pass/import flags live.
+ */
+export function createStartupActivity(readWork: () => QuitActivity) {
+  let initializing = true;
+  return {
+    read: (): QuitActivity => {
+      const activity = readWork();
+      return initializing ? { ...activity, recovering: true } : activity;
+    },
+    finish: (): void => {
+      initializing = false;
+    },
+  };
+}
+
 interface CancelableEvent {
   preventDefault(): void;
 }
