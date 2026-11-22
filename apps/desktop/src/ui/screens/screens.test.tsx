@@ -3,8 +3,10 @@ import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import type { Backend } from '@scrb/contracts';
 import { SpeakerSuggestionsProvider } from '../components/speakers/SpeakerSuggestions.tsx';
 import { BackendProvider } from '../lib/backend-context.tsx';
+import { createHybridBackend } from '../lib/hybrid-backend.ts';
 import { forgetSources } from '../lib/sources-cache.ts';
 import { MockBackend } from '../mocks/index.ts';
 import { ThemeProvider } from '../theme/ThemeProvider.tsx';
@@ -12,7 +14,7 @@ import { SettingsScreen } from './SettingsScreen.tsx';
 import { SpeakersScreen } from './SpeakersScreen.tsx';
 import { VocabularyScreen } from './VocabularyScreen.tsx';
 
-function renderScreen(backend: MockBackend, node: ReactNode) {
+function renderScreen(backend: Backend, node: ReactNode) {
   return render(
     <BackendProvider backend={backend}>
       <ThemeProvider>
@@ -475,30 +477,38 @@ describe('screens', () => {
       expect(screen.getByText(/Washington has a biometric-privacy law/)).toBeTruthy();
     });
 
-    it('shows an available model update, its progress and the finished version', async () => {
-      renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Check for model updates' }));
-      expect(await screen.findByText(/Version mock-2 is available/)).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Install update for Final speech' }));
-      expect(await screen.findByText(/Downloading .*30%/)).toBeTruthy();
-      expect(await screen.findByText(/version mock-2/, {}, { timeout: 4000 })).toBeTruthy();
-    });
+    it.each(['mock', 'hybrid'] as const)(
+      'does not expose fake model actions or library relocation in %s mode',
+      async (mode) => {
+        const source = mode === 'hybrid' ? createHybridBackend(backend, backend) : backend;
+        const original = await backend.call('getSettings');
+        renderScreen(source, <SettingsScreen />);
 
-    it('shows a failed model download', async () => {
-      backend.arm('modelDownloadFails');
-      renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Check for model updates' }));
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Install update for Final speech' }),
-      );
-      expect((await screen.findByRole('alert')).textContent).toContain('download stopped');
-    });
+        expect(
+          await screen.findByText(/Model updates and rollback are not available yet/),
+        ).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Install update/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Revert .* previous model/ })).toBeNull();
+        expect(screen.queryByText(/Version mock-2 is available/)).toBeNull();
 
-    it('updates the storage location at once', async () => {
-      renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Change location…' }));
-      expect(await screen.findByText('/Users/example/Documents/Meeting Scribe')).toBeTruthy();
-      expect(screen.queryByText('You have unsaved changes.')).toBeNull();
-    });
+        const location = screen.getByRole('button', { name: 'Change location…' });
+        expect((location as HTMLButtonElement).disabled).toBe(true);
+        expect(location.getAttribute('aria-describedby')).toBe('settings-storage-move-help');
+        expect(screen.getByText(/Moving a saved library is not available yet/)).toBeTruthy();
+        expect(screen.getByText(original.storageLocation)).toBeTruthy();
+        expect(screen.queryByText('You have unsaved changes.')).toBeNull();
+
+        // Unrelated functional controls remain interactive.
+        expect(
+          (
+            screen.getByRole('combobox', {
+              name: 'Auto-delete meetings after',
+            }) as HTMLSelectElement
+          ).disabled,
+        ).toBe(false);
+        expect(screen.getByRole('combobox', { name: 'Microphone' })).toBeTruthy();
+      },
+    );
   });
 });

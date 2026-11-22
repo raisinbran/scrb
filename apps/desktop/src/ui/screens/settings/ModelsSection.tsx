@@ -5,10 +5,8 @@ import type {
   ModelDownloadProgress,
   ModelInfo,
   ModelRole,
-  ModelUpdate,
 } from '@scrb/contracts';
 import { Button } from '../../components/Button.tsx';
-import { ActionDialog } from '../../components/Dialog.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { FOCUS_MODELS_EVENT, FOCUS_MODELS_KEY } from '../../lib/models-missing.tsx';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
@@ -66,24 +64,12 @@ type RunState =
 
 interface ModelRowProps {
   model: ModelInfo;
-  update: ModelUpdate | undefined;
   progress: ModelDownloadProgress | undefined;
-  disabled: boolean;
-  /** The first-time download is in charge of this row; failures show above, not here. */
+  /** The first-time download owns failures above, not in this row. */
   downloading: boolean;
-  onInstall(update: ModelUpdate): void;
-  onRevert(model: ModelInfo): void;
 }
 
-function ModelRow({
-  model,
-  update,
-  progress,
-  disabled,
-  downloading,
-  onInstall,
-  onRevert,
-}: ModelRowProps) {
+function ModelRow({ model, progress, downloading }: ModelRowProps) {
   const active = progress?.state === 'downloading' || progress?.state === 'verifying';
   return (
     <li className={styles.model}>
@@ -95,32 +81,6 @@ function ModelRow({
               ? `${model.name}, version ${model.version}, ${formatSize(model.sizeBytes)}`
               : `${model.name}, not downloaded yet (${formatSize(model.sizeBytes)})`}
           </span>
-          {update && !active && (
-            <span className={styles.help}>
-              Version {update.availableVersion} is available ({formatSize(update.sizeBytes)}).
-            </span>
-          )}
-        </div>
-        <div className={styles.actions}>
-          {update && (
-            <Button
-              variant="primary"
-              disabled={disabled || active}
-              aria-label={`Install update for ${ROLE_LABELS[model.role]}`}
-              onClick={() => onInstall(update)}
-            >
-              Install
-            </Button>
-          )}
-          {model.installed && (
-            <Button
-              disabled={disabled || active}
-              aria-label={`Revert ${ROLE_LABELS[model.role]} to previous model`}
-              onClick={() => onRevert(model)}
-            >
-              Revert to previous model
-            </Button>
-          )}
         </div>
       </div>
       {active && (
@@ -143,16 +103,14 @@ function ModelRow({
   );
 }
 
-/** Runs its actions at once: downloads and reverts are not part of the Save and Discard draft. */
+/** Starts and cancels real model downloads outside the Settings Save and Discard draft. */
 export function ModelsSection() {
   const backend = useBackend();
   const { state, reload } = useBackendData(load);
-  const [updates, setUpdates] = useState<ModelUpdate[] | null>(null);
   const [progress, setProgress] = useState<Record<string, ModelDownloadProgress>>({});
   const [overall, setOverall] = useState<{ done: number; total: number } | null>(null);
   const [run, setRun] = useState<RunState>({ kind: 'idle', cancelled: false });
   const [summaryRun, setSummaryRun] = useState<RunState>({ kind: 'idle', cancelled: false });
-  const [confirming, setConfirming] = useState<ModelUpdate | null>(null);
   const { busy, error, run: act } = useAction();
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -198,27 +156,10 @@ export function ModelsSection() {
         });
         if (event.overallBytesTotal !== undefined)
           setOverall({ done: event.overallBytesDone ?? 0, total: event.overallBytesTotal });
-        if (event.state !== 'done') return;
-        reload();
-        void backend.call('checkModelUpdates').then(setUpdates, () => undefined);
+        if (event.state === 'done') reload();
       }),
     [backend, reload],
   );
-
-  const check = () =>
-    void act(async () => {
-      setUpdates(await backend.call('checkModelUpdates'));
-    });
-
-  const install = (update: ModelUpdate) =>
-    void act(() => backend.call('installModelUpdate', { role: update.role }));
-
-  const revert = (model: ModelInfo) =>
-    void act(async () => {
-      await backend.call('revertModel', { role: model.role });
-      reload();
-      if (updates) setUpdates(await backend.call('checkModelUpdates'));
-    });
 
   const download = () =>
     void act(async () => {
@@ -449,14 +390,8 @@ export function ModelsSection() {
                     <ModelRow
                       key={model.version + model.name}
                       model={model}
-                      update={updates?.find((update) => update.role === model.role)}
                       progress={progress[model.name]}
-                      disabled={busy || activeRequiredDownload || activeSummaryDownload}
                       downloading={needsDownload}
-                      onInstall={(update) =>
-                        update.invalidatesVoiceProfiles ? setConfirming(update) : install(update)
-                      }
-                      onRevert={revert}
                     />
                   ))}
               </ul>
@@ -469,29 +404,10 @@ export function ModelsSection() {
           {error}
         </p>
       )}
-      <div className={styles.inline}>
-        <Button disabled={busy} onClick={check}>
-          Check for model updates
-        </Button>
-        {updates?.length === 0 && <span className={styles.help}>All models are up to date.</span>}
-      </div>
-      {confirming && (
-        <ActionDialog
-          title="This update affects voice profiles"
-          confirmLabel="Install anyway"
-          danger
-          onConfirm={async () => {
-            install(confirming);
-            setConfirming(null);
-          }}
-          onCancel={() => setConfirming(null)}
-        >
-          <p>
-            This speaker model cannot use your existing voice profiles. Returning speakers will not
-            be recognized until profiles are rebuilt.
-          </p>
-        </ActionDialog>
-      )}
+      <p className={styles.help}>
+        Model updates and rollback are not available yet. Required speech and optional summary model
+        downloads remain available.
+      </p>
     </section>
   );
 }
