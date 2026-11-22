@@ -393,9 +393,9 @@ describe('screens', () => {
         (screen.getByRole('checkbox', { name: /Advanced voice activity/ }) as HTMLInputElement)
           .checked,
       ).toBe(true);
-      expect(
-        (screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked,
-      ).toBe(true);
+      expect((screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked).toBe(
+        true,
+      );
       expect((await backend.call('getSettings')).audio).toEqual(saved);
       expect(saved.preset).not.toBe(original.preset);
       expect(screen.queryByText('You have unsaved changes.')).toBeNull();
@@ -415,9 +415,9 @@ describe('screens', () => {
       fireEvent.click(echo);
       fireEvent.click(bypass);
       expect(await saveBar()).toBeTruthy();
-      expect(
-        (screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked,
-      ).toBe(true);
+      expect((screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked).toBe(
+        true,
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       await vi.waitFor(() => expect(screen.queryByText('You have unsaved changes.')).toBeNull());
       const updated = (await backend.call('getSettings')).audio;

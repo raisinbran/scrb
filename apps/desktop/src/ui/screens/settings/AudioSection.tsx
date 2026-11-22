@@ -219,8 +219,8 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
             <span>Automatic</span>
           </label>
           <p className={styles.help}>
-            Unavailable. The saved threshold does not currently change speech detection or the original
-            audio.
+            Unavailable. The saved threshold does not currently change speech detection or the
+            original audio.
           </p>
         </div>
         {OTHER_TOGGLES.map((toggle) => (
