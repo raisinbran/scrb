@@ -105,7 +105,25 @@ try {
     $outside = Join-Path $testRoot 'outside'
     New-Item -ItemType Directory -Path $outside | Out-Null
     Expect-Refused { Assert-SingleRunnerRoot (Join-Path $outside 'nested') } 'arbitrary nested runner root'
-    Write-Output 'Single-runner invented dispatch, exact five-file, hash and zero-launch refusals PASS'
+    # Exercise the actual allowlisted cleanup on invented local files, never a
+    # production installer/account, and require verified absence of each root.
+    $env:GITHUB_EVENT_NAME = 'workflow_dispatch'
+    $env:GITHUB_ACTOR = 'raisinbran'
+    $env:GITHUB_TRIGGERING_ACTOR = 'raisinbran'
+    $env:GITHUB_REF = 'refs/heads/main'
+    $env:GITHUB_WORKFLOW_REF = $facts.WorkflowRef
+    $env:GITHUB_JOB = 'verified-installer-producer'
+    $env:SCRIBE_GENUINE_BUILD_OPT_IN = 'true'
+    $env:SCRIBE_NO_UPLOAD_OPT_IN = 'true'
+    $output = Join-Path $testRoot 'scribe-no-upload-nsis'
+    New-Item -ItemType Directory -Path $output | Out-Null
+    $evidenceFile = Join-Path $testRoot 'scribe-public-source-evidence.json'
+    [IO.File]::WriteAllText($evidenceFile, '{"invented":true}')
+    & (Join-Path $PSScriptRoot 'run-win-installer-single-runner.ps1') -Mode Cleanup -ExpectedSourceSha ('a'*40) | Out-Null
+    foreach ($owned in @($root,$output,$evidenceFile)) {
+        if (Test-Path -LiteralPath $owned) { throw 'Owned job-local cleanup was not verified' }
+    }
+    Write-Output 'Single-runner invented dispatch, exact five-file, hash, cleanup and zero-launch refusals PASS'
 } finally {
     $env:RUNNER_TEMP = $oldTemp; $env:GITHUB_ACTIONS = $oldActions
     $env:RUNNER_ENVIRONMENT = $oldRunner; $env:GITHUB_REPOSITORY = $oldRepo
