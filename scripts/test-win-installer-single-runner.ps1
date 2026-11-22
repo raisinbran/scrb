@@ -87,7 +87,9 @@ try {
     $evidence = Assert-SingleRunnerEvidence -Root $root -ManifestSha $hash -SourceSha ('a'*40) -ProvenanceSha $trusted.TrustedProvenanceSha256 -AuditSha $trusted.TrustedDependencyAuditSha256 -RunId '81234' -Attempt '1'
     if ($evidence.SourceCommit -cne ('a'*40)) { throw 'Source identity not validated' }
     $launches = 0
-    Expect-Refused { Invoke-TrustedCandidateInstall -Verification ($trusted + @{ TrustedManifestSha256 = ('b'*64) }) -Launch { $script:launches++ } } 'wrong trusted manifest'
+    $wrongTrusted = $trusted.Clone()
+    $wrongTrusted.TrustedManifestSha256 = 'b' * 64
+    Expect-Refused { Invoke-TrustedCandidateInstall -Verification $wrongTrusted -Launch { $script:launches++ } } 'wrong trusted manifest'
     if ($launches -ne 0) { throw 'Untrusted installer was launched' }
     [IO.File]::AppendAllText($trusted.InstallerPath, 'altered')
     Expect-Refused { Assert-TrustedCandidate @trusted } 'modified installer'
@@ -102,7 +104,7 @@ try {
     Expect-Refused { Assert-SingleRunnerFileSet $root } 'missing audit'
     $outside = Join-Path $testRoot 'outside'
     New-Item -ItemType Directory -Path $outside | Out-Null
-    Expect-Refused { Assert-SingleRunnerRoot $outside } 'arbitrary runner root'
+    Expect-Refused { Assert-SingleRunnerRoot (Join-Path $outside 'nested') } 'arbitrary nested runner root'
     Write-Output 'Single-runner invented dispatch, exact five-file, hash and zero-launch refusals PASS'
 } finally {
     $env:RUNNER_TEMP = $oldTemp; $env:GITHUB_ACTIONS = $oldActions
