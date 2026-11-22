@@ -10,13 +10,20 @@ $variables = @('RUNNER_TEMP','RUNNER_ENVIRONMENT','GITHUB_ACTIONS','GITHUB_EVENT
 $old = @{}
 foreach ($name in $variables) { $old[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 $script:launches = 0
-function MustReject([scriptblock]$Action, [string]$Label) {
+function MustReject([scriptblock]$Action, [string]$Label, [string]$ExpectedError = '') {
     $rejected = $false
-    try { & $Action | Out-Null } catch { $rejected = $true }
+    try {
+        & $Action | Out-Null
+    } catch {
+        if ($ExpectedError -and $_.Exception.Message -notmatch $ExpectedError) {
+            throw "Wrong refusal for $Label : $($_.Exception.Message)"
+        }
+        $rejected = $true
+    }
     if (-not $rejected) { throw "Missing refusal: $Label" }
     if ($script:launches -ne 0) { throw "Untrusted installer reached launch callback: $Label" }
 }
-function Write-TestZip([string]$Path,[string[]]$Names,[int]$Repeats = 1) {
+function Write-TestZip([string]$Path,[string[]]$Names,[int]$Repeats = 1,[switch]$HighCompression) {
     Add-Type -AssemblyName System.IO.Compression
     $stream = [IO.File]::Open($Path, [IO.FileMode]::CreateNew)
     try {
@@ -27,7 +34,10 @@ function Write-TestZip([string]$Path,[string[]]$Names,[int]$Repeats = 1) {
                 $entry.ExternalAttributes = 32
                 $entryStream = $entry.Open()
                 try {
-                    $bytes = [Text.Encoding]::UTF8.GetBytes(('invented-bytes-' * $Repeats))
+                    # An unbroken 1 MiB invented-byte run gives a ratio far above
+                    # 500:1 on .NET Deflate, unlike the shorter repeating phrase.
+                    $text = if ($HighCompression) { 'A' * 1048576 } else { 'invented-bytes-' * $Repeats }
+                    $bytes = [Text.Encoding]::UTF8.GetBytes($text)
                     $entryStream.Write($bytes,0,$bytes.Length)
                 } finally { $entryStream.Dispose() }
             }
@@ -113,8 +123,26 @@ try {
         $i++
     }
     $bomb = Join-Path $base 'bomb.zip'
-    Write-TestZip -Path $bomb -Names $names -Repeats 5000
-    MustReject { Expand-StrictInstallerArchive -ArchivePath $bomb -DestinationRoot (Join-Path $base 'bomb-output') } 'compressed amplification'
+    Write-TestZip -Path $bomb -Names $names -HighCompression
+    # Inspect the actual generated ZIP metadata, rather than assuming a repeat
+    # count crosses the production validator's strict >500:1 boundary.
+    $bombStream = [IO.File]::OpenRead($bomb)
+    try {
+        $bombZip = [IO.Compression.ZipArchive]::new($bombStream,[IO.Compression.ZipArchiveMode]::Read,$true)
+        try {
+            foreach ($entry in $bombZip.Entries) {
+                if ($entry.CompressedLength -le 0) { throw 'Test fixture compressed length is zero' }
+                $ratio = [double]$entry.Length / [double]$entry.CompressedLength
+                if ($ratio -le 500) {
+                    throw "Fixture did not exceed 500:1: $($entry.FullName) ratio $ratio"
+                }
+                Write-Output ("Invented archive ratio for {0}: {1:N1}:1" -f $entry.FullName,$ratio)
+            }
+        } finally { $bombZip.Dispose() }
+    } finally { $bombStream.Dispose() }
+    $bombOutput = Join-Path $base 'bomb-output'
+    MustReject { Expand-StrictInstallerArchive -ArchivePath $bomb -DestinationRoot $bombOutput } 'compressed amplification' 'excessive-ratio'
+    if (Test-Path -LiteralPath $bombOutput) { throw 'High-ratio archive was extracted before rejection' }
     if ($script:launches -ne 0) { throw 'Executable unexpectedly launched' }
     Write-Output 'Encrypted transfer synthetic protections PASS'
 } finally {
