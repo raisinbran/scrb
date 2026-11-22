@@ -11,7 +11,7 @@ const script = read('scripts/run-win-installer-single-runner.ps1');
 
 describe('manual-only Windows NSIS source built and installed on one disposable runner', () => {
   it('has two false opt-ins, expected main SHA, owner actor/ref/attempt and one job', () => {
-    expect(yaml).toMatch(/^on:\s*\n  workflow_dispatch:/m);
+    expect(yaml).toMatch(/^on:\s*\n {2}workflow_dispatch:/m);
     expect(yaml).not.toMatch(/^\s*pull_request:|^\s*workflow_run:|^\s*workflow_call:/m);
     expect((yaml.match(/default: false/g) ?? []).length).toBe(2);
     expect(yaml).toContain('expected_source_sha:');
@@ -22,7 +22,7 @@ describe('manual-only Windows NSIS source built and installed on one disposable 
     expect(yaml).toContain("github.run_attempt == 1");
     expect(yaml).toContain("github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main'");
     expect(yaml).toContain('timeout-minutes: 130');
-    expect(yaml.match(/^  [a-z][a-z0-9-]+:[ \t]*$/gm)).toEqual(['  verified-installer-producer:']);
+    expect(yaml.match(/^ {2}[a-z][a-z0-9-]+:[ \t]*$/gm)).toEqual(['  verified-installer-producer:']);
     expect(yaml).toContain('persist-credentials: false');
     expect(yaml).toContain('node-version-file: .nvmrc');
   });
