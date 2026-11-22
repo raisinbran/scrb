@@ -15,8 +15,8 @@ on:
         required: true
         type: boolean
         default: false
-      permit_public_unsigned_test_artifact:
-        description: 'I authorize a 1-day publicly downloadable unsigned installer derived only from this public source tree; no private tools or models'
+      encrypted_installer_transfer:
+        description: 'Separate owner authorization: encrypted ciphertext-only handoff for this exact first-attempt dispatch'
         required: true
         type: boolean
         default: false
@@ -45,11 +45,10 @@ jobs:
           Real source compilation, NSIS install and uninstall are NOT VERIFIED by this job.
           '@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
-  # Never launch untrusted installer bytes on pull_request. Only the repository
-  # owner may explicitly dispatch a public-source-only test, with no private
-  # W10/M5 executables, owner recordings, speech models or credentials included.
+  # Never launch untrusted installer bytes on pull_request. No plaintext
+  # executable may be uploaded to the public repository's Actions artifacts.
   verified-installer-producer:
-    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && inputs.permit_public_unsigned_test_artifact == true && github.actor == 'raisinbran' && github.repository == 'raisinbran/scrb'
+    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && inputs.encrypted_installer_transfer == true && github.actor == 'raisinbran' && github.triggering_actor == 'raisinbran' && github.repository == 'raisinbran/scrb' && github.ref == 'refs/heads/main' && github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-smoke.yml@refs/heads/main' && github.run_attempt == 1
     runs-on: windows-latest
     timeout-minutes: 105
     outputs:
@@ -59,11 +58,19 @@ jobs:
       dependency_audit_sha256: ${{ steps.package.outputs.dependency_audit_sha256 }}
       producer_run_id: ${{ steps.package.outputs.producer_run_id }}
       producer_run_attempt: ${{ steps.package.outputs.producer_run_attempt }}
+    env:
+      SCRB_GENUINE_INSTALLER_AUTHORIZED: 'true'
+      SCRB_ENCRYPTED_INSTALLER_AUTHORIZED: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Reject unauthorized, reattempted or non-main producer before build
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/win-installer-encrypted-transfer.psm1 -Force
+          Assert-EncryptedInstallerDispatch -Job 'verified-installer-producer'
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -117,29 +124,62 @@ jobs:
           if (@(Get-ChildItem -LiteralPath $destination -File).Count -ne 5) {
             throw 'Unapproved source-build artifact content'
           }
-      - name: Transfer public-source-only test candidate for this run and attempt
+      - name: Encrypt exactly five candidate files into one ciphertext-only upload root
+        shell: pwsh
+        run: |
+          ./scripts/prepare-win-installer-encrypted-transfer.ps1 `
+            -CandidateRoot (Join-Path $env:RUNNER_TEMP 'scribe-installer-artifact') `
+            -RecipientFile '.github/windows-installer-age-recipient.txt'
+      - name: Upload ONLY ciphertext for this run and attempt
         uses: actions/upload-artifact@v4
         with:
-          name: scribe-public-source-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/scribe-installer-artifact/*
+          name: scribe-encrypted-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scribe-encrypted-upload/scribe-installer-candidate.age
           if-no-files-found: error
           retention-days: 1
 
   hosted-real-installer-smoke:
     needs: verified-installer-producer
-    if: github.event_name == 'workflow_dispatch' && needs.verified-installer-producer.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && inputs.encrypted_installer_transfer == true && github.actor == 'raisinbran' && github.triggering_actor == 'raisinbran' && github.repository == 'raisinbran/scrb' && github.ref == 'refs/heads/main' && github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-smoke.yml@refs/heads/main' && github.run_attempt == 1 && needs.verified-installer-producer.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
+    environment: windows-installer-test-decrypt
+    env:
+      SCRB_GENUINE_INSTALLER_AUTHORIZED: 'true'
+      SCRB_ENCRYPTED_INSTALLER_AUTHORIZED: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Download only this run's source-built candidate
+      - name: Reject unauthorized, reattempted or non-main consumer
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/win-installer-encrypted-transfer.psm1 -Force
+          Assert-EncryptedInstallerDispatch -Job 'hosted-real-installer-smoke'
+      - name: Download exactly one run-and-attempt-scoped ciphertext artifact
         uses: actions/download-artifact@v4
         with:
-          name: scribe-public-source-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/scribe-installer-artifact
+          name: scribe-encrypted-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scribe-encrypted-download
+      - name: Decrypt, reject unsafe archive entries and independently attest candidate before launch
+        shell: pwsh
+        env:
+          WIN_INSTALLER_SMOKE_AGE_IDENTITY: ${{ secrets.WIN_INSTALLER_SMOKE_AGE_IDENTITY }}
+          TRUSTED_MANIFEST_SHA256: ${{ needs.verified-installer-producer.outputs.manifest_sha256 }}
+          TRUSTED_SOURCE_COMMIT: ${{ needs.verified-installer-producer.outputs.source_commit }}
+          TRUSTED_PROVENANCE_SHA256: ${{ needs.verified-installer-producer.outputs.provenance_sha256 }}
+          TRUSTED_DEPENDENCY_AUDIT_SHA256: ${{ needs.verified-installer-producer.outputs.dependency_audit_sha256 }}
+          TRUSTED_PRODUCER_RUN_ID: ${{ needs.verified-installer-producer.outputs.producer_run_id }}
+          TRUSTED_PRODUCER_RUN_ATTEMPT: ${{ needs.verified-installer-producer.outputs.producer_run_attempt }}
+        run: |
+          ./scripts/receive-win-installer-encrypted-transfer.ps1 `
+            -TrustedManifestSha256 $env:TRUSTED_MANIFEST_SHA256 `
+            -TrustedSourceCommit $env:TRUSTED_SOURCE_COMMIT `
+            -TrustedProvenanceSha256 $env:TRUSTED_PROVENANCE_SHA256 `
+            -TrustedDependencyAuditSha256 $env:TRUSTED_DEPENDENCY_AUDIT_SHA256 `
+            -TrustedProducerRunId $env:TRUSTED_PRODUCER_RUN_ID `
+            -TrustedProducerRunAttempt $env:TRUSTED_PRODUCER_RUN_ATTEMPT
       - name: Independent baseline guards under a disposable standard user
         shell: pwsh
         run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
