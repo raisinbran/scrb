@@ -1,8 +1,8 @@
-### A-1056 — 2026-11-21 — Codex Desktop / Mac M5 — packaged smoke test failed before app launch
+### A-1056 — 2026-11-22 — Codex Desktop / Mac M5 — disposable packaged app launch unresolved
 
-- **Status / attribution:** Confirmed test-execution error; application behavior and root cause unknown. No app-level result was produced.
-- **What failed:** The packaged invented-transcript Copy test invoked the candidate executable through Playwright Electron launch. The harness reported `Process failed to launch!` before a window or assertion was reached. This did not exercise a normal macOS Launch Services GUI launch.
-- **Impact:** One smoke attempt failed; the disposable fixture/profile were prepared, but Copy, seeking, model visibility, and normal exit remain unverified. No production app or library was touched.
-- **Correction / remaining risk:** Stopped without retrying the same launch route. The next attempt should use the supported host GUI/Launch Services path with an explicit temporary user-data directory and verify the backend storage location before opening any recordings UI. The failure does not establish an application defect or confirm that the package launches normally.
-
-- **Reservation correction:** Distinct later A-1045 conflicted with earlier #415's installer-document incident; this M5 event was renumbered to A-1056 after checking current main and open-PR published incident paths. Earlier unnumbered M5 evidence remains preserved; unpublished host reservations are not independently attested.
+- **Status / attribution:** Confirmed packaged-launch failure; root cause and application-vs-Launch-Services attribution remain unknown. No production app behavior was reached.
+- **What failed:** The earlier invented-transcript Playwright Electron invocation returned `Process failed to launch!` before a window or assertion. In this task, one normal-host Launch Services call (`open -n -a` on the disposable bundle, with a fresh `--user-data-dir`) returned `NSOSStatusErrorDomain Code=-10827 kLSNoExecutableErr` before app startup.
+- **Evidence:** Bundle metadata says `CFBundleExecutable=Scribe` and package type `APPL`; `Contents/MacOS/Scribe` exists, is executable, and is an arm64 Mach-O. A read-only process check found no process for the disposable bundle. The discrepancy between the bundle executable present on disk and Launch Services' `kLSNoExecutableErr` remains unexplained.
+- **Impact:** No window/process. Model visibility, Copy, seek, and normal exit remain unverified. The fresh profile/library and copied invented-text fixture are isolated; no production app or library was touched.
+- **Correction / remaining risk:** Stopped after the single Launch Services attempt. No retry, bundle repair, rebuild, install, or production-data access. Resolve the packaging/Launch Services metadata issue before a later separately authorized attempt.
+- **Reservation correction:** This M5 event retains A-1056, which was published before the distinct later A-1056 in #424; the later publication must use a different ID. Earlier unnumbered M5 evidence remains preserved.
