@@ -1,6 +1,7 @@
 <#
 Run the pinned W10 NSIS candidate in a disposable GitHub-hosted Windows runner.
-This never launches Scribe, changes security policy, elevates, or touches owner data.
+Only a producer-attested current candidate is GUI-launched under a disposable standard user.
+No security policy changes, owner data, recording or model downloads.
 #>
 [CmdletBinding()]
 param(
@@ -29,6 +30,7 @@ if (-not (Test-Path -LiteralPath $guardsModule -PathType Leaf)) {
 }
 Import-Module $guardsModule -Force
 Import-Module (Join-Path $PSScriptRoot 'win-installer-candidate-trust.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'win-installed-app-readiness.psm1') -Force
 $expectedInstallerBytes = 131037432
 $expectedInstallerSha256 = 'ec5c1ecd5207d44049d7b7dc065b2da7deb607497f04b7ca12488e78e37718d6'
 $expectedApplicationSha256 = '31817c8b75c860fa36ddd0055677d5cbd374f4a564fa02097ccc77449993ae31'
@@ -41,6 +43,7 @@ $stepStatuses = [ordered]@{
     applicationExecutableIntegrity = 'NOT VERIFIED'
     perUserInstall = 'NOT VERIFIED'
     startMenuShortcut = 'NOT VERIFIED'
+    applicationLaunchReady = 'NOT VERIFIED'
     uninstall = 'NOT VERIFIED'
     syntheticUserDataPreserved = 'NOT VERIFIED'
     twoTrackRealCapture = 'NOT TESTED'
@@ -81,6 +84,10 @@ function Invoke-BoundedProcess([string]$FilePath, [string[]]$Arguments, [string]
 }
 
 function Write-SmokeSummary([string]$Result) {
+    $readinessPath = if ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'scribe-installed-app-readiness.json' } else { $null }
+    $readinessEvidence = if ($readinessPath -and (Test-Path -LiteralPath $readinessPath -PathType Leaf)) {
+        Get-Content -LiteralPath $readinessPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    } else { $null }
     $summary = [ordered]@{
         schemaVersion = 1
         result = $Result
@@ -98,7 +105,8 @@ function Write-SmokeSummary([string]$Result) {
         elapsedSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
         failure = $failure
         blocker = $failure
-        scribeLaunched = $false
+        scribeLaunched = ($isCurrentCandidate -and $stepStatuses.applicationLaunchReady -ceq 'PASS')
+        installedAppReadiness = $readinessEvidence
         recordingTested = $false
         securityPolicyChanged = $false
     }
@@ -207,6 +215,20 @@ try {
     }
     $stepStatuses.startMenuShortcut = 'PASS'
 
+    # A2's frozen historical path remains unchanged. A genuine current candidate
+    # must prove a renderer-populated GUI and graceful exit before uninstall.
+    if ($isCurrentCandidate) {
+        $stepStatuses.applicationLaunchReady = 'FAIL'
+        $remainingSeconds = [int](($TimeBudgetMinutes * 60) - $stopwatch.Elapsed.TotalSeconds)
+        $launchBudget = [Math]::Min(35, ($remainingSeconds - 20))
+        if ($launchBudget -lt 1) { throw 'No time budget remains for safe installed-app launch and cleanup' }
+        $launch = Invoke-ScribeInstalledAppReadiness -InstalledExe $appExe -InstallRoot $installRoot -UserDataRoot $userDataRoot -AppDataRoot $appData -LibraryRoot $libraryRoot -RunnerTemp $runnerTemp -ShortcutTarget $shortcutTarget -ExpectedSha256 $expectedApplicationSha256 -ProducerAttested ($stepStatuses.installerIntegrity -eq 'PASS' -and $stepStatuses.applicationExecutableIntegrity -eq 'PASS' -and $stepStatuses.startMenuShortcut -eq 'PASS') -EvidencePath (Join-Path $runnerTemp 'scribe-installed-app-readiness.json') -MaximumSeconds $launchBudget
+        if ($launch.result -cne 'PASS' -or $launch.cleanExit -cne 'PASS') {
+            throw 'Installed Scribe GUI and controlled exit were not verified'
+        }
+        $stepStatuses.applicationLaunchReady = 'PASS'
+    }
+
     Invoke-BoundedProcess $uninstallExe @('/S') 'Per-user uninstaller'
     if (Test-Path -LiteralPath $appExe) { throw 'Scribe.exe remains after uninstall' }
     $stepStatuses.uninstall = 'PASS'
@@ -261,6 +283,7 @@ $requiredSmokeSteps = @(
     'syntheticUserDataPreserved',
     'cleanup'
 )
+if ($isCurrentCandidate) { $requiredSmokeSteps += 'applicationLaunchReady' }
 $requiredSmokeStatuses = @($requiredSmokeSteps | ForEach-Object { $stepStatuses[$_] })
 $result = if ($failure) { 'FAIL' } elseif (@($requiredSmokeStatuses | Where-Object { $_ -ne 'PASS' }).Count -eq 0) { 'PASS' } else { 'NOT VERIFIED' }
 Write-SmokeSummary $result

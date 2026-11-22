@@ -72,7 +72,8 @@ try {
     $candidate = Join-Path $scratch 'scribe-installer-artifact'
     New-Item -ItemType Directory -Path $scripts,$candidate -ErrorAction Stop | Out-Null
     foreach ($name in @('win-installer-smoke-guards.psm1','win-installer-candidate-trust.psm1',
-                         'test-win-installer-smoke.ps1','run-win-installer-smoke-user-entry.ps1')) {
+                         'test-win-installer-smoke.ps1','run-win-installer-smoke-user-entry.ps1',
+                         'win-installed-app-readiness.psm1')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $scripts -ErrorAction Stop
     }
     foreach ($name in @($installer[0].Name) + $names) {
@@ -101,6 +102,10 @@ try {
     $report = Get-Content -LiteralPath $summary -Raw | ConvertFrom-Json -ErrorAction Stop
     $reportDest = Join-Path $runner 'scribe-installer-smoke-result.json'
     Copy-Item -LiteralPath $summary -Destination $reportDest -ErrorAction Stop
+    $launchEvidence = Join-Path $scratch 'scribe-installed-app-readiness.json'
+    if (Test-Path -LiteralPath $launchEvidence -PathType Leaf) {
+        Copy-Item -LiteralPath $launchEvidence -Destination (Join-Path $runner 'scribe-installed-app-readiness.json') -ErrorAction Stop
+    }
     if ($env:GITHUB_STEP_SUMMARY) {
         Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value (
             '### Genuine disposable standard-user NSIS smoke' + [Environment]::NewLine +
@@ -112,6 +117,10 @@ try {
         $report.steps.applicationExecutableIntegrity -cne 'PASS' -or
         $report.steps.perUserInstall -cne 'PASS' -or
         $report.steps.startMenuShortcut -cne 'PASS' -or
+        $report.steps.applicationLaunchReady -cne 'PASS' -or
+        $report.scribeLaunched -ne $true -or
+        $report.installedAppReadiness.result -cne 'PASS' -or
+        $report.installedAppReadiness.cleanExit -cne 'PASS' -or
         $report.steps.uninstall -cne 'PASS' -or
         $report.steps.syntheticUserDataPreserved -cne 'PASS' -or
         $report.steps.cleanup -cne 'PASS') {
@@ -150,4 +159,4 @@ try {
     if ($cleanupIssues.Count -gt 0) { throw ('Hosted cleanup failure: ' + ($cleanupIssues -join '; ')) }
 }
 if (-not $resultReady) { throw 'Hosted installer acceptance not established' }
-Write-Output 'Genuine normal-user NSIS install, shortcut, uninstall, synthetic preservation and cleanup PASS'
+Write-Output 'Genuine standard-user NSIS install, Scribe GUI readiness, exit, uninstall and cleanup PASS'
