@@ -55,9 +55,9 @@ describe('Recordings disc', () => {
     expect(
       screen.getByRole('button', { name: /^Recordings$/ }).getAttribute('aria-describedby'),
     ).toBe('recordings-processing');
-    expect(screen.getByText('Processing a recording')).toBeTruthy();
+    expect(screen.getByText('Background work pending')).toBeTruthy();
     act(() => f.emit('meetingChanged', meeting('ready')));
-    expect(screen.queryByText('Processing a recording')).toBeNull();
+    expect(screen.queryByText('Background work pending')).toBeNull();
   });
 
   it('ignores an older list answer that arrives after a newer status event', async () => {
@@ -72,7 +72,35 @@ describe('Recordings disc', () => {
     });
     act(() => f.emit('meetingChanged', meeting('ready')));
     await act(async () => late.release());
-    expect(screen.queryByText('Processing a recording')).toBeNull();
+    expect(screen.queryByText('Background work pending')).toBeNull();
+  });
+
+  it('does not describe sample processing as real work, but reports real work on any tab', async () => {
+    const mixed = fake([meeting('finalPassRunning')]);
+    const real = fake([meeting('ready')]);
+    await act(async () => {
+      render(
+        <BackendProvider backend={mixed.backend} processingBackend={real.backend}>
+          <Sidebar selected="settings" onSelect={() => undefined} />
+        </BackendProvider>,
+      );
+    });
+    const recordings = screen.getByRole('button', { name: 'Recordings' });
+    expect(recordings.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.queryByText('Background work pending')).toBeNull();
+    act(() => mixed.emit('meetingChanged', meeting('finalPassRunning')));
+    expect(recordings.getAttribute('aria-describedby')).toBeNull();
+
+    act(() => real.emit('meetingChanged', meeting('finalPassRunning')));
+    expect(recordings.getAttribute('aria-describedby')).toBe('recordings-processing');
+    expect(screen.getByText('Background work pending')).toBeTruthy();
+    recordings.focus();
+    expect(document.activeElement).toBe(recordings);
+
+    act(() => real.emit('meetingChanged', meeting('transcriptionFailed')));
+    expect(recordings.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.queryByText('Background work pending')).toBeNull();
+    expect(document.activeElement).toBe(recordings);
   });
 
   it('keeps the disc still and shows a badge when motion is reduced', () => {
