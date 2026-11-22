@@ -168,12 +168,21 @@ function Expand-StrictInstallerArchive {
                 $sourceStream = $entry.Open()
                 try {
                     $targetStream = [IO.File]::Open($target, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
-                    try { $sourceStream.CopyTo($targetStream) }
-                    finally { $targetStream.Dispose() }
+                    try {
+                        $buffer = [byte[]]::new(65536)
+                        $written = [long]0
+                        while (($read = $sourceStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                            $written += $read
+                            if ($written -gt $entry.Length -or $written -gt $script:MaxTotalExpandedBytes) {
+                                throw 'Archive expanded beyond its inspected entry size'
+                            }
+                            $targetStream.Write($buffer, 0, $read)
+                        }
+                        if ($written -ne $entry.Length) {
+                            throw 'Extracted bytes differ from the approved entry size'
+                        }
+                    } finally { $targetStream.Dispose() }
                 } finally { $sourceStream.Dispose() }
-                if ((Get-Item -LiteralPath $target).Length -ne $entry.Length) {
-                    throw 'Extracted bytes differ from the approved entry size'
-                }
             }
         } finally { $zip.Dispose() }
     } finally { $input.Dispose() }
