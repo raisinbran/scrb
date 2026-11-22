@@ -97,7 +97,7 @@ describe('manual-only Windows NSIS source built and installed on one disposable 
         path.join(root, 'scripts/test-win-installer-single-runner.ps1'),
       ], { cwd: root, encoding: 'utf8', timeout: 60_000 });
       expect(test.status, test.stdout + '\n' + test.stderr).toBe(0);
-      expect(test.stdout).toContain('Single-runner invented dispatch, exact five-file, hash and zero-launch refusals PASS');
+      expect(test.stdout).toContain('Single-runner invented dispatch, exact five-file, hash, cleanup and zero-launch refusals PASS');
     },
   );
 });
