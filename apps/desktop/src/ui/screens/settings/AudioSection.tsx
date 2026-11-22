@@ -37,7 +37,8 @@ const TOGGLES: { key: ToggleKey; label: string; description: string }[] = [
   {
     key: 'bypassSystemInputProcessing',
     label: 'Bypass system audio input processing',
-    description: 'Experimental macOS opt-in only; prevents gated AEC. Does not bypass normal mic enhancements.',
+    description:
+      'Experimental macOS opt-in only; prevents gated AEC. Does not bypass normal mic enhancements.',
   },
   {
     key: 'advancedVoiceActivity',
@@ -116,8 +117,8 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
         devices={devices}
       />
       <p id="audio-processing-unavailable" className={styles.help}>
-        Audio processing profiles, noise suppression, gain, sensitivity and advanced detection
-        are unavailable for normal recording. Their saved preferences remain visible but cannot be
+        Audio processing profiles, noise suppression, gain, sensitivity and advanced detection are
+        unavailable for normal recording. Their saved preferences remain visible but cannot be
         edited here. Echo cancellation and bypass remain editable because they affect an
         experimental macOS path only when separately opted in; they do not enable it on their own.
       </p>
