@@ -196,3 +196,17 @@ jobs:
             TrustedProducerRunAttempt = '${{ needs.verified-installer-producer.outputs.producer_run_attempt }}'
           }
           ./scripts/run-win-installer-smoke-real-standard-user.ps1 @trusted
+      - name: Clean decrypted test candidate, download and disposable scratch after every outcome
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($name in @('scribe-installer-artifact','scribe-encrypted-download')) {
+            $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+            $path = [IO.Path]::GetFullPath((Join-Path $root $name))
+            if (-not $path.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
+              throw 'Refusing cleanup outside ephemeral runner temp'
+            }
+            if (Test-Path -LiteralPath $path) {
+              Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+            }
+          }
