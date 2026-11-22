@@ -56,6 +56,7 @@ import {
 } from './model-download.ts';
 import { isIdle, relaunchWhenIdle, withReadyMessage } from './models-ready.ts';
 import os from 'node:os';
+import { openBackendLibrary, resolveBackendLibraryRoot } from './isolated-test-profile.ts';
 
 const FORMAT_NAMES = { docx: 'Word document', pdf: 'PDF', vtt: 'WebVTT captions' } as const;
 
@@ -94,11 +95,18 @@ export interface OpenedBackend {
 export async function openBackend(
   emit: <K extends EventName>(name: K, payload: BackendEvents[K]) => void,
   parentWindow: () => BrowserWindow | null = () => null,
+  isolatedLibraryRoot?: string,
 ): Promise<OpenedBackend> {
   const fallback = path.join(app.getPath('documents'), 'Meeting Scribe');
   try {
     const userData = app.getPath('userData');
-    const root = await readLibraryLocation(userData, fallback);
+    const { root, library } = await openBackendLibrary(
+      isolatedLibraryRoot,
+      userData,
+      fallback,
+      readLibraryLocation,
+      (root) => Library.open({ root }),
+    );
     const libraryLocationFile = path.join(userData, 'library-location.json');
     let isolatedTemporaryPaths: { userData: string; libraryRoot: string; tempRoot: string } | null =
       null;
@@ -132,7 +140,6 @@ export async function openBackend(
         // A missing or unresolved explicit test path fails closed; normal startup still proceeds.
       }
     }
-    const library = await Library.open({ root });
     const playback = new PlaybackMedia(library, emit);
     const hardware = { cores: os.availableParallelism(), memoryBytes: os.totalmem() };
     const settings = createSettingsHandlers(library.settings, root, recommendQuality(hardware));
@@ -537,7 +544,12 @@ export async function openBackend(
     return {
       recovery: {
         kind: 'blocked',
-        folder: await readLibraryLocation(app.getPath('userData'), fallback),
+        folder: await resolveBackendLibraryRoot(
+          isolatedLibraryRoot,
+          app.getPath('userData'),
+          fallback,
+          readLibraryLocation,
+        ),
       },
       handlers: {},
       playback: null,

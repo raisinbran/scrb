@@ -42,6 +42,10 @@ import {
 } from './security.ts';
 import { secureWebPreferences } from './web-preferences.ts';
 import { pinUserData } from './packaged-setup.ts';
+import {
+  IsolatedTestProfileError,
+  openBackendAfterIsolationCheck,
+} from './isolated-test-profile.ts';
 
 // The app was renamed to Scribe, but its data stays where the saved library location and settings
 // already are. Pinned before anything reads userData; a test's --user-data-dir still wins.
@@ -337,15 +341,34 @@ void app.whenReady().then(async () => {
   }
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  const backend = await openBackend(
-    (name, payload) => {
-      if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
-      for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+  const isolatedTestProfile = app.commandLine.hasSwitch('scrb-isolated-test-profile')
+    ? {
+        hasExplicitUserData: app.commandLine.hasSwitch('user-data-dir'),
+        userDataPath: app.getPath('userData'),
+        tempPath: app.getPath('temp'),
+        documentsPath: app.getPath('documents'),
       }
-    },
-    () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
-  );
+    : null;
+  let backend: Awaited<ReturnType<typeof openBackend>>;
+  try {
+    backend = await openBackendAfterIsolationCheck(isolatedTestProfile, (isolatedLibraryRoot) =>
+      openBackend(
+        (name, payload) => {
+          if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
+          for (const window of BrowserWindow.getAllWindows()) {
+            window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+          }
+        },
+        () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
+        isolatedLibraryRoot ?? undefined,
+      ),
+    );
+  } catch (error) {
+    if (!(error instanceof IsolatedTestProfileError)) throw error;
+    console.error(`[Scribe] Isolated test profile rejected: ${error.message}`);
+    app.exit(1);
+    return;
+  }
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();
