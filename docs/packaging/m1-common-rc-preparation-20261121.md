@@ -12,7 +12,7 @@ only, **not** `FINAL_RC_SHA`.
 | Lane | Verified public evidence | Remaining prerequisite | Status |
 | --- | --- | --- | --- |
 | Windows hosted source and installer | #376 and #402 merged; default-branch `.github/workflows/windows-installer-smoke.yml` contains guarded producer and real consumer | Execute one genuine pinned-source seven-tool producer, verify protected run/manifest provenance, then real disposable **standard-user** NSIS install/shortcut/uninstall and invented-data preservation. Existing PR/CI guard PASS and skipped producer/consumer are **not** this result | **NOT VERIFIED** |
-| Mac M5 isolated candidate | #375 merged: build-only source `73e899d0`, verified 25 native inputs, dependency closure, notices, ad-hoc signature and historical disposable rehearsal. Candidate remains an **old source** | Verify actual safe idle, preserved production app/backup full identities and a current disposable swap-and-restore with partial/corrupt-copy failure behavior. Only then prepare a new build-only candidate from the later frozen source; do not replace `/Applications/Scribe.app` | **BLOCKED for install** |
+| Mac M5 isolated candidate | #375 and later Nov 22 [#418](https://github.com/raisinbran/scrb/pull/418)/[#421](https://github.com/raisinbran/scrb/pull/421) evidence: rollback-copy full digest/signature and disposable swap/restore, including wrong-hash refusal, **PASS**. The newer provisional `30b32285` package is **not** the final RC. | Safe-idle state remains **BLOCKED**; the single isolated Launch Services attempt failed with **`kLSNoExecutableErr (-10827)` before process/window**, despite isolated profile/library PASS. Diagnose this distinct launch blocker in an approved bounded task; prepare a new frozen-source build only after source selection. No production app replacement. | **ROLLBACK PASS; LAUNCH / SAFE IDLE BLOCKED** |
 | REGIURN | Historical Windows 11 readiness; no current access | None scheduled while host unavailable; later verified receipt/installation of same source RC | **UNAVAILABLE** |
 | Speaker evidence | #411 synthetic source-behavior regressions merged | Known old E14 one-event mislabel root cause UNKNOWN; score actual final-RC three-voice behavior instead of speculative production patch or repeated historical inference | **NO NEW E14 RUN** |
 
@@ -46,19 +46,33 @@ installer execution, correct Start Menu link target, genuine installed
 app executable, uninstall and invented-library preservation. Capture
 and M1 five-function tests are **not** established by hosted CI.
 
-**Mac isolated readiness output (normal supported host only):**
-`IDLE=PASS/BLOCKED` (recording and final pass known idle, not CPU
-guesswork); `CURRENT_APP_AND_BACKUP=PASS/BLOCKED` (actual file-tree
-digest and signature of both, with backup availability and owner
-permissions); `DISPOSABLE_ROLLBACK=PASS/BLOCKED` (candidate swap,
-partial/corrupt copy refusal, restored original digest); and
-`NEW_FROZEN_RC_BUILD=PASS/BLOCKED` (build-only exact source,
-tool/model closure, notices, package/ZIP digest and signature).
-Do not repeat the old 25-input audit without an input change, use a
-restricted Electron/Terminal sandbox for GUI acceptance, or touch the
-real recording library. A dated historical rehearsal without its
-rollback copy is not current rollback proof. Do not run the package
-script's destructive `--install` option.
+**Mac isolated readiness, November 22 evidence (normal supported host only):**
+- `ROLLBACK_COPY_HASH=PASS`: retained original backup app's tree digest
+  `d797cb15e3f803e8ef888aace19cdaba1d1eabe4c6f56e108f6d712f2a7c5ea`
+  and ad-hoc signature verified; no production app/library modification.
+- `DISPOSABLE_ROLLBACK=PASS`: separately reported verified copy swap/restore
+  with wrong-hash refusal; no repeat without changed evidence or inputs.
+- `ISOLATED_PROFILE_LIBRARY=PASS`: temporary user-data and library pointer
+  were separated from the owner profile. The **single normal-host Launch
+  Services attempt FAILED** before process/window with
+  `kLSNoExecutableErr (-10827)`; Info.plist named the executable and the
+  ARM64 binary existed. Do not guess a root cause or rerun the same route.
+- `IDLE=BLOCKED`: no supported, authoritative non-destructive read-only
+  proof that recording, final-pass and import work are idle. CPU quiet is
+  inadequate. Preserve the existing production app until this gate and
+  the subsequent safe installation plan are approved.
+- `NEW_FROZEN_RC_BUILD=NOT VERIFIED`: the most recent provisional package
+  references source `30b32285`, **not** `FINAL_RC_SHA`. Real GUI readiness,
+  Copy, seek, models, normal exit and installed-source identity remain
+  **NOT VERIFIED**.
+
+These results are from the Mac host evidence recorded on draft
+[#418](https://github.com/raisinbran/scrb/pull/418) and in
+[#421](https://github.com/raisinbran/scrb/pull/421); neither is an
+installed final-candidate PASS. Do not repeat the known 25-input audit
+without changes, use denied Electron/Terminal sandbox GUI methods, touch
+production recordings, or run the package script's destructive
+`--install` option.
 
 ## A2 — final release freeze (NOT SELECTED)
 
