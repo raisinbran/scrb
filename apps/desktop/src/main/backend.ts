@@ -55,7 +55,7 @@ import {
   sourcesFor,
 } from './model-download.ts';
 import { isIdle, relaunchWhenIdle, withReadyMessage } from './models-ready.ts';
-import type { QuitActivity } from './quit.ts';
+import { createStartupActivity, type QuitActivity } from './quit.ts';
 import os from 'node:os';
 import { openBackendLibrary, resolveBackendLibraryRoot } from './isolated-test-profile.ts';
 
@@ -103,12 +103,14 @@ export async function openBackend(
   let finalPasses: FinalPassQueue | null = null;
   let imports: ImportCoordinator | null = null;
   let recovering = false;
-  onCriticalActivity?.(() => ({
+  const startupActivity = createStartupActivity(() => ({
     recording: recording?.isBusy() ?? false,
     finalPass: finalPasses?.hasWork() ?? false,
     importing: (imports?.list().length ?? 0) > 0,
     recovering,
   }));
+  // Register the busy snapshot before Library.open begins index reconciliation.
+  onCriticalActivity?.(startupActivity.read);
   const fallback = path.join(app.getPath('documents'), 'Meeting Scribe');
   try {
     const userData = app.getPath('userData');
@@ -591,6 +593,9 @@ export async function openBackend(
             : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
       close: async () => undefined,
     };
+  } finally {
+    // Never expose a false idle gap between library open, recovery phases, or a blocked fallback.
+    startupActivity.finish();
   }
 }
 
