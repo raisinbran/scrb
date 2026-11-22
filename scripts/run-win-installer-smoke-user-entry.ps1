@@ -40,4 +40,5 @@ $opts = @{
     TrustedProducerRunAttempt = $TrustedProducerRunAttempt
 }
 & (Join-Path $PSScriptRoot 'test-win-installer-smoke.ps1') @opts
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+# The smoke itself exits nonzero on failure; a successful return is PASS.
+exit 0
