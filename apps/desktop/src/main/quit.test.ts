@@ -284,7 +284,6 @@ function fakeElectronLifecycle(
     order.push('destroy-main');
   });
   const destroyMini = vi.fn(() => order.push('destroy-mini'));
-  let guard!: ReturnType<typeof createSafeQuitGuard>;
   const app = {
     on: (name: QuitName, listener: (request: QuitEvent) => void): void => {
       listeners[name].push(listener);
@@ -309,7 +308,11 @@ function fakeElectronLifecycle(
       for (const listener of listeners['will-quit']) listener(will);
     }),
   };
-  guard = createSafeQuitGuard({ activity, confirm, quit: () => app.quit() });
+  const guard: ReturnType<typeof createSafeQuitGuard> = createSafeQuitGuard({
+    activity,
+    confirm,
+    quit: () => app.quit(),
+  });
   app.on('before-quit', (request) => {
     if (guard.beforeQuit(request)) destroyMini();
   });
