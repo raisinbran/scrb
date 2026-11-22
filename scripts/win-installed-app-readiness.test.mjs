@@ -73,11 +73,15 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
           '-File',
           path.join(root, 'scripts/test-win-installed-app-readiness.ps1'),
         ],
-        { cwd: root, encoding: 'utf8', timeout: 60_000 },
+        // Bound a hung PowerShell subprocess independently of Vitest's per-test budget.
+        { cwd: root, encoding: 'utf8', timeout: 15_000 },
       );
       expect(result.error?.message).toBeUndefined();
       expect(result.status, result.stdout + '\n' + result.stderr).toBe(0);
       expect(result.stdout).toContain('Installed Scribe GUI-ready/exit/identity/isolation/trust synthetic behavior PASS');
     },
+    // This single Windows subprocess-backed fixture has taken ~7 s under shared CI load.
+    // Keep its budget focused; do not raise the suite-wide timeout.
+    20_000,
   );
 });
