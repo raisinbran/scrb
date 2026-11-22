@@ -4,6 +4,8 @@ import type { Backend, MeetingListItem } from '@scrb/contracts';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockModeProvider } from '../lib/mock-mode.tsx';
 import { TitleBar } from './TitleBar.tsx';
+import { createHybridBackend } from '../lib/hybrid-backend.ts';
+import { MockBackend } from '../mocks/index.ts';
 
 const backend = {
   call: () => new Promise(() => undefined),
@@ -232,6 +234,35 @@ describe('TitleBar background processing', () => {
     act(() => old.emit('meetingChanged', processingMeeting('m1', 'finalPassRunning')));
     await act(async () => next.resolve());
     expect(screen.queryByTestId('background-processing-status')).toBeNull();
+  });
+
+  it('does not mistake the actual hybrid mock fixture for a real final pass', async () => {
+    const mock = new MockBackend();
+    const realSource = processingBackend([]);
+    const real = {
+      call: (name: string, request?: unknown) =>
+        name === 'getSettings'
+          ? mock.call('getSettings')
+          : (realSource.backend.call as (name: string, request?: unknown) => Promise<unknown>)(
+              name,
+              request,
+            ),
+      on: realSource.backend.on,
+    } as unknown as Backend;
+    const hybrid = createHybridBackend(real, mock);
+    const listed = await hybrid.call('listMeetings', {});
+    expect(listed.some((meeting) => meeting.status === 'finalPassRunning')).toBe(true);
+
+    render(view(hybrid, false, 'Settings', real));
+    await act(async () => Promise.resolve());
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    act(() => realSource.emit('meetingChanged', processingMeeting('real', 'importing')));
+    expect(screen.getByTestId('background-processing-status').textContent).toBe(
+      'Import in progress · 1 meeting',
+    );
+    act(() => realSource.emit('meetingChanged', processingMeeting('real', 'ready')));
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    mock.dispose();
   });
 
   it('ignores sample processing from a mixed backend and follows only real events across tabs', async () => {
