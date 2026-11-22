@@ -134,7 +134,7 @@ function SettingsForm({
   const backend = useBackend();
   const { theme, setTheme } = useTheme();
   const [saved, setSaved] = useState(draftOf(initial));
-  const [storageLocation, setStorageLocation] = useState(initial.storageLocation);
+  const storageLocation = initial.storageLocation;
   const [draft, setDraft] = useState(() => readStored<Draft>(DRAFT_KEY) ?? draftOf(initial));
   const [confirming, setConfirming] = useState(false);
   const { busy, error, run } = useAction();
@@ -168,12 +168,6 @@ function SettingsForm({
     if (autoDeleteChanged && draft.autoDelete.period !== 'never') setConfirming(true);
     else void run(commit);
   };
-
-  const pickStorage = () =>
-    void run(async () => {
-      const settings = await backend.call('pickStorageLocation');
-      setStorageLocation(settings.storageLocation);
-    });
 
   return (
     <>
@@ -211,10 +205,13 @@ function SettingsForm({
         </h2>
         <div className={styles.inline}>
           <span className={styles.path}>{storageLocation}</span>
-          <Button disabled={busy} onClick={pickStorage}>
+          <Button disabled aria-describedby="settings-storage-move-help">
             Change location…
           </Button>
         </div>
+        <p id="settings-storage-move-help" className={styles.help}>
+          Moving a saved library is not available yet. Your existing storage location is unchanged.
+        </p>
         <div className={styles.fields}>
           <Select
             label="Auto-delete meetings after"

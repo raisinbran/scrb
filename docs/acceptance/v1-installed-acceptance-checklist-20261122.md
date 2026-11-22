@@ -7,6 +7,8 @@
 
 No physical host, bundled binary, private model, owner recording, eight-hour run, crash, CI rerun, installed app or end-to-end V1 workflow was used to prepare this checklist. The source and test names below were checked for existence on the stated `main` tree, **not** claimed to have passed installed acceptance. Revalidate after each future source/packaging change.
 
+**Main integration update (2026-11-22):** After the original source inspection checkpoint, PRs #441 (Windows hosted-tool CMake correction), #440 (one bounded Windows synthetic readiness test) and #436 (truthful Settings UI) were squash-merged to `main=5409cf1852da058436c4c1ed5997e4ef7a51ed23`. None is installed V1 acceptance or authorization to run the expensive Windows installer. No other requirement or evidence cell was changed by this integration. The 14×2 results remain NOT VERIFIED.
+
 ## Exit checklist: all 14 completion criteria on each installed platform
 
 **Statuses:** PASS = genuine installed behavior and original cited evidence reviewed for the same identified release; FAIL = actual measured nonconformance; NOT VERIFIED = no admissible exact-build evidence or blocked setup. Do not convert a source unit test, AMI fixture, or old provisional build into PASS.
@@ -71,4 +73,4 @@ For **every** V01–V14 per-host verdict, store locally:
 - In each test authorization, list **setup + capture/import + processing + review/verification + cleanup = total**. **Any newly planned total >20 minutes requires separate task-specific owner approval beforehand**. A long or destructive test may need approval even below 20 minutes. No automatic four/eight-hour run, shutdown stress, model download, owner audio or device tests.
 - Order: source fixes → exact-head cross-platform CI → independent formal GitHub review → explicit owner merge permission → source freeze → per-platform package identity → isolated safety → specific owner test budget → installed measurements → owner V1 acceptance. **M1 physical packaging and two-remote-voice acceptance remain higher priority.**
 
-**Current workstream boundaries:** V1-A Scope 1 = isolated UI-only controls in draft PR #436. V1-A Scope 2 = separate audio Settings disclosure; safe-quit #49 = protected owner decision (no implementation permission yet); V1-C #338 = safe speech feasibility and optional offline recognition-copy prototype; V1-D = this checklist only. PR #423 was already merged; no duplicate processing status work.
+**Current workstream boundaries (updated after main sync 2026-11-22):** V1-A Scope 1 = source-merged in PR #436 (no installed acceptance). V1-A Scope 2 = separate audio Settings disclosure; safe-quit #49 = protected owner decision (no implementation permission yet); V1-C #338 = safe speech feasibility and optional offline recognition-copy prototype; V1-D = this checklist only. PR #423 was already merged; no duplicate processing status work.
