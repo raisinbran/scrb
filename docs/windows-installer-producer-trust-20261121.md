@@ -1,9 +1,8 @@
 # Windows NSIS candidate — hosted producer/consumer trust boundary
 
-**Superseding owner decision (November 21 PT): Keep `raisinbran/scrb` public, but DO NOT publish a plaintext unsigned Scribe installer to public Actions artifacts.** This decision supersedes the historical public-plaintext Option A recommendation in the original document. The existing source implementation still permits a public plaintext artifact under its old dual input gate, but that path is **NOT AUTHORIZED**. Encrypted producer-to-consumer transfer is **approved as a design direction only; it is NOT YET IMPLEMENTED, CI-TESTED OR RUN**. The controlling implementation requirements and prerequisite workflow-protection assessment are in [issue #419](https://github.com/raisinbran/scrb/issues/419) and [the independent plan assessment](https://github.com/raisinbran/scrb/pull/415#issuecomment-7076212593).
+**Superseding owner decision (November 21 PT): Keep `raisinbran/scrb` public, but DO NOT publish a plaintext unsigned Scribe installer to public Actions artifacts.** This decision supersedes the historical public-plaintext Option A recommendation in the original document. The existing source implementation still permits a public plaintext artifact under its old dual input gate, but that path is **NOT AUTHORIZED**. Encrypted producer-to-consumer transfer **is implemented and synthetically CI-tested on unmerged draft [PR #420](https://github.com/raisinbran/scrb/pull/420)** at reviewed head `203940a2`. Its [Windows/macOS/native CI #45002745740](https://github.com/raisinbran/scrb/actions/runs/45002745740) and [installer-guard CI #45002745834](https://github.com/raisinbran/scrb/actions/runs/45002745834) passed; [formal source-only review #6011304212](https://github.com/raisinbran/scrb/pull/420#pullrequestreview-6011304212) approved that head. **It is not merged, operationally authorized, or genuinely installer-tested.** The controlling requirements and protection gap are in [issue #419](https://github.com/raisinbran/scrb/issues/419).
 
-**Status: source-integrated on `main`; genuine hosted build, NSIS install/uninstall,
-and app launch NOT VERIFIED (November 21, 2026 PT).** PR #402 merged as
+**Status: the legacy plaintext-capable producer/consumer source is integrated on `main`; encrypted transfer exists only on unmerged #420. Genuine hosted build, NSIS install/uninstall, and app launch remain NOT VERIFIED (November 22, 2026 PT).** PR #402 merged as
 `d74ca8594c67085ffad17b8c73d8f2ff7ba947da`. The reviewed starting
 `main` commit for this audit is `c6de7bc5cc284d4694678b43d3668905a7305684`.
 The guard-only workflow checks are not a genuine installer acceptance result.
@@ -143,17 +142,22 @@ uploads five original plaintext files, which is not an acceptable transfer.
 The existing false-default gates and actor condition are not approval. No
 public unsigned installer upload or genuine long run has been authorized.
 
-**Selected future approach, NOT YET IMPLEMENTED:** Add encrypted cross-job
-transfer in a separately reviewed source PR, tracked in
-[issue #419](https://github.com/raisinbran/scrb/issues/419). The producer
-will encrypt an exactly-five-file candidate archive using a pinned recipient
-public key and upload **only one authenticated ciphertext** as a one-day
-artifact. A controlled consumer will decrypt in temporary scratch and must
-retain all six independently protected producer outputs and source/run/file
-integrity checks. Encryption protects transfer confidentiality but does not
-authenticate who originally produced the installer.
+**Encrypted source candidate IMPLEMENTED / CI-TESTED, but UNMERGED and BLOCKED:**
+[PR #420](https://github.com/raisinbran/scrb/pull/420), at exact reviewed head
+`203940a2`, implements the encrypted cross-job transfer described in
+[issue #419](https://github.com/raisinbran/scrb/issues/419). Its producer
+packages exactly five allowlisted files, encrypts them with pinned,
+checksum-verified `age`, and uploads **only one ciphertext** with one-day
+retention. The consumer decrypts in temporary scratch, validates the
+archive before extraction, and retains all six independently protected
+producer outputs and source/run/file integrity checks before execution.
+Synthetic Windows CI and the independent source-only review have passed;
+the two genuine producer/consumer jobs were **SKIPPED**, not PASS.
+Encryption protects confidentiality in transit, not the origin of an
+installer without the independent producer attestations. Current `main`
+still contains the earlier plaintext-capable path; **do not dispatch it**.
 
-**Decryption key and GitHub enforcement, NOT YET CONFIGURED/VERIFIED:**
+**Decryption key and GitHub enforcement, NOT YET CONFIGURED/VERIFIED (including for unmerged #420):**
 The private identity belongs in a dedicated GitHub **Environment secret**,
 not a general repository secret. Restrict the Environment explicitly to
 `main`, apply deployment review where practical, and grant the key only to
@@ -161,19 +165,22 @@ the intended consumer job. Protect edits to workflow files and their trusted
 scripts from unauthorized main-branch changes: the observed
 `GreatFirewall` ruleset (ID `27257173`) currently protects only
 deletion/non-fast-forward and does not require PR review; no
-`.github/CODEOWNERS` file exists. An Environment alone does not confine
+`.github/CODEOWNERS` file exists **on current `main`**. Unmerged #420 adds a
+CODEOWNERS declaration, but that file is advisory without enforceable
+workflow-change authorization. An Environment alone does not confine
 secrets to one named workflow. A single-owner account must avoid an
 unfulfillable native multi-account approval requirement. Do not provision
 the private key until the actual enforcement approach is independently
 reviewed and demonstrably effective.
 
-**Fresh-run authorization and input shape:** Fail closed unless the event is
-an explicit approved manual dispatch on `refs/heads/main`, repository and
-initial/triggering actors are the expected owner, the workflow ref is the
-reviewed path and `github.run_attempt == 1`. A rerun must not inherit
-previous approval or reach the decryption Environment. Replace the old
-plaintext consent input with a new default-false encrypted-run mode; never
-silently maintain a usable plaintext fallback.
+**Fresh-run authorization and input shape (implemented in unmerged #420):**
+The encrypted candidate fails closed unless an explicitly authorized manual
+dispatch runs on `refs/heads/main`, with the expected repository and both
+actor identities, reviewed workflow path and `github.run_attempt == 1`.
+A rerun must not inherit previous approval or reach the decryption
+Environment. PR #420 replaces the old plaintext consent input with a new
+default-false encrypted-run input; this safeguard is **not yet on `main`**.
+No plaintext fallback may be enabled or dispatched.
 
 **Archive and lifecycle hardening:** Before extraction, bound encrypted
 and decrypted archive sizes, total expanded bytes and compression ratio.
@@ -194,12 +201,18 @@ real application-ready condition and clean exit, and not mistake file
 existence or process creation for a launch PASS. No physical microphone or
 meeting recording is part of that hosted smoke.
 
-**Approval sequence:** implement the encrypted transfer and launch test in
-separately reviewable source slices; execute short synthetic secret/transport
-and refusal-path tests; complete exact-head CI and independent formal
-review; obtain owner merge authorization. Then seek **separate** owner
-permission for one encrypted handoff and for the actual 105-minute producer
-plus 20-minute consumer run with its expected overhead. No other source,
+**Approval sequence:** Preserve the completed encrypted-transfer implementation,
+synthetic CI and source-only formal review of #420; **do not repeat them**.
+Establish and independently verify enforceable workflow-change authorization,
+the main-scoped decrypt Environment and the separately reviewed installed-app
+launch/readiness slice. The public recipient is still `UNCONFIGURED`; the
+private identity has not been provisioned. Changes to recipient/security
+controls or source require their own exact-head checks and independent
+formal review, followed by specific owner merge permission. Only after these
+gates seek **separate** owner permission for one encrypted handoff and the
+actual 105-minute producer plus 20-minute consumer run with overhead.
+Neither an approved source review nor this documentation authorizes key
+provisioning, workflow dispatch, or a plaintext artifact upload. No other source,
 test, merged PR or plan review authorizes dispatch.
 
 **Historical alternatives — not selected:** A publicly retrievable plain
