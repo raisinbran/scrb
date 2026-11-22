@@ -91,4 +91,34 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
       expect(result.stderr).toMatch(/Hosted-source staging requires an exact trusted producer dispatch/);
     },
   );
+  it.skipIf(process.platform !== 'win32')(
+    'refuses actual hosted source-building and installer launch from pull-request CI before side effects',
+    () => {
+      const expected = [
+        ['scripts/build-win-hosted-tools.ps1', [
+          '-StagingDirectory', path.join(root, 'nonexistent-stage'),
+          '-SourceEvidenceFile', path.join(root, 'nonexistent-evidence.json'),
+        ], /exact trusted hosted producer dispatch/],
+        ['scripts/run-win-installer-smoke-real-standard-user.ps1', [
+          '-RunnerTemp', process.env.RUNNER_TEMP ?? 'C:\\nonexistent-runner-temp',
+          '-TrustedManifestSha256', 'a'.repeat(64),
+          '-TrustedSourceCommit', 'b'.repeat(40),
+          '-TrustedProvenanceSha256', 'c'.repeat(64),
+          '-TrustedDependencyAuditSha256', 'd'.repeat(64),
+          '-TrustedProducerRunId', '42',
+          '-TrustedProducerRunAttempt', '1',
+        ], /restricted to an explicit hosted dispatch/],
+      ];
+      for (const [file, args, rejection] of expected) {
+        const result = spawnSync('pwsh.exe', [
+          '-NoLogo', '-NoProfile', '-NonInteractive',
+          '-File', path.join(root, file), ...args,
+        ], { cwd: root, encoding: 'utf8', timeout: 30_000 });
+        expect(result.error?.message).toBeUndefined();
+        expect(result.status).not.toBe(0);
+        expect(result.stderr, file).toMatch(rejection);
+      }
+    },
+  );
+
 });
