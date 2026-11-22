@@ -1,0 +1,6 @@
+# Ownership declarations alone do not enforce reviews; repository ruleset must enforce.
+/.github/workflows/windows-installer-smoke.yml @raisinbran
+/.github/windows-installer-age-recipient.txt @raisinbran
+/scripts/*win*installer* @raisinbran
+/scripts/hosted-win-installer-workflow.test.mjs @raisinbran
+/.github/CODEOWNERS @raisinbran
