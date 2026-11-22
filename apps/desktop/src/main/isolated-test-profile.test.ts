@@ -138,7 +138,7 @@ describe('isolated synthetic test-profile startup guard', () => {
   });
 
   it('wires the opt-in guard around the real backend startup', () => {
-    const source = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
+    const source = readFileSync(path.join(__dirname, 'main.ts'), 'utf8');
 
     expect(source).toContain("app.commandLine.hasSwitch('scrb-isolated-test-profile')");
     expect(source).toMatch(
