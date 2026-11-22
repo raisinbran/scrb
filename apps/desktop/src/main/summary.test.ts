@@ -527,9 +527,7 @@ describe('SummaryController', () => {
       .map(([, event, fields]) => ({
         event,
         phase:
-          fields?.phase === 'beforeDelete' || fields?.phase === 'delete'
-            ? fields.phase
-            : 'unknown',
+          fields?.phase === 'beforeDelete' || fields?.phase === 'delete' ? fields.phase : 'unknown',
         step:
           fields?.step === 'rename' || fields?.step === 'trash' || fields?.step === 'cache'
             ? fields.step
