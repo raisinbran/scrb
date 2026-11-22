@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
+import { readLibraryLocation } from '@scrb/storage';
 
 export interface IsolatedTestProfileOptions {
   /** Electron's effective userData path, after --user-data-dir has been applied. */
@@ -76,7 +77,7 @@ function pathsOverlap(first: string, second: string): boolean {
  * Validate the explicit synthetic test profile before backend startup. This is opt-in only;
  * normal user startup retains the existing storage-location behavior.
  */
-export function validateIsolatedTestProfile(options: IsolatedTestProfileOptions): void {
+export function validateIsolatedTestProfile(options: IsolatedTestProfileOptions): string {
   if (!options.hasExplicitUserData) fail('An isolated test profile requires --user-data-dir.');
 
   const temp = canonicalDirectory(options.tempPath, 'Temporary root');
@@ -118,13 +119,36 @@ export function validateIsolatedTestProfile(options: IsolatedTestProfileOptions)
   }
   if (pathsOverlap(fallback, library))
     fail('Test library cannot be the default Documents library.');
+  return library;
 }
 
 /** Call the backend only after an explicitly requested synthetic profile passes validation. */
 export async function openBackendAfterIsolationCheck<T>(
   options: IsolatedTestProfileOptions | null,
-  openBackend: () => Promise<T>,
+  openBackend: (validatedLibraryRoot: string | null) => Promise<T>,
 ): Promise<T> {
-  if (options) validateIsolatedTestProfile(options);
-  return openBackend();
+  const validatedLibraryRoot = options ? validateIsolatedTestProfile(options) : null;
+  return openBackend(validatedLibraryRoot);
+}
+
+/** Use a validated root directly in opt-in mode; only ordinary startup may consult the pointer. */
+export async function resolveBackendLibraryRoot(
+  validatedLibraryRoot: string | null | undefined,
+  userDataPath: string,
+  fallbackPath: string,
+): Promise<string> {
+  if (validatedLibraryRoot !== null && validatedLibraryRoot !== undefined)
+    return validatedLibraryRoot;
+  return readLibraryLocation(userDataPath, fallbackPath);
+}
+
+/** Select the root first, then open exactly that root; useful for deterministic boundary tests. */
+export async function openBackendLibrary<T>(
+  validatedLibraryRoot: string | null | undefined,
+  userDataPath: string,
+  fallbackPath: string,
+  openLibrary: (root: string) => Promise<T>,
+): Promise<{ root: string; library: T }> {
+  const root = await resolveBackendLibraryRoot(validatedLibraryRoot, userDataPath, fallbackPath);
+  return { root, library: await openLibrary(root) };
 }

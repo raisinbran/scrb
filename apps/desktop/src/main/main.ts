@@ -351,7 +351,7 @@ void app.whenReady().then(async () => {
     : null;
   let backend: Awaited<ReturnType<typeof openBackend>>;
   try {
-    backend = await openBackendAfterIsolationCheck(isolatedTestProfile, () =>
+    backend = await openBackendAfterIsolationCheck(isolatedTestProfile, (isolatedLibraryRoot) =>
       openBackend(
         (name, payload) => {
           if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
@@ -360,6 +360,7 @@ void app.whenReady().then(async () => {
           }
         },
         () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
+        isolatedLibraryRoot ?? undefined,
       ),
     );
   } catch (error) {

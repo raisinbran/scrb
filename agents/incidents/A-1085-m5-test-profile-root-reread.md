@@ -1,0 +1,6 @@
+### A-1085 — 2026-11-22 — M5 isolated-profile startup guard — validated root was reread
+
+- **What failed:** PR #439 validated the synthetic profile's canonical library pointer before backend startup, but the backend reread that pointer through `readLibraryLocation(userData, DocumentsFallback)`. If the pointer became unreadable between validation and that read, opt-in startup could select the Documents production fallback.
+- **Attribution / impact:** Confirmed source-safety defect in the authored change, identified by the owner's formal review. No packaged launch occurred and no production library was opened; the risk was established from the source path, not a runtime reproduction.
+- **Correction:** Pass the prevalidated canonical library root into backend startup; use it for both `Library.open` selection and recovery-folder selection. Ordinary unflagged startup continues through the existing pointer and fallback behavior. Added a source-only regression that removes the pointer after preflight and verifies the backend-open callback and recovery resolver stay on the synthetic path.
+- **Remaining risk:** Corrected exact-head CI and fresh independent review are pending. No app launch, production-data access, or merge is authorized.

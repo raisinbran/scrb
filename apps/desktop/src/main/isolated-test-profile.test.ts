@@ -1,10 +1,20 @@
 import { homedir, tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import {
   IsolatedTestProfileError,
   openBackendAfterIsolationCheck,
+  openBackendLibrary,
+  resolveBackendLibraryRoot,
   type IsolatedTestProfileOptions,
 } from './isolated-test-profile.ts';
 
@@ -137,13 +147,49 @@ describe('isolated synthetic test-profile startup guard', () => {
     expect(openBackend).toHaveBeenCalledOnce();
   });
 
+  it('keeps backend and recovery on the validated root if the pointer disappears after preflight', async () => {
+    const { options, pointer, profile, library, documents } = fixture();
+    const fallback = path.join(documents, 'Meeting Scribe');
+    mkdirSync(fallback);
+    const canonicalLibrary = realpathSync(library);
+    const openLibrary = vi.fn(async (root: string) => root);
+
+    const paths = await openBackendAfterIsolationCheck(options, async (validatedRoot) => {
+      expect(validatedRoot).toBe(canonicalLibrary);
+      rmSync(pointer);
+      const opened = await openBackendLibrary(validatedRoot, profile, fallback, openLibrary);
+      return {
+        backendRoot: opened.root,
+        openedLibraryRoot: opened.library,
+        recoveryFolder: await resolveBackendLibraryRoot(validatedRoot, profile, fallback),
+      };
+    });
+
+    expect(paths).toEqual({
+      backendRoot: canonicalLibrary,
+      openedLibraryRoot: canonicalLibrary,
+      recoveryFolder: canonicalLibrary,
+    });
+    expect(openLibrary).toHaveBeenCalledExactlyOnceWith(canonicalLibrary);
+    await expect(resolveBackendLibraryRoot(null, profile, fallback)).resolves.toBe(fallback);
+  });
+
   it('wires the opt-in guard around the real backend startup', () => {
     const source = readFileSync(path.join(__dirname, 'main.ts'), 'utf8');
+    const backendSource = readFileSync(path.join(__dirname, 'backend.ts'), 'utf8');
 
     expect(source).toContain("app.commandLine.hasSwitch('scrb-isolated-test-profile')");
     expect(source).toMatch(
-      /openBackendAfterIsolationCheck\(isolatedTestProfile,\s*\(\) =>\s*openBackend\(/,
+      /openBackendAfterIsolationCheck\(isolatedTestProfile,\s*\(isolatedLibraryRoot\) =>\s*openBackend\(/,
     );
     expect(source).toContain('app.exit(1);');
+    expect(source).toContain('isolatedLibraryRoot ?? undefined');
+    expect(backendSource).toContain(
+      'openBackendLibrary(\n      isolatedLibraryRoot,\n      userData,\n      fallback,',
+    );
+    expect(backendSource).toContain('(root) => Library.open({ root })');
+    expect(backendSource).toMatch(
+      /folder:\s*await resolveBackendLibraryRoot\(\s*isolatedLibraryRoot,\s*app\.getPath\('userData'\),\s*fallback,/,
+    );
   });
 });
