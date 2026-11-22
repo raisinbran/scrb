@@ -50,6 +50,10 @@ if ($smokeExit -ne 0 -or $result.result -cne 'PASS' -or
     $result.currentCandidateIntegrity -cne 'PASS' -or
     $result.steps.perUserInstall -cne 'PASS' -or
     $result.steps.startMenuShortcut -cne 'PASS' -or
+    $result.steps.applicationLaunchReady -cne 'PASS' -or
+    $result.scribeLaunched -ne $true -or
+    $result.installedAppReadiness.result -cne 'PASS' -or
+    $result.installedAppReadiness.cleanExit -cne 'PASS' -or
     $result.steps.uninstall -cne 'PASS' -or
     $result.steps.syntheticUserDataPreserved -cne 'PASS' -or
     $result.steps.cleanup -cne 'PASS') {
