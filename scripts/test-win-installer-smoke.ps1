@@ -10,8 +10,7 @@ param(
     [ValidateRange(1, 19)]
     [int]$TimeBudgetMinutes = 15,
 
-    # New builds use a manifest generated from the verified staged package.
-    # When omitted, the historical frozen W10 A2 candidate remains pinned.
+    # Current packages use per-run verified candidate hashes, not the frozen A2 pins.
     [string]$CandidateManifestPath
 )
 
@@ -43,7 +42,28 @@ if ($isCurrentCandidate) {
     }
     $candidate = Get-Content -LiteralPath $manifestFull -Raw | ConvertFrom-Json
     if ($candidate.schemaVersion -ne 1 -or $candidate.installMode -cne 'perUser' -or
-        $candidate.sourceCommit -cnotmatch '^[a-f0-9]{40}
+        $candidate.sourceCommit -cnotmatch '^[a-f0-9]{40}$') {
+        throw 'Invalid installer candidate identity'
+    }
+    if ($candidate.installer.name -cnotmatch '^Scribe Setup [0-9]+\.[0-9]+\.[0-9]+\.exe$' -or
+        $candidate.application.name -cne 'Scribe.exe' -or
+        $candidate.provenance.name -cne 'PROVENANCE.json' -or
+        $candidate.dependencyAudit.name -cne 'DEPENDENCY-AUDIT.json') {
+        throw 'Invalid candidate artifact or provenance filenames'
+    }
+    foreach ($field in @('installer', 'application', 'provenance', 'dependencyAudit')) {
+        $entry = $candidate.$field
+        if ($null -eq $entry -or $entry.sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+            [long]$entry.bytes -le 0) {
+            throw "Invalid candidate manifest entry: $field"
+        }
+    }
+    $expectedInstallerName = [string]$candidate.installer.name
+    $expectedInstallerBytes = [long]$candidate.installer.bytes
+    $expectedInstallerSha256 = [string]$candidate.installer.sha256
+    $expectedApplicationSha256 = [string]$candidate.application.sha256
+    $candidateSourceCommit = [string]$candidate.sourceCommit
+}
 $stepStatuses = [ordered]@{
     runnerEligibility = 'NOT VERIFIED'
     installerIntegrity = 'NOT VERIFIED'
