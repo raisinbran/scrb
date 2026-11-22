@@ -43,6 +43,7 @@ jobs:
       OWNER_EXPECTED_SHA: ${{ inputs.expected_source_sha }}
     steps:
       - name: Refuse unauthorized actor/ref/attempt before any checkout
+        timeout-minutes: 1
         shell: pwsh
         run: |
           $expected = 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main'
@@ -60,38 +61,41 @@ jobs:
             throw 'REFUSED: unauthorized source, actor, workflow, attempt or opt-in'
           }
       - uses: actions/checkout@v4
+        timeout-minutes: 2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Verify exact checkout and reviewed GUI readiness dependency
+        timeout-minutes: 1
         shell: pwsh
         run: ./scripts/run-win-installer-single-runner.ps1 -Mode Preflight -ExpectedSourceSha $env:OWNER_EXPECTED_SHA
       - uses: actions/setup-node@v4
+        timeout-minutes: 2
         with:
           node-version-file: .nvmrc
       - name: Install public source build dependencies
-        timeout-minutes: 8
+        timeout-minutes: 5
         run: npm ci
       - name: Compile seven pinned public-source tools and verify signed runtime/DLL/license closure
         shell: pwsh
-        timeout-minutes: 95
+        timeout-minutes: 80
         run: |
           ./scripts/build-win-hosted-tools.ps1 -StagingDirectory (Join-Path $PWD 'apps/desktop/build/win-stage/bin') -SourceEvidenceFile (Join-Path $env:RUNNER_TEMP 'scribe-public-source-evidence.json')
       - name: Package unpacked app with verified seven-tool closure
         shell: pwsh
-        timeout-minutes: 10
+        timeout-minutes: 7
         run: ./scripts/package-win.ps1 -Slice 3
       - name: Build real unsigned NSIS candidate only within ephemeral runner scratch
         id: package
         shell: pwsh
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
           ./scripts/package-win-installer.ps1 -StagingDirectory (Join-Path $PWD 'apps/desktop/build/win-stage/bin') -PrepackagedDirectory (Join-Path $PWD 'apps/desktop/release/win-unpacked') -OutputRoot (Join-Path $env:RUNNER_TEMP 'scribe-no-upload-nsis')
       - name: Validate and copy five local files; no upload or cache
         id: prepare
         shell: pwsh
-        timeout-minutes: 5
+        timeout-minutes: 2
         env:
           SOURCE_COMMIT: ${{ steps.package.outputs.source_commit }}
           MANIFEST_SHA: ${{ steps.package.outputs.manifest_sha256 }}
@@ -103,12 +107,12 @@ jobs:
           ./scripts/run-win-installer-single-runner.ps1 -Mode Prepare -ExpectedSourceSha $env:OWNER_EXPECTED_SHA -OutputRoot (Join-Path $env:RUNNER_TEMP 'scribe-no-upload-nsis') -TrustedManifestSha256 $env:MANIFEST_SHA -TrustedSourceCommit $env:SOURCE_COMMIT -TrustedProvenanceSha256 $env:PROVENANCE_SHA -TrustedDependencyAuditSha256 $env:AUDIT_SHA -TrustedProducerRunId $env:PRODUCER_RUN_ID -TrustedProducerRunAttempt $env:PRODUCER_ATTEMPT
       - name: Verify disposable standard-user refusal controls
         shell: pwsh
-        timeout-minutes: 10
+        timeout-minutes: 2
         run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
       - name: Install real NSIS candidate as nonadmin, verify GUI ready/exit, uninstall
         id: consume
         shell: pwsh
-        timeout-minutes: 20
+        timeout-minutes: 18
         env:
           SOURCE_COMMIT: ${{ steps.package.outputs.source_commit }}
           MANIFEST_SHA: ${{ steps.package.outputs.manifest_sha256 }}
@@ -122,10 +126,11 @@ jobs:
         id: cleanup
         if: always()
         shell: pwsh
-        timeout-minutes: 5
+        timeout-minutes: 4
         run: ./scripts/run-win-installer-single-runner.ps1 -Mode Cleanup -ExpectedSourceSha $env:OWNER_EXPECTED_SHA
       - name: Report truthful no-upload same-run assurance only
         if: always()
+        timeout-minutes: 1
         shell: pwsh
         run: |
           $accepted = '${{ steps.prepare.outcome }}' -ceq 'success' -and
