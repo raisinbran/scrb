@@ -79,7 +79,7 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
         {/* Outside the button, so it describes it without becoming part of its name. */}
         {processing && (
           <span id="recordings-processing" className={styles.hidden}>
-            Processing a recording
+            Background work pending
           </span>
         )}
       </Fragment>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Backend, MeetingId, MeetingStatus } from '@scrb/contracts';
-import { useBackend } from '../lib/backend-context.tsx';
+import { useProcessingBackend } from '../lib/backend-context.tsx';
 
-/** Processing is reported by existing meeting states; no separate backend owner. */
+/** Processing is reported by real meeting states, never combined real+mock demo records. */
 export function useProcessingCounts(): { finalPass: number; importing: number } {
-  const backend = useBackend();
+  const backend = useProcessingBackend();
   const [snapshot, setSnapshot] = useState<{
     backend: Backend;
     statuses: ReadonlyMap<MeetingId, MeetingStatus>;

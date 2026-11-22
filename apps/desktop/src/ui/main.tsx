@@ -35,7 +35,7 @@ async function start() {
   const mockRecording = realBackend ? await detectMockMode(realBackend) : true;
   createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
-      <BackendProvider backend={backend}>
+      <BackendProvider backend={backend} processingBackend={realBackend ?? backend}>
         <ThemeProvider>
           <MockModeProvider mock={mockRecording} blocked={blocked}>
             {isMini ? (

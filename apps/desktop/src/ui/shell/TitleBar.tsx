@@ -50,9 +50,9 @@ export function TitleBar() {
     mockMode || processingTotal === 0
       ? null
       : finalPass && importing
-        ? `Background processing · ${processingTotal} meetings`
+        ? `Background processing pending · ${processingTotal} meetings`
         : finalPass
-          ? `Final transcription in progress · ${finalPass} ${finalPass === 1 ? 'meeting' : 'meetings'}`
+          ? `Final transcription pending · ${finalPass} ${finalPass === 1 ? 'meeting' : 'meetings'}`
           : `Import in progress · ${importing} ${importing === 1 ? 'meeting' : 'meetings'}`;
   return (
     <header className={styles.bar}>

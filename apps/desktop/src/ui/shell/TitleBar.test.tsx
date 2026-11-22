@@ -4,6 +4,8 @@ import type { Backend, MeetingListItem } from '@scrb/contracts';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { MockModeProvider } from '../lib/mock-mode.tsx';
 import { TitleBar } from './TitleBar.tsx';
+import { createHybridBackend } from '../lib/hybrid-backend.ts';
+import { MockBackend } from '../mocks/index.ts';
 
 const backend = {
   call: () => new Promise(() => undefined),
@@ -124,9 +126,9 @@ function processingBackend(initial: MeetingListItem[], pending = false) {
 describe('TitleBar background processing', () => {
   afterEach(cleanup);
 
-  function view(backend: Backend, mock = false, tab = 'Live') {
+  function view(backend: Backend, mock = false, tab = 'Live', realProcessing?: Backend) {
     return (
-      <BackendProvider backend={backend}>
+      <BackendProvider backend={backend} processingBackend={realProcessing ?? backend}>
         <MockModeProvider mock={mock}>
           <TitleBar />
           <main>{tab}</main>
@@ -136,7 +138,7 @@ describe('TitleBar background processing', () => {
   }
 
   it.each([
-    ['finalPassRunning', 'Final transcription in progress · 1 meeting'],
+    ['finalPassRunning', 'Final transcription pending · 1 meeting'],
     ['importing', 'Import in progress · 1 meeting'],
   ] as const)('shows initial %s state from listMeetings', async (status, expected) => {
     const source = processingBackend([processingMeeting('m1', status)]);
@@ -156,7 +158,7 @@ describe('TitleBar background processing', () => {
     ]);
     render(view(source.backend));
     expect((await screen.findByTestId('background-processing-status')).textContent).toBe(
-      'Background processing · 2 meetings',
+      'Background processing pending · 2 meetings',
     );
     expect(screen.queryByText(/\d+%/)).toBeNull();
     act(() => source.emit('meetingChanged', processingMeeting('m1', 'ready')));
@@ -185,7 +187,7 @@ describe('TitleBar background processing', () => {
     rendered.rerender(view(source.backend, false, 'Settings'));
     expect(screen.getByText('Settings')).toBeTruthy();
     expect(screen.getByTestId('background-processing-status').textContent).toBe(
-      'Final transcription in progress · 1 meeting',
+      'Final transcription pending · 1 meeting',
     );
     rendered.rerender(view(source.backend, false, 'Recordings'));
     expect(screen.getByTestId('background-processing-status')).toBeTruthy();
@@ -218,7 +220,7 @@ describe('TitleBar background processing', () => {
     expect(screen.getByTestId('background-processing-status')).toBeTruthy();
     await act(async () => source.resolve());
     expect(screen.getByTestId('background-processing-status').textContent).toBe(
-      'Final transcription in progress · 1 meeting',
+      'Final transcription pending · 1 meeting',
     );
   });
 
@@ -231,6 +233,74 @@ describe('TitleBar background processing', () => {
     expect(screen.queryByTestId('background-processing-status')).toBeNull();
     act(() => old.emit('meetingChanged', processingMeeting('m1', 'finalPassRunning')));
     await act(async () => next.resolve());
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+  });
+
+  it('does not mistake the actual hybrid mock fixture for a real final pass', async () => {
+    const mock = new MockBackend();
+    const realSource = processingBackend([]);
+    const real = {
+      call: (name: string, request?: unknown) =>
+        name === 'getSettings'
+          ? mock.call('getSettings')
+          : (realSource.backend.call as (name: string, request?: unknown) => Promise<unknown>)(
+              name,
+              request,
+            ),
+      on: realSource.backend.on,
+    } as unknown as Backend;
+    const hybrid = createHybridBackend(real, mock);
+    const listed = await hybrid.call('listMeetings', {});
+    expect(listed.some((meeting) => meeting.status === 'finalPassRunning')).toBe(true);
+
+    render(view(hybrid, false, 'Settings', real));
+    await act(async () => Promise.resolve());
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    act(() => realSource.emit('meetingChanged', processingMeeting('real', 'importing')));
+    expect(screen.getByTestId('background-processing-status').textContent).toBe(
+      'Import in progress · 1 meeting',
+    );
+    act(() => realSource.emit('meetingChanged', processingMeeting('real', 'ready')));
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    mock.dispose();
+  });
+
+  it('ignores sample processing from a mixed backend and follows only real events across tabs', async () => {
+    // A hybrid backend can include a mock meeting marked finalPassRunning even when real is idle.
+    const mixed = processingBackend([processingMeeting('demo', 'finalPassRunning')]);
+    const real = processingBackend([processingMeeting('actual', 'ready')]);
+    const rendered = render(view(mixed.backend, false, 'Live', real.backend));
+    await act(async () => Promise.resolve());
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+
+    // Mock data can change without producing a claim about actual background processing.
+    act(() => mixed.emit('meetingChanged', processingMeeting('demo', 'importing')));
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+
+    act(() => real.emit('meetingChanged', processingMeeting('actual', 'finalPassRunning')));
+    expect(screen.getByRole('status').textContent).toBe('Final transcription pending · 1 meeting');
+    rendered.rerender(view(mixed.backend, false, 'Settings', real.backend));
+    expect(screen.getByTestId('background-processing-status')).toBeTruthy();
+    rendered.rerender(view(mixed.backend, false, 'Recordings', real.backend));
+    expect(screen.getByTestId('background-processing-status')).toBeTruthy();
+
+    act(() => real.emit('meetingChanged', processingMeeting('actual', 'transcriptionFailed')));
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+  });
+
+  it('shows real final work despite idle mock data and clears stale real backend state', async () => {
+    const mixed = processingBackend([processingMeeting('demo', 'ready')]);
+    const real = processingBackend([processingMeeting('actual', 'finalPassRunning')]);
+    const newerReal = processingBackend([processingMeeting('other', 'ready')], true);
+    const rendered = render(view(mixed.backend, false, 'Live', real.backend));
+    expect((await screen.findByTestId('background-processing-status')).textContent).toBe(
+      'Final transcription pending · 1 meeting',
+    );
+
+    rendered.rerender(view(mixed.backend, false, 'Settings', newerReal.backend));
+    expect(screen.queryByTestId('background-processing-status')).toBeNull();
+    act(() => real.emit('meetingChanged', processingMeeting('actual', 'finalPassRunning')));
+    await act(async () => newerReal.resolve());
     expect(screen.queryByTestId('background-processing-status')).toBeNull();
   });
 
