@@ -59,8 +59,9 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       backend = new MockBackend();
       renderWith(backend, <SettingsScreen />);
       await screen.findByText('Models');
-      await screen.findByRole('button', { name: 'Check for model updates' });
+      expect(await screen.findByText(/Model updates and rollback are not available yet/)).toBeTruthy();
       expect(screen.queryByRole('button', { name: /^Download models/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
     });
 
     it('starts, shows per-file and overall progress, then says the models are ready', async () => {
@@ -136,16 +137,15 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       expect(failureText('http', 0, undefined)).toContain('Press Retry');
     });
 
-    it('does not treat a model update as the first download', async () => {
+    it('never presents mock-only updates or rollback as download actions', async () => {
       backend = new MockBackend();
+      expect((await backend.call('checkModelUpdates')).length).toBeGreaterThan(0);
       renderWith(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Check for model updates' }));
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Install update for Final speech' }),
-      );
-      expect(await screen.findByText(/Downloading .*30%/)).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
-      expect(screen.queryByRole('progressbar', { name: 'Overall model download' })).toBeNull();
+      expect(await screen.findByText(/Model updates and rollback are not available yet/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Install update/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Revert .* previous model/ })).toBeNull();
+      expect(screen.queryByText(/Version mock-2 is available/)).toBeNull();
     });
 
     it('downloads the optional summary model with separate progress and an installed state', async () => {
