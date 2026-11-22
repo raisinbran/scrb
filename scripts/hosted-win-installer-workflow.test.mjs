@@ -32,7 +32,19 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
     expect(workflow).toContain('run-win-installer-smoke-real-standard-user.ps1 @trusted');
     expect(workflow).toContain('actions/download-artifact@v4');
     expect(workflow).toContain('retention-days: 1');
-    expect(workflow).toContain('scribe-public-source-smoke-');
+    expect(workflow).toContain('scribe-encrypted-smoke-');
+    expect(workflow).not.toContain('scribe-public-source-smoke-');
+    expect(workflow).not.toContain('permit_public_unsigned_test_artifact');
+    expect(workflow).toContain('scripts/prepare-win-installer-encrypted-transfer.ps1');
+    expect(workflow).toContain('scripts/receive-win-installer-encrypted-transfer.ps1');
+    expect(workflow).toContain('scribe-installer-candidate.age');
+    expect(workflow).toContain('environment: windows-installer-test-decrypt');
+    expect(workflow).toContain('secrets.WIN_INSTALLER_SMOKE_AGE_IDENTITY');
+    expect(workflow).toContain('github.triggering_actor');
+    expect(workflow).toContain('github.workflow_ref');
+    expect(workflow).toContain('github.run_attempt == 1');
+    expect(workflow).toContain('inputs.encrypted_installer_transfer == true');
+    expect(workflow).not.toContain('path: ${{ runner.temp }}/scribe-installer-artifact/*');
     const source = read('scripts/run-win-installer-smoke-user-entry.ps1');
     expect(source).toContain('Assert-SmokeIdentity');
     expect(source).toContain('test-win-installer-smoke.ps1');
@@ -57,6 +69,16 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
     expect(packager).toContain('"manifest_sha256=$manifestSha"');
   });
 
+  it('requires a fail-closed pinned public recipient and prevents plaintext uploads', () => {
+    expect(read('.github/windows-installer-age-recipient.txt').trim()).toBe('UNCONFIGURED');
+    const transfer = read('scripts/win-installer-encrypted-transfer.psm1');
+    expect(transfer).toContain('f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7');
+    expect(transfer).toContain('Assert-EncryptedInstallerDispatch');
+    expect(transfer).toContain('Expand-StrictInstallerArchive');
+    expect(transfer).toContain('Assert-TrustedCandidate');
+    expect(workflow).not.toContain('scribe-public-source-smoke-');
+  });
+
   it.skipIf(process.platform !== 'win32')(
     'parses the hosted builder and both standard-user scripts with PowerShell',
     () => {
@@ -64,6 +86,10 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
         'scripts/build-win-hosted-tools.ps1',
         'scripts/run-win-installer-smoke-user-entry.ps1',
         'scripts/run-win-installer-smoke-real-standard-user.ps1',
+        'scripts/win-installer-encrypted-transfer.psm1',
+        'scripts/prepare-win-installer-encrypted-transfer.ps1',
+        'scripts/receive-win-installer-encrypted-transfer.ps1',
+        'scripts/test-win-installer-encrypted-transfer.ps1',
       ];
       for (const relative of paths) {
         const filename = path.join(root, relative).replaceAll("'", "''");
@@ -79,6 +105,17 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
     },
   );
 
+  it.skipIf(process.platform !== 'win32')(
+    'runs encrypted-transfer synthetic refusal and round-trip checks', () => {
+      const test = path.join(root, 'scripts/test-win-installer-encrypted-transfer.ps1');
+      const result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', test], {
+        cwd: root, encoding: 'utf8', timeout: 120_000,
+      });
+      expect(result.error?.message).toBeUndefined();
+      expect(result.status, result.stdout + '\\n' + result.stderr).toBe(0);
+      expect(result.stdout).toContain('Encrypted transfer synthetic protections PASS');
+    },
+  );
   it.skipIf(process.platform !== 'win32')(
     'refuses hosted-source staging from an ordinary PR CI job before touching source inputs',
     () => {
