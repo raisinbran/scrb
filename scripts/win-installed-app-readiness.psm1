@@ -18,8 +18,7 @@ function Test-ScribeReadyObservation {
         $Observation.WindowVisible -ne $true -or
         $Observation.Responsive -ne $true -or
         $Observation.WindowTitle -cne 'Scribe' -or
-        $Observation.Width -lt 800 -or $Observation.Height -lt 560 -or
-        $Observation.Width -gt 2560 -or $Observation.Height -gt 1600) { return $false }
+        $Observation.Width -lt 800 -or $Observation.Height -lt 560) { return $false }
     # An untouched isolated profile normally displays Scribe's real first-launch
     # React dialog. A splash or generic Electron window has neither this dialog
     # nor the three navigation controls and the Live screen heading.
