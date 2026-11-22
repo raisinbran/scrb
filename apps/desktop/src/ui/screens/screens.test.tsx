@@ -344,6 +344,9 @@ describe('screens', () => {
       expect(
         (screen.getByRole('radio', { name: /^Voice Isolation/ }) as HTMLInputElement).checked,
       ).toBe(true);
+      expect(
+        screen.getByText(/Separately enabled experimental macOS AEC can still use echo cancellation/),
+      ).toBeTruthy();
       expect(screen.queryByText('You have unsaved changes.')).toBeNull();
       expect((await backend.call('getSettings')).audio).toEqual(original);
     });
@@ -361,8 +364,11 @@ describe('screens', () => {
       });
       const saved = (await backend.call('getSettings')).audio;
       renderScreen(backend, <SettingsScreen />);
+      const noiseSuppression = await screen.findByRole('combobox', {
+        name: 'Noise suppression',
+      });
       const controls = [
-        screen.getByRole('combobox', { name: 'Noise suppression' }),
+        noiseSuppression,
         screen.getByRole('checkbox', { name: /Automatic gain control/ }),
         screen.getByLabelText('Input sensitivity'),
         screen.getByRole('checkbox', { name: /^Automatic$/ }),

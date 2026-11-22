@@ -26,17 +26,19 @@ export const PRESET_OPTIONS: { value: AudioPreset; label: string; description: s
     value: 'voiceIsolation',
     label: 'Voice Isolation',
     description:
-      'Unavailable: suppression, echo cancellation and gain are not applied by this preset.',
+      'Preset inactive for normal capture. Separately enabled experimental macOS AEC can still use echo cancellation.',
   },
   {
     value: 'studio',
     label: 'Studio',
-    description: 'Unavailable: does not turn off device processing.',
+    description:
+      'Preset inactive for normal capture. Does not disable OS enhancements; saved settings opt out of experimental macOS AEC.',
   },
   {
     value: 'custom',
     label: 'Custom',
-    description: 'Unavailable: saved custom controls do not alter capture or recognition.',
+    description:
+      'Preset inactive for normal capture. Saved echo and bypass settings can affect separately enabled experimental macOS AEC.',
   },
 ];
 
