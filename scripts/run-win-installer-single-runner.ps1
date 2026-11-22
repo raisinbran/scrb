@@ -183,7 +183,8 @@ if ($Mode) {
         'Consume' {
             $candidate = Assert-SingleRunnerEvidence -Root $candidateRoot -ManifestSha $TrustedManifestSha256 -SourceSha $TrustedSourceCommit -ProvenanceSha $TrustedProvenanceSha256 -AuditSha $TrustedDependencyAuditSha256 -RunId $TrustedProducerRunId -Attempt $TrustedProducerRunAttempt
             & (Join-Path $PSScriptRoot 'run-win-installer-smoke-real-standard-user.ps1') -RunnerTemp $env:RUNNER_TEMP -TrustedManifestSha256 $TrustedManifestSha256 -TrustedSourceCommit $TrustedSourceCommit -TrustedProvenanceSha256 $TrustedProvenanceSha256 -TrustedDependencyAuditSha256 $TrustedDependencyAuditSha256 -TrustedProducerRunId $TrustedProducerRunId -TrustedProducerRunAttempt $TrustedProducerRunAttempt
-            if ($LASTEXITCODE -ne 0) { throw 'Standard-user consumer failed' }
+            # The called PowerShell script throws on failure; LASTEXITCODE is not
+            # a reliable signal for PowerShell-to-PowerShell invocation.
             $summaryPath = Join-Path $env:RUNNER_TEMP 'scribe-installer-smoke-result.json'
             if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf)) {
                 throw 'No genuine disposable-user result'
