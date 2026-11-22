@@ -4,34 +4,155 @@ on:
   pull_request:
     paths:
       - '.github/workflows/windows-installer-smoke.yml'
-      - 'scripts/run-win-installer-smoke-standard-user.ps1'
-      - 'scripts/test-win-installer-smoke-guards.ps1'
-      - 'scripts/test-win-installer-smoke.ps1'
-      - 'scripts/win-installer-smoke-guards.psm1'
+      - 'scripts/*win*installer*.ps1'
+      - 'scripts/*win*installer*.mjs'
+      - 'scripts/stage-win-tools.mjs'
+      - 'scripts/build-win-hosted-tools.ps1'
   workflow_dispatch:
+    inputs:
+      genuine_source_build_and_install:
+        description: 'Build pinned public sources and perform a real disposable-user NSIS smoke'
+        required: true
+        type: boolean
+        default: false
+      permit_public_unsigned_test_artifact:
+        description: 'I authorize a 1-day publicly downloadable unsigned installer derived only from this public source tree; no private tools or models'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   hosted-standard-user-guards:
+    if: github.event_name == 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Bootstrap a disposable standard user and execute behavioral guards
+      - name: Bootstrap disposable standard user; guard checks only
         shell: pwsh
         run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
-      - name: Report installer delivery and test scope
+      - name: Guard-only scope declaration
         if: always()
         shell: pwsh
         run: |
           @'
-          ## Windows installer smoke status
+          ## Guard-only CI — not an installed app result
 
-          - Hosted disposable standard-user bootstrap and executable identity, hash, path-containment, and cleanup guards: see the preceding job step.
-          - Actual installer install/uninstall and shortcut-target checks: **NOT VERIFIED**. The exact candidate is not available through an agent-owned private artifact producer or transfer channel.
-          - Installer integrity and five-model handover: **OWNER VERIFIED; NOT RETESTED**.
-          - Scribe launch, real recording, and transcript checks: **NOT TESTED**.
+          A PR-triggered run executes only behavioral guards under a disposable normal user.
+          Real source compilation, NSIS install and uninstall are NOT VERIFIED by this job.
           '@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
+  # Never launch untrusted installer bytes on pull_request. Only the repository
+  # owner may explicitly dispatch a public-source-only test, with no private
+  # W10/M5 executables, owner recordings, speech models or credentials included.
+  verified-installer-producer:
+    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && inputs.permit_public_unsigned_test_artifact == true && github.actor == 'raisinbran' && github.repository == 'raisinbran/scrb'
+    runs-on: windows-latest
+    timeout-minutes: 105
+    outputs:
+      manifest_sha256: ${{ steps.package.outputs.manifest_sha256 }}
+      source_commit: ${{ steps.package.outputs.source_commit }}
+      provenance_sha256: ${{ steps.package.outputs.provenance_sha256 }}
+      dependency_audit_sha256: ${{ steps.package.outputs.dependency_audit_sha256 }}
+      producer_run_id: ${{ steps.package.outputs.producer_run_id }}
+      producer_run_attempt: ${{ steps.package.outputs.producer_run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build all seven tools from pinned public sources, validate MSVC runtime signatures, stage DLL/license closure
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD 'apps/desktop/build/win-stage/bin'
+          $evidence = Join-Path $env:RUNNER_TEMP 'public-source-build-evidence.json'
+          ./scripts/build-win-hosted-tools.ps1 -StagingDirectory $stage -SourceEvidenceFile $evidence
+      - name: Build real unpacked Scribe with verified seven-tool staging
+        shell: pwsh
+        run: ./scripts/package-win.ps1 -Slice 3
+      - name: Build NSIS and emit independently protected producer job outputs
+        id: package
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD 'apps/desktop/build/win-stage/bin'
+          $unpacked = Join-Path $PWD 'apps/desktop/release/win-unpacked'
+          ./scripts/package-win-installer.ps1 -StagingDirectory $stage -PrepackagedDirectory $unpacked
+      - name: Verify and prepare exactly five public-source-only transfer files
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD 'apps/desktop/build/win-stage/bin'
+          $folders = @(Get-ChildItem -LiteralPath 'apps/desktop' -Directory -Filter 'release-installer-build-*')
+          if ($folders.Count -ne 1) { throw 'Expected exactly one NSIS output directory' }
+          $buildDir = $folders[0].FullName
+          $installers = @(Get-ChildItem -LiteralPath $buildDir -File -Filter 'Scribe Setup *.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one NSIS installer' }
+          $destination = Join-Path $env:RUNNER_TEMP 'scribe-installer-artifact'
+          if (Test-Path -LiteralPath $destination) { throw 'Refusing to reuse a candidate transfer root' }
+          New-Item -ItemType Directory -Path $destination -ErrorAction Stop | Out-Null
+          $app = Join-Path $PWD 'apps/desktop/release/win-unpacked/Scribe.exe'
+          $manifest = Join-Path $buildDir 'scribe-installer-candidate.json'
+          $argsList = @(
+            'scripts/win-installer-candidate-manifest.mjs','verify',
+            '--installer',$installers[0].FullName,
+            '--application',$app,
+            '--provenance',(Join-Path $stage 'PROVENANCE.json'),
+            '--audit',(Join-Path $stage 'DEPENDENCY-AUDIT.json'),
+            '--commit',$env:GITHUB_SHA,'--manifest',$manifest
+          )
+          & node @argsList
+          if ($LASTEXITCODE -ne 0) { throw 'Producer candidate manifest verification failed' }
+          foreach ($file in @($installers[0].FullName,$app,$manifest,
+                              (Join-Path $stage 'PROVENANCE.json'),
+                              (Join-Path $stage 'DEPENDENCY-AUDIT.json'))) {
+            Copy-Item -LiteralPath $file -Destination $destination -ErrorAction Stop
+          }
+          if (@(Get-ChildItem -LiteralPath $destination -File).Count -ne 5) {
+            throw 'Unapproved source-build artifact content'
+          }
+      - name: Transfer public-source-only test candidate for this run and attempt
+        uses: actions/upload-artifact@v4
+        with:
+          name: scribe-public-source-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scribe-installer-artifact/*
+          if-no-files-found: error
+          retention-days: 1
+
+  hosted-real-installer-smoke:
+    needs: verified-installer-producer
+    if: github.event_name == 'workflow_dispatch' && needs.verified-installer-producer.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download only this run's source-built candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: scribe-public-source-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scribe-installer-artifact
+      - name: Independent baseline guards under a disposable standard user
+        shell: pwsh
+        run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
+      - name: Attest independently and run genuine normal-user NSIS installer, shortcut and uninstall
+        shell: pwsh
+        run: |
+          $trusted = @{
+            RunnerTemp = $env:RUNNER_TEMP
+            TrustedManifestSha256 = '${{ needs.verified-installer-producer.outputs.manifest_sha256 }}'
+            TrustedSourceCommit = '${{ needs.verified-installer-producer.outputs.source_commit }}'
+            TrustedProvenanceSha256 = '${{ needs.verified-installer-producer.outputs.provenance_sha256 }}'
+            TrustedDependencyAuditSha256 = '${{ needs.verified-installer-producer.outputs.dependency_audit_sha256 }}'
+            TrustedProducerRunId = '${{ needs.verified-installer-producer.outputs.producer_run_id }}'
+            TrustedProducerRunAttempt = '${{ needs.verified-installer-producer.outputs.producer_run_attempt }}'
+          }
+          ./scripts/run-win-installer-smoke-real-standard-user.ps1 @trusted
