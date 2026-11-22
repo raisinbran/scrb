@@ -19,7 +19,13 @@ function Test-ScribeReadyObservation {
         $Observation.Responsive -ne $true -or
         $Observation.WindowTitle -cne 'Scribe' -or
         $Observation.Width -lt 800 -or $Observation.Height -lt 560 -or
-        $Observation.LiveHeading -ne $true) { return $false }
+        $Observation.Width -gt 2560 -or $Observation.Height -gt 1600) { return $false }
+    # An untouched isolated profile normally displays Scribe's real first-launch
+    # React dialog. A splash or generic Electron window has neither this dialog
+    # nor the three navigation controls and the Live screen heading.
+    if ($Observation.StartupDialogTitle -eq $true -and
+        $Observation.ContinueButton -eq $true) { return $true }
+    if ($Observation.LiveHeading -ne $true) { return $false }
     $labels = @($Observation.NavigationLabels)
     foreach ($label in @('Live','Recordings','Settings')) {
         if ($labels -cnotcontains $label) { return $false }
@@ -77,7 +83,7 @@ function Invoke-ScribeLaunchSequence {
         $graceful = $true
         return [pscustomobject]@{
             Result = 'PASS'
-            ReadyCondition = 'Responsive Scribe GUI with Live, Recordings, Settings and Live heading twice'
+            ReadyCondition = 'Responsive Scribe GUI with navigation/Live heading or first-launch dialog twice'
             PollCount = $pollCount
             CleanExit = $true
         }
@@ -142,6 +148,8 @@ function Get-ScribeProcessObservation {
         Width = 0
         Height = 0
         LiveHeading = $false
+        StartupDialogTitle = $false
+        ContinueButton = $false
         NavigationLabels = @()
     }
     $Process.Refresh()
@@ -198,6 +206,14 @@ function Get-ScribeProcessObservation {
                 $element.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text) {
                 $observation.LiveHeading = $true
             }
+            if ($name -ceq 'Where are you based?' -and
+                $element.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text) {
+                $observation.StartupDialogTitle = $true
+            }
+            if ($name -ceq 'Continue' -and
+                $element.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button) {
+                $observation.ContinueButton = $true
+            }
         }
         $observation.NavigationLabels = $buttons.ToArray()
     } catch [System.Windows.Automation.ElementNotAvailableException] {
@@ -225,7 +241,7 @@ function Invoke-ScribeInstalledAppReadiness {
         readiness = 'NOT VERIFIED'
         cleanExit = 'NOT VERIFIED'
         processId = $null
-        condition = 'Responsive Scribe GUI with Live, Recordings, Settings and Live heading'
+        condition = 'Responsive Scribe GUI with navigation/Live heading or first-launch dialog'
         failure = $null
     }
     try {
@@ -310,4 +326,4 @@ function Invoke-ScribeInstalledAppReadiness {
     return [pscustomobject]$report
 }
 
-Export-ModuleMember -Function Test-ScribeLaunchFacts, Test-ScribeReadyObservation, Invoke-ScribeLaunchSequence, Invoke-ScribeInstalledAppReadiness, Get-ScribeProcessObservation
+Export-ModuleMember -Function Test-ScribeLaunchFacts, Test-ScribeReadyObservation, Invoke-ScribeLaunchSequence, Invoke-ScribeInstalledAppReadiness, Get-ScribeProcessObservation, Initialize-ScribeWin32Inspection
