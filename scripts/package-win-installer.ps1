@@ -93,6 +93,51 @@ $candidateArgs = @(
 )
 & node @candidateArgs
 if ($LASTEXITCODE -ne 0) { throw 'Installer candidate integrity manifest generation failed' }
+# On an independently trusted hosted producer job ONLY, publish the digest evidence
+# through GITHUB_OUTPUT (a job-output channel), NOT inside the downloadable artifact.
+# The consumer must receive needs.verified-installer-producer.outputs.* from its
+# protected workflow. Do not promote these values from an artifact JSON.
+if ($env:GITHUB_ACTIONS -eq 'true') {
+    if ($env:GITHUB_JOB -cne 'verified-installer-producer' -or
+        $env:GITHUB_REPOSITORY -cne 'raisinbran/scrb' -or
+        $env:GITHUB_SHA -cne $sourceCommit -or
+        $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+        $env:GITHUB_RUN_ID -notmatch '^[0-9]+
+Write-Host "NSIS installer: $installer"
+Write-Host "SHA-256: $hash"
+Write-Host "Candidate integrity manifest: $candidateManifest"
+ -or
+        $env:GITHUB_RUN_ATTEMPT -notmatch '^[1-9][0-9]*
+Write-Host "NSIS installer: $installer"
+Write-Host "SHA-256: $hash"
+Write-Host "Candidate integrity manifest: $candidateManifest"
+ -or
+        [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
+        throw 'Trusted hosted installer producer source and output channel are unavailable'
+    }
+    # Reverify the seven-tool stage and prepackaged DLL/license closure immediately
+    # before issuing attestations. The candidate manifest already binds these files.
+    & node $verify --staging $staging --packaged (Join-Path $prepackaged 'resources\bin') --slice 3
+    if ($LASTEXITCODE -ne 0) { throw 'Trusted producer stage revalidation failed' }
+    $candidate = Get-Content -LiteralPath $candidateManifest -Raw | ConvertFrom-Json
+    $provenanceSha = (Get-FileHash -LiteralPath (Join-Path $staging 'PROVENANCE.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+    $auditSha = (Get-FileHash -LiteralPath (Join-Path $staging 'DEPENDENCY-AUDIT.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($candidate.sourceCommit -cne $sourceCommit -or
+        $candidate.provenance.sha256 -cne $provenanceSha -or
+        $candidate.dependencyAudit.sha256 -cne $auditSha) {
+        throw 'Trusted producer manifest differs from the revalidated stage or source'
+    }
+    $manifestSha = (Get-FileHash -LiteralPath $candidateManifest -Algorithm SHA256).Hash.ToLowerInvariant()
+    $evidence = @(
+        "manifest_sha256=$manifestSha",
+        "source_commit=$sourceCommit",
+        "provenance_sha256=$provenanceSha",
+        "dependency_audit_sha256=$auditSha",
+        "producer_run_id=$($env:GITHUB_RUN_ID)",
+        "producer_run_attempt=$($env:GITHUB_RUN_ATTEMPT)"
+    )
+    Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $evidence -Encoding utf8
+}
 $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host "NSIS installer: $installer"
 Write-Host "SHA-256: $hash"

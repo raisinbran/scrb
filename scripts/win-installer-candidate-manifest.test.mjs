@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { makeCandidateManifest, verifyCandidateManifest } from './win-installer-candidate-manifest.mjs';
@@ -80,7 +80,7 @@ describe('Windows installer candidate provenance', () => {
     'parses the installer packager and standard-user smoke PowerShell without launching either',
     () => {
       const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-      for (const relative of ['scripts/package-win-installer.ps1', 'scripts/test-win-installer-smoke.ps1']) {
+      for (const relative of ['scripts/package-win-installer.ps1', 'scripts/test-win-installer-smoke.ps1', 'scripts/win-installer-candidate-trust.psm1', 'scripts/test-win-installer-candidate-trust.ps1']) {
         const file = path.join(root, relative);
         const escapedFile = file.replaceAll("'", "''");
         const command =
@@ -94,6 +94,23 @@ describe('Windows installer candidate provenance', () => {
         expect(result.error?.message).toBeUndefined();
         expect(result.status, relative + '\n' + result.stdout + '\n' + result.stderr).toBe(0);
       }
+    },
+  );
+
+  it.skipIf(process.platform !== 'win32')(
+    'rejects jointly substituted installer and manifest before the real launch callback',
+    () => {
+      const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+      const smoke = readFileSync(path.join(root, 'scripts/test-win-installer-smoke.ps1'), 'utf8');
+      // The executable path MUST be dispatched through the same tested trust gate.
+      expect(smoke).toContain('Invoke-TrustedCandidateInstall -Verification $trust -Launch');
+      const testFile = path.join(root, 'scripts/test-win-installer-candidate-trust.ps1');
+      const result = spawnSync('pwsh.exe', [
+        '-NoLogo', '-NoProfile', '-NonInteractive', '-File', testFile,
+      ], { cwd: root, encoding: 'utf8', timeout: 30_000 });
+      expect(result.error?.message).toBeUndefined();
+      expect(result.status, result.stdout + '\n' + result.stderr).toBe(0);
+      expect(result.stdout).toContain('joint-substitution launch guard PASS');
     },
   );
 
