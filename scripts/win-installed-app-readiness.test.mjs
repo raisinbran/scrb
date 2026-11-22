@@ -39,9 +39,11 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
   it('requires exact parsed Windows command-line boundaries for the installed profile', () => {
     const module = read('scripts/win-installed-app-readiness.psm1');
     const regressions = read('scripts/test-win-installed-app-readiness.ps1');
-    expect(module).toContain('CommandLineToArgvW');
+    expect(module).toContain("$CommandLine.StartsWith(($program + ' '),");
+    expect(module).toContain('$actualFlag = $CommandLine.Substring(');
+    expect(module).toContain('$actualFlag.StartsWith($prefix, [StringComparison]::Ordinal)');
+    expect(module).not.toContain('CommandLineToArgvW');
     expect(module).toContain('Test-ScribeLaunchCommandLine -CommandLine');
-    expect(module).toContain('$arguments.Length -ne 2');
     expect(module).not.toContain('$normalizedCommand.IndexOf($profileArg');
     for (const scenario of [
       'sibling-prefix',
@@ -51,6 +53,8 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
       'unbalanced-quote',
       'relative-profile',
       'wrong-executable-token',
+      'wrong-flag-casing',
+      'unquoted-program-spaces',
     ]) {
       expect(regressions).toContain(scenario);
     }

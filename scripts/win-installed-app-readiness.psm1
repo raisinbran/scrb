@@ -108,23 +108,6 @@ public static class ScribeInstalledWindowNative {
     [DllImport("advapi32.dll", SetLastError=true)]
     private static extern bool GetTokenInformation(IntPtr token, int kind, IntPtr buffer,
         int length, out int returned);
-    [DllImport("shell32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
-    private static extern IntPtr CommandLineToArgvW(string commandLine, out int argumentCount);
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr LocalFree(IntPtr memory);
-    public static string[] ParseCommandLine(string commandLine) {
-        int count = 0;
-        IntPtr memory = CommandLineToArgvW(commandLine, out count);
-        if (memory == IntPtr.Zero) return new string[0];
-        try {
-            string[] arguments = new string[count];
-            for (int i = 0; i < count; i++) {
-                IntPtr item = Marshal.ReadIntPtr(memory, i * IntPtr.Size);
-                arguments[i] = Marshal.PtrToStringUni(item) ?? "";
-            }
-            return arguments;
-        } finally { LocalFree(memory); }
-    }
     [DllImport("kernel32.dll")]
     private static extern bool CloseHandle(IntPtr handle);
     public static string TokenIdentity(IntPtr process) {
@@ -150,9 +133,10 @@ public static class ScribeInstalledWindowNative {
     Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes -ErrorAction Stop
 }
 
-# Reject anything other than our exact two-argument Start-Process command.
-# Win32 argv parsing establishes token boundaries; the original representation
-# must also be canonical so malformed or unbalanced quotes cannot alias a path.
+# This caller starts precisely one known command: an installed executable plus
+# --user-data-dir=PATH. Compare the complete, canonically quoted argument tokens
+# rather than stripping quotes or accepting a flag embedded in another argument.
+# Equivalent but unexpected quoting, whitespace and extra flags fail closed.
 function Test-ScribeLaunchCommandLine {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$CommandLine,
@@ -161,41 +145,42 @@ function Test-ScribeLaunchCommandLine {
     )
     try {
         if ([string]::IsNullOrWhiteSpace($CommandLine)) { return $false }
+        if ($InstalledExe -cnotmatch '^[A-Za-z]:\\' -or
+            $UserDataRoot -cnotmatch '^[A-Za-z]:\\') { return $false }
         $exe = [IO.Path]::GetFullPath($InstalledExe)
         $profile = [IO.Path]::GetFullPath($UserDataRoot)
-        if (-not [IO.Path]::IsPathFullyQualified($InstalledExe) -or
-            -not [IO.Path]::IsPathFullyQualified($UserDataRoot) -or
-            -not [string]::Equals($InstalledExe, $exe,
+        if (-not [string]::Equals($InstalledExe, $exe,
                 [StringComparison]::OrdinalIgnoreCase) -or
             -not [string]::Equals($UserDataRoot, $profile,
                 [StringComparison]::OrdinalIgnoreCase)) { return $false }
-        if (-not ('ScribeInstalledWindowNative' -as [type])) {
-            Initialize-ScribeWin32Inspection
-        }
-        [string[]]$arguments = [ScribeInstalledWindowNative]::ParseCommandLine($CommandLine)
-        if ($arguments.Length -ne 2 -or
-            -not [string]::Equals($arguments[0], $exe,
-                [StringComparison]::OrdinalIgnoreCase) -or
-            -not [string]::Equals($arguments[1], ('--user-data-dir=' + $profile),
-                [StringComparison]::OrdinalIgnoreCase)) { return $false }
 
-        # Only our actual invocation and legal whole-argument quoting variants.
-        # Duplicate/extra flags, sibling prefixes, traversal and embedded or
-        # unbalanced quotes all fail rather than being normalized into a match.
-        foreach ($program in @('"' + $exe + '"', $exe)) {
-            foreach ($profileArgument in @(
-                '--user-data-dir="' + $profile + '"',
-                '"--user-data-dir=' + $profile + '"',
-                '--user-data-dir=' + $profile
-            )) {
-                if ([string]::Equals($CommandLine, ($program + ' ' + $profileArgument),
-                    [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        $programs = [Collections.Generic.List[string]]::new()
+        $programs.Add('"' + $exe + '"')
+        if ($exe -notmatch '\s') { $programs.Add($exe) }
+        $flags = [Collections.Generic.List[string]]::new()
+        $flags.Add('--user-data-dir="' + $profile + '"')
+        $flags.Add('"--user-data-dir=' + $profile + '"')
+        if ($profile -notmatch '\s') { $flags.Add('--user-data-dir=' + $profile) }
+
+        foreach ($program in $programs) {
+            if (-not $CommandLine.StartsWith(($program + ' '),
+                    [StringComparison]::OrdinalIgnoreCase)) { continue }
+            $actualFlag = $CommandLine.Substring($program.Length + 1)
+            foreach ($expectedFlag in $flags) {
+                $prefix = if ($expectedFlag.StartsWith('"')) {
+                    '"--user-data-dir='
+                } else {
+                    '--user-data-dir='
+                }
+                if ($actualFlag.StartsWith($prefix, [StringComparison]::Ordinal) -and
+                    [string]::Equals($actualFlag, $expectedFlag,
+                        [StringComparison]::OrdinalIgnoreCase)) { return $true }
             }
         }
-        return $false
     } catch {
-        return $false
+        # Malformed paths or inaccessible process command lines never grant readiness.
     }
+    return $false
 }
 
 function Get-ScribeProcessObservation {

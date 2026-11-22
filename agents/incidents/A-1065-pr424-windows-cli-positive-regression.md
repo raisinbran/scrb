@@ -1,0 +1,7 @@
+### A-1065 — 2026-11-22 — PR #424 Windows command-line acceptance regression
+
+- **Observed failure:** The first corrected-head Windows CI test, run [45009237007](https://github.com/raisinbran/scrb/actions/runs/45009237007), failed at `scripts/test-win-installed-app-readiness.ps1:89`: the new validator refused a legitimate `"C:\invented install\Scribe.exe" --user-data-dir="C:\invented profiles\@scrb\desktop"` command line. This was the sole failing test among 2,202 executed tests (2,201 passed).
+- **Attribution:** Self-induced acceptance/parser regression in the new source change, not a real installer or application crash. The exact failing subpredicate in the redundant native-parser-plus-string-grammar combination was not separately instrumented; do not claim a more specific proven root cause.
+- **Impact:** One failed CI run and an extra corrective source commit/check run. No genuine hosted producer/consumer or private owner-device test was dispatched.
+- **Correction:** Simplified to a strict, complete, boundary-aware grammar for exactly the controlled Start-Process executable and one `--user-data-dir` argument, accepting canonical quoted forms but rejecting extra/duplicate/malformed arguments; removed the redundant native parser. Extended invented fixtures for wrong flag case and unquoted executable paths with spaces. New exact-head CI is required before review.
+- **Remaining risk:** Real hosted installed-process command-line rendering has not been exercised; source CI does not establish actual GUI readiness or M1 acceptance.

@@ -106,6 +106,8 @@ $badCommands['trailing-quote-junk'] = $exeToken + ' --user-data-dir="' + $fictio
 $badCommands['embedded-quote'] = $exeToken + ' --user-data-dir="C:\invented profiles\@scrb\"desktop"'
 $badCommands['unquoted-spaces'] = $exeToken + ' --user-data-dir=' + $fictionProfile
 $badCommands['wrong-executable-token'] = '"C:\invented install\Scribe-other.exe" ' + $profileFlag
+$badCommands['unquoted-program-spaces'] = $fictionExe + ' ' + $profileFlag
+$badCommands['wrong-flag-casing'] = $exeToken + ' --USER-DATA-DIR="' + $fictionProfile + '"'
 $badCommands['extra-separator'] = $exeToken + '  ' + $profileFlag
 foreach ($name in $badCommands.Keys) {
     $line = $badCommands[$name]
