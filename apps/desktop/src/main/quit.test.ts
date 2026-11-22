@@ -418,7 +418,13 @@ describe('integrated fake Electron quit lifecycle', () => {
 
   it('preserves the existing bounded will-quit shutdown if backend open never resolves', async () => {
     const close = vi.fn(() => new Promise<void>(() => undefined));
-    const lifecycle = fakeElectronLifecycle('win32', () => idle, async () => true, close, 5);
+    const lifecycle = fakeElectronLifecycle(
+      'win32',
+      () => idle,
+      async () => true,
+      close,
+      5,
+    );
     lifecycle.app.quit();
     expect(lifecycle.destroyMini).toHaveBeenCalledOnce();
     expect(lifecycle.destroyMain).toHaveBeenCalledOnce();
