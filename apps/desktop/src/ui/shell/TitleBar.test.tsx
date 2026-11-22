@@ -128,7 +128,7 @@ describe('TitleBar background processing', () => {
 
   function view(backend: Backend, mock = false, tab = 'Live', realProcessing?: Backend) {
     return (
-      <BackendProvider backend={backend} processingBackend={realProcessing}>
+      <BackendProvider backend={backend} processingBackend={realProcessing ?? backend}>
         <MockModeProvider mock={mock}>
           <TitleBar />
           <main>{tab}</main>
