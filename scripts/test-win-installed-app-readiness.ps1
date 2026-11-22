@@ -2,6 +2,8 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'win-installed-app-readiness.psm1') -Force
+# Verify the hosted runner can load native token and Windows accessibility APIs.
+Initialize-ScribeWin32Inspection
 
 function New-Facts {
     return @{
@@ -24,6 +26,8 @@ function New-Ready {
         Width = 1280
         Height = 800
         LiveHeading = $true
+        StartupDialogTitle = $false
+        ContinueButton = $false
         NavigationLabels = @('Live','Recordings','Settings')
     }
 }
@@ -73,6 +77,17 @@ $ok = Invoke-Fixture (New-Facts) @($ready,$ready)
 if ($ok.Result -cne 'PASS' -or $ok.PollCount -ne 2 -or
     $script:launches -ne 1 -or $script:closes -ne 1 -or $script:kills -ne 0) {
     throw 'Synthetic verified GUI readiness and graceful-exit control failed'
+}
+
+# The first-run modal is also a renderer/backend-backed UI and needs both markers.
+$firstLaunch = New-Ready
+$firstLaunch.LiveHeading = $false
+$firstLaunch.NavigationLabels = @()
+$firstLaunch.StartupDialogTitle = $true
+$firstLaunch.ContinueButton = $true
+$modal = Invoke-Fixture (New-Facts) @($firstLaunch,$firstLaunch)
+if ($modal.Result -cne 'PASS' -or $script:closes -ne 1) {
+    throw 'Synthetic first-launch modal was not accepted as real renderer UI'
 }
 
 # A visible title/window alone is not renderer-ready; no grace on an empty UI.
