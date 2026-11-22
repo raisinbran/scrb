@@ -11,11 +11,14 @@ import { release } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   assertStrictChild,
-  collectAdjacentDlls,
   createAmiWorkspace,
   readAmiSegmentAnnotations,
   requireAmiMeetingId,
 } from './ami_remote_workspace.mjs';
+import {
+  resolveAmiResearchToolPaths,
+  withVerifiedAmiResearchRuntime,
+} from './ami_remote_tooling.mjs';
 import {
   OVERSPLIT_THRESHOLD,
   runFinalPass,
@@ -88,41 +91,70 @@ if (!assets || !bin) throw new Error('SCRB_DEV_ASSETS and SCRB_BIN are required'
 const sourceCommit = requireCleanSourceCommit();
 const outputPath = resolve(outputArg);
 if (existsSync(outputPath)) throw new Error('refusing to overwrite existing report evidence');
-const workspace = await createAmiWorkspace({ assets, bin, meeting });
+const workspace = await createAmiWorkspace({
+  assets,
+  bin,
+  meeting,
+  scratch: process.env['SCRB_AMI_SCRATCH'],
+});
 try {
   const ami = workspace.ami;
   const modelsRoot = join(workspace.assetRoot, 'models');
   const wav = workspace.wav;
   const sourceWav = workspace.sourceWav;
-  execFileSync(join(workspace.toolRoot, 'ffmpeg.exe'), [
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-nostdin',
-    '-n',
-    '-ss',
-    String(startSec),
-    '-i',
-    sourceWav,
-    '-t',
-    String(durationSec),
-    '-ac',
-    '1',
-    '-ar',
-    '16000',
-    '-c:a',
-    'pcm_s16le',
-    wav,
-  ]);
+  const { toolPaths, whisperBin } = resolveAmiResearchToolPaths({
+    platform: process.platform,
+    assetRoot: workspace.assetRoot,
+    toolRoot: workspace.toolRoot,
+  });
+  // This preflight is the native-execution gate, not post-inference reporting.
+  // Reject linked dylibs, linked lib/ directories and out-of-assets Windows
+  // Whisper ancestors; bind tool and dependency hashes before launching FFmpeg.
+  const { toolSha256, whisperToolSha256 } = await withVerifiedAmiResearchRuntime(
+    {
+      platform: process.platform,
+      assetRoot: workspace.assetRoot,
+      toolRoot: workspace.toolRoot,
+      whisperBin,
+      toolPaths,
+    },
+    async ({ toolLibraries, whisperLibraries }) => {
+      const toolSha256 = await sha256FilesWithin(workspace.toolRoot, {
+        ffmpeg: toolPaths.ffmpeg,
+        ffprobe: toolPaths.ffprobe,
+        sherpaSidecar: toolPaths.sherpaSidecar,
+        ...toolLibraries,
+      });
+      const whisperToolSha256 = await sha256FilesWithin(whisperBin, {
+        whisperCli: toolPaths.whisperCli,
+        whisperServer: toolPaths.whisperServer,
+        whisperVad: toolPaths.whisperVad,
+        ...whisperLibraries,
+      });
+      execFileSync(toolPaths.ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-nostdin',
+        '-n',
+        '-ss',
+        String(startSec),
+        '-i',
+        sourceWav,
+        '-t',
+        String(durationSec),
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        '-c:a',
+        'pcm_s16le',
+        wav,
+      ]);
+      return { toolSha256, whisperToolSha256 };
+    },
+  );
 
-  const toolPaths = {
-    ffmpeg: join(workspace.toolRoot, 'ffmpeg.exe'),
-    ffprobe: join(workspace.toolRoot, 'ffprobe.exe'),
-    whisperCli: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-cli.exe'),
-    whisperServer: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-server.exe'),
-    whisperVad: join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin/whisper-vad-speech-segments.exe'),
-    sherpaSidecar: join(workspace.toolRoot, 'scrb-sherpa.exe'),
-  };
   const models = {
     speechFinal: join(modelsRoot, 'whisper/ggml-large-v3-turbo-q5_0.bin'),
     speechLive: join(modelsRoot, 'whisper/ggml-small.en-q5_1.bin'),
@@ -197,9 +229,6 @@ try {
       ),
     };
   });
-  const toolDlls = await collectAdjacentDlls(workspace.toolRoot);
-  const whisperBin = join(workspace.assetRoot, 'upstream/whisper.cpp/build/bin');
-  const whisperDlls = await collectAdjacentDlls(whisperBin);
   const report = {
     schemaVersion: 2,
     runtimeIdentity: {
@@ -249,21 +278,8 @@ try {
       embedding: models.embedding,
       vad: models.vad,
     }),
-    toolSha256: await sha256FilesWithin(workspace.toolRoot, {
-      ffmpeg: toolPaths.ffmpeg,
-      ffprobe: toolPaths.ffprobe,
-      sherpaSidecar: toolPaths.sherpaSidecar,
-      ...toolDlls,
-    }),
-    whisperToolSha256: await sha256FilesWithin(
-      whisperBin,
-      {
-        whisperCli: toolPaths.whisperCli,
-        whisperServer: toolPaths.whisperServer,
-        whisperVad: toolPaths.whisperVad,
-        ...whisperDlls,
-      },
-    ),
+    toolSha256,
+    whisperToolSha256,
   };
   await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   console.log(JSON.stringify(report));
