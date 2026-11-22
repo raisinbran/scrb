@@ -59,7 +59,9 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       backend = new MockBackend();
       renderWith(backend, <SettingsScreen />);
       await screen.findByText('Models');
-      expect(await screen.findByText(/Model updates and rollback are not available yet/)).toBeTruthy();
+      expect(
+        await screen.findByText(/Model updates and rollback are not available yet/),
+      ).toBeTruthy();
       expect(screen.queryByRole('button', { name: /^Download models/ })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
     });
@@ -141,7 +143,9 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       backend = new MockBackend();
       expect((await backend.call('checkModelUpdates')).length).toBeGreaterThan(0);
       renderWith(backend, <SettingsScreen />);
-      expect(await screen.findByText(/Model updates and rollback are not available yet/)).toBeTruthy();
+      expect(
+        await screen.findByText(/Model updates and rollback are not available yet/),
+      ).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
       expect(screen.queryByRole('button', { name: /Install update/ })).toBeNull();
       expect(screen.queryByRole('button', { name: /Revert .* previous model/ })).toBeNull();

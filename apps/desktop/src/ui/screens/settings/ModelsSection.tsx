@@ -405,8 +405,8 @@ export function ModelsSection() {
         </p>
       )}
       <p className={styles.help}>
-        Model updates and rollback are not available yet. Required speech and optional summary
-        model downloads remain available.
+        Model updates and rollback are not available yet. Required speech and optional summary model
+        downloads remain available.
       </p>
     </section>
   );

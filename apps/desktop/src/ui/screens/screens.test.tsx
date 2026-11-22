@@ -484,7 +484,9 @@ describe('screens', () => {
         const original = await backend.call('getSettings');
         renderScreen(source, <SettingsScreen />);
 
-        expect(await screen.findByText(/Model updates and rollback are not available yet/)).toBeTruthy();
+        expect(
+          await screen.findByText(/Model updates and rollback are not available yet/),
+        ).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Check for model updates' })).toBeNull();
         expect(screen.queryByRole('button', { name: /Install update/ })).toBeNull();
         expect(screen.queryByRole('button', { name: /Revert .* previous model/ })).toBeNull();
@@ -499,12 +501,14 @@ describe('screens', () => {
 
         // Unrelated functional controls remain interactive.
         expect(
-          (screen.getByRole('combobox', { name: 'Auto-delete meetings after' }) as HTMLSelectElement)
-            .disabled,
+          (
+            screen.getByRole('combobox', {
+              name: 'Auto-delete meetings after',
+            }) as HTMLSelectElement
+          ).disabled,
         ).toBe(false);
         expect(screen.getByRole('combobox', { name: 'Microphone' })).toBeTruthy();
       },
     );
-
   });
 });
