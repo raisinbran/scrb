@@ -326,59 +326,94 @@ describe('screens', () => {
       }
     });
 
-    it('applies Studio to the controls and marks the draft unsaved', async () => {
+    it('shows stored presets as unavailable without creating unsaved changes', async () => {
+      const original = (await backend.call('getSettings')).audio;
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('radio', { name: /^Studio/ }));
-      expect(await saveBar()).toBeTruthy();
-      const noise = screen.getByRole('combobox', { name: 'Noise suppression' });
-      expect((noise as HTMLSelectElement).value).toBe('off');
-      const echo = screen.getByRole('checkbox', { name: /Echo cancellation/ });
-      expect((echo as HTMLInputElement).checked).toBe(false);
+      expect(
+        await screen.findByText(
+          /Audio processing profiles and advanced microphone controls are unavailable/,
+        ),
+      ).toBeTruthy();
+      for (const name of ['Voice Isolation', 'Studio', 'Custom']) {
+        const profile = screen.getByRole('radio', {
+          name: new RegExp(`^${name}`),
+        }) as HTMLInputElement;
+        expect(profile.disabled).toBe(true);
+        expect(profile.getAttribute('aria-describedby')).toBe('audio-processing-unavailable');
+      }
+      expect(
+        (screen.getByRole('radio', { name: /^Voice Isolation/ }) as HTMLInputElement).checked,
+      ).toBe(true);
+      expect(screen.queryByText('You have unsaved changes.')).toBeNull();
+      expect((await backend.call('getSettings')).audio).toEqual(original);
     });
 
-    it.each([
-      ['Voice Isolation', 'Set by Voice Isolation'],
-      ['Studio', 'Set by Studio'],
-    ])('locks the preset controls under %s and unlocks them for Custom', async (name, tip) => {
+    it('disables every unavailable processing setting but shows the stored values', async () => {
+      const original = (await backend.call('getSettings')).audio;
+      await backend.call('updateSettings', {
+        audio: {
+          preset: 'custom',
+          noiseSuppression: 'strong',
+          echoCancellation: true,
+          advancedVoiceActivity: true,
+          inputSensitivityDb: -27,
+        },
+      });
+      const saved = (await backend.call('getSettings')).audio;
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('radio', { name: new RegExp(`^${name}`) }));
       const controls = [
         screen.getByRole('combobox', { name: 'Noise suppression' }),
         screen.getByRole('checkbox', { name: /Echo cancellation/ }),
         screen.getByRole('checkbox', { name: /Automatic gain control/ }),
         screen.getByRole('checkbox', { name: /Bypass system audio/ }),
+        screen.getByLabelText('Input sensitivity'),
+        screen.getByRole('checkbox', { name: 'Automatic', exact: true }),
+        screen.getByRole('checkbox', { name: /Advanced voice activity/ }),
+        screen.getByRole('checkbox', { name: /No audio detected warning/ }),
+        screen.getByRole('checkbox', { name: /Audio device suggestions/ }),
       ];
-      for (const control of controls) expect((control as HTMLInputElement).disabled).toBe(true);
-      // Controls the preset does not own stay usable.
+      for (const control of controls) {
+        expect((control as HTMLInputElement).disabled).toBe(true);
+        expect(control.getAttribute('aria-describedby')).toBe('audio-processing-unavailable');
+      }
       expect(
-        (screen.getByRole('checkbox', { name: /No audio detected/ }) as HTMLInputElement).disabled,
-      ).toBe(false);
-      fireEvent.pointerEnter(controls[1]!.closest('span')!);
-      expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
-      fireEvent.pointerLeave(controls[1]!.closest('span')!);
-      // Keyboard: a disabled control cannot be focused, so its row is the tab stop.
-      const row = controls[2]!.closest('label')!;
-      expect(row.tabIndex).toBe(0);
-      act(() => row.focus());
-      expect((await screen.findByRole('tooltip')).textContent).toBe(tip);
-      act(() => row.blur());
-      fireEvent.click(screen.getByRole('radio', { name: /^Custom/ }));
-      for (const control of controls) expect((control as HTMLInputElement).disabled).toBe(false);
+        (screen.getByRole('combobox', { name: 'Noise suppression' }) as HTMLSelectElement).value,
+      ).toBe('strong');
+      expect((screen.getByLabelText('Input sensitivity') as HTMLInputElement).value).toBe('-27');
+      expect(
+        (screen.getByRole('checkbox', { name: /Echo cancellation/ }) as HTMLInputElement).checked,
+      ).toBe(true);
+      expect(
+        (screen.getByRole('checkbox', { name: /Advanced voice activity/ }) as HTMLInputElement)
+          .checked,
+      ).toBe(true);
+      expect(
+        (screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked,
+      ).toBe(true);
+      expect((await backend.call('getSettings')).audio).toEqual(saved);
+      expect(saved.preset).not.toBe(original.preset);
+      expect(screen.queryByText('You have unsaved changes.')).toBeNull();
     });
 
-    it('lets a Custom control change without leaving Custom', async () => {
+    it('keeps working microphone and meeting-source selectors editable', async () => {
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('radio', { name: /^Custom/ }));
-      fireEvent.click(screen.getByRole('checkbox', { name: /Echo cancellation/ }));
-      const custom = screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement;
-      expect(custom.checked).toBe(true);
-    });
-
-    it('keeps the preset when an unrelated toggle changes', async () => {
-      renderScreen(backend, <SettingsScreen />);
-      fireEvent.click(await screen.findByRole('checkbox', { name: /No audio detected/ }));
-      const voice = screen.getByRole('radio', { name: /^Voice Isolation/ }) as HTMLInputElement;
-      expect(voice.checked).toBe(true);
+      const microphone = await screen.findByRole('combobox', { name: 'Microphone' });
+      const meeting = screen.getByRole('combobox', { name: 'Meeting app' }) as HTMLSelectElement;
+      expect((microphone as HTMLSelectElement).disabled).toBe(false);
+      expect(meeting.disabled).toBe(false);
+      const original = (await backend.call('getSettings')).audio;
+      const alternate = Array.from(meeting.options).find(
+        (option) => option.value !== original.meetingAppId,
+      );
+      expect(alternate).toBeTruthy();
+      fireEvent.change(meeting, { target: { value: alternate!.value } });
+      expect(await saveBar()).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await vi.waitFor(() => expect(screen.queryByText('You have unsaved changes.')).toBeNull());
+      const updated = (await backend.call('getSettings')).audio;
+      expect(updated.meetingAppId).toBe(alternate!.value);
+      expect(updated.preset).toBe(original.preset);
+      expect(updated.noiseSuppression).toBe(original.noiseSuppression);
     });
 
     it('saves a draft and clears the unsaved state', async () => {

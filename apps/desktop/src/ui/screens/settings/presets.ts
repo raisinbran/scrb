@@ -25,10 +25,19 @@ export const PRESET_OPTIONS: { value: AudioPreset; label: string; description: s
   {
     value: 'voiceIsolation',
     label: 'Voice Isolation',
-    description: 'Strong noise suppression, echo cancellation and automatic gain control.',
+    description:
+      'Unavailable: suppression, echo cancellation and gain are not applied by this preset.',
   },
-  { value: 'studio', label: 'Studio', description: 'All processing off.' },
-  { value: 'custom', label: 'Custom', description: 'Set each control yourself.' },
+  {
+    value: 'studio',
+    label: 'Studio',
+    description: 'Unavailable: does not turn off device processing.',
+  },
+  {
+    value: 'custom',
+    label: 'Custom',
+    description: 'Unavailable: saved custom controls do not alter capture or recognition.',
+  },
 ];
 
 export function presetPatch(preset: AudioPreset): Partial<AudioSettings> {
