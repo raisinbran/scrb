@@ -7,7 +7,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PrepackagedDirectory,
 
-    [string]$BuilderCli
+    [string]$BuilderCli,
+
+    # Optional: use an isolated RUNNER_TEMP output root for the zero-upload workflow.
+    # Omitted for the existing protected two-job producer and all other callers.
+    [string]$OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +19,28 @@ $repo = Split-Path -Parent $PSScriptRoot
 $appDir = Join-Path $repo 'apps\desktop'
 $outputFolder = "release-installer-build-$([guid]::NewGuid().ToString('N'))"
 $outputDir = Join-Path $appDir $outputFolder
+if ($OutputRoot) {
+    if ($env:GITHUB_ACTIONS -cne 'true' -or
+        $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+        $env:GITHUB_JOB -cne 'verified-installer-producer' -or
+        $env:GITHUB_REPOSITORY -cne 'raisinbran/scrb' -or
+        $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+        -not $env:RUNNER_TEMP) {
+        throw 'Scratch NSIS output requires the exact hosted producer dispatch'
+    }
+    $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\', '/')
+    $candidateRoot = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\', '/')
+    if (-not [string]::Equals(
+            [IO.Path]::GetDirectoryName($candidateRoot), $runnerTemp,
+            [StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals($candidateRoot, $runnerTemp, [StringComparison]::OrdinalIgnoreCase) -or
+        ((Get-Item -LiteralPath $runnerTemp -Force).Attributes -band
+            [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Scratch NSIS output must be a fresh direct child of RUNNER_TEMP'
+    }
+    $outputDir = $candidateRoot
+    $outputFolder = $outputDir
+}
 $staging = [IO.Path]::GetFullPath($StagingDirectory)
 $prepackaged = [IO.Path]::GetFullPath($PrepackagedDirectory)
 $output = [IO.Path]::GetFullPath($outputDir)
@@ -35,6 +61,10 @@ if (Test-Path -LiteralPath $output) {
     throw "Refusing to reuse pre-existing installer output directory: $output"
 }
 New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null
+if (((Get-Item -LiteralPath $output -Force).Attributes -band
+        [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw 'Refusing linked installer output directory'
+}
 
 $nodeVersion = (& node --version).Trim()
 if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v22\.') {
