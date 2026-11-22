@@ -331,7 +331,7 @@ describe('screens', () => {
       renderScreen(backend, <SettingsScreen />);
       expect(
         await screen.findByText(
-          /Audio processing profiles and advanced microphone controls are unavailable/,
+          /Audio processing profiles, noise suppression, gain, sensitivity and advanced detection/,
         ),
       ).toBeTruthy();
       for (const name of ['Voice Isolation', 'Studio', 'Custom']) {
