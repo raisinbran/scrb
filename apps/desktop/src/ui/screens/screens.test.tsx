@@ -345,7 +345,9 @@ describe('screens', () => {
         (screen.getByRole('radio', { name: /^Voice Isolation/ }) as HTMLInputElement).checked,
       ).toBe(true);
       expect(
-        screen.getByText(/Separately enabled experimental macOS AEC can still use echo cancellation/),
+        screen.getByText(
+          /Separately enabled experimental macOS AEC can still use echo cancellation/,
+        ),
       ).toBeTruthy();
       expect(screen.queryByText('You have unsaved changes.')).toBeNull();
       expect((await backend.call('getSettings')).audio).toEqual(original);
