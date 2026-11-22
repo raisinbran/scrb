@@ -75,7 +75,7 @@ describe('trusted hosted public-source Windows installer pipeline', () => {
     expect(transfer).toContain('f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7');
     expect(transfer).toContain('Assert-EncryptedInstallerDispatch');
     expect(transfer).toContain('Expand-StrictInstallerArchive');
-    expect(transfer).toContain('Assert-TrustedCandidate');
+    expect(read('scripts/receive-win-installer-encrypted-transfer.ps1')).toContain('Assert-TrustedCandidate');
     expect(workflow).not.toContain('scribe-public-source-smoke-');
   });
 
