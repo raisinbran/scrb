@@ -22,7 +22,7 @@ describe('manual-only Windows NSIS source built and installed on one disposable 
     expect(yaml).toContain("github.run_attempt == 1");
     expect(yaml).toContain("github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main'");
     expect(yaml).toContain('timeout-minutes: 130');
-    const budgets = [...yaml.matchAll(/^ {8}timeout-minutes: (\\d+)$/gm)].map((match) => Number(match[1]));
+    const budgets = [...yaml.matchAll(/^ {8}timeout-minutes: (\d+)$/gm)].map((match) => Number(match[1]));
     expect(budgets).toEqual([1, 2, 1, 2, 5, 80, 7, 5, 2, 2, 18, 4, 1]);
     expect(budgets.slice(0, 9).reduce((sum, value) => sum + value, 0)).toBe(105);
     expect(budgets.reduce((sum, value) => sum + value, 0)).toBe(130);
