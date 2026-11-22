@@ -36,6 +36,9 @@ try {
     if (Test-Path -LiteralPath $scratch) {
         Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction Stop
     }
+    if (Test-Path -LiteralPath $CandidateRoot) {
+        Remove-Item -LiteralPath $CandidateRoot -Recurse -Force -ErrorAction Stop
+    }
     if (-not $completed -and (Test-Path -LiteralPath $uploadRoot)) {
         Remove-Item -LiteralPath $uploadRoot -Recurse -Force -ErrorAction Stop
     }
