@@ -348,7 +348,7 @@ describe('screens', () => {
       expect((await backend.call('getSettings')).audio).toEqual(original);
     });
 
-    it('disables every unavailable processing setting but shows the stored values', async () => {
+    it('disables inert processing settings but keeps their saved values', async () => {
       const original = (await backend.call('getSettings')).audio;
       await backend.call('updateSettings', {
         audio: {
@@ -363,9 +363,7 @@ describe('screens', () => {
       renderScreen(backend, <SettingsScreen />);
       const controls = [
         screen.getByRole('combobox', { name: 'Noise suppression' }),
-        screen.getByRole('checkbox', { name: /Echo cancellation/ }),
         screen.getByRole('checkbox', { name: /Automatic gain control/ }),
-        screen.getByRole('checkbox', { name: /Bypass system audio/ }),
         screen.getByLabelText('Input sensitivity'),
         screen.getByRole('checkbox', { name: 'Automatic', exact: true }),
         screen.getByRole('checkbox', { name: /Advanced voice activity/ }),
@@ -380,9 +378,17 @@ describe('screens', () => {
         (screen.getByRole('combobox', { name: 'Noise suppression' }) as HTMLSelectElement).value,
       ).toBe('strong');
       expect((screen.getByLabelText('Input sensitivity') as HTMLInputElement).value).toBe('-27');
-      expect(
-        (screen.getByRole('checkbox', { name: /Echo cancellation/ }) as HTMLInputElement).checked,
-      ).toBe(true);
+      const echo = screen.getByRole('checkbox', {
+        name: /Echo cancellation/,
+      }) as HTMLInputElement;
+      const bypass = screen.getByRole('checkbox', {
+        name: /Bypass system audio/,
+      }) as HTMLInputElement;
+      for (const experimental of [echo, bypass]) {
+        expect(experimental.disabled).toBe(false);
+        expect(experimental.getAttribute('aria-describedby')).toBe('audio-processing-unavailable');
+      }
+      expect(echo.checked).toBe(true);
       expect(
         (screen.getByRole('checkbox', { name: /Advanced voice activity/ }) as HTMLInputElement)
           .checked,
@@ -393,6 +399,33 @@ describe('screens', () => {
       expect((await backend.call('getSettings')).audio).toEqual(saved);
       expect(saved.preset).not.toBe(original.preset);
       expect(screen.queryByText('You have unsaved changes.')).toBeNull();
+    });
+
+    it('preserves experimental macOS AEC opt-out controls without enabling normal DSP', async () => {
+      const original = (await backend.call('getSettings')).audio;
+      renderScreen(backend, <SettingsScreen />);
+      const echo = (await screen.findByRole('checkbox', {
+        name: /Echo cancellation/,
+      })) as HTMLInputElement;
+      const bypass = screen.getByRole('checkbox', {
+        name: /Bypass system audio/,
+      }) as HTMLInputElement;
+      expect(echo.disabled).toBe(false);
+      expect(bypass.disabled).toBe(false);
+      fireEvent.click(echo);
+      fireEvent.click(bypass);
+      expect(await saveBar()).toBeTruthy();
+      expect(
+        (screen.getByRole('radio', { name: /^Custom/ }) as HTMLInputElement).checked,
+      ).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await vi.waitFor(() => expect(screen.queryByText('You have unsaved changes.')).toBeNull());
+      const updated = (await backend.call('getSettings')).audio;
+      expect(updated.echoCancellation).toBe(!original.echoCancellation);
+      expect(updated.bypassSystemInputProcessing).toBe(!original.bypassSystemInputProcessing);
+      expect(updated.preset).toBe('custom');
+      expect(updated.noiseSuppression).toBe(original.noiseSuppression);
+      expect(updated.automaticGainControl).toBe(original.automaticGainControl);
     });
 
     it('keeps working microphone and meeting-source selectors editable', async () => {

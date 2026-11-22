@@ -27,7 +27,7 @@ const TOGGLES: { key: ToggleKey; label: string; description: string }[] = [
     key: 'echoCancellation',
     label: 'Echo cancellation',
     description:
-      'Unavailable for normal capture. Experimental macOS echo cancellation requires separate opt-in.',
+      'Experimental macOS opt-in only; may duck other audio. No effect on normal capture.',
   },
   {
     key: 'automaticGainControl',
@@ -37,7 +37,7 @@ const TOGGLES: { key: ToggleKey; label: string; description: string }[] = [
   {
     key: 'bypassSystemInputProcessing',
     label: 'Bypass system audio input processing',
-    description: 'Unavailable. This setting does not independently bypass microphone enhancements.',
+    description: 'Experimental macOS opt-in only; prevents gated AEC. Does not bypass normal mic enhancements.',
   },
   {
     key: 'advancedVoiceActivity',
@@ -66,6 +66,8 @@ const isPresetControl = (key: string): key is keyof PresetControls =>
 
 const PRESET_TOGGLES = TOGGLES.filter(({ key }) => isPresetControl(key));
 const OTHER_TOGGLES = TOGGLES.filter(({ key }) => !isPresetControl(key));
+const isExperimentalAecControl = (key: string) =>
+  key === 'echoCancellation' || key === 'bypassSystemInputProcessing';
 
 interface AudioSectionProps {
   audio: AudioSettings;
@@ -96,7 +98,7 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
     key: string,
     node: ReactElement<{ 'aria-describedby'?: string; tabIndex?: number }>,
   ) => {
-    const owned = locked && isPresetControl(key);
+    const owned = locked && isPresetControl(key) && !isExperimentalAecControl(key);
     return (
       <Tooltip label={owned ? lockTip : ''}>
         {owned ? cloneElement(node, { tabIndex: 0 }) : node}
@@ -114,10 +116,10 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
         devices={devices}
       />
       <p id="audio-processing-unavailable" className={styles.help}>
-        Audio processing profiles and advanced microphone controls are unavailable. Saved
-        preferences remain visible but are not applied to normal capture or transcription.
-        Experimental macOS echo cancellation requires separate opt-in; this screen does not enable
-        it.
+        Audio processing profiles, noise suppression, gain, sensitivity and advanced detection
+        are unavailable for normal recording. Their saved preferences remain visible but cannot be
+        edited here. Echo cancellation and bypass remain editable because they affect an
+        experimental macOS path only when separately opted in; they do not enable it on their own.
       </p>
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
@@ -166,9 +168,19 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
               <label className={styles.check}>
                 <input
                   type="checkbox"
-                  disabled
+                  disabled={!isExperimentalAecControl(toggle.key)}
                   aria-describedby="audio-processing-unavailable"
                   checked={audio[toggle.key]}
+                  onChange={(event) => {
+                    if (toggle.key === 'echoCancellation') {
+                      onChange({ echoCancellation: event.target.checked, preset: 'custom' });
+                    } else if (toggle.key === 'bypassSystemInputProcessing') {
+                      onChange({
+                        bypassSystemInputProcessing: event.target.checked,
+                        preset: 'custom',
+                      });
+                    }
+                  }}
                 />
                 <span>
                   {toggle.label}
