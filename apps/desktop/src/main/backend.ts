@@ -16,7 +16,7 @@ import {
 } from '@scrb/app-core';
 import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
 import { ensureSyntheticDevelopmentLocation } from './synthetic-location.ts';
-import { Library, StorageError } from '@scrb/storage';
+import { Library, readLibraryLocation, StorageError } from '@scrb/storage';
 import { LlamaServerWorker, extractItems, generateTitle, writeSummary } from '@scrb/summary';
 import { AutoTitleController } from './auto-title.ts';
 import type { RecordingState, SettingsPatch } from '@scrb/contracts';
@@ -104,6 +104,7 @@ export async function openBackend(
       isolatedLibraryRoot,
       userData,
       fallback,
+      readLibraryLocation,
       (root) => Library.open({ root }),
     );
     const libraryLocationFile = path.join(userData, 'library-location.json');
@@ -547,6 +548,7 @@ export async function openBackend(
           isolatedLibraryRoot,
           app.getPath('userData'),
           fallback,
+          readLibraryLocation,
         ),
       },
       handlers: {},

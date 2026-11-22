@@ -157,11 +157,23 @@ describe('isolated synthetic test-profile startup guard', () => {
     const paths = await openBackendAfterIsolationCheck(options, async (validatedRoot) => {
       expect(validatedRoot).toBe(canonicalLibrary);
       rmSync(pointer);
-      const opened = await openBackendLibrary(validatedRoot, profile, fallback, openLibrary);
+      const readLocation = vi.fn(async (_profile: string, defaultRoot: string) => defaultRoot);
+      const opened = await openBackendLibrary(
+        validatedRoot,
+        profile,
+        fallback,
+        readLocation,
+        openLibrary,
+      );
       return {
         backendRoot: opened.root,
         openedLibraryRoot: opened.library,
-        recoveryFolder: await resolveBackendLibraryRoot(validatedRoot, profile, fallback),
+        recoveryFolder: await resolveBackendLibraryRoot(
+          validatedRoot,
+          profile,
+          fallback,
+          readLocation,
+        ),
       };
     });
 
@@ -171,7 +183,14 @@ describe('isolated synthetic test-profile startup guard', () => {
       recoveryFolder: canonicalLibrary,
     });
     expect(openLibrary).toHaveBeenCalledExactlyOnceWith(canonicalLibrary);
-    await expect(resolveBackendLibraryRoot(null, profile, fallback)).resolves.toBe(fallback);
+    await expect(
+      resolveBackendLibraryRoot(
+        null,
+        profile,
+        fallback,
+        async (_profile, defaultRoot) => defaultRoot,
+      ),
+    ).resolves.toBe(fallback);
   });
 
   it('wires the opt-in guard around the real backend startup', () => {

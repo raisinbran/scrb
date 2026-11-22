@@ -1,6 +1,5 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { readLibraryLocation } from '@scrb/storage';
 
 export interface IsolatedTestProfileOptions {
   /** Electron's effective userData path, after --user-data-dir has been applied. */
@@ -136,10 +135,11 @@ export async function resolveBackendLibraryRoot(
   validatedLibraryRoot: string | null | undefined,
   userDataPath: string,
   fallbackPath: string,
+  readLocation: (configDir: string, defaultRoot: string) => Promise<string>,
 ): Promise<string> {
   if (validatedLibraryRoot !== null && validatedLibraryRoot !== undefined)
     return validatedLibraryRoot;
-  return readLibraryLocation(userDataPath, fallbackPath);
+  return readLocation(userDataPath, fallbackPath);
 }
 
 /** Select the root first, then open exactly that root; useful for deterministic boundary tests. */
@@ -147,8 +147,14 @@ export async function openBackendLibrary<T>(
   validatedLibraryRoot: string | null | undefined,
   userDataPath: string,
   fallbackPath: string,
+  readLocation: (configDir: string, defaultRoot: string) => Promise<string>,
   openLibrary: (root: string) => Promise<T>,
 ): Promise<{ root: string; library: T }> {
-  const root = await resolveBackendLibraryRoot(validatedLibraryRoot, userDataPath, fallbackPath);
+  const root = await resolveBackendLibraryRoot(
+    validatedLibraryRoot,
+    userDataPath,
+    fallbackPath,
+    readLocation,
+  );
   return { root, library: await openLibrary(root) };
 }
