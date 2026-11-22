@@ -365,7 +365,7 @@ describe('screens', () => {
         screen.getByRole('combobox', { name: 'Noise suppression' }),
         screen.getByRole('checkbox', { name: /Automatic gain control/ }),
         screen.getByLabelText('Input sensitivity'),
-        screen.getByRole('checkbox', { name: 'Automatic', exact: true }),
+        screen.getByRole('checkbox', { name: /^Automatic$/ }),
         screen.getByRole('checkbox', { name: /Advanced voice activity/ }),
         screen.getByRole('checkbox', { name: /No audio detected warning/ }),
         screen.getByRole('checkbox', { name: /Audio device suggestions/ }),
