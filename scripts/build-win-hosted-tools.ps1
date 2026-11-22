@@ -123,9 +123,16 @@ try {
         $ffmpegHashes[$name] = Get-Sha (Join-Path $ffmpegBin $name)
     }
 
+    # Use the CMake packaged with the selected Visual Studio instance, not a mismatched PATH copy.
     # Original build.cmd and fetch-opus.ps1 remain the source of capture compile flags.
-    & (Join-Path $repo 'native\windows-capture\scripts\fetch-opus.ps1')
-    Assert-Exit 'pinned capture opus'
+    $savedCmakeExe = $env:SCRB_CMAKE_EXE
+    try {
+        $env:SCRB_CMAKE_EXE = $cm
+        & (Join-Path $repo 'native\windows-capture\scripts\fetch-opus.ps1')
+        Assert-Exit 'pinned capture opus'
+    } finally {
+        $env:SCRB_CMAKE_EXE = $savedCmakeExe
+    }
     & cmd.exe /d /c ('"' + (Join-Path $repo 'native\windows-capture\build.cmd') + '"')
     Assert-Exit 'source-identified capture build'
     $captureBin = Join-Path $repo 'native\windows-capture\build\bin\scrb-capture.exe'
