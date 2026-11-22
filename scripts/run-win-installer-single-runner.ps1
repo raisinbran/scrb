@@ -212,8 +212,26 @@ if ($Mode) {
                     }
                 } catch { $errors.Add('Owned scratch cleanup failed') }
             }
+            # Owned metadata is also scratch; preserve only sanitized step summaries.
+            foreach ($name in @('scribe-public-source-evidence.json',
+                                'scribe-no-upload-start.txt',
+                                'scribe-installer-smoke-result.json',
+                                'scribe-installed-app-readiness.json')) {
+                $file = Join-Path $env:RUNNER_TEMP $name
+                try {
+                    if (Test-Path -LiteralPath $file) {
+                        $item = Get-Item -LiteralPath $file -Force -ErrorAction Stop
+                        if ($item.PSIsContainer -or
+                            ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                            throw 'Refusing unexpected or linked scratch evidence'
+                        }
+                        Remove-Item -LiteralPath $file -Force -ErrorAction Stop
+                        if (Test-Path -LiteralPath $file) { throw 'Owned metadata remains' }
+                    }
+                } catch { $errors.Add('Owned metadata cleanup failed') }
+            }
             if ($errors.Count) { throw ($errors -join '; ') }
-            Write-Output 'PASS: job-local NSIS output and candidate scratch removed'
+            Write-Output 'PASS: job-local NSIS output, candidate and metadata scratch removed'
         }
     }
 }
