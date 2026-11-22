@@ -15,6 +15,11 @@ on:
         required: true
         type: boolean
         default: false
+      permit_public_unsigned_test_artifact:
+        description: 'I authorize a 1-day publicly downloadable unsigned installer derived only from this public source tree; no private tools or models'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -44,7 +49,7 @@ jobs:
   # owner may explicitly dispatch a public-source-only test, with no private
   # W10/M5 executables, owner recordings, speech models or credentials included.
   verified-installer-producer:
-    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && github.actor == 'raisinbran' && github.repository == 'raisinbran/scrb'
+    if: github.event_name == 'workflow_dispatch' && inputs.genuine_source_build_and_install == true && inputs.permit_public_unsigned_test_artifact == true && github.actor == 'raisinbran' && github.repository == 'raisinbran/scrb'
     runs-on: windows-latest
     timeout-minutes: 105
     outputs:
