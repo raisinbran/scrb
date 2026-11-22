@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -74,4 +76,25 @@ describe('Windows installer candidate provenance', () => {
     await expect(makeCandidateManifest(opts)).rejects.toThrow();
     await expect(makeCandidateManifest({ ...opts, sourceCommit: 'not-a-commit' })).rejects.toThrow('source commit');
   });
+  it.skipIf(process.platform !== 'win32')(
+    'parses the installer packager and standard-user smoke PowerShell without launching either',
+    () => {
+      const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+      for (const relative of ['scripts/package-win-installer.ps1', 'scripts/test-win-installer-smoke.ps1']) {
+        const file = path.join(root, relative);
+        const escapedFile = file.replaceAll("'", "''");
+        const command =
+          "$tokens = $null; $errors = $null; " +
+          "[void][Management.Automation.Language.Parser]::ParseFile('" + escapedFile +
+          "', [ref]$tokens, [ref]$errors); " +
+          "if ($errors.Count -gt 0) { $errors | Out-String | Write-Error; exit 1 }";
+        const result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command], {
+          cwd: root, encoding: 'utf8', timeout: 30_000,
+        });
+        expect(result.error?.message).toBeUndefined();
+        expect(result.status, relative + '\n' + result.stdout + '\n' + result.stderr).toBe(0);
+      }
+    },
+  );
+
 });
