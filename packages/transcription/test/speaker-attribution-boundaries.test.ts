@@ -84,9 +84,7 @@ describe('final speaker attribution boundaries (synthetic data only)', () => {
     expect(decision.spans.map((s) => s.speakerId)).toEqual(['speaker-1', 'speaker-2']);
     expect(transcript.words[0]!.speakerId).toBe('speaker-1');
     expect(transcript.words[0]!.speakerId).not.toBe(actualSpeakerId);
-    expect(finalMeeting(decision, [word(40_200, 40_500)]).words[0]!.speakerId).toBe(
-      'speaker-2',
-    );
+    expect(finalMeeting(decision, [word(40_200, 40_500)]).words[0]!.speakerId).toBe('speaker-2');
   });
 
   it('uses input order for identical-time span ties, not an inferred speaker identity', () => {
