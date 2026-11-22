@@ -108,6 +108,23 @@ public static class ScribeInstalledWindowNative {
     [DllImport("advapi32.dll", SetLastError=true)]
     private static extern bool GetTokenInformation(IntPtr token, int kind, IntPtr buffer,
         int length, out int returned);
+    [DllImport("shell32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    private static extern IntPtr CommandLineToArgvW(string commandLine, out int argumentCount);
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr LocalFree(IntPtr memory);
+    public static string[] ParseCommandLine(string commandLine) {
+        int count = 0;
+        IntPtr memory = CommandLineToArgvW(commandLine, out count);
+        if (memory == IntPtr.Zero) return new string[0];
+        try {
+            string[] arguments = new string[count];
+            for (int i = 0; i < count; i++) {
+                IntPtr item = Marshal.ReadIntPtr(memory, i * IntPtr.Size);
+                arguments[i] = Marshal.PtrToStringUni(item) ?? "";
+            }
+            return arguments;
+        } finally { LocalFree(memory); }
+    }
     [DllImport("kernel32.dll")]
     private static extern bool CloseHandle(IntPtr handle);
     public static string TokenIdentity(IntPtr process) {
@@ -131,6 +148,54 @@ public static class ScribeInstalledWindowNative {
 '@ -ErrorAction Stop
     }
     Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes -ErrorAction Stop
+}
+
+# Reject anything other than our exact two-argument Start-Process command.
+# Win32 argv parsing establishes token boundaries; the original representation
+# must also be canonical so malformed or unbalanced quotes cannot alias a path.
+function Test-ScribeLaunchCommandLine {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$CommandLine,
+        [Parameter(Mandatory)][string]$InstalledExe,
+        [Parameter(Mandatory)][string]$UserDataRoot
+    )
+    try {
+        if ([string]::IsNullOrWhiteSpace($CommandLine)) { return $false }
+        $exe = [IO.Path]::GetFullPath($InstalledExe)
+        $profile = [IO.Path]::GetFullPath($UserDataRoot)
+        if (-not [IO.Path]::IsPathFullyQualified($InstalledExe) -or
+            -not [IO.Path]::IsPathFullyQualified($UserDataRoot) -or
+            -not [string]::Equals($InstalledExe, $exe,
+                [StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals($UserDataRoot, $profile,
+                [StringComparison]::OrdinalIgnoreCase)) { return $false }
+        if (-not ('ScribeInstalledWindowNative' -as [type])) {
+            Initialize-ScribeWin32Inspection
+        }
+        [string[]]$arguments = [ScribeInstalledWindowNative]::ParseCommandLine($CommandLine)
+        if ($arguments.Length -ne 2 -or
+            -not [string]::Equals($arguments[0], $exe,
+                [StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals($arguments[1], ('--user-data-dir=' + $profile),
+                [StringComparison]::OrdinalIgnoreCase)) { return $false }
+
+        # Only our actual invocation and legal whole-argument quoting variants.
+        # Duplicate/extra flags, sibling prefixes, traversal and embedded or
+        # unbalanced quotes all fail rather than being normalized into a match.
+        foreach ($program in @('"' + $exe + '"', $exe)) {
+            foreach ($profileArgument in @(
+                '--user-data-dir="' + $profile + '"',
+                '"--user-data-dir=' + $profile + '"',
+                '--user-data-dir=' + $profile
+            )) {
+                if ([string]::Equals($CommandLine, ($program + ' ' + $profileArgument),
+                    [StringComparison]::OrdinalIgnoreCase)) { return $true }
+            }
+        }
+        return $false
+    } catch {
+        return $false
+    }
 }
 
 function Get-ScribeProcessObservation {
@@ -157,15 +222,12 @@ function Get-ScribeProcessObservation {
     $record = Get-CimInstance Win32_Process -Filter "ProcessId=$($Process.Id)" -ErrorAction Stop
     if (-not $record) { return [pscustomobject]$observation }
     $owner = Invoke-CimMethod -InputObject $record -MethodName GetOwnerSid -ErrorAction Stop
-    $normalizedCommand = ([string]$record.CommandLine).Replace('"', '')
-    $profileArg = '--user-data-dir=' + [IO.Path]::GetFullPath($UserDataRoot)
     $exeMatches = [string]::Equals([IO.Path]::GetFullPath([string]$record.ExecutablePath),
                                   [IO.Path]::GetFullPath($InstalledExe),
                                   [StringComparison]::OrdinalIgnoreCase)
     $ownerMatches = $owner.ReturnValue -eq 0 -and $owner.Sid -ceq
                     [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    $profileMatches = $normalizedCommand.IndexOf($profileArg,
-                        [StringComparison]::OrdinalIgnoreCase) -ge 0
+    $profileMatches = Test-ScribeLaunchCommandLine -CommandLine ([string]$record.CommandLine) -InstalledExe $InstalledExe -UserDataRoot $UserDataRoot
     $sessionMatches = $Process.SessionId -eq ([Diagnostics.Process]::GetCurrentProcess().SessionId)
     $observation.IdentityMatched = $exeMatches -and $ownerMatches -and
                                    $profileMatches -and $sessionMatches
@@ -325,4 +387,4 @@ function Invoke-ScribeInstalledAppReadiness {
     return [pscustomobject]$report
 }
 
-Export-ModuleMember -Function Test-ScribeLaunchFacts, Test-ScribeReadyObservation, Invoke-ScribeLaunchSequence, Invoke-ScribeInstalledAppReadiness, Get-ScribeProcessObservation, Initialize-ScribeWin32Inspection
+Export-ModuleMember -Function Test-ScribeLaunchFacts, Test-ScribeReadyObservation, Invoke-ScribeLaunchSequence, Invoke-ScribeInstalledAppReadiness, Get-ScribeProcessObservation, Initialize-ScribeWin32Inspection, Test-ScribeLaunchCommandLine

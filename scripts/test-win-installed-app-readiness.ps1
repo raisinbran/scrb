@@ -71,6 +71,61 @@ function Assert-Reject {
     }
 }
 
+# Parse actual Windows command-line syntax, not an injected identity boolean.
+# No candidate executable is ever started in these deterministic fixtures.
+$fictionExe = 'C:\invented install\Scribe.exe'
+$fictionProfile = 'C:\invented profiles\@scrb\desktop'
+$exeToken = '"' + $fictionExe + '"'
+$profileFlag = '--user-data-dir="' + $fictionProfile + '"'
+$goodCommands = @(
+    ($exeToken + ' ' + $profileFlag),
+    ($exeToken + ' "--user-data-dir=' + $fictionProfile + '"'),
+    ('C:\fixtures\Scribe.exe --user-data-dir=C:\fixtures\profile')
+)
+foreach ($line in $goodCommands) {
+    $expectedExe = if ($line.StartsWith('C:\fixtures\')) { 'C:\fixtures\Scribe.exe' } else { $fictionExe }
+    $expectedProfile = if ($line.StartsWith('C:\fixtures\')) { 'C:\fixtures\profile' } else { $fictionProfile }
+    if (-not (Test-ScribeLaunchCommandLine -CommandLine $line -InstalledExe $expectedExe -UserDataRoot $expectedProfile)) {
+        throw "Correct quoted or unquoted Windows command line was refused: $line"
+    }
+}
+$badCommands = [ordered]@{}
+$badCommands['sibling-prefix'] = $exeToken + ' --user-data-dir="' + $fictionProfile + '-other"'
+$badCommands['nested-prefix'] = $exeToken + ' --user-data-dir="' + $fictionProfile + '\child"'
+$badCommands['duplicate-flag'] = $exeToken + ' ' + $profileFlag + ' ' + $profileFlag
+$badCommands['extra-argument'] = $exeToken + ' ' + $profileFlag + ' --disable-gpu'
+$badCommands['argument-containing-flag'] = $exeToken + ' --other=--user-data-dir="' + $fictionProfile + '"'
+$badCommands['extra-before-flag'] = $exeToken + ' --unexpected ' + $profileFlag
+$badCommands['separated-flag'] = $exeToken + ' --user-data-dir "' + $fictionProfile + '"'
+$badCommands['missing-flag'] = $exeToken + ' --no-sandbox'
+$badCommands['empty-profile'] = $exeToken + ' --user-data-dir=""'
+$badCommands['relative-profile'] = $exeToken + ' --user-data-dir="..\desktop"'
+$badCommands['dot-segment'] = $exeToken + ' --user-data-dir="' + $fictionProfile + '\..\desktop"'
+$badCommands['unbalanced-quote'] = $exeToken + ' --user-data-dir="' + $fictionProfile
+$badCommands['trailing-quote-junk'] = $exeToken + ' --user-data-dir="' + $fictionProfile + '"junk'
+$badCommands['embedded-quote'] = $exeToken + ' --user-data-dir="C:\invented profiles\@scrb\"desktop"'
+$badCommands['unquoted-spaces'] = $exeToken + ' --user-data-dir=' + $fictionProfile
+$badCommands['wrong-executable-token'] = '"C:\invented install\Scribe-other.exe" ' + $profileFlag
+$badCommands['extra-separator'] = $exeToken + '  ' + $profileFlag
+foreach ($name in $badCommands.Keys) {
+    $line = $badCommands[$name]
+    $matched = Test-ScribeLaunchCommandLine -CommandLine $line -InstalledExe $fictionExe -UserDataRoot $fictionProfile
+    if ($matched) { throw "Untrusted Windows process profile command line was accepted: $name" }
+    $refusedFacts = New-Facts
+    $refusedFacts.DisposableProfile = $matched
+    Assert-Reject $name {
+        Invoke-Fixture $refusedFacts @((New-Ready),(New-Ready))
+    } 'prerequisites or producer attestation missing'
+    if ($script:launches -ne 0 -or $script:closes -ne 0 -or $script:kills -ne 0) {
+        throw "Profile refusal $name reached an application launch or lifecycle callback"
+    }
+}
+foreach ($badExpectedPath in @('..\desktop', 'C:\invented profiles\@scrb\desktop\..\desktop')) {
+    if (Test-ScribeLaunchCommandLine -CommandLine ($exeToken + ' ' + $profileFlag) -InstalledExe $fictionExe -UserDataRoot $badExpectedPath) {
+        throw "Malformed or noncanonical expected profile was accepted: $badExpectedPath"
+    }
+}
+
 # Two complete renderer observations establish startup, then a controlled WM_CLOSE succeeds.
 $ready = New-Ready
 $ok = Invoke-Fixture (New-Facts) @($ready,$ready)

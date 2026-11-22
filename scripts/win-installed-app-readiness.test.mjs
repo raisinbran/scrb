@@ -36,6 +36,27 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
     expect(module).toContain("'Live','Recordings','Settings'");
   });
 
+  it('requires exact parsed Windows command-line boundaries for the installed profile', () => {
+    const module = read('scripts/win-installed-app-readiness.psm1');
+    const regressions = read('scripts/test-win-installed-app-readiness.ps1');
+    expect(module).toContain('CommandLineToArgvW');
+    expect(module).toContain('Test-ScribeLaunchCommandLine -CommandLine');
+    expect(module).toContain('$arguments.Length -ne 2');
+    expect(module).not.toContain('$normalizedCommand.IndexOf($profileArg');
+    for (const scenario of [
+      'sibling-prefix',
+      'duplicate-flag',
+      'extra-argument',
+      'argument-containing-flag',
+      'unbalanced-quote',
+      'relative-profile',
+      'wrong-executable-token',
+    ]) {
+      expect(regressions).toContain(scenario);
+    }
+    expect(regressions).toContain('$script:launches -ne 0');
+  });
+
   it.skipIf(process.platform !== 'win32')(
     'passes synthetic readiness, never-ready, identity, elevation, crash and cleanup regressions',
     () => {
