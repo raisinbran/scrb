@@ -259,6 +259,186 @@ describe('createSafeQuitGuard', () => {
   });
 });
 
+/**
+ * Exercise the same observable ordering used by Electron: Windows last-main-window close,
+ * before-quit veto, mini-window cleanup, will-quit, and bounded backend close.
+ * The app/window emitters are fakes; this does not claim an installed GUI test.
+ */
+function fakeElectronLifecycle(
+  platform: 'win32' | 'darwin',
+  activity: () => QuitActivity,
+  confirm: (current: QuitActivity) => Promise<boolean>,
+  close: () => Promise<void>,
+  limitMs = 15_000,
+) {
+  type QuitEvent = { preventDefault(): void };
+  type QuitName = 'before-quit' | 'will-quit';
+  const listeners: Record<QuitName, ((request: QuitEvent) => void)[]> = {
+    'before-quit': [],
+    'will-quit': [],
+  };
+  const order: string[] = [];
+  let mainDestroyed = false;
+  const destroyMain = vi.fn(() => {
+    mainDestroyed = true;
+    order.push('destroy-main');
+  });
+  const destroyMini = vi.fn(() => order.push('destroy-mini'));
+  let guard!: ReturnType<typeof createSafeQuitGuard>;
+  const app = {
+    on: (name: QuitName, listener: (request: QuitEvent) => void): void => {
+      listeners[name].push(listener);
+    },
+    exit: vi.fn((code: number) => order.push(`exit-${code}`)),
+    quit: vi.fn(() => {
+      order.push('app.quit');
+      const before = event();
+      order.push('before-quit');
+      for (const listener of listeners['before-quit']) listener(before);
+      if (before.preventDefault.mock.calls.length > 0) return;
+      if (!mainDestroyed) {
+        const closeRequest = event();
+        if (shouldGuardLastMainWindowClose(platform, true)) {
+          guard.lastMainWindowClose(closeRequest);
+        }
+        if (closeRequest.preventDefault.mock.calls.length > 0) return;
+        destroyMain();
+      }
+      const will = event();
+      order.push('will-quit');
+      for (const listener of listeners['will-quit']) listener(will);
+    }),
+  };
+  guard = createSafeQuitGuard({ activity, confirm, quit: () => app.quit() });
+  app.on('before-quit', (request) => {
+    if (guard.beforeQuit(request)) destroyMini();
+  });
+  closeBeforeQuit(
+    app,
+    async () => {
+      order.push('backend.close');
+      await close();
+    },
+    limitMs,
+  );
+  const closeMain = () => {
+    const request = event();
+    if (shouldGuardLastMainWindowClose(platform, true)) {
+      guard.lastMainWindowClose(request);
+    }
+    if (request.preventDefault.mock.calls.length === 0) destroyMain();
+    return request;
+  };
+  return { app, closeMain, destroyMain, destroyMini, order };
+}
+
+describe('integrated fake Electron quit lifecycle', () => {
+  it('holds pending library opening and retains both windows when Keep is chosen', async () => {
+    const libraryOpened = deferred<void>();
+    const startup = createStartupActivity(() => idle);
+    const opening = libraryOpened.promise.finally(() => startup.finish());
+    const confirm = vi.fn(async () => false);
+    const close = vi.fn(async () => opening);
+    const lifecycle = fakeElectronLifecycle('win32', startup.read, confirm, close);
+
+    expect(startup.read()).toEqual({ ...idle, recovering: true });
+    const request = lifecycle.closeMain();
+    expect(request.preventDefault).toHaveBeenCalledOnce();
+    expect(confirm).toHaveBeenCalledWith({ ...idle, recovering: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(lifecycle.app.quit).not.toHaveBeenCalled();
+    expect(lifecycle.destroyMain).not.toHaveBeenCalled();
+    expect(lifecycle.destroyMini).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(lifecycle.app.exit).not.toHaveBeenCalled();
+    expect(startup.read().recovering).toBe(true);
+
+    libraryOpened.resolve();
+    await opening;
+    expect(startup.read()).toEqual(idle);
+  });
+
+  it('confirms pending library opening before mini cleanup and waits for bounded shutdown', async () => {
+    const opening = deferred<{ close(): Promise<void> }>();
+    const startup = createStartupActivity(() => idle);
+    const backendPromise = opening.promise.finally(() => startup.finish());
+    const closedBackend = vi.fn(async () => undefined);
+    const close = vi.fn(async () => (await backendPromise).close());
+    const confirm = vi.fn(async () => true);
+    const lifecycle = fakeElectronLifecycle('win32', startup.read, confirm, close);
+
+    const request = lifecycle.closeMain();
+    expect(request.preventDefault).toHaveBeenCalledOnce();
+    expect(lifecycle.destroyMini).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(confirm).toHaveBeenCalledWith({ ...idle, recovering: true });
+    expect(lifecycle.destroyMini).toHaveBeenCalledOnce();
+    expect(lifecycle.destroyMain).toHaveBeenCalledOnce();
+    expect(lifecycle.app.exit).not.toHaveBeenCalled();
+    expect(lifecycle.order.slice(0, 6)).toEqual([
+      'app.quit',
+      'before-quit',
+      'destroy-mini',
+      'destroy-main',
+      'will-quit',
+      'backend.close',
+    ]);
+
+    opening.resolve({ close: closedBackend });
+    await vi.waitFor(() => expect(lifecycle.app.exit).toHaveBeenCalledWith(0));
+    expect(closedBackend).toHaveBeenCalledOnce();
+    expect(startup.read()).toEqual(idle);
+    expect(lifecycle.order.at(-1)).toBe('exit-0');
+  });
+
+  it('keeps a macOS ordinary close separate from a vetoed Cmd+Q', async () => {
+    const confirm = vi.fn(async () => false);
+    const close = vi.fn(async () => undefined);
+    const lifecycle = fakeElectronLifecycle(
+      'darwin',
+      () => ({ ...idle, finalPass: true }),
+      confirm,
+      close,
+    );
+    const request = lifecycle.closeMain();
+    expect(request.preventDefault).not.toHaveBeenCalled();
+    expect(lifecycle.destroyMain).toHaveBeenCalledOnce();
+    expect(lifecycle.app.quit).not.toHaveBeenCalled();
+    expect(lifecycle.destroyMini).not.toHaveBeenCalled();
+
+    lifecycle.app.quit();
+    expect(confirm).toHaveBeenCalledWith({ ...idle, finalPass: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(lifecycle.destroyMini).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(lifecycle.app.exit).not.toHaveBeenCalled();
+  });
+
+  it('preserves the existing bounded will-quit shutdown if backend open never resolves', async () => {
+    const close = vi.fn(() => new Promise<void>(() => undefined));
+    const lifecycle = fakeElectronLifecycle('win32', () => idle, async () => true, close, 5);
+    lifecycle.app.quit();
+    expect(lifecycle.destroyMini).toHaveBeenCalledOnce();
+    expect(lifecycle.destroyMain).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(lifecycle.app.exit).toHaveBeenCalledWith(0));
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('keeps startup busy through other recovery phases, then reports live worker state', () => {
+    let work = { ...idle, finalPass: true };
+    const startup = createStartupActivity(() => work);
+    expect(startup.read()).toEqual({ ...work, recovering: true });
+    work = { ...idle, importing: true };
+    expect(startup.read()).toEqual({ ...work, recovering: true });
+    startup.finish();
+    expect(startup.read()).toEqual(work);
+    work = idle;
+    expect(startup.read()).toEqual(idle);
+  });
+});
+
 function fakeApp() {
   const listeners: ((event: { preventDefault(): void }) => void)[] = [];
   const preventDefault = vi.fn();
