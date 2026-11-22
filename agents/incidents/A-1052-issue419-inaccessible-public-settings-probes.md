@@ -1,0 +1,8 @@
+### A-1052 — 2026-11-22 — Public web reader failed three GitHub settings/API reads
+
+- **Status and attribution:** Self-induced selection of an inappropriate public web reader for current repository administration metadata, not a GitHub Ruleset, Environment, application or CI defect.
+- **Observed failures:** Public web reader could not access the GitHub ruleset REST URL, the Environment REST URL, or the repository's owner-only ruleset Settings page (two inaccessible API responses and one cache miss).
+- **Effect:** Three unsuccessful read-only source lookups; no GitHub settings, secrets, PRs, source or CI were mutated and no key was exposed. Task-specific usage impact cannot be isolated.
+- **Correction:** Read current public `GreatFirewall` ruleset #27257173 with the supported connected GitHub fetch action, which returned the active default-branch rules, existing role bypass and owner-admin status. The connected action does not support Environment administration; reported actual Environment configuration **NOT VERIFIED**, rather than guessing or retrying privileged endpoints.
+- **Prevention:** Use the GitHub connector for repository-native ruleset reads; prefer official GitHub docs for general capabilities; do not infer Environment configuration from workflow YAML or an inaccessible settings page.
+- **ID / visibility:** A-1052 was not in the current public main incident inventory or changed paths of the 39 open PRs inspected before publication. Unpublished W10/M5/REGIURN reservations remain inaccessible, not certified clear; reconcile any distinct conflicting event through issue #358.
