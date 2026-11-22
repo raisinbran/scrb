@@ -56,8 +56,11 @@ notes. **Do not invent timestamps in this repository.**
 3. On the host, verify actual normal GUI launch (not development Electron or
    a restricted Codex GUI), an isolated disposable library/user-data profile,
    no production-library access, correct installed helper/model hashes,
-   retained owner data, and a verified rollback. For Mac, do not replace
-   `/Applications/Scribe.app` before safe idle and disposable restore PASS.
+   retained owner data, and a verified rollback. On Mac M5, the preserved
+   rollback-copy hash/signature and disposable-copy swap/restore rehearsal
+   already **PASSED** (reported November 22, #418/#421); do not repeat
+   them without changed inputs. **Safe idle remains BLOCKED** and no
+   production app replacement or installed RC approval is authorized.
 4. Document actual mic/output/meeting device, sample rates, gain, OS build,
    speaker routing, permission for test media and a low-bleed arrangement.
    **Windows whole-computer loopback** may be the declared baseline, but must
@@ -171,8 +174,21 @@ non-identifying aggregates and source/binary digest facts here.
   route is infeasible; it is also **not approved or implemented**. Obtain
   explicit owner approval of the selected reviewed approach and each long
   run. Hosted job caps of 105 + 20 minutes exclude scheduling overhead.
-- **Mac safe install:** The current app's safe-idle state and current backup/
-  rollback identity are not yet verified. Do not swap production apps.
+- **Mac safe install:** The retained rollback app was independently
+  hash/signature-checked against the original bundle tree digest
+  `d797cb15e3f803e8ef888aace19cdaba1d1eabe4c6f56e108f6d712f2a7c5ea`;
+  the disposable-copy swap/restore rehearsal, including a wrong-hash refusal,
+  **PASSED** as reported on November 22 in [#421](https://github.com/raisinbran/scrb/pull/421).
+  **Safe idle remains BLOCKED**: no supported authoritative proof that
+  recording/final processing/imports are idle before replacing the production
+  app. A later isolated normal-host Launch Services attempt on a provisional
+  `30b32285` package returned **`kLSNoExecutableErr (-10827)` before app
+  process/window creation**, with temporary profile/library isolation PASS
+  ([#418](https://github.com/raisinbran/scrb/pull/418)). Root cause unknown;
+  GUI readiness, model visibility, Copy, seek and clean exit are **NOT VERIFIED**.
+  Do not repeat successful hash/restore checks or relabel the provisional
+  candidate as `FINAL_RC_SHA`; never swap `/Applications/Scribe.app` without
+  separately approved safe-idle and normal-host launch gates.
 - **Per-host acceptance:** Supply an actual estimated end-to-end budget
   (setup + capture + processing + verification + persistence + cleanup)
   and obtain specific owner permission if >20 minutes. No blanket approval.
