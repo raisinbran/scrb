@@ -1,0 +1,148 @@
+name: Windows NSIS single-runner zero-upload smoke
+
+# Manual-only lower-assurance fallback. Never build a seven-tool installer in PR CI.
+on:
+  workflow_dispatch:
+    inputs:
+      genuine_source_build_and_install:
+        description: 'Run one hosted seven-tool build, real NSIS install and cleanup'
+        required: true
+        type: boolean
+        default: false
+      acknowledge_no_upload_lower_assurance:
+        description: 'I accept zero-upload same-job hashes are NOT independent producer attestations'
+        required: true
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: 'Exact reviewed main commit (40 lowercase hex characters)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verified-installer-producer:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.genuine_source_build_and_install == true &&
+      inputs.acknowledge_no_upload_lower_assurance == true &&
+      github.repository == 'raisinbran/scrb' &&
+      github.actor == 'raisinbran' &&
+      github.triggering_actor == 'raisinbran' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.sha == inputs.expected_source_sha
+    runs-on: windows-latest
+    timeout-minutes: 130
+    env:
+      SCRIBE_GENUINE_BUILD_OPT_IN: ${{ inputs.genuine_source_build_and_install }}
+      SCRIBE_NO_UPLOAD_OPT_IN: ${{ inputs.acknowledge_no_upload_lower_assurance }}
+      OWNER_EXPECTED_SHA: ${{ inputs.expected_source_sha }}
+    steps:
+      - name: Refuse unauthorized actor/ref/attempt before any checkout
+        shell: pwsh
+        run: |
+          $expected = 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main'
+          if ($env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+              $env:GITHUB_REPOSITORY -cne 'raisinbran/scrb' -or
+              $env:GITHUB_ACTOR -cne 'raisinbran' -or
+              $env:GITHUB_TRIGGERING_ACTOR -cne 'raisinbran' -or
+              $env:GITHUB_REF -cne 'refs/heads/main' -or
+              $env:GITHUB_WORKFLOW_REF -cne $expected -or
+              $env:GITHUB_RUN_ATTEMPT -cne '1' -or
+              $env:SCRIBE_GENUINE_BUILD_OPT_IN -cne 'true' -or
+              $env:SCRIBE_NO_UPLOAD_OPT_IN -cne 'true' -or
+              $env:OWNER_EXPECTED_SHA -cnotmatch '^[a-f0-9]{40}$' -or
+              $env:GITHUB_SHA -cne $env:OWNER_EXPECTED_SHA) {
+            throw 'REFUSED: unauthorized source, actor, workflow, attempt or opt-in'
+          }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact checkout and reviewed GUI readiness dependency
+        shell: pwsh
+        run: ./scripts/run-win-installer-single-runner.ps1 -Mode Preflight -ExpectedSourceSha $env:OWNER_EXPECTED_SHA
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install public source build dependencies
+        timeout-minutes: 8
+        run: npm ci
+      - name: Compile seven pinned public-source tools and verify signed runtime/DLL/license closure
+        shell: pwsh
+        timeout-minutes: 95
+        run: |
+          ./scripts/build-win-hosted-tools.ps1 -StagingDirectory (Join-Path $PWD 'apps/desktop/build/win-stage/bin') -SourceEvidenceFile (Join-Path $env:RUNNER_TEMP 'scribe-public-source-evidence.json')
+      - name: Package unpacked app with verified seven-tool closure
+        shell: pwsh
+        timeout-minutes: 10
+        run: ./scripts/package-win.ps1 -Slice 3
+      - name: Build real unsigned NSIS candidate only within ephemeral runner scratch
+        id: package
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          ./scripts/package-win-installer.ps1 -StagingDirectory (Join-Path $PWD 'apps/desktop/build/win-stage/bin') -PrepackagedDirectory (Join-Path $PWD 'apps/desktop/release/win-unpacked') -OutputRoot (Join-Path $env:RUNNER_TEMP 'scribe-no-upload-nsis')
+      - name: Validate and copy five local files; no upload or cache
+        id: prepare
+        shell: pwsh
+        timeout-minutes: 5
+        env:
+          SOURCE_COMMIT: ${{ steps.package.outputs.source_commit }}
+          MANIFEST_SHA: ${{ steps.package.outputs.manifest_sha256 }}
+          PROVENANCE_SHA: ${{ steps.package.outputs.provenance_sha256 }}
+          AUDIT_SHA: ${{ steps.package.outputs.dependency_audit_sha256 }}
+          PRODUCER_RUN_ID: ${{ steps.package.outputs.producer_run_id }}
+          PRODUCER_ATTEMPT: ${{ steps.package.outputs.producer_run_attempt }}
+        run: |
+          ./scripts/run-win-installer-single-runner.ps1 -Mode Prepare -ExpectedSourceSha $env:OWNER_EXPECTED_SHA -OutputRoot (Join-Path $env:RUNNER_TEMP 'scribe-no-upload-nsis') -TrustedManifestSha256 $env:MANIFEST_SHA -TrustedSourceCommit $env:SOURCE_COMMIT -TrustedProvenanceSha256 $env:PROVENANCE_SHA -TrustedDependencyAuditSha256 $env:AUDIT_SHA -TrustedProducerRunId $env:PRODUCER_RUN_ID -TrustedProducerRunAttempt $env:PRODUCER_ATTEMPT
+      - name: Verify disposable standard-user refusal controls
+        shell: pwsh
+        timeout-minutes: 10
+        run: ./scripts/run-win-installer-smoke-standard-user.ps1 -RunnerTemp $env:RUNNER_TEMP
+      - name: Install real NSIS candidate as nonadmin, verify GUI ready/exit, uninstall
+        id: consume
+        shell: pwsh
+        timeout-minutes: 20
+        env:
+          SOURCE_COMMIT: ${{ steps.package.outputs.source_commit }}
+          MANIFEST_SHA: ${{ steps.package.outputs.manifest_sha256 }}
+          PROVENANCE_SHA: ${{ steps.package.outputs.provenance_sha256 }}
+          AUDIT_SHA: ${{ steps.package.outputs.dependency_audit_sha256 }}
+          PRODUCER_RUN_ID: ${{ steps.package.outputs.producer_run_id }}
+          PRODUCER_ATTEMPT: ${{ steps.package.outputs.producer_run_attempt }}
+        run: |
+          ./scripts/run-win-installer-single-runner.ps1 -Mode Consume -ExpectedSourceSha $env:OWNER_EXPECTED_SHA -TrustedManifestSha256 $env:MANIFEST_SHA -TrustedSourceCommit $env:SOURCE_COMMIT -TrustedProvenanceSha256 $env:PROVENANCE_SHA -TrustedDependencyAuditSha256 $env:AUDIT_SHA -TrustedProducerRunId $env:PRODUCER_RUN_ID -TrustedProducerRunAttempt $env:PRODUCER_ATTEMPT
+      - name: Clean candidate and NSIS job-local scratch on every outcome
+        id: cleanup
+        if: always()
+        shell: pwsh
+        timeout-minutes: 5
+        run: ./scripts/run-win-installer-single-runner.ps1 -Mode Cleanup -ExpectedSourceSha $env:OWNER_EXPECTED_SHA
+      - name: Report truthful no-upload same-run assurance only
+        if: always()
+        shell: pwsh
+        run: |
+          $accepted = '${{ steps.prepare.outcome }}' -ceq 'success' -and
+                      '${{ steps.consume.outcome }}' -ceq 'success' -and
+                      '${{ steps.cleanup.outcome }}' -ceq 'success'
+          $verdict = if ($accepted) { 'PASS' } else { 'FAIL / NOT VERIFIED' }
+          @(
+            '## Single-runner NSIS smoke — lower assurance'
+            "Outcome: $verdict"
+            'Cross-job independent attestations: NOT AVAILABLE (all six are same-job outputs)'
+            "Seven-tool producer/NSIS: ${{ steps.package.outcome }}"
+            "Standard-user installer/GUI/exit/uninstall: ${{ steps.consume.outcome }}"
+            "Scratch cleanup: ${{ steps.cleanup.outcome }}"
+            "Source SHA: $env:GITHUB_SHA"
+            "Run/attempt: $env:GITHUB_RUN_ID / $env:GITHUB_RUN_ATTEMPT"
+            "Candidate manifest SHA-256: ${{ steps.package.outputs.manifest_sha256 }}"
+            'No installer, executable, binary archive, private audio, model or secret was uploaded'
+            'Physical recording and M1 acceptance: NOT VERIFIED'
+          ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          if (-not $accepted) { throw 'Single-runner hosted install or cleanup NOT VERIFIED' }
