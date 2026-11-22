@@ -22,7 +22,7 @@ describe('manual-only Windows NSIS source built and installed on one disposable 
     expect(yaml).toContain("github.run_attempt == 1");
     expect(yaml).toContain("github.workflow_ref == 'raisinbran/scrb/.github/workflows/windows-installer-single-runner-smoke.yml@refs/heads/main'");
     expect(yaml).toContain('timeout-minutes: 130');
-    expect(yaml.match(/^  [a-z][a-z0-9-]+:\s*$/gm)).toEqual(['  verified-installer-producer:']);
+    expect(yaml.match(/^  [a-z][a-z0-9-]+:[ \t]*$/gm)).toEqual(['  verified-installer-producer:']);
     expect(yaml).toContain('persist-credentials: false');
     expect(yaml).toContain('node-version-file: .nvmrc');
   });
