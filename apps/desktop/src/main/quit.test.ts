@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   closeBeforeQuit,
   createSafeQuitGuard,
+  createStartupActivity,
   shouldGuardLastMainWindowClose,
   type QuitActivity,
 } from './quit.ts';
@@ -240,7 +241,15 @@ describe('createSafeQuitGuard', () => {
       'closeBeforeQuit(app, async () => (await backendPromise).close());',
     );
     expect(backendSource).toMatch(
-      /onCriticalActivity\?\.\(\(\) => \(\{[\s\S]*?recording: recording\?\.isBusy\(\)[\s\S]*?finalPass: finalPasses\?\.hasWork\(\)[\s\S]*?importing: \(imports\?\.list\(\)\.length \?\? 0\) > 0[\s\S]*?recovering,/,
+      /const startupActivity = createStartupActivity\(\(\) => \(\{[\s\S]*?recording: recording\?\.isBusy\(\)[\s\S]*?finalPass: finalPasses\?\.hasWork\(\)[\s\S]*?importing: \(imports\?\.list\(\)\.length \?\? 0[\s\S]*?recovering,/,
+    );
+    // The busy activity reader must be registered before any index/library operation.
+    expect(backendSource).toMatch(
+      /onCriticalActivity\?\.\(startupActivity\.read\);[\s\S]*?try \{[\s\S]*?await openBackendLibrary\(/,
+    );
+    // Also release the startup flag when the blocked-library fallback succeeds or throws.
+    expect(backendSource).toMatch(
+      /\} finally \{\s*\/\/ Never expose a false idle gap[^\n]*\s*startupActivity\.finish\(\);/,
     );
     expect(backendSource).toMatch(/recovering = true;\s*try \{\s*await recoverInterrupted/);
     expect(backendSource).toMatch(/recovering = true;\s*try \{\s*await resumeFinalPasses/);
