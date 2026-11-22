@@ -159,9 +159,18 @@ non-identifying aggregates and source/binary digest facts here.
 
 - **B0 approval:** Required **before any three-voice acceptance recording**.
   Numerical limits and denominator/calibration choices are not yet approved.
-- **Hosted Windows producer/consumer:** Separate owner permission required
-  for a real source build and one-day PUBLIC-SOURCE-ONLY unsigned installer
-  artifact. Workflow job maxima are 105 + 20 minutes, not a ≤20-minute smoke.
+- **Hosted Windows producer/consumer:** Public plaintext unsigned installer
+  artifact transfer is **prohibited** by the later owner decision. Current
+  `main` retains the **legacy** plaintext-capable guarded workflow: **DO NOT
+  DISPATCH**. Draft PR #420 implements encrypted ciphertext-only transfer with
+  source/synthetic CI and scoped independent review, but remains **unmerged and
+  operationally blocked** on enforceable workflow protections, protected
+  main-only Environment, recipient/identity provisioning and a separate real
+  installed-app readiness check. Issue #419 proposes a separately reviewed,
+  lower-assurance same-runner/no-upload fallback if the protected two-job
+  route is infeasible; it is also **not approved or implemented**. Obtain
+  explicit owner approval of the selected reviewed approach and each long
+  run. Hosted job caps of 105 + 20 minutes exclude scheduling overhead.
 - **Mac safe install:** The current app's safe-idle state and current backup/
   rollback identity are not yet verified. Do not swap production apps.
 - **Per-host acceptance:** Supply an actual estimated end-to-end budget

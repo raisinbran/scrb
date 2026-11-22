@@ -18,15 +18,22 @@ only, **not** `FINAL_RC_SHA`.
 
 The Windows workflow was inspected **on main**, so the former default-branch
 workflow-file absence is resolved. This alone does not prove a hosted
-producer or real install has run. The two manual inputs default false:
+producer or real install has run. The **legacy workflow still on main** exposes two false-default inputs,
 `genuine_source_build_and_install` and
-`permit_public_unsigned_test_artifact`. Dispatch is restricted by workflow
-to the repository owner actor. No one may set either input by inference.
-Its producer is bounded by **105 minutes**, followed by a **20-minute**
-consumer, with one-day retention of a PUBLIC-SOURCE-ONLY unsigned
-test artifact; owner approval for publication and the >20-minute run
-must be explicit and specific. Never upload private binaries, model
-payloads, recordings or the owner's library into public Actions.
+`permit_public_unsigned_test_artifact`, restricted to the repository
+owner actor. **DO NOT DISPATCH:** the owner prohibits any public plaintext
+unsigned installer artifact, regardless of one-day retention. Those
+old booleans are not current publication permission. Draft [PR #420](https://github.com/raisinbran/scrb/pull/420)
+implements a **ciphertext-only** handover with source/synthetic CI and
+independent source-only approval, but **has not merged or run**. Its
+protected-workflow authorization, main-only decrypt Environment,
+unconfigured recipient/identity, separate app-ready launch check and
+explicit owner authorization remain blockers. [Issue #419](https://github.com/raisinbran/scrb/issues/419)
+also documents a proposed lower-assurance **single hosted runner with no
+artifact upload**, requiring its own focused implementation, review and owner
+decision; no fallback dispatch is approved. The applicable hosted producer
+cap remains 105 minutes and consumer cap 20 minutes, plus overhead.
+Never upload private binaries, models, recordings or the owner's library.
 
 **Windows hosted exit evidence (required before marking PASS):**
 verified actual checkout commit, all six public-source runtime tools
@@ -121,7 +128,7 @@ safe replacement and rollback are independently verified.
 
 | Host/test | Setup and isolation | Capture/reference | Processing | Seek/copy/restart/inspection | Cleanup | Total | Permission |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| GitHub hosted real Windows build/install | inside producer | N/A | producer cap 105 min | consumer cap 20 min | inside jobs | up to 125 min of job caps, not accepted as physical M1 | **Explicit owner run + public-artifact consent pending** |
+| GitHub hosted real Windows build/install | inside producer | N/A | producer cap 105 min | consumer cap 20 min | inside jobs | up to 125 min of job caps, not accepted as physical M1 | **Owner-selected safe transfer and explicit run approval PENDING; no plaintext upload** |
 | Mac isolated readiness (no install/recording) | measure and declare | none | none | normal-host safe idle + backup + disposable restoration | preserve all evidence | **not yet estimated by capable host** | no unsafe changes; obtain owner decision if >20 min |
 | Mac installed B1 | host estimate required | host estimate required | host estimate required | host estimate required | host estimate required | **TBD** | owner B0 + task-specific >20-min gate |
 | BCHEN-W10 installed B1 | host estimate required | host estimate required | host estimate required | host estimate required | host estimate required | **TBD** | owner B0 + task-specific >20-min gate |
