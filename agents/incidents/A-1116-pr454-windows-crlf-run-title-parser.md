@@ -1,0 +1,13 @@
+### A-1116 — 2026-11-22 PT — cloud PR author — Windows CRLF broke new NSIS run-title diagnostic test
+
+**Observed failure:** Following A-1097's ESLint `no-regex-spaces` correction, exact-head [PR #454 CI #45089646342](https://github.com/raisinbran/scrb/actions/runs/45089646342) passed macOS application and Windows capture-source checks, but Windows application Test failed `scripts/hosted-win-installer-single-runner.test.mjs:15`. The diagnostic `yaml.match(...)` returned `undefined`, and Vitest rejected `expect(undefined).toContain(string)`. The same Windows CI run independently reported a `model-download.test.tsx` progress-text assertion failure; no evidence links that separate test to this NSIS source change.
+
+**Cause:** The new test matched `run-name: >-\n` and two indented lines ending only in LF. It did not accept Git checkout's CRLF on Windows, whereas the earlier macOS/LF case passed. A focused JavaScript reproduction using the checked-in workflow text matched LF but failed after replacing line endings with CRLF. This is a self-induced cross-platform test-parser omission, not a failed protected job authorization, NSIS, native compilation, physical GUI or recording.
+
+**Narrow correction:** On the existing draft PR #454 branch, parse `run-name` with a line-ending-tolerant anchored regular expression `/^run-name: >-\r?\n((?: {2}[^\r\n]*\r?\n)+)/m`. Explicitly test the source text in **both** normalized LF and CRLF forms, asserting all three nonsecret dispatch fields are present. Keep exact run-title and owner/ref/SHA/opt-in security logic unchanged. No genuine installer run was initiated.
+
+**Verification:** Focused pure-JavaScript LF and CRLF matching checks PASS in the cloud tool; the new exact-head Windows/macOS/native PR CI is required before a formal independent review. The model-download progress-text failure remains a distinct Windows CI observation requiring targeted investigation only if it persists.
+
+**Prevention:** Any new YAML-source test exercised on hosted Windows/macOS must explicitly handle `\r?\n` line endings and include two fixtures; verify cross-platform behavior before publication when full local npm execution is unavailable.
+
+**Impact:** One additional failed PR CI head and bounded corrective code/CI, with quota consumption and exact PT timings unavailable. Recorded in `agents/usage-log/2026-11-22-pr454-crlf-diagnostic-fix.md`. ID A-1116 was not found by default-branch search/issue search at assignment time, but unpublished cross-host reservations are not fully observable.
