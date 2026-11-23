@@ -1,4 +1,9 @@
 name: Windows NSIS single-runner zero-upload smoke
+# Diagnostic-only title for skipped runs; exposes the two explicit opt-ins and expected
+# source SHA without allocating a runner or weakening the protected job-level if.
+run-name: >-
+  NSIS optins=${{ inputs.genuine_source_build_and_install }}/${{ inputs.acknowledge_no_upload_lower_assurance }}
+  expected=${{ inputs.expected_source_sha }}
 
 # Manual-only lower-assurance fallback. Never build a seven-tool installer in PR CI.
 on:
