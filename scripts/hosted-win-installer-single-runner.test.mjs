@@ -10,6 +10,18 @@ const yaml = read('.github/workflows/windows-installer-single-runner-smoke.yml')
 const script = read('scripts/run-win-installer-single-runner.ps1');
 
 describe('manual-only Windows NSIS source built and installed on one disposable runner', () => {
+  it('displays dispatch inputs when authorization skips a job without weakening the existing gate', () => {
+    const title = yaml.match(/^run-name: >-\n((?: {2}.*\n)+)/m);
+    expect(title?.[1]).toContain('${{ inputs.genuine_source_build_and_install }}');
+    expect(title?.[1]).toContain('${{ inputs.acknowledge_no_upload_lower_assurance }}');
+    expect(title?.[1]).toContain('${{ inputs.expected_source_sha }}');
+    expect(yaml).toMatch(/^  verified-installer-producer:\n    if: >-\n/m);
+    expect(yaml).toContain("github.actor == 'raisinbran'");
+    expect(yaml).toContain("github.triggering_actor == 'raisinbran'");
+    expect(yaml).toContain('github.sha == inputs.expected_source_sha');
+    expect(yaml).toContain('github.run_attempt == 1');
+    expect((yaml.match(/default: false/g) ?? []).length).toBe(2);
+  });
   it('has two false opt-ins, expected main SHA, owner actor/ref/attempt and one job', () => {
     expect(yaml).toMatch(/^on:\s*\n {2}workflow_dispatch:/m);
     expect(yaml).not.toMatch(/^\s*pull_request:|^\s*workflow_run:|^\s*workflow_call:/m);
