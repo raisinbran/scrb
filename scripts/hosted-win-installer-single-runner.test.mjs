@@ -17,7 +17,7 @@ describe('manual-only Windows NSIS source built and installed on one disposable 
       expect(title?.[1]).toContain('${{ inputs.acknowledge_no_upload_lower_assurance }}');
       expect(title?.[1]).toContain('${{ inputs.expected_source_sha }}');
     }
-    expect(yaml).toMatch(/^ {2}verified-installer-producer:\n {4}if: >-\n/m);
+    expect(yaml).toMatch(/^ {2}verified-installer-producer:\r?\n {4}if: >-\r?\n/m);
     expect(yaml).toContain("github.actor == 'raisinbran'");
     expect(yaml).toContain("github.triggering_actor == 'raisinbran'");
     expect(yaml).toContain('github.sha == inputs.expected_source_sha');
