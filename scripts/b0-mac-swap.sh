@@ -2,13 +2,24 @@
 # B0 Mac app swap with fail-closed rollback. Subcommands: fingerprint <dir> | backup | swap | rollback
 # Env: B0 (evidence folder, outside the temp profile), APPS (default /Applications), CAND (built Scribe.app),
 #      EXPECT_FILES, EXPECT_LINKS (full 64-hex digests of CAND). Test hook: B0_TEST_MODE=1 skips codesign and
-#      the running-app check; it is refused when APPS is /Applications. B0_TEST_FAIL_AFTER_MOVE=1 (test mode only)
+#      the running-app check; it is refused unless the canonical APPS is a marked rehearsal tree under the temp root. B0_TEST_FAIL_AFTER_MOVE=1 (test mode only)
 #      injects a failure after the second rename to prove the automatic rollback.
 set -euo pipefail
-APPS="${APPS:-/Applications}"
+canon() { (cd -P "$1" 2>/dev/null && pwd -P); }
+APPS_IN="${APPS:-/Applications}"
+APPS=$(canon "$APPS_IN") || { echo "STOP: cannot resolve APPS=$APPS_IN" >&2; exit 64; }
 B0="${B0:?set B0}"
+PROD=$(canon /Applications) || PROD=/Applications
 LIVE="$APPS/Scribe.app"
-if [ "${B0_TEST_MODE:-0}" = 1 ] && [ "$APPS" = /Applications ]; then echo "refused: test mode on /Applications" >&2; exit 64; fi
+# Test mode may only act on a disposable rehearsal tree: canonical path under the canonical OS temp root,
+# never the canonical /Applications (so a trailing slash or symlink alias cannot bypass this), and marked by
+# the file .b0-rehearsal-tree that the rehearsal step creates. Production mode keeps every gate.
+if [ "${B0_TEST_MODE:-0}" = 1 ]; then
+  TMPROOT=$(canon "${TMPDIR:-/tmp}") || { echo "STOP: cannot resolve temp root" >&2; exit 64; }
+  case "$APPS/" in "$TMPROOT"/*) ;; *) echo "refused: test mode APPS must be inside $TMPROOT" >&2; exit 64 ;; esac
+  case "$APPS/" in "$PROD"/*) echo "refused: test mode on /Applications" >&2; exit 64 ;; esac
+  [ -f "$APPS/.b0-rehearsal-tree" ] && [ ! -L "$APPS/.b0-rehearsal-tree" ] || { echo "refused: $APPS lacks the .b0-rehearsal-tree marker" >&2; exit 64; }
+fi
 
 die() { echo "STOP: $*" >&2; exit 1; }
 

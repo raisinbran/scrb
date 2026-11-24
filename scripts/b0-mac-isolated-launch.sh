@@ -29,18 +29,23 @@ launch)
   [ "$(node -p "require('fs').realpathSync(process.argv[1])" "$PROFILE")" = "$PROFILE" ] || die "profile path is not canonical"
   [ "$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).root" "$PROFILE/library-location.json")" = "$LIB" ] || die "pointer does not name the disposable library"
   open -n "$APP" --args --user-data-dir="$PROFILE" --scrb-isolated-test-profile
-  stop_app() { pkill -x Scribe 2>/dev/null || true; }
+  # Only processes started with this run's own --user-data-dir are ever signalled; another Scribe is left alone.
+  mine() { pgrep -f -- "--user-data-dir=$PROFILE( |\$)" || true; }
+  stop_app() {
+    local p; p=$(mine)
+    if [ -n "$p" ]; then echo "$p" | xargs kill 2>/dev/null || true; else echo "no process of this isolated profile found; nothing was killed" >&2; fi
+  }
   ok=0
   for _ in $(seq 1 30); do
     sleep 1
-    pid=$(pgrep -x Scribe | head -n1 || true)
+    pid=$(mine | paste -sd, -)
     [ -n "$pid" ] || continue
     if [ -e "$LIB/index.sqlite" ] && lsof -p "$pid" 2>/dev/null | grep -qF "$LIB/"; then ok=1; break; fi
   done
   [ "$ok" = 1 ] || { stop_app; die "no live Scribe process holding a file in $LIB within 30 s (the app exits on a rejected isolated profile); nothing else is used"; }
   if lsof -p "$pid" 2>/dev/null | grep -qF "$OWNER_LIB"; then stop_app; die "app holds a file in the owner's library"; fi
-  echo "ISOLATION OK: pid $pid holds files under $LIB; profile $PROFILE"
-  echo "Now read Settings > storage location on screen: it must show exactly $LIB. If it does not, run: pkill -x Scribe" ;;
+  echo "ISOLATION OK: pid(s) $pid holds files under $LIB; profile $PROFILE"
+  echo "Now read Settings > storage location on screen: it must show exactly $LIB. If it does not, quit the app by hand (only the window opened by this launch)" ;;
 evidence)
   [ -f "$B0/run.env" ] || die "run prepare first"
   . "$B0/run.env"
