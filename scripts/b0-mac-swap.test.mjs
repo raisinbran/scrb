@@ -15,6 +15,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 const macDescribe = process.platform === 'darwin' ? describe : describe.skip;
 const swap = join(import.meta.dirname, 'b0-mac-swap.sh');
 const launch = join(import.meta.dirname, 'b0-mac-isolated-launch.sh');
+const fresh = join(import.meta.dirname, 'b0-fresh-b0.sh');
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'b0swap-test-')));
 
 function fakeApp(dir, text) {
@@ -27,7 +28,7 @@ function fakeApp(dir, text) {
 }
 function runScript(script, args, env) {
   return spawnSync('bash', [script, ...args], {
-    env: { PATH: process.env.PATH, TMPDIR: tmpdir(), ...env },
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: tmpdir(), ...env },
     encoding: 'utf8',
   });
 }
@@ -38,6 +39,7 @@ function rehearsal(name) {
   mkdirSync(join(dir, 'apps'), { recursive: true });
   mkdirSync(join(dir, 'b0'), { recursive: true });
   writeFileSync(join(dir, '.b0-rehearsal-root'), '');
+  writeFileSync(join(dir, 'b0', '.b0-run'), '');
   return dir;
 }
 const testEnv = (dir, over = {}) => ({
@@ -147,49 +149,123 @@ macDescribe('swap, rollback and fingerprint regression (fake apps)', () => {
   });
 });
 
-macDescribe('isolated launch evidence destination (fake HOME and directories only)', () => {
-  const home = join(root, 'home');
-  const apps = join(root, 'fake-applications');
-  mkdirSync(join(home, 'Documents/Meeting Scribe'), { recursive: true });
-  mkdirSync(join(home, 'Library/Application Support/Scribe'), { recursive: true });
-  mkdirSync(join(apps, 'Scribe.app'), { recursive: true });
-  const base = { HOME: home, APP: join(apps, 'Scribe.app') };
-  const prepare = (b0) => runScript(launch, ['prepare'], { ...base, B0: b0 });
+macDescribe(
+  'fresh B0 guard, production style (fake HOME, fake app root, fake directories only)',
+  () => {
+    const home = join(root, 'home');
+    const apps = join(root, 'fake-applications');
+    const lib = join(home, 'Documents/Meeting Scribe');
+    const support = join(home, 'Library/Application Support/Scribe');
+    mkdirSync(lib, { recursive: true });
+    mkdirSync(support, { recursive: true });
+    mkdirSync(join(apps, 'Scribe.app'), { recursive: true });
+    const base = { HOME: home, APP: join(apps, 'Scribe.app'), B0_APP: join(apps, 'Scribe.app') };
+    const snapshot = () => execFileSync('find', [lib, support, apps], { encoding: 'utf8' });
+    const marked = (dir) => {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, '.b0-run'), '');
+      return dir;
+    };
 
-  it('refuses B0 inside or equal to the owner library, models, app folder, or home', () => {
-    const alias = join(root, 'alias-to-library');
-    symlinkSync(join(home, 'Documents/Meeting Scribe'), alias);
-    mkdirSync(join(home, 'Documents/Meeting Scribe/sub'));
-    for (const b0 of [
-      join(home, 'Documents/Meeting Scribe'),
-      join(home, 'Documents/Meeting Scribe/sub'),
-      alias,
-      join(home, 'Library/Application Support/Scribe'),
-      apps,
-      join(apps, 'Scribe.app'),
-      home,
-    ]) {
-      const r = prepare(b0);
-      expect(r.status, b0).toBe(1);
-      expect(r.stderr, b0).toMatch(/overlaps a protected location/);
-    }
-    expect(existsSync(join(home, 'Documents/Meeting Scribe/run.env'))).toBe(false);
-    expect(existsSync(join(home, 'Documents/Meeting Scribe/sub/run.env'))).toBe(false);
-  });
-  it('refuses a missing B0, and accepts a disjoint existing one (profile and library under temp)', () => {
-    expect(prepare(join(root, 'nope')).status).toBe(1);
-    const evidence = mkdtempSync(join(process.cwd(), '.b0-fake-evidence-'));
-    try {
-      const r = prepare(evidence);
+    it('create refuses an existing path, a dangling symlink, and overlap with owner roots, writing nothing', () => {
+      const dangling = join(root, 'dangling-b0');
+      symlinkSync(join(root, 'nowhere'), dangling);
+      const existing = join(root, 'existing-b0');
+      mkdirSync(existing);
+      for (const b0 of [
+        dangling,
+        existing,
+        join(lib, 'b0'),
+        join(support, 'b0'),
+        join(apps, 'b0'),
+        join(home, 'Documents'),
+      ]) {
+        const r = runScript(fresh, ['create'], { ...base, B0: b0 });
+        expect(r.status, b0).toBe(1);
+      }
+      expect(existsSync(join(lib, 'b0'))).toBe(false);
+      expect(existsSync(join(apps, 'b0'))).toBe(false);
+    });
+    it('create makes a dedicated marked directory outside the owner roots; check then accepts it', () => {
+      const b0 = join(root, 'fresh-b0');
+      expect(runScript(fresh, ['create'], { ...base, B0: b0 }).status).toBe(0);
+      expect(existsSync(join(b0, '.b0-run'))).toBe(true);
+      expect(runScript(fresh, ['check'], { ...base, B0: b0 }).status).toBe(0);
+      expect(runScript(fresh, ['create'], { ...base, B0: b0 }).status).toBe(1); // not reusable
+    });
+    it('production-mode swap backup/swap/rollback and launch prepare refuse an overlapping or unmarked B0 before any write', () => {
+      const inLib = marked(join(lib, 'b0'));
+      const alias = join(root, 'alias-into-support');
+      symlinkSync(support, alias);
+      const unmarked = join(root, 'unmarked-b0');
+      mkdirSync(unmarked);
+      const before = snapshot();
+      const env = {
+        ...base,
+        APPS: apps,
+        CAND: join(root, 'cand'),
+        EXPECT_FILES: 'a'.repeat(64),
+        EXPECT_LINKS: 'b'.repeat(64),
+      };
+      for (const b0 of [inLib, alias, unmarked, join(apps, 'Scribe.app')]) {
+        for (const [script, args] of [
+          [swap, ['backup']],
+          [swap, ['swap']],
+          [swap, ['rollback']],
+          [launch, ['prepare']],
+        ]) {
+          const r = runScript(script, args, { ...env, B0: b0 });
+          expect(r.status, `${b0} ${args}`).toBe(1);
+        }
+      }
+      expect(existsSync(join(inLib, 'backup.sha'))).toBe(false);
+      expect(existsSync(join(inLib, 'run.env'))).toBe(false);
+      expect(existsSync(join(support, 'run.env'))).toBe(false);
+      expect(existsSync(join(unmarked, 'backup.sha.tmp'))).toBe(false);
+      expect(snapshot()).toBe(before);
+    });
+    it('evidence refuses a bad label and a symlinked evidence directory, writing nothing outside B0', () => {
+      const b0 = join(root, 'ev-b0');
+      expect(runScript(fresh, ['create'], { ...base, B0: b0 }).status).toBe(0);
+      const library = join(root, 'ev-library');
+      mkdirSync(library);
+      writeFileSync(join(library, 'x.txt'), 'x');
+      writeFileSync(join(b0, 'run.env'), `RUN=${root}\nPROFILE=${root}\nLIB=${library}\n`);
+      for (const label of ['', '.', '..', '../up', 'a/b', '.hidden', 'a b']) {
+        const r = runScript(launch, ['evidence', label], { ...base, B0: b0 });
+        expect(r.status, label).toBe(1);
+      }
+      const target = join(root, 'ev-escape');
+      mkdirSync(target);
+      symlinkSync(target, join(b0, 'evidence'));
+      const r = runScript(launch, ['evidence', 'good'], { ...base, B0: b0 });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/symlink/);
+      expect(execFileSync('ls', [target], { encoding: 'utf8' })).toBe('');
+    });
+    it('evidence accepts a simple label and refuses a dangling symlink destination', () => {
+      const b0 = join(root, 'ev2-b0');
+      expect(runScript(fresh, ['create'], { ...base, B0: b0 }).status).toBe(0);
+      const library = join(root, 'ev2-library');
+      mkdirSync(library);
+      writeFileSync(join(library, 'x.txt'), 'x');
+      writeFileSync(join(b0, 'run.env'), `RUN=${root}\nPROFILE=${root}\nLIB=${library}\n`);
+      expect(runScript(launch, ['evidence', 'after-stop'], { ...base, B0: b0 }).status).toBe(0);
+      expect(existsSync(join(b0, 'evidence/after-stop/x.txt'))).toBe(true);
+      symlinkSync(join(root, 'nowhere2'), join(b0, 'evidence/dangling'));
+      expect(runScript(launch, ['evidence', 'dangling'], { ...base, B0: b0 }).status).toBe(1);
+    });
+    it('prepare works in a fresh B0 and puts profile and library under the temp root', () => {
+      const b0 = join(root, 'prep-b0');
+      expect(runScript(fresh, ['create'], { ...base, B0: b0 }).status).toBe(0);
+      const r = runScript(launch, ['prepare'], { ...base, B0: b0 });
       expect(r.status, r.stderr).toBe(0);
-      const env = readEnvFile(join(evidence, 'run.env'));
+      const env = readEnvFile(join(b0, 'run.env'));
       expect(env.LIB.startsWith(realpathSync(tmpdir()))).toBe(true);
       execFileSync('rm', ['-r', env.RUN]);
-    } finally {
-      execFileSync('rm', ['-r', evidence]);
-    }
-  });
-});
+    });
+  },
+);
 
 function readEnvFile(path) {
   const out = {};

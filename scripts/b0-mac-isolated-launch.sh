@@ -7,27 +7,16 @@ B0="${B0:?set B0}"
 APP="${APP:-/Applications/Scribe.app}"
 OWNER_LIB="$HOME/Documents/Meeting Scribe"
 die() { echo "STOP: $*" >&2; exit 1; }
-canon() { (cd -P "$1" 2>/dev/null && pwd -P); }
-overlap() { case "$1/" in "$2"/*) return 0;; esac; case "$2/" in "$1"/*) return 0;; esac; return 1; }
-# The evidence folder must exist and be disjoint (neither inside nor containing) from the owner's library, the
-# models folder, and the installed or target app folder, after resolving symlinks.
-check_b0() {
-  local b canonical_for
-  b=$(canon "$B0") || die "B0 must be an existing directory: $B0"
-  B0="$b"
-  for protected in "$HOME/Documents/Meeting Scribe" "$HOME/Library/Application Support/Scribe" "$(dirname "$APP")/$(basename "$APP")" /Applications; do
-    canonical_for=$(canon "$protected" || echo "$protected")
-    overlap "$B0" "$canonical_for" && die "B0 ($B0) overlaps a protected location: $canonical_for"
-  done
-  return 0
-}
-check_b0
+# shellcheck source=b0-fresh-b0.sh
+. "$(dirname "${BASH_SOURCE[0]}")/b0-fresh-b0.sh"
+B0_APP="$APP"
+b0_require # before any write, for every subcommand
 node_bin() { command -v node >/dev/null || die "node not on PATH"; }
 
 case "${1:-}" in
 prepare)
   node_bin
-  [ ! -e "$B0/run.env" ] || die "$B0/run.env exists: a run is already prepared (reuse it, do not recreate)"
+  [ ! -e "$B0/run.env" ] && [ ! -L "$B0/run.env" ] || die "$B0/run.env exists: a run is already prepared (reuse it, do not recreate)"
   TMPROOT=$(node -p "require('fs').realpathSync(require('os').tmpdir())")
   RUN=$(mktemp -d "$TMPROOT/scrb-b0-XXXXXX")
   mkdir "$RUN/profile" "$RUN/library"
@@ -65,8 +54,11 @@ evidence)
   [ -f "$B0/run.env" ] || die "run prepare first"
   . "$B0/run.env"
   [ -n "${2:-}" ] || die "usage: evidence <label>"
-  dest="$B0/evidence/$2"; [ ! -e "$dest" ] || die "$dest exists"
-  mkdir -p "$B0/evidence"; ditto "$LIB" "$dest"
+  b0_label_ok "$2"
+  [ ! -L "$B0/evidence" ] || die "$B0/evidence is a symlink"
+  [ -d "$B0/evidence" ] || mkdir "$B0/evidence"
+  dest="$B0/evidence/$2"; b0_fresh_dest "$dest"; b0_fresh_dest "$dest.sha256"
+  ditto "$LIB" "$dest"
   (cd "$dest" && LC_ALL=C find . -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256) > "$B0/evidence/$2.sha256"
   echo "copied $LIB to $dest; digests in $B0/evidence/$2.sha256" ;;
 *) echo "usage: $0 prepare|launch|evidence <label>" >&2; exit 64 ;;

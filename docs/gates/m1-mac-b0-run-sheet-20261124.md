@@ -50,7 +50,7 @@ Turn IDs are Y01 to Y10, A01 to A10, B01 to B10 by round. **Seek targets (frozen
 
 ## 3. Remote voices, stimulus and ground truth
 
-All work in `B0=~/scrb-b0-20261124` (outside the repo and outside the temp root; not committed). `FFMPEG=<repo>/packages/transcription/.bin/ffmpeg`.
+**Step 0, before any file is written: create the run directory.** `export B0=~/scrb-b0-20261124; scripts/b0-fresh-b0.sh create` makes `$B0` with a plain `mkdir` (it fails if the path already exists, including a dangling symlink), writes the marker `.b0-run`, and refuses a path that overlaps `~/Documents/Meeting Scribe`, `~/Library/Application Support/Scribe`, `/Applications` or the target app. Every later script (`b0-mac-swap.sh` backup, swap and rollback in production mode too; `b0-mac-isolated-launch.sh` prepare, launch and evidence) re-checks that `$B0` is this non-symlink, marked, disjoint directory before its first write, refuses to write over any existing or symlinked destination, and accepts evidence labels matching `^[A-Za-z0-9_][A-Za-z0-9._-]*$` only. An existing or reused `$B0` is refused: pick a new dated name. All work is in `B0` (outside the repo and outside the temp root; not committed). `FFMPEG=<repo>/packages/transcription/.bin/ffmpeg`.
 
 1. Render each A and B turn to its own file, no playback: `say -v Samantha -o "$B0/stim/A-<k>.aiff" --data-format=LEI16@16000 "<line>"` for A (en_US female) and `say -v Daniel ...` for B (en_GB male). `say -o` writes a file and plays nothing.
 2. Check each duration with `ffprobe -show_entries format=duration`; every turn must be at most 7.5 s, else stop and tell the planner (the script may not be edited).
@@ -72,7 +72,7 @@ Terminal on the owner's Mac, normal user, no admin or sudo; stop if any password
 ```bash
 export B0=~/scrb-b0-20261124 CAND=<path to the built Scribe.app>
 export EXPECT_FILES=<64-hex regular-file digest> EXPECT_LINKS=<64-hex symlink digest>
-mkdir -p "$B0"
+scripts/b0-fresh-b0.sh check   # B0 was created in step 0
 ```
 
 ### Isolated profile and library (fail closed, no fallback)
@@ -97,7 +97,7 @@ Tested only on throwaway fake apps (paths with spaces, an apostrophe and a newli
 
 | Step | Work                                                                                                                                                                                                                                        | Who                    | Min        | Running |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------- | ------- |
-| 1    | Render stimulus (`say -o`), compose `remote.wav`, record routing (section 4)                                                                                                                                                                | agent, any time before | 3          | 3       |
+| 1    | `scripts/b0-fresh-b0.sh create` first, then render stimulus (`say -o`), compose `remote.wav`, record routing (section 4)                                                                                                                    | agent, any time before | 3          | 3       |
 | 2    | Install steps 1 to 5 (idle, candidate, baseline, backup, rehearsal)                                                                                                                                                                         | agent                  | 4          | 7       |
 | 3    | Swap, `prepare` and `launch` with isolation assertions, permissions, location click                                                                                                                                                         | agent + owner clicks   | 5          | 12      |
 | 4    | Preflight (below)                                                                                                                                                                                                                           | agent + owner          | 6          | 18      |

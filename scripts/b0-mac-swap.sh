@@ -6,6 +6,8 @@
 #      B0_REHEARSAL_ROOT (a directory under the temp root holding .b0-rehearsal-root). B0_TEST_FAIL_AFTER_MOVE=1 (test mode only)
 #      injects a failure after the second rename to prove the automatic rollback.
 set -euo pipefail
+# shellcheck source=b0-fresh-b0.sh
+. "$(dirname "${BASH_SOURCE[0]}")/b0-fresh-b0.sh"
 canon() { (cd -P "$1" 2>/dev/null && pwd -P); }
 APPS_IN="${APPS:-/Applications}"
 APPS=$(canon "$APPS_IN") || { echo "STOP: cannot resolve APPS=$APPS_IN" >&2; exit 64; }
@@ -26,6 +28,10 @@ if [ "${B0_TEST_MODE:-0}" = 1 ]; then
   case "$APPS/" in "$R"/?*) ;; *) echo "refused: test mode APPS must be inside the rehearsal root" >&2; exit 64 ;; esac
   case "$B0_CANON/" in "$R"/?*) ;; *) echo "refused: test mode B0 must be inside the rehearsal root" >&2; exit 64 ;; esac
   B0="$B0_CANON"
+fi
+if [ "${1:-}" != fingerprint ]; then
+  B0_APP="$LIVE"; B0="$B0"
+  b0_require # production mode too: before the first backup, swap or rollback write
 fi
 
 die() { echo "STOP: $*" >&2; exit 1; }
@@ -52,6 +58,7 @@ idle() { [ "${B0_TEST_MODE:-0}" = 1 ] || ! pgrep -x Scribe >/dev/null || die "Sc
 
 do_rollback() { # restores $B0/Scribe.app.replaced to LIVE and proves it matches backup.sha; never uses rm
   [ -d "$B0/Scribe.app.replaced" ] || die "rollback impossible: $B0/Scribe.app.replaced missing (restore from $B0/Scribe.app.backup)"
+  b0_fresh_dest "$B0/Scribe.app.rc.$$"
   if [ -e "$LIVE" ]; then mv "$LIVE" "$B0/Scribe.app.rc.$$" || die "cannot move candidate aside"; fi
   mv "$B0/Scribe.app.replaced" "$LIVE" || die "cannot restore previous app"
   verify_against "$LIVE" "$(field "$B0/backup.sha" files)" "$(field "$B0/backup.sha" links)" "rollback"
@@ -61,8 +68,8 @@ do_rollback() { # restores $B0/Scribe.app.replaced to LIVE and proves it matches
 case "${1:-}" in
 fingerprint) fingerprint "${2:?dir}" ;;
 backup)
-  idle; mkdir -p "$B0"; same_volume "$B0" "$APPS"
-  [ ! -e "$B0/Scribe.app.backup" ] || die "backup already exists; refusing to overwrite"
+  idle; same_volume "$B0" "$APPS"
+  for f in Scribe.app.backup backup.sha backup.sha.tmp backup.copy.sha; do b0_fresh_dest "$B0/$f"; done
   fingerprint "$LIVE" > "$B0/backup.sha.tmp"
   ditto "$LIVE" "$B0/Scribe.app.backup"
   fingerprint "$B0/Scribe.app.backup" > "$B0/backup.copy.sha"
@@ -74,7 +81,7 @@ swap)
   hex64 "$EXPECT_FILES"; hex64 "$EXPECT_LINKS"
   idle; same_volume "$B0" "$APPS"
   [ -s "$B0/backup.sha" ] || die "run backup first"
-  [ ! -e "$B0/Scribe.app.replaced" ] || die "Scribe.app.replaced already exists"
+  b0_fresh_dest "$B0/Scribe.app.replaced"
   [ ! -e "$APPS/Scribe.new.app" ] || die "$APPS/Scribe.new.app already exists"
   verify_against "$LIVE" "$(field "$B0/backup.sha" files)" "$(field "$B0/backup.sha" links)" "live app vs backup"
   codesign_ok "$CAND"; verify_against "$CAND" "$EXPECT_FILES" "$EXPECT_LINKS" "candidate"
@@ -82,7 +89,7 @@ swap)
   on_exit() { rc=$?; trap - EXIT
     if [ "$rc" -ne 0 ]; then
       echo "swap failed (exit $rc)" >&2
-      [ -d "$APPS/Scribe.new.app" ] && mv "$APPS/Scribe.new.app" "$B0/Scribe.new.app.failed.$$" || true
+      [ -d "$APPS/Scribe.new.app" ] && [ ! -e "$B0/Scribe.new.app.failed.$$" ] && [ ! -L "$B0/Scribe.new.app.failed.$$" ] && mv "$APPS/Scribe.new.app" "$B0/Scribe.new.app.failed.$$" || true
       if [ "$armed" = 1 ]; then do_rollback || echo "ROLLBACK FAILED: restore $B0/Scribe.app.backup by hand" >&2; fi
     fi; exit "$rc"; }
   trap on_exit EXIT
