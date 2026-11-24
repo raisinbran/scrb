@@ -40,6 +40,8 @@ const CLICK_DELAY_MS = 240;
 const TEXT_GUTTER_PX = 32;
 const MIN_FONT_PX = 12;
 const MAX_FONT_PX = 28;
+/** A mouse move shorter than this after mousedown is still a click. */
+const DRAG_THRESHOLD_PX = 4;
 
 const CURSOR_KEYS: Record<string, CursorMove> = {
   ArrowLeft: 'left',
@@ -94,7 +96,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
 
   const playback = usePlayback(meetingId);
   const undoState = useUndo(meetingId);
-  const dragRef = useRef<{ anchor: WordRef; moved: boolean } | null>(null);
+  const dragRef = useRef<{ anchor: WordRef; moved: boolean; x: number; y: number } | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | null>(null);
   const jumpCancel = useRef<(() => void) | null>(null);
@@ -324,15 +326,26 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     if (!ref) return;
     if (event.shiftKey && liveSelection) {
       startSelection({ anchor: liveSelection.anchor, focus: ref });
-      dragRef.current = { anchor: liveSelection.anchor, moved: true };
+      dragRef.current = {
+        anchor: liveSelection.anchor,
+        moved: true,
+        x: event.clientX,
+        y: event.clientY,
+      };
       return;
     }
-    dragRef.current = { anchor: ref, moved: false };
+    dragRef.current = { anchor: ref, moved: false, x: event.clientX, y: event.clientY };
   };
 
   const onMouseMove = (event: MouseEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (
+      !drag.moved &&
+      Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < DRAG_THRESHOLD_PX
+    ) {
+      return;
+    }
     const focus = refFromEvent(event);
     if (!focus || (focus.wordId === drag.anchor.wordId && !drag.moved)) return;
     drag.moved = true;
@@ -563,12 +576,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           onTouchMove={() => {
             interruptJump();
             setFollowing(false);
-          }}
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) {
-              interruptJump();
-              setFollowing(false);
-            }
           }}
           onKeyDown={onKeyDown}
           onCopy={onCopy}

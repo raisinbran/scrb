@@ -45,9 +45,9 @@ function clickWord(word: HTMLElement) {
 }
 
 function dragAcross(from: HTMLElement, to: HTMLElement) {
-  fireEvent.mouseDown(from);
-  fireEvent.mouseMove(to);
-  fireEvent.mouseUp(to);
+  fireEvent.mouseDown(from, { clientX: 0, clientY: 0 });
+  fireEvent.mouseMove(to, { clientX: 40, clientY: 0 });
+  fireEvent.mouseUp(to, { clientX: 40, clientY: 0 });
 }
 
 describe('LiveScreen', () => {
@@ -581,6 +581,34 @@ describe('LiveScreen', () => {
       await advance(0);
       expect(transcript().dataset['following']).toBe('true');
       expect(selected()).toEqual([]);
+    });
+
+    it('keeps following after a click on a word or on blank space', async () => {
+      await startMeeting();
+      clickWord(words()[0] as HTMLElement);
+      fireEvent.pointerDown(transcript());
+      fireEvent.mouseDown(transcript());
+      fireEvent.mouseUp(transcript());
+      expect(transcript().dataset['following']).toBe('true');
+      expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
+    });
+
+    it('treats a tiny movement across words as a click, not a selection', async () => {
+      await startMeeting();
+      const [first, second] = words() as [HTMLElement, HTMLElement];
+      fireEvent.mouseDown(first, { clientX: 10, clientY: 10, detail: 1 });
+      fireEvent.mouseMove(second, { clientX: 12, clientY: 11 });
+      fireEvent.mouseUp(second, { clientX: 12, clientY: 11, detail: 1 });
+      expect(selected()).toEqual([]);
+      expect(transcript().dataset['following']).toBe('true');
+      expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
+    });
+
+    it('stops following on a wheel scroll', async () => {
+      await startMeeting();
+      fireEvent.wheel(transcript());
+      expect(transcript().dataset['following']).toBe('false');
+      expect(button('Jump to Live')).toBeTruthy();
     });
 
     it('keeps a selection and its draft through 60 seconds of incoming text', async () => {
