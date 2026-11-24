@@ -13,6 +13,7 @@ import {
   type Ref,
 } from 'react';
 import type { MeetingId } from '@scrb/contracts';
+import { ContextMenu, CONTEXT_MENU_MARK } from '../../components/ContextMenu.tsx';
 import { IconButton } from '../../components/IconButton.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatElapsed } from '../../lib/format.ts';
@@ -93,6 +94,8 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const [selection, setSelection] = useState<WordSelection | null>(null);
   const [cursor, setCursor] = useState<WordRef | null>(null);
   const [editing, setEditing] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const frameElement = useRef<HTMLDivElement>(null);
 
   const playback = usePlayback(meetingId);
   const undoState = useUndo(meetingId);
@@ -323,7 +326,12 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0) return;
     const ref = refFromEvent(event);
-    if (!ref) return;
+    if (!ref) {
+      // A click on empty canvas dismisses the selection and any open editor.
+      setSelection(null);
+      setEditing(false);
+      return;
+    }
     if (event.shiftKey && liveSelection) {
       startSelection({ anchor: liveSelection.anchor, focus: ref });
       dragRef.current = {
@@ -425,14 +433,64 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
     }
   };
 
+  const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    const ref = refFromEvent(event);
+    if (!ref) return;
+    // Right-clicking inside the selection keeps it; anywhere else selects the word under the pointer.
+    const position = store.positionOf(ref);
+    const inside =
+      range &&
+      position &&
+      (position.segment - range.first.segment || position.word - range.first.word) >= 0 &&
+      (position.segment - range.last.segment || position.word - range.last.word) <= 0;
+    if (!inside) {
+      startSelection({ anchor: ref, focus: ref });
+      setEditing(false);
+    }
+    setMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const copySelection = () => {
+    if (!range) return;
+    void navigator.clipboard?.writeText(store.textBetween(range.first, range.last));
+  };
+
   const onCopy = (event: ClipboardEvent) => {
     if (!range) return;
     event.preventDefault();
     event.clipboardData.setData('text/plain', store.textBetween(range.first, range.last));
   };
 
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  // Clicking or focusing anywhere outside the transcript clears the highlight.
+  useEffect(() => {
+    if (!selection) return undefined;
+    const outside = (target: EventTarget | null) =>
+      target instanceof Node &&
+      !frameElement.current?.contains(target) &&
+      !(target instanceof Element && target.closest(`[${CONTEXT_MENU_MARK}]`));
+    const onPointerDown = (event: PointerEvent) => {
+      if (outside(event.target)) {
+        setSelection(null);
+        setEditing(false);
+      }
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      if (outside(event.target)) setSelection(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('focusin', onFocusIn);
+    };
+  }, [selection]);
+
   const closeEditor = () => {
     setEditing(false);
+    setSelection(null);
     scrollRef.current?.focus();
   };
 
@@ -448,7 +506,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
       remember,
     });
     undoState.record(next);
-    setSelection(null);
     closeEditor();
   };
 
@@ -557,7 +614,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           {error}
         </p>
       )}
-      <div className={styles.frame}>
+      <div ref={frameElement} className={styles.frame}>
         <div
           ref={scrollRef}
           className={styles.scroller}
@@ -588,6 +645,7 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onDoubleClick={onDoubleClick}
+            onContextMenu={onContextMenu}
           >
             {rows}
           </div>
@@ -611,6 +669,18 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
           <button type="button" className={styles.jump} onClick={jumpToLive}>
             Jump to Live
           </button>
+        )}
+        {menu && (
+          <ContextMenu
+            label="Transcript actions"
+            x={menu.x}
+            y={menu.y}
+            onClose={closeMenu}
+            items={[
+              { label: 'Copy', onSelect: copySelection },
+              { label: 'Correct text', onSelect: () => setEditing(true) },
+            ]}
+          />
         )}
         {editing && range && (
           <CorrectionEditor

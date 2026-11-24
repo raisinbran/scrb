@@ -20,3 +20,19 @@ describe('transcript cursor', () => {
     }
   });
 });
+
+const recordingsCss = readFileSync(
+  join(import.meta.dirname, '../screens/recordings/recordings.module.css'),
+  'utf8',
+);
+
+describe('saved transcript cursor', () => {
+  const ruleIn = (selector: string) =>
+    new RegExp(`(?:^|\\n)\\${selector}\\s*\\{([^}]*)\\}`).exec(recordingsCss)?.[1] ?? '';
+
+  it('shows the text cursor over words only, and a pointer on the speaker button', () => {
+    expect(ruleIn('.word')).toMatch(/cursor:\s*text/);
+    expect(ruleIn('.words')).not.toMatch(/cursor:/);
+    expect(ruleIn('.speakerButton')).toMatch(/cursor:\s*pointer/);
+  });
+});

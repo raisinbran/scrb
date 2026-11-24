@@ -583,6 +583,47 @@ describe('LiveScreen', () => {
       expect(selected()).toEqual([]);
     });
 
+    it('clears the selection when the editor is cancelled or applied', async () => {
+      await startMeeting();
+      fireEvent.doubleClick(words()[0] as HTMLElement);
+      expect(selected()).toHaveLength(1);
+      fireEvent.click(button('Cancel'));
+      expect(selected()).toEqual([]);
+      fireEvent.doubleClick(words()[0] as HTMLElement);
+      const form = screen.getByRole('form', { name: 'Correct transcript' });
+      fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'Zebra' } });
+      fireEvent.click(button('Apply'));
+      await advance(0);
+      expect(selected()).toEqual([]);
+    });
+
+    it('clears the selection on an outside click and when focus leaves the transcript', async () => {
+      await startMeeting();
+      fireEvent.doubleClick(words()[0] as HTMLElement);
+      expect(selected()).toHaveLength(1);
+      fireEvent.pointerDown(document.body);
+      expect(selected()).toEqual([]);
+      expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
+      fireEvent.doubleClick(words()[0] as HTMLElement);
+      fireEvent.focusIn(document.body);
+      expect(selected()).toEqual([]);
+    });
+
+    it('right-click offers Copy and Correct text for the word under the pointer', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      await startMeeting();
+      const word = words()[1] as HTMLElement;
+      fireEvent.contextMenu(word);
+      expect(selected()).toEqual([word.textContent]);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }));
+      expect(writeText).toHaveBeenCalledWith(word.textContent);
+      fireEvent.contextMenu(word);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Correct text' }));
+      expect(screen.getByRole('form', { name: 'Correct transcript' })).toBeTruthy();
+      expect(selected()).toEqual([word.textContent]);
+    });
+
     it('keeps following after a click on a word or on blank space', async () => {
       await startMeeting();
       clickWord(words()[0] as HTMLElement);
@@ -690,7 +731,7 @@ describe('LiveScreen', () => {
       fireEvent.keyDown(input, { key: 'Escape' });
       expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull();
       expect(document.activeElement).toBe(transcript());
-      expect(selected().length).toBe(2);
+      expect(selected()).toEqual([]);
     });
 
     it('plays from the cursor with Space', async () => {

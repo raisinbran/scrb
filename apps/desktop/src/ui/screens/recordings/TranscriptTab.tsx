@@ -14,6 +14,7 @@ import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
 import { animateTranscriptScroll } from '../../lib/transcript-scroll.ts';
 import { recall, remember } from '../../lib/tab-memory.ts';
+import { ContextMenu } from '../../components/ContextMenu.tsx';
 import { CorrectionEditor } from '../live/CorrectionEditor.tsx';
 import { buildRows, currentWordId, rowIndexAt, type TranscriptRow } from './transcript-model.ts';
 import type { TranscriptData } from './use-transcript.ts';
@@ -59,10 +60,14 @@ export function gapLabel(gap: TimelineGap): string {
 }
 
 const WORD_CLASSES = {
-  provisional: styles.wordProvisional,
-  final: undefined,
-  corrected: styles.wordCorrected,
+  provisional: `${styles.word} ${styles.wordProvisional}`,
+  final: styles.word,
+  corrected: `${styles.word} ${styles.wordCorrected}`,
 };
+
+function clearNativeSelection() {
+  window.getSelection()?.removeAllRanges();
+}
 
 export const EDITOR_MARK = 'data-editor';
 const MAX_NAME_LENGTH = 60;
@@ -156,6 +161,7 @@ interface SegmentRowProps {
   onPlace: (ms: number, wordId: string, rowKey: string) => void;
   /** Absent when the meeting cannot be edited. */
   onEditWord: ((wordId: string) => void) | undefined;
+  onWordMenu: ((wordId: string, x: number, y: number) => void) | undefined;
   onStartRename: ((speakerId: string, rowKey: string) => void) | undefined;
   renaming: boolean;
   otherNames: string[];
@@ -174,6 +180,7 @@ const SegmentRow = memo(function SegmentRow({
   onPlay,
   onPlace,
   onEditWord,
+  onWordMenu,
   onStartRename,
   renaming,
   otherNames,
@@ -185,6 +192,17 @@ const SegmentRow = memo(function SegmentRow({
   const onDoubleClick = (event: MouseEvent) => {
     const id = (event.target as HTMLElement).dataset['word'];
     if (id !== undefined) onEditWord?.(id);
+  };
+  const onContextMenu = (event: MouseEvent) => {
+    const id = (event.target as HTMLElement).dataset['word'];
+    if (id === undefined) return;
+    event.preventDefault();
+    const selection = window.getSelection();
+    if (!selection?.containsNode(event.target as Node, true) || selection.isCollapsed) {
+      // Right-clicking outside the selection acts on the word under the pointer.
+      selection?.selectAllChildren(event.target as Node);
+    }
+    onWordMenu?.(id, event.clientX, event.clientY);
   };
   const onClick = (event: MouseEvent) => {
     const ms = (event.target as HTMLElement).dataset['ms'];
@@ -236,6 +254,7 @@ const SegmentRow = memo(function SegmentRow({
         className={following ? `${styles.words} ${styles.wordsFollowing}` : styles.words}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
       >
         {segment.words.map((word) => (
           <span key={word.id}>
@@ -491,6 +510,20 @@ export function TranscriptTab(props: TranscriptTabProps) {
     [onPlace],
   );
   const [editWord, setEditWord] = useState<{ id: string; text: string } | null>(null);
+  const [wordMenu, setWordMenu] = useState<{
+    wordId: string;
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
+  const onWordMenu = useCallback((wordId: string, x: number, y: number) => {
+    setWordMenu({ wordId, x, y, text: window.getSelection()?.toString() ?? '' });
+  }, []);
+  const closeWordMenu = useCallback(() => setWordMenu(null), []);
+  const closeEditor = useCallback(() => {
+    setEditWord(null);
+    clearNativeSelection();
+  }, []);
   const [renaming, setRenaming] = useState<{ speakerId: string; rowKey: string } | null>(null);
   const renamingId = renaming?.speakerId ?? null;
   // The rename form lives in its row. While that row is outside the rendered range the form is
@@ -723,6 +756,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
                     onPlay={onPlay}
                     onPlace={onPlaceWord}
                     onEditWord={canEdit ? onEditWord : undefined}
+                    onWordMenu={onWordMenu}
                     onStartRename={canEdit ? onStartRename : undefined}
                     renaming={renaming?.rowKey === row.key}
                     otherNames={otherNames}
@@ -777,11 +811,28 @@ export function TranscriptTab(props: TranscriptTabProps) {
             top={8}
             onApply={async (text, remember) => {
               await editing.correctWord(editWord.id, text, remember);
-              setEditWord(null);
+              closeEditor();
             }}
-            onCancel={() => setEditWord(null)}
+            onCancel={closeEditor}
           />
         </div>
+      )}
+      {wordMenu && (
+        <ContextMenu
+          label="Transcript actions"
+          x={wordMenu.x}
+          y={wordMenu.y}
+          onClose={closeWordMenu}
+          items={[
+            {
+              label: 'Copy',
+              onSelect: () => void navigator.clipboard?.writeText(wordMenu.text),
+            },
+            ...(canEdit
+              ? [{ label: 'Correct text', onSelect: () => onEditWord(wordMenu.wordId) }]
+              : []),
+          ]}
+        />
       )}
     </div>
   );
