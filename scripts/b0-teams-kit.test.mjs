@@ -108,7 +108,7 @@ describe('cuePage', () => {
     const ctx = vm.createContext({
       document: doc,
       navigator: {},
-      performance,
+      performance: { now: () => 0 },
       requestAnimationFrame() {},
     });
     vm.runInContext(`${script};this.render=render`, ctx);
