@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
