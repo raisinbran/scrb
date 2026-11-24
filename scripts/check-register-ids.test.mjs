@@ -83,6 +83,16 @@ describe('per-file scheme', () => {
     expect(checkIncidentFile('A-400-x.md', 'no heading')).toHaveLength(1);
     expect(checkIncidentFile('A-400-x.md', '### A-400 — a\n### A-401 — b\n')).toHaveLength(1);
   });
+  it('requires an agent line from the first attributed incident on', () => {
+    expect(checkIncidentFile('A-1120-x.md', '### A-1120 — t\n')).toEqual([]);
+    expect(checkIncidentFile('A-1121-x.md', '### A-1121 — t\n- **Status:** y\n')).toHaveLength(1);
+    expect(
+      checkIncidentFile('A-1121-x.md', '### A-1121 — t\n- **Agent:** Codex (Windows desktop)\n'),
+    ).toEqual([]);
+    expect(checkIncidentFile('A-1121-x.md', '### A-1121 — t\n- **Agent:** a tool\n')).toHaveLength(
+      1,
+    );
+  });
   it('flags the same A-number in the legacy register and a folder file, or in two folder files', () => {
     const legacy = '### A-341 — old\n';
     expect(findDuplicateIds(`${legacy}\n### A-341 — new\n`)).toEqual(['A-341']);

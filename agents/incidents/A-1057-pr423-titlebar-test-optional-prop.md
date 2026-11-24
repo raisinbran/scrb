@@ -1,4 +1,4 @@
-# A-1057 — PR #423 authoring introduced an exact-optional TypeScript test error
+### A-1057 — PR #423 authoring introduced an exact-optional TypeScript test error
 
 - **Date / effect:** November 22, 2026 PT. Automatic exact-head macOS CI run #45006197707 failed at npm run typecheck with TS2375 on TitleBar.test.tsx:131. The test passed processingBackend as Backend | undefined even though BackendProvider declares the optional property as Backend under exactOptionalPropertyTypes. This blocked subsequent UI tests; the Windows typecheck was still running when the diagnostic was inspected. The separate native Windows source build succeeded.
 - **Attribution:** Self-induced regression-test TypeScript error in this cloud-authored V1 UI PR; not a product/recording failure.
