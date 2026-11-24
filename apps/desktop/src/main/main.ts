@@ -5,6 +5,7 @@ import {
   screen,
   shell,
   systemPreferences,
+  type MessageBoxOptions,
   type WebContents,
 } from 'electron';
 import fs from 'node:fs';
@@ -31,7 +32,12 @@ import {
   serializePlacement,
   type DisplayInfo,
 } from './mini-placement.ts';
-import { closeBeforeQuit } from './quit.ts';
+import {
+  closeBeforeQuit,
+  createSafeQuitGuard,
+  shouldGuardLastMainWindowClose,
+  type QuitActivity,
+} from './quit.ts';
 import {
   APP_ORIGIN,
   denyAllPermissions,
@@ -42,6 +48,10 @@ import {
 } from './security.ts';
 import { secureWebPreferences } from './web-preferences.ts';
 import { pinUserData } from './packaged-setup.ts';
+import {
+  IsolatedTestProfileError,
+  openBackendAfterIsolationCheck,
+} from './isolated-test-profile.ts';
 
 // The app was renamed to Scribe, but its data stays where the saved library location and settings
 // already are. Pinned before anything reads userData; a test's --user-data-dir still wins.
@@ -59,6 +69,42 @@ const ownWindow = (contents: WebContents): void => {
 // Every mini window that exists, including one fading out; none may stand in for the main window.
 const miniWindows = new Set<BrowserWindow>();
 
+let readCriticalActivity = (): QuitActivity => ({
+  recording: false,
+  finalPass: false,
+  importing: false,
+  recovering: false,
+});
+
+const quitGuard = createSafeQuitGuard({
+  activity: () => readCriticalActivity(),
+  confirm: async (activity) => {
+    const work = [
+      activity.recording ? 'a recording' : null,
+      activity.finalPass ? 'final transcription' : null,
+      activity.importing ? 'an import' : null,
+      activity.recovering ? 'recovery work' : null,
+    ].filter((item): item is string => item !== null);
+    const window = BrowserWindow.getFocusedWindow();
+    const options: MessageBoxOptions = {
+      type: 'warning',
+      title: 'Scribe is still working',
+      message: `Scribe has ${work.join(' and ')} in progress.`,
+      detail:
+        'Keep recording or processing to return to Scribe. If you quit, Scribe will try to seal any active recording and eligible interrupted work may need to retry from the beginning. A crash or forced system shutdown may interrupt this work.',
+      buttons: ['Keep recording / Keep processing', 'Quit and retry later'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    };
+    const result = window
+      ? await dialog.showMessageBox(window, options)
+      : await dialog.showMessageBox(options);
+    return result.response === 1;
+  },
+  quit: () => app.quit(),
+});
+
 // Packaged builds take their icon from the executable or bundle (electron-builder);
 // a dev run has only Electron's own, so the window and Dock icon are set here.
 const devIcon = (file: string): { icon?: string } =>
@@ -66,8 +112,9 @@ const devIcon = (file: string): { icon?: string } =>
 const devWindowIcon = (): { icon?: string } =>
   devIcon(process.platform === 'win32' ? 'icon-win.png' : 'icon.png');
 
-// A quit closes every window, so the mini one must let it.
-app.on('before-quit', () => {
+// The guard runs before cleanup so canceling a busy quit preserves every window and worker.
+app.on('before-quit', (event) => {
+  if (!quitGuard.beforeQuit(event)) return;
   for (const window of miniWindows) {
     window.setClosable(true);
     window.destroy();
@@ -257,6 +304,11 @@ function createMainWindow(
     webPreferences: secureWebPreferences(__dirname),
   });
   ownWindow(window.webContents);
+  window.on('close', (event) => {
+    // macOS window-close follows its normal hide/quit semantics; only Windows quits when the final main window closes.
+    if (shouldGuardLastMainWindowClose(process.platform, mainWindows().length === 1))
+      quitGuard.lastMainWindowClose(event);
+  });
   lockDownContents(window.webContents, appUrl);
   // A reloaded or lost page cannot release what it was granted, so grants end here.
   window.webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
@@ -301,8 +353,7 @@ function createMainWindow(
           onWarningShown();
           if (available && response === 0) return;
           if (response === (available ? 1 : 0)) {
-            app.relaunch();
-            app.exit(0);
+            quitGuard.requestQuit(() => app.relaunch());
             return;
           }
           if (response === (available ? 2 : 1)) {
@@ -337,15 +388,42 @@ void app.whenReady().then(async () => {
   }
   denyAllPermissions();
   serveRenderer(path.resolve(__dirname, '../dist'));
-  const backend = await openBackend(
-    (name, payload) => {
-      if (name === 'recordingStateChanged') mini.setStatus((payload as RecordingState).status);
-      for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+  const isolatedTestProfile = app.commandLine.hasSwitch('scrb-isolated-test-profile')
+    ? {
+        hasExplicitUserData: app.commandLine.hasSwitch('user-data-dir'),
+        userDataPath: app.getPath('userData'),
+        tempPath: app.getPath('temp'),
+        documentsPath: app.getPath('documents'),
       }
-    },
-    () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
-  );
+    : null;
+  let backend: Awaited<ReturnType<typeof openBackend>>;
+  try {
+    const backendPromise = openBackendAfterIsolationCheck(
+      isolatedTestProfile,
+      (isolatedLibraryRoot) =>
+        openBackend(
+          (name, payload) => {
+            if (name === 'recordingStateChanged')
+              mini.setStatus((payload as RecordingState).status);
+            for (const window of BrowserWindow.getAllWindows()) {
+              window.webContents.send(IPC_EVENT_CHANNEL, name, payload);
+            }
+          },
+          () => mainWindows().find((window) => !window.isDestroyed()) ?? null,
+          isolatedLibraryRoot ?? undefined,
+          (read) => {
+            readCriticalActivity = read;
+          },
+        ),
+    );
+    closeBeforeQuit(app, async () => (await backendPromise).close());
+    backend = await backendPromise;
+  } catch (error) {
+    if (!(error instanceof IsolatedTestProfileError)) throw error;
+    console.error(`[Scribe] Isolated test profile rejected: ${error.message}`);
+    app.exit(1);
+    return;
+  }
   const { playback } = backend;
   if (playback) serveMedia((request) => playback.serve(request));
   const stopPlayback = () => playback?.stop();
@@ -354,7 +432,6 @@ void app.whenReady().then(async () => {
     return Promise.resolve();
   };
   registerCallHandlers(backend.handlers, (event) => isTrustedSenderEvent(event, appTrust));
-  closeBeforeQuit(app, backend.close);
   createMainWindow(backend.warning, backend.recovery, stopPlayback, backend.acknowledgeWarning);
   // The mini window does not count as the app: with only it open, a second launch or the dock
   // must bring the main window back through this same path.

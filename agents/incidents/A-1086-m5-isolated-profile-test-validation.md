@@ -1,0 +1,6 @@
+### A-1086 — 2026-11-22 — M5 isolated-profile regression validation — test dependency and harness errors
+
+- **What failed:** The first corrected PR #439 head made the isolated-profile test import `@scrb/storage` through its helper. macOS CI's Vitest client resolver then failed to bundle the transitive Node built-in `node:sqlite`; 2,276 other tests passed and this one suite did not execute. The first local source-harness rerun after changing the helper signature also passed its arguments in the old order and failed with `openLibrary is not a function`.
+- **Attribution / impact:** Confirmed test-infrastructure mistakes in the authored correction and its ad-hoc validation. No application launch, library open, or production-data access occurred.
+- **Correction:** Removed the storage-package import from the isolated helper and injected the ordinary storage-location reader from the backend call site. Updated the source regression and harness to the new dependency-injected signature; the corrected Node source harness passes. Exact-head CI for the correction is pending.
+- **Remaining risk:** Vitest could not run locally because the installed Rolldown WASI binding is unavailable; the corrected regression still requires exact-head CI.
