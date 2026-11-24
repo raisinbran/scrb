@@ -1,0 +1,1 @@
+| 2026-11-24 | Claude Code Sonnet 5.5, Mac desktop app (owner Mac) | Teams-call B0 kit: generator, cue page, run order, scoring procedure, tests (draft PR) | unavailable (not read) | unavailable (not read) | unavailable | unavailable | not applicable | Implementation / Sonnet 5.5; effort unavailable | 0 | PENDING independent review | other M1 sessions may overlap |
