@@ -1,24 +1,36 @@
 # SRCB Agent Task Allocation
 
-**Updated:** November 8, 2026  
+**Updated:** November 8, 2026; **revisions proposed November 23, 2026 (pending owner approval)** are marked "Proposed 2026-11-23".  
 **Scope:** SRCB development. These owner preferences supplement repository instructions and approved plans; they do not override safety rules or authorize merges.
+
+## Proposed 2026-11-23: management after Claude access resumed
+
+Based on the [agent work-quality record](agent-work-quality-record.md):
+
+- **Management:** a Claude Code **Sonnet** session is the primary planner and coordinator; a Claude Code **Opus** session oversees quality (plan and high-risk review, independent QA, emergencies). The plan is [m1-v1-path-forward-20261123.md](../dev-plan/m1-v1-path-forward-20261123.md).
+- **Choose by fit, not "ChatGPT first":** the decision order below no longer starts with ChatGPT Chat. Claude takes planning, QA, integration and quality-sensitive implementation; ChatGPT takes docs and bounded cloud changes; Codex takes local native/packaging work where its device access is needed; Strata (Regiurn) stays a pilot for mechanical tasks.
+- **ChatGPT code needs a check run:** ChatGPT cloud cannot run `npm run check`. Before review, a Claude or Codex session runs it on the branch. ChatGPT does not edit CI, workflows, `packages/contracts/`, check scripts or controlling plans without Opus review, and never adds a per-PR exception to a check.
+- **Codex: one bounded attempt.** On a sandbox or permission failure, Codex records the exact error once and hands off; it does not retry the same method or build workarounds (hosted workflows, dispatch tooling) around its own limits.
+- **Review provenance:** PR text may not name agents, so the reviewer's usage row records the reviewing agent and session and the reviewed SHA; the PR review links that row. A review without such a row counts as review pending.
+- **Accounting batching:** one usage row per assigned task, committed in that task's PR (no standalone accounting PRs). Minor tool errors from one task (wrong path, formatting, mistyped command) go in one incident file that lists each. Every incident names the causing agent (`- **Agent:**` line, enforced from A-1121).
+- **Controlling plans:** a plan or handoff that changes M1/V1 scope or sequencing needs Claude review and owner approval before agents act on it.
 
 ## Guiding rule
 
 Maximize **useful, independently verified progress per scarce credit**, not the number of tasks or credits consumed. Select an agent based on task risk, hardware access, demonstrated quality, credit cost, remaining allowance, and existing assignments.
 
-**Claude scarcity and context transfers (routing guidance, 2026-11-08):** Claude chat and Code share a scarce Pro allowance. For routine next-task/test selection and exact instructions, prefer ChatGPT Chat or the existing executor when either has verified context. Use Claude only when it adds enough value to justify the shared quota. Before transferring work between agents, sessions, models, or effort levels, weigh rereading context, cache misses, repeated diagnostics, and owner time. **Required independent review is never waived to save credits.** For Claude-specific model choices, follow [claude_model_split.md](claude_model_split.md); do not transfer or rerun work merely to compare costs.
+**Claude scarcity and context transfers (routing guidance, 2026-11-08; proposed 2026-11-23 to apply only when Claude allowance is actually low, per `get_usage`):** Claude chat and Code share a scarce Pro allowance. For routine next-task/test selection and exact instructions, prefer ChatGPT Chat or the existing executor when either has verified context. Use Claude only when it adds enough value to justify the shared quota. Before transferring work between agents, sessions, models, or effort levels, weigh rereading context, cache misses, repeated diagnostics, and owner time. **Required independent review is never waived to save credits.** For Claude-specific model choices, follow [claude_model_split.md](claude_model_split.md); do not transfer or rerun work merely to compare costs.
 
 ## Historical credit and availability snapshot
 
 Owner-reported figures **from November 1, 2026 only**, retained for history; the Claude trial/deadline and percentage figures below are not a current availability report. **Recheck before scheduling**.
 
-| Resource | ChatGPT Chat | Claude Code | ChatGPT Codex |
-| --- | --- | --- | --- |
-| Five-hour allowance used | Effectively unrestricted for chat | 12% | 3% |
-| Weekly allowance used | Effectively unrestricted for chat | 78% | 18% |
-| Weekly allowance remaining | Not a practical constraint | 22% | 82% |
-| Additional limit | Cloud-only work | Free trial ends **Nov. 3, 2026**, unless renewed | **Two** free discretionary limit resets |
+| Resource                   | ChatGPT Chat                      | Claude Code                                      | ChatGPT Codex                           |
+| -------------------------- | --------------------------------- | ------------------------------------------------ | --------------------------------------- |
+| Five-hour allowance used   | Effectively unrestricted for chat | 12%                                              | 3%                                      |
+| Weekly allowance used      | Effectively unrestricted for chat | 78%                                              | 18%                                     |
+| Weekly allowance remaining | Not a practical constraint        | 22%                                              | 82%                                     |
+| Additional limit           | Cloud-only work                   | Free trial ends **Nov. 3, 2026**, unless renewed | **Two** free discretionary limit resets |
 
 The owner observes that **Codex uses roughly 2–4 times as many credits per task as Claude**, despite slightly lower quality at the model/effort settings currently selected. This is a practical observation, not a controlled benchmark. Codex has nevertheless been reliable at complex SRCB backend/native implementation. Claude's possible **$20/month** subscription is a separate owner decision; do not assume it will be purchased.
 
@@ -50,10 +62,9 @@ This expands the November 7 **Codex-only** permission to any agent using a finit
 
 Compute **observed consumption** as `start remaining - end remaining`, in **percentage points (pp)**, only if both readings belong to the same quota window. Record any five-hour/weekly reset, owner-initiated discretionary reset, overlapping sessions, or uncertain observation time; then report the difference as **not attributable / unavailable** instead of treating a reset as negative spending. Codex sessions, and Claude chat/Claude Code sessions within one subscription, can share a quota; displayed values can also round. These are **account-level changes, not isolated metered per-task costs**; do not sum overlapping deltas as if independently consumed. Do not label the difference as an exact agent usage rate. A percentage-point-per-hour rate requires reliable elapsed time and an uninterrupted quota window. Compare efficiency alongside task complexity, independent QA, delivered quality, retries and work completed; do not rank agents solely by percentages.
 
-When a handoff or Claude model/effort switch occurs, note the reason and any *observed* extra setup, test repetition, or prompt-cache misses in the existing qualification column or linked handoff. A shared account percentage change is not a measured transfer cost; do not invent one or add mandatory tracker columns. Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
+When a handoff or Claude model/effort switch occurs, note the reason and any _observed_ extra setup, test repetition, or prompt-cache misses in the existing qualification column or linked handoff. A shared account percentage change is not a measured transfer cost; do not invent one or add mandatory tracker columns. Preserve all historical snapshots above without rewriting them. Do not commit account identifiers, screenshots, session content, private recordings, transcripts, or credentials. Do not make extra model calls just to refresh the display repeatedly.
 
 **Percentage-based reporting (owner decision, November 8):** The five-hour and weekly remaining-allowance percentages are sufficient; actual token counts and cache-token breakdowns are optional, not required. Do not spend credits reconstructing opaque token totals merely for this tracker. Codex and Claude have distinct provider quota limits that are unlikely to be equivalent: the same percentage-point decrease does **not** mean the same token count, cost, or work performed across providers. Compare similarly scoped tasks using category, model/effort, observed allowance changes within a provider and quota window, outcomes, and retries; label shared-account overlap and rounding. Never infer a cross-provider conversion or exact per-task token cost from these percentages.
-
 
 ### Per-task log
 
@@ -103,7 +114,7 @@ Rows up to 2026-11-13 are in the frozen [usage-log.md](usage-log.md) (same colum
 
 ## Decision order
 
-1. **Can ChatGPT Chat complete the task safely in the cloud?** Assign it there first, with independent QA for any code changes.
+1. **Which agent fits best?** (Proposed 2026-11-23, replacing "ChatGPT first".) Use the management section above; ChatGPT Chat for cloud-safe docs and bounded changes, with a check run and independent QA for any code.
 2. **Is physical access required?** Choose the agent on the required operating system; reserve Claude's limited Mac time for independent testing and high-value review.
 3. **Is substantial complex implementation required?** Prefer Codex where its demonstrated native/backend reliability matters. Choose Claude instead when expected quality and credits genuinely make it more efficient.
 4. **Who independently verifies the result?** Planning-role proposals need at least one review round by another agent before owner approval. For code, run checks first, then independent review, then owner merge authorization. A model switch by the author does not count. Give the reviewer the branch/commit and acceptance evidence; avoid repeating QA without changes or new findings.

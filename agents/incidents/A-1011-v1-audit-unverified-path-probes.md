@@ -1,4 +1,4 @@
-# A-1011 — 2026-11-20 — unverified guessed source-path probes in V1 Settings/quit audit
+### A-1011 — 2026-11-20 — unverified guessed source-path probes in V1 Settings/quit audit
 
 - **Status:** Confirmed minor self-induced read-only lookup failure; corrected during this task.
 - **What happened:** Four file reads were attempted using assumed source paths that are not present on the pinned main tree (apps/desktop/src/main/audio-check.ts, apps/desktop/src/main/settings-location.ts, apps/desktop/src/main/main.test.ts, apps/desktop/src/main/mini-state.test.ts). GitHub returned NOT_FOUND for each.

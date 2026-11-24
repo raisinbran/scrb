@@ -86,6 +86,7 @@ jobs:
           git diff --exit-code -- '*.ts' '*.tsx'
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run check:register
       - run: npm run build -w @scrb/summary
       - name: Test
         run: npm test
