@@ -36,6 +36,8 @@ const SPEC_CALLS = [
   'revealExport',
   'getSettings',
   'updateSettings',
+  'getSharedLibraryNotice',
+  'dismissSharedLibraryNotice',
   'checkModelUpdates',
   'revertModel',
   'getAppInfo',

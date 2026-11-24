@@ -8,24 +8,25 @@ Calls and events go through `Backend.call` and `Backend.on`. Failures reject wit
 
 These were not in the UI Specification's contract table. Each is tagged `@addition` in the source.
 
-| Item                                                        | Why it is needed                                                                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `getRecordingSnapshot`                                      | The UI must catch up after a reload, including health and transcription status, which only arrive as events  |
-| `importCancelled`                                           | Each import needs one definite end; this is the only one that means no meeting exists                        |
-| `pickAudioFile`                                             | A sandboxed renderer cannot open a file dialog. Returns an opaque token, so the renderer never passes a path |
-| `getTranscript`                                             | Paged loading for stored transcripts; `transcriptChanged` only carries changes                               |
-| `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                            |
-| `getPlaybackMedia`                                          | A sandboxed renderer needs a narrow, expiring audio URL; owner decision on PR 39, 2026-11-02                 |
-| `listProfiles`                                              | The Speakers screen has nothing to show without it                                                           |
-| `getProfileClips`                                           | A voice preview needs passages chosen from saved audio; profiles hold no audio. Owner approved 2026-11-15    |
-| `splitSpeaker`                                              | V1 Requirements list split; the table does not                                                               |
-| `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                          |
-| `getSummary`, `getMeeting`                                  | Meeting detail and the Summary tab must load stored data                                                     |
-| `updateMeeting`                                             | Import requires the meeting date to be editable                                                              |
-| `startAudioCheck`, `stopAudioCheck`, `audioCheck`           | The mic test the requirements ask for; meters otherwise run only while recording                             |
-| `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                        |
-| `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                              |
-| `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                      |
+| Item                                                        | Why it is needed                                                                                                                                                                         |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getRecordingSnapshot`                                      | The UI must catch up after a reload, including health and transcription status, which only arrive as events                                                                              |
+| `importCancelled`                                           | Each import needs one definite end; this is the only one that means no meeting exists                                                                                                    |
+| `pickAudioFile`                                             | A sandboxed renderer cannot open a file dialog. Returns an opaque token, so the renderer never passes a path                                                                             |
+| `getTranscript`                                             | Paged loading for stored transcripts; `transcriptChanged` only carries changes                                                                                                           |
+| `pauseAudio`, `playbackPosition`                            | Playback needs a stop and a position to highlight                                                                                                                                        |
+| `getPlaybackMedia`                                          | A sandboxed renderer needs a narrow, expiring audio URL; owner decision on PR 39, 2026-11-02                                                                                             |
+| `listProfiles`                                              | The Speakers screen has nothing to show without it                                                                                                                                       |
+| `getProfileClips`                                           | A voice preview needs passages chosen from saved audio; profiles hold no audio. Owner approved 2026-11-15                                                                                |
+| `splitSpeaker`                                              | V1 Requirements list split; the table does not                                                                                                                                           |
+| `answerSpeakerSuggestion`                                   | `speakerSuggestion` has no way to confirm or reject                                                                                                                                      |
+| `getSummary`, `getMeeting`                                  | Meeting detail and the Summary tab must load stored data                                                                                                                                 |
+| `updateMeeting`                                             | Import requires the meeting date to be editable                                                                                                                                          |
+| `startAudioCheck`, `stopAudioCheck`, `audioCheck`           | The mic test the requirements ask for; meters otherwise run only while recording                                                                                                         |
+| `pickStorageLocation`                                       | Settings needs a native folder dialog                                                                                                                                                    |
+| `installModelUpdate`                                        | `checkModelUpdates` finds updates but nothing could install one                                                                                                                          |
+| `getSetupStatus`, `startModelDownload`, `requestPermission` | The First launch screen                                                                                                                                                                  |
+| `getSharedLibraryNotice`, `dismissSharedLibraryNotice`      | Display a nonblocking, library-specific shared-folder notice and persist explicit dismissal; **contract addition approved by the owner on 2026-11-23 (see `APPROVALS.md`; issue #349)**. |
 
 ## Decisions
 
