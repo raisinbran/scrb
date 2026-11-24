@@ -1,4 +1,4 @@
-# A-1054 — Cloud V1 source-audit browsing and code-template errors (2026-11-22)
+### A-1054 — Cloud V1 source-audit browsing and code-template errors (2026-11-22)
 
 - **Effect:** During issue #49 source revalidation, speculative test and stylesheet path requests returned 404, and two multi-file read batches were truncated. The first accounting file submission had a local JavaScript template-literal syntax error before any GitHub write. These consumed unnecessary tool calls without changing application source.
 - **Attribution:** Self-induced source-reading and authoring mistakes in this cloud session, not an application defect.

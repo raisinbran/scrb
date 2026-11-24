@@ -1,0 +1,8 @@
+### A-1096 — 2026-11-22 — cloud — PR #444 fake event harness lint failure
+
+- **Attribution:** Confirmed self-induced initial test-authoring lint error, not production safe quit, startup isolation, recording recovery or an installed application failure.
+- **Observed:** [Exact-head CI #45082529688](https://github.com/raisinbran/scrb/actions/runs/45082529688) passed macOS Prettier/typecheck, then failed macOS ESLint `prefer-const` at `apps/desktop/src/main/quit.test.ts:287`: a forward-declared `let guard!` received only one assignment. Two unrelated pre-existing React hook warnings were not blocking.
+- **Impact:** One avoidable exact-head red CI and additional automatic validation; no host launch, physical test, private media, owner files, model, installer, IPC or security-policy change. Actual task-specific credit/time cost unmeasured.
+- **Correction:** Replace the test-only single-assignment declaration with an explicitly typed `const guard` after the fake app object. The fake callback can refer to this guard when it executes after initialization. Original event-order and source recovery assertions remain, without weakening the cancellation/startup security logic.
+- **Prevention:** Apply repository lint conventions to new fake event-harness scaffolding before pushing when a runnable local dependency environment exists. Check the exact failing diagnostic rather than relaxing lint or whole-suite limits.
+- **Reservation:** A-1096 was absent from published main and searched public source at selection. Unindexed branches and host-local reservations not certified; reconcile any distinct collision via #358.
