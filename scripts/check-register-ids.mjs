@@ -63,6 +63,10 @@ export function checkUsageRowFile(text) {
   ];
 }
 
+// From this number on, an incident must name the agent that caused it. Older files are not backfilled here.
+export const FIRST_ATTRIBUTED_INCIDENT = 1121;
+const AGENT_LINE = /^- \*\*Agent:\*\* (Claude|ChatGPT|Codex|Strata|Owner|Unattributed)\b/m;
+
 // An incident file holds one `### A-nnn — title` heading and its number must match the file name.
 export function checkIncidentFile(name, text) {
   const ids = text
@@ -71,6 +75,8 @@ export function checkIncidentFile(name, text) {
     .filter(Boolean);
   if (ids.length !== 1) return [`expected exactly one A-number heading, found ${ids.length}`];
   if (!name.startsWith(`${ids[0]}-`)) return [`file name must start with ${ids[0]}-`];
+  if (Number(ids[0].slice(2)) >= FIRST_ATTRIBUTED_INCIDENT && !AGENT_LINE.test(text))
+    return ['missing "- **Agent:** Claude|ChatGPT|Codex|Strata|Owner|Unattributed" line'];
   return [];
 }
 

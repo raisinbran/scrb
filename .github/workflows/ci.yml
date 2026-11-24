@@ -86,14 +86,12 @@ jobs:
           git diff --exit-code -- '*.ts' '*.tsx'
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run check:register
       - run: npm run build -w @scrb/summary
       - name: Test
         run: npm test
         env:
           SCRB_REQUIRE_DECODER: '1'
-      - name: Check boundaries
-        run: npm run check:boundaries
-        env:
-          CONTRACT_APPROVED: ${{ github.event.pull_request.number == 342 && github.event.pull_request.head.repo.full_name == 'raisinbran/scrb' && '1' || '0' }}
+      - run: npm run check:boundaries
       - run: npm run build
       - run: npm run test:smoke

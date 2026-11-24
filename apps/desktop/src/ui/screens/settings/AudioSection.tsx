@@ -3,7 +3,7 @@ import { IconButton } from '../../components/IconButton.tsx';
 import type { AudioSettings, InputDevice, MeetingApp, NoiseSuppression } from '@scrb/contracts';
 import { Tooltip } from '../../components/Tooltip.tsx';
 import { MicTest } from '../live/MicTest.tsx';
-import { PRESET_OPTIONS, presetPatch, type PresetControls } from './presets.ts';
+import { PRESET_OPTIONS, type PresetControls } from './presets.ts';
 import styles from '../SettingsScreen.module.css';
 
 const DEFAULT_SENSITIVITY_DB = -40;
@@ -26,32 +26,34 @@ const TOGGLES: { key: ToggleKey; label: string; description: string }[] = [
   {
     key: 'echoCancellation',
     label: 'Echo cancellation',
-    description: 'Stops your mic from re-transcribing remote voices when you are not on a headset.',
+    description:
+      'Experimental macOS opt-in only; may duck other audio. No effect on normal capture.',
   },
   {
     key: 'automaticGainControl',
     label: 'Automatic gain control',
-    description: 'Evens out your mic level for the transcriber.',
+    description: 'Unavailable. This setting does not currently change microphone gain.',
   },
   {
     key: 'bypassSystemInputProcessing',
     label: 'Bypass system audio input processing',
-    description: 'Skips Windows or macOS mic enhancements.',
+    description:
+      'Experimental macOS opt-in only; prevents gated AEC. Does not bypass normal mic enhancements.',
   },
   {
     key: 'advancedVoiceActivity',
     label: 'Advanced voice activity',
-    description: 'Uses the transcriber’s own speech detection.',
+    description: 'Unavailable. This setting does not currently change speech detection.',
   },
   {
     key: 'noAudioWarning',
     label: 'No audio detected warning',
-    description: 'Warns you when a recording is silent.',
+    description: 'Unavailable. This setting does not currently enable silence warnings.',
   },
   {
     key: 'deviceSuggestions',
     label: 'Audio device suggestions',
-    description: 'Prompts when a new device is plugged in, including mid-meeting.',
+    description: 'Unavailable. This setting does not currently enable device-change prompts.',
   },
 ];
 
@@ -65,6 +67,8 @@ const isPresetControl = (key: string): key is keyof PresetControls =>
 
 const PRESET_TOGGLES = TOGGLES.filter(({ key }) => isPresetControl(key));
 const OTHER_TOGGLES = TOGGLES.filter(({ key }) => !isPresetControl(key));
+const isExperimentalAecControl = (key: string) =>
+  key === 'echoCancellation' || key === 'bypassSystemInputProcessing';
 
 interface AudioSectionProps {
   audio: AudioSettings;
@@ -74,7 +78,7 @@ interface AudioSectionProps {
 }
 
 const PRESET_TIP =
-  'Your original recording is never changed. A preset only cleans a copy of the audio that the speech recognizer listens to.';
+  'These profiles are saved preferences only; they do not currently change normal capture or speech recognition.';
 
 export function AudioSection({ audio, devices, apps, onChange }: AudioSectionProps) {
   const systemDefault = devices.find((device) => device.isSystemDefault);
@@ -85,27 +89,22 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
   const micMissing = audio.micDeviceId !== null && selectedMic === undefined;
   const sensitivity = audio.inputSensitivityDb;
 
-  // A preset other than Custom owns its controls; picking Custom unlocks them.
+  // Show saved preset ownership; all processing controls are unavailable until implemented.
   const locked = audio.preset !== 'custom';
   const lockedBy = PRESET_OPTIONS.find((option) => option.value === audio.preset)?.label;
-  const lockTip = locked ? `Set by ${lockedBy}` : '';
-  // Always wrapped, so a preset change keeps the same elements; an empty tip shows nothing.
+  const lockTip = locked ? `Saved under ${lockedBy}; processing unavailable` : '';
+  // Keep the existing tooltip focus behavior for disabled controls owned by a saved preset.
   // A disabled control cannot take focus, so its row does while locked: keyboard users reach the tip.
   const lockable = (
     key: string,
     node: ReactElement<{ 'aria-describedby'?: string; tabIndex?: number }>,
   ) => {
-    const owned = locked && isPresetControl(key);
+    const owned = locked && isPresetControl(key) && !isExperimentalAecControl(key);
     return (
       <Tooltip label={owned ? lockTip : ''}>
         {owned ? cloneElement(node, { tabIndex: 0 }) : node}
       </Tooltip>
     );
-  };
-
-  const change = (patch: Partial<AudioSettings>) => {
-    const leavesPreset = Object.keys(patch).some(isPresetControl);
-    onChange(leavesPreset ? { ...patch, preset: 'custom' } : patch);
   };
 
   return (
@@ -117,6 +116,12 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
         sources={{ micDeviceId: audio.micDeviceId, meetingAppId: audio.meetingAppId }}
         devices={devices}
       />
+      <p id="audio-processing-unavailable" className={styles.help}>
+        Audio processing profiles, noise suppression, gain, sensitivity and advanced detection are
+        unavailable for normal recording. Their saved preferences remain visible but cannot be
+        edited here. Echo cancellation and bypass remain editable because they affect an
+        experimental macOS path only when separately opted in; they do not enable it on their own.
+      </p>
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>
           Input Profile
@@ -128,7 +133,8 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
               type="radio"
               name="audio-preset"
               checked={audio.preset === option.value}
-              onChange={() => onChange(presetPatch(option.value))}
+              disabled
+              aria-describedby="audio-processing-unavailable"
             />
             <span>
               {option.label}
@@ -144,11 +150,9 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
           <label className={styles.field}>
             Noise suppression
             <select
-              disabled={locked}
+              disabled
+              aria-describedby="audio-processing-unavailable"
               value={audio.noiseSuppression}
-              onChange={(event) =>
-                change({ noiseSuppression: event.target.value as NoiseSuppression })
-              }
             >
               {NOISE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -165,9 +169,19 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
               <label className={styles.check}>
                 <input
                   type="checkbox"
-                  disabled={locked && isPresetControl(toggle.key)}
+                  disabled={!isExperimentalAecControl(toggle.key)}
+                  aria-describedby="audio-processing-unavailable"
                   checked={audio[toggle.key]}
-                  onChange={(event) => change({ [toggle.key]: event.target.checked })}
+                  onChange={(event) => {
+                    if (toggle.key === 'echoCancellation') {
+                      onChange({ echoCancellation: event.target.checked, preset: 'custom' });
+                    } else if (toggle.key === 'bypassSystemInputProcessing') {
+                      onChange({
+                        bypassSystemInputProcessing: event.target.checked,
+                        preset: 'custom',
+                      });
+                    }
+                  }}
                 />
                 <span>
                   {toggle.label}
@@ -189,10 +203,10 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
               min={-100}
               max={0}
               step={1}
-              disabled={sensitivity === 'auto'}
+              disabled
+              aria-describedby="audio-processing-unavailable"
               value={sensitivity === 'auto' ? DEFAULT_SENSITIVITY_DB : sensitivity}
               aria-valuetext={sensitivity === 'auto' ? 'Automatic' : `${sensitivity} dB`}
-              onChange={(event) => onChange({ inputSensitivityDb: Number(event.target.value) })}
             />
             <output>{sensitivity === 'auto' ? 'Automatic' : `${sensitivity} dB`}</output>
           </div>
@@ -200,16 +214,14 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
             <input
               type="checkbox"
               checked={sensitivity === 'auto'}
-              onChange={(event) =>
-                onChange({
-                  inputSensitivityDb: event.target.checked ? 'auto' : DEFAULT_SENSITIVITY_DB,
-                })
-              }
+              disabled
+              aria-describedby="audio-processing-unavailable"
             />
             <span>Automatic</span>
           </label>
           <p className={styles.help}>
-            Sets what the transcriber treats as speech. It never cuts audio from the recording.
+            Unavailable. The saved threshold does not currently change speech detection or the
+            original audio.
           </p>
         </div>
         {OTHER_TOGGLES.map((toggle) => (
@@ -219,9 +231,9 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
               <label className={styles.check}>
                 <input
                   type="checkbox"
-                  disabled={locked && isPresetControl(toggle.key)}
+                  disabled
+                  aria-describedby="audio-processing-unavailable"
                   checked={audio[toggle.key]}
-                  onChange={(event) => change({ [toggle.key]: event.target.checked })}
                 />
                 <span>
                   {toggle.label}

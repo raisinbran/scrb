@@ -1,4 +1,4 @@
-import { realpath } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import { readdirSync } from 'node:fs';
 import { sep } from 'node:path';
 import {
@@ -238,9 +238,24 @@ function toListItem(
   };
 }
 
+// Listing meetings would otherwise parse every whole transcript on each call. Transcript saves
+// replace the file atomically, so its inode, size and modification time identify one version.
+const speakerCounts = new WeakMap<Library, Map<string, { version: string; count: number }>>();
+
 async function readSpeakerCount(library: Library, meetingId: string): Promise<number> {
   try {
-    return activeSpeakers(await library.readTranscript(meetingId)).length;
+    let cache = speakerCounts.get(library);
+    if (!cache) speakerCounts.set(library, (cache = new Map()));
+    const file = await stat(library.meetingPaths(meetingId).transcript, { bigint: true }).catch(
+      () => null,
+    );
+    const version = file && `${file.ino}:${file.size}:${file.mtimeNs}`;
+    const cached = cache.get(meetingId);
+    if (version && cached?.version === version) return cached.count;
+    const count = activeSpeakers(await library.readTranscript(meetingId)).length;
+    if (version) cache.set(meetingId, { version, count });
+    else cache.delete(meetingId);
+    return count;
   } catch (error) {
     library.logger.log('warn', 'meeting-speakers-unreadable', {
       meetingId,

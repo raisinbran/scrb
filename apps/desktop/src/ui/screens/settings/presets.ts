@@ -25,10 +25,21 @@ export const PRESET_OPTIONS: { value: AudioPreset; label: string; description: s
   {
     value: 'voiceIsolation',
     label: 'Voice Isolation',
-    description: 'Strong noise suppression, echo cancellation and automatic gain control.',
+    description:
+      'Preset inactive for normal capture. Separately enabled experimental macOS AEC can still use echo cancellation.',
   },
-  { value: 'studio', label: 'Studio', description: 'All processing off.' },
-  { value: 'custom', label: 'Custom', description: 'Set each control yourself.' },
+  {
+    value: 'studio',
+    label: 'Studio',
+    description:
+      'Preset inactive for normal capture. Does not disable OS enhancements; saved settings opt out of experimental macOS AEC.',
+  },
+  {
+    value: 'custom',
+    label: 'Custom',
+    description:
+      'Preset inactive for normal capture. Saved echo and bypass settings can affect separately enabled experimental macOS AEC.',
+  },
 ];
 
 export function presetPatch(preset: AudioPreset): Partial<AudioSettings> {
