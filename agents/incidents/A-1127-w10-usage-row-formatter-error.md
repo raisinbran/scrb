@@ -1,4 +1,6 @@
-### A-1078 — 2026-11-22 — Codex Desktop / Windows — usage-row formatter failed before GitHub write
+### A-1127 — 2026-11-22 — Codex Desktop / Windows — usage-row formatter failed before GitHub write
+
+- **Agent:** Codex (Codex Desktop, GPT-6, BCHEN-W10 Windows)
 
 - **Status / attribution:** Confirmed agent-caused reporting-script error.
 - **What failed:** The JavaScript draft-building call embedded a literal Markdown backtick in a template string and evaluated it as syntax; the function call threw before invoking the GitHub create-file API.
