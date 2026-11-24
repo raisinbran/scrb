@@ -1335,17 +1335,26 @@ export class Library {
       if (await exists(folder)) await fs.rename(folder, trash);
       movedFromLibrary = true;
     } catch (error) {
-      this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+      this.logger.log('error', 'meeting-delete-step-failed', {
+        step: 'rename',
+        ...errorFields(error),
+      });
     }
     if (movedFromLibrary) {
       try {
         await fs.rm(trash, RM_OPTIONS);
       } catch (error) {
-        this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+        this.logger.log('error', 'meeting-delete-step-failed', {
+          step: 'trash',
+          ...errorFields(error),
+        });
       }
     }
     await fs.rm(cache, RM_OPTIONS).catch((error: unknown) => {
-      this.logger.log('error', 'meeting-delete-step-failed', errorFields(error));
+      this.logger.log('error', 'meeting-delete-step-failed', {
+        step: 'cache',
+        ...errorFields(error),
+      });
     });
     // The list must not offer a meeting whose folder has gone, and must not lose one still there.
     if (movedFromLibrary) {
@@ -1359,9 +1368,22 @@ export class Library {
     for (const target of [folder, trash, cache]) {
       if (await exists(target)) problems.push(target);
     }
-    problems.push(...indexTraces(this.db, meetingId));
-    problems.push(...(await this.indexUpgradeCopies()));
-    problems.push(...(await this.foldersHolding(meetingId)));
+    const index = indexTraces(this.db, meetingId);
+    const upgrades = await this.indexUpgradeCopies();
+    const copies = await this.foldersHolding(meetingId);
+    problems.push(...index, ...upgrades, ...copies);
+    if (problems.length > 0) {
+      // Fixed categories only: never log paths, meeting titles or leftover file names.
+      this.logger.log('error', 'meeting-delete-residue', {
+        meetingId,
+        meetingDirLeft: problems.includes(folder),
+        trashLeft: problems.includes(trash),
+        cacheLeft: problems.includes(cache),
+        indexCount: index.length,
+        upgradeCount: upgrades.length,
+        copyCount: copies.length,
+      });
+    }
     return [...new Set(problems)];
   }
 
@@ -1457,13 +1479,16 @@ export class Library {
     }
     const results: DeleteReport[] = [];
     for (const row of this.previewAutoDelete()) {
+      let phase: 'beforeDelete' | 'delete' = 'beforeDelete';
       try {
         await beforeDelete?.(row.id);
+        phase = 'delete';
         const remove = scope === 'audio' ? this.deleteAudio(row.id) : this.deleteMeeting(row.id);
         results.push(await remove);
       } catch (error) {
         this.logger.log('error', 'auto-delete-failed', {
           meetingId: row.id,
+          phase,
           ...errorFields(error),
         });
         results.push({ meetingId: row.id, ok: false, remaining: [row.folder] });

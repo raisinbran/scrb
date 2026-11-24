@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LargeModelGate } from '@scrb/app-core';
 import type { BackendEvents, EventName } from '@scrb/contracts';
 import { Library } from '@scrb/storage';
@@ -77,6 +77,7 @@ describe('SummaryController', () => {
   let gate: LargeModelGate;
   let hooks: {
     start: () => Promise<void>;
+    stop: () => Promise<void>;
     extract: (signal: AbortSignal | undefined) => Promise<void>;
     stops: number;
     starts: number;
@@ -97,6 +98,7 @@ describe('SummaryController', () => {
       },
       stop: async () => {
         hooks.stops += 1;
+        await hooks.stop();
       },
     }),
     extractItems: async (_transcript, _llm, options) => {
@@ -151,6 +153,7 @@ describe('SummaryController', () => {
     gate = new LargeModelGate();
     hooks = {
       start: async () => undefined,
+      stop: async () => undefined,
       extract: async () => undefined,
       stops: 0,
       starts: 0,
@@ -466,23 +469,144 @@ describe('SummaryController', () => {
 
   it('stops a running summary, and waits for its server, before scheduled retention deletes the meeting', async () => {
     const order: string[] = [];
+    const logs = vi.spyOn(library.logger, 'log');
+    const originalDir = library.meetingPaths(meetingId).folder;
+    const originalName = library.listMeetings()[0]?.folder;
+
+    let started: () => void = () => undefined;
+    const serverStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let enteredStop: () => void = () => undefined;
+    const serverStopping = new Promise<void>((resolve) => {
+      enteredStop = resolve;
+    });
+    let finishStop: () => void = () => undefined;
+    const stopCanFinish = new Promise<void>((resolve) => {
+      finishStop = resolve;
+    });
     hooks.extract = (signal) =>
-      new Promise((_resolve, reject) =>
-        signal?.addEventListener('abort', () => reject(new Error('x'))),
-      );
+      new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('synthetic abort')), {
+          once: true,
+        });
+        started();
+      });
+    hooks.stop = async () => {
+      enteredStop();
+      await stopCanFinish;
+    };
+
     await dispatchCall(handlers, 'generateSummary', { meetingId, length: 'brief' });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await serverStarted;
+    expect(hooks.starts).toBe(1);
     const stopsBefore = hooks.stops;
     library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
     clock.t += 31 * 86_400_000;
-    const run = await library.runAutoDelete(async (id) => {
+    const pending = library.runAutoDelete(async (id) => {
       await controller.stopAndWait(id, 'deleted');
       order.push(`stopped:${hooks.stops > stopsBefore}`);
     });
-    expect(run.results[0]?.ok).toBe(true);
+
+    // Retention must not delete a meeting until its model server has exited.
+    await serverStopping;
+    try {
+      expect(order).toEqual([]);
+      expect(controller.isRunning(meetingId)).toBe(true);
+      expect(library.listMeetings()).toHaveLength(1);
+    } finally {
+      finishStop();
+    }
+    const run = await pending;
+    const errorEvents = logs.mock.calls
+      .filter(([, event]) =>
+        ['auto-delete-failed', 'meeting-delete-step-failed', 'meeting-delete-residue'].includes(
+          event,
+        ),
+      )
+      .map(([, event, fields]) => ({
+        event,
+        phase:
+          fields?.phase === 'beforeDelete' || fields?.phase === 'delete' ? fields.phase : 'unknown',
+        step:
+          fields?.step === 'rename' || fields?.step === 'trash' || fields?.step === 'cache'
+            ? fields.step
+            : 'unknown',
+        code:
+          typeof fields?.code === 'string' && /^[A-Z_]{2,24}$/.test(fields.code)
+            ? fields.code
+            : 'other',
+      }));
+    const remainingKinds = (run.results[0]?.remaining ?? []).map((entry) => {
+      if (entry.startsWith('index:')) return 'index';
+      if (entry.includes('.deleting-')) return 'trash';
+      if (entry.includes('.upgrade-')) return 'upgrade';
+      if (entry === originalName) return 'exception-fallback';
+      if (entry === originalDir) return 'meeting';
+      if (entry === join(library.paths.cache, meetingId)) return 'cache';
+      return 'other';
+    });
+    const diagnostic = JSON.stringify({
+      scope: run.scope,
+      deferred: run.deferred,
+      callbacksCompleted: order.length,
+      serverStarted: hooks.starts > 0,
+      serverStopped: hooks.stops > stopsBefore,
+      remainingCount: run.results[0]?.remaining.length ?? 0,
+      remainingKinds,
+      errorEvents,
+    });
+    expect(run.results[0]?.ok, `Sanitized deletion diagnostics: ${diagnostic}`).toBe(true);
     expect(order).toEqual(['stopped:true']);
     expect(controller.isRunning(meetingId)).toBe(false);
     expect(library.listMeetings()).toHaveLength(0);
+  });
+
+  it('classifies a before-delete exception without logging its private error message', async () => {
+    const logs = vi.spyOn(library.logger, 'log');
+    library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
+    clock.t += 31 * 86_400_000;
+    const run = await library.runAutoDelete(async () => {
+      throw new Error('synthetic private folder: /secret/project');
+    });
+    expect(run.results[0]?.ok).toBe(false);
+    expect(library.listMeetings()).toHaveLength(1);
+    const failure = logs.mock.calls.find(([, event]) => event === 'auto-delete-failed');
+    expect(failure?.[2]).toMatchObject({
+      phase: 'beforeDelete',
+      error: 'Error',
+      code: 'unknown',
+    });
+    expect(JSON.stringify(failure?.[2])).not.toContain('/secret/project');
+  });
+
+  it('distinguishes a thrown delete from leftover upgrade-copy evidence', async () => {
+    const logs = vi.spyOn(library.logger, 'log');
+    library.settings.setAutoDelete({ period: '30d', scope: 'meeting' });
+    clock.t += 31 * 86_400_000;
+    const deleteMeeting = vi.spyOn(library, 'deleteMeeting');
+    deleteMeeting.mockRejectedValueOnce(new Error('synthetic private disk path'));
+    const failed = await library.runAutoDelete();
+    expect(failed.results[0]?.ok).toBe(false);
+    expect(library.listMeetings()).toHaveLength(1);
+    const failure = logs.mock.calls.find(([, event]) => event === 'auto-delete-failed');
+    expect(failure?.[2]).toMatchObject({ phase: 'delete', error: 'Error', code: 'unknown' });
+    expect(JSON.stringify(failure?.[2])).not.toContain('synthetic private disk path');
+    deleteMeeting.mockRestore();
+
+    writeFileSync(`${library.paths.index}.upgrade-synthetic`, 'invented test data');
+    const leftover = await library.runAutoDelete();
+    expect(leftover.results[0]?.ok).toBe(false);
+    const residue = logs.mock.calls.find(([, event]) => event === 'meeting-delete-residue');
+    expect(residue?.[2]).toMatchObject({
+      meetingDirLeft: false,
+      trashLeft: false,
+      cacheLeft: false,
+      indexCount: 0,
+      upgradeCount: 1,
+      copyCount: 0,
+    });
+    expect(JSON.stringify(residue?.[2])).not.toContain(library.paths.root);
   });
 
   it('is not started twice for one meeting', async () => {
