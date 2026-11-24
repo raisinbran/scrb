@@ -228,6 +228,10 @@ export interface BackendCalls {
 
   // Settings
   getPrivacyJurisdictions: { request: void; response: { countries: string[]; usStates: string[] } };
+  /** @addition Read the current library's non-blocking shared-folder notice, if any. */
+  getSharedLibraryNotice: { request: void; response: string | null };
+  /** @addition Persist dismissal of the current library's shared-folder notice. */
+  dismissSharedLibraryNotice: { request: void; response: void };
   getSettings: { request: void; response: AppSettings };
   updateSettings: { request: SettingsPatch; response: AppSettings };
   /** @addition */
@@ -417,6 +421,8 @@ const CALL_TABLE: Record<CallName, true> = {
   exportMeeting: true,
   revealExport: true,
   getPrivacyJurisdictions: true,
+  getSharedLibraryNotice: true,
+  dismissSharedLibraryNotice: true,
   getSettings: true,
   updateSettings: true,
   pickStorageLocation: true,

@@ -23,6 +23,8 @@ const REAL_CALLS: ReadonlySet<CallName> = new Set([
   // Version and notices must be the real build's, never the mock's placeholders.
   'getAppInfo',
   'getLicenses',
+  'getSharedLibraryNotice',
+  'dismissSharedLibraryNotice',
   'startRecording',
   'pauseRecording',
   'resumeRecording',

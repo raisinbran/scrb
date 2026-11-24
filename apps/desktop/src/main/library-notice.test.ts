@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { markSharedNoticeShown, sharedFolderNotice } from './library-notice.ts';
+import {
+  createSharedLibraryNotice,
+  markSharedNoticeDismissed,
+  sharedFolderNotice,
+} from './library-notice.ts';
 
 function fakeStore() {
   const values = new Map<string, boolean>();
@@ -11,11 +15,11 @@ function fakeStore() {
 }
 
 describe('sharedFolderNotice', () => {
-  it('shows until it has been marked seen, then not on later launches', () => {
+  it('shows until it has been dismissed, then not on later launches', () => {
     const store = fakeStore();
     expect(sharedFolderNotice(store, true)).toMatch(/accessible to other people/);
     expect(sharedFolderNotice(store, true)).not.toBeNull();
-    markSharedNoticeShown(store);
+    markSharedNoticeDismissed(store);
     expect(sharedFolderNotice(store, true)).toBeNull();
   });
 
@@ -25,8 +29,19 @@ describe('sharedFolderNotice', () => {
 
   it('shows again when a private folder later looks shared', () => {
     const store = fakeStore();
-    markSharedNoticeShown(store);
+    markSharedNoticeDismissed(store);
     sharedFolderNotice(store, false);
     expect(sharedFolderNotice(store, true)).not.toBeNull();
+  });
+
+  it('persists dismissal per library', () => {
+    const firstLibrary = fakeStore();
+    const secondLibrary = fakeStore();
+    const notice = createSharedLibraryNotice(firstLibrary, true);
+    expect(notice.get()).not.toBeNull();
+    notice.dismiss();
+    expect(notice.get()).toBeNull();
+    expect(createSharedLibraryNotice(firstLibrary, true).get()).toBeNull();
+    expect(createSharedLibraryNotice(secondLibrary, true).get()).not.toBeNull();
   });
 });
