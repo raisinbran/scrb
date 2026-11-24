@@ -1,6 +1,6 @@
 # Contract approvals
 
-Changes to `packages/contracts/` need the owner's approval. A pull request that edits the contract adds one row here in the same PR, quoting the owner's decision; `npm run check:boundaries` fails a contract edit without a new row. Reviewers check the row against the owner's actual words. Earlier decisions are kept as history.
+Changes to `packages/contracts/` need the owner's approval. A pull request that edits the contract adds one row here in the same PR, quoting the owner's decision; `npm run check:boundaries` fails a contract edit without a new row. Reviewers check the row against the owner's actual words. Earlier rows are kept as history and never edited or removed; to correct one, add a new row that says what it corrects.
 
 | Date (PT)  | PR       | Change                                                            | Owner decision                                                                                                                                               |
 | ---------- | -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |

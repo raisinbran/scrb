@@ -31,25 +31,33 @@ const isApprovalRow = ([date, pr, change, decision, ...rest]) =>
   Boolean(decision);
 
 /**
- * True when `head` keeps every existing approval row unchanged (ignoring table padding) and adds at
- * least one new, complete row: date, PR number, change and the owner's decision.
+ * Compares the approvals register at the merge base and the head, ignoring table padding.
+ * `historyKept`: every earlier row is still present unchanged (corrections go in a new row).
+ * `newRow`: at least one added row has a date, a #PR number, the change and the owner's decision.
  */
-export function approvalAdded(base, head) {
+export function approvalStatus(base, head) {
   const key = (cells) => cells.join('|');
   const before = new Set(tableRows(base).map(key));
   const after = tableRows(head);
   const kept = new Set(after.map(key));
-  if ([...before].some((row) => !kept.has(row))) return false;
-  return after.some((cells) => !before.has(key(cells)) && isApprovalRow(cells));
+  return {
+    historyKept: [...before].every((row) => kept.has(row)),
+    newRow: after.some((cells) => !before.has(key(cells)) && isApprovalRow(cells)),
+  };
 }
 
-/** Problems with one branch's changed files; `approvalAdded` is whether it adds a valid approval row. */
-export function findViolations(branch, changed, approvalAdded) {
+/** Problems with one branch's changed files, given the register's `approvalStatus`. */
+export function findViolations(branch, changed, { historyKept, newRow }) {
   const problems = [];
-  const contractEdits = changed.filter((f) => f.startsWith(CONTRACT_PATH) && f !== APPROVALS_FILE);
-  if (contractEdits.length > 0 && !approvalAdded) {
+  if (changed.includes(APPROVALS_FILE) && !historyKept) {
     problems.push(
-      `Contract files changed without a new, complete row in ${APPROVALS_FILE} (date, #PR, change, owner's decision) that leaves existing rows unchanged:\n${contractEdits.join('\n')}`,
+      `${APPROVALS_FILE}: existing rows were changed or removed. Keep them as they are; corrections go in a new row.`,
+    );
+  }
+  const contractEdits = changed.filter((f) => f.startsWith(CONTRACT_PATH) && f !== APPROVALS_FILE);
+  if (contractEdits.length > 0 && !(historyKept && newRow)) {
+    problems.push(
+      `Contract files changed without a new, complete row in ${APPROVALS_FILE} (date, #PR, change, owner's decision):\n${contractEdits.join('\n')}`,
     );
   }
   const isUiBranch = branch.startsWith('ui/');
@@ -67,13 +75,27 @@ export function findViolations(branch, changed, approvalAdded) {
   return problems;
 }
 
+/**
+ * Changed paths between the merge base and HEAD. `--no-renames` lists both sides of a move, so a file
+ * moved out of a protected folder still counts; `-z` stops git quoting non-ASCII or unusual paths
+ * (which would hide them from the prefix checks). Keep both flags.
+ */
+export function changedPaths(cwd, base) {
+  return execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', `${base}...HEAD`], {
+    cwd,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean);
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // A push to main was already checked in its pull request.
   if (process.env.GITHUB_EVENT_NAME === 'push') process.exit(0);
   const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
   const branch = process.env.GITHUB_HEAD_REF || git('rev-parse', '--abbrev-ref', 'HEAD');
   const base = git('merge-base', process.env.BOUNDARY_BASE || 'origin/main', 'HEAD');
-  const changed = git('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
+  const changed = changedPaths(process.cwd(), base);
   const read = (rev) => {
     try {
       return execFileSync('git', ['show', `${rev}:${APPROVALS_FILE}`], {
@@ -84,7 +106,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       return '';
     }
   };
-  const problems = findViolations(branch, changed, approvalAdded(read(base), read('HEAD')));
+  const problems = findViolations(branch, changed, approvalStatus(read(base), read('HEAD')));
   if (problems.length > 0) {
     console.error(problems.join('\n\n'));
     process.exit(1);
