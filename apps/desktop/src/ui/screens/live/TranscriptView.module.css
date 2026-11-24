@@ -84,7 +84,6 @@
 .canvas {
   position: relative;
   line-height: 1.55;
-  cursor: text;
   user-select: none;
 }
 
@@ -119,6 +118,7 @@
 }
 
 .word {
+  cursor: text;
   border-radius: var(--radius);
 }
 
