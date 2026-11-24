@@ -52,6 +52,7 @@ import {
   type MeetingPaths,
 } from './layout.ts';
 import { errorFields, Logger } from './logs.ts';
+import { renameWithRetry } from './rename-retry.ts';
 import {
   buildSuggestionGroups,
   SUGGESTION_MEETING_LIMIT,
@@ -1332,7 +1333,7 @@ export class Library {
 
     let movedFromLibrary = false;
     try {
-      if (await exists(folder)) await fs.rename(folder, trash);
+      if (await exists(folder)) await renameWithRetry(folder, trash);
       movedFromLibrary = true;
     } catch (error) {
       this.logger.log('error', 'meeting-delete-step-failed', {
