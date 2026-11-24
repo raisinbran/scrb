@@ -1,4 +1,4 @@
-### A-1130 — 2026-11-24 — Claude Code — package build failed on missing ignored inputs in a fresh worktree
+### A-1131 — 2026-11-24 — Claude Code — package build failed on missing ignored inputs in a fresh worktree
 
 - **Agent:** Claude (Claude Code, Sonnet 5.5, Mac desktop app)
 - **Status:** confirmed; corrected in the same session.
