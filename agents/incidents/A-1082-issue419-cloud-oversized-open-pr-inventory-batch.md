@@ -1,0 +1,7 @@
+### A-1082 — 2026-11-22 — Oversized cloud GitHub open-PR incident-inventory batch
+
+- **Event / attribution:** The same cloud preflight attempted 36 `list_pr_changed_filenames` calls inside a single Code Mode invocation while checking new incident-number uniqueness. The orchestration returned `Code Mode exceeded the maximum number of tool calls`, so the initial oversized batch did not yield a usable inventory. This is an avoidable tool-batching mistake by the audit, **not** a source, CI or installer defect. Whether individual reads were attempted before rejection is not independently observed.
+- **Impact:** One rejected overlarge read-only batch and avoidable audit time. No GitHub ref/write, workflow dispatch, installer, owner's machine or private content was changed.
+- **Correction:** Divided the exact same 36 open PR numbers into four bounded groups of nine; all four groups completed, identifying all published incident filenames. Together with current `main` (highest A-1079), no A-1081/A-1082 path was published in the accessible open PR set at allocation. The issue #419 exact-source no-dispatch preflight was unaffected.
+- **Prevention:** Bound independent connector calls to small groups (up to nine per invocation), emit concise per-PR results and avoid speculative large fan-outs. Preserve unavailable unpublished machine-local reservations as unknown; a one-time public inventory is not perpetual uniqueness.
+- **ID:** Publicly unused after main/open-PR check and issue-search checkpoint. No physical host inventory was accessible.
