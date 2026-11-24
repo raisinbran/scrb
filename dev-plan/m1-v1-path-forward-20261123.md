@@ -1,6 +1,6 @@
 # M1 and V1 path forward (Claude-managed)
 
-**Date:** 2026-11-23 PT. **Base:** main `681cd4e5`. **Status:** proposal; the owner decisions in §2 are open. Needs one independent review round before owner approval (planning-role rule).
+**Date:** 2026-11-23 PT. **Base:** main `681cd4e5`. **Status:** owner approved decisions O1–O5 on 2026-11-23 (O6 is asked when the Mac B0 run is ready). The plan still gets one independent review round (planning-role rule).
 **Roles:** a **Claude Code Sonnet** session is the primary planner and coordinator. **Claude Code Opus** oversees quality: reviews plans and high-risk changes, does independent QA, and handles emergencies for the owner. Work is allocated per [agent_task_allocation.md](../agents/agent_task_allocation.md).
 **Supersedes for sequencing:** the next-action sections of [m1-installed-delivery-and-acceptance-20261118.md](m1-installed-delivery-and-acceptance-20261118.md) (v2.2) and the PR 456 handoff. Their evidence and the owner-approved acceptance content (the B0 30-turn protocol, the 15-cell M1 matrix, the 14×2 V1 matrix) stay valid.
 
@@ -12,7 +12,9 @@
 - **Source gaps for V1** (from the [V1 matrix](../docs/acceptance/v1-installed-acceptance-checklist-20261122.md)): functional audio profiles (V13) not implemented, #443 only marks them unavailable; licenses list is empty (`getLicenses` returns `[]`, V14); vocabulary learning stage 2 on hold (V06); summary recall below target (V10); 8-hour drift (V03); live two-remote-speaker grouping unproven (V04).
 - **Open PRs:** 37, of which ~25 are accounting/handoff drafts. Code PRs waiting: #444 quit guard, #443 audio controls, #452 retention test, #454 workflow diagnostics, #420 encrypted transfer, #350, #213, #210, #253, #137, #138, dependabot #389/#385. Fixes from this review: #458 and its companion docs PR.
 
-## 2. Owner decisions needed first
+## 2. Owner decisions
+
+**O1–O5 approved by the owner on 2026-11-23.** O5: Option B, with **Scribe** as the app's name and **scrb** as its shorthand for repo and package names.
 
 | ID | Decision | Recommendation |
 | --- | --- | --- |

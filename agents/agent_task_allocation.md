@@ -12,7 +12,7 @@ Based on the [agent work-quality record](agent-work-quality-record.md):
 - **ChatGPT code needs a check run:** ChatGPT cloud cannot run `npm run check`. Before review, a Claude or Codex session runs it on the branch. ChatGPT does not edit CI, workflows, `packages/contracts/`, check scripts or controlling plans without Opus review, and never adds a per-PR exception to a check.
 - **Codex: one bounded attempt.** On a sandbox or permission failure, Codex records the exact error once and hands off; it does not retry the same method or build workarounds (hosted workflows, dispatch tooling) around its own limits.
 - **Review provenance:** PR text may not name agents, so the reviewer's usage row records the reviewing agent and session and the reviewed SHA; the PR review links that row. A review without such a row counts as review pending.
-- **Accounting batching:** one usage row per assigned task, committed in that task's PR (no standalone accounting PRs). Minor tool errors from one task (wrong path, formatting, mistyped command) go in one incident file that lists each. Every incident names the causing agent (`- **Agent:**` line, enforced from A-1121).
+- **Accounting batching (owner approved 2026-11-23, decision O4):** one usage row per assigned task, committed in that task's PR (no standalone accounting PRs). Minor tool errors from one task (wrong path, formatting, mistyped command) go in one incident file that lists each. Every incident names the causing agent (`- **Agent:**` line, enforced from A-1121).
 - **Controlling plans:** a plan or handoff that changes M1/V1 scope or sequencing needs Claude review and owner approval before agents act on it.
 
 ## Guiding rule

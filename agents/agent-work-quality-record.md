@@ -51,11 +51,13 @@ Findings, most serious first. Each is checked against the code or GitHub records
 
 ### 5. Proposed corrections (owner decision)
 
-| #   | Correction                                                                                                                                                                                    | Why                                                                                  |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| C1  | Record the owner's decision on the #342 contract change (approve as-is, or revert)                                                                                                            | Contract change has no approval record; the change itself is small and looks correct |
-| C2  | Extend `check-boundaries.mjs` so `packages/contracts/` is checked on every branch, with approval given as a reviewed file (e.g. `docs/handoffs/contract-approvals.md`) instead of an env flag | Prevents a repeat of finding 1                                                       |
-| C3  | Close or consolidate the ~25 open accounting/handoff draft PRs into one PR                                                                                                                    | Backlog hides real work; most are superseded                                         |
-| C4  | Backfill the `Agent:` line on the 206 unattributed incident files from their usage rows and PRs, marking unknowns `Unattributed`                                                              | Owner wants every incident attributed                                                |
-| C5  | Merge the two test-isolation mechanisms into `isolated-test-profile.ts`                                                                                                                       | Duplicated safety logic drifts                                                       |
-| C6  | Restore "in progress" for a running final pass in the processing label                                                                                                                        | Wording should match state                                                           |
+Incidents for the confirmed issues: A-1122 (#342), A-1123 (#347), A-1124 and A-1125 (register check and records), A-1126 (M1 plan scope); A-684/A-685 already cover #339. #50 is not logged as an agent incident: its author's last comment said re-review was still required, and the merge was the owner's.
+
+| #   | Correction                                                                                                                       | Why                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| C1  | **Done 2026-11-23:** owner approved the #342 contract change (plan decision O3)                                                  | The change is small and tested               |
+| C2  | **Dropped 2026-11-23 (owner):** making the automatic contract-folder guard apply to every branch                                 | Review covers it                             |
+| C3  | Close or consolidate the ~25 open accounting/handoff draft PRs into one PR                                                       | Backlog hides real work; most are superseded |
+| C4  | Backfill the `Agent:` line on the 206 unattributed incident files from their usage rows and PRs, marking unknowns `Unattributed` | Owner wants every incident attributed        |
+| C5  | Merge the two test-isolation mechanisms into `isolated-test-profile.ts`                                                          | Duplicated safety logic drifts               |
+| C6  | Restore "in progress" for a running final pass in the processing label                                                           | Wording should match state                   |
