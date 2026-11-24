@@ -435,6 +435,40 @@ describe('createMeetingHandlers', () => {
     expect(await value('getMeeting', { meetingId: older.id })).toMatchObject({ speakerCount: 2 });
   });
 
+  it('reads each transcript once for repeated listings and recounts after it changes', async () => {
+    const meeting = await recorded('Counted', '2026-10-01T10:00:00.000Z');
+    const speakers = ['a', 'b'].map((id) => ({
+      id,
+      label: id,
+      name: null,
+      profileId: null,
+      userNamed: false,
+      mergedInto: null,
+    }));
+    await library.applyFinalPass(meeting.id, {
+      segments: speakers.map(({ id }, index) => ({
+        id: `segment-${id}`,
+        speakerId: id,
+        track: 'meeting' as const,
+        pass: 'final' as const,
+        words: [{ id: `word-${id}`, text: id, startMs: index * 20, endMs: index * 20 + 10 }],
+      })),
+      speakers,
+    });
+    const reads = vi.spyOn(library, 'readTranscript');
+    const counts = async () =>
+      ((await value('listMeetings', {})) as { speakerCount: number }[]).map((m) => m.speakerCount);
+
+    expect(await counts()).toEqual([2]);
+    expect(await counts()).toEqual([2]);
+    expect(reads).toHaveBeenCalledTimes(1);
+
+    await library.mergeSpeakers(meeting.id, 'b', 'a');
+    reads.mockClear();
+    expect(await counts()).toEqual([1]);
+    expect(reads).toHaveBeenCalledTimes(1);
+  });
+
   it('passes needsManualResolution to the UI only when a speaker is flagged', async () => {
     const { id: meetingId } = await recorded('Flagged', '2026-10-03T11:00:00.000Z');
     const speaker = (id: string, needsManualResolution?: boolean) => ({
