@@ -5,37 +5,70 @@
       "name": "FFmpeg (libav* decode tools)",
       "version": "9.0",
       "license": "LGPL-2.1-or-later",
-      "textFile": "packages/transcription/licenses/windows/FFmpeg-COPYING.LGPLv2.1.txt"
+      "textFile": "packages/transcription/licenses/windows/FFmpeg-COPYING.LGPLv2.1.txt",
+      "stagedAs": "FFmpeg-LGPL-2.1.txt"
     },
     {
       "name": "libopus",
       "version": "1.6.1",
       "license": "BSD-3-Clause",
-      "textFile": "packages/transcription/licenses/windows/opus-COPYING.txt"
+      "textFile": "packages/transcription/licenses/windows/opus-COPYING.txt",
+      "stagedAs": "opus-BSD-3-Clause.txt"
     },
     {
       "name": "whisper.cpp",
       "version": "1.9.5-dev (284029c0)",
       "license": "MIT",
-      "textFile": "packages/transcription/licenses/windows/whisper.cpp-LICENSE.txt"
+      "textFile": "packages/transcription/licenses/windows/whisper.cpp-LICENSE.txt",
+      "stagedAs": "whisper.cpp-MIT.txt"
     },
     {
       "name": "sherpa-onnx",
       "version": "2.0.1",
       "license": "Apache-2.0",
-      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt"
+      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt",
+      "stagedAs": "sherpa-onnx-Apache-2.0.txt"
     },
     {
       "name": "ONNX Runtime",
       "version": "1.28.2",
       "license": "MIT",
-      "textFile": "packages/transcription/licenses/windows/onnxruntime-LICENSE.txt"
+      "textFile": "packages/transcription/licenses/windows/onnxruntime-LICENSE.txt",
+      "stagedAs": "onnxruntime-MIT.txt"
     },
     {
       "name": "llama.cpp",
       "version": "369dcf30",
       "license": "MIT",
-      "textFile": "third_party/licenses/llama.cpp-MIT.txt"
+      "textFile": "third_party/licenses/llama.cpp-MIT.txt",
+      "stagedAs": "llama.cpp-MIT.txt"
+    },
+    {
+      "name": "cpp-httplib (llama.cpp vendored)",
+      "version": "0.62.0",
+      "license": "MIT",
+      "textFile": "third_party/licenses/cpp-httplib-MIT.txt",
+      "stagedAs": "cpp-httplib-MIT.txt"
+    },
+    {
+      "name": "nlohmann/json (llama.cpp vendored)",
+      "version": "llama.cpp 369dcf30",
+      "license": "MIT",
+      "textFile": "third_party/licenses/jsonhpp-MIT.txt",
+      "stagedAs": "jsonhpp-MIT.txt"
+    },
+    {
+      "name": "ONNX Runtime third-party notices",
+      "version": "1.28.2",
+      "license": "various (see text)",
+      "textFile": "third_party/licenses/onnxruntime-THIRD-PARTY-NOTICES.txt",
+      "stagedAs": "onnxruntime-THIRD-PARTY-NOTICES.txt"
+    },
+    {
+      "name": "Microsoft Visual C++ runtime (Windows)",
+      "version": "redistributable",
+      "license": "Microsoft redistributable terms",
+      "textFile": "packages/transcription/licenses/windows/Microsoft-Visual-Cpp-Runtime-NOTICE.txt"
     }
   ],
   "models": [
@@ -64,7 +97,7 @@
       "name": "3D-Speaker ERes2Net speaker model",
       "version": "base_sv_zh-cn_3dspeaker_16k",
       "license": "Apache-2.0",
-      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt",
+      "textFile": "third_party/licenses/models/3D-Speaker-ERes2Net-Apache-2.0.txt",
       "digestFile": "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
     },
     {
@@ -76,10 +109,18 @@
     },
     {
       "name": "Qwen3.5-9B (Q4_K_M) model",
-      "version": "Q4_K_M",
+      "version": "Q4_K_M (GGUF of Qwen3.5-9B)",
       "license": "Apache-2.0",
-      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt",
+      "textFile": "third_party/licenses/models/Qwen3.5-Apache-2.0.txt",
       "digestFile": "Qwen3.5-9B-Q4_K_M.gguf"
+    },
+    {
+      "name": "pyannote segmentation 3.0 (sherpa-onnx packaged notice)",
+      "version": "sherpa-onnx-pyannote-segmentation-3-0",
+      "license": "MIT",
+      "textFile": "third_party/licenses/models/pyannote-segmentation-sherpa-tarball-MIT.txt",
+      "stagedAs": "pyannote-segmentation-MIT.txt",
+      "digestFile": "segmentation-model.int8.onnx"
     }
   ]
 }
