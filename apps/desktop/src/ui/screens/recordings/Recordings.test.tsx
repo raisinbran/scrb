@@ -665,6 +665,37 @@ describe('Recordings', () => {
         );
       });
 
+      it('clears the word selection when the editor closes', async () => {
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        const word = await firstWord();
+        window.getSelection()?.selectAllChildren(word);
+        fireEvent.doubleClick(word);
+        const form = await screen.findByRole('form', { name: 'Correct transcript' });
+        // The browser's own double-click selection is what the editor must not leave behind.
+        window.getSelection()?.selectAllChildren(word);
+        expect(window.getSelection()?.toString()).toBe(word.textContent);
+        fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() =>
+          expect(screen.queryByRole('form', { name: 'Correct transcript' })).toBeNull(),
+        );
+        expect(window.getSelection()?.toString()).toBe('');
+      });
+
+      it('right-click offers Copy and Correct text for the word under the pointer', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+        renderScreen();
+        await openMeeting(/Weekly project sync/);
+        const word = await firstWord();
+        fireEvent.contextMenu(word);
+        fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy' }));
+        expect(writeText).toHaveBeenCalledWith(word.textContent);
+        fireEvent.contextMenu(word);
+        fireEvent.click(await screen.findByRole('menuitem', { name: 'Correct text' }));
+        expect(await screen.findByRole('form', { name: 'Correct transcript' })).toBeTruthy();
+      });
+
       it('corrects a word while audio plays, without pausing it', async () => {
         renderScreen();
         await openMeeting(/Weekly project sync/);
