@@ -14,9 +14,10 @@ Scope: freeze the Mac release candidate, build it once, record hashes and manife
 | Item                                           | SHA-256                                                            |
 | ---------------------------------------------- | ------------------------------------------------------------------ |
 | Main binary `Scribe.app/Contents/MacOS/Scribe` | `d1d3d85ff5ae2f4ebb1474f60412bd24b0d3c717de4fe0a2f4725f0d54d1c20c` |
-| Whole app (see method)                         | `e5f6740a2c0ce961ed686a03e88152539e40f06817bf342757b50dc61869079c` |
+| Regular files (314), see method                | `e5f6740a2c0ce961ed686a03e88152539e40f06817bf342757b50dc61869079c` |
+| Symbolic links (14), see method                | `30001a5475c519e41407606d1b6bb0d591beaf67820c17cf034053a7395f88af` |
 
-Whole-app method: from inside `Scribe.app`, `find . -type f ! -type l`, sort bytewise (`LC_ALL=C`), run `shasum -a 256` on each (314 regular files, symlinks excluded), then SHA-256 of that listing text. Ad-hoc signing makes hashes build-specific, so a rebuild will differ.
+Package identity is the pair of fingerprints above (the earlier regular-files-only value is unchanged). Regular-files method: from inside `Scribe.app`, `find . -type f ! -type l`, sort bytewise (`LC_ALL=C`), run `shasum -a 256` on each (314 regular files), then SHA-256 of that listing text. Symbolic-links method: `LC_ALL=C find . -type l | sort`, one line `path -> readlink target` per link (14 links, all inside the Electron framework bundles), then SHA-256 of that listing text. File modes, extended attributes and the code signature are not part of either fingerprint. Ad-hoc signing makes hashes build-specific, so a rebuild will differ.
 
 ## Bundle
 
@@ -29,7 +30,7 @@ Whole-app method: from inside `Scribe.app`, `find . -type f ! -type l`, sort byt
 
 ## Model manifest
 
-Models are not bundled; they are installed separately and hash-checked against `scripts/model-digests.json` at this SHA:
+Models are not bundled. The table lists the expected digests from `scripts/model-digests.json` at this SHA, compared against the source manifest only. **Verification of installed model files was not demonstrated in this evidence**, and the launch used an empty temporary library with no models installed. The Qwen summary model (5.7 GB) follows a separate summary-model download path that this evidence did not examine.
 
 | Model                                                      | SHA-256                                                            | Bytes      |
 | ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------- |
