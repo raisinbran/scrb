@@ -1,0 +1,9 @@
+# Contract approvals
+
+Changes to `packages/contracts/` need the owner's approval. A pull request that edits the contract adds one row here in the same PR, quoting the owner's decision; `npm run check:boundaries` fails a contract edit without a new row. Reviewers check the row against the owner's actual words. Earlier decisions are kept as history.
+
+| Date (PT)  | PR       | Change                                                            | Owner decision                                                                                                                                               |
+| ---------- | -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-31 | batch QA | Calls and events for ChatGPT tasks 9–36, listImports, pause spans | Owner delegated contract decisions to Claude; recorded in `docs/handoffs/2026-10-30-owner-decisions.md` and `docs/handoffs/2026-10-31-contracts-batch-qa.md` |
+| 2026-11-13 | —        | `cancelSummary` call and `finalPassProgress` event                | Approved by the owner                                                                                                                                        |
+| 2026-11-23 | #342     | 139-character word IDs in `wordRange`                             | Approved retroactively by the owner (plan decision O3)                                                                                                       |
