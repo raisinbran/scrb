@@ -1,0 +1,8 @@
+### A-1095 — 2026-11-22 — cloud — PR #444 event-harness Prettier failure
+
+- **Attribution:** Self-induced authoring/formatting oversight in the new fake Electron lifecycle test, not an installer, application behavior, recovery, or machine failure.
+- **Observed:** Automated exact-head CI [#45082276258](https://github.com/raisinbran/scrb/actions/runs/45082276258) failed Windows **Check Prettier on changed TypeScript**. The formatter reported one precise line-wrapping change for `fakeElectronLifecycle('win32', () => idle, async () => true, close, 5)` in `apps/desktop/src/main/quit.test.ts`. Native Windows capture-source passed; application tests were not reached on the failed job. The correction is strictly formatting.
+- **Impact:** One avoidable red CI check and an extra automatically triggered exact-head validation. No physical test, personal recording, native workflow edit, app launch, model access or private-data impact. Exact model-credit cost cannot be measured.
+- **Correction:** Applied the exact multiline Prettier layout from the CI diff in commit `17ded960fb1411545bb7f4b1112154a08fc516dc`. Preserve all substantive quit/startup changes and five new deterministic tests; require new exact-head Windows/macOS/native CI and different-session formal review before merge.
+- **Prevention:** Run focused formatting validation before submitting long new source-test calls when available, and inspect first failure output instead of blanket reruns. No manual rerun was dispatched.
+- **Reservation:** A-1095 did not appear on current public main or in the surfaced recent open-PR incident inventories and GitHub code search when selected; unindexed and host-local reservations are **NOT VERIFIED**. Reconcile any distinct later collision via #358.

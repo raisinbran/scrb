@@ -55,6 +55,7 @@ import {
   sourcesFor,
 } from './model-download.ts';
 import { isIdle, relaunchWhenIdle, withReadyMessage } from './models-ready.ts';
+import { createStartupActivity, type QuitActivity } from './quit.ts';
 import os from 'node:os';
 import { openBackendLibrary, resolveBackendLibraryRoot } from './isolated-test-profile.ts';
 
@@ -96,7 +97,20 @@ export async function openBackend(
   emit: <K extends EventName>(name: K, payload: BackendEvents[K]) => void,
   parentWindow: () => BrowserWindow | null = () => null,
   isolatedLibraryRoot?: string,
+  onCriticalActivity?: (read: () => QuitActivity) => void,
 ): Promise<OpenedBackend> {
+  let recording: RecordingController | null = null;
+  let finalPasses: FinalPassQueue | null = null;
+  let imports: ImportCoordinator | null = null;
+  let recovering = false;
+  const startupActivity = createStartupActivity(() => ({
+    recording: recording?.isBusy() ?? false,
+    finalPass: finalPasses?.hasWork() ?? false,
+    importing: (imports?.list().length ?? 0) > 0,
+    recovering,
+  }));
+  // Register the busy snapshot before Library.open begins index reconciliation.
+  onCriticalActivity?.(startupActivity.read);
   const fallback = path.join(app.getPath('documents'), 'Meeting Scribe');
   try {
     const userData = app.getPath('userData');
@@ -162,7 +176,6 @@ export async function openBackend(
     const plan = () => resolvePerformance(settings.getSettings().transcriptionQuality, hardware);
     const modelGate = new LargeModelGate();
     // Recording always wins: a recording that starts stops any running summary.
-    let recording: RecordingController | null = null;
     const engine: SummaryEngine = {
       server: (paths, options) => new LlamaServerWorker({ ...paths, ...options }),
       extractItems,
@@ -273,7 +286,7 @@ export async function openBackend(
     const finalPassConfig = packaged
       ? (packaged.finalPassConfig ?? undefined)
       : process.env['SCRB_FINAL_PASS_CONFIG'];
-    const finalPasses =
+    finalPasses =
       helper && finalPassConfig
         ? new FinalPassQueue(
             library,
@@ -302,9 +315,20 @@ export async function openBackend(
     };
     if (liveConfig && !baseLiveSetup && livePlatform)
       library.logger.log('error', 'live-config-unavailable', {});
-    if (helper) await recoverInterrupted(library, helper, finalPasses);
-    await resumeFinalPasses(library, finalPasses);
-    let imports: ImportCoordinator | null = null;
+    if (helper) {
+      recovering = true;
+      try {
+        await recoverInterrupted(library, helper, finalPasses);
+      } finally {
+        recovering = false;
+      }
+    }
+    recovering = true;
+    try {
+      await resumeFinalPasses(library, finalPasses);
+    } finally {
+      recovering = false;
+    }
     recording = helper
       ? new RecordingController(
           library,
@@ -381,7 +405,14 @@ export async function openBackend(
           modelGate,
         })
       : null;
-    if (imports) await imports.recoverInterrupted();
+    if (imports) {
+      recovering = true;
+      try {
+        await imports.recoverInterrupted();
+      } finally {
+        recovering = false;
+      }
+    }
     // A running summary is stopped, and its server has exited, before the meeting is deleted.
     const stopRetention = library.startAutoDeleteSchedule(undefined, async (meetingId) => {
       await summaries.stopAndWait(meetingId, 'deleted');
@@ -562,6 +593,9 @@ export async function openBackend(
             : 'The library could not be opened. Its files were kept; library features are unavailable until it is repaired.',
       close: async () => undefined,
     };
+  } finally {
+    // Never expose a false idle gap between library open, recovery phases, or a blocked fallback.
+    startupActivity.finish();
   }
 }
 

@@ -46,11 +46,11 @@ afterEach(() => {
 
 describe('isolated synthetic test-profile startup guard', () => {
   it('opens the backend for one explicit synthetic profile and library under OS temp', async () => {
-    const { options } = fixture();
+    const { options, library } = fixture();
     const openBackend = vi.fn(async () => 'opened');
 
     await expect(openBackendAfterIsolationCheck(options, openBackend)).resolves.toBe('opened');
-    expect(openBackend).toHaveBeenCalledOnce();
+    expect(openBackend).toHaveBeenCalledExactlyOnceWith(realpathSync(library));
   });
 
   it.each([
@@ -144,7 +144,7 @@ describe('isolated synthetic test-profile startup guard', () => {
     const openBackend = vi.fn(async () => 'opened');
 
     await expect(openBackendAfterIsolationCheck(null, openBackend)).resolves.toBe('opened');
-    expect(openBackend).toHaveBeenCalledOnce();
+    expect(openBackend).toHaveBeenCalledExactlyOnceWith(null);
   });
 
   it('keeps backend and recovery on the validated root if the pointer disappears after preflight', async () => {
@@ -198,8 +198,9 @@ describe('isolated synthetic test-profile startup guard', () => {
     const backendSource = readFileSync(path.join(__dirname, 'backend.ts'), 'utf8');
 
     expect(source).toContain("app.commandLine.hasSwitch('scrb-isolated-test-profile')");
+    // Assert the validated callback root reaches openBackend, regardless of formatting.
     expect(source).toMatch(
-      /openBackendAfterIsolationCheck\(isolatedTestProfile,\s*\(isolatedLibraryRoot\) =>\s*openBackend\(/,
+      /openBackendAfterIsolationCheck\(\s*isolatedTestProfile,\s*\(([A-Za-z_$][\w$]*)\)\s*=>\s*openBackend\([\s\S]*?\b\1\s*\?\?\s*undefined\s*,/,
     );
     expect(source).toContain('app.exit(1);');
     expect(source).toContain('isolatedLibraryRoot ?? undefined');
