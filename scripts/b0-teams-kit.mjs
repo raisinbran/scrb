@@ -79,6 +79,7 @@ export function phaseAt(schedule, t) {
     return out('quiet', { next: info(next), untilS: next ? Math.max(0, next.slotS - t) : null });
   }
   if (t >= eb + 1.1) return out('quiet', { next: null, untilS: null, finishing: true });
+  if (!next) return out('quiet', { next: null, untilS: null });
   if (next && t >= next.slotS) {
     return out('now', {
       current: info(next),
@@ -194,13 +195,13 @@ function render(t){const p=phaseAt(S,t);document.body.className=p.phase;
   if(p.next){line='Next: '+p.next.line;count='in '+f(p.untilS)+' s';}}
  else if(p.phase==='ready'){big='GET READY';line=p.next.line;count='in '+f(p.untilS)+' s';small='Line '+p.next.n+' of 10';}
  else if(p.phase==='now'){big='YOUR TURN';line=p.current.line;count=f(p.remainingS)+' s left';small='Line '+p.current.n+' of 10'+(p.after?'. Next: '+p.after.line:'. Last line.');}
- else if(p.phase==='wait'){big='Wait';line='Next: '+p.next.line;count='in '+f(p.untilS)+' s';small='Line '+p.next.n+' of 10';}
+ else if(p.phase==='wait'&&p.next){big='Wait';line='Next: '+p.next.line;count='in '+f(p.untilS)+' s';small='Line '+p.next.n+' of 10';}
  else if(p.phase==='done'){big='DONE';small='Press Stop in Scribe now, then Stop the Teams call.';}
  $('big').textContent=big;$('line').textContent=line;$('count').textContent=count;$('small').textContent=small;}
 function tick(){const au=$('au');let t;
  if(useAudio)t=au.currentTime;
  else t=(performance.now()-t0)/1000;
- render(t);if(t<S.endBeepS+4)requestAnimationFrame(tick);}
+ render(t);if(t<S.endBeepS+4&&!(useAudio&&au.ended))requestAnimationFrame(tick);}
 async function start(audio){useAudio=audio;$('btns').style.display='none';
  try{if(navigator.wakeLock)await navigator.wakeLock.request('screen');}catch(e){}
  if(audio){try{await $('au').play();}catch(e){$('err').textContent='AUDIO DID NOT START: '+e+' Reload and tap START again.';document.body.className='quiet';$('btns').style.display='';return;}}

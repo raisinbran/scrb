@@ -1,3 +1,4 @@
+import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { RATE, findBeeps } from './b0-track-sync.mjs';
 import {
@@ -64,6 +65,13 @@ describe('phaseAt', () => {
     expect(phaseAt(s, s.endBeepS + 2).finishing).toBe(true);
     expect(phaseAt(s, s.endBeepS + 3.1).phase).toBe('done');
   });
+  it('is quiet with no next line between the last Y turn and the end-beep window', () => {
+    for (const t of [282.0, 282.5, 283.0, 283.4]) {
+      const p = phaseAt(s, t);
+      expect(p.phase).toBe('quiet');
+      expect(p.next).toBeNull();
+    }
+  });
   it('shows ready then your turn for Y01, with the next line', () => {
     const r = phaseAt(s, 13.0);
     expect(r.phase).toBe('ready');
@@ -89,6 +97,25 @@ describe('phaseAt', () => {
 });
 
 describe('cuePage', () => {
+  it('renders every second of the run without throwing', () => {
+    const html = cuePage(buildSchedule(10), 'data:audio/mp4;base64,AAAA');
+    const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+    const els = {};
+    const doc = {
+      body: { className: '' },
+      getElementById: (id) => (els[id] ??= { textContent: '', style: {} }),
+    };
+    const ctx = vm.createContext({
+      document: doc,
+      navigator: {},
+      performance,
+      requestAnimationFrame() {},
+    });
+    vm.runInContext(`${script};this.render=render`, ctx);
+    for (let t = 0; t < 290; t += 0.5) ctx.render(t);
+    ctx.render(282.5);
+    expect(doc.body.className).toBe('quiet');
+  });
   it('is self-contained, embeds the schedule and the phase function, with no network references', () => {
     const html = cuePage(buildSchedule(10), 'data:audio/mp4;base64,AAAA');
     expect(html).toContain('data:audio/mp4;base64,AAAA');
