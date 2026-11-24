@@ -11,14 +11,12 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
   it('runs after independent installer integrity and Start Menu target checks', () => {
     const smoke = read('scripts/test-win-installer-smoke.ps1');
     const launch = smoke.indexOf('Invoke-ScribeInstalledAppReadiness');
-    expect(launch).toBeGreaterThan(
-      smoke.indexOf('Invoke-TrustedCandidateInstall -Verification $trust -Launch'),
-    );
+    expect(launch).toBeGreaterThan(smoke.indexOf("Invoke-TrustedCandidateInstall -Verification $trust -Launch"));
     expect(launch).toBeGreaterThan(smoke.indexOf("$stepStatuses.startMenuShortcut = 'PASS'"));
     expect(launch).toBeLessThan(smoke.indexOf("Invoke-BoundedProcess $uninstallExe @('/S')"));
     expect(smoke).toContain("applicationLaunchReady = 'NOT VERIFIED'");
     expect(smoke).toContain("$stepStatuses.applicationLaunchReady = 'PASS'");
-    expect(smoke).toContain('$isCurrentCandidate');
+    expect(smoke).toContain("$isCurrentCandidate");
   });
 
   it('propagates readiness and copies the isolated module into the disposable user', () => {
@@ -80,9 +78,7 @@ describe('installed Scribe.exe startup and exit acceptance wiring', () => {
       );
       expect(result.error?.message).toBeUndefined();
       expect(result.status, result.stdout + '\n' + result.stderr).toBe(0);
-      expect(result.stdout).toContain(
-        'Installed Scribe GUI-ready/exit/identity/isolation/trust synthetic behavior PASS',
-      );
+      expect(result.stdout).toContain('Installed Scribe GUI-ready/exit/identity/isolation/trust synthetic behavior PASS');
     },
     // This single Windows subprocess-backed fixture has taken ~7 s under shared CI load.
     // Keep its budget focused; do not raise the suite-wide timeout.

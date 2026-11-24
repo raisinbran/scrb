@@ -7,11 +7,26 @@ B0="${B0:?set B0}"
 APP="${APP:-/Applications/Scribe.app}"
 OWNER_LIB="$HOME/Documents/Meeting Scribe"
 die() { echo "STOP: $*" >&2; exit 1; }
+canon() { (cd -P "$1" 2>/dev/null && pwd -P); }
+overlap() { case "$1/" in "$2"/*) return 0;; esac; case "$2/" in "$1"/*) return 0;; esac; return 1; }
+# The evidence folder must exist and be disjoint (neither inside nor containing) from the owner's library, the
+# models folder, and the installed or target app folder, after resolving symlinks.
+check_b0() {
+  local b canonical_for
+  b=$(canon "$B0") || die "B0 must be an existing directory: $B0"
+  B0="$b"
+  for protected in "$HOME/Documents/Meeting Scribe" "$HOME/Library/Application Support/Scribe" "$(dirname "$APP")/$(basename "$APP")" /Applications; do
+    canonical_for=$(canon "$protected" || echo "$protected")
+    overlap "$B0" "$canonical_for" && die "B0 ($B0) overlaps a protected location: $canonical_for"
+  done
+  return 0
+}
+check_b0
 node_bin() { command -v node >/dev/null || die "node not on PATH"; }
 
 case "${1:-}" in
 prepare)
-  node_bin; mkdir -p "$B0"
+  node_bin
   [ ! -e "$B0/run.env" ] || die "$B0/run.env exists: a run is already prepared (reuse it, do not recreate)"
   TMPROOT=$(node -p "require('fs').realpathSync(require('os').tmpdir())")
   RUN=$(mktemp -d "$TMPROOT/scrb-b0-XXXXXX")

@@ -69,28 +69,19 @@ describe('macOS research tool bundle hashing', () => {
       'runtimeDylib:lib/libruntime.dylib',
       'runtimeDylib:libdirect.dylib',
     ]);
-    expect(libraries['runtimeDylib:lib/libruntime.dylib']).toBe(
-      await realpath(join(f.bin, 'lib', 'libruntime.dylib')),
-    );
+    expect(libraries['runtimeDylib:lib/libruntime.dylib']).toBe(await realpath(join(f.bin, 'lib', 'libruntime.dylib')));
   });
 
-  it.skipIf(process.platform === 'win32')(
-    'rejects linked dylibs and linked lib directories',
-    async () => {
-      const f = fixture();
-      const outside = join(f.root, 'outside.dylib');
-      writeFileSync(outside, 'private file');
-      symlinkSync(outside, join(f.bin, 'linked.dylib'));
-      await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(
-        /regular file/,
-      );
-      rmSync(join(f.bin, 'linked.dylib'));
-      symlinkSync(f.root, join(f.bin, 'lib'), 'dir');
-      await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(
-        /real directory/,
-      );
-    },
-  );
+  it.skipIf(process.platform === 'win32')('rejects linked dylibs and linked lib directories', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'outside.dylib');
+    writeFileSync(outside, 'private file');
+    symlinkSync(outside, join(f.bin, 'linked.dylib'));
+    await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(/regular file/);
+    rmSync(join(f.bin, 'linked.dylib'));
+    symlinkSync(f.root, join(f.bin, 'lib'), 'dir');
+    await expect(collectResearchRuntimeLibraries(f.bin, 'darwin')).rejects.toThrow(/real directory/);
+  });
 
   it('preserves the existing Windows DLL identity behavior', async () => {
     const f = fixture();
@@ -113,20 +104,15 @@ describe('AMI annotation containment', () => {
     expect(rows[0]?.xml).toBe(xml);
   });
 
-  it.skipIf(process.platform === 'win32')(
-    'rejects a symlinked annotation directory outside AMI',
-    async () => {
-      const f = fixture();
-      const outside = join(f.root, 'outside-segments');
-      mkdirSync(outside);
-      writeFileSync(join(outside, 'ES2004a.B.segments.xml'), '<segments />');
-      mkdirSync(join(f.ami, 'ann'));
-      symlinkSync(outside, join(f.ami, 'ann', 'segments'), 'dir');
-      await expect(readAmiSegmentAnnotations(f.ami, 'ES2004a')).rejects.toThrow(
-        /directory|escapes/,
-      );
-    },
-  );
+  it.skipIf(process.platform === 'win32')('rejects a symlinked annotation directory outside AMI', async () => {
+    const f = fixture();
+    const outside = join(f.root, 'outside-segments');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'ES2004a.B.segments.xml'), '<segments />');
+    mkdirSync(join(f.ami, 'ann'));
+    symlinkSync(outside, join(f.ami, 'ann', 'segments'), 'dir');
+    await expect(readAmiSegmentAnnotations(f.ami, 'ES2004a')).rejects.toThrow(/directory|escapes/);
+  });
 
   it.skipIf(process.platform === 'win32')('rejects a symlinked annotation file', async () => {
     const f = fixture();
@@ -160,7 +146,9 @@ describe('AMI runner path ownership', () => {
   it('rejects same-root, sibling-prefix and parent traversal paths', () => {
     const root = resolve('tmp', 'scrb-root');
     expect(() => assertStrictChild(root, root)).toThrow(/escapes/);
-    expect(() => assertStrictChild(root, join(root, '..', 'scrb-root-old'))).toThrow(/escapes/);
+    expect(() => assertStrictChild(root, join(root, '..', 'scrb-root-old'))).toThrow(
+      /escapes/,
+    );
     expect(() => assertStrictChild(root, join(root, '..', 'outside'))).toThrow(/escapes/);
     expect(assertStrictChild(root, join(root, 'created'))).toBe(join(root, 'created'));
   });
@@ -231,20 +219,17 @@ describe('AMI runner path ownership', () => {
     expect(existsSync(second.runRoot)).toBe(false);
   });
 
-  it.skipIf(process.platform === 'win32')(
-    'rejects an AMI source symlink outside the corpus',
-    async () => {
-      const f = fixture();
-      const escapeFile = join(f.root, 'private.wav');
-      writeFileSync(escapeFile, 'invented private file');
-      const source = join(f.ami, 'ES2004a.Mix-Headset.wav');
-      rmSync(source);
-      symlinkSync(escapeFile, source);
-      await expect(
-        createAmiWorkspace({ assets: f.assets, bin: f.bin, meeting: 'ES2004a' }),
-      ).rejects.toThrow(/regular file/);
-      expect(readFileSync(escapeFile, 'utf8')).toBe('invented private file');
-      expect(readdirSync(f.bin)).toEqual([]);
-    },
-  );
+  it.skipIf(process.platform === 'win32')('rejects an AMI source symlink outside the corpus', async () => {
+    const f = fixture();
+    const escapeFile = join(f.root, 'private.wav');
+    writeFileSync(escapeFile, 'invented private file');
+    const source = join(f.ami, 'ES2004a.Mix-Headset.wav');
+    rmSync(source);
+    symlinkSync(escapeFile, source);
+    await expect(
+      createAmiWorkspace({ assets: f.assets, bin: f.bin, meeting: 'ES2004a' }),
+    ).rejects.toThrow(/regular file/);
+    expect(readFileSync(escapeFile, 'utf8')).toBe('invented private file');
+    expect(readdirSync(f.bin)).toEqual([]);
+  });
 });

@@ -2,7 +2,8 @@
 # B0 Mac app swap with fail-closed rollback. Subcommands: fingerprint <dir> | backup | swap | rollback
 # Env: B0 (evidence folder, outside the temp profile), APPS (default /Applications), CAND (built Scribe.app),
 #      EXPECT_FILES, EXPECT_LINKS (full 64-hex digests of CAND). Test hook: B0_TEST_MODE=1 skips codesign and
-#      the running-app check; it is refused unless the canonical APPS is a marked rehearsal tree under the temp root. B0_TEST_FAIL_AFTER_MOVE=1 (test mode only)
+#      the running-app check; it is refused unless canonical APPS and B0 are both inside the marked rehearsal root
+#      B0_REHEARSAL_ROOT (a directory under the temp root holding .b0-rehearsal-root). B0_TEST_FAIL_AFTER_MOVE=1 (test mode only)
 #      injects a failure after the second rename to prove the automatic rollback.
 set -euo pipefail
 canon() { (cd -P "$1" 2>/dev/null && pwd -P); }
@@ -11,18 +12,20 @@ APPS=$(canon "$APPS_IN") || { echo "STOP: cannot resolve APPS=$APPS_IN" >&2; exi
 B0="${B0:?set B0}"
 PROD=$(canon /Applications) || PROD=/Applications
 LIVE="$APPS/Scribe.app"
-# Test mode may only act on a disposable rehearsal tree: canonical path under the canonical OS temp root,
-# never the canonical /Applications (so a trailing slash or symlink alias cannot bypass this), and marked by
-# the file .b0-rehearsal-tree that the rehearsal step creates. Production mode keeps every gate.
+# Test mode may only act inside one disposable rehearsal tree. B0_REHEARSAL_ROOT names it; its canonical path must
+# be under the canonical OS temp root (not /Applications) and hold the regular marker file .b0-rehearsal-root, and the
+# canonical APPS and canonical B0 must both be inside it (symlinks are resolved first, so aliases cannot escape).
+# Production mode keeps every gate.
 if [ "${B0_TEST_MODE:-0}" = 1 ]; then
   TMPROOT=$(canon "${TMPDIR:-/tmp}") || { echo "STOP: cannot resolve temp root" >&2; exit 64; }
-  case "$APPS/" in "$TMPROOT"/*) ;; *) echo "refused: test mode APPS must be inside $TMPROOT" >&2; exit 64 ;; esac
-  case "$APPS/" in "$PROD"/*) echo "refused: test mode on /Applications" >&2; exit 64 ;; esac
+  R=$(canon "${B0_REHEARSAL_ROOT:-/nonexistent}") || { echo "refused: test mode needs B0_REHEARSAL_ROOT (an existing directory)" >&2; exit 64; }
   B0_CANON=$(canon "$B0") || { echo "refused: test mode B0 must be an existing directory" >&2; exit 64; }
-  case "$B0_CANON/" in "$TMPROOT"/*) ;; *) echo "refused: test mode B0 must be inside $TMPROOT" >&2; exit 64 ;; esac
-  case "$B0_CANON/" in "$PROD"/*) echo "refused: test mode B0 inside /Applications" >&2; exit 64 ;; esac
+  case "$R/" in "$TMPROOT"/*) ;; *) echo "refused: rehearsal root must be inside $TMPROOT" >&2; exit 64 ;; esac
+  case "$R/" in "$PROD"/*|"$PROD"/) echo "refused: test mode on /Applications" >&2; exit 64 ;; esac
+  [ -f "$R/.b0-rehearsal-root" ] && [ ! -L "$R/.b0-rehearsal-root" ] || { echo "refused: $R lacks the .b0-rehearsal-root marker" >&2; exit 64; }
+  case "$APPS/" in "$R"/?*) ;; *) echo "refused: test mode APPS must be inside the rehearsal root" >&2; exit 64 ;; esac
+  case "$B0_CANON/" in "$R"/?*) ;; *) echo "refused: test mode B0 must be inside the rehearsal root" >&2; exit 64 ;; esac
   B0="$B0_CANON"
-  [ -f "$APPS/.b0-rehearsal-tree" ] && [ ! -L "$APPS/.b0-rehearsal-tree" ] || { echo "refused: $APPS lacks the .b0-rehearsal-tree marker" >&2; exit 64; }
 fi
 
 die() { echo "STOP: $*" >&2; exit 1; }

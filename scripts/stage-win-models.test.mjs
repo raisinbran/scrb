@@ -2,15 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Buffer } from 'node:buffer';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,24 +37,13 @@ function fixture() {
   digests['Qwen3.5-9B-Q4_K_M.gguf'] = { sha256: digest('summary'), bytes: 7 };
   const manifestPath = path.join(root, 'model-digests.json');
   writeFileSync(manifestPath, JSON.stringify(digests));
-  const archive = path.join(
-    assetsDir,
-    'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2',
-  );
+  const archive = path.join(assetsDir, 'models/sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2');
   mkdirSync(path.dirname(archive), { recursive: true });
   const createArchive = () =>
-    execFileSync('tar', [
-      '-cjf',
-      archive,
-      '-C',
-      path.join(root, 'extract'),
-      'sherpa-onnx-pyannote-segmentation-3-0',
-    ]);
+    execFileSync('tar', ['-cjf', archive, '-C', path.join(root, 'extract'), 'sherpa-onnx-pyannote-segmentation-3-0']);
   createArchive();
   const options = {
-    assetsDir,
-    outputDir: path.join(root, 'handover'),
-    manifestPath,
+    assetsDir, outputDir: path.join(root, 'handover'), manifestPath,
     installerTemplate: path.join(rootScript, 'install-models.ps1'),
     archiveSha256: digest(readFileSync(archive)),
   };
@@ -71,23 +52,16 @@ function fixture() {
 
 const empty = (f) => {
   expect(existsSync(f.options.outputDir)).toBe(false);
-  expect(readdirSync(f.root).filter((name) => name.startsWith('.scribe-model-handover-'))).toEqual(
-    [],
-  );
+  expect(readdirSync(f.root).filter((name) => name.startsWith('.scribe-model-handover-'))).toEqual([]);
 };
 
 describe('portable Windows speech-model handover', () => {
   it('stages precisely five verified speech models, not summary models', async () => {
     const f = fixture();
     await stageWindowsModels(f.options);
-    expect(readdirSync(f.options.outputDir).sort()).toEqual([
-      'install-models.ps1',
-      'model-digests.json',
-      'models',
-    ]);
-    expect(readdirSync(path.join(f.options.outputDir, 'models')).sort()).toEqual(
-      Object.keys(SPEECH_MODEL_SOURCES).sort(),
-    );
+    expect(readdirSync(f.options.outputDir).sort()).toEqual(['install-models.ps1', 'model-digests.json', 'models']);
+    expect(readdirSync(path.join(f.options.outputDir, 'models')).sort())
+      .toEqual(Object.keys(SPEECH_MODEL_SOURCES).sort());
     const bytes = readFileSync(f.manifestPath);
     expect(readFileSync(path.join(f.options.outputDir, 'model-digests.json'))).toEqual(bytes);
     const installer = readFileSync(path.join(f.options.outputDir, 'install-models.ps1'), 'utf8');
@@ -114,10 +88,7 @@ describe('portable Windows speech-model handover', () => {
 
   it('rejects truncation', async () => {
     const f = fixture();
-    writeFileSync(
-      path.join(f.options.assetsDir, SPEECH_MODEL_SOURCES['ggml-small.en-q5_1.bin']),
-      'short',
-    );
+    writeFileSync(path.join(f.options.assetsDir, SPEECH_MODEL_SOURCES['ggml-small.en-q5_1.bin']), 'short');
     await expect(stageWindowsModels(f.options)).rejects.toThrow('size mismatch');
     empty(f);
   });
@@ -171,22 +142,10 @@ describe('portable Windows speech-model handover', () => {
       await stageWindowsModels(f.options);
       const dest = path.join(f.root, 'target', 'Scribe', 'models');
       const script = path.join(f.options.outputDir, 'install-models.ps1');
-      const run = (args = []) =>
-        spawnSync(
-          'powershell.exe',
-          [
-            '-NoProfile',
-            '-NonInteractive',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            script,
-            '-Destination',
-            dest,
-            ...args,
-          ],
-          { encoding: 'utf8' },
-        );
+      const run = (args = []) => spawnSync('powershell.exe', [
+        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
+        '-Destination', dest, ...args,
+      ], { encoding: 'utf8' });
       const verification = run(['-VerifyOnly']);
       expect(verification.status, verification.stderr || verification.stdout).toBe(0);
       expect(existsSync(dest)).toBe(false);
@@ -196,11 +155,7 @@ describe('portable Windows speech-model handover', () => {
       const original = readFileSync(installed);
       writeFileSync(path.join(dest, 'extra-file.txt'), 'preserve');
       expect(run().status).toBe(0);
-      const handoverModel = path.join(
-        f.options.outputDir,
-        'models',
-        'segmentation-model.int8.onnx',
-      );
+      const handoverModel = path.join(f.options.outputDir, 'models', 'segmentation-model.int8.onnx');
       const altered = Buffer.from(readFileSync(handoverModel));
       altered[0] ^= 1;
       writeFileSync(handoverModel, altered);
@@ -222,20 +177,10 @@ describe('portable Windows speech-model handover', () => {
       const dest = path.join(f.root, 'existing', 'models');
       mkdirSync(dest, { recursive: true });
       writeFileSync(path.join(dest, 'keep.txt'), 'preserve');
-      const result = spawnSync(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          path.join(f.options.outputDir, 'install-models.ps1'),
-          '-Destination',
-          dest,
-        ],
-        { encoding: 'utf8' },
-      );
+      const result = spawnSync('powershell.exe', [
+        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+        path.join(f.options.outputDir, 'install-models.ps1'), '-Destination', dest,
+      ], { encoding: 'utf8' });
       expect(result.status).not.toBe(0);
       expect(readdirSync(dest)).toEqual(['keep.txt']);
     });

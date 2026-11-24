@@ -50,12 +50,8 @@ function regularFile(file) {
 
 async function verifyFile(file, expected, name) {
   const entry = regularFile(file);
-  if (
-    !expected ||
-    !/^[a-f0-9]{64}$/i.test(expected.sha256) ||
-    !Number.isSafeInteger(expected.bytes) ||
-    expected.bytes < 1
-  ) {
+  if (!expected || !/^[a-f0-9]{64}$/i.test(expected.sha256) ||
+      !Number.isSafeInteger(expected.bytes) || expected.bytes < 1) {
     throw new Error(`invalid pinned digest entry for ${name}`);
   }
   if (entry.size !== expected.bytes) throw new Error(`size mismatch for ${name}`);
@@ -74,28 +70,22 @@ export async function stageWindowsModels({
 }) {
   if (!assetsDir || !outputDir) throw new Error('assetsDir and outputDir are required');
   const output = path.resolve(outputDir);
-  if (existsSync(output))
-    throw new Error(`handover output already exists; refusing overwrite: ${output}`);
+  if (existsSync(output)) throw new Error(`handover output already exists; refusing overwrite: ${output}`);
   const manifestBytes = readFileSync(manifestPath);
   const digests = JSON.parse(manifestBytes.toString('utf8'));
   const required = Object.keys(SPEECH_MODEL_SOURCES);
   for (const name of required) {
     if (!Object.hasOwn(digests, name)) throw new Error(`missing pinned digest for ${name}`);
     const entry = digests[name];
-    if (
-      !entry ||
-      !/^[a-f0-9]{64}$/i.test(entry.sha256) ||
-      !Number.isSafeInteger(entry.bytes) ||
-      entry.bytes < 1
-    ) {
+    if (!entry || !/^[a-f0-9]{64}$/i.test(entry.sha256) ||
+        !Number.isSafeInteger(entry.bytes) || entry.bytes < 1) {
       throw new Error(`invalid pinned digest entry for ${name}`);
     }
   }
   if (!/^[a-f0-9]{64}$/i.test(archiveSha256)) throw new Error('invalid segmentation archive pin');
 
   const installer = readFileSync(installerTemplate, 'utf8');
-  if (installer.split(MARKER).length !== 2)
-    throw new Error('installer digest marker missing or repeated');
+  if (installer.split(MARKER).length !== 2) throw new Error('installer digest marker missing or repeated');
   const archive = path.join(assetsDir, ARCHIVE);
   regularFile(archive);
   if ((await sha256File(archive)) !== archiveSha256.toLowerCase()) {
@@ -121,11 +111,7 @@ export async function stageWindowsModels({
     if (!lstatSync(extractedParent).isDirectory() || lstatSync(extractedParent).isSymbolicLink()) {
       throw new Error('invalid segmentation archive directory');
     }
-    await verifyFile(
-      source,
-      digests['segmentation-model.int8.onnx'],
-      'segmentation-model.int8.onnx',
-    );
+    await verifyFile(source, digests['segmentation-model.int8.onnx'], 'segmentation-model.int8.onnx');
 
     const models = path.join(pending, 'models');
     mkdirSync(models);
@@ -134,13 +120,10 @@ export async function stageWindowsModels({
       await verifyFile(path.join(models, name), digests[name], name);
     }
     writeFileSync(path.join(pending, 'model-digests.json'), manifestBytes);
-    writeFileSync(
-      path.join(pending, 'install-models.ps1'),
-      installer.replace(MARKER, sha256Bytes(manifestBytes)),
-    );
+    writeFileSync(path.join(pending, 'install-models.ps1'),
+      installer.replace(MARKER, sha256Bytes(manifestBytes)));
     rmSync(extracted, { recursive: true, force: true });
-    if (readdirSync(models).length !== required.length)
-      throw new Error('incomplete staged model set');
+    if (readdirSync(models).length !== required.length) throw new Error('incomplete staged model set');
     if (existsSync(output)) throw new Error(`handover output already exists: ${output}`);
     renameSync(pending, output);
     return output;
@@ -152,16 +135,11 @@ export async function stageWindowsModels({
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.length !== 4 || args[0] !== '--assets' || args[2] !== '--output') {
-    console.error(
-      'Usage: node scripts/stage-win-models.mjs --assets <dev-assets> --output <new-handover-folder>',
-    );
+    console.error('Usage: node scripts/stage-win-models.mjs --assets <dev-assets> --output <new-handover-folder>');
     process.exitCode = 2;
   } else {
     stageWindowsModels({ assetsDir: args[1], outputDir: args[3] })
       .then((output) => console.log(`Model handover staged: ${output}`))
-      .catch((error) => {
-        console.error(error.message);
-        process.exitCode = 1;
-      });
+      .catch((error) => { console.error(error.message); process.exitCode = 1; });
   }
 }

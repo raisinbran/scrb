@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RATE, compareTracks, findBeeps, readChunkList } from './b0-track-sync.mjs';
@@ -84,5 +85,81 @@ describe('readChunkList', () => {
     writeFileSync(join(dir, 'chunks.log'), JSON.stringify(rows[1]));
     expect(readChunkList(dir)).toEqual([rows[0]]);
     expect(() => readChunkList(mkdtempSync(join(tmpdir(), 'b0chunks-')))).toThrow(/neither/);
+  });
+});
+
+// CLI fixture: sealed chunks.json folders decoded through a stub "ffmpeg" that returns each chunk file's raw
+// float32 samples, so the real decode-and-place path of the script runs without the ffmpeg binary.
+describe.runIf(process.platform !== 'win32')('b0-track-sync CLI on sealed chunks', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'b0cli-'));
+  const stub = join(dir, 'fake-ffmpeg');
+  writeFileSync(
+    stub,
+    `#!/usr/bin/env node\nconst a = process.argv; process.stdout.write(require('fs').readFileSync(a[a.indexOf('-i') + 1]));\n`,
+  );
+  chmodSync(stub, 0o755);
+
+  function seal(audio, name, samples) {
+    const folder = join(audio, name);
+    mkdirSync(folder, { recursive: true });
+    const cut = 140 * RATE; // two chunks, the second starts at 140 s
+    const parts = [samples.subarray(0, cut), samples.subarray(cut)];
+    const chunks = parts.map((part, i) => {
+      const file = `c${i}.f32`;
+      writeFileSync(join(folder, file), Buffer.from(part.buffer, part.byteOffset, part.byteLength));
+      const startNs = i === 0 ? 0 : 140e9;
+      return { file, startNs, endNs: startNs + (part.length / RATE) * 1e9 };
+    });
+    writeFileSync(
+      join(folder, 'chunks.json'),
+      JSON.stringify({ schemaVersion: 2, chunks, gaps: [] }),
+    );
+  }
+  function audioFor(name, mic, meeting) {
+    const audio = join(dir, name);
+    seal(audio, 'microphone', mic);
+    seal(audio, 'meeting', meeting);
+    return audio;
+  }
+  const cli = (audio, ...extra) =>
+    spawnSync(
+      process.execPath,
+      [join(import.meta.dirname, 'b0-track-sync.mjs'), stub, audio, ...extra],
+      {
+        encoding: 'utf8',
+      },
+    );
+  const beeps = [3.8, 275.8]; // end beep falls inside the second chunk
+
+  it('lists beep onsets per track', () => {
+    const r = cli(audioFor('list', track(290, beeps, 0.1), track(290, beeps)), '--list');
+    expect(r.status, r.stderr).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.micBeepsS[0]).toBeCloseTo(3.9, 1);
+    expect(out.meetingBeepsS[1]).toBeCloseTo(275.8, 1);
+  });
+  it('passes a 100 ms offset with no drift and reports it', () => {
+    const r = cli(audioFor('pass', track(290, beeps, 0.1), track(290, beeps)));
+    expect(r.status, r.stderr).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.verdict).toBe('PASS');
+    expect(out.startOffsetMs).toBeCloseTo(100, -1);
+    expect(Math.abs(out.driftMs)).toBeLessThan(20);
+  });
+  it('fails 80 ms of start-to-end drift (exit 1)', () => {
+    const mic = track(290, [3.9, 275.98]);
+    const r = cli(audioFor('drift', mic, track(290, beeps)));
+    expect(r.status).toBe(1);
+    expect(JSON.parse(r.stdout).verdict).toBe('FAIL');
+  });
+  it('is NOT_VERIFIED (exit 2) when the end beep is missing in one track', () => {
+    const r = cli(audioFor('missing', track(290, [3.8]), track(290, beeps)));
+    expect(r.status).toBe(2);
+    expect(JSON.parse(r.stdout).verdict).toBe('NOT_VERIFIED');
+  });
+  it('is NOT_VERIFIED (exit 2) when a track folder has no chunk metadata', () => {
+    const r = cli(join(dir, 'empty-audio'));
+    expect(r.status).toBe(2);
+    expect(JSON.parse(r.stdout).reason).toMatch(/measurement failed/);
   });
 });
