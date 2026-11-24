@@ -43,8 +43,10 @@ export const PINNED_MSVC_RUNTIME_HASHES = {
   'vcruntime140_1.dll': '1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f',
 };
 
-export const PUBLIC_FFMPEG_ARCHIVE_SHA256 = '7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52';
-export const PUBLIC_OPUS_ARCHIVE_SHA256 = '6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1';
+export const PUBLIC_FFMPEG_ARCHIVE_SHA256 =
+  '7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52';
+export const PUBLIC_OPUS_ARCHIVE_SHA256 =
+  '6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1';
 export const SHERPA_RELEASE_SHA256 =
   '11fd6a50b97eed38b54fb16d8219f49b16aa7f6a8e43a042316469ef47652e82';
 export const WHISPER_COMMIT = '284029c07012d2000941a08d38a31ffb71f4734e';
@@ -458,23 +460,28 @@ function main() {
   const hostedEvidencePath = options['hosted-source-evidence'];
   let hosted = null;
   if (hostedEvidencePath) {
-    if (process.env.GITHUB_ACTIONS !== 'true' ||
-        process.env.GITHUB_JOB !== 'verified-installer-producer' ||
-        process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' ||
-        process.env.RUNNER_ENVIRONMENT !== 'github-hosted' ||
-        process.env.GITHUB_REPOSITORY !== 'raisinbran/scrb' ||
-        !/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? '') ||
-        gitHead(repo) !== process.env.GITHUB_SHA) {
+    if (
+      process.env.GITHUB_ACTIONS !== 'true' ||
+      process.env.GITHUB_JOB !== 'verified-installer-producer' ||
+      process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' ||
+      process.env.RUNNER_ENVIRONMENT !== 'github-hosted' ||
+      process.env.GITHUB_REPOSITORY !== 'raisinbran/scrb' ||
+      !/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? '') ||
+      gitHead(repo) !== process.env.GITHUB_SHA
+    ) {
       throw new Error('Hosted-source staging requires an exact trusted producer dispatch');
     }
     hosted = JSON.parse(readFileSync(requiredPath(options, 'hosted-source-evidence'), 'utf8'));
-    if (hosted.schemaVersion !== 1 || hosted.sourceCommit !== process.env.GITHUB_SHA ||
-        hosted.ffmpegArchiveSha256 !== PUBLIC_FFMPEG_ARCHIVE_SHA256 ||
-        hosted.opusArchiveSha256 !== PUBLIC_OPUS_ARCHIVE_SHA256 ||
-        !hosted.runtimeHashes || Object.keys(hosted.runtimeHashes).length !==
-            Object.keys(PINNED_MSVC_RUNTIME_HASHES).length ||
-        !/^[0-9]+$/.test(hosted.runId ?? '') ||
-        hosted.runId !== process.env.GITHUB_RUN_ID) {
+    if (
+      hosted.schemaVersion !== 1 ||
+      hosted.sourceCommit !== process.env.GITHUB_SHA ||
+      hosted.ffmpegArchiveSha256 !== PUBLIC_FFMPEG_ARCHIVE_SHA256 ||
+      hosted.opusArchiveSha256 !== PUBLIC_OPUS_ARCHIVE_SHA256 ||
+      !hosted.runtimeHashes ||
+      Object.keys(hosted.runtimeHashes).length !== Object.keys(PINNED_MSVC_RUNTIME_HASHES).length ||
+      !/^[0-9]+$/.test(hosted.runId ?? '') ||
+      hosted.runId !== process.env.GITHUB_RUN_ID
+    ) {
       throw new Error('Hosted-source build evidence is missing or from another source/run');
     }
     for (const [name, hash] of Object.entries(hosted.runtimeHashes)) {
@@ -568,12 +575,16 @@ function main() {
       dllSha256: hosted ? hosted.runtimeHashes : PINNED_MSVC_RUNTIME_HASHES,
       license: 'Microsoft Visual C++ Redistributable',
     },
-    ...(hosted ? { hostedSourceBuild: {
-      sourceCommit: hosted.sourceCommit,
-      runId: hosted.runId,
-      ffmpegArchiveSha256: PUBLIC_FFMPEG_ARCHIVE_SHA256,
-      opusArchiveSha256: PUBLIC_OPUS_ARCHIVE_SHA256,
-    } } : {}),
+    ...(hosted
+      ? {
+          hostedSourceBuild: {
+            sourceCommit: hosted.sourceCommit,
+            runId: hosted.runId,
+            ffmpegArchiveSha256: PUBLIC_FFMPEG_ARCHIVE_SHA256,
+            opusArchiveSha256: PUBLIC_OPUS_ARCHIVE_SHA256,
+          },
+        }
+      : {}),
   };
   let captureProvenance;
   if (includeCapture) {

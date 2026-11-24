@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const script = join(import.meta.dirname, 'b0-mac-swap.sh');
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'b0swap-test-')));
@@ -36,7 +36,10 @@ function rehearsal(name) {
   return dir;
 }
 
-describe('test-mode guard (fake directories only)', () => {
+const mac = process.platform === 'darwin';
+const macDescribe = mac ? describe : describe.skip; // macOS-only: bash, ditto, shasum -a 256, stat -f
+
+macDescribe('test-mode guard (fake directories only)', () => {
   it('refuses the real /Applications, with and without a trailing slash and through a symlink, before acting', () => {
     for (const apps of ['/Applications', '/Applications/', join(root, 'alias-to-applications')]) {
       if (apps.endsWith('alias-to-applications')) symlinkSync('/Applications', apps);
@@ -69,6 +72,23 @@ describe('test-mode guard (fake directories only)', () => {
       execFileSync('rm', ['-r', outside]);
     }
   });
+  it('refuses a backup dir outside the temp root, or one that is missing', () => {
+    const dir = rehearsal('b0guard');
+    const outside = mkdtempSync(join(process.cwd(), '.b0-fake-b0-'));
+    try {
+      for (const b0 of [outside, join(root, 'does-not-exist')]) {
+        const r = run(['fingerprint', root], {
+          B0_TEST_MODE: '1',
+          APPS: join(dir, 'apps'),
+          B0: b0,
+        });
+        expect(r.status, b0).toBe(64);
+        expect(r.stderr).toMatch(/B0/);
+      }
+    } finally {
+      execFileSync('rm', ['-r', outside]);
+    }
+  });
   it('accepts a marked rehearsal tree, also through a trailing slash or a symlink inside the temp root', () => {
     const dir = rehearsal('ok');
     const apps = join(dir, 'apps');
@@ -87,21 +107,29 @@ describe('test-mode guard (fake directories only)', () => {
   });
 });
 
-describe('swap, rollback and fingerprint regression (fake apps)', () => {
-  const dir = rehearsal('flow');
-  const env = { B0_TEST_MODE: '1', APPS: join(dir, 'apps'), B0: join(dir, 'b0') };
-  const cand = fakeApp(join(dir, 'cand'), 'new');
-  fakeApp(join(dir, 'apps'), 'old');
-  const fp = run(['fingerprint', cand], env).stdout;
-  const files = /files=([0-9a-f]{64})/.exec(fp)[1];
-  const links = /links=([0-9a-f]{64})/.exec(fp)[1];
-  const swapEnv = { ...env, CAND: cand, EXPECT_FILES: files, EXPECT_LINKS: links };
+macDescribe('swap, rollback and fingerprint regression (fake apps)', () => {
+  let dir, env, swapEnv, fp, old;
   const live = () => run(['fingerprint', join(dir, 'apps/Scribe.app')], env).stdout;
-  const before = () => live();
+  beforeAll(() => {
+    dir = rehearsal('flow');
+    env = { B0_TEST_MODE: '1', APPS: join(dir, 'apps'), B0: join(dir, 'b0') };
+    const cand = fakeApp(join(dir, 'cand'), 'new');
+    fakeApp(join(dir, 'apps'), 'old');
+    const out = run(['fingerprint', cand], env);
+    expect(out.status, out.stderr).toBe(0);
+    fp = out.stdout;
+    swapEnv = {
+      ...env,
+      CAND: cand,
+      EXPECT_FILES: /files=([0-9a-f]{64})/.exec(fp)[1],
+      EXPECT_LINKS: /links=([0-9a-f]{64})/.exec(fp)[1],
+    };
+  });
 
   it('backs up, rejects a wrong digest without touching the live app, rolls back after an injected failure', () => {
-    expect(run(['backup'], env).status).toBe(0);
-    const old = before();
+    const backup = run(['backup'], env);
+    expect(backup.status, backup.stderr).toBe(0);
+    old = live();
     expect(run(['swap'], { ...swapEnv, EXPECT_FILES: 'a'.repeat(64) }).status).toBe(1);
     expect(live()).toBe(old);
     const failed = run(['swap'], { ...swapEnv, B0_TEST_FAIL_AFTER_MOVE: '1' });

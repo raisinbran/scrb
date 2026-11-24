@@ -41,7 +41,11 @@ function report(threshold, bOutput, dOutput, outputCount = 2, refs = reference) 
       },
     })),
     output: { finalSpeakerCount: outputCount },
-    diagnostics: { speechModel: 'invented', segmentationModel: 'invented', embeddingModel: 'invented' },
+    diagnostics: {
+      speechModel: 'invented',
+      segmentationModel: 'invented',
+      embeddingModel: 'invented',
+    },
   };
 }
 
@@ -95,7 +99,9 @@ describe('paired AMI threshold screening', () => {
     expect(() => evaluatePair(a, { ...b, windowAudioSha256: '0'.repeat(64) })).toThrow(/hashes/);
     expect(() => evaluatePair(a, { ...b, modelSha256: 'invalid' })).toThrow(/hashes/);
     expect(() => evaluatePair(a, { ...b, toolSha256: '0'.repeat(64) })).toThrow(/hashes/);
-    expect(() => evaluatePair(a, { ...b, runtimeIdentity: { ...b.runtimeIdentity, nodeVersion: 'other' } })).toThrow(/match/);
+    expect(() =>
+      evaluatePair(a, { ...b, runtimeIdentity: { ...b.runtimeIdentity, nodeVersion: 'other' } }),
+    ).toThrow(/match/);
     expect(() => evaluatePair(a, { ...b, runtimeIdentity: undefined })).toThrow(/match/);
   });
 

@@ -49,58 +49,75 @@ describe('AMI cross-platform research executables', () => {
   it('rejects missing or directory-shaped tools before running inference', async () => {
     const f = fixture('darwin');
     rmSync(f.toolPaths.sherpaSidecar);
-    await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/missing research executable: sherpaSidecar/);
+    await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(
+      /missing research executable: sherpaSidecar/,
+    );
     mkdirSync(f.toolPaths.sherpaSidecar);
     await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/regular file: sherpaSidecar/);
   });
 
-  it.skipIf(process.platform === 'win32')('rejects a symlinked research executable outside the tools root', async () => {
-    const f = fixture('darwin');
-    const outside = join(f.root, 'outside');
-    writeFileSync(outside, 'not part of verified bundle');
-    rmSync(f.toolPaths.ffmpeg);
-    symlinkSync(outside, f.toolPaths.ffmpeg);
-    await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/regular file: ffmpeg/);
-  });
+  it.skipIf(process.platform === 'win32')(
+    'rejects a symlinked research executable outside the tools root',
+    async () => {
+      const f = fixture('darwin');
+      const outside = join(f.root, 'outside');
+      writeFileSync(outside, 'not part of verified bundle');
+      rmSync(f.toolPaths.ffmpeg);
+      symlinkSync(outside, f.toolPaths.ffmpeg);
+      await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/regular file: ffmpeg/);
+    },
+  );
 
+  it.skipIf(process.platform === 'win32')(
+    'rejects a Windows Whisper linked ancestor escaping public assets',
+    async () => {
+      const f = fixture('win32');
+      const outside = join(f.root, 'outside-whisper', 'build', 'bin');
+      mkdirSync(outside, { recursive: true });
+      const linkedParent = join(f.assetRoot, 'upstream', 'whisper.cpp');
+      rmSync(linkedParent, { recursive: true, force: true });
+      symlinkSync(join(f.root, 'outside-whisper'), linkedParent, 'dir');
+      for (const name of [
+        'whisper-cli.exe',
+        'whisper-server.exe',
+        'whisper-vad-speech-segments.exe',
+      ]) {
+        writeFileSync(join(outside, name), 'untrusted Whisper executable');
+      }
+      await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/escapes its assigned directory/);
+    },
+  );
 
-  it.skipIf(process.platform === 'win32')('rejects a Windows Whisper linked ancestor escaping public assets', async () => {
-    const f = fixture('win32');
-    const outside = join(f.root, 'outside-whisper', 'build', 'bin');
-    mkdirSync(outside, { recursive: true });
-    const linkedParent = join(f.assetRoot, 'upstream', 'whisper.cpp');
-    rmSync(linkedParent, { recursive: true, force: true });
-    symlinkSync(join(f.root, 'outside-whisper'), linkedParent, 'dir');
-    for (const name of ['whisper-cli.exe', 'whisper-server.exe', 'whisper-vad-speech-segments.exe']) {
-      writeFileSync(join(outside, name), 'untrusted Whisper executable');
-    }
-    await expect(verifyAmiResearchToolPaths(f)).rejects.toThrow(/escapes its assigned directory/);
-  });
+  it.skipIf(process.platform === 'win32')(
+    'rejects linked Mac lib directories and dylibs before invoking native launch',
+    async () => {
+      const f = fixture('darwin');
+      const lib = join(f.toolRoot, 'lib');
+      const launch = vi.fn();
+      symlinkSync(f.root, lib, 'dir');
+      await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/real directory/);
+      expect(launch).not.toHaveBeenCalled();
 
-  it.skipIf(process.platform === 'win32')('rejects linked Mac lib directories and dylibs before invoking native launch', async () => {
-    const f = fixture('darwin');
-    const lib = join(f.toolRoot, 'lib');
-    const launch = vi.fn();
-    symlinkSync(f.root, lib, 'dir');
-    await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/real directory/);
-    expect(launch).not.toHaveBeenCalled();
-
-    rmSync(lib);
-    mkdirSync(lib);
-    const outside = join(f.root, 'outside.dylib');
-    writeFileSync(outside, 'untrusted dylib');
-    symlinkSync(outside, join(lib, 'liboutside.dylib'));
-    await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/regular file/);
-    expect(launch).not.toHaveBeenCalled();
-  });
+      rmSync(lib);
+      mkdirSync(lib);
+      const outside = join(f.root, 'outside.dylib');
+      writeFileSync(outside, 'untrusted dylib');
+      symlinkSync(outside, join(lib, 'liboutside.dylib'));
+      await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/regular file/);
+      expect(launch).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects an inconsistent staged Mac audit before native launch', async () => {
     const f = fixture('darwin');
     const launch = vi.fn();
-    writeFileSync(join(f.toolRoot, 'DEPENDENCY-AUDIT.json'), JSON.stringify({
-      schemaVersion: 1,
-      files: [{ name: 'ffmpeg', stagedSha256: '0'.repeat(64) }],
-    }));
+    writeFileSync(
+      join(f.toolRoot, 'DEPENDENCY-AUDIT.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        files: [{ name: 'ffmpeg', stagedSha256: '0'.repeat(64) }],
+      }),
+    );
     await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/hash mismatch/);
     expect(launch).not.toHaveBeenCalled();
   });
@@ -120,19 +137,29 @@ describe('AMI cross-platform research executables', () => {
     expect(launch).toHaveBeenCalledOnce();
 
     launch.mockClear();
-    writeFileSync(audit, JSON.stringify({ schemaVersion: 1, files: files.slice(1), dependencyEdges: [] }));
-    await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(/missing a runtime input/);
+    writeFileSync(
+      audit,
+      JSON.stringify({ schemaVersion: 1, files: files.slice(1), dependencyEdges: [] }),
+    );
+    await expect(withVerifiedAmiResearchRuntime(f, launch)).rejects.toThrow(
+      /missing a runtime input/,
+    );
     expect(launch).not.toHaveBeenCalled();
   });
 
-  it.each(['darwin', 'win32'])('invokes the native callback only after %s runtime preflight', async (platform) => {
-    const f = fixture(platform);
-    const launch = vi.fn(() => 'launched');
-    await expect(withVerifiedAmiResearchRuntime(f, launch)).resolves.toBe('launched');
-    expect(launch).toHaveBeenCalledOnce();
-  });
+  it.each(['darwin', 'win32'])(
+    'invokes the native callback only after %s runtime preflight',
+    async (platform) => {
+      const f = fixture(platform);
+      const launch = vi.fn(() => 'launched');
+      await expect(withVerifiedAmiResearchRuntime(f, launch)).resolves.toBe('launched');
+      expect(launch).toHaveBeenCalledOnce();
+    },
+  );
 
   it('rejects unsupported host platforms', () => {
-    expect(() => resolveAmiResearchToolPaths({ platform: 'linux', assetRoot: '/tmp', toolRoot: '/tmp' })).toThrow(/macOS or Windows/);
+    expect(() =>
+      resolveAmiResearchToolPaths({ platform: 'linux', assetRoot: '/tmp', toolRoot: '/tmp' }),
+    ).toThrow(/macOS or Windows/);
   });
 });

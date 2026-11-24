@@ -18,6 +18,10 @@ if [ "${B0_TEST_MODE:-0}" = 1 ]; then
   TMPROOT=$(canon "${TMPDIR:-/tmp}") || { echo "STOP: cannot resolve temp root" >&2; exit 64; }
   case "$APPS/" in "$TMPROOT"/*) ;; *) echo "refused: test mode APPS must be inside $TMPROOT" >&2; exit 64 ;; esac
   case "$APPS/" in "$PROD"/*) echo "refused: test mode on /Applications" >&2; exit 64 ;; esac
+  B0_CANON=$(canon "$B0") || { echo "refused: test mode B0 must be an existing directory" >&2; exit 64; }
+  case "$B0_CANON/" in "$TMPROOT"/*) ;; *) echo "refused: test mode B0 must be inside $TMPROOT" >&2; exit 64 ;; esac
+  case "$B0_CANON/" in "$PROD"/*) echo "refused: test mode B0 inside /Applications" >&2; exit 64 ;; esac
+  B0="$B0_CANON"
   [ -f "$APPS/.b0-rehearsal-tree" ] && [ ! -L "$APPS/.b0-rehearsal-tree" ] || { echo "refused: $APPS lacks the .b0-rehearsal-tree marker" >&2; exit 64; }
 fi
 

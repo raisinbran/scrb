@@ -20,4 +20,3 @@ describe.skipIf(process.platform !== 'win32')('Windows installer smoke guard beh
     expect(result.stdout).toContain('Windows installer smoke guard behavior PASS');
   });
 });
-

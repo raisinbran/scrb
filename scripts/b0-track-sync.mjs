@@ -2,7 +2,7 @@
 // compute their offset and start-to-end drift. Usage: node b0-track-sync.mjs <ffmpeg> <audio folder>
 // Add --list to print each track's beep onsets only (preflight). Verdict is PASS, FAIL or NOT_VERIFIED (exit 0, 1, 2). A measurement problem is never PASS or FAIL.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -83,13 +83,31 @@ export function compareTracks(micBeeps, meetingBeeps) {
   return { verdict: ok ? 'PASS' : 'FAIL', startOffsetMs, endOffsetMs, driftMs };
 }
 
+/** Chunks of one track: the sealed `chunks.json` of a stopped meeting, else the live `chunks.log`. */
+export function readChunkList(folder) {
+  const sealed = join(folder, 'chunks.json');
+  if (existsSync(sealed)) {
+    const { chunks } = JSON.parse(readFileSync(sealed, 'utf8'));
+    if (!Array.isArray(chunks)) throw new Error(`${sealed} has no chunks array`);
+    return chunks;
+  }
+  const log = join(folder, 'chunks.log');
+  if (!existsSync(log)) throw new Error(`neither chunks.json nor chunks.log in ${folder}`);
+  return readFileSync(log, 'utf8')
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line))
+    .filter(
+      (c) => typeof c.file === 'string' && Number.isFinite(c.startNs) && Number.isFinite(c.endNs),
+    );
+}
+
 function loadTrack(ffmpeg, audio, track) {
   const folder = join(audio, track);
-  const chunks = readFileSync(join(folder, 'chunks.log'), 'utf8')
-    .trim()
-    .split('\n')
-    .map((l) => JSON.parse(l));
-  const out = new Float32Array(Math.ceil((chunks.at(-1).endNs / 1e9) * RATE) + RATE);
+  const chunks = readChunkList(folder);
+  if (chunks.length === 0) throw new Error(`${track}: no chunks`);
+  const endNs = Math.max(...chunks.map((c) => c.endNs));
+  const out = new Float32Array(Math.ceil((endNs / 1e9) * RATE) + RATE);
   for (const chunk of chunks) {
     const raw = execFileSync(
       ffmpeg,
