@@ -32,6 +32,7 @@ These are environment and procedure findings, not product FAILs: the cause of th
 
 ## For the planner
 
-- Whether the dead mic track is the stale grant for the replaced ad-hoc signature (owner reported Scribe already ON) or a product or Darwin 27 capture issue is unknown. Do not repeat the toggle-while-running step; quit the app first.
-- Check the owner's library is intact (candidate opened it for about 90 s).
+- Dead mic track cause: stale grant for the replaced ad-hoc signature (suspected; owner reported Scribe already ON). Planner follow-up: the owner approved a Microphone reset, and the sheet now has an agent-run `tccutil reset` step plus a 5-second mic preflight. Not yet tested.
+- Library check closed: the owner checked the library index (integrity_check ok, user_version 6), so the concern from A-1139 is closed.
+- Do not toggle a permission while the isolated app runs; quit it first (now in the sheet).
 - No automatic repeat was made, as instructed.
