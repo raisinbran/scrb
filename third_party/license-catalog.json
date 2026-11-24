@@ -1,0 +1,85 @@
+{
+  "note": "Shipped non-npm components and models. textFile paths are relative to the repository root. Generated list: scripts/generate-licenses.mjs.",
+  "components": [
+    {
+      "name": "FFmpeg (libav* decode tools)",
+      "version": "9.0",
+      "license": "LGPL-2.1-or-later",
+      "textFile": "packages/transcription/licenses/windows/FFmpeg-COPYING.LGPLv2.1.txt"
+    },
+    {
+      "name": "libopus",
+      "version": "1.6.1",
+      "license": "BSD-3-Clause",
+      "textFile": "packages/transcription/licenses/windows/opus-COPYING.txt"
+    },
+    {
+      "name": "whisper.cpp",
+      "version": "1.9.5-dev (284029c0)",
+      "license": "MIT",
+      "textFile": "packages/transcription/licenses/windows/whisper.cpp-LICENSE.txt"
+    },
+    {
+      "name": "sherpa-onnx",
+      "version": "2.0.1",
+      "license": "Apache-2.0",
+      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt"
+    },
+    {
+      "name": "ONNX Runtime",
+      "version": "1.28.2",
+      "license": "MIT",
+      "textFile": "packages/transcription/licenses/windows/onnxruntime-LICENSE.txt"
+    },
+    {
+      "name": "llama.cpp",
+      "version": "369dcf30",
+      "license": "MIT",
+      "textFile": "third_party/licenses/llama.cpp-MIT.txt"
+    }
+  ],
+  "models": [
+    {
+      "name": "Whisper large-v3-turbo (q5_0) model",
+      "version": "ggml-large-v3-turbo-q5_0",
+      "license": "MIT",
+      "textFile": "third_party/licenses/models/whisper-models-MIT.txt",
+      "digestFile": "ggml-large-v3-turbo-q5_0.bin"
+    },
+    {
+      "name": "Whisper small.en (q5_1) model",
+      "version": "ggml-small.en-q5_1",
+      "license": "MIT",
+      "textFile": "third_party/licenses/models/whisper-models-MIT.txt",
+      "digestFile": "ggml-small.en-q5_1.bin"
+    },
+    {
+      "name": "Silero VAD model",
+      "version": "v6.2.0",
+      "license": "MIT",
+      "textFile": "third_party/licenses/models/silero-vad-MIT.txt",
+      "digestFile": "ggml-silero-v6.2.0.bin"
+    },
+    {
+      "name": "3D-Speaker ERes2Net speaker model",
+      "version": "base_sv_zh-cn_3dspeaker_16k",
+      "license": "Apache-2.0",
+      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt",
+      "digestFile": "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
+    },
+    {
+      "name": "pyannote segmentation 3.0 (int8) model",
+      "version": "3.0",
+      "license": "MIT",
+      "textFile": "third_party/licenses/models/pyannote-segmentation-3.0-MIT.txt",
+      "digestFile": "segmentation-model.int8.onnx"
+    },
+    {
+      "name": "Qwen3.5-9B (Q4_K_M) model",
+      "version": "Q4_K_M",
+      "license": "Apache-2.0",
+      "textFile": "packages/transcription/licenses/windows/sherpa-onnx-LICENSE.txt",
+      "digestFile": "Qwen3.5-9B-Q4_K_M.gguf"
+    }
+  ]
+}
