@@ -1,0 +1,1 @@
+| 2026-11-24 | Claude Code Sonnet 5.5, Mac desktop app | Read-only audit of owner feedback against main: docs/audits/owner-feedback-audit-20261124.md (docs only) | unavailable (not read at start) | unavailable | unavailable | unavailable | unavailable | audit/docs; Sonnet 5.5; effort unavailable | 0 | PENDING review | allowance not read in this task; other sessions run. |
