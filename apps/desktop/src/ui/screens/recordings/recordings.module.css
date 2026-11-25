@@ -199,6 +199,7 @@
   align-items: baseline;
   width: 100%;
   padding: 2px var(--space-2) 2px var(--space-4);
+  cursor: pointer;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   text-align: start;
@@ -563,6 +564,7 @@
   font-weight: 600;
   color: var(--color-text);
   text-decoration: underline dotted;
+  cursor: pointer;
   background: none;
   border: 0;
 }
