@@ -1257,6 +1257,18 @@ describe('Recordings', () => {
       );
     });
 
+    it('switches away from WebVTT when a summary is included', async () => {
+      renderScreen();
+      const dialog = await openExport(/Depot rollout/);
+      const vtt = within(dialog).getByRole('radio', { name: '.vtt' }) as HTMLInputElement;
+      fireEvent.click(vtt);
+      expect(vtt.checked).toBe(true);
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Both' }));
+      expect(vtt.disabled).toBe(true);
+      const docx = within(dialog).getByRole('radio', { name: '.docx' }) as HTMLInputElement;
+      expect(docx.checked).toBe(true);
+    });
+
     it('needs a summary before exporting one', async () => {
       renderScreen();
       const dialog = await openExport(/Imported interview/);
