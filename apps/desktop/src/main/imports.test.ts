@@ -4,8 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ImportCoordinator } from './imports.ts';
+import { createMeetingHandlers } from './meetings.ts';
+import type { BackendEvents } from '@scrb/contracts';
 import type { ImportResult } from '@scrb/app-core';
 import { Library } from '@scrb/storage';
+import { once, EventEmitter } from 'node:events';
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'scrb-import-integration-'));
@@ -80,6 +83,104 @@ async function fixture() {
 }
 
 describe('Electron import coordination', () => {
+  it.each(['wav', 'mp3', 'm4a', 'flac', 'opus'])(
+    'saves a picked .%s as a single-source meeting with editable final words',
+    async (extension) => {
+      const f = await fixture();
+      const library = await Library.open({ root: join(f.root, 'library') });
+      const selected = join(f.root, `Invented source.${extension}`);
+      const original = 'Invented source bytes';
+      await writeFile(selected, original);
+      const before = await stat(selected);
+      const terminal = new EventEmitter();
+      const coordinator = new ImportCoordinator({
+        ...f.deps,
+        library,
+        chooseFile: async () => selected,
+        run: async (input) => {
+          // The dedicated decoder tests cover encoded audio. Inject decode and model output here.
+          const result = await f.run(input);
+          expect(input.sourcePath).toBe(selected);
+          const transcript = result.transcript!;
+          transcript.words = [
+            {
+              text: 'Wharf',
+              speakerId: 'voice',
+              track: 'meeting',
+              startMs: 100,
+              endMs: 400,
+              confidence: 1,
+            },
+          ];
+          transcript.turns = [
+            {
+              text: 'Wharf',
+              speakerId: 'voice',
+              startMs: 100,
+              endMs: 400,
+              firstWord: 0,
+              wordCount: 1,
+            },
+          ];
+          transcript.speakers = [
+            { id: 'voice', label: 'Speaker 1', speechMs: 300, embeddingSegments: 0 },
+          ];
+          return result;
+        },
+        emit: (name, payload) => {
+          if (name === 'importFinished' || name === 'importFailed') terminal.emit('done', payload);
+        },
+      });
+      try {
+        const finished = once(terminal, 'done', { signal: AbortSignal.timeout(4000) });
+        void finished.catch(() => undefined);
+        const picked = (await coordinator.handlers.pickAudioFile!(undefined)) as {
+          fileToken: string;
+          fileName: string;
+        };
+        expect(picked.fileName).toBe(`Invented source.${extension}`);
+        const started = await coordinator.handlers.importAudioFile!({
+          fileToken: picked.fileToken,
+          buildVoiceProfiles: false,
+        });
+        expect(started).toMatchObject({ privacyBannerRequired: false });
+        const [result] = (await finished) as [
+          BackendEvents['importFinished'] | BackendEvents['importFailed'],
+        ];
+        expect(result).toHaveProperty('meetingId');
+        if (!('meetingId' in result)) throw new Error(result.message);
+        const { meetingId } = result;
+        const handlers = createMeetingHandlers(library);
+        expect(await handlers.getMeeting!({ meetingId })).toMatchObject({
+          origin: 'imported',
+          status: 'ready',
+          speakerCount: 1,
+        });
+        expect(await library.getMeeting(meetingId)).toMatchObject({ buildVoiceProfiles: false });
+        const transcript = await library.readTranscript(meetingId);
+        expect(transcript.segments).toEqual([
+          expect.objectContaining({ pass: 'final', track: 'meeting', speakerId: 'voice' }),
+        ]);
+        const word = transcript.segments[0]!.words[0]!;
+        await library.applyCorrection(meetingId, {
+          wordIds: [word.id],
+          replacement: 'Pier',
+          remember: false,
+        });
+        expect(await handlers.getTranscript!({ meetingId, offset: 0, limit: 10 })).toMatchObject({
+          segments: [{ words: [{ text: 'Pier', state: 'corrected', startMs: 100, endMs: 400 }] }],
+        });
+        expect(await readdir(join(library.paths.cache, 'imports'))).toEqual([]);
+        expect(await readFile(selected, 'utf8')).toBe(original);
+        expect((await stat(selected)).mtimeMs).toBe(before.mtimeMs);
+      } finally {
+        await coordinator.shutdown();
+        await library.close();
+        await rm(f.root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('requests the import privacy reminder only when building voice profiles', async () => {
     const f = await fixture();
     f.deps.privacyBanner.mockResolvedValue(true);
