@@ -5,3 +5,4 @@
 - **Impact:** One extra fix commit and one wasted check run; nothing pushed in a broken state.
 - **Correction / remaining risk:** Fixed with `sed -i ''` and installed dependencies first. No remaining risk.
 - **Also:** I reported `npm run check` as passing after adding a clip-player test without rerunning it; the new test had a type error and was pushed. Fixed in the next commit after the check was rerun.
+- **Also:** I fixed a smoke test with a line-number `sed` that replaced the wrong line (the Enter press), pushed it, and CI failed again; I should have viewed the diff and run the spec locally first.
