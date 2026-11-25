@@ -1,0 +1,1 @@
+| 2026-11-24 | Claude Code Sonnet 5.5, Mac desktop app (owner Mac) | B0 Teams run 2 cell 2 scored from screen video, agent-only; verdict NOT VERIFIED | unavailable (not read) | unavailable (not read) | unavailable | unavailable | not applicable | docs only; Sonnet 5.5; effort unavailable | 0 | PENDING independent review | other M1 sessions may overlap |
