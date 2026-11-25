@@ -171,6 +171,27 @@ describe('Recordings', () => {
       expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
     });
 
+    it('shows a small progress bar under a processing meeting in the list', async () => {
+      renderScreen();
+      const on = vi.spyOn(backend, 'on');
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      const bar = () =>
+        within(row).getByRole('progressbar', { name: 'Final transcript processing' });
+      expect(bar().hasAttribute('aria-valuenow')).toBe(false);
+      await waitFor(() =>
+        expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
+      );
+      act(() =>
+        backend.emit('finalPassProgress', {
+          meetingId: 'meeting-final-pass',
+          stage: 'transcribing',
+          fraction: 0.3,
+          startedAt: new Date().toISOString(),
+        }),
+      );
+      expect(bar().getAttribute('aria-valuenow')).toBe('30');
+    });
+
     it('ignores progress that goes backwards, and starts over for a new pass', async () => {
       renderScreen();
       const on = vi.spyOn(backend, 'on');
@@ -378,7 +399,9 @@ describe('Recordings', () => {
       renderScreen();
       await startImport();
       fireEvent.click(await button(/Cancel import/));
-      await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+      await waitFor(() =>
+        expect(screen.queryByRole('progressbar', { name: /Importing/ })).toBeNull(),
+      );
       expect(await backend.call('listMeetings', {})).toHaveLength(6);
     });
 
