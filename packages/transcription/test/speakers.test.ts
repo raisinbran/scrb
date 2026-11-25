@@ -80,6 +80,16 @@ describe('relabelClusters', () => {
     expect(map.get(1)).not.toBe(map.get(3));
   });
 
+  it('keeps two voices at 0.66 apart and merges two at 0.80', () => {
+    const pair = (sim: number): [number[], number[]] => [[1, 0], [sim, Math.sqrt(1 - sim * sim)]];
+    const run = (sim: number) => {
+      const [a, b] = pair(sim);
+      return new Set(relabelClusters([cluster(0, 300, a), cluster(1, 200, b)]).values()).size;
+    };
+    expect(run(0.66)).toBe(2);
+    expect(run(0.8)).toBe(1);
+  });
+
   it('absorbs stray clusters under 30 s into the nearest speaker', () => {
     const map = relabelClusters([
       cluster(0, 300, voice(0)),
