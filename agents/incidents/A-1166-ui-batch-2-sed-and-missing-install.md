@@ -4,3 +4,4 @@
 - **What failed:** A GNU-style `sed -i` failed on macOS and I committed before noticing, so one commit briefly had stale test labels; I then ran `npm run check` before `npm install` in the fresh worktree, so it failed on missing `tsc`.
 - **Impact:** One extra fix commit and one wasted check run; nothing pushed in a broken state.
 - **Correction / remaining risk:** Fixed with `sed -i ''` and installed dependencies first. No remaining risk.
+- **Also:** I reported `npm run check` as passing after adding a clip-player test without rerunning it; the new test had a type error and was pushed. Fixed in the next commit after the check was rerun.
