@@ -132,6 +132,19 @@ describe.skipIf(process.platform !== 'win32')('watch and verify (invented app)',
   });
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Windows process listings can take seconds on a loaded runner, so wait for the watcher's own log line
+  // instead of a fixed delay.
+  const waitForLog = async (out, text, ms = 25000) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      try {
+        if (readFileSync(join(out, 'events.log'), 'utf8').includes(text)) return;
+      } catch {
+        // log not created yet
+      }
+      await sleep(250);
+    }
+  };
   const track = (folder, t, n, bytes) => {
     mkdirSync(join(folder, 'audio', t), { recursive: true });
     for (let i = 0; i < n; i += 1)
@@ -180,9 +193,10 @@ describe.skipIf(process.platform !== 'win32')('watch and verify (invented app)',
     );
     let stdout = '';
     watcher.stdout.on('data', (d) => (stdout += d));
-    await sleep(4000);
+    await waitForLog(out, 'watch start', 10000);
+    await sleep(3000);
     writeFileSync(join(out, 'KILL'), '');
-    await sleep(9000);
+    await waitForLog(out, 'live worker running again');
     writeFileSync(join(out, 'STOP'), '');
     await new Promise((r) => watcher.on('exit', r));
 

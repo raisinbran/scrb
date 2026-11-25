@@ -75,14 +75,19 @@ function profileHashes(library: Library): string[] {
 
 describe('verified profile recognition', () => {
   let library: Library;
+  // Set only once this case's open finished. If setup times out, afterEach must not close the previous
+  // case's already-closed library, which hid the real timeout behind "database is not open".
+  let opened: Library | undefined;
   let root: string;
   beforeEach(async () => {
+    opened = undefined;
     root = await mkdtemp(join(tmpdir(), 'scrb-p4a-'));
     library = await Library.open({ root: join(root, 'library') });
+    opened = library;
   });
   afterEach(async () => {
     vi.restoreAllMocks();
-    await library.close();
+    await opened?.close();
   });
   const profile = (overrides = {}) =>
     library.voiceProfiles.create({
@@ -182,6 +187,7 @@ describe('verified profile recognition', () => {
     expect((await library.readTranscript(id)).speakers).toEqual(before.speakers);
     await library.close();
     library = await Library.open({ root: join(root, 'library') });
+    opened = library;
     await library.redo(id);
     expect((await library.readTranscript(id)).speakers).toEqual(saved.speakers);
     expect(profileHashes(library)).toEqual(hashes);
