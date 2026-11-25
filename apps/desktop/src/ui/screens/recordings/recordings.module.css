@@ -376,6 +376,27 @@
   stroke-linejoin: round;
 }
 
+.titleWrap {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Overlaid at the end of the title row so an error never pushes the date line or the toolbar down. */
+.detailHead .titleError {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
 .meetingTitle {
   width: 100%;
   max-width: 640px;
@@ -416,6 +437,7 @@
 
 .dateInput {
   padding: 0 var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
   font: inherit;
   color: var(--color-text);
   background: var(--color-surface);

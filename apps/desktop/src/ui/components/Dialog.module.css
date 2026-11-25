@@ -56,8 +56,16 @@
   border-radius: var(--radius);
 }
 
+/* Zero height: the error sits in the gap above the buttons, so showing it never moves them. */
+.errorSlot {
+  position: relative;
+  height: 0;
+}
+
 .error {
-  margin: var(--space-3) 0 0;
+  position: absolute;
+  inset-block-start: var(--space-1);
+  margin: 0;
   color: var(--color-danger);
 }
 

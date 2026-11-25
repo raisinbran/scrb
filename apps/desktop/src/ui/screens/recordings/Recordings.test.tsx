@@ -986,7 +986,7 @@ describe('Recordings', () => {
           'Quick rename',
         ),
       );
-      // After the refreshed meeting has rendered, the same input is still there and focused.
+      // Enter leaves the field; after the refreshed meeting has rendered, the same input shows the saved title.
       await waitFor(() => {
         const names = calls.mock.calls.map(([name]) => name);
         expect(names.slice(names.indexOf('updateMeeting'))).toContain('getMeeting');
@@ -996,6 +996,17 @@ describe('Recordings', () => {
       expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe(
         'Quick rename',
       );
+      expect(document.activeElement).not.toBe(title);
+    });
+
+    it('keeps the title field focused on Enter when the title is empty, and shows the error', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      const title = (await screen.findByLabelText('Meeting title')) as HTMLInputElement;
+      title.focus();
+      fireEvent.change(title, { target: { value: '   ' } });
+      fireEvent.keyDown(title, { key: 'Enter' });
+      expect(await screen.findByText('A meeting needs a title.')).toBeTruthy();
       expect(document.activeElement).toBe(title);
     });
 

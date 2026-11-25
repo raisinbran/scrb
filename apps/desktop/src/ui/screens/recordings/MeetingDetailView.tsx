@@ -293,7 +293,7 @@ function MeetingTitle({
   };
 
   return (
-    <>
+    <div className={styles.titleWrap}>
       <input
         className={styles.meetingTitle}
         aria-label="Meeting title"
@@ -305,16 +305,23 @@ function MeetingTitle({
           setError(null);
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') commit();
-          else if (event.key === 'Escape') {
+          if (event.key === 'Enter') {
+            // A valid title leaves the field, which saves it through onBlur; an empty one stays so its error shows.
+            if (draft.trim()) event.currentTarget.blur();
+            else commit();
+          } else if (event.key === 'Escape') {
             setDraft(title);
             setError(null);
           }
         }}
         onBlur={commit}
       />
-      {error && <p role="alert">{error}</p>}
-    </>
+      {error && (
+        <p role="alert" className={styles.titleError}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
