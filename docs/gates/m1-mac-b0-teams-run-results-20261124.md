@@ -23,7 +23,7 @@ Candidate: the installed release candidate (`/Applications/Scribe.app`, built fr
 
 - Tracks: `b0-track-sync.mjs` found beeps at 53.53 s and 325.71 s (microphone) and 53.49 s and 325.67 s (meeting); first-to-last spacing 272.2 s, as expected. Chunk gaps: none (maximum gap about 0 ms on both tracks). Recording 334.7 s.
 - Cell 3 mapping, frozen before scoring (`mapping-final.json`): speaker-1 = B, speaker-2 = A, you = Y. 3x3 table: all 30 turns on the diagonal (Y 10, A 10, B 10). Recognizable means at least 60% of the phrase's words in order inside the turn's window, found with the offset from the start beep; per-turn fractions 0.71 to 1.0. Word omission and extra counts were not tallied.
-- Bleed (reported separately, counted as above): the final text holds about 14 short "You" fragments that repeat the start of a remote line (for example "The blue", "Seven smooth", "A red suitcase"); four such words fall inside the scored remote windows and do not change any per-turn result. Microphone-track level during remote turns is higher than during the owner's lines (about -25.9 dB against -33.6 dB, rough windows), so the run-sheet sub-limit that other-track energy stay under 10% of speech level is **not met** by this setup; speakers on is part of the kit design. Whether that excludes cell 1 is the owner's call (open item 1).
+- Bleed (reported separately, counted as above): the final text holds about 14 short "You" fragments that repeat the start of a remote line (for example "The blue", "Seven smooth", "A red suitcase"); four such words fall inside the scored remote windows and do not change any per-turn result. Microphone-track level during remote turns is higher than during the owner's lines (about -25.9 dB against -33.6 dB, rough windows), so the run-sheet sub-limit that other-track energy stay under 10% of speech level is **not met** by this setup; speakers on is part of the kit design. Owner instruction 2026-11-24: not accepted as a product behavior, M1 proceeds; tracked in #487.
 - Room noise: the microphone track floor is about -29 dB in silent gaps; the owner reports silent rooms, so this is probably input gain (input volume 100%), a measurement not a cause.
 - Owner library: not opened by the app. Two `.DS_Store` files in it changed at 18:16, which looks like Finder; no other file changed after 14:10.
 
@@ -49,3 +49,4 @@ Cell 1 PASS on offsets, drift and gaps with the bleed sub-limit NOT MET (M1 proc
 ## Open items for the owner
 
 1. Input volume 100% and the output volume that read 6% after run 1 are not explained.
+2. The speaker bleed into the microphone track is tracked in #487.
