@@ -41,7 +41,7 @@ FAIL if aggregate recall on <= off, or aggregate WER on > off, or the point fals
 
 Events (read, not netted): held-out EN2002d "boring" (ref "because boring", a nearby filler difference), ES2015c "backup" (hyp and ref differ by a nearby "may as"), IS1009b "remote controller" (ref has an interjection "mm hmm" inside the phrase); negative ES2014b with TS3003a's hint: "bigger sheep are", a plausible real false replacement.
 
-**Rates:** 4 events over 29.74 exposure hours = 0.134 per hour (95% upper 0.31); per unique audio hour (7.435 h) 0.54 per hour (95% upper 1.23). The under-1-per-hour limit is met on the point estimates; the unique-hour upper bound is not under 1.
+**Rates:** 4 events over 29.74 exposure hours = 0.134 per hour (95% upper 0.31); per unique audio hour (7.435 h) 0.54 per hour (95% upper 1.23).
 
 **Why WER is worse (checked by alignment counts, hint-off vs hint-on):** deletions rise while substitutions stay flat: ES2004c 1100 to 1354, IS1009c 658 to 927, IS1009b 958 to 1263, ES2014b 1250 to 1366; hypothesis word counts fall 4 to 8%. Both conditions use `-mc 128`, so the extra skipping comes from the hint (with `--carry-initial-prompt`), not from the context setting alone. Five meetings exceed the 1-point loop/skip rule (ES2004a, ES2004c, ES2014b, IS1009b, IS1009c); four meetings improved (TS3003a, ES2004d, ES2015c, IS1009d) and nine got worse. Each decode ran once, so some per-meeting change is within run-to-run noise; the +1.50 points come mostly from deletions in five files (ES2004c +4.07, IS1009b +4.19, IS1009c +5.57, ES2014b +2.31, ES2004a +1.17 points). This contradicts the earlier one-meeting findings and explains why recall gains did not turn into lower WER.
 
