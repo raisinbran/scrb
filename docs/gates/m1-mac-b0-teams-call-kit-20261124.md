@@ -17,7 +17,7 @@ Status: **kit built, nothing run.** No call made, installed app and library unto
 
 ```bash
 export PATH=~/.local/share/scrb-node/current/bin:$PATH
-node scripts/b0-teams-kit.mjs "$B0/teams-kit"
+node scripts/b0-teams-kit.mjs "$B0/teams-kit" --lead 40
 ```
 
 `$B0` is the run folder made by `scripts/b0-fresh-b0.sh create` (outside the repo, not committed). The script needs macOS (`say`, `afconvert`), plays nothing, stops if the folder exists, stops if any A or B turn lasts over 7.5 s (the script may not be edited), and prints the expected time of each Y line:
@@ -34,13 +34,15 @@ The folder gets `teams-b0-cue.html` (copy this one), `teams-b0-remote.m4a` (the 
 
 ## 3. Run order
 
+**Two rooms (amendment after the first Teams run, 2026-11-24).** With both computers in one room, PC2's microphone carried the owner's voice into the call and the Mac played it back into the meeting track (labelled as a remote speaker), and the owner had been told to read the cue from PC2 without being told where to speak. Rules now: the Mac and PC2 are in different rooms; PC2 is unattended while the audio plays; the owner reads the cue from the shared screen in the Mac's Teams window and speaks toward the Mac's microphone; the owner toggles no mute settings. Because START is tapped on PC2, the file is made with `--lead 40`: 40 s of silence before the start beep gives time to walk to the Mac room. Slot times in the section 2 table then add 30 s (the generator prints them).
+
 **Owner (about 20 minutes, about 10 of them active):**
 
-1. PC2: start Teams (second account), start a call, and invite the first account. Mac: join the call in Teams as the first account and **mute yourself in Teams**.
-2. PC2: open `teams-b0-cue.html` in Edge or Chrome and put it where you can read it from the Mac chair. Share the screen with **Include computer sound** turned on (share the whole screen or the browser window). Do not speak on PC2.
+1. PC2 (in another room from the Mac, alone and unattended during the run): start Teams (second account), start a call and invite the first account. Mac: join the call as the first account and **mute yourself in Teams**. Nobody toggles any mute setting after this.
+2. PC2: open `teams-b0-cue.html` (made with `--lead 40`, see section 2) in Edge or Chrome and share the whole screen with **Include computer sound** on. Do not tap START yet. Leave PC2's own Teams microphone alone: PC2 is in a different room, so it hears nothing of the Mac room.
 3. Tell the agent you are ready. The agent starts the isolated app and the preflight (below). When the agent says so: in Scribe on the Mac press **Start** and choose **Microsoft Teams** as the meeting app. Click Allow on any permission prompt, and click a US state if the location dialog appears.
-4. **Preflight (2 minutes):** tap START on PC2, say nothing, tap Stop in Scribe 45 s later (the agent tells you when), then reload the page on PC2 (F5). The agent checks the tracks and may change the Mac speaker volume.
-5. **Main run (5 minutes):** press Start in Scribe (Microsoft Teams again), tap START on PC2 within 5 seconds, and read each line when the screen says `YOUR TURN`. Stay silent when it says `STAY SILENT`. At `DONE`, press Stop in Scribe, then end the Teams call.
+4. **Preflight (about 3 minutes):** press Start in Scribe (Microsoft Teams), walk to PC2, tap START, and go back to the Mac room within 30 s. On the Mac, read the cue from the shared PC2 screen in the Teams window: it must be legible, and `STAY SILENT` and `YOUR TURN` must be visible (about 1 s of Teams lag is acceptable). Say nothing. Press Stop in Scribe after the beep and a few seconds of voices (about 70 s after START), then reload the page on PC2 (F5).
+5. **Main run (6 minutes):** press Start in Scribe (Microsoft Teams), walk to PC2, tap START, and return to the Mac chair within 30 s (the file has a 40 s lead). Read each line when the shared screen shows `YOUR TURN`, **speaking toward the Mac's microphone** (never toward PC2). Stay silent on `STAY SILENT`. At `DONE`, press Stop in Scribe, then end the Teams call.
 6. Wait for the app's final pass (about 8 minutes) while the agent scores; nothing else to do. After scoring, the agent may ask for one restart and one Copy transcript click.
 
 **Route B (only if PC2 cannot share computer sound):** open the page on the phone, hold it next to PC2's microphone (PC2 unmuted in the call), tap START there. Expect no beeps in the meeting track: cell 1 will be NOT VERIFIED.
