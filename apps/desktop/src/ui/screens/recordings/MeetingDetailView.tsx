@@ -780,7 +780,7 @@ function LoadedDetail(props: LoadedDetailProps) {
         {undoState.error && <p role="alert">{undoState.error}</p>}
         <PopupLayer stackRef={setPopupSlot} inline={tab === 'Summary'}>
           {tab === 'Transcript' && canEdit && hintShown && (
-            <PopupBanner dismissLabel="Got it" onDismiss={dismissHint}>
+            <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
               <p>Double-click a word to correct it. Click a speaker name to rename them.</p>
             </PopupBanner>
           )}

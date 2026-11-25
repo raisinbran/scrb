@@ -808,3 +808,12 @@
   margin-inline-start: var(--space-2);
   vertical-align: baseline;
 }
+
+/* The edit hint floats over transcript text; clicks pass through it except on its own button. */
+div.editHint {
+  pointer-events: none;
+}
+
+div.editHint button {
+  pointer-events: auto;
+}
