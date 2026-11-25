@@ -36,6 +36,7 @@
   --color-surface-selected: #dcdfe4;
   --color-border: #c9cdd3;
   --color-progress-track: #8a909a;
+  --color-line-current: #e8e9f8;
   --color-text: #1f2328;
   --color-text-muted: #4e5560;
   --color-word-idle: #4e5560;
@@ -63,6 +64,7 @@
   --color-surface-selected: #404249;
   --color-border: #4a4d55;
   --color-progress-track: #80858f;
+  --color-line-current: #343650;
   --color-text: #f2f3f5;
   --color-text-muted: #b5bac1;
   --color-word-idle: #b5bac1;

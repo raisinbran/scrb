@@ -42,6 +42,7 @@ const BACKGROUNDS = [
   '--color-surface-sidebar',
   '--color-surface-raised',
   '--color-surface-hover',
+  '--color-line-current',
 ];
 
 describe('resolveTheme', () => {
