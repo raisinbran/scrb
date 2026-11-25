@@ -157,6 +157,8 @@ test('writes and reads back all six exports from an invented imported meeting', 
           if (content !== 'summary') expect(pages.length).toBeGreaterThan(1);
           text = pages.join(' ');
         }
+        // PDF text extraction can widen word gaps (justified lines), so compare with collapsed whitespace.
+        text = text.replace(/\s+/g, ' ');
         expect(text).toContain(TITLE);
         expect(text).toContain('November 3, 2026');
         expect(text).toContain('Duration');
