@@ -69,14 +69,13 @@ describe('ClipPlayer', () => {
     const slow = vi.mocked(backend.call).getMockImplementation() as (
       name: string,
     ) => Promise<unknown>;
-    vi.mocked(backend.call).mockImplementation((name: string) =>
+    vi.mocked(backend.call).mockImplementation(((name: string) =>
       name === 'pauseAudio'
         ? new Promise<void>((resolve) => {
             calls.push(name);
             answer = resolve;
           })
-        : slow(name),
-    );
+        : slow(name)) as never);
     player.stop();
     const next = player.play('m1', 20_000, 22_000);
     await Promise.resolve();
