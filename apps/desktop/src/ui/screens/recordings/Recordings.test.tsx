@@ -167,7 +167,7 @@ describe('Recordings', () => {
       );
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBe('60');
-      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
     });
 
@@ -201,20 +201,20 @@ describe('Recordings', () => {
       expect(value()).toBe('90');
       await report('transcribing', 0.2, A);
       expect(value()).toBe('90');
-      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
       await report('finishing', 1, A);
       expect(value()).toBe('100');
       await report('diarizing', 0.95, A);
       expect(value()).toBe('100');
-      expect(screen.getByText('Finishing up')).toBeTruthy();
+      expect(screen.getByText('Finishing up...')).toBeTruthy();
       await report('queued', 0, B);
       expect(value()).toBe('0');
       // A late report from the older pass must not undo the newer one.
       await report('finishing', 1, A);
       expect(value()).toBe('0');
-      expect(screen.getByText('Waiting to start')).toBeTruthy();
+      expect(screen.getByText('Waiting to start...')).toBeTruthy();
     });
 
     it('other meetings progress does not touch this banner', async () => {

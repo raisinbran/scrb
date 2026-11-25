@@ -23,10 +23,10 @@ export function nextProgress(
 }
 
 const STAGE_LABELS: Record<FinalPassStage, string> = {
-  queued: 'Waiting to start',
-  transcribing: 'Transcribing',
-  diarizing: 'Working out who spoke',
-  finishing: 'Finishing up',
+  queued: 'Waiting to start...',
+  transcribing: 'Transcribing...',
+  diarizing: 'Working out who spoke...',
+  finishing: 'Finishing up...',
 };
 
 /** Fills from the backend's final-pass progress; until a report arrives it shows time since the view opened. */

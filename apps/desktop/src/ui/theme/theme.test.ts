@@ -68,6 +68,16 @@ describe.each(['light', 'dark'] as const)('%s tokens', (theme) => {
     }
   });
 
+  it('draws the progress track at 3:1 against the surfaces it sits on', () => {
+    for (const background of ['--color-surface', '--color-surface-raised']) {
+      const ratio = contrast(
+        tokens['--color-progress-track'] as string,
+        tokens[background] as string,
+      );
+      expect(ratio, background).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('meets WCAG AA for text on the accent color', () => {
     const ratio = contrast(
       tokens['--color-on-accent'] as string,
