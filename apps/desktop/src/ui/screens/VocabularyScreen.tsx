@@ -114,6 +114,7 @@ function TermRow({
             Edit
           </Button>
           <Button
+            className={styles.toggleTerm}
             aria-label={`${term.enabled ? 'Disable' : 'Enable'} ${term.term}`}
             disabled={toggleDisabled}
             onClick={onToggle}

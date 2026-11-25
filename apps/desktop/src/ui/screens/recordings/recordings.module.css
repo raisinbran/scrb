@@ -819,12 +819,6 @@
   accent-color: var(--color-accent);
 }
 
-/* State-toggling player buttons keep one size whichever label they show. */
-.toggleButton {
-  flex: none;
-  width: 72px;
-}
-
 .playerTime {
   flex: none;
   min-width: 11ch;

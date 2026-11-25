@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Backend, MeetingListItem, SpeakerSuggestion, VoiceProfile } from '@scrb/contracts';
 import { Button } from '../components/Button.tsx';
+import { IconButton } from '../components/IconButton.tsx';
 import { ActionDialog, ChoiceDialog, TextDialog } from '../components/Dialog.tsx';
 import { useSpeakerSuggestions } from '../components/speakers/SpeakerSuggestions.tsx';
 import { useBackend } from '../lib/backend-context.tsx';
@@ -85,13 +86,13 @@ function ProfileRow({
         </span>
       </div>
       <div className={styles.actions}>
-        <Button
+        <IconButton
           disabled={deleting || preview.loading}
-          aria-label={`${preview.playing === null ? 'Play sample of' : 'Stop sample of'} ${nameOf(profile)}`}
+          label={`${preview.playing === null ? 'Play sample of' : 'Stop sample of'} ${nameOf(profile)}`}
+          icon={preview.playing === null ? 'play' : 'stop'}
+          tip={preview.playing === null ? 'Play sample' : 'Stop'}
           onClick={() => void preview.play()}
-        >
-          {preview.playing === null ? 'Play sample' : 'Stop'}
-        </Button>
+        />
         <Button
           disabled={deleting}
           aria-label={`Rename ${nameOf(profile)}`}
@@ -133,12 +134,12 @@ function ProfileRow({
                 </span>
                 <span>{clip.text}</span>
               </div>
-              <Button
-                aria-label={`${preview.playing === at ? 'Stop' : 'Play'} sample from ${clip.meetingTitle}`}
+              <IconButton
+                label={`${preview.playing === at ? 'Stop' : 'Play'} sample from ${clip.meetingTitle}`}
+                icon={preview.playing === at ? 'stop' : 'play'}
+                tip={preview.playing === at ? 'Stop' : 'Play'}
                 onClick={() => void preview.play(at)}
-              >
-                {preview.playing === at ? 'Stop' : 'Play'}
-              </Button>
+              />
             </li>
           ))}
         </ul>

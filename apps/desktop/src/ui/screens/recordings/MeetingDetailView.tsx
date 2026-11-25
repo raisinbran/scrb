@@ -112,14 +112,12 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
   const move = (target: number) => movePlayback(playback, durationMs, target);
   return (
     <div className={styles.player} role="group" aria-label="Audio player">
-      <button
-        type="button"
-        className={`${styles.button} ${styles.toggleButton}`}
+      <IconButton
+        label={isPlaying ? 'Pause' : 'Play'}
+        icon={isPlaying ? 'pause' : 'play'}
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
-      >
-        {isPlaying ? 'Pause' : 'Play'}
-      </button>
+      />
       <button
         type="button"
         className={styles.button}
