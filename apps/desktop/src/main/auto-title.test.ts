@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LargeModelGate } from '@scrb/app-core';
 import { Library } from '@scrb/storage';
-import { AutoTitleController, datePrefix, type AutoTitleDeps } from './auto-title.ts';
+import { AutoTitleController, datePrefix, uniqueTitle, type AutoTitleDeps } from './auto-title.ts';
 import { SummaryUnavailableError, type ModelServer, type SummaryEngine } from './summary.ts';
 
 // Invented meeting: started 2026-11-13 15:00 local time.
@@ -237,5 +237,15 @@ describe('AutoTitleController', () => {
   it('ignores a meeting that no longer exists', async () => {
     await run('missing');
     expect(calls).toBe(0);
+  });
+});
+
+describe('uniqueTitle', () => {
+  it('numbers a repeat from 2, ignoring case and spaces', () => {
+    expect(uniqueTitle('20261124 Meeting', [])).toBe('20261124 Meeting');
+    expect(uniqueTitle('20261124 Meeting', ['20261124 Meeting'])).toBe('20261124 Meeting 2');
+    expect(uniqueTitle('20261124 Meeting', ['20261124 meeting ', '20261124 Meeting 2'])).toBe(
+      '20261124 Meeting 3',
+    );
   });
 });

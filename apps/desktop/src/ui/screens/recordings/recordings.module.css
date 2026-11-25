@@ -552,16 +552,6 @@
   width: 200px;
 }
 
-.editHint {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-  margin: 0;
-  padding: var(--space-2) var(--space-6);
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-}
-
 .transcript {
   position: relative;
   flex: 1;
@@ -817,4 +807,13 @@
 .rowPlaying {
   margin-inline-start: var(--space-2);
   vertical-align: baseline;
+}
+
+/* The edit hint floats over transcript text; clicks pass through it except on its own button. */
+div.editHint {
+  pointer-events: none;
+}
+
+div.editHint button {
+  pointer-events: auto;
 }

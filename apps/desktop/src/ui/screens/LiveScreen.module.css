@@ -161,6 +161,7 @@ button:disabled {
   flex: none;
   flex-direction: column;
   gap: var(--meter-gap);
+  margin-inline-start: var(--space-4); /* Doubles the gap after the pickers */
   transform: translateY(calc(-1 * var(--space-5)));
   font-size: var(--text-sm);
   color: var(--color-text-muted);
@@ -216,7 +217,7 @@ button:disabled {
 .meterFill {
   width: 100%;
   height: 100%;
-  background: var(--color-ok);
+  background: var(--color-accent);
   transform: scaleX(var(--level, 0));
   transform-origin: left;
   transition: transform 100ms linear;
