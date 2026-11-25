@@ -6,3 +6,4 @@
 - **Impact:** Wasted context only; no file changed.
 - **Correction:** Named the handoff file explicitly and read it alone; the usage row is a new file.
 - **Prevention:** Check which file a grep selected before printing it.
+- **Second failure, same task:** a hinted `whisper-cli` call failed with its output sent to `/dev/null` (a prompt argument built without quoting), so the error was invisible; I reran it with output visible. Cost: one wasted short decode and one extra call.
