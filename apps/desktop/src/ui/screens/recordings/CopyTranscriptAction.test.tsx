@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Speaker, TranscriptSegment } from '@scrb/contracts';
 import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
@@ -84,6 +84,27 @@ describe('CopyTranscriptAction', () => {
     await vi.waitFor(() =>
       expect(screen.getByRole('status').textContent).toBe('Transcript copied.'),
     );
+  });
+
+  it('shows a check after a successful copy, then the copy icon returns', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    render(<CopyTranscriptAction transcript={data([segment(0)])} />);
+    const path = () =>
+      screen
+        .getByRole('button', { name: 'Copy transcript' })
+        .querySelector('svg path')
+        ?.getAttribute('d');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
+      await vi.waitFor(() => expect(path()).toMatch(/^M5 12.5/));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(path()).toMatch(/^M10 8h10/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('disables copying until every segment is loaded or when loading failed', () => {

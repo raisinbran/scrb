@@ -24,6 +24,14 @@ export interface AutoTitleDeps extends Pick<SummaryDeps, 'engine' | 'pidFile' | 
   ) => Promise<string | null>;
 }
 
+/** `base`, or `base 2`, `base 3`, ... when another meeting already has the name (case-blind). */
+export function uniqueTitle(base: string, taken: readonly string[]): string {
+  const used = new Set(taken.map((t) => t.trim().toLowerCase()));
+  let candidate = base;
+  for (let n = 2; used.has(candidate.toLowerCase()); n += 1) candidate = `${base} ${n}`;
+  return candidate;
+}
+
 /** `YYYYMMDD` of the meeting start in the computer's local time. */
 export function datePrefix(startedAt: string): string {
   const date = new Date(startedAt);
@@ -99,10 +107,15 @@ export class AutoTitleController {
     const prefix = datePrefix(meeting.date);
     const generated = await this.generate(meetingId);
     if (generated === 'shutdown') return;
-    const text =
+    const base =
       generated === null
         ? [prefix, FALLBACK_LABEL].filter(Boolean).join(' ')
         : [prefix, generated].filter(Boolean).join(' ');
+    const taken = library
+      .listMeetings()
+      .filter((row) => row.id !== meetingId)
+      .map((row) => row.title);
+    const text = uniqueTitle(base, taken);
     // Checked again inside the write's lock: the user may have renamed the meeting while the
     // model ran, or just now.
     await library

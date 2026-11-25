@@ -777,16 +777,13 @@ function LoadedDetail(props: LoadedDetailProps) {
         aria-labelledby={`meeting-tab-${tab}`}
         className={styles.panel}
       >
-        {tab === 'Transcript' && canEdit && hintShown && (
-          <p className={styles.editHint}>
-            Double-click a word to correct it. Click a speaker name to rename them.
-            <button type="button" className={styles.button} onClick={dismissHint}>
-              Got it
-            </button>
-          </p>
-        )}
         {undoState.error && <p role="alert">{undoState.error}</p>}
         <PopupLayer stackRef={setPopupSlot} inline={tab === 'Summary'}>
+          {tab === 'Transcript' && canEdit && hintShown && (
+            <PopupBanner dismissLabel="Got it" onDismiss={dismissHint}>
+              <p>Double-click a word to correct it. Click a speaker name to rename them.</p>
+            </PopupBanner>
+          )}
           {copyError && (
             <PopupBanner role="alert" level="danger" onDismiss={() => setCopyError(null)}>
               <p>{copyError}</p>
