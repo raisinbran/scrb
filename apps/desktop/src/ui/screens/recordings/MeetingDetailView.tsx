@@ -112,14 +112,12 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
   const move = (target: number) => movePlayback(playback, durationMs, target);
   return (
     <div className={styles.player} role="group" aria-label="Audio player">
-      <button
-        type="button"
-        className={`${styles.button} ${styles.toggleButton}`}
+      <IconButton
+        label={isPlaying ? 'Pause' : 'Play'}
+        icon={isPlaying ? 'pause' : 'play'}
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
-      >
-        {isPlaying ? 'Pause' : 'Play'}
-      </button>
+      />
       <button
         type="button"
         className={styles.button}
@@ -293,7 +291,7 @@ function MeetingTitle({
   };
 
   return (
-    <>
+    <div className={styles.titleWrap}>
       <input
         className={styles.meetingTitle}
         aria-label="Meeting title"
@@ -305,16 +303,23 @@ function MeetingTitle({
           setError(null);
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') commit();
-          else if (event.key === 'Escape') {
+          if (event.key === 'Enter') {
+            // A valid title leaves the field, which saves it through onBlur; an empty one stays so its error shows.
+            if (draft.trim()) event.currentTarget.blur();
+            else commit();
+          } else if (event.key === 'Escape') {
             setDraft(title);
             setError(null);
           }
         }}
         onBlur={commit}
       />
-      {error && <p role="alert">{error}</p>}
-    </>
+      {error && (
+        <p role="alert" className={styles.titleError}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

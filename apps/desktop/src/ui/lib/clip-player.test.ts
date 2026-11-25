@@ -62,6 +62,32 @@ describe('ClipPlayer', () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it("waits for the previous clip's pause to be answered before seeking again", async () => {
+    const { player, calls, backend } = setup([meeting]);
+    await player.play('m1', 10_000, 12_000);
+    let answer: () => void = () => undefined;
+    const slow = vi.mocked(backend.call).getMockImplementation() as (
+      name: string,
+    ) => Promise<unknown>;
+    vi.mocked(backend.call).mockImplementation(((name: string) =>
+      name === 'pauseAudio'
+        ? new Promise<void>((resolve) => {
+            calls.push(name);
+            answer = resolve;
+          })
+        : slow(name)) as never);
+    player.stop();
+    const next = player.play('m1', 20_000, 22_000);
+    await Promise.resolve();
+    expect(calls.filter((name) => name === 'seekAudio')).toHaveLength(1);
+    answer();
+    await next;
+    expect(calls.filter((name) => name === 'seekAudio')).toHaveLength(2);
+    expect(calls.lastIndexOf('pauseAudio')).toBeLessThan(calls.lastIndexOf('seekAudio'));
+    player.stop();
+    answer();
+  });
+
   it('starts half a second early and stops when the element clock passes the end', async () => {
     const { player, audios, ends } = setup([meeting]);
     await player.play('m1', 10_000, 12_000);

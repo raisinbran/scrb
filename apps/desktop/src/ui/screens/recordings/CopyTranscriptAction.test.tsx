@@ -101,6 +101,10 @@ describe('CopyTranscriptAction', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2000);
       });
+      expect(path()).toMatch(/^M5 12.5/);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
       expect(path()).toMatch(/^M10 8h10/);
     } finally {
       vi.useRealTimers();

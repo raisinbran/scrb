@@ -4,6 +4,7 @@
 }
 
 .processingBanner {
+  padding-block: var(--space-2);
   width: 100%;
   max-width: 448px;
   margin-inline: auto;
@@ -157,6 +158,10 @@
   opacity: 0.7;
 }
 
+.rowProgress {
+  padding: 0 var(--space-2) var(--space-2);
+}
+
 .rowTitle {
   font-weight: 600;
 }
@@ -194,6 +199,7 @@
   align-items: baseline;
   width: 100%;
   padding: 2px var(--space-2) 2px var(--space-4);
+  cursor: pointer;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   text-align: start;
@@ -375,6 +381,27 @@
   stroke-linejoin: round;
 }
 
+.titleWrap {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Overlaid at the end of the title row so an error never pushes the date line or the toolbar down. */
+.detailHead .titleError {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
 .meetingTitle {
   width: 100%;
   max-width: 640px;
@@ -415,6 +442,7 @@
 
 .dateInput {
   padding: 0 var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
   font: inherit;
   color: var(--color-text);
   background: var(--color-surface);
@@ -568,7 +596,7 @@
 }
 
 .segmentActive {
-  background: var(--color-surface-hover);
+  background: var(--color-line-current);
   border-inline-start-color: var(--color-accent);
 }
 
@@ -588,6 +616,7 @@
   font-size: var(--text-xs);
   color: var(--color-accent);
   text-decoration: underline;
+  cursor: pointer;
   background: none;
   border: 0;
 }
@@ -602,6 +631,11 @@
 
 .wordsFollowing {
   color: var(--color-word-idle);
+}
+
+/* The line being followed reads at full contrast; tint and bar mark it without changing any width. */
+.segmentActive .words {
+  color: var(--color-text);
 }
 
 .wordProvisional {
@@ -790,12 +824,6 @@
   flex: 0 0 80px;
   min-width: 48px;
   accent-color: var(--color-accent);
-}
-
-/* State-toggling player buttons keep one size whichever label they show. */
-.toggleButton {
-  flex: none;
-  width: 72px;
 }
 
 .playerTime {
