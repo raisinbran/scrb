@@ -1,55 +1,59 @@
-# Noise and echo filtering for recognition audio — V-b (2026-11-25)
+# V-b noise filter and echo suppression — decision plan (2026-11-25)
 
-**Status: design proposal only.** Slice V-b in [M1/V1 path forward](../../dev-plan/m1-v1-path-forward-20261123.md) and [issue #487](https://github.com/raisinbran/scrb/issues/487); V13 of the [installed checklist](../acceptance/v1-installed-acceptance-checklist-20261122.md). No processing enabled, benchmark run, or native change is authorized here. Baseline: main 65e2b328 (2026-11-25).
+**Proposal only; no implementation or tests authorized.** V13 / Must 11, [issue #487](https://github.com/raisinbran/scrb/issues/487), [V1 path forward §4](../../dev-plan/m1-v1-path-forward-20261123.md). Baseline: main 65e2b328 (Nov 25).
 
-## Problem and decision
+## Goal and preferred approach
 
-In the Mac B0 Teams run, remote speech picked up by the mic was about **8 dB louder than local speech** (-26 versus -34 dB) and caused about **14 short duplicate “You” fragments** (#487). A headset avoids the acoustic path, but is not an acceptable requirement. Discord/Teams are useful quality targets, **not evidence of their internal implementation**. Preserve the raw recorded mic and meeting tracks for reprocessing; **only the disposable recognition copy may be filtered**.
+Mac B0 Teams with speakers on: remote speech on the mic track was **8 dB louder than local speech** (-26 versus -34 dB), causing about **14 duplicated “You” fragments**. The untouched mic and meeting **originals are non-negotiable**; process only disposable copies for live and final recognition. Discord/Teams are quality benchmarks, not proof of which DSP they use.
 
-**Choose local WebRTC Audio Processing Module (APM: AEC3 + noise suppression + digital gain) as the primary candidate on both macOS and Windows 11**, with platform-specific gating. It handles echo against a far-end audio reference without requiring a large inference model. Keep the experimental macOS voice-processing route **off**: the prior spike improved echo by at least 15 dB but attenuated the *captured meeting tap* about 9 dB; physical speaker ducking was not independently proved absent ([spike](mic-echo-spike-results.md)). Do not enable it by default. On Windows, do not rely on driver/communications effects for V13, because their availability and effect on the saved capture vary by device. **One cross-platform fallback:** SpeexDSP echo canceller plus preprocessor; lower integration weight but verify double-talk and nonlinear loudspeaker echo quality before adoption.
+**Mac:** Prefer locally bundled **WebRTC Audio Processing Module (APM: AEC3 + NS + digital AGC)** after the raw fork, with the meeting tap as far-end reference. Do **not** default to Apple Voice Processing I/O: an earlier spike reduced echo ≥15 dB but reduced the **meeting tap** ~9 dB; safe physical output and raw-original preservation are not proved. **Windows 11:** Prefer the same APM recognition-copy architecture; enumerate native APO/Voice Focus capability only as a gated alternative, never a prerequisite. **Cross-platform fallback:** SpeexDSP AEC + preprocessor if APM fails resource, fidelity, or packaging checks; benchmark its nonlinear-echo/double-talk limits.
 
-## Options and redistribution evidence
+## Options: evidence and redistribution
 
-| Option | Can do; trade-off | Evidence / license and decision |
-| --- | --- | --- |
-| **WebRTC APM** | Frame-based AEC3 (far-end reference), NS, AGC; C++ build/dependency pinning; no assumed latency or accuracy benefit | [APM source](https://webrtc.googlesource.com/src/+/refs/heads/main/modules/audio_processing/), [processing/reverse-stream API](https://webrtc.googlesource.com/src/+/refs/heads/main/api/audio/audio_processing.h), [BSD-style header/notice](https://webrtc.googlesource.com/src/+/refs/heads/main/LICENSE) plus PATENTS and transitive notices. **Primary**. |
-| **RNNoise** | Small recurrent denoiser; does **not** cancel echoes by itself. Consider only if APM Strong NS underperforms | [Code BSD-3-Clause](https://github.com/xiph/rnnoise/blob/main/COPYING); [pretrained-weight redistribution question remains open](https://github.com/xiph/rnnoise/issues/284). Require separate weight provenance/license confirmation before bundling. |
-| **DeepFilterNet** | Higher-compute deep denoiser, not a substitute for AEC; model/runtime adds packaging and latency risk | [MIT OR Apache-2.0, including repository models](https://github.com/Rikorose/DeepFilterNet/blob/main/README.md). Defer unless objective tests justify cost. |
-| **SpeexDSP** | Adaptive echo canceller + NS/AGC preprocessor; small non-neural fallback, potentially weaker with nonlinear echoes | [BSD-3-Clause](https://github.com/xiph/speexdsp/blob/master/COPYING), [preprocessor API](https://github.com/xiph/speexdsp/blob/master/include/speex/speex_preprocess.h). **Fallback**. |
-| **macOS Voice Processing I/O** | OS AEC/AGC/NS and ducking controls; risks modifying the only original mic stream, output/tap levels and timing | [Apple Voice I/O](https://developer.apple.com/documentation/audiotoolbox/audio-unit-voice-i-o), [ducking controls](https://developer.apple.com/documentation/avfaudio/avaudiovoiceprocessingotheraudioduckingconfiguration); Apple system APIs, no redistributable DSP library. Feasibility only if raw fork and zero ducking proven. |
-| **Windows communications processing** | Driver-provided APOs/Studio Effects Voice Focus are device/driver/NPU-dependent; may change mic samples *before* app capture | [Microsoft processing modes](https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/audio-signal-processing-modes), [Studio Effects prerequisites](https://learn.microsoft.com/en-us/windows/apps/develop/windows-integration/studio-effects); OS-provided components, no bundled license. Capability study only, not a portable filter. |
-
-Before implementation: pin exact upstream revisions and bundled dependencies, check license files/patents and third-party notices (including model **weights** separately), and review artifact size/CPU on the weakest owner machine. All cited licenses are upstream claims, **not a completed shipping compliance audit**.
-
-## Placement: fork after raw capture, before recognition
-
-- **Original path (unchanged):** macOS native/macos-capture/src/Capture.swift (MicStream / MeetingStream) and native/macos-capture/src/main.swift (Track.drain) feed the durable ChunkWriter; the *same raw samples* are separately offered to the live ring. Windows native/windows-capture/src/TrackPipeline.cpp writes the chunk via sink_.Write and separately calls LivePcmFeed::Offer; native/windows-capture/src/Session.cpp sets up both tracks. Never place NS/AEC in these capture rings or the chunk writer, and never alter the meeting-track samples.
-- **Live recognition copy:** apps/desktop/src/main/live-feed.ts decodes PcmFrameDecoder frames and sends them through LiveAudioWorker.offer to packages/transcription/src/liveAudioWorker.ts / livePcmEngine.ts. Create a bounded, nonblocking **downstream copy** of mic PCM there, using meeting PCM as the AEC reverse reference (10 ms frames, explicit sample-rate/channel conversion, host-timestamp alignment, bounded reference jitter). Send only the processed mic copy to VAD/recognition; retain meeting PCM unchanged. A missing/late reference or failed filter bypasses processing **with an explicit diagnostic**, never blocks durable capture. Reset alignment on pause, device change and helper restart.
-- **Final recognition copy:** packages/transcription/src/finalPass.ts uses assembleChunks to build **temporary WAVs** under workDir before transcribeWholeFile. After both originals are assembled, generate a filtered *temporary mic WAV*, referenced against the unmodified meeting WAV; transcribe the temporary copy, then delete it with workDir. The original meeting folder, Opus chunks and timestamps are never rewritten. Keep dropRoomEcho in finalPass.ts and LiveEchoFilter in live-feed.ts as separately tested safeguards; verify they do not delete independent near-end speech after filtering.
-- **Configuration:** reuse existing AudioSettings/presets in apps/desktop/src/ui/screens/settings/presets.ts and AudioSection.tsx; read settings on recording start in apps/desktop/src/main/backend.ts / recording.ts. Persist a per-meeting **internal** processing snapshot for reproducible final/retry behavior, subject to storage-schema review. The existing SCRB_VOICE_AEC experimental macOS gate stays disabled; do not turn it on merely because the Settings toggle is true.
-
-## Settings mapping (no inert-feature claims)
-
-| Mode/control | Proposed effect on recognition copy |
+| Option | Capability, risk, license evidence |
 | --- | --- |
-| **Noise Off / Standard / Strong** | No NS / APM moderate NS / APM aggressive NS (benchmark strong against near/distant speech). Independent AEC/AGC toggles remain respected even with NS Off. |
-| **Voice Isolation** | Existing preset: Strong NS + AEC on + AGC on, bypass off. No platform output ducking; no alternate original mic path. |
-| **Studio** | Existing preset: NS off, AEC off, AGC off, bypass on; recognition receives raw mic copy. State clearly that OS/driver effects already baked into captured input may not be reversible. |
-| **Custom** | Honor each saved NS, AEC, AGC and bypass selection individually; no hidden preset changes. Flag unsupported native bypass instead of claiming functionality. |
+| **WebRTC APM** | Real-time AEC3 (requires aligned reverse/far-end stream), noise suppression and gain; native C++ build size/pins. [APM source](https://webrtc.googlesource.com/src/+/refs/heads/main/modules/audio_processing/), [stream/reverse API](https://webrtc.googlesource.com/src/+/refs/heads/main/api/audio/audio_processing.h); upstream [BSD-style LICENSE](https://webrtc.googlesource.com/src/+/refs/heads/main/LICENSE) and PATENTS/third-party notices. **Primary.** |
+| **RNNoise** | Lightweight RNN suppressor; **not AEC**. [Code BSD-3-Clause](https://github.com/xiph/rnnoise/blob/main/COPYING); [pretrained model weight licensing question](https://github.com/xiph/rnnoise/issues/284) unresolved. Optional Strong candidate only after separate weight review. |
+| **DeepFilterNet** | Larger neural denoiser, not AEC; model footprint/latency risk. [Code and repository models MIT OR Apache-2.0](https://github.com/Rikorose/DeepFilterNet/blob/main/README.md). Defer pending benefit benchmark. |
+| **SpeexDSP** | Lightweight AEC, NS and AGC preprocessor; poorer nonlinear-echo performance possible. [BSD-3-Clause](https://github.com/xiph/speexdsp/blob/master/COPYING) and [API](https://github.com/xiph/speexdsp/blob/master/include/speex/speex_preprocess.h). **Fallback.** |
+| **macOS Voice Processing I/O** | OS AEC/NS/AGC; can alter incoming mic and duck playback. [API](https://developer.apple.com/documentation/audiotoolbox/audio-unit-voice-i-o), [ducking controls](https://developer.apple.com/documentation/avfaudio/avaudiovoiceprocessingotheraudioduckingconfiguration). Apple system APIs, not a third-party binary to distribute. Feasibility only. |
+| **Windows communications / Studio Effects** | Driver/APO or NPU-dependent voice processing may precede capture, contaminating the saved original; [modes](https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/audio-signal-processing-modes), [hardware prerequisites](https://learn.microsoft.com/en-us/windows/apps/develop/windows-integration/studio-effects). OS-provided, device-specific. Feasibility only. |
 
-A failed or unavailable processor must show truthful, accessible status (not a silently successful preset). Input sensitivity, advanced VAD, silent-audio warning and device suggestions remain separately tracked by [V1 input-settings closure](v1-input-settings-closure.md); they are not silently completed here.
+Pin exact library revisions; audit their transitive licenses, patents, notice obligations and any separately licensed weights **before packaging**. Upstream license claims are not shipping clearance.
 
-## Predeclared pass/fail (proposed thresholds, **not measurements**)
+## Exact recognition-only insertion points
 
-Use publicly licensed **AMI** meeting fixtures with fixed reference transcripts and invented room impulse responses. Replay matched raw and filtered frames at 16/48 kHz; test far-end-only, near-end-only **including quiet/distant voice**, and double talk with 40–400 ms echo lag. On at least one separately owner-approved isolated **Mac and Windows** setup, play an AMI remote voice through built-in speakers and a second AMI/invented near-end voice at fixed distances/levels; include selected-app versus whole-output references, headphones control, and independent physical speaker-level monitor.
+**Unchanged raw recording:** macOS native/macos-capture/src/Capture.swift (MicStream and MeetingStream) → native/macos-capture/src/main.swift (Track.drain). Its separate writer.write and live_offer consume the same raw samples. Windows native/windows-capture/src/TrackPipeline.cpp writes sink_.Write before LivePcmFeed::Offer (configured in Session.cpp). **Never insert DSP before the chunk writers, in capture rings, or in the meeting-track original.**
 
-**Pass only if all hold:** near-end WER **no worse than unfiltered** for both near-end-only and double-talk scenarios (same decoder/model, report per-case WER and denominators); median far-end-only mic echo/leakage reduction **at least 12 dB** and each tested setup **at least 8 dB** relative to raw (time-aligned RMS, stated windows); no lost first/last near-end words; added processing latency **under 30 ms p95** over raw live-copy path; original raw-frame/writer-input digests and persisted chunk semantics unchanged; no unexplained capture gaps above 100 ms, 4-hour drift within 50 ms, no microphone/meeting-track offset regression beyond 25 ms; physical speaker output attenuation **at most 0.5 dB**, measured independently of the meeting tap. Report CPU/memory and false near-end suppression; failing any safety limit stops that option. Do not claim installed V13 PASS from synthetic tests alone.
+**Live:** apps/desktop/src/main/live-feed.ts uses PcmFrameDecoder → LiveAudioWorker.offer → packages/transcription/src/liveAudioWorker.ts / livePcmEngine.ts. Copy *mic* frames **after** this raw/live fork, pair with untouched *meeting* frames as APM reverse reference, convert to 10 ms/rate-correct frames with host-time/delay alignment, and deliver only filtered mic samples to recognition. Bound reference jitter, CPU and queues; reset on pause, format/device switch or helper restart. Missing reference or overload: bypass DSP with a diagnostic, **never block recording**.
 
-## Reviewable delivery slices and approvals
+**Final:** packages/transcription/src/finalPass.ts calls assembleChunks into temporary WAVs in workDir. Use the unmodified meeting WAV as reference to create a **different temporary filtered mic WAV** before transcribeWholeFile; preserve source chunks and timestamps. Remove scratch through existing workDir cleanup. Retest current dropRoomEcho/LiveEchoFilter safeguards for erroneous suppression of true local speech. Read AudioSettings at start via backend.ts / recording.ts and pin an internal per-meeting settings snapshot for final/retry (storage review if needed). Keep existing experimental SCRB_VOICE_AEC default-off.
 
-1. **V-b0 (1–2 days; ~250–400 LOC):** fixed AMI/bleed harness, ratio/WER/latency/original-integrity assertions, license/dependency decision; no native changes.
-2. **V-b1 (3–5 days; ~500–900 LOC):** pinned, offline APM wrapper plus final-pass temporary-WAV mic processing; unit + synthetic/double-talk tests. Separate native/packaging review for both platforms.
-3. **V-b2 (2–4 days; ~350–650 LOC):** bounded live PCM filter/reverse reference, reset/bypass/overload tests and Settings mode truth; preserve capture priority.
-4. **V-b3 (1–2 days each platform; ~150–300 LOC tests/docs):** installed speaker-bleed and double-talk acceptance, Gate 8/V13 evidence, optional Speex fallback only if APM is rejected.
+## Settings truth (V13)
 
-**Stop/go:** independent architecture/licensing review and **explicit owner approval before risky audio/native implementation or any physical test**; exact-head automated checks before independent formal review on each source PR; **owner-only merge authorization**. Any packages/contracts change needs the owner's explicit decision and a new row in packages/contracts/APPROVALS.md **in that same later PR**. This plan changes no contract, workflow, native implementation, or acceptance verdict. No private recording, long run, or inference is authorized.
+| Setting | Planned recognition-copy behavior |
+| --- | --- |
+| **Noise Off / Standard / Strong** | NS disabled / APM moderate / APM aggressive; AEC and AGC remain **independent** of NS Off. Strong must prove no suppression of quiet/distant speech. |
+| **Voice Isolation** | Current preset: Strong NS + echo cancellation + AGC on; bypass off. No speaker/output ducking. |
+| **Studio** | Current preset: NS/AEC/AGC off, bypass on; raw recognition copy. Disclose that unavoidable OS/driver processing may already be present. |
+| **Custom** | Each saved toggle controls the corresponding measurable effect; unsupported native bypass shows an honest unavailable state, not apparent success. |
+
+Input sensitivity, advanced VAD, no-audio warning and device suggestions are separate [V1 input-settings](v1-input-settings-closure.md) work, not silently satisfied here.
+
+## Pass/fail design — targets, not achieved results
+
+Use **public AMI** fixtures and invented deterministic room echoes (40–400 ms), then **owner-approved isolated** Mac and Windows playback of AMI remote speech through speakers plus a second AMI/invented quiet near-end voice. Include far-end-only, near-end-only, double talk, headphones, selected-app versus whole-output tap. Pin speaker level/device/distance and compare same-model WER on unfiltered versus filtered PCM.
+
+- **Recognition:** near-end WER must be **no worse than unfiltered** for quiet/normal near-end-only and double talk (report denominators), with no missing first/last local words.
+- **Leakage:** remote-voice energy in mic track reduced **≥12 dB median** in far-end-only windows and **≥8 dB in every measured condition**, time-aligned RMS relative to unfiltered.
+- **Timing/integrity:** extra live-copy latency **<30 ms p95**; capture unexplained gaps ≤100 ms and four-hour drift ≤50 ms **only when separately authorized**; offset regression ≤25 ms. Original writer input and stored chunk integrity unchanged; no alteration of meeting track.
+- **Ducking:** physical speaker output attenuation **≤0.5 dB**, measured independently of meeting tap. Report CPU/RAM, double-talk loss and failures; safety threshold failure rejects that option. Synthetic PASS is **not** installed V13 acceptance.
+
+## Small independently reviewable implementation slices
+
+1. **V-b0** — 1–2 days, ~250–400 LOC: AMI/bleed metric harness, license/pin decision, raw-data invariants.
+2. **V-b1** — 3–5 days, ~500–900 LOC: cross-platform APM wrapper and final-pass scratch mic filtering; synthetic WER/AEC/double-talk tests.
+3. **V-b2** — 2–4 days, ~350–650 LOC: live reference alignment/bounded bypass, mode mapping, failure and keyboard/status tests.
+4. **V-b3** — 1–2 days/platform, ~150–300 LOC tests/docs: isolated physical bleed/volume and V13/Gate 8 evidence; SpeexDSP only if primary rejected.
+
+**Approval gates:** independently review this high-risk design and obtain **explicit owner approval before native/audio implementation and physical tests**. Later slices require exact-head automated checks, then independent formal review, then owner-only merge approval; no automatic long tests (>20 min). Any packages/contracts edit needs a separate **owner decision plus a new packages/contracts/APPROVALS.md row in the same PR**. This docs-only plan changes no contract, runtime, acceptance status or private recording.
