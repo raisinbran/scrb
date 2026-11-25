@@ -65,7 +65,10 @@ describe('LiveClusterer', () => {
 
 describe('relabelClusters', () => {
   const cluster = (raw: number, seconds: number, embedding: number[] | null): RawCluster => ({
-    raw, speechMs: seconds * 1000, embedding, embeddedSegments: 5,
+    raw,
+    speechMs: seconds * 1000,
+    embedding,
+    embeddedSegments: 5,
   });
 
   it('merges one person split in two and keeps distinct people apart', () => {
@@ -81,7 +84,10 @@ describe('relabelClusters', () => {
   });
 
   it('keeps two voices at 0.66 apart and merges two at 0.80', () => {
-    const pair = (sim: number): [number[], number[]] => [[1, 0], [sim, Math.sqrt(1 - sim * sim)]];
+    const pair = (sim: number): [number[], number[]] => [
+      [1, 0],
+      [sim, Math.sqrt(1 - sim * sim)],
+    ];
     const run = (sim: number) => {
       const [a, b] = pair(sim);
       return new Set(relabelClusters([cluster(0, 300, a), cluster(1, 200, b)]).values()).size;
@@ -133,7 +139,10 @@ describe('embeddingSpans', () => {
       { start: 10, end: 12, speaker: 1 },
     ];
     const spans = embeddingSpans(segments, { maxPerSpeaker: 1 });
-    expect(spans).toEqual([{ start: 5, end: 9, speaker: 0 }, { start: 10, end: 12, speaker: 1 }]);
+    expect(spans).toEqual([
+      { start: 5, end: 9, speaker: 0 },
+      { start: 10, end: 12, speaker: 1 },
+    ]);
   });
 });
 
@@ -145,7 +154,10 @@ describe('assignSpeakers', () => {
   ];
 
   it('uses the span with the most overlap', () => {
-    const words = [{ startMs: 100, endMs: 500 }, { startMs: 850, endMs: 1500 }];
+    const words = [
+      { startMs: 100, endMs: 500 },
+      { startMs: 850, endMs: 1500 },
+    ];
     expect(assignSpeakers(words, spans, 'x')).toEqual(['a', 'b']);
   });
 
