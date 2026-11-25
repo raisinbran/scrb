@@ -433,37 +433,28 @@ async function verify(work) {
   const runTotal = judgeMarkedRunTotal(TRACKS.map((track) => perTrack[track].verdict));
   check('marked gaps total, whole run', runTotal.ok, runTotal.detail);
 
-  // Drift: between consecutive chunks with no gap on either track, the change in (mic start - meeting start)
-  // is clock drift. Sum those changes along the run and take the worst change within any 4 hours.
-  const pairs = [];
-  const { microphone, meeting } = {
-    microphone: perTrack.microphone.chunks,
-    meeting: perTrack.meeting.chunks,
-  };
-  let j = 0;
-  let previous = null;
-  let cumulative = 0;
-  for (let i = 0; i < microphone.length && meeting.length; i += 1) {
-    while (
-      j + 1 < meeting.length &&
-      Math.abs(meeting[j + 1].startNs - microphone[i].startNs) <
-        Math.abs(meeting[j].startNs - microphone[i].startNs)
-    )
-      j += 1;
-    const difference = ms(microphone[i].startNs - meeting[j].startNs);
-    const plain = (chunk, before) =>
-      chunk.openReason === 'rollover' && before && Math.abs(chunk.startNs - before.endNs) <= 12e6;
-    if (
-      previous &&
-      previous.i === i - 1 &&
-      previous.j === j - 1 &&
-      plain(microphone[i], microphone[i - 1]) &&
-      plain(meeting[j], meeting[j - 1])
-    ) {
-      cumulative += difference - previous.difference;
-      pairs.push({ hours: microphone[i].startNs / 3.6e12, cumulative });
+  // Drift: each track's chunks are stamped on the host clock but hold a counted number of samples, so the
+  // step from one rollover chunk's end to the next one's start is that track's own clock error. Drift between
+  // tracks is the running sum of the microphone's steps minus the meeting's. It must not compare chunk start
+  // times directly: chunks differ in length by rate (24 kHz: 5.000 s, 48 kHz: 5.0027 s), so their boundaries
+  // slide past each other without any clock error (V-e: the 65.81 ms of the Nov 15 run).
+  const stepsOf = (chunks) => {
+    const steps = [];
+    for (let k = 1; k < chunks.length; k += 1) {
+      const step = ms(chunks[k].startNs - chunks[k - 1].endNs);
+      if (chunks[k].openReason === 'rollover' && Math.abs(step) <= 12) steps.push({ startNs: chunks[k].startNs, step });
     }
-    previous = { i, j, difference };
+    return steps;
+  };
+  const meetingSteps = stepsOf(perTrack.meeting.chunks);
+  const pairs = [];
+  let seen = 0;
+  let meetingSum = 0;
+  let micSum = 0;
+  for (const { startNs, step } of stepsOf(perTrack.microphone.chunks)) {
+    while (seen < meetingSteps.length && meetingSteps[seen].startNs <= startNs) meetingSum += meetingSteps[seen++].step;
+    micSum += step;
+    pairs.push({ hours: startNs / 3.6e12, cumulative: micSum - meetingSum });
   }
   let worst = 0;
   let low = 0;

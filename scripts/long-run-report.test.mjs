@@ -138,6 +138,18 @@ describe('overnight.mjs --report on synthetic evidence', () => {
     );
   });
 
+  it('does not call chunk-length differences drift (mic 24 kHz chunks of 5.000 s, meeting 5.0027 s)', () => {
+    // Both tracks are in step with the host clock; only the mic's chunk length changes at chunk 100.
+    const meeting = track(steady, { durationFor: () => 5.002667e9 });
+    const mic = track(steady, {
+      rateFor: (i) => (i < 100 ? 48000 : 24000),
+      durationFor: (i) => (i < 100 ? 5.002667e9 : 5e9),
+      frameFor: (i, rate) => (i < 100 ? 240128 : rate * 5),
+    });
+    const r = report(evidence({ mic, meeting }));
+    expect(r.text).toMatch(/PASS {2}drift between tracks under 50 ms in any 4 h: worst 0\.00 ms/);
+  });
+
   it('is INCONCLUSIVE when the chunk logs are absent', () => {
     const mic = track(jitter);
     const dir = evidence({ mic: { ...mic, log: '' }, meeting: track(steady) });
