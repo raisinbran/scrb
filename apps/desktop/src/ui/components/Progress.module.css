@@ -21,8 +21,7 @@
   position: absolute;
   inset: 0;
   content: '';
-  background: linear-gradient(90deg, transparent, var(--color-on-accent), transparent);
-  opacity: 0.2;
+  background: linear-gradient(90deg, transparent, var(--color-sheen), transparent);
   transform: translateX(-100%);
   animation: sheen 2s ease-in-out infinite;
 }
