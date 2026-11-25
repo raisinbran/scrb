@@ -6,17 +6,11 @@ import styles from './LocationField.module.css';
 type Location = AppSettings['location'];
 
 const OUTSIDE_US = 'outside';
-const UNKNOWN_COUNTRY = 'ZZ';
-
-/** The renderer's best view of the OS region, until the backend supplies the OS country. */
-function osCountry(): string {
-  const region = new Intl.Locale(navigator.language).region;
-  return region && region !== 'US' ? region : UNKNOWN_COUNTRY;
-}
+const USE_OS_COUNTRY = 'ZZ';
 
 function toLocation(choice: string): Location {
   if (choice === '') return { country: null, usState: null };
-  if (choice === OUTSIDE_US) return { country: osCountry(), usState: null };
+  if (choice === OUTSIDE_US) return { country: USE_OS_COUNTRY, usState: null };
   return { country: 'US', usState: choice };
 }
 

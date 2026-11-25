@@ -11,7 +11,19 @@ describe('privacy banner jurisdiction', () => {
   it.each(['GB', 'DE', 'NO'])('shows for listed non-US country %s', (country) => {
     expect(needsPrivacyBanner({ country, usState: null }, DEFAULT_JURISDICTIONS, null)).toBe(true);
   });
-  it('uses OS country only when the user did not set a country', () => {
+  it.each([
+    ['DE', true],
+    ['AU', false],
+    [null, false],
+  ] as const)(
+    'uses the operating-system country (%s) when onboarding selected outside the US',
+    (osCountry, expected) => {
+      expect(
+        needsPrivacyBanner({ country: 'ZZ', usState: null }, DEFAULT_JURISDICTIONS, osCountry),
+      ).toBe(expected);
+    },
+  );
+  it('uses OS country for unanswered locations and respects a US state selection', () => {
     expect(needsPrivacyBanner({ country: null, usState: null }, DEFAULT_JURISDICTIONS, 'DE')).toBe(
       true,
     );
