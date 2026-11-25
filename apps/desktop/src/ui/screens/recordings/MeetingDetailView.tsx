@@ -314,11 +314,13 @@ function MeetingTitle({
         }}
         onBlur={commit}
       />
-      {error && (
-        <p role="alert" className={styles.titleError}>
-          {error}
-        </p>
-      )}
+      <div className={styles.titleErrorSlot}>
+        {error && (
+          <p role="alert" className={styles.titleError}>
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

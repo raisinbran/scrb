@@ -387,19 +387,14 @@
   max-width: 640px;
 }
 
-/* Overlaid at the end of the title row so an error never pushes the date line or the toolbar down. */
-.detailHead .titleError {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-2);
+/* One line under the title is always reserved, so an error never covers a long title or moves anything. */
+.titleErrorSlot {
+  min-height: 1.4em;
   font-size: var(--text-sm);
+}
+
+.detailHead .titleError {
   color: var(--color-danger);
-  background: var(--color-surface);
-  border-radius: var(--radius);
 }
 
 .meetingTitle {
