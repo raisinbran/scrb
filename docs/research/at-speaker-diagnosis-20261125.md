@@ -6,7 +6,7 @@ Diagnosis only. Measured on a copy of the owner's meeting in a temporary library
 
 Every segment in the saved transcript is `pass: final`, so live diarization did not decide the labels. Profile matching did not either: the library holds 0 voice profiles and no speaker has a `profileId`.
 
-Re-running the final pass's diarization and embedding on the copy (same models, same thresholds) reproduced the logged result (28 raw clusters here, 25 in the app log, 5 final speakers either way; S1 and S2 were 1085 s and 910 s here, 1069 s and 910 s in the log).
+Re-running the final pass's diarization and embedding on the copy (same models, same thresholds) reproduced the mechanism, not an exact historical replay (28 raw clusters here, 25 in the app log, 5 final speakers either way; S1 and S2 were 1085 s and 910 s here, 1069 s and 910 s in the log).
 
 | Measure                                                              | Value                                      |
 | -------------------------------------------------------------------- | ------------------------------------------ |
@@ -34,7 +34,7 @@ Reproduced headlessly on the copy by doing what the dialog does (split the first
 | S2                  | 65       | 1                 |
 | S3, S4, mic speaker | 24, 8, 3 | 0                 |
 
-Every refusal was `CorrectionConflictError('The selected words overlap other speech.')` from `assertSpeakerOverrideSelection` (`packages/storage/src/corrections.ts`). Overrides are stored as a time range on a track, and the check refuses any range that would also move a word outside the selection. The copy has 12 adjacent segment pairs on the meeting track whose time ranges overlap, so ticking one of them would drag in words from a neighbour. It is not a stale revision (the dialog passes no revision to `reassignSpeaker`, and `before` is read fresh) and not old word ids (a stale id would raise the different "Selection changed. Select the text again."). The dialog builds ids from whole segments with `rangeOf`, which is correct for what it shows.
+The reproduction printed 5 refused of 75 for S1 and 1 of 65 for S2. Every refusal was `CorrectionConflictError('The selected words overlap other speech.')` from `assertSpeakerOverrideSelection` (`packages/storage/src/corrections.ts`). Overrides are stored as a time range on a track, and the check refuses any range that would also move a word outside the selection. The copy has 12 adjacent segment pairs on the meeting track whose time ranges overlap, so ticking one of them would drag in words from a neighbour. The overlap refusal is credible for this reproduction; it is not proof that every dialog conflict is an overlap, because the same generic message covers other conflicts. It is not a stale revision (the dialog passes no revision to `reassignSpeaker`, and `before` is read fresh) and not old word ids (a stale id would raise the different "Selection changed. Select the text again."). The dialog builds ids from whole segments with `rangeOf`, which is correct for what it shows.
 
 Consequence: in a meeting with overlapping segments the dialog cannot finish. It moves the earlier ticks and then stops, and `moved` keeps them on retry, so a second click hits the same refused passage again. The saved transcript already shows this partial result: the split speaker carries 10 overrides (1 split plus 9 reassigns) and 18 undo entries.
 
@@ -47,8 +47,8 @@ Consequence: in a meeting with overlapping segments the dialog cannot finish. It
 
 ## Recommended smallest fixes
 
-1. **Merge line.** Re-run the AMI relabel sweep at `mergeLine` 0.70 (and check the 0.40 short-merge line is unaffected). If the AMI result matches 0.65, change the constant. One number, evidence above.
-2. **Split dialog.** Smallest option: when `reassignSpeaker` is refused for overlap, the dialog skips that passage, finishes the rest, and lists the skipped times, so Split completes. Better option, needing a decision: let an override take a word-id set, or snap the selection to the words of that segment only. Both touch storage, and the second likely touches the contract (owner approval).
-3. **Profiles.** Implement the growth plan (`docs/plans/voice-profile-growth.md`): create or grow a profile when a speaker is named, and store suggestions so the meeting view can show "possibly X". Not a bug fix; larger than a small change.
+1. **Merge line.** Do not change 0.65 without reviewed paired AMI evidence. Since this note was written, PR #504 merged 0.70 with AMI showing identical results from 0.60 to 0.75, so AMI neither supports nor argues against the move; this meeting is the only evidence that favours 0.70.
+2. **Split dialog.** Any skip behaviour must name the overlap as the cause (the generic conflict can mean other failures), show the passages that were not applied, and keep undo. Do not treat overlapping ranges as permission to move words the user did not select. A word-id override or segment-only snapping would touch storage and probably the contract (owner approval).
+3. **Profiles.** Implement the growth plan (`docs/plans/voice-profile-growth.md`): create or grow a profile when a speaker is named, and store suggestions so the meeting view can show "possibly X". Growth must respect `buildVoiceProfiles` and privacy consent. Not a bug fix; larger than a small change.
 
 No code was changed.
