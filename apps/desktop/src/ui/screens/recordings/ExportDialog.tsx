@@ -197,7 +197,10 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
         <Choice<ExportContent>
           legend="Include"
           value={content}
-          onChange={setContent}
+          onChange={(value) => {
+            setContent(value);
+            if (value !== 'transcript' && format === 'vtt') setFormat('docx');
+          }}
           options={[
             { value: 'transcript', label: 'Transcript' },
             { value: 'summary', label: 'Summary', disabled: !hasSummary },
@@ -211,7 +214,7 @@ export function ExportDialog({ meeting, defaultLength, onClose }: ExportDialogPr
           options={[
             { value: 'docx', label: '.docx' },
             { value: 'pdf', label: '.pdf' },
-            { value: 'vtt', label: '.vtt' },
+            { value: 'vtt', label: '.vtt', disabled: usesSummary },
           ]}
         />
         {usesTranscript && (

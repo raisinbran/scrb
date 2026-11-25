@@ -110,16 +110,28 @@ export interface ExportDeps {
 export function createExportHandlers(deps: ExportDeps): CallHandlers {
   const { library, emit } = deps;
 
-  const toMeeting = async (meeting: MeetingMeta): Promise<ExportMeeting> => {
+  const toMeeting = async (
+    meeting: MeetingMeta,
+    request: ContractExportRequest,
+  ): Promise<ExportMeeting> => {
     const transcript = await library.readTranscript(meeting.id);
     const words = resolveDisplay(transcript).reduce((sum, s) => sum + s.tokens.length, 0);
-    if (words === 0) {
+    if (request.content !== 'summary' && words === 0) {
       throw new ContractError({
         code: 'conflict',
         message: 'This meeting has no transcript to export yet.',
       });
     }
-    const base = toExportMeeting(meeting, transcript, null);
+    const summary = request.content === 'transcript' ? null : await library.readSummary(meeting.id);
+    if (request.content !== 'transcript' && !summary?.[request.summary.length]) {
+      throw new ContractError({
+        code: 'conflict',
+        message: summary
+          ? `This meeting has no ${request.summary.length} summary. Generate it before exporting.`
+          : 'This meeting has no summary to export.',
+      });
+    }
+    const base = toExportMeeting(meeting, transcript, summary);
     return {
       ...base,
       // Two tracks are stored one after the other; a reader expects time order.
@@ -169,7 +181,11 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     if ((await lstat(target).catch(() => null))?.isDirectory()) {
       throw new ExportRefused("Couldn't save there.");
     }
-    const options = { scope: 'transcript' as const, transcript: request.transcript };
+    const options = {
+      scope: request.content,
+      transcript: request.transcript,
+      summary: request.summary,
+    };
     let bytes: Uint8Array;
     if (request.format === 'docx') {
       bytes = await deps.renderDocx({ meeting: data, request: options, pageSize: 'Letter' });
@@ -200,10 +216,10 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
     exportMeeting: async (raw) => {
       const request = raw as ContractExportRequest;
       const meeting = await requireMeeting(library, request.meetingId);
-      if (request.content !== 'transcript') {
+      if (request.format === 'vtt' && request.content !== 'transcript') {
         throw new ContractError({
           code: 'conflict',
-          message: "Summaries can't be exported yet.",
+          message: 'WebVTT can only export the transcript.',
         });
       }
       if (!EXPORTABLE.has(meeting.status)) {
@@ -212,7 +228,7 @@ export function createExportHandlers(deps: ExportDeps): CallHandlers {
           message: 'This meeting has no transcript to export yet.',
         });
       }
-      const data = await toMeeting(meeting);
+      const data = await toMeeting(meeting, request);
       const exportId = randomUUID();
       void run(exportId, meeting, data, request).then(
         (fileName) =>

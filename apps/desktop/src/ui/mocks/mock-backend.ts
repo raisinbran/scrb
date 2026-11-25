@@ -68,6 +68,7 @@ import {
   withWordStates,
 } from './transcript.ts';
 import { readStored, writeStored } from '../lib/stored-value.ts';
+import { isListedState } from '../lib/us-states.ts';
 
 const SETTINGS_KEY = 'scrb.mock.settings';
 const LONG_MEETING_WORDS = 80_000;
@@ -1154,7 +1155,7 @@ export class MockBackend implements Backend {
         status: 'recording',
         meetingId,
         elapsedMs: 0,
-        privacyBannerRequired: this.settings.location.usState === 'IL',
+        privacyBannerRequired: isListedState(this.settings.location.usState),
       });
       const health: RecordingHealth = { level: 'ok', warnings: [], diskFreeBytes: FULL_DISK_BYTES };
       this.emit('recordingHealth', health);
@@ -1204,7 +1205,8 @@ export class MockBackend implements Backend {
       return file;
     },
     importAudioFile: ({ fileToken, buildVoiceProfiles }) => {
-      const privacyBannerRequired = buildVoiceProfiles && this.settings.location.usState === 'IL';
+      const privacyBannerRequired =
+        buildVoiceProfiles && isListedState(this.settings.location.usState);
       const importId = this.id('import');
       const { fileName, fileDate } = this.pickedFiles.get(fileToken) ?? PICKED_FILE;
       if (this.recording.status !== 'idle') {

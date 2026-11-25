@@ -75,7 +75,8 @@ export function needsPrivacyBanner(
   rules: PrivacyJurisdictions,
   osCountry: string | null,
 ): boolean {
-  const country = location.country === null ? osCountry : location.country;
+  // 'ZZ' is saved when the user selects outside the US without specifying a country.
+  const country = location.country === 'ZZ' ? osCountry : (location.country ?? osCountry);
   if (!country) return false;
   if (country === 'US')
     return location.usState !== null && rules.usStates.includes(location.usState);

@@ -18,7 +18,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { build } from 'esbuild';
 import type { ExportFinished, ExportRequest } from '@scrb/contracts';
 import { Library } from '@scrb/storage';
-import { buildExportDocument, renderHtml, type ExportMeeting } from '@scrb/export';
+import { buildExportDocument, renderDocx, renderHtml, type ExportMeeting } from '@scrb/export';
+import { strFromU8, unzipSync } from 'fflate';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { chosenTarget, createExportHandlers, exportFileStem } from './export.ts';
 import { createDocxRenderer } from './export-worker.ts';
@@ -96,11 +97,15 @@ describe('createExportHandlers', () => {
     ...over,
   });
 
-  const seed = async (title = 'Invented sync', status: 'ready' | 'recording' = 'ready') => {
+  const seed = async (
+    title = 'Invented sync',
+    status: 'ready' | 'recording' = 'ready',
+    source: 'recorded' | 'imported' = 'recorded',
+  ) => {
     const { id } = await library.createMeeting({
       title,
       date: '2026-11-03T10:00:00Z',
-      source: 'recorded',
+      source,
       status,
       durationMs: 5000,
     });
@@ -148,6 +153,54 @@ describe('createExportHandlers', () => {
     expect(print).toHaveBeenCalledOnce();
     expect(print.mock.calls[0]?.[0].html).toContain('hello there');
     expect(exportsOf(id)).toEqual(['Invented sync-2026-11-03.pdf']);
+  });
+
+  it.each(
+    (['transcript', 'summary', 'both'] as const).flatMap((content) =>
+      (['docx', 'pdf'] as const).map((format) => ({ content, format })),
+    ),
+  )('exports $content as $format from a saved import', async ({ content, format }) => {
+    const id = await seed('Invented sync', 'ready', 'imported');
+    await library.applyCorrection(id, { wordIds: ['w2'], replacement: 'Harbour', remember: false });
+    await library.saveGeneratedSummary(id, {
+      generatedAt: null,
+      brief: { sections: [{ id: 'brief', heading: null, text: 'Invented recap.', edited: false }] },
+      full: null,
+      actionItems: [],
+      decisions: [],
+      openQuestions: [],
+      warnings: [],
+    });
+    handlers = createExportHandlers({
+      library,
+      emit: (name, payload) => {
+        if (name !== 'exportFinished') return;
+        finished.push(payload as ExportFinished);
+        waiting.splice(0).forEach((resolve) => resolve());
+      },
+      print,
+      chooseSavePath,
+      revealPath,
+      locationFile,
+      renderDocx: ({ meeting, request, pageSize }) =>
+        renderDocx(buildExportDocument(meeting, request), { pageSize }),
+    });
+    expect(
+      await dispatchCall(handlers, 'exportMeeting', request(id, { content, format })),
+    ).toMatchObject({ ok: true });
+    const fileName = `Invented sync-2026-11-03.${format}`;
+    expect(await settled()).toMatchObject({ ok: true, fileName });
+    expect(exportsOf(id)).toEqual([fileName]);
+    const bytes = readFileSync(join(library.meetingPaths(id).exports, fileName));
+    const rendered =
+      format === 'docx'
+        ? strFromU8(unzipSync(bytes)['word/document.xml']!)
+        : (print.mock.calls[0]?.[0].html as string);
+    expect(rendered).toContain('Invented sync');
+    expect(rendered).toContain('Duration');
+    expect(rendered.includes('Invented recap.')).toBe(content !== 'transcript');
+    expect(rendered.includes('Harbour')).toBe(content !== 'summary');
+    expect(rendered.includes('there')).toBe(content !== 'summary');
   });
 
   it('writes WebVTT captions as UTF-8 text with the speaker as a voice tag', async () => {

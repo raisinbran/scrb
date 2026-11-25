@@ -1,12 +1,11 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
 import { MockBackend } from './mocks/index.ts';
 import { ThemeProvider } from './theme/ThemeProvider.tsx';
 
-function renderApp() {
-  const backend = new MockBackend();
+function renderApp(backend = new MockBackend()) {
   render(
     <BackendProvider backend={backend}>
       <ThemeProvider>
@@ -88,6 +87,64 @@ describe('App', () => {
     expect((await backend.call('getRecordingSnapshot')).state.status).toBe('recording');
     fireEvent.click(screen.getByRole('button', { name: /^Live/ }));
     expect((await backend.call('getRecordingSnapshot')).state.status).toBe('recording');
+  });
+
+  it('applies onboarding and Settings locations to each new recording and dismisses only that session', async () => {
+    const backend = new MockBackend();
+    await backend.call('updateSettings', { location: { country: null, usState: null } });
+    backend.setLibrary([]);
+    renderApp(backend);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Where are you based?' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Where are you based?' })).toBe(dialog);
+    fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'IL' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    const start = async () => fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+    const stop = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Stop' }));
+      await screen.findByRole('button', { name: 'Start' });
+    };
+    const dismiss = /Dismiss voice-profile privacy reminder for this recording/;
+    const changeState = async (usState: string) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      fireEvent.change(await screen.findByRole('combobox', { name: /State where you live/ }), {
+        target: { value: usState },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(async () =>
+        expect((await backend.call('getSettings')).location).toEqual({ country: 'US', usState }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Live' }));
+    };
+
+    try {
+      await start();
+      fireEvent.click(await screen.findByRole('button', { name: dismiss }));
+      expect(screen.queryByRole('button', { name: dismiss })).toBeNull();
+      await stop();
+
+      await start();
+      expect(await screen.findByRole('button', { name: dismiss })).toBeTruthy();
+      await stop();
+
+      await changeState('NY');
+      await start();
+      await screen.findByRole('button', { name: 'Stop' });
+      expect(screen.queryByRole('button', { name: dismiss })).toBeNull();
+      await stop();
+
+      await changeState('TX');
+      await start();
+      expect(await screen.findByRole('button', { name: dismiss })).toBeTruthy();
+      await stop();
+    } finally {
+      if ((await backend.call('getRecordingSnapshot')).state.status !== 'idle') {
+        await backend.call('stopRecording');
+      }
+    }
   });
 
   it('applies a theme chosen in Settings', async () => {

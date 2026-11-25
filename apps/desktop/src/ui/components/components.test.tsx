@@ -209,6 +209,13 @@ describe('shared components', () => {
       expect(screen.queryByRole('status')).toBeNull();
     });
 
+    it('delegates a location outside the US to the operating-system country', () => {
+      const onChange = vi.fn();
+      wrap(backend, <LocationField value={{ country: null, usState: null }} onChange={onChange} />);
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'outside' } });
+      expect(onChange).toHaveBeenCalledWith({ country: 'ZZ', usState: null });
+    });
+
     it('reports a chosen state with its country', () => {
       const onChange = vi.fn();
       wrap(backend, <LocationField value={{ country: null, usState: null }} onChange={onChange} />);
