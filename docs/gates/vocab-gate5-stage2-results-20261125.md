@@ -1,6 +1,6 @@
 # Vocabulary Gate 5 Stage 2: FAIL (hint at `-mc 128` skips speech), completed 2026-11-25
 
-**Verdict: FAIL** under the pre-registered rules below. The false-replacement limit itself is met (4 events in 29.7 exposure hours, 0.13 per hour), but the hint at `-mc 128` raises word error in aggregate (25.44% to 26.94%, +1.50 points) because it makes the model **skip speech** (about 5 to 40% more deleted words in the worst files), so "recognition improves" is not met. Recall rose (92 to 155 of 255 term occurrences). **Independent review pending.**
+**Verdict: FAIL.** Two independent reasons. (1) Aggregate word error rose with hints, 25.44% to 26.94% (+1.50 points), mostly from skipped speech (see below), so "recognition improves" is not met even though term recall rose (92 to 155 of 255). (2) The false-replacement count is 4 events, which is the FAIL band (4 or more) of the approved [vocabulary-stage2.md](../plans/vocabulary-stage2.md) negative-control table. The rate is 0.13 per exposure hour (95% upper 0.31), but per unique audio hour (7.435 h) it is 0.54 with a 95% upper bound of 1.23, above 1, so the under-1-per-hour limit is **not shown to be met**. **Independent review pending.**
 
 **Authorization:** on 2026-11-25 the owner released Stage 2 in chat ("this is allowed to proceed") and lifted the 20-minute test limit ("All tests lengths are allowed"). Stage 2 definition: [vocabulary-gate5-evaluation.md](../plans/vocabulary-gate5-evaluation.md); earlier results: [Stage 1](vocab-gate5-stage1-results-20261112.md), [mc test](vocab-mc-test-results-20261112.md), [H1](vocab-h1-hint-test-2026-11-15.md).
 
@@ -10,9 +10,13 @@
 - whisper.cpp `284029c`, `ggml-large-v3-turbo-q5_0`, Silero VAD v6.2.0, `-t 4 -l en --vad -mc 128 -ml 1 -sow -ojf`; hint on adds `--prompt <hint> --carry-initial-prompt`; hint-off is the same at `-mc 128`. Each decode ran once, none rerun, all rc=0.
 - Per meeting a mechanical term rule (`scripts/research/vocab_stage2.py select`): 1 to 3 word phrases from the reference, dictionary words, not stopwords, numbers, contractions or fragments; at least 2 reference occurrences; hint-off wrong at least 2 times; absent from the references of all meetings of other series; top 10 by wrongness. Chosen from the **hint-off output of the same meeting** (mirrors a user's corrections), frozen before any hint-on decode. Meetings with fewer than 3 eligible terms were dropped (ES2016c, IS1009a, TS3003b, TS3003d), leaving **13 meetings, 7.435 h**. Term sets and hints are in `~/scrb-dev-assets/eval-vocab/s2/terms/` (not committed).
 - **Negative controls:** each of the 13 meetings was also decoded with the hints of 3 other meetings (different series, no term in its reference, checked: 0 clashes): 39 decodes, **22.31 exposure hours**. These repeat the same audio under different hints; per unique hour the exposure is 7.435 h.
-- Selection note: the first selection pass had a code bug (list vs tuple, 0 terms) and a second pass tightened the rule (dictionary words, no numbers or contractions) and relaxed series exclusivity. All of this happened before any hint-on decode and is logged as an incident.
+- Selection note: the first selection pass had a code bug (list vs tuple, 0 terms) and a second pass tightened the rule (dictionary words, no numbers or contractions) and relaxed series exclusivity. All of this happened before any hint-on decode and is logged as incident A-1163; usage was not read at task start (A-1164), and the AMI download needed a retry loop because of mirror 503s.
 
-## Pre-registered verdict rules (in `vocab_stage2.py` before scoring)
+## Relation to the approved plan, and the verdict rules
+
+The approved plan (`docs/plans/vocabulary-stage2.md`, section 4) names ES2003c and ES2015c as calibration meetings, sets the events bar at 0 = PASS, 1 to 3 = INCONCLUSIVE, 4 or more = FAIL, and centres on a correction pass and an H1 hint test. **This run follows the older Stage 2 definition in `vocabulary-gate5-evaluation.md` (more AMI meetings and term sets, hints at `-mc 128`) and departs from the plan in these ways:** all meetings, including ES2003c and ES2015c, were scored as own-hint meetings with no calibration/held-out split; terms were chosen from each meeting's own hint-off output; no correction pass was run; the verdict rule below is rate-based, not the plan's count table. Under the plan's count table the 4 events would also be FAIL.
+
+## Verdict rules (written in `vocab_stage2.py` and frozen before the hint-on decodes, per the command log; not an earlier commit)
 
 FAIL if aggregate recall on <= off, or aggregate WER on > off, or the point false-event rate >= 1 per exposure hour. PASS if none of that, the 95% upper bound of the rate is under 1 per exposure hour, and no meeting's WER is worse by more than 1 point. Otherwise INCONCLUSIVE. Events = own-hint held-out false replacements (scorer rule b) + learned-term occurrences in negative-control output (rule a), none netted.
 
@@ -39,15 +43,15 @@ Events (read, not netted): held-out EN2002d "boring" (ref "because boring", a ne
 
 **Rates:** 4 events over 29.74 exposure hours = 0.134 per hour (95% upper 0.31); per unique audio hour (7.435 h) 0.54 per hour (95% upper 1.23). The under-1-per-hour limit is met on the point estimates; the unique-hour upper bound is not under 1.
 
-**Why WER is worse (checked by alignment counts, hint-off vs hint-on):** deletions rise while substitutions stay flat: ES2004c 1100 to 1354, IS1009c 658 to 927, IS1009b 958 to 1263, ES2014b 1250 to 1366; hypothesis word counts fall 4 to 8%. Both conditions use `-mc 128`, so the extra skipping comes from the hint (with `--carry-initial-prompt`), not from the context setting alone. Five meetings exceed the 1-point loop/skip rule (ES2004a, ES2004c, ES2014b, IS1009b, IS1009c); three meetings improved or were flat (TS3003a, ES2015c, ES2004d). This contradicts the earlier one-meeting findings and explains why recall gains did not turn into lower WER.
+**Why WER is worse (checked by alignment counts, hint-off vs hint-on):** deletions rise while substitutions stay flat: ES2004c 1100 to 1354, IS1009c 658 to 927, IS1009b 958 to 1263, ES2014b 1250 to 1366; hypothesis word counts fall 4 to 8%. Both conditions use `-mc 128`, so the extra skipping comes from the hint (with `--carry-initial-prompt`), not from the context setting alone. Five meetings exceed the 1-point loop/skip rule (ES2004a, ES2004c, ES2014b, IS1009b, IS1009c); four meetings improved (TS3003a, ES2004d, ES2015c, IS1009d) and nine got worse. Each decode ran once, so some per-meeting change is within run-to-run noise; the +1.50 points come mostly from deletions in five files (ES2004c +4.07, IS1009b +4.19, IS1009c +5.57, ES2014b +2.31, ES2004a +1.17 points). This contradicts the earlier one-meeting findings and explains why recall gains did not turn into lower WER.
 
 ## Limits of this evidence
 
 Term sets were mechanical and chosen on the same meeting they are scored on (recall is optimistic; real learned terms differ). 7.4 h own-hint and 9.65 h unique audio, not about 22 h. Single decode per condition, no determinism check. Per-meeting term counts vary 1 to 10. Whether skipping depends on hint length or term type was not tested. Live path and the owner's meetings untouched.
 
-## Recommendation (for the owner, not applied)
+## OWNER DECISION: what to do about hints
 
-Do not enable or rely on hints at `-mc 128` as shipped until the skipping is understood: it can silently drop speech. Candidate follow-ups (not run): shorter hint, a fixed term count, `-mc` below 128 with hints, or `--prompt` without `--carry-initial-prompt`. Gate 5's vocabulary criterion is **not met**.
+Hints have been live in the offline final pass and import since PR #124 (`-mc 128` when a hint is present); nothing was changed or turned off by this work. Options: (a) leave as is and accept possible dropped speech on meetings with learned terms; (b) disable hints or revert to `-mc 0` (hints then do nothing); (c) run follow-ups first (untested): shorter hint, fixed term count, `-mc` below 128, or `--prompt` without `--carry-initial-prompt`. Gate 5's vocabulary criterion is **not met** on this evidence.
 
 ## Commands and timings
 
