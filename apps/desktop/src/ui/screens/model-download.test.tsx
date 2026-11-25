@@ -67,7 +67,9 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
     });
 
     it('starts, shows per-file and overall progress, then says the models are ready', async () => {
-      backend.setDownloadStepMs(40);
+      // The 30% state lasts one mock step and is replaced by the next. At 40 ms a loaded CI runner can
+      // render past it before findByText looks, so each state is held for 150 ms (20 steps, about 3 s).
+      backend.setDownloadStepMs(150);
       renderWith(backend, <SettingsScreen />);
       fireEvent.click(await download());
       expect(await screen.findByRole('button', { name: 'Cancel' })).toBeTruthy();
@@ -76,13 +78,13 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
       expect(screen.getByRole('progressbar', { name: 'Live speech model download' })).toBeTruthy();
       expect(await screen.findByText(/Downloading models: .* of 806 MB/)).toBeTruthy();
       expect(
-        await screen.findByText('Models ready. Reopen Scribe to finish.', {}, FAST),
+        await screen.findByText('Models ready. Reopen Scribe to finish.', {}, { timeout: 8000 }),
       ).toBeTruthy();
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: /^Download models/ })).toBeNull(),
       );
       expect(screen.queryAllByText(/not downloaded yet/)).toHaveLength(0);
-    });
+    }, 20000);
 
     it('cancels, keeps the finished files, and continues from the button', async () => {
       backend.setDownloadStepMs(20);
