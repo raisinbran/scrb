@@ -22,3 +22,14 @@ export function vocabularyHint(terms: VocabularyTerm[]): string {
   }
   return selected.join(', ');
 }
+
+/**
+ * Hints are off: they raised word error at every -mc setting (PR #497, #503).
+ * Terms stay stored; a later correction pass is the planned replacement.
+ */
+export const VOCABULARY_HINTS_ENABLED = false;
+
+/** The hint a recognition job actually passes to whisper (empty while hints are off). */
+export function jobVocabularyHint(terms: VocabularyTerm[]): string {
+  return VOCABULARY_HINTS_ENABLED ? vocabularyHint(terms) : '';
+}
