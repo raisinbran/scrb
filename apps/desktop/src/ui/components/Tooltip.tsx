@@ -1,5 +1,6 @@
 import {
   cloneElement,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -23,7 +24,7 @@ export function Tooltip({
   label,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   children: ReactElement<{ 'aria-describedby'?: string }>;
 }) {
   const id = useId();

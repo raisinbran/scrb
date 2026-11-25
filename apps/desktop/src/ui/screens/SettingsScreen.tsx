@@ -23,6 +23,7 @@ import { useTheme } from '../theme/ThemeProvider.tsx';
 import { DataView, Screen } from './Screen.tsx';
 import { AudioSection } from './settings/AudioSection.tsx';
 import { ModelsSection } from './settings/ModelsSection.tsx';
+import { SettingsNav, type SettingsGroup } from './settings/SettingsNav.tsx';
 import styles from './SettingsScreen.module.css';
 
 const load = (backend: Backend) =>
@@ -61,6 +62,15 @@ const PERIOD_OPTIONS: { value: AutoDeletePeriod; label: string }[] = [
 const SCOPE_OPTIONS: { value: AutoDeleteScope; label: string }[] = [
   { value: 'audioOnly', label: 'Audio' },
   { value: 'wholeMeeting', label: 'Whole meeting' },
+];
+
+const GROUPS: SettingsGroup[] = [
+  { id: 'settings-theme', label: 'Theme' },
+  { id: 'settings-audio', label: 'Audio' },
+  { id: 'settings-transcription', label: 'Transcription' },
+  { id: 'settings-models', label: 'Models' },
+  { id: 'settings-storage', label: 'Storage' },
+  { id: 'settings-location', label: 'Location' },
 ];
 
 type Draft = Pick<
@@ -170,123 +180,127 @@ function SettingsForm({
   };
 
   return (
-    <>
-      <AudioSection audio={draft.audio} devices={devices} apps={apps} onChange={changeAudio} />
+    <div className={styles.layout}>
+      <SettingsNav groups={GROUPS} />
+      <div className={styles.groups}>
+        <fieldset id="settings-theme" className={styles.section}>
+          <legend className={styles.legend}>Theme</legend>
+          {THEME_OPTIONS.map((option) => (
+            <label key={option.value} className={styles.option}>
+              <input
+                type="radio"
+                name="theme"
+                value={option.value}
+                checked={theme === option.value}
+                onChange={() => setTheme(option.value)}
+              />
+              {option.label}
+            </label>
+          ))}
+        </fieldset>
 
-      <section className={styles.section} aria-labelledby="settings-transcription">
-        <h2 id="settings-transcription" className={styles.legend}>
-          Transcription and summaries
-        </h2>
-        <div className={styles.fields}>
-          <Select
-            label="Performance"
-            value={draft.transcriptionQuality}
-            options={QUALITY_OPTIONS}
-            onChange={(transcriptionQuality) => change({ transcriptionQuality })}
-          />
-          <Select
-            label="Summary default length"
-            value={draft.summaryDefaultLength}
-            options={LENGTH_OPTIONS}
-            onChange={(summaryDefaultLength) => change({ summaryDefaultLength })}
-          />
-        </div>
-        <p className={styles.help}>
-          Fast turns live text off: the text appears after Stop. A change applies to the next
-          recording. The final transcript is not affected by live text.
-        </p>
-      </section>
+        <AudioSection audio={draft.audio} devices={devices} apps={apps} onChange={changeAudio} />
 
-      <ModelsSection />
-
-      <section className={styles.section} aria-labelledby="settings-storage">
-        <h2 id="settings-storage" className={styles.legend}>
-          Storage
-        </h2>
-        <div className={styles.inline}>
-          <span className={styles.path}>{storageLocation}</span>
-          <Button disabled aria-describedby="settings-storage-move-help">
-            Change location…
-          </Button>
-        </div>
-        <p id="settings-storage-move-help" className={styles.help}>
-          Moving a saved library is not available yet. Your existing storage location is unchanged.
-        </p>
-        <div className={styles.fields}>
-          <Select
-            label="Auto-delete meetings after"
-            value={draft.autoDelete.period}
-            options={PERIOD_OPTIONS}
-            onChange={(period) => changeAutoDelete({ period })}
-          />
-          <Select
-            label="What to delete"
-            value={draft.autoDelete.scope}
-            options={SCOPE_OPTIONS}
-            disabled={draft.autoDelete.period === 'never'}
-            onChange={(scope) => changeAutoDelete({ scope })}
-          />
-        </div>
-        {draft.autoDelete.period !== 'never' && (
-          <p className={styles.help}>{autoDeleteSentence(draft.autoDelete)}</p>
-        )}
-      </section>
-
-      <section className={styles.section} aria-labelledby="settings-location">
-        <h2 id="settings-location" className={styles.legend}>
-          Location for the privacy banner
-        </h2>
-        <LocationField value={draft.location} onChange={(location) => change({ location })} />
-      </section>
-
-      <fieldset className={styles.section}>
-        <legend className={styles.legend}>Theme</legend>
-        {THEME_OPTIONS.map((option) => (
-          <label key={option.value} className={styles.option}>
-            <input
-              type="radio"
-              name="theme"
-              value={option.value}
-              checked={theme === option.value}
-              onChange={() => setTheme(option.value)}
+        <section className={styles.section} aria-labelledby="settings-transcription">
+          <h2 id="settings-transcription" className={styles.legend}>
+            Transcription and summaries
+          </h2>
+          <div className={styles.fields}>
+            <Select
+              label="Performance"
+              value={draft.transcriptionQuality}
+              options={QUALITY_OPTIONS}
+              onChange={(transcriptionQuality) => change({ transcriptionQuality })}
             />
-            {option.label}
-          </label>
-        ))}
-      </fieldset>
-
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
-      <div className={styles.saveDock}>
-        {dirty && (
-          <div className={styles.saveBar} role="status">
-            <span>You have unsaved changes.</span>
-            <div className={styles.actions}>
-              <Button disabled={busy} onClick={discard}>
-                Discard
-              </Button>
-              <Button variant="primary" disabled={busy} onClick={save}>
-                Save
-              </Button>
-            </div>
+            <Select
+              label="Summary default length"
+              value={draft.summaryDefaultLength}
+              options={LENGTH_OPTIONS}
+              onChange={(summaryDefaultLength) => change({ summaryDefaultLength })}
+            />
           </div>
+          <p className={styles.help}>
+            Fast turns live text off: the text appears after Stop. A change applies to the next
+            recording. The final transcript is not affected by live text.
+          </p>
+        </section>
+
+        <ModelsSection />
+
+        <section className={styles.section} aria-labelledby="settings-storage">
+          <h2 id="settings-storage" className={styles.legend}>
+            Storage
+          </h2>
+          <div className={styles.inline}>
+            <span className={styles.path}>{storageLocation}</span>
+            <Button disabled aria-describedby="settings-storage-move-help">
+              Change location…
+            </Button>
+          </div>
+          <p id="settings-storage-move-help" className={styles.help}>
+            Moving a saved library is not available yet. Your existing storage location is
+            unchanged.
+          </p>
+          <div className={styles.fields}>
+            <Select
+              label="Auto-delete meetings after"
+              value={draft.autoDelete.period}
+              options={PERIOD_OPTIONS}
+              onChange={(period) => changeAutoDelete({ period })}
+            />
+            <Select
+              label="What to delete"
+              value={draft.autoDelete.scope}
+              options={SCOPE_OPTIONS}
+              disabled={draft.autoDelete.period === 'never'}
+              onChange={(scope) => changeAutoDelete({ scope })}
+            />
+          </div>
+          {draft.autoDelete.period !== 'never' && (
+            <p className={styles.help}>{autoDeleteSentence(draft.autoDelete)}</p>
+          )}
+        </section>
+
+        <section className={styles.section} aria-labelledby="settings-location">
+          <h2 id="settings-location" className={styles.legend}>
+            Location for the privacy banner
+          </h2>
+          <LocationField value={draft.location} onChange={(location) => change({ location })} />
+        </section>
+
+        {error && (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        )}
+        <div className={styles.saveDock}>
+          {dirty && (
+            <div className={styles.saveBar} role="status">
+              <span>You have unsaved changes.</span>
+              <div className={styles.actions}>
+                <Button disabled={busy} onClick={discard}>
+                  Discard
+                </Button>
+                <Button variant="primary" disabled={busy} onClick={save}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {confirming && (
+          <ActionDialog
+            title="Turn on auto-delete?"
+            confirmLabel="Save and turn on"
+            danger
+            onConfirm={commit}
+            onCancel={() => setConfirming(false)}
+          >
+            <p>{autoDeleteSentence(draft.autoDelete)} This cannot be undone.</p>
+          </ActionDialog>
         )}
       </div>
-      {confirming && (
-        <ActionDialog
-          title="Turn on auto-delete?"
-          confirmLabel="Save and turn on"
-          danger
-          onConfirm={commit}
-          onCancel={() => setConfirming(false)}
-        >
-          <p>{autoDeleteSentence(draft.autoDelete)} This cannot be undone.</p>
-        </ActionDialog>
-      )}
-    </>
+    </div>
   );
 }
 
@@ -317,7 +331,7 @@ export function SettingsScreen() {
     [backend, reload],
   );
   return (
-    <Screen title="Settings">
+    <Screen title="Settings" className={styles.screenWide ?? ''}>
       <DataView state={state}>
         {([settings, devices, apps]) => (
           <SettingsForm initial={settings} devices={devices} apps={apps} />
