@@ -49,7 +49,12 @@ test('places Test mic above Input Profile and preserves downstream audio order',
         const all = [...document.querySelectorAll<HTMLElement>('label,fieldset,button')];
         return all.find((element) => element.innerText.includes(name))?.getBoundingClientRect();
       };
-      const profile = document.querySelector('fieldset')?.getBoundingClientRect();
+      // Theme is the first group on the screen, so pick the Input Profile fieldset by its legend.
+      const profile = [...document.querySelectorAll('fieldset')]
+        .find((fieldset) =>
+          fieldset.querySelector('legend')?.textContent?.startsWith('Input Profile'),
+        )
+        ?.getBoundingClientRect();
       const presetControlNames = [
         'Noise suppression',
         'Echo cancellation',
