@@ -238,14 +238,14 @@ describe('Recordings', () => {
     it('lets the banner be dismissed with an X', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
     });
 
     it('shows the banner again after leaving and reopening the same processing meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
@@ -257,7 +257,7 @@ describe('Recordings', () => {
     it('keeps a dismissed banner hidden while switching tabs in the same meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();

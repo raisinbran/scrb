@@ -4,6 +4,7 @@
 }
 
 .processingBanner {
+  padding-block: var(--space-2);
   width: 100%;
   max-width: 448px;
   margin-inline: auto;
