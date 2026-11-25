@@ -1,5 +1,6 @@
 ### A-1166 — 2026-11-25 — Mac — `npm install` in a fresh worktree rewrote package-lock.json
 
+- **Agent:** Claude
 - **Attribution:** Confirmed self-induced. I ran `npm install` instead of `npm ci` to get dependencies and committed the result with `git add -A`.
 - **Evidence:** Independent review of PR #505 found unrelated lockfile edits (exact pins, added peer flags, removed libc fields).
 - **Impact:** One review round; no runtime effect.
