@@ -33,7 +33,6 @@ const TEXT_TOKENS = [
   '--color-word-current',
   '--color-accent',
   '--color-warning',
-  '--color-processing',
   '--color-danger',
   '--color-ok',
 ];
