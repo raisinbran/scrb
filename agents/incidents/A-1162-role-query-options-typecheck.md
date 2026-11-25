@@ -1,4 +1,4 @@
-### A-1156 — 2026-11-25 — Codex Desktop / Mac — privacy test used an unsupported role-query option
+### A-1162 — 2026-11-25 — Codex Desktop / Mac — privacy test used an unsupported role-query option
 
 - **Agent:** Codex (gpt-6.2-sol, Mac desktop)
 - **Effect and evidence:** The required check stopped before the push. The desktop typecheck rejected the test with `TS2769: No overload matches this call`, explaining that `exact` does not exist in `ByRoleOptions`.

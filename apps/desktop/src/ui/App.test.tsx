@@ -102,8 +102,7 @@ describe('App', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
-    const start = async () =>
-      fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+    const start = async () => fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
     const stop = async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Stop' }));
       await screen.findByRole('button', { name: 'Start' });
