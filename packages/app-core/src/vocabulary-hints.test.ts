@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VocabularyTerm } from '@scrb/storage';
-import { MAX_HINT_CHARS, vocabularyHint } from './vocabulary-hints.ts';
+import { MAX_HINT_CHARS, VOCABULARY_HINTS_ENABLED, jobVocabularyHint, vocabularyHint } from './vocabulary-hints.ts';
 
 const term = (name: string, enabled = true): VocabularyTerm => ({
   id: name,
@@ -24,5 +24,12 @@ describe('recognition vocabulary hints', () => {
     expect(selected.length).toBeLessThanOrEqual(MAX_HINT_CHARS);
     expect(selected).toContain('invented-term-0');
     expect(selected).not.toContain('invented-term-399');
+  });
+});
+
+describe('jobVocabularyHint', () => {
+  it('is empty for enabled terms while hints are off', () => {
+    expect(VOCABULARY_HINTS_ENABLED).toBe(false);
+    expect(jobVocabularyHint([term('Kestrel API')])).toBe('');
   });
 });
