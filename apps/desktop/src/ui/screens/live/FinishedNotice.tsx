@@ -50,7 +50,7 @@ export function FinishedNotice({ meetingId }: { meetingId: MeetingId }) {
   return (
     <div className={styles.finished}>
       <p role="status">{text}</p>
-      <DismissButton label="Dismiss notice" onClick={() => setDismissed(true)} />
+      <DismissButton label="Dismiss" onClick={() => setDismissed(true)} />
     </div>
   );
 }
