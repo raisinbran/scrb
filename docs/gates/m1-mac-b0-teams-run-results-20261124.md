@@ -4,14 +4,14 @@ Candidate: the installed release candidate (`/Applications/Scribe.app`, built fr
 
 ## Result by cell
 
-| Cell                          | Run 1 (same room)                                      | Run 2 (two rooms)                                                                                                                                                                                                   |
-| ----------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 Two synchronized tracks     | NOT VERIFIED: end beep missing in the microphone track | **PASS**: offsets 40 ms start and end, drift 0 ms, no chunk gap on either track                                                                                                                                     |
-| 2 Live text, three voices     | NOT VERIFIED: stimulus invalid                         | **WAIVED by owner decision 2026-11-24 for M1; not measured, not a PASS.** The run-2 video never showed the Live window during the 30 turns (separate scoring write-up, draft PR 486)                                |
-| 3 Final text, distinct voices | NOT VERIFIED: stimulus invalid                         | **PASS** under the frozen rules: three speaker ids, 30/30 recognizable, Y 10/10, A 10/10, B 10/10, A and B not merged                                                                                               |
-| 4 Audible seek                | NOT RUN                                                | NOT RUN                                                                                                                                                                                                             |
-| 5 Clipboard parity            | not done                                               | **NOT VERIFIED** (substance matches, one documentation step missing, see below)                                                                                                                                     |
-| Persistence                   | not done                                               | **NOT VERIFIED** (partial): quit and relaunch on the same isolated profile left `transcript.json` byte-identical (SHA-256 3c6dec99...), so text and labels are unchanged; playback and a seek were not done (below) |
+| Cell                          | Run 1 (same room)                                      | Run 2 (two rooms)                                                                                                                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Two synchronized tracks     | NOT VERIFIED: end beep missing in the microphone track | **PASS** on offsets (40 ms start and end), drift (0 ms) and chunk gaps (none on either track). The bleed sub-limit (other-track energy under 10%) is **NOT MET** with speakers on. M1 proceeds by owner instruction 2026-11-24; product gap tracked in issue #487 (raisinbran/scrb) |
+| 2 Live text, three voices     | NOT VERIFIED: stimulus invalid                         | **WAIVED by owner decision 2026-11-24 for M1; not measured, not a PASS.** The run-2 video never showed the Live window during the 30 turns (separate scoring write-up, draft PR 486)                                                                                                |
+| 3 Final text, distinct voices | NOT VERIFIED: stimulus invalid                         | **PASS** under the frozen rules: three speaker ids, 30/30 recognizable, Y 10/10, A 10/10, B 10/10, A and B not merged                                                                                                                                                               |
+| 4 Audible seek                | NOT RUN                                                | not run, M1 proceeds by owner instruction 2026-11-24                                                                                                                                                                                                                                |
+| 5 Clipboard parity            | not done                                               | **PASS** by owner decision 2026-11-24 on the clipboard evidence (42 sections and 240 words identical to `transcript.json`). The offscreen screenshot step was not taken and stays a documentation gap                                                                               |
+| Persistence                   | not done                                               | **PASS** (automated, see below): relaunch on the isolated profile and library, `transcript.json` byte-identical (SHA-256 3c6dec99...), meeting opens with labels, both tracks play and one seek lands where asked                                                                   |
 
 ## Run 1 (same room): why it was invalid
 
@@ -31,20 +31,21 @@ Candidate: the installed release candidate (`/Applications/Scribe.app`, built fr
 
 The pasted text and the text rebuilt from `transcript.json` with the `copy-transcript.ts` rule are identical: 42 sections and 240 words in both (1,780 characters). The product test `CopyTranscriptAction.test.tsx` ("copies all 4,800 segments with labels, corrected words, and chronological order") shows the copy covers every segment, not only loaded rows. The Live pane in the only Scribe screenshot taken (`scribe-now.png`) shows about 12 text lines of transcript area, so 42 sections could not have been on screen at once, and the owner reports about 100 rows. What is missing is the frozen rule's own evidence: a screenshot of the meeting's transcript pane taken at copy time showing rows out of view. The only screenshot from the copy moment shows another application. The substance (full-length parity) is shown; the offscreen screenshot is a documentation step, so the owner may accept the cell as PASS on this reasoning, but this document does not re-score it.
 
-## Persistence check, what could not be done
+## Persistence check (Playwright, one attempt)
 
-The relaunch assertions passed (isolated profile and library only; the owner's library was not opened). Opening the meeting, playing audio, one seek and reading labels on screen need clicks in the Scribe window. This session has no desktop-control tool, and macOS refuses `osascript` assistive access (error -1719); granting it is a security setting that this work does not change. Screenshots of the Scribe window work. No US-state dialog appeared on relaunch.
+Owner decision 2026-11-24: one bounded automated attempt. The installed `Scribe.app` was launched through Playwright's Electron launcher with `--user-data-dir=<run-2 profile> --scrb-isolated-test-profile`. `lsof` showed no open file under the owner library, and the app listed the run-2 meetings. A test-only `Audio` spy was added to the page (as `e2e/playback.spec.ts` does); the app was not changed.
+
+- Meeting "20261124 Meeting", 7:10 PM, 6 min, 3 speakers (the run-2 recording) opened on the Transcript tab. Labels You, Speaker 1 and Speaker 2 with 24 timestamp buttons, for example "Play from 00:57", "A copper lantern marks the quiet doorway."
+- "Play from 00:57": microphone and meeting audio both playing, same position (3.8 s into chunk 11), no error, ready state 4. 4 s later both were in chunk 12 at 1.32 s, so playback advanced and stayed in step.
+- "Play from 02:17": both tracks jumped to chunk 27 and played from 4.72 s after 2 s, in step, no error. That is about 02:17, so one seek landed where asked.
+- `transcript.json` SHA-256 unchanged after all of it.
+
+Screenshots: `persist-3-playing.png`, `persist-4-seek.png` in the run-2 evidence folder (not committed). This is automation, not an owner listening test, and it says nothing about audible quality (that is cell 4).
 
 ## What remains of M1 B0 (Mac column)
 
-Cell 1 PASS, cell 3 PASS, cell 2 WAIVED, cell 5 and persistence NOT VERIFIED for the reasons above, cell 4 (seek) not run. The run sheet counts all five cells plus persistence in the Mac column, so cell 4 is needed unless the owner waives it; it needs headphones with the earcup against the built-in microphone.
+Cell 1 PASS on offsets, drift and gaps with the bleed sub-limit NOT MET (M1 proceeds by owner instruction 2026-11-24; product gap tracked in issue #487 (raisinbran/scrb)). Cell 2 WAIVED. Cell 3 PASS. Cell 4 not run, M1 proceeds by owner instruction 2026-11-24. Cell 5 PASS by owner decision. Persistence PASS (automated). Nothing is left to run for the Mac column except what those owner decisions set aside.
 
 ## Open items for the owner
 
-1. Does the bleed sub-limit (above) block cell 1 as B0 evidence, or is the speakers-on kit accepted as is?
-2. Cell 2 is waived for M1 by the owner (above).
-3. Cell 5: accept the clipboard reasoning above as PASS, or take the screenshot. Persistence: needs playback and one seek by someone who can click in the Scribe window.
-4. Cell 4 (seek) is not covered by this kit.
-5. Input volume 100% and the output volume that read 6% after run 1 are not explained.
-
-Usage: Claude Code, Sonnet 5.5, Mac desktop. Start 18:11 PST: 5-hour limit 69% used, weekly 32% used. Run 2 started at about 18:52 with 5-hour 8% (a new window) and weekly 35%; end about 19:25 with 5-hour 12% and weekly 36% (the session's own share is not separable from other sessions).
+1. Input volume 100% and the output volume that read 6% after run 1 are not explained.
