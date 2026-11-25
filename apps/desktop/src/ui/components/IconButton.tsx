@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Tooltip } from './Tooltip.tsx';
 import styles from './IconButton.module.css';
 
@@ -26,7 +26,7 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   label: string;
   icon: keyof typeof ICONS;
   /** Longer tooltip text, when the name alone does not explain the button. */
-  tip?: string;
+  tip?: ReactNode;
   danger?: boolean;
 }
 

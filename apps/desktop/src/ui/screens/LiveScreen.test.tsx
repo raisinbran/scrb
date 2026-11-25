@@ -869,6 +869,22 @@ describe('Live text styles help', () => {
     expect(tip.textContent).toContain('Provisional: text just heard');
     expect(tip.textContent).toContain('Final: text that has settled');
     expect(tip.textContent).toContain('Corrected: words you edited');
+    // Each line is set in the style of the transcript text it describes.
+    expect(
+      within(tip)
+        .getByText(/^Provisional:/)
+        .getAttribute('data-state'),
+    ).toBe('provisional');
+    expect(
+      within(tip)
+        .getByText(/^Final:/)
+        .getAttribute('data-state'),
+    ).toBe('final');
+    expect(
+      within(tip)
+        .getByText(/^Corrected:/)
+        .getAttribute('data-state'),
+    ).toBe('corrected');
     cleanup();
   });
 });

@@ -58,7 +58,7 @@ describe('model download (Settings > Models, first-run notice, Record)', () => {
     it('shows nothing to download when the models are installed', async () => {
       backend = new MockBackend();
       renderWith(backend, <SettingsScreen />);
-      await screen.findByText('Models');
+      await screen.findByRole('heading', { name: 'Models' });
       expect(
         await screen.findByText(/Model updates and rollback are not available yet/),
       ).toBeTruthy();

@@ -326,12 +326,32 @@ describe('screens', () => {
       }
     });
 
+    it('lists the setting groups with Theme first and jumps to a group', async () => {
+      renderScreen(backend, <SettingsScreen />);
+      const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
+      const names = within(nav)
+        .getAllByRole('button')
+        .map((button) => button.textContent);
+      expect(names.slice(0, 2)).toEqual(['Theme', 'Audio']);
+      expect(names).toEqual(expect.arrayContaining(['Models', 'Storage']));
+      const theme = screen.getByRole('group', { name: 'Theme' });
+      const audio = document.getElementById('settings-audio')!.closest('section')!;
+      expect(theme.compareDocumentPosition(audio) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const scrollIntoView = vi.fn();
+      audio.scrollIntoView = scrollIntoView;
+      fireEvent.click(within(nav).getByRole('button', { name: 'Audio' }));
+      expect(scrollIntoView).toHaveBeenCalled();
+      expect(within(nav).getByRole('button', { name: 'Audio' }).getAttribute('aria-current')).toBe(
+        'true',
+      );
+    });
+
     it('shows stored presets as unavailable without creating unsaved changes', async () => {
       const original = (await backend.call('getSettings')).audio;
       renderScreen(backend, <SettingsScreen />);
       expect(
         await screen.findByText(
-          /Audio processing profiles, noise suppression, gain, sensitivity and advanced detection/,
+          /coming in a later version\. They do not change your recordings yet\. Echo cancellation and Bypass only affect an experimental macOS path that is off by default/,
         ),
       ).toBeTruthy();
       for (const name of ['Voice Isolation', 'Studio', 'Custom']) {

@@ -117,10 +117,9 @@ export function AudioSection({ audio, devices, apps, onChange }: AudioSectionPro
         devices={devices}
       />
       <p id="audio-processing-unavailable" className={styles.help}>
-        Audio processing profiles, noise suppression, gain, sensitivity and advanced detection are
-        unavailable for normal recording. Their saved preferences remain visible but cannot be
-        edited here. Echo cancellation and bypass remain editable because they affect an
-        experimental macOS path only when separately opted in; they do not enable it on their own.
+        Noise suppression, gain, sensitivity and the profiles below are coming in a later version.
+        They do not change your recordings yet. Echo cancellation and Bypass only affect an
+        experimental macOS path that is off by default.
       </p>
       <fieldset className={styles.group}>
         <legend className={`${styles.groupLabel} ${styles.legendRow}`}>

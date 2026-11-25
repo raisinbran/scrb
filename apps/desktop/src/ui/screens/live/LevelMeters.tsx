@@ -57,7 +57,7 @@ export function LevelMeters({ active, micOnly = false }: { active: boolean; micO
   }, [active]);
 
   return (
-    <div className={styles.levels}>
+    <div className={micOnly ? styles.levelsCompact : styles.levels}>
       {!micOnly && <span className={styles.levelsTitle}>Levels</span>}
       <div className={micOnly ? styles.metersCompact : styles.meters}>
         <Meter label="Mic" meterRef={micRef} />

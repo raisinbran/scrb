@@ -46,6 +46,7 @@
   --color-paused: #8a5a00;
   --color-ok: #16703b;
   --color-warning: #8a5a00;
+  --color-processing: #8a5a00;
   --color-danger: #b42020;
   --color-backdrop: #00000066;
   --shadow-overlay: 0 4px 16px #0000002e;
@@ -71,6 +72,7 @@
   --color-paused: #f0b232;
   --color-ok: #57c98a;
   --color-warning: #f0b232;
+  --color-processing: #f0b232;
   --color-danger: #f58585;
   --color-backdrop: #00000099;
   --shadow-overlay: 0 4px 16px #00000080;

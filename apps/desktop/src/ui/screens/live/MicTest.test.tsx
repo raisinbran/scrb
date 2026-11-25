@@ -23,6 +23,25 @@ afterEach(() => {
   backend.dispose();
 });
 
+describe('mic test row', () => {
+  it('puts the button, the Mic label, the meter and the status in one row, in that order', () => {
+    const { container } = render(
+      <BackendProvider backend={backend}>
+        <MicTest
+          sources={{ micDeviceId: null, meetingAppId: 'whole-computer' }}
+          devices={[{ ...headset, transport: 'builtIn' as const }]}
+        />
+      </BackendProvider>,
+    );
+    const row = container.firstElementChild as HTMLElement;
+    const kids = [...row.children].map((child) => child.textContent ?? '');
+    expect(kids[0]).toBe('Test mic');
+    expect(kids[1]).toBe('Mic');
+    expect(row.querySelector('[role="meter"]')).toBeTruthy();
+    expect(row.children).toHaveLength(3);
+  });
+});
+
 describe('mic test headset advisory', () => {
   it('warns before opening a hands-free microphone', () => {
     render(
@@ -71,13 +90,14 @@ describe('mic test during a recording', () => {
 });
 
 describe('MicTest layout', () => {
-  it('keeps a fixed-size button and note slot, and Settings places it above Input Profile', async () => {
+  it('keeps a fixed-size button, lets the note wrap cleanly, and Settings places it above Input Profile', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const css = readFileSync(join(__dirname, 'MicTest.module.css'), 'utf8');
     const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? '';
     expect(rule('testButton')).toMatch(/width: \d+px/);
-    expect(rule('testNote')).toMatch(/height:/);
+    expect(rule('testRow')).toMatch(/flex-wrap: wrap/);
+    expect(rule('testNote')).toMatch(/flex: 1 1 14rem/);
     const audio = readFileSync(join(__dirname, '../settings/AudioSection.tsx'), 'utf8');
     const micTestIndex = audio.indexOf('<MicTest');
     const profileIndex = audio.search(/>\s*Input Profile\s*</);

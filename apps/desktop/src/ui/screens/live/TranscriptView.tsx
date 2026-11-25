@@ -75,8 +75,20 @@ function wordAt(target: EventTarget | null): { segmentId: string; wordId: string
   return wordId && segmentId ? { wordId, segmentId } : null;
 }
 
-const STYLE_HELP =
-  'Provisional: text just heard, which may still change.\nFinal: text that has settled.\nCorrected: words you edited.';
+/** Each line is set in the style it describes, using the transcript's own word styles. */
+const STYLE_HELP = (
+  <span className={styles.styleHelp}>
+    <span className={styles.word} data-state="provisional">
+      Provisional: text just heard, which may still change.
+    </span>
+    <span className={styles.word} data-state="final">
+      Final: text that has settled.
+    </span>
+    <span className={styles.word} data-state="corrected">
+      Corrected: words you edited.
+    </span>
+  </span>
+);
 
 export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: TranscriptViewProps) {
   const backend = useBackend();

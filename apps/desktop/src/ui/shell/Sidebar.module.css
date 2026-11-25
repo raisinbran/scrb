@@ -85,6 +85,8 @@
 }
 
 .spin {
+  /* Gold while a recording is processing: easy to see on the gray sidebar in both themes. */
+  color: var(--color-processing);
   animation: disc-spin 1.6s linear infinite;
 }
 

@@ -205,3 +205,88 @@
 .download {
   margin: 0 0 var(--space-3);
 }
+
+/* The screen is wider than the others: a group list on the left, the settings on the right. */
+.screenWide {
+  max-width: 1100px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.groups {
+  min-width: 0;
+  max-width: 800px;
+}
+
+.nav {
+  position: sticky;
+  inset-block-start: var(--space-3);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navItem {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  text-align: start;
+  color: var(--color-text-muted);
+  background: none;
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.navItem:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.navItem[aria-current='true'] {
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-surface-selected);
+  border-inline-start-color: var(--color-accent);
+}
+
+/* Narrow windows: the list becomes a row across the top. */
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .nav {
+    z-index: 10;
+    inset-block-start: 0;
+    padding-block: var(--space-1);
+    background: var(--color-surface);
+  }
+
+  .navList {
+    flex-flow: row wrap;
+  }
+
+  .navItem {
+    width: auto;
+    border-inline-start: 0;
+    border-block-end: 3px solid transparent;
+  }
+
+  .navItem[aria-current='true'] {
+    border-block-end-color: var(--color-accent);
+  }
+}

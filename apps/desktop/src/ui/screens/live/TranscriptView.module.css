@@ -235,3 +235,10 @@
   width: 26px;
   height: 26px;
 }
+
+/* The tooltip behind the info button: one sample line per style, each in that style. */
+.styleHelp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
