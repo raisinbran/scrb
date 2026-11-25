@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { VocabularyTerm } from '@scrb/storage';
-import { MAX_HINT_CHARS, VOCABULARY_HINTS_ENABLED, jobVocabularyHint, vocabularyHint } from './vocabulary-hints.ts';
+import {
+  MAX_HINT_CHARS,
+  VOCABULARY_HINTS_ENABLED,
+  jobVocabularyHint,
+  vocabularyHint,
+} from './vocabulary-hints.ts';
 
 const term = (name: string, enabled = true): VocabularyTerm => ({
   id: name,
