@@ -12,13 +12,14 @@ import {
   type AgendaScore,
   type GenFact,
 } from './agenda.js';
+import { loadAmiAgenda } from './agenda-ami.js';
 import { synthMeeting } from './agenda-synth.js';
 import { httpBackend, type Backend } from './backend.js';
 import { norm } from './taskA.js';
 import { agendaPromptHash, promptA, promptHash, SYSTEM } from './prompts.js';
 import { parseJson, prepare } from './run.js';
 import { reconcile, type ReconcileStats } from './reconcile.js';
-import { trigramEmbedder } from './validate.js';
+import { trigramEmbedder, tuneTau, validateAll } from './validate.js';
 import { parseOutline } from '../../src/parse.js';
 
 /**
@@ -130,7 +131,21 @@ async function main(): Promise<void> {
   const seeds = (arg('seeds') ?? '1,2,3').split(',').map(Number);
   const out = arg('out');
   const backend = httpBackend(url, 'qwen2.5-7b-instruct-q4_k_m');
-  const embed = trigramEmbedder();
+  const embedderId = arg('embedder') ?? 'trigram';
+  const embed =
+    embedderId === 'minilm'
+      ? await (await import('../embedder.js')).loadEmbedder()
+      : trigramEmbedder();
+  let tau = Number(arg('tau') ?? 0.6);
+  let validation: unknown = null;
+  if (arg('validate')) {
+    tau = await tuneTau(embed);
+    const v = await validateAll(embed, tau);
+    validation = { tau, ...v };
+  }
+  const opt = { tau };
+  const amiDir = arg('ami');
+  const amiIds = (arg('ami-ids') ?? '').split(',').filter(Boolean);
   const peak = { serverMiB: 0, gpuMiB: 0 };
   const timer = setInterval(() => {
     const s = sample();
@@ -139,8 +154,14 @@ async function main(): Promise<void> {
   }, 5000);
   const rows: object[] = [];
   const t0 = Date.now();
-  for (const seed of seeds) {
-    const m = synthMeeting(seed);
+  const todo: { label: string; m: AgendaMeeting }[] = [
+    ...(arg('seeds') === 'none' ? [] : seeds).map((seed) => ({
+      label: `synth-${seed}`,
+      m: synthMeeting(seed),
+    })),
+    ...amiIds.map((id) => ({ label: `ami-${id}`, m: loadAmiAgenda(amiDir!, id)! })),
+  ];
+  for (const { label: seed, m } of todo) {
     const items = parseOutline(m.agenda).items;
     const words = m.lines.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
     let t = Date.now();
@@ -151,9 +172,14 @@ async function main(): Promise<void> {
     const secG = (Date.now() - t) / 1000;
     const aVerdicts = a.facts.map((f) => verify(f, items, m.lines));
     const meta = { seed, lines: m.lines.length, words, refFacts: m.facts.length };
-    const aStrict = await scoreAgenda(m, a.facts, aVerdicts, embed);
-    const aLoose = await scoreAgenda(m, a.facts, aVerdicts, embed, { kindStrict: false });
-    const gStrict = await scoreAgenda(m, g.facts, g.verdicts, embed);
+    const aStrict = await scoreAgenda(m, a.facts, aVerdicts, embed, opt);
+    const aLoose = await scoreAgenda(m, a.facts, aVerdicts, embed, { ...opt, kindStrict: false });
+    const gStrict = await scoreAgenda(m, g.facts, g.verdicts, embed, opt);
+    const gLoose = await scoreAgenda(m, g.facts, g.verdicts, embed, { ...opt, kindStrict: false });
+    const kinds: Record<string, number> = {};
+    for (const f of g.facts) kinds[f.kind] = (kinds[f.kind] ?? 0) + 1;
+    const verdictCounts: Record<string, number> = {};
+    for (const v of g.verdicts) verdictCounts[v] = (verdictCounts[v] ?? 0) + 1;
     rows.push(
       line('taskA-prompt (kind-agnostic credit)', aLoose, {
         ...meta,
@@ -164,6 +190,7 @@ async function main(): Promise<void> {
         wallSeconds: secA,
       }),
       line('taskA-prompt (strict kinds)', aStrict, { ...meta }),
+      line('agenda-aware (kind-agnostic credit)', gLoose, { ...meta, kinds, verdictCounts }),
       line('agenda-aware (strict kinds)', gStrict, {
         ...meta,
         facts: g.facts.length,
@@ -178,7 +205,9 @@ async function main(): Promise<void> {
   const result = {
     promptHash: promptHash(),
     agendaPromptHash: agendaPromptHash(),
-    embedder: 'trigram (offline stand-in; MiniLM not installed)',
+    embedder: embedderId,
+    tau,
+    validation,
     totalWallSeconds: (Date.now() - t0) / 1000,
     peakServerWorkingSetMiB: peak.serverMiB || null,
     peakGpuUsedMiB: peak.gpuMiB || null,

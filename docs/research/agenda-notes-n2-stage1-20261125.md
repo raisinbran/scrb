@@ -61,3 +61,32 @@ Cost. Per-meeting wall time for both prompts together: 7 to 25 s (the first call
 1. Re-score the agenda prompt kind-agnostic, then decide whether to relax kinds or fix the prompt (tell the model to use `date` for any date or deadline).
 2. Install MiniLM on Regiurn (needs approval) and revalidate tau; add two AMI transcripts with invented agendas (needs fixtures).
 3. Inspect the remaining 13 of 34 flagged facts by verdict type before changing the prompt again.
+
+## Follow-up run (owner approved MiniLM, AMI fixtures and a kind-agnostic re-score, 2026-11-25)
+
+Setup. MiniLM: `Xenova/all-MiniLM-L6-v2`, Apache-2.0, `onnx/model_quantized.onnx` (22,972,370 bytes, SHA-256 `afdb6f1a...b1`, matched the published value), outside the repo. AMI: `ami_public_manual_1.6.2.zip` (SHA-256 matched `scripts/dev-assets.sh`), outside the repo. Same model, same agenda prompt v2 (hash `5b4b21888ea03152`), same synthetic seeds 4-6, plus two AMI meetings (ES2002a: 449 lines, TS3003a: 341 lines, one chunk each). The AMI agenda is invented (four generic topics); the reference facts are AMI's own annotated decisions and actions (ES2002a: 3 decisions and 3 actions; TS3003a: 6 decisions and 1 action), filed under the invented agenda by keyword. AMI has no dates in these references, so date recall is not evaluable there. The run took about 2 minutes (17:55 to 17:58 PST).
+
+MiniLM scorer validation (tau tuned to 0.79 on the invented suites): general suite passed, adversarial credit 0/42 on both halves. This validates the scorer with the real embedder; it is not evidence about the model.
+
+Pooled over the three synthetic meetings (agenda-aware v2, MiniLM, tau 0.79):
+
+| Scoring                      | Decision recall | Date recall | Hallucination | Valid citations |
+| ---------------------------- | --------------: | ----------: | ------------: | --------------: |
+| Strict kinds                 |             3/9 |         0/6 |         13/34 |           28/34 |
+| Kind-agnostic credit         |             4/9 |         3/6 |         14/34 |           28/34 |
+| Task A prompt, kind-agnostic |             2/9 |         2/6 |          1/11 |           11/11 |
+
+The kind-agnostic re-score confirms the guess: date recall rises from 0/6 to 3/6 once the kind label is ignored, so the model finds dates but files them as `info` or `caveat`. Decision recall barely moves (3/9 to 4/9). With MiniLM the strict decision recall (3/9) is lower than with the trigram stand-in (5/9), so the earlier figure was partly inflated by the stand-in. Hallucination stays about 40%, mostly `unsupported` and bad citations (verdicts per meeting: 3 unsupported and 3 bad-citation of 13; 1 unsupported, 1 bad-citation and 1 stale of 10; 2 and 2 of 11).
+
+AMI (agenda-aware / Task A, kind-agnostic):
+
+| Meeting               | Decision recall |   Hallucination | Valid citations | Edit distance | Unparseable chunks |
+| --------------------- | --------------: | --------------: | --------------: | ------------: | -----------------: |
+| ES2002a, agenda-aware |             0/3 |             4/8 |             8/8 |          2.17 |                0/1 |
+| ES2002a, Task A       |             0/3 |             2/4 |             4/4 |          1.67 |                0/1 |
+| TS3003a, agenda-aware |             0/6 |            8/12 |           12/12 |          2.71 |                0/1 |
+| TS3003a, Task A       |             0/6 | none (no facts) |            none |          1.00 |                1/1 |
+
+Both prompts recall none of the AMI decisions. Most agenda-aware flags on AMI are `unsupported`. My hypothesis (not checked): AMI speech has numbers as words ("twenty five euros"), the model writes digits, and the number check compares digits with digits only. Wall time 5.4 and 7.8 s for the agenda prompt, 2.9 to 3.1 s for Task A. Peak server working set 7.6 GiB, GPU 8.1 GB total (about 5.7 GB above the 2.4 GB baseline).
+
+Conclusion. The agenda prompt is not close to the product bars on invented or AMI data. Fixes worth trying next, in order: map dates by value rather than kind (or prompt for `date`), normalize spoken numbers in the verifier, and inspect the unsupported and bad-citation facts by cause. Each is a small change; none was attempted here.
