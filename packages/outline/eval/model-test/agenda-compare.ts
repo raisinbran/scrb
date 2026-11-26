@@ -224,7 +224,7 @@ async function main(): Promise<void> {
   };
   const rejected: string[] = [];
   for (const r of raws) {
-    let facts: { cite?: unknown }[] = [];
+    let facts: { cite?: unknown }[];
     try {
       const j = parseJson(r.text) as {
         facts?: { cite?: unknown }[];
