@@ -15,7 +15,7 @@ describe('PopupBanner', () => {
       </PopupLayer>,
     );
     expect(screen.getByRole('alert').textContent).toBe('Something failed');
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(onDismiss).toHaveBeenCalled();
   });
 

@@ -103,11 +103,11 @@ describe('Recordings disc', () => {
     expect(document.activeElement).toBe(recordings);
   });
 
-  it('keeps the disc still and shows a badge when motion is reduced', () => {
+  it('keeps the disc still when motion is reduced, and always shows the dot while processing', () => {
     const css = readFileSync(join(__dirname, 'Sidebar.module.css'), 'utf8');
-    expect(css).toMatch(
-      /prefers-reduced-motion: reduce\)\s*\{[^@]*\.spin \{\s*animation: none[^@]*\.badge \{\s*display: block/,
-    );
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)\s*\{[^@]*\.spin \{\s*animation: none/);
+    expect(css).not.toMatch(/\.badge \{\s*display: none/);
+    expect(css).not.toMatch(/\.spin \{[^}]*color:/);
   });
 });
 

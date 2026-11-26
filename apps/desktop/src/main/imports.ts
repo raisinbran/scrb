@@ -5,7 +5,7 @@ import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
   startProfileMatching,
-  vocabularyHint,
+  jobVocabularyHint,
   type LargeModelGate,
   type ImportResult,
   type ImportPhase,
@@ -189,7 +189,7 @@ export class ImportCoordinator {
           sourcePath,
           meetingDir: staging,
           signal: abort.signal,
-          vocabularyHint: vocabularyHint(library.vocabulary.enabledTerms()),
+          vocabularyHint: jobVocabularyHint(library.vocabulary.enabledTerms()),
           onEmbeddingModel: (path) => {
             modelPath = path;
           },

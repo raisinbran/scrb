@@ -104,11 +104,13 @@ export function ActionDialog(props: ActionDialogProps) {
         }}
       >
         <div className={styles.body}>{children}</div>
-        {error && (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        )}
+        <div className={styles.errorSlot}>
+          {error && (
+            <p role="alert" className={styles.error}>
+              {error}
+            </p>
+          )}
+        </div>
         <DialogActions>
           <Button onClick={onCancel}>Cancel</Button>
           <Button type="submit" variant={danger ? 'danger' : 'primary'} disabled={busy || disabled}>

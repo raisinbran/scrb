@@ -9,6 +9,7 @@ import type {
   WordRange,
 } from '@scrb/contracts';
 import { Button } from '../../components/Button.tsx';
+import { IconButton } from '../../components/IconButton.tsx';
 import { ActionDialog } from '../../components/Dialog.tsx';
 import { SpeakerLabel } from '../../components/speakers/SpeakerLabel.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
@@ -159,14 +160,13 @@ function SplitDialog(props: SplitDialogProps) {
               <span className={styles.time}>{formatElapsed(segment.startMs)}</span>
               <span>{segment.words.map((word) => word.text).join(' ')}</span>
             </label>
-            <Button
-              type="button"
+            <IconButton
               disabled={hasAudio !== true}
-              aria-label={`${playingId === segment.id ? 'Stop' : 'Play'} passage at ${formatElapsed(segment.startMs)}`}
+              label={`${playingId === segment.id ? 'Stop' : 'Play'} passage at ${formatElapsed(segment.startMs)}`}
+              icon={playingId === segment.id ? 'stop' : 'play'}
+              tip={playingId === segment.id ? 'Stop' : 'Play'}
               onClick={() => preview(segment)}
-            >
-              {playingId === segment.id ? 'Stop' : 'Play'}
-            </Button>
+            />
           </div>
         ))}
       </fieldset>

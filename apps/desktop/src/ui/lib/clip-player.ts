@@ -28,6 +28,9 @@ export function stopClipPlayback(): void {
  * The backend only hands out audio during a playback session, so a clip opens one with
  * `seekAudio` and ends it with `pauseAudio`. Applies to one meeting at a time.
  */
+/** The last `pauseAudio` a clip sent. The backend lets a pause cancel a seek still in flight, so the next clip waits for it. */
+let closing: Promise<unknown> = Promise.resolve();
+
 export class ClipPlayer {
   /** Only one clip sounds at a time, and other playback ends it (see `stopClipPlayback`). */
   static current: ClipPlayer | null = null;
@@ -65,6 +68,8 @@ export class ClipPlayer {
       openClipSession();
     }
     try {
+      await closing;
+      if (turn !== this.turn) return;
       await this.backend.call('seekAudio', { meetingId, positionMs: Math.round(from) });
       if (turn !== this.turn) return;
       const { chunks } = await this.backend.call('getPlaybackMedia', {
@@ -169,6 +174,7 @@ export class ClipPlayer {
     const closed = meetingId
       ? this.backend.call('pauseAudio', { meetingId }).catch(() => undefined)
       : Promise.resolve();
+    closing = closed;
     void closed.finally(closeClipSession);
   }
 }
