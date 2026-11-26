@@ -139,7 +139,13 @@ export function selectionOverlapsOtherSpeech(
   segments: TranscriptSegment[],
   range: WordRange,
 ): boolean {
-  const words = segments.flatMap((segment) => segment.words);
+  const owner = segments.find((segment) =>
+    segment.words.some((word) => word.id === range.firstWordId),
+  );
+  if (!owner) return false;
+  const words = segments
+    .filter((segment) => segment.track === owner.track)
+    .flatMap((segment) => segment.words);
   const first = words.findIndex((word) => word.id === range.firstWordId);
   const last = words.findIndex((word) => word.id === range.lastWordId);
   if (first < 0 || last < first) return false;

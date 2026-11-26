@@ -356,13 +356,13 @@ function toTranscriptPage(
   };
 }
 
-/** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
 // The contract has no overlap code, so the UI recognises this exact message (see docs/handoffs).
 const OVERLAP_MESSAGE = 'These words overlap other speech.';
 const isOverlapRefusal = (error: CorrectionConflictError) =>
   error.message === 'The selected words overlap other speech.';
 const overlapError = () => new ContractError({ code: 'conflict', message: OVERLAP_MESSAGE });
 
+/** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
 export function createMeetingHandlers(
   library: Library,
   emit?: Emit,

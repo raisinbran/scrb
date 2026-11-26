@@ -1,3 +1,4 @@
+import { selectionOverlapsOtherSpeech } from './corrections.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ContractError,
@@ -885,5 +886,37 @@ describe('MockBackend', () => {
       expect(installed).toHaveLength(1);
       await backend.call('cancelModelDownload'); // idle: does nothing
     });
+  });
+});
+
+describe('selectionOverlapsOtherSpeech', () => {
+  const seg = (id: string, track: 'meeting' | 'mic', startMs: number, endMs: number) =>
+    ({
+      id,
+      track,
+      speakerId: 'a',
+      pass: 'final',
+      startMs,
+      endMs,
+      words: [{ id: `${id}-w`, text: 'x', startMs, endMs }],
+    }) as never;
+  const range = { firstWordId: 's1-w', lastWordId: 's1-w' };
+
+  it('refuses overlap on the same track', () => {
+    expect(
+      selectionOverlapsOtherSpeech(
+        [seg('s1', 'meeting', 0, 1000), seg('s2', 'meeting', 400, 600)],
+        range,
+      ),
+    ).toBe(true);
+  });
+
+  it('ignores overlap with another track', () => {
+    expect(
+      selectionOverlapsOtherSpeech(
+        [seg('s1', 'meeting', 0, 1000), seg('s2', 'mic', 400, 600)],
+        range,
+      ),
+    ).toBe(false);
   });
 });
