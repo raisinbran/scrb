@@ -1,4 +1,4 @@
-### A-1194 — 2026-11-26 — Codex — V-g retention setup tool errors
+### A-1197 — 2026-11-26 — Codex — V-g retention setup tool errors
 
 - **Agent:** Codex (exact served model/effort unavailable, Mac desktop)
 - **Status / attribution:** Confirmed setup/tooling errors; no application defect from these events.
