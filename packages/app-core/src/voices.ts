@@ -20,8 +20,15 @@ export async function saveFinalVoices(
   fingerprint: (path: string) => Promise<string> = hashModel,
 ): Promise<void> {
   try {
-    if (!(await library.getMeeting(meetingId)).buildVoiceProfiles || !modelPath) return;
-    if ((await fingerprint(modelPath)) !== APPROVED_EMBEDDING_SHA256) return;
+    const qualifies =
+      (await library.getMeeting(meetingId)).buildVoiceProfiles &&
+      modelPath !== undefined &&
+      (await fingerprint(modelPath)) === APPROVED_EMBEDDING_SHA256;
+    if (!qualifies) {
+      // A re-run replaces the old file, so a pass that no longer qualifies must not leave it.
+      await library.deleteVoices(meetingId);
+      return;
+    }
     const speakers: VoiceEntry[] = transcript.speakers.flatMap((voice) => {
       const vector = voice.embedding ?? [];
       const norm = Math.hypot(...vector);

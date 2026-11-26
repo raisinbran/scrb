@@ -430,6 +430,9 @@ export class VoiceProfileStore {
         .run(profileId, meetingId);
       const gone = this.settle(profileId);
       this.db.exec('COMMIT');
+      // Snapshots hold contribution rows; undo must not bring a removed voice back.
+      this.undoStack = [];
+      this.redoStack = [];
       return gone;
     } catch (error) {
       this.db.exec('ROLLBACK');
@@ -448,6 +451,9 @@ export class VoiceProfileStore {
         'UPDATE voice_profile_meetings SET embedding = NULL, sample_count = NULL, model_id = NULL WHERE meeting_id = ?',
       )
       .run(meetingId);
+    // Purged voice data must not return through profile undo or redo.
+    this.undoStack = [];
+    this.redoStack = [];
     return ids;
   }
 

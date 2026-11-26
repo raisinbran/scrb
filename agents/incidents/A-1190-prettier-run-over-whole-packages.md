@@ -1,4 +1,4 @@
-### A-1183 — 2026-11-25 — Claude (Sonnet 5.5, Mac) — Prettier run over whole packages reformatted unrelated files
+### A-1190 — 2026-11-25 — Claude (Sonnet 5.5, Mac) — Prettier run over whole packages reformatted unrelated files
 
 - **Agent:** Claude (Sonnet 5.5, Mac Code session)
 - **What failed:** I ran `prettier --write packages` instead of only the files I changed, which rewrote about 60 unrelated files (summary, export, transcription).

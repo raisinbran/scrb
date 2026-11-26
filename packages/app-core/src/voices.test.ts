@@ -86,6 +86,14 @@ describe('voices.json after a final pass', () => {
     }
   });
 
+  it('a re-run that no longer qualifies removes the old voices.json', async () => {
+    const id = await meeting(true);
+    await saveFinalVoices(library, id, transcript(), '/model.onnx', approved);
+    expect(await library.readVoices(id)).not.toBeNull();
+    await saveFinalVoices(library, id, transcript(), '/model.onnx', unapproved);
+    expect(await library.readVoices(id)).toBeNull();
+  });
+
   it('writes nothing when the meeting did not opt in, or the model is not the approved one', async () => {
     const off = await meeting(false);
     await saveFinalVoices(library, off, transcript(), '/model.onnx', approved);

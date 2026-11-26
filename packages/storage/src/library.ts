@@ -983,6 +983,13 @@ export class Library {
     return readVoicesFile(this.meetingPaths(meetingId).voices);
   }
 
+  /** Removes the meeting's voices.json, for a re-run pass that no longer qualifies. */
+  deleteVoices(meetingId: string): Promise<void> {
+    return this.withLock(meetingId, () =>
+      fs.rm(this.meetingPaths(meetingId).voices, { force: true }),
+    );
+  }
+
   /** Replaces the meeting's voices (a re-run pass changes speaker ids). Mode 0600 like the rest. */
   saveVoices(meetingId: string, voices: VoicesFile): Promise<void> {
     return this.withLock(meetingId, () =>

@@ -527,6 +527,17 @@ describe('purge paths', () => {
     await library.close();
   });
 
+  it('profile undo after a purge does not bring the deleted voice back', async () => {
+    const { library, pa, first } = await twoMeetings();
+    const other = profile(library, 'Invented other', vec(0, 1, 0));
+    library.voiceProfiles.merge(other.id, pa.id);
+    await library.deleteAudio(first);
+    expect(library.voiceProfiles.undoState().canUndo).toBe(false);
+    expect(() => library.voiceProfiles.undo()).not.toThrow();
+    expect(library.voiceProfiles.contribution(pa.id, first)).toBeNull();
+    await library.close();
+  });
+
   it('audio-only auto-delete does the same', async () => {
     const { library, pa, first, clock } = await twoMeetings();
     library.settings.setAutoDelete({ period: '30d', scope: 'audio' });
