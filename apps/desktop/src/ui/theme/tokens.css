@@ -17,8 +17,10 @@
   --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
 
-  /* The one corner radius for buttons, inputs, selects, panels, cards and popovers. */
-  --radius: 4px;
+  /* Two corner radii. Panels, cards, dialogs, menus and banners use --radius; buttons, inputs,
+     selects, tabs, list items, tooltips and small bars use --radius-control. */
+  --radius: 10px;
+  --radius-control: 6px;
 
   /* Dropdowns and buttons that share a row are this tall, so they line up. */
   --control-height: 30px;
@@ -35,6 +37,10 @@
   --color-surface-hover: #e6e8eb;
   --color-surface-selected: #dcdfe4;
   --color-border: #c9cdd3;
+  --color-border-soft: #dadde2;
+  --color-page: #eceef1;
+  --color-card: #ffffff;
+  --color-card-inset: #f4f5f7;
   --color-progress-track: #8a909a;
   --color-sheen: #ffffff33;
   --color-line-current: #e8e9f8;
@@ -63,6 +69,10 @@
   --color-surface-hover: #35373c;
   --color-surface-selected: #404249;
   --color-border: #4a4d55;
+  --color-border-soft: #3c3f46;
+  --color-page: #232428;
+  --color-card: #2f3136;
+  --color-card-inset: #282a2e;
   --color-progress-track: #80858f;
   --color-sheen: #ffffff33;
   --color-line-current: #343650;

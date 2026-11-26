@@ -42,6 +42,9 @@ const BACKGROUNDS = [
   '--color-surface-raised',
   '--color-surface-hover',
   '--color-line-current',
+  '--color-page',
+  '--color-card',
+  '--color-card-inset',
 ];
 
 describe('resolveTheme', () => {
@@ -101,14 +104,14 @@ describe('component styles', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('use the one radius token, or a true circle', () => {
+  it('use the two radius tokens, or a true circle', () => {
     const files = readdirSync(uiDir, { recursive: true, encoding: 'utf8' }).filter(
       (file) => file.endsWith('.css') && !/MiniRecording|tokens\.css/.test(file),
     );
     const bad = files.flatMap((file) =>
       [...readFileSync(join(uiDir, file), 'utf8').matchAll(/border-radius:\s*([^;]+);/g)]
         .map((m) => m[1] as string)
-        .filter((value) => !['var(--radius)', '50%', '0'].includes(value.trim()))
+        .filter((value) => !['var(--radius)', 'var(--radius-control)', '50%', '0'].includes(value.trim()))
         .map((value) => `${file}: ${value}`),
     );
     expect(bad).toEqual([]);

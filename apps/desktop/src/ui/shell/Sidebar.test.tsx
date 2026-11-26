@@ -117,7 +117,7 @@ describe('Sidebar footer buttons', () => {
     const rule = (selector: string) =>
       css.match(new RegExp(`${selector.replace(/[.[\]'=()]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
     expect(rule('.iconButton')).toMatch(/border: 0/);
-    expect(rule('.iconButton')).toMatch(/border-radius: var\(--radius\)/);
+    expect(rule('.iconButton')).toMatch(/border-radius: var\(--radius-control\)/);
     expect(rule('.iconButton')).toMatch(/text-decoration: none/);
     expect(rule('.iconButton')).toMatch(/box-shadow: none/);
     expect(css).toMatch(/\.iconButton:focus:not\(:focus-visible\)\s*\{\s*outline: none/);

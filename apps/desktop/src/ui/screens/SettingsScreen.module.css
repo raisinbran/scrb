@@ -48,7 +48,7 @@
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .group {
@@ -254,7 +254,7 @@
   color: var(--color-text-muted);
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -292,14 +292,15 @@
   }
 }
 
-:global([data-design='tonal'][data-theme='light']) .screenWide {
+:global([data-design='tonal']) .screenWide {
   max-width: none;
   min-height: 100%;
-  background: var(--color-surface-sidebar);
+  background: var(--color-page);
 }
 
 :global([data-design='tonal']) .section {
-  background: var(--color-surface-raised);
+  background: var(--color-card);
+  border-color: var(--color-border-soft);
 }
 
 :global([data-design='tonal']) .legend {
@@ -308,9 +309,18 @@
 
 :global([data-design='tonal']) .navList {
   padding: var(--space-2);
-  background: var(--color-surface-sidebar);
-  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .navItem {
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .navItem[aria-current='true'] {
+  background: var(--color-card-inset);
+  border-color: var(--color-border-soft);
 }
 
 :global([data-design='tonal']) .slider input {
@@ -327,11 +337,7 @@
   :global([data-design='tonal']) .nav {
     inset-block-start: 0;
     padding-block: var(--space-2);
-    background: var(--color-surface);
-  }
-
-  :global([data-design='tonal'][data-theme='light']) .nav {
-    background: var(--color-surface-sidebar);
+    background: var(--color-page);
   }
 
   :global([data-design='tonal']) .navList {

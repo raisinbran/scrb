@@ -45,26 +45,27 @@ When unsure, do less and match what exists. A plain screen that matches beats a 
 
 All values live only in `tokens.css`. A test fails any `#hex`, `rgb()` or `hsl()` in any other `.css` or `.tsx` under `ui/` (SVG path data is exempt).
 
-| Token                                       | Use                                                                      | Do not use for                   |
-| ------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------- |
-| `--color-app`                               | Window frame behind everything                                           | Panels                           |
-| `--color-surface`                           | Main workspace, inputs                                                   | Raised cards                     |
-| `--color-surface-sidebar`                   | Sidebar, Settings section boxes                                          | Workspace                        |
-| `--color-surface-raised`                    | Dialogs, popups, tooltips, save bar                                      | Page background                  |
-| `--color-surface-hover`                     | Hover fill                                                               | Selected state                   |
-| `--color-surface-selected`                  | Selected tab or item, meter track                                        | Hover                            |
-| `--color-border`                            | Every 1px border and divider                                             | Text                             |
-| `--color-text`                              | Body and headings                                                        | Hints                            |
-| `--color-text-muted`                        | Hints, secondary lines, inactive items                                   | Anything that must be read first |
-| `--color-word-idle`, `--color-word-current` | Transcript word states                                                   | Other text                       |
-| `--color-accent`, `--color-on-accent`       | Primary button, focus-adjacent emphasis, checkbox colour; text on accent | Status                           |
-| `--color-focus`                             | Focus ring only                                                          | Decoration                       |
-| `--color-recording`                         | Recording only                                                           | Errors                           |
-| `--color-paused`, `--color-warning`         | Paused, warnings                                                         | Errors                           |
-| `--color-ok`                                | Success, level meter fill                                                | Neutral info                     |
-| `--color-danger`                            | Errors, destructive actions                                              | Warnings                         |
-| `--color-backdrop`                          | Behind modal dialogs                                                     | Anything else                    |
-| `--shadow-overlay`                          | Dialogs, popups, tooltips, save bar                                      | Flat panels                      |
+| Token                                                | Use                                                                                                                                 | Do not use for                   |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `--color-app`                                        | Window frame behind everything                                                                                                      | Panels                           |
+| `--color-surface`                                    | Main workspace, inputs                                                                                                              | Raised cards                     |
+| `--color-surface-sidebar`                            | Sidebar, Settings section boxes                                                                                                     | Workspace                        |
+| `--color-surface-raised`                             | Dialogs, popups, tooltips, save bar                                                                                                 | Page background                  |
+| `--color-surface-hover`                              | Hover fill                                                                                                                          | Selected state                   |
+| `--color-surface-selected`                           | Selected tab or item, meter track                                                                                                   | Hover                            |
+| `--color-page`, `--color-card`, `--color-card-inset` | Tonal preview only: backdrop, card, and the step inside a card (tab bar, selected nav item); `--color-border-soft` is the card edge | Dialogs and popups               |
+| `--color-border`                                     | Every 1px border and divider                                                                                                        | Text                             |
+| `--color-text`                                       | Body and headings                                                                                                                   | Hints                            |
+| `--color-text-muted`                                 | Hints, secondary lines, inactive items                                                                                              | Anything that must be read first |
+| `--color-word-idle`, `--color-word-current`          | Transcript word states                                                                                                              | Other text                       |
+| `--color-accent`, `--color-on-accent`                | Primary button, focus-adjacent emphasis, checkbox colour; text on accent                                                            | Status                           |
+| `--color-focus`                                      | Focus ring only                                                                                                                     | Decoration                       |
+| `--color-recording`                                  | Recording only                                                                                                                      | Errors                           |
+| `--color-paused`, `--color-warning`                  | Paused, warnings                                                                                                                    | Errors                           |
+| `--color-ok`                                         | Success, level meter fill                                                                                                           | Neutral info                     |
+| `--color-danger`                                     | Errors, destructive actions                                                                                                         | Warnings                         |
+| `--color-backdrop`                                   | Behind modal dialogs                                                                                                                | Anything else                    |
+| `--shadow-overlay`                                   | Dialogs, popups, tooltips, save bar                                                                                                 | Flat panels                      |
 
 Rules:
 
@@ -108,7 +109,7 @@ Grid is 4px, steps are tokens:
 
 `--space-1` 4 · `--space-2` 8 · `--space-3` 12 · `--space-4` 16 · `--space-5` 24 · `--space-6` 32 · `--space-7` 48
 
-- `--radius` is 4px and is the **only** corner radius (buttons, inputs, selects, panels, cards, popovers). A test allows only `var(--radius)`, `50%` or `0`. The mini window is exempt from the test but still uses the token.
+- Two corner radii: `--radius` (10px) for panels, cards, dialogs, menus, section boxes and the save bar; `--radius-control` (6px) for buttons, inputs, selects, tabs, list items, tooltips, banners (compact strips), badges and small bars. A test allows only those two tokens, `50%` or `0`. The mini window is exempt from the test but uses `--radius-control`. A control inside a card is always one step tighter than the card.
 - `--control-height` 30px: dropdowns, buttons and icon buttons that share a row are this tall so they line up.
 - Screen padding: `--space-5` top, `--space-6` sides, max width 880px (`Screen.module.css`).
 
@@ -292,14 +293,14 @@ Every screen must handle every state the UI Specification lists for it. A state 
 8. **Do not add a hidden option.** A setting, field or contract change that is not approved stays out of the UI. `packages/contracts/` changes only with owner approval; if the contract lacks something, write a handoff note in `docs/handoffs/`. Example: a model picker or benchmark button needs approved contract changes, so it is documented in a handoff, not built.
 9. **Do not show what does not work.** Hide or label honestly (see "Automatic" sensitivity).
 10. **Layout does not shift.** Fixed-size bars, reserved space for the save bar, zero-height banner layer, delayed loading text.
-11. **Colours only from tokens; radius only `--radius`.** Both are tests. Use a tonal fill for selected buttons and tabs. Keep the focus ring for keyboard focus.
+11. **Colours only from tokens; radius only `--radius` or `--radius-control`.** Both are tests. Use a tonal fill for selected buttons and tabs. Keep the focus ring for keyboard focus.
 12. **Mouse clicks leave no ring on sidebar tabs and footer buttons.** Keyboard focus keeps it.
 
 ## 14. Pre-merge UI checklist (copy into the PR and tick)
 
 - [ ] Read this guide and matched the nearest existing screen.
 - [ ] Spacing: only `--space-*`; sibling gaps equal; settings rows and headings use the standard rhythm.
-- [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)`.
+- [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)` (panels) or `var(--radius-control)` (controls).
 - [ ] Reused shared components (Button, IconButton, Tooltip, PopupBanner, Dialog, Progress, meters); nothing duplicated.
 - [ ] Every icon-only control has a `label` and tooltip.
 - [ ] Banners use `PopupLayer` inside the right panel and cover no control (checked at 1280×720).
@@ -324,7 +325,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 | Generous hit targets                      | 30px icon buttons, 36px footer buttons, 160px sidebar with full-width items. Larger targets for primary actions are welcome, smaller are not. |
 | System fonts                              | `system-ui` stack; no font downloads.                                                                                                         |
 | Restraint with motion                     | Only state-reporting motion, always with a reduced-motion branch.                                                                             |
-| Consistent small radius                   | A single 4px radius.                                                                                                                          |
+| Consistent rounded corners                | 10px panels and 6px controls, set by two tokens.                                                                                              |
 | Responsive to the window                  | Grids wrap, text ellipsises, fixed controls keep their size. Not a mobile design: **not implemented** for phone widths.                       |
 
 **Not implemented (do not assume):** inspector panel, draggable panel sizes, a high-contrast theme, a font-size setting beyond the transcript, a command palette, animations other than those listed in section 10.

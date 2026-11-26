@@ -37,7 +37,7 @@
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .button:hover:not(:disabled) {
@@ -130,7 +130,7 @@ button:disabled {
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 /* Room for two lines of helper text, so showing or hiding one moves nothing. */
@@ -219,7 +219,7 @@ button:disabled {
   height: 8px;
   overflow: hidden;
   background: var(--color-surface-selected);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .meterFill {
