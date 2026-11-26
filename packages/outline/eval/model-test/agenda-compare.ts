@@ -13,6 +13,7 @@ import {
   type GenFact,
 } from './agenda.js';
 import { loadAmiAgenda } from './agenda-ami.js';
+import { diagnose, generateTwoPass, type TwoPassResult } from './agenda-twopass.js';
 import { synthMeeting } from './agenda-synth.js';
 import { httpBackend, type Backend } from './backend.js';
 import { norm } from './taskA.js';
@@ -130,6 +131,7 @@ async function main(): Promise<void> {
   const url = arg('url') ?? 'http://127.0.0.1:8089';
   const seeds = (arg('seeds') ?? '1,2,3').split(',').map(Number);
   const out = arg('out');
+  const mode = arg('mode') ?? 'single';
   const inner = httpBackend(url, arg('model-label') ?? 'qwen2.5-7b-instruct-q4_k_m');
   const raws: { agenda: boolean; text: string; total: number }[] = [];
   let totalLines = 0;
@@ -177,10 +179,21 @@ async function main(): Promise<void> {
     const items = parseOutline(m.agenda).items;
     const words = m.lines.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
     let t = Date.now();
-    const a = await taskAFacts(m, backend);
+    const a =
+      mode === 'twopass'
+        ? {
+            facts: [] as GenFact[],
+            failed: 0,
+            chunks: 0,
+            reconciled: { duplicates: 0, reversals: 0 },
+          }
+        : await taskAFacts(m, backend);
     const secA = (Date.now() - t) / 1000;
     t = Date.now();
-    const g = await generateFacts(m, backend);
+    const g =
+      mode === 'twopass' ? await generateTwoPass(m, backend) : await generateFacts(m, backend);
+    const tp = mode === 'twopass' ? (g as TwoPassResult) : null;
+    const diag = tp && m.facts[0]?.line ? diagnose(m, tp) : null;
     const secG = (Date.now() - t) / 1000;
     const aVerdicts = a.facts.map((f) => verify(f, items, m.lines));
     const meta = { seed, lines: m.lines.length, words, refFacts: m.facts.length };
@@ -227,6 +240,13 @@ async function main(): Promise<void> {
         kinds,
         verdictCounts,
         causes: g.causes,
+        resolvedCites: g.resolvedCites,
+        diag,
+        nCandidates: tp?.candidates.length,
+        dropped: tp?.dropped,
+        other: tp?.other,
+        unanswered: tp?.unanswered,
+        errors: tp?.errors.length,
       }),
       line('agenda-aware (strict kinds)', gStrict, {
         ...meta,

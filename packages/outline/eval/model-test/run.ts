@@ -6,6 +6,7 @@ import { SCORER, type Cite, type Embed, type Word } from './match.js';
 import { buildPartial, TASK_B_SEED } from './partial.js';
 import {
   agendaPromptHash,
+  twoPassPromptHash,
   CHUNK_WORDS,
   promptA,
   promptB,
@@ -197,6 +198,7 @@ export interface Manifest {
   promptHash: string;
   /** Hash of the agenda-aware prompt (defect 7). */
   agendaPromptHash: string;
+  twoPassPromptHash: string;
   decoding: typeof DECODING;
   tau: number;
   scorer: typeof SCORER;
@@ -218,6 +220,7 @@ export function manifest(
     version: 1,
     promptHash: promptHash(),
     agendaPromptHash: agendaPromptHash(),
+    twoPassPromptHash: twoPassPromptHash(),
     decoding: DECODING,
     tau,
     scorer: SCORER,

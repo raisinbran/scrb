@@ -101,3 +101,53 @@ export function promptHash(): string {
   ].join('\u0000');
   return createHash('sha256').update(src).digest('hex').slice(0, 16);
 }
+
+export const CANDIDATE_SYSTEM =
+  'You find statements worth recording in a meeting transcript. Reply with one JSON object only.';
+
+/** Pass 1: line spans only, no kind and no topic. */
+export function promptCandidates(transcript: string): string {
+  return [
+    'List every place in the transcript where someone states a decision or agreement, a commitment or action item, a date or deadline, a number or amount, or an open question.',
+    'Skip greetings, small talk, filler, and remarks about the meeting itself (audio, screen sharing, timing, thanks). Do not list a line only because it follows or precedes a relevant one.',
+    'Each span is 1 to 3 consecutive lines. Give the line numbers as "L12" or "L12-L14", copied from the [L..] markers, and "quote": the first 4 to 8 words of the span, copied exactly.',
+    'Reply as {"spans":[{"lines":"L12","quote":"..."}]}.',
+    '',
+    'Transcript:',
+    transcript,
+  ].join('\n');
+}
+
+export const CLASSIFY_SYSTEM =
+  'You turn candidate meeting statements into notes. Reply with one JSON object only.';
+
+/** Pass 2: classify each candidate, assign an agenda topic, rewrite as one claim. */
+export function promptClassify(
+  items: readonly OutlineItem[],
+  candidates: readonly { label: string; text: string }[],
+): string {
+  return [
+    'Agenda topics (use the id exactly):',
+    ...items.map((t) => `${'  '.repeat(t.level - 1)}${t.id}: ${t.text}`),
+    '',
+    'Candidate statements, each labelled with its line numbers:',
+    ...candidates.map((c) => `${c.label}: ${c.text}`),
+    '',
+    'Answer EVERY candidate, one entry each. For each, give its label exactly as shown ("span"), its agenda topic id (or "new" with "newTopic":"title" for a topic the agenda lacks), a kind, and one claim of at most 40 words using only that candidate\'s own words; keep every number, date and name exactly as said.',
+    'Kinds: decision (agreed, chosen, settled or decided, including a decision NOT to do something; a changed value is a decision), action (a task someone takes on: put their name in the claim), date (a date, weekday, deadline or amount of time), number (a figure or amount that is not a decision), caveat (a risk, condition or doubt), question (asked and not answered), other (not worth recording).',
+    'Reply as {"facts":[{"span":"L12","topic":"o1","kind":"decision","text":"..."}]}.',
+  ].join('\n');
+}
+
+export function twoPassPromptHash(): string {
+  const item = { id: 'o1', level: 1, text: 'O' } as OutlineItem;
+  const src = [
+    CANDIDATE_SYSTEM,
+    promptCandidates('T'),
+    CLASSIFY_SYSTEM,
+    promptClassify([item], [{ label: 'L1', text: 'T' }]),
+    String(CHUNK_WORDS),
+    JSON.stringify(DECODING),
+  ].join('\u0000');
+  return createHash('sha256').update(src).digest('hex').slice(0, 16);
+}

@@ -28,6 +28,8 @@ export interface RefFact {
   /** Exact value a date/quantity fact must carry, as it appears in the transcript. */
   value?: string;
   owner?: string;
+  /** 1-based transcript line holding the evidence, when the fixture knows it (invented meetings). */
+  line?: number;
 }
 
 export interface GenFact {

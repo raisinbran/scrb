@@ -71,6 +71,8 @@ interface Block {
   facts: Omit<RefFact, 'topic'>[];
   /** For an off-agenda block, the new-topic title. */
   newTitle?: string;
+  /** Core line offset (within the block) of each fact's evidence. */
+  at: number[];
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -95,6 +97,7 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
     const b = a - 1000;
     return {
       title: `${proj} budget`,
+      at: [0, 2],
       lines: [
         [who(), `Next up is the ${proj} budget. The total for the launch is ${money(total)}.`],
         [who(), `${cap(item)} gets ${money(a)} of that.`],
@@ -115,6 +118,7 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
     const owner = who();
     return {
       title: 'Beta schedule',
+      at: [0, 1, 2],
       lines: [
         [who(), `Now the beta schedule. The beta goes live on ${month} ${day} if ${cond}.`],
         [who(), `The ${part} might not arrive in time, which is a risk.`],
@@ -142,6 +146,7 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
     const n = 2 + Math.floor(r() * 5);
     return {
       title: 'Hiring',
+      at: [0, 1, 2],
       lines: [
         [who(), `On hiring, we have ${n} open roles right now.`],
         [who(), `We decided not to hire a ${role} this quarter.`],
@@ -162,6 +167,7 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
     const owner = who();
     return {
       title: 'Vendors',
+      at: [0, 1, 2],
       lines: [
         [who(), `For vendors, we selected ${v} as the ${service} provider.`],
         [who(), `${owner} will send the ${doc} to them by ${day}.`],
@@ -179,6 +185,7 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
     const month = pick(MONTHS, used);
     return {
       title: null,
+      at: [1],
       newTitle: cap(move),
       lines: [
         [who(), `We should also discuss the ${move}, which is not on the agenda.`],
@@ -203,16 +210,25 @@ export function synthMeeting(seed: number, targetLines = 215): AgendaMeeting {
   const gaps = core.length - 1;
   const per = Math.max(1, Math.ceil((targetLines - core.length) / gaps));
   const lines: { speaker: string; text: string }[] = [];
+  const pos: number[] = [];
   core.forEach(([speaker, text], i) => {
     lines.push({ speaker, text });
+    pos.push(lines.length);
     if (i === gaps) return;
     const n = Math.max(0, per + Math.floor(r() * 5) - 2);
     for (let k = 0; k < n; k += 1) lines.push({ speaker: who(), text: pick(FILLER) });
   });
 
-  const facts: RefFact[] = blocks.flatMap((b) =>
-    b.facts.map((f) => ({ ...f, topic: b.title ? idOf(b) : b.newTitle! })),
-  );
+  let start = 0;
+  const facts: RefFact[] = blocks.flatMap((b) => {
+    const s0 = start;
+    start += b.lines.length;
+    return b.facts.map((f, k) => ({
+      ...f,
+      topic: b.title ? idOf(b) : b.newTitle!,
+      line: pos[s0 + b.at[k]!]!,
+    }));
+  });
   return {
     agenda: agendaTitles.map((t, i) => `${i + 1}. ${t}`).join('\n'),
     outline: agendaTitles,
