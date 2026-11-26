@@ -1,7 +1,10 @@
 import type { Backend } from './backend.js';
 import { RunError } from './errors.js';
 import { parseJson, prepare, type Meeting } from './run.js';
-import { contentStems, f1, isDateTok, isNegation, tokenize } from './text.js';
+import { matchPoints, type Embed, type Word } from './match.js';
+import { AGENDA_SYSTEM, promptAgenda } from './prompts.js';
+import { hasNegation, numbersOf, reconcile, type ReconcileStats } from './reconcile.js';
+import { contentStems, f1 } from './text.js';
 import { parseOutline } from '../../src/parse.js';
 import type { OutlineItem } from '../../src/types.js';
 
@@ -25,6 +28,8 @@ export interface RefFact {
   /** Exact value a date/quantity fact must carry, as it appears in the transcript. */
   value?: string;
   owner?: string;
+  /** 1-based transcript line holding the evidence, when the fixture knows it (invented meetings). */
+  line?: number;
 }
 
 export interface GenFact {
@@ -35,6 +40,12 @@ export interface GenFact {
   text: string;
   /** 1-based inclusive transcript line range. */
   cite: { from: number; to: number } | null;
+  /** Citation of the statement a later one replaced, so a changed decision shows both places. */
+  earlier?: { from: number; to: number } | null;
+  /** Why the citation is missing, when it is. */
+  citeIssue?: 'unparsed' | 'outside-chunk';
+  /** True when the citation was found by search because the model's own did not verify. */
+  resolved?: boolean;
   owner?: string;
 }
 
@@ -43,21 +54,7 @@ export interface AgendaMeeting extends Meeting {
   facts: RefFact[];
 }
 
-export function promptAgenda(items: readonly OutlineItem[], transcript: string): string {
-  return [
-    'Agenda topics (use the id exactly):',
-    ...items.map((t) => `${'  '.repeat(t.level - 1)}${t.id}: ${t.text}`),
-    '',
-    'Write one fact at a time from the transcript. Kinds: decision, info, caveat, date, action, question.',
-    'Keep tentative, conditional and disputed statements as such. If a decision changed later, state the final one and cite both places.',
-    'Name an owner only if the transcript assigns one. Use the topic id; for a topic the agenda lacks, set "topic":"new" and "newTopic":"title".',
-    'Cite lines as "L12" or "L12-L14". A fact has one claim, at most 40 words.',
-    'Reply as {"facts":[{"topic":"o1","kind":"decision","text":"...","cite":"L1-L2","owner":"..."}]}.',
-    '',
-    'Transcript:',
-    transcript,
-  ].join('\n');
-}
+export { promptAgenda };
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
 const str = (x: unknown): string => (typeof x === 'string' ? x : '');
@@ -83,6 +80,7 @@ export function toFacts(raw: unknown, total: number): GenFact[] {
       text: str(f.text),
       cite: parseLines(f.cite, total),
     };
+    if (!g.cite) g.citeIssue = 'unparsed';
     if (str(f.newTopic)) g.newTopic = str(f.newTopic);
     if (str(f.owner)) g.owner = str(f.owner);
     out.push(g);
@@ -90,14 +88,103 @@ export function toFacts(raw: unknown, total: number): GenFact[] {
   return out;
 }
 
-export type Verdict = 'ok' | 'badTopic' | 'badCite' | 'unsupported' | 'contradicted';
+export type Cause =
+  | 'ok'
+  | 'topic'
+  | 'cite-unparsed'
+  | 'cite-outside-chunk'
+  | 'number-not-in-cite'
+  | 'owner-not-in-cite'
+  | 'low-overlap'
+  | 'polarity'
+  | 'stale';
 
-const numbers = (s: string): string[] =>
-  tokenize(s)
-    .filter((t) => /^\$?\d/.test(t.raw) || isDateTok(t))
-    .map((t) => t.low.replace(/[$,]/g, ''));
+export type Verdict = 'ok' | 'badTopic' | 'badCite' | 'unsupported' | 'contradicted' | 'stale';
 
-const hasNeg = (s: string): boolean => tokenize(s).some(isNegation);
+/** A later line that revises an earlier statement. Deliberately narrow: "now" and "then" are not cues. */
+const REVISION =
+  /\b(actually|instead|revised?|correction|no longer|updated?|rather|scratch that|make that)\b/i;
+const CLAUSE_SPLIT = /[,;.!?]|\b(?:but|and|while|whereas|although)\b/i;
+/** A clause starting with one of these continues the previous clause ("..., but that is not decided"). */
+const CONTINUES = new Set(['that', 'it', 'this', 'which', 'those', 'they', 'he', 'she']);
+
+/** Clauses of a span, with pronoun-led clauses folded into the one before. */
+export function clauseTexts(span: string): string[] {
+  const out: string[] = [];
+  for (const raw of span.split(CLAUSE_SPLIT)) {
+    const c = raw.trim();
+    if (!c) continue;
+    const first = c.split(/\s+/)[0]!.toLowerCase();
+    if (out.length > 0 && CONTINUES.has(first)) out[out.length - 1] += ` ${c}`;
+    else out.push(c);
+  }
+  return out;
+}
+
+/** Negation is judged on the clause that best matches the fact, not on the whole span (defect 4). */
+export function polarityAgrees(factText: string, span: string): boolean {
+  const fs = contentStems(factText);
+  let best = span;
+  let bestHit = 0;
+  for (const c of clauseTexts(span)) {
+    const hit = new Set(contentStems(c).filter((s) => fs.includes(s))).size;
+    if (hit > bestHit) {
+      best = c;
+      bestHit = hit;
+    }
+  }
+  return hasNegation(factText) === hasNegation(best);
+}
+
+/**
+ * A fact is stale when a later transcript line revises the same thing to a different number or date
+ * and the fact does not cite that line (defect 3).
+ */
+export function isStale(f: GenFact, lines: readonly { text: string }[]): boolean {
+  if (!f.cite) return false;
+  const mine = numbersOf(f.text);
+  if (mine.length === 0) return false;
+  const fs = contentStems(f.text);
+  for (let i = f.cite.to; i < lines.length; i += 1) {
+    const t = lines[i]!.text;
+    if (!REVISION.test(t)) continue;
+    if (!contentStems(t).some((s) => fs.includes(s))) continue;
+    if (numbersOf(t).some((n) => !mine.includes(n))) return true;
+  }
+  return false;
+}
+
+/** Verdict plus the specific cause. */
+export function verifyWhy(
+  f: GenFact,
+  items: readonly OutlineItem[],
+  lines: readonly { text: string }[],
+): { verdict: Verdict; cause: Cause } {
+  const known = items.some((i) => i.id === f.topic);
+  if (!known && !(f.topic === 'new' && f.newTopic)) return { verdict: 'badTopic', cause: 'topic' };
+  if (!f.cite)
+    return {
+      verdict: 'badCite',
+      cause: f.citeIssue === 'outside-chunk' ? 'cite-outside-chunk' : 'cite-unparsed',
+    };
+  const at = (c: { from: number; to: number }): string =>
+    lines
+      .slice(c.from - 1, c.to)
+      .map((l) => l.text)
+      .join(' ');
+  const span = at(f.cite);
+  const both = f.earlier ? `${span} ${at(f.earlier)}` : span;
+  const have = new Set(numbersOf(both));
+  if (numbersOf(f.text).some((n) => !have.has(n)))
+    return { verdict: 'unsupported', cause: 'number-not-in-cite' };
+  if (f.owner && !both.toLowerCase().includes(f.owner.toLowerCase()))
+    return { verdict: 'unsupported', cause: 'owner-not-in-cite' };
+  if (f1(contentStems(span), contentStems(f.text)) < 0.15)
+    return { verdict: 'unsupported', cause: 'low-overlap' };
+  if (!polarityAgrees(f.text, span)) return { verdict: 'contradicted', cause: 'polarity' };
+  if (isStale(f, lines)) return { verdict: 'stale', cause: 'stale' };
+  return { verdict: 'ok', cause: 'ok' };
+}
 
 /** Checks a fact against the lines it cites. Lexical overlap alone never verifies a date, owner or polarity. */
 export function verify(
@@ -105,19 +192,53 @@ export function verify(
   items: readonly OutlineItem[],
   lines: readonly { text: string }[],
 ): Verdict {
-  const known = items.some((i) => i.id === f.topic);
-  if (!known && !(f.topic === 'new' && f.newTopic)) return 'badTopic';
-  if (!f.cite) return 'badCite';
-  const span = lines
-    .slice(f.cite.from - 1, f.cite.to)
-    .map((l) => l.text)
-    .join(' ');
-  const have = new Set(numbers(span));
-  if (numbers(f.text).some((n) => !have.has(n))) return 'unsupported';
-  if (f.owner && !span.toLowerCase().includes(f.owner.toLowerCase())) return 'unsupported';
-  if (f1(contentStems(span), contentStems(f.text)) < 0.15) return 'unsupported';
-  if (hasNeg(f.text) !== hasNeg(span)) return 'contradicted';
-  return 'ok';
+  return verifyWhy(f, items, lines).verdict;
+}
+
+/** Causes where the claim may be right but the model pointed at the wrong lines. */
+const RESOLVABLE = new Set<Cause>([
+  'cite-unparsed',
+  'cite-outside-chunk',
+  'number-not-in-cite',
+  'low-overlap',
+  'owner-not-in-cite',
+]);
+
+/**
+ * Finds the 1 to 3 consecutive lines of the chunk that best support a fact: every number and date in the
+ * fact must appear there, and stem overlap must reach 0.3. Ties go to the window nearest the model's own
+ * citation. Returns null when nothing qualifies, so an invented claim stays unsupported.
+ */
+export function reanchor(
+  f: GenFact,
+  lines: readonly { text: string }[],
+  chunk: { from: number; to: number },
+): { from: number; to: number } | null {
+  const fs = contentStems(f.text);
+  const need = numbersOf(f.text);
+  let best: { from: number; to: number } | null = null;
+  let bestScore = 0;
+  let bestDist = Infinity;
+  for (let a = chunk.from; a <= chunk.to; a += 1) {
+    for (let len = 1; len <= 3 && a + len - 1 <= chunk.to; len += 1) {
+      const text = lines
+        .slice(a, a + len)
+        .map((l) => l.text)
+        .join(' ');
+      const have = new Set(numbersOf(text));
+      if (need.some((n) => !have.has(n))) continue;
+      if (f.owner && !text.toLowerCase().includes(f.owner.toLowerCase())) continue;
+      const sc = f1(contentStems(text), fs) - 0.02 * (len - 1);
+      if (sc < 0.3) continue;
+      const dist = f.cite ? Math.abs(a + 1 - f.cite.from) : 0;
+      if (sc > bestScore + 1e-9 || (Math.abs(sc - bestScore) <= 1e-9 && dist < bestDist)) {
+        best = { from: a + 1, to: a + len };
+        bestScore = sc;
+        bestDist = dist;
+      }
+    }
+  }
+  return best;
 }
 
 /** Deterministic Markdown: agenda order and levels kept, facts under their topic, new topics last. */
@@ -127,7 +248,10 @@ export function renderMarkdown(
   complete: boolean,
 ): string {
   const out: string[] = [];
-  const ref = (f: GenFact): string => (f.cite ? ` [L${f.cite.from}-L${f.cite.to}]` : '');
+  const ref = (f: GenFact): string =>
+    f.cite
+      ? ` [L${f.cite.from}-L${f.cite.to}${f.earlier ? `; earlier L${f.earlier.from}-L${f.earlier.to}` : ''}]`
+      : '';
   const bullet = (f: GenFact, pad: string): string =>
     `${pad}- ${f.kind === 'info' ? '' : `${f.kind}: `}${f.text}${f.owner ? ` (${f.owner})` : ''}${ref(f)}`;
   for (const it of items) {
@@ -152,16 +276,30 @@ export interface GenResult {
   verdicts: Verdict[];
   /** Chunks whose output could not be read; coverage is incomplete when above zero. */
   failedChunks: number;
+  chunks: number;
+  /** Count of facts per cause of failure (ok included). */
+  causes: Record<string, number>;
+  /** Cause per fact, same order as facts. */
+  why: Cause[];
+  /** Facts whose citation came from search, not from the model. */
+  resolvedCites: number;
+  /** Cross-chunk folding: paraphrased repeats dropped and later reversals applied. */
+  reconciled: ReconcileStats;
 }
 
-/** Runs one meeting: chunks, backend call, parse, de-duplicate, verify. */
-export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise<GenResult> {
+/** Runs one meeting: chunks, backend call, parse, reconcile across chunks, verify. */
+export async function generateFacts(
+  m: AgendaMeeting,
+  backend: Backend,
+  opts: { noResolve?: boolean } = {},
+): Promise<GenResult> {
   const parsed = parseOutline(m.agenda);
   const items = parsed.items;
   const p = prepare(m);
-  const seen = new Set<string>();
-  const facts: GenFact[] = [];
+  let facts: GenFact[] = [];
+  const reconciled: ReconcileStats = { duplicates: 0, reversals: 0 };
   let failedChunks = 0;
+  let resolvedCites = 0;
   for (const c of p.chunks) {
     const transcript = m.lines
       .slice(c.from, c.to + 1)
@@ -169,21 +307,45 @@ export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise
       .join('\n');
     try {
       const text = await backend.complete({
-        system: 'You write meeting notes from a transcript. Reply with one JSON object only.',
+        system: AGENDA_SYSTEM,
         user: promptAgenda(items, transcript),
       });
-      for (const f of toFacts(parseJson(text), m.lines.length)) {
-        if (f.cite && (f.cite.from < c.from + 1 || f.cite.to > c.to + 1)) f.cite = null;
-        const key = `${f.topic}|${f.kind}|${f.text.toLowerCase().replace(/\W+/g, ' ')}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        facts.push(f);
-      }
+      const incoming = toFacts(parseJson(text), m.lines.length);
+      for (const f of incoming)
+        if (f.cite && (f.cite.from < c.from + 1 || f.cite.to > c.to + 1)) {
+          f.cite = null;
+          f.citeIssue = 'outside-chunk';
+        }
+      if (!opts.noResolve)
+        for (const f of incoming) {
+          const w = verifyWhy(f, items, m.lines);
+          if (!RESOLVABLE.has(w.cause)) continue;
+          const found = reanchor(f, m.lines, c);
+          if (found) {
+            f.cite = found;
+            delete f.citeIssue;
+            f.resolved = true;
+            resolvedCites += 1;
+          }
+        }
+      facts = reconcile(facts, incoming, reconciled);
     } catch {
       failedChunks += 1;
     }
   }
-  return { facts, verdicts: facts.map((f) => verify(f, items, m.lines)), failedChunks };
+  const why = facts.map((f) => verifyWhy(f, items, m.lines));
+  const causes: Record<string, number> = {};
+  for (const w of why) causes[w.cause] = (causes[w.cause] ?? 0) + 1;
+  return {
+    facts,
+    verdicts: why.map((w) => w.verdict),
+    causes,
+    why: why.map((w) => w.cause),
+    resolvedCites,
+    failedChunks,
+    chunks: p.chunks.length,
+    reconciled,
+  };
 }
 
 export interface Ratio {
@@ -192,49 +354,145 @@ export interface Ratio {
 }
 export const ratio = (r: Ratio): number | null => (r.den > 0 ? r.num / r.den : null);
 
+export interface ReviewActions {
+  /** Credited and filed under the right topic. */
+  accept: number;
+  /** Generated but not credited. */
+  reject: number;
+  /** Credited, filed under the wrong topic. */
+  move: number;
+  /** Credited but worded too differently to accept as is. */
+  edit: number;
+  /** Needs a person using the review screen; never simulated. */
+  undo: null;
+  reviewSeconds: null;
+}
+
 export interface AgendaScore {
   decisionRecall: Ratio;
   dateRecall: Ratio;
-  /** Contradicted, unsupported, bad-topic or bad-citation facts over all generated facts. */
+  /** Failed verification, stale, contradicted or unsupported generated facts over all generated facts, counted once. */
   hallucination: Ratio;
   validCitations: Ratio;
   /** (insert + delete + move + substitute) / reference facts. */
   editDistance: { ins: number; del: number; move: number; sub: number; refs: number; norm: number };
+  /** Word-level edit distance between reference and generated notes text, over reference words. */
+  wordEdit: { distance: number; refWords: number; norm: number };
+  review: ReviewActions;
   matched: number;
+  /** For each reference fact, the index of the generated fact credited to it, or -1. */
+  pair: number[];
+}
+
+export interface ScoreOptions {
+  tau?: number;
+  /** Credit a match only when the generated kind agrees with the reference kind (defect 1). Default true. */
+  kindStrict?: boolean;
 }
 
 const stemsOf = (t: string): string[] => contentStems(t);
+const wordsOf = (t: string): string[] => t.toLowerCase().match(/[a-z0-9$]+/g) ?? [];
 
-/** One-to-one greedy match of reference facts to verified generated facts. */
-export function scoreAgenda(
-  ref: readonly RefFact[],
+/** Levenshtein distance over words. */
+export function wordDistance(a: readonly string[], b: readonly string[]): number {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i += 1) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j += 1)
+      next[j] = Math.min(
+        row[j]! + 1,
+        next[j - 1]! + 1,
+        row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    row = next;
+  }
+  return row[b.length]!;
+}
+
+/** Notes text in agenda order, then new topics in first-seen order; no citations or kind labels. */
+function notesWords(
+  order: readonly string[],
+  facts: readonly { topic: string; newTopic?: string; text: string }[],
+): string[] {
+  const key = (f: { topic: string; newTopic?: string }): string =>
+    f.topic === 'new' ? `new:${f.newTopic}` : f.topic;
+  const keys = [...order];
+  for (const f of facts) if (!keys.includes(key(f))) keys.push(key(f));
+  return keys.flatMap((k) => facts.filter((f) => key(f) === k).flatMap((f) => wordsOf(f.text)));
+}
+
+/** A date carries its own evidence, so a note that holds a month or weekday counts as a date. */
+const hasDate = (t: string): boolean => numbersOf(t).some((n) => isDateWord(n));
+const isDateWord = (n: string): boolean => /^[a-z]/.test(n);
+
+const classOf = (k: FactKind, strict: boolean, text = ''): string => {
+  if (!strict) return 'all';
+  if ((k === 'info' || k === 'caveat') && hasDate(text)) return 'date';
+  return k === 'info' || k === 'caveat' ? 'note' : k;
+};
+
+/**
+ * Scores generated facts against reference facts with the Task A embedding match (`matchPoints`):
+ * citation check, role/number/polarity fact check, one-to-one assignment, and the contradicted and
+ * unsupported statuses. Matching runs inside a kind class, so an echoed transcript line filed as info
+ * cannot earn decision, action, question or date credit.
+ */
+export async function scoreAgenda(
+  m: AgendaMeeting,
   gen: readonly GenFact[],
   verdicts: readonly Verdict[],
-): AgendaScore {
-  const used = new Set<number>();
+  embed: Embed,
+  opts: ScoreOptions = {},
+): Promise<AgendaScore> {
+  const strict = opts.kindStrict ?? true;
+  const ref = m.facts;
+  const p = prepare(m);
+  const cite = (c: GenFact['cite']) =>
+    c && c.from >= 1 && c.to <= p.span.length
+      ? { first: p.span[c.from - 1]!.first, last: p.span[c.to - 1]!.last }
+      : null;
   const pair: number[] = ref.map(() => -1);
-  const cand: { r: number; g: number; s: number }[] = [];
-  ref.forEach((r, ri) =>
-    gen.forEach((g, gi) => {
-      if (verdicts[gi] !== 'ok') return;
-      if (r.value && !numbers(r.value).every((n) => numbers(g.text).includes(n))) return;
-      const s = f1(stemsOf(r.text), stemsOf(g.text));
-      if (s >= 0.4) cand.push({ r: ri, g: gi, s });
-    }),
-  );
-  cand.sort((a, b) => b.s - a.s || a.r - b.r || a.g - b.g);
-  const done = new Set<number>();
-  for (const c of cand) {
-    if (done.has(c.r) || used.has(c.g)) continue;
-    done.add(c.r);
-    used.add(c.g);
-    pair[c.r] = c.g;
+  const status: string[] = gen.map(() => 'unverified');
+  const classes = [
+    ...new Set([
+      ...ref.map((r) => classOf(r.kind, strict, r.text)),
+      ...gen.map((g) => classOf(g.kind, strict, g.text)),
+    ]),
+  ];
+  for (const cls of classes) {
+    const gi = gen
+      .map((g, i) => (classOf(g.kind, strict, g.text) === cls && verdicts[i] === 'ok' ? i : -1))
+      .filter((i) => i >= 0);
+    const ri = ref
+      .map((r, i) => (classOf(r.kind, strict, r.text) === cls ? i : -1))
+      .filter((i) => i >= 0);
+    if (gi.length === 0 || ri.length === 0) {
+      gi.forEach((i) => (status[i] = 'extra'));
+      continue;
+    }
+    const r = await matchPoints(
+      gi.map((i) => ({ text: gen[i]!.text, cite: cite(gen[i]!.cite) })),
+      ri.map((i) => ref[i]!.text),
+      p.words as Word[],
+      embed,
+      opts.tau === undefined ? {} : { tau: opts.tau },
+    );
+    gi.forEach((i, k) => (status[i] = r.status[k]!));
+    r.refToGen.forEach((g, k) => {
+      if (g < 0) return;
+      const rf = ref[ri[k]!]!;
+      if (rf.value && !numbersOf(rf.value).every((n) => numbersOf(gen[gi[g]!]!.text).includes(n)))
+        return;
+      pair[ri[k]!] = gi[g]!;
+    });
   }
   const hit = (k: FactKind): Ratio => {
     const idx = ref.map((r, i) => (r.kind === k ? i : -1)).filter((i) => i >= 0);
     return { num: idx.filter((i) => pair[i]! >= 0).length, den: idx.length };
   };
-  const bad = verdicts.filter((v) => v !== 'ok').length;
+  const bad = gen.filter(
+    (_, i) => verdicts[i] !== 'ok' || status[i] === 'contradicted' || status[i] === 'unsupported',
+  ).length;
   let move = 0;
   let sub = 0;
   pair.forEach((g, ri) => {
@@ -247,6 +505,20 @@ export function scoreAgenda(
   const matched = pair.filter((g) => g >= 0).length;
   const ins = ref.length - matched;
   const del = gen.length - matched;
+  const order = parseOutline(m.agenda).items.map((i) => i.id);
+  const refWords = notesWords(
+    order,
+    ref.map((r) => ({
+      topic: /^o\d+$/.test(r.topic) ? r.topic : 'new',
+      newTopic: r.topic,
+      text: r.text,
+    })),
+  );
+  const genWords = notesWords(
+    order,
+    gen.filter((_, i) => verdicts[i] === 'ok'),
+  );
+  const wd = wordDistance(refWords, genWords);
   return {
     decisionRecall: hit('decision'),
     dateRecall: hit('date'),
@@ -263,6 +535,20 @@ export function scoreAgenda(
       refs: ref.length,
       norm: ref.length > 0 ? (ins + del + move + sub) / ref.length : 0,
     },
+    wordEdit: {
+      distance: wd,
+      refWords: refWords.length,
+      norm: refWords.length > 0 ? wd / refWords.length : 0,
+    },
+    review: {
+      accept: matched - move - sub,
+      reject: del,
+      move,
+      edit: sub,
+      undo: null,
+      reviewSeconds: null,
+    },
     matched,
+    pair,
   };
 }
