@@ -134,6 +134,12 @@ export interface BackendCalls {
   pauseAudio: { request: { meetingId: MeetingId }; response: void };
   /**
    * @addition
+   * Speed of the playback clock, from 0.25 to 2 (1 is normal). Applies to the playing meeting and
+   * to later `seekAudio` calls until changed. The position events stay in recording time.
+   */
+  setPlaybackRate: { request: { meetingId: MeetingId; rate: number }; response: void };
+  /**
+   * @addition
    * Short-lived `scribe-media:` URLs for at most one sealed chunk per track at or after
    * `positionMs`, during the playback `seekAudio` started. Never a file path. `nextPositionMs` is
    * the next playable boundary, skipping gaps; null when no more saved audio follows.
@@ -387,6 +393,7 @@ const CALL_TABLE: Record<CallName, true> = {
   redo: true,
   seekAudio: true,
   pauseAudio: true,
+  setPlaybackRate: true,
   getPlaybackMedia: true,
   listProfiles: true,
   getProfileClips: true,

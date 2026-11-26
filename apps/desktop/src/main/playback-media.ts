@@ -45,6 +45,8 @@ export class PlaybackMedia {
   private timer: ReturnType<typeof setInterval> | undefined;
   /** Bumped by every start and stop, so a slower earlier call cannot act on a newer state. */
   private turn = 0;
+  /** Clock speed; kept across seeks until the renderer changes it. */
+  private rate = 1;
 
   constructor(
     private readonly library: LibraryAccess,
@@ -59,6 +61,8 @@ export class PlaybackMedia {
       ...handlers,
       seekAudio: (request) => this.seek(request as { meetingId: string; positionMs: number }),
       pauseAudio: async (request) => this.pause((request as { meetingId: string }).meetingId),
+      setPlaybackRate: async (request) =>
+        this.setRate(request as { meetingId: string; rate: number }),
       getPlaybackMedia: (request) =>
         this.media(request as { meetingId: string; positionMs: number }),
       ...(remove && {
@@ -71,7 +75,7 @@ export class PlaybackMedia {
   }
 
   private position(session: Session): number {
-    return session.anchorMs + (this.now() - session.anchorAt);
+    return session.anchorMs + (this.now() - session.anchorAt) * this.rate;
   }
 
   private async seek({ meetingId, positionMs }: { meetingId: string; positionMs: number }) {
@@ -102,6 +106,16 @@ export class PlaybackMedia {
     // A failed send to the window must not become an unhandled rejection.
     this.timer ??= setInterval(() => void this.tick().catch(() => undefined), TICK_MS);
     this.emit('playbackPosition', { meetingId, positionMs: spot.positionMs, isPlaying: true });
+  }
+
+  private setRate({ meetingId, rate }: { meetingId: string; rate: number }): void {
+    const session = this.session?.meetingId === meetingId ? this.session : null;
+    if (session) {
+      // Re-anchor first so the position does not jump when the speed changes.
+      session.anchorMs = this.position(session);
+      session.anchorAt = this.now();
+    }
+    this.rate = rate;
   }
 
   private async tick(): Promise<void> {
@@ -171,7 +185,13 @@ export class PlaybackMedia {
     this.session = null;
   }
 
-  private async media({ meetingId, positionMs }: { meetingId: string; positionMs: number }) {
+  private async media({
+    meetingId,
+    positionMs,
+  }: {
+    meetingId: string;
+    positionMs: number;
+  }): Promise<{ chunks: ReturnType<PlaybackMedia['grant']>[]; nextPositionMs: number | null }> {
     const session = this.session;
     if (session?.meetingId !== meetingId) throw notSaved();
     let timeline: PlaybackTimeline;
@@ -188,7 +208,11 @@ export class PlaybackMedia {
       }
       throw error;
     }
-    if (this.session !== session) throw notSaved();
+    if (this.session !== session) {
+      // A pause and a new seek can replace the session while the timeline is read; use the new one.
+      if (this.session?.meetingId === meetingId) return this.media({ meetingId, positionMs });
+      throw notSaved();
+    }
     session.timeline = timeline;
     const spot = locatePlayback(timeline.chunks, positionMs);
     if (!spot) {

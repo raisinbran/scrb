@@ -209,6 +209,45 @@ describe('createMeetingHandlers', () => {
       expect(emit).not.toHaveBeenCalled();
     });
 
+    it('reports an overlap refusal with its own message, not the stale-text one', async () => {
+      const { id: meetingId } = await recorded('Invented overlap wording', '2026-11-03T10:00:00Z');
+      await library.appendSegments(
+        meetingId,
+        [
+          {
+            id: 's1',
+            speakerId: 'a',
+            track: 'meeting',
+            pass: 'final',
+            words: [{ id: 'w1', text: 'one', startMs: 0, endMs: 1000 }],
+          },
+          {
+            id: 's2',
+            speakerId: 'b',
+            track: 'meeting',
+            pass: 'final',
+            words: [{ id: 'w2', text: 'two', startMs: 400, endMs: 600 }],
+          },
+        ],
+        [speaker('a'), speaker('b')],
+      );
+      handlers = createMeetingHandlers(library, vi.fn());
+      const overlap = {
+        ok: false,
+        error: { code: 'conflict', message: 'These words overlap other speech.' },
+      };
+      expect(await split(meetingId, { firstWordId: 'w1', lastWordId: 'w1' })).toMatchObject(
+        overlap,
+      );
+      expect(
+        await dispatchCall(handlers, 'reassignSpeaker', {
+          meetingId,
+          range: { firstWordId: 'w1', lastWordId: 'w1' },
+          speakerId: 'b',
+        }),
+      ).toMatchObject(overlap);
+    });
+
     it('persists split undo across restarts', async () => {
       const meetingId = await seed();
       const unrelatedId = await seed();

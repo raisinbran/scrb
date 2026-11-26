@@ -49,9 +49,11 @@ async function setup(
     if (status === 'ready') await writeFile(join(folder, 'chunks.json'), manifest(rows));
     else await writeFile(join(folder, 'chunks.log'), rows.map(line).join(''));
   }
+  const gates: (Promise<void> | undefined)[] = [];
   const meeting = { status, source: 'recorded', audioDeletedAt: null as string | null };
   const library = {
     getMeeting: async (id: string) => {
+      await gates.shift();
       if (id !== 'one' && id !== 'two') throw new Error('not found');
       return meeting;
     },
@@ -69,6 +71,7 @@ async function setup(
   const handlers = media.wrap({ deleteMeeting: async () => 'deleted' });
   return {
     root,
+    gates,
     meeting,
     media,
     handlers,
@@ -342,5 +345,31 @@ describe('scribe-media URLs', () => {
       Array.from({ length: 8 }, (_, i) => f.get(url, `bytes=${i}-${i}`)),
     );
     expect(await Promise.all(replies.map((reply) => reply.text()))).toEqual([...'invented']);
+  });
+});
+
+describe('a seek that replaces the session while media is read', () => {
+  it('serves the new session instead of failing with "not saved yet"', async () => {
+    const { handlers, seek, grant, gates } = await setup({ microphone: [A, B] });
+    await seek(1000);
+    let release!: () => void;
+    gates.push(new Promise<void>((resolve) => (release = resolve)));
+    const pending = grant(1000);
+    await handlers.pauseAudio?.({ meetingId: 'one' });
+    await seek(2000);
+    release();
+    await expect(pending).resolves.toMatchObject({ chunks: [{ track: 'microphone' }] });
+  });
+});
+
+describe('playback rate', () => {
+  it('scales the clock without jumping when the rate changes', async () => {
+    const { handlers, seek, advance, events } = await setup({ microphone: [A, B] });
+    await seek(0);
+    advance(1000);
+    await handlers.setPlaybackRate?.({ meetingId: 'one', rate: 2 });
+    advance(1000);
+    await handlers.pauseAudio?.({ meetingId: 'one' });
+    expect(events.at(-1)).toMatchObject({ positionMs: 3000, isPlaying: false });
   });
 });

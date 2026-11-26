@@ -133,3 +133,26 @@ export function reassignWordRange(
   });
   return { before, after };
 }
+
+/** Same rule as storage: a speaker change may not move words the user did not select. */
+export function selectionOverlapsOtherSpeech(
+  segments: TranscriptSegment[],
+  range: WordRange,
+): boolean {
+  const owner = segments.find((segment) =>
+    segment.words.some((word) => word.id === range.firstWordId),
+  );
+  if (!owner) return false;
+  const words = segments
+    .filter((segment) => segment.track === owner.track)
+    .flatMap((segment) => segment.words);
+  const first = words.findIndex((word) => word.id === range.firstWordId);
+  const last = words.findIndex((word) => word.id === range.lastWordId);
+  if (first < 0 || last < first) return false;
+  const startMs = (words[first] as (typeof words)[number]).startMs;
+  const endMs = (words[last] as (typeof words)[number]).endMs;
+  return words.some((word, index) => {
+    const at = (word.startMs + word.endMs) / 2;
+    return (index >= first && index <= last) !== (at >= startMs && at <= endMs);
+  });
+}

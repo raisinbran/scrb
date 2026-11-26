@@ -46,6 +46,9 @@ const int =
 
 const ms = int(0, MAX_MS);
 
+const playbackRate: Check<number> = (value): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0.25 && value <= 2;
+
 const flag: Check<boolean> = (value): value is boolean => typeof value === 'boolean';
 
 const nothing: Check<void> = (value): value is void => value === undefined || value === null;
@@ -278,6 +281,7 @@ const REQUEST_CHECKS: { [K in CallName]: Check<CallRequest<K>> } = {
   redo: meeting,
   seekAudio: shape({ meetingId: id, positionMs: ms }),
   pauseAudio: meeting,
+  setPlaybackRate: shape({ meetingId: id, rate: playbackRate }),
   getPlaybackMedia: shape({ meetingId: id, positionMs: ms }),
 
   listProfiles: nothing,
