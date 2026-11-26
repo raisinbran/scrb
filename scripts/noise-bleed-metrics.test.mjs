@@ -265,6 +265,18 @@ describe('evaluate', () => {
     expect(r.checks.invariants).toBe(false);
     expect(r.verdict).toBe('FAIL');
   });
+  it('is NOT_VERIFIED when the manifest does not cover the measured inputs', () => {
+    const { dir, config, wer } = setup();
+    mkdirSync(join(dir, 'unrelated'));
+    writeFileSync(join(dir, 'unrelated', 'x.txt'), 'x');
+    writeFileSync(
+      join(dir, 'manifest.json'),
+      JSON.stringify(createManifest([join(dir, 'unrelated')], Date.now() - 5000)),
+    );
+    const r = evaluate(config, { wer });
+    expect(r.verdict).toBe('NOT_VERIFIED');
+    expect(r.notes.join()).toMatch(/manifest does not cover unfiltered input/);
+  });
   it('is NOT_VERIFIED without a manifest', () => {
     const { config, wer } = setup();
     delete config.manifest;

@@ -371,6 +371,18 @@ export function evaluate(config, { wer = scoreWer } = {}) {
       manifest,
       config.conditions.map((c) => at(c.filtered)),
     );
+    config.conditions.forEach((c, i) => {
+      for (const key of ['unfiltered', 'reference']) {
+        let real;
+        try {
+          real = realpathSync(at(c[key]));
+        } catch {
+          continue;
+        }
+        if (manifest.entries[real]?.type !== 'file')
+          conditions[i].issues.push(`manifest does not cover ${key} input ${c[key]}`);
+      }
+    });
   }
   const tri = (items, ok) =>
     !items.length || items.some((x) => x === undefined) ? null : items.every(ok);
