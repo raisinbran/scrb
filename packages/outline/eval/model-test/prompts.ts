@@ -37,7 +37,7 @@ export function promptAgenda(items: readonly OutlineItem[], transcript: string):
     'Kinds: decision (something agreed or decided, including a decision NOT to do something), date (a date, deadline or amount of time), caveat (a risk, condition or doubt), action (a task someone takes on), question (asked and not answered), info (anything else significant).',
     'Keep tentative, conditional and disputed statements as such. If a value changed later, state only the final one and cite both places.',
     'Use the topic id exactly; for a topic the agenda lacks, set "topic":"new" and "newTopic":"title".',
-    'Cite lines as "L12" or "L12-L14". A fact has one claim, at most 40 words.',
+    'Cite exactly ONE contiguous range, "L12" or "L12-L14", at most 6 lines, copied from the [L..] markers. Never a comma-separated list and never a line that is not in the transcript. A fact has one claim, at most 40 words.',
     'Add "owner" only when a person is explicitly given a task in the cited lines ("Cy will..."); otherwise leave "owner" out. The speaker is not an owner.',
     'Reply as {"facts":[{"topic":"o1","kind":"decision","text":"...","cite":"L1-L2"}]}.',
     '',

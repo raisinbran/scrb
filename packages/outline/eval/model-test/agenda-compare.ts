@@ -130,7 +130,17 @@ async function main(): Promise<void> {
   const url = arg('url') ?? 'http://127.0.0.1:8089';
   const seeds = (arg('seeds') ?? '1,2,3').split(',').map(Number);
   const out = arg('out');
-  const backend = httpBackend(url, 'qwen2.5-7b-instruct-q4_k_m');
+  const inner = httpBackend(url, 'qwen2.5-7b-instruct-q4_k_m');
+  const raws: { agenda: boolean; text: string; total: number }[] = [];
+  let totalLines = 0;
+  const backend: Backend = {
+    id: inner.id,
+    async complete(req) {
+      const text = await inner.complete(req);
+      raws.push({ agenda: req.user.startsWith('Agenda topics'), text, total: totalLines });
+      return text;
+    },
+  };
   const embedderId = arg('embedder') ?? 'trigram';
   const embed =
     embedderId === 'minilm'
@@ -162,6 +172,7 @@ async function main(): Promise<void> {
     ...amiIds.map((id) => ({ label: `ami-${id}`, m: loadAmiAgenda(amiDir!, id)! })),
   ];
   for (const { label: seed, m } of todo) {
+    totalLines = m.lines.length;
     const items = parseOutline(m.agenda).items;
     const words = m.lines.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
     let t = Date.now();
@@ -207,6 +218,40 @@ async function main(): Promise<void> {
     );
   }
   clearInterval(timer);
+  const citeStats: Record<string, Record<string, { count: number; parsed: number }>> = {
+    agenda: {},
+    taskA: {},
+  };
+  const rejected: string[] = [];
+  for (const r of raws) {
+    let facts: { cite?: unknown }[] = [];
+    try {
+      const j = parseJson(r.text) as {
+        facts?: { cite?: unknown }[];
+        topics?: { points?: { cite?: unknown }[] }[];
+      };
+      facts = j.facts ?? (j.topics ?? []).flatMap((t) => t.points ?? []);
+    } catch {
+      continue;
+    }
+    for (const f of facts) {
+      const c = f.cite;
+      const shape =
+        typeof c === 'string'
+          ? `"${c.replace(/\d+/g, 'N')}"`
+          : c === undefined
+            ? 'missing'
+            : Array.isArray(c)
+              ? 'array'
+              : typeof c;
+      const bucket = (citeStats[r.agenda ? 'agenda' : 'taskA'] ??= {});
+      const e = (bucket[shape] ??= { count: 0, parsed: 0 });
+      e.count += 1;
+      if (parseLines(c, r.total)) e.parsed += 1;
+      else if (rejected.length < 40)
+        rejected.push(`${r.agenda ? 'agenda' : 'taskA'} ${JSON.stringify(c)} of ${r.total}`);
+    }
+  }
   const result = {
     promptHash: promptHash(),
     agendaPromptHash: agendaPromptHash(),
@@ -216,6 +261,8 @@ async function main(): Promise<void> {
     totalWallSeconds: (Date.now() - t0) / 1000,
     peakServerWorkingSetMiB: peak.serverMiB || null,
     peakGpuUsedMiB: peak.gpuMiB || null,
+    citeStats,
+    rejected,
     rows,
   };
   console.log(JSON.stringify(result, null, 2));

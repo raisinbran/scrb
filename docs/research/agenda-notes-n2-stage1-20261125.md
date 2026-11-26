@@ -100,3 +100,20 @@ Pooled over the three synthetic meetings, strict kinds (before the fix round in 
 Failure causes among the 34 synthetic agenda facts (13 + 10 + 11): ok 21, cite-unparsed 6, low-overlap 3, number-not-in-cite 2, owner-not-in-cite 1, stale 1. AMI (8 + 12 facts): ok 10, low-overlap 6, number-not-in-cite 4. AMI agenda-aware hallucination: ES2002a 3/8 (before 4/8), TS3003a 8/12 kind-agnostic and 7/12 strict (unchanged). AMI decision recall stays 0/9 for both prompts. Spoken numbers explain at most 1 of the 5 AMI numeric failures before this round; 4 remain, so that hypothesis was only partly right. The largest single cause on invented data is a citation the parser rejects (6 of 13 failures), and on AMI it is low word overlap between the fact and its cited lines (6 of 10).
 
 Task A (kind-agnostic) unchanged: synthetic decision 2/9, date 2/6, hallucination 1/11. Wall time per meeting 5.3 to 7.1 s (agenda-aware, synthetic), 5.4 to 6.7 s (AMI); peak server working set 7.6 GiB, GPU 8.2 GB total.
+
+## Citation formats and prompt tightening (owner approved, 2026-11-25)
+
+Citation strings the 7B model produced, counted from the raw output of one run (prompt v2, invented seeds 4-6 and AMI ES2002a, TS3003a; line numbers only, no transcript text):
+
+| Format (digits shown as N)                                             | Agenda prompt v2 |                                              Parsed |
+| ---------------------------------------------------------------------- | ---------------: | --------------------------------------------------: |
+| `LN-LN`                                                                |               27 |                                                  27 |
+| `LN`                                                                   |               22 | 21 (one `L233` in a 228-line meeting, out of range) |
+| Comma list (`LN, LN, ...`, 3 to 10 entries, one starting with a range) |                5 |                                                   0 |
+| Task A prompt, `LN-LN` and `LN`                                        |               15 |                                                  15 |
+
+That is 6 rejected of 54, which are the 6 unparsed citations. The comma lists were evenly spaced lines spread across the whole transcript for a single fact, not a contiguous range, so the output is not consistently valid and the parser was left alone. The prompt now asks for exactly one contiguous range of at most 6 lines, never a list, copied from the line markers (agenda prompt hash `0d9afaeb791be7ab`, was `5b4b21888ea03152`).
+
+Re-run once, same model, MiniLM, tau 0.79, same meetings (seeds 4-6 were used to find the problem, so these are not held out). Pooled synthetic, strict kinds, with the v2 fix-round result in parentheses: decision recall 1/9 (3/9), date recall 2/6 (1/6), hallucination 7/25 (13/34), valid citations 21/25 (28/34). Kind-agnostic: decision 3/9, date 3/6. Facts returned: synthetic 25 (34), AMI 8 (20). Citation formats after the change: `LN-LN` 16 of 16 parsed, `LN` 14 of 14, comma lists 4 of 4 rejected (two of them 60 to 90 entries long, degenerate repetition), 34 in all. Failure causes, synthetic: ok 18, cite-unparsed 4, owner-not-in-cite 1, stale 1, low-overlap 1; AMI: ok 4, low-overlap 1, number-not-in-cite 2, polarity 1. AMI decision recall 0/9 for both prompts. Task A unchanged. Wall time per meeting 4.0 to 11.0 s (agenda-aware); peak server working set 7.3 GiB, GPU 7.3 GB total; the run took about 1 minute.
+
+Reading: tightening cut hallucination (38% to 28%) and bad citations (6 to 4 of 25) mostly by making the model return fewer facts, and it lowered strict decision recall. The comma-list failure remains in 4 facts. The result is mixed, not an improvement in recall.
