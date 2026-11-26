@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +8,8 @@ import { Library } from '@scrb/storage';
 test('manual deletion while a meeting is open removes its files and contribution rows', async () => {
   test.setTimeout(120_000);
   const userData = mkdtempSync(join(tmpdir(), 'scrb-v-g-delete-'));
-  const root = join(userData, 'library');
+  const libraryParent = mkdtempSync(join(tmpdir(), 'scrb-v-g-delete-library-'));
+  const root = join(libraryParent, 'library');
   mkdirSync(root, { recursive: true });
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root }));
 
@@ -44,13 +45,28 @@ test('manual deletion while a meeting is open removes its files and contribution
   await library.close();
 
   const app = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
+    args: ['.', '--scrb-isolated-test-profile', `--user-data-dir=${userData}`],
     env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
   });
   try {
     const page = await app.firstWindow();
+    await expect.poll(() => page.evaluate(() => Boolean(window.scribeBridge))).toBe(true);
+    const settings = await page.evaluate(() =>
+      window.scribeBridge?.invoke('getSettings', undefined),
+    );
+    expect(settings).toMatchObject({
+      ok: true,
+      value: { storageLocation: realpathSync(root) },
+    });
+    const meetings = await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {}));
+    expect(meetings).toMatchObject({
+      ok: true,
+      value: expect.arrayContaining([
+        expect.objectContaining({ id, title: 'Invented retention check' }),
+      ]),
+    });
     await page.getByRole('button', { name: 'Recordings', exact: true }).click();
-    await page.getByRole('button', { name: 'Invented retention check', exact: true }).click();
+    await page.getByRole('button', { name: /^Invented retention check/ }).click();
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Delete meeting' });
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click();

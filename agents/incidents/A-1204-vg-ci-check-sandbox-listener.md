@@ -1,0 +1,7 @@
+### A-1204 — 2026-11-26 — Codex — V-g check blocked by local listener permissions
+
+- **Agent:** Codex (exact served model and effort unavailable; Mac desktop; Medium requested)
+- **Status / attribution:** Confirmed environment/test-run failure; no application defect established.
+- **What failed:** (1) `npm run check` passed typecheck and lint, then Vitest worker tests failed when test helpers attempted to listen on `127.0.0.1`; the observed runtime error was `listen EPERM: operation not permitted 127.0.0.1`. Several loopback-dependent tests in transcription, summary, and desktop suites failed or remained running without further output. (2) The first changed-file Prettier check found formatting needed in `retention-deletion.spec.ts`.
+- **Impact:** The full repository check did not complete successfully. The Vitest process was interrupted with Ctrl-C (exit 130) after it stopped producing output. No Electron smoke test was launched, and no test was rerun.
+- **Correction / remaining risk:** The local-listener failure was recorded and execution stopped without trying a different route around the restriction. Prettier corrected the spec formatting. `npm run check:register` passed before this incident file was added; a post-entry check is required. The retention deletion spec's typecheck passed; full test validation and exact-head CI remain outstanding. The listener errors point to unavailable loopback test execution in this environment, not a confirmed product defect.
