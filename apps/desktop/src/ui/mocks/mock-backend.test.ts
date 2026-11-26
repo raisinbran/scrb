@@ -570,6 +570,17 @@ describe('MockBackend', () => {
     expect(positions).toEqual([1000, 1250, 1500, 1500]);
   });
 
+  it('moves the playback clock at the chosen speed', async () => {
+    const positions: number[] = [];
+    backend.on('playbackPosition', ({ positionMs }) => positions.push(positionMs));
+    await backend.call('seekAudio', { meetingId: LONG_MEETING_ID, positionMs: 1000 });
+    await backend.call('setPlaybackRate', { meetingId: LONG_MEETING_ID, rate: 2 });
+    vi.advanceTimersByTime(500);
+    await backend.call('setPlaybackRate', { meetingId: LONG_MEETING_ID, rate: 1 });
+    await backend.call('pauseAudio', { meetingId: LONG_MEETING_ID });
+    expect(positions).toEqual([1000, 1500, 2000, 2000]);
+  });
+
   it('plays a meeting that is still recording', async () => {
     const { meetingId } = await backend.call('startRecording', {});
     vi.advanceTimersByTime(3000);

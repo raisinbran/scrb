@@ -9,6 +9,7 @@ class FakeAudio {
   paused = true;
   seeking = false;
   volume = 1;
+  playbackRate = 1;
   muted = false;
   readyState = 4;
   listeners = new Map<string, () => void>();
@@ -93,6 +94,19 @@ afterEach(() => {
 });
 
 describe('PlaybackEngine', () => {
+  it('applies the speed to every element and scales its clock without moving the position', async () => {
+    const t = setup();
+    await t.engine.seek(0);
+    await t.settle();
+    await t.advance(1000);
+    t.engine.setRate(2);
+    expect(t.audios.every(({ playbackRate }) => playbackRate === 2)).toBe(true);
+    await t.advance(1000);
+    const [microphone] = t.audios as [FakeAudio];
+    // 1 s at normal speed, then 1 s at double speed.
+    expect(microphone.currentTime).toBeCloseTo(3, 1);
+  });
+
   it('starts both tracks together at the offset inside their chunks', async () => {
     const t = setup();
     await t.engine.seek(1500);

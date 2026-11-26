@@ -547,6 +547,22 @@ describe('Recordings', () => {
       expect(time()).toMatch(/00:15/);
     });
 
+    it('steps the playback speed from a fixed-width button that wraps after 2x', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const speed = () => screen.getByRole('button', { name: /^Playback speed/ });
+      expect(speed().textContent).toBe('1x');
+      fireEvent.click(speed());
+      await waitFor(() => expect(speed().textContent).toBe('1.25x'));
+      expect(speed().getAttribute('aria-label')).toBe('Playback speed 1.25x');
+      for (let i = 0; i < 7; i += 1) {
+        const before = speed().textContent;
+        fireEvent.click(speed());
+        await waitFor(() => expect(speed().textContent).not.toBe(before));
+      }
+      expect(speed().textContent).toBe('1x');
+    });
+
     it('sets the app volume with a labelled slider and mute button, and remembers it', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);
