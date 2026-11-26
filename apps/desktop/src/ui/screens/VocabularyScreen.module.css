@@ -82,3 +82,8 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+/* Enable and Disable swap in place; the button keeps one width. */
+.toggleTerm {
+  min-width: 5.5rem;
+}

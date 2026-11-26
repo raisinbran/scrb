@@ -191,7 +191,11 @@ export const RELABEL_DEFAULTS = {
   shortSpeakerMs: 10_000,
   /** 0.4 gave no false extra speakers on AMI; 0.5 and above did, and 0.65 was worst. */
   shortMergeLine: 0.4,
-  mergeLine: 0.65,
+  /**
+   * 0.60 to 0.75 scored identically on 8 AMI meetings (first 18 min; 5 of 8 exact counts, mean
+   * DER 13.8%). On a real meeting two voices sat at 0.66 raw and merged at 0.65, so the line is 0.70.
+   */
+  mergeLine: 0.7,
 } as const;
 
 interface Group {

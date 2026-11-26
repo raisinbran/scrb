@@ -40,7 +40,7 @@ interface PopupBannerProps {
 export function PopupBanner({
   role = 'status',
   level = 'info',
-  dismissLabel = 'Dismiss notice',
+  dismissLabel = 'Dismiss',
   onDismiss,
   className,
   children,
@@ -52,7 +52,11 @@ export function PopupBanner({
       role={role}
     >
       <div className={styles.body}>{children}</div>
-      {onDismiss && <DismissButton label={dismissLabel} onClick={onDismiss} />}
+      {onDismiss && (
+        <span className={styles.dismissSlot}>
+          <DismissButton label={dismissLabel} onClick={onDismiss} />
+        </span>
+      )}
     </div>
   );
 }

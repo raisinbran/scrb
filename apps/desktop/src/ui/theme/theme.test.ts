@@ -33,7 +33,6 @@ const TEXT_TOKENS = [
   '--color-word-current',
   '--color-accent',
   '--color-warning',
-  '--color-processing',
   '--color-danger',
   '--color-ok',
 ];
@@ -42,6 +41,7 @@ const BACKGROUNDS = [
   '--color-surface-sidebar',
   '--color-surface-raised',
   '--color-surface-hover',
+  '--color-line-current',
 ];
 
 describe('resolveTheme', () => {
@@ -65,6 +65,16 @@ describe.each(['light', 'dark'] as const)('%s tokens', (theme) => {
     for (const background of BACKGROUNDS) {
       const ratio = contrast(tokens[token] as string, tokens[background] as string);
       expect(ratio, `${token} on ${background}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('draws the progress track at 3:1 against the surfaces it sits on', () => {
+    for (const background of ['--color-surface', '--color-surface-raised']) {
+      const ratio = contrast(
+        tokens['--color-progress-track'] as string,
+        tokens[background] as string,
+      );
+      expect(ratio, background).toBeGreaterThanOrEqual(3);
     }
   });
 

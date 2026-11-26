@@ -43,7 +43,7 @@ export function CopyTranscriptAction({
   const [showCheck, setShowCheck] = useState(false);
   useEffect(() => {
     if (!showCheck) return undefined;
-    const timer = window.setTimeout(() => setShowCheck(false), 1600);
+    const timer = window.setTimeout(() => setShowCheck(false), 2600);
     return () => window.clearTimeout(timer);
   }, [showCheck]);
   const ready = !loading && !error && segments.length === totalSegments && segments.length > 0;
@@ -61,8 +61,8 @@ export function CopyTranscriptAction({
     }
   };
 
-  const tip = copied
-    ? 'Transcript copied'
+  const tip = showCheck
+    ? 'Transcript copied!'
     : error
       ? 'Transcript unavailable'
       : loading || segments.length !== totalSegments

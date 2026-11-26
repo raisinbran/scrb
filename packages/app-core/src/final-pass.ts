@@ -31,7 +31,7 @@ import {
   type ProfileMatchingJob,
   type ProfileAssignmentEdit,
 } from './profile-matching.ts';
-import { vocabularyHint } from './vocabulary-hints.ts';
+import { jobVocabularyHint } from './vocabulary-hints.ts';
 import type { LargeModelGate } from './large-model-gate.ts';
 
 export { YOU_ID };
@@ -361,7 +361,7 @@ export class FinalPassQueue {
             tracks,
             workDir,
             signal: this.abort.signal,
-            vocabularyHint: vocabularyHint(this.library.vocabulary.enabledTerms()),
+            vocabularyHint: jobVocabularyHint(this.library.vocabulary.enabledTerms()),
             onEmbeddingModel: (path) => {
               modelPath = path;
             },

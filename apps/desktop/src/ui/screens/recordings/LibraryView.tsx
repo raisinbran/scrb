@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
-import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
+import type {
+  Backend,
+  FinalPassProgress,
+  MeetingFilter,
+  PickedAudioFile,
+  SearchResult,
+} from '@scrb/contracts';
+import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
@@ -9,6 +16,7 @@ import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState, Screen } from '../Screen.tsx';
 import { Highlight } from './highlight.tsx';
+import { nextProgress } from './ProcessingBanner.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
@@ -21,6 +29,24 @@ interface RowProps {
   result: SearchResult;
   query: string;
   onOpen(id: string, atMs?: number): void;
+}
+
+/** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
+function RowProgress({ meetingId }: { meetingId: string }) {
+  const backend = useBackend();
+  const [progress, setProgress] = useState<FinalPassProgress | null>(null);
+  useEffect(
+    () =>
+      backend.on('finalPassProgress', (report) => {
+        if (report.meetingId === meetingId) setProgress((current) => nextProgress(current, report));
+      }),
+    [backend, meetingId],
+  );
+  return (
+    <div className={styles.rowProgress}>
+      <Progress label="Final transcript processing" fraction={progress?.fraction} />
+    </div>
+  );
 }
 
 function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
@@ -59,6 +85,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
           )}
         </span>
       </button>
+      {meeting.status === 'finalPassRunning' && <RowProgress meetingId={meeting.id} />}
       {snippets.map((match) => (
         <button
           key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
