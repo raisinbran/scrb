@@ -501,8 +501,8 @@
   padding: var(--space-2) var(--space-3);
   color: var(--color-text-muted);
   background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
 }
 
 .tab:hover {
@@ -511,7 +511,8 @@
 
 .tabOn {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  background: var(--color-surface-selected);
+  border-color: var(--color-border);
 }
 
 .fontControls {
@@ -881,10 +882,16 @@ div.editHint button {
   background: var(--color-surface-sidebar);
 }
 
-:global([data-design='tonal']) .tabOn {
-  font-weight: 600;
-  background: var(--color-surface-selected);
-  border-radius: var(--radius);
+:global([data-design='tonal']) .tabs {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+:global([data-design='tonal']) .panel {
+  margin-block-start: calc(-1 * var(--space-3));
+  border-block-start: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
 }
 
 :global([data-design='tonal']) .playerRow {

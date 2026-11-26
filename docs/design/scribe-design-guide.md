@@ -143,7 +143,7 @@ Grid is 4px, steps are tokens:
 
 **Live:** Start/Pause/Stop controls; Meeting app and Microphone pickers with the Mic and Meeting meters beside them in the same row, under a "Levels" label; elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. **Settings**, not Live, contains Test mic and its mic-only level meter; PR #383 positions them directly above Input Profile.
 
-**Recordings:** list view with search and filters, import action; detail view with a back link, title, meta line, one action row (export, open meeting folder, open audio folder, optional Re-process, delete, Copy transcript at the far right), tabs Transcript / Summary / Audio. Copy transcript uses a shared icon button with the standard overlapping-documents icon and hover tooltip; it never adds a second row above transcript text. Tabs use `role="tablist"`, arrow keys move between them, the selected tab has an accent underline. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
+**Recordings:** list view with search and filters, import action; detail view with a back link, title, meta line, one action row (export, open meeting folder, open audio folder, optional Re-process, delete, Copy transcript at the far right), tabs Transcript / Summary / Audio. Copy transcript uses a shared icon button with the standard overlapping-documents icon and hover tooltip; it never adds a second row above transcript text. Tabs use `role="tablist"`, arrow keys move between them, the selected tab uses a tonal fill. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
 
 **Settings:** stack of boxed sections (audio, transcription, summary, storage, auto-delete, theme and others). The Test mic button and mic-only meter sit together immediately above Input Profile inside the Audio section. Unsaved changes show a **save bar docked to the bottom of the panel**, out of the layout flow, with space always reserved so the last section is never covered and nothing shifts when it appears.
 
@@ -292,7 +292,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 8. **Do not add a hidden option.** A setting, field or contract change that is not approved stays out of the UI. `packages/contracts/` changes only with owner approval; if the contract lacks something, write a handoff note in `docs/handoffs/`. Example: a model picker or benchmark button needs approved contract changes, so it is documented in a handoff, not built.
 9. **Do not show what does not work.** Hide or label honestly (see "Automatic" sensitivity).
 10. **Layout does not shift.** Fixed-size bars, reserved space for the save bar, zero-height banner layer, delayed loading text.
-11. **Colours only from tokens; radius only `--radius`.** Both are tests.
+11. **Colours only from tokens; radius only `--radius`.** Both are tests. Use a tonal fill for selected buttons and tabs. Keep the focus ring for keyboard focus.
 12. **Mouse clicks leave no ring on sidebar tabs and footer buttons.** Keyboard focus keeps it.
 
 ## 14. Pre-merge UI checklist (copy into the PR and tick)

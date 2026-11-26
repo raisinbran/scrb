@@ -1,5 +1,6 @@
 .section {
   min-width: 0;
+  scroll-margin-block-start: var(--space-3);
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface-sidebar);
@@ -14,11 +15,16 @@
   font-weight: 600;
 }
 
+.themeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
 .option {
   display: inline-flex;
   gap: var(--space-1);
   align-items: center;
-  margin-inline-end: var(--space-4);
 }
 
 .fields {
@@ -225,6 +231,7 @@
 
 .nav {
   position: sticky;
+  z-index: 10;
   inset-block-start: var(--space-3);
 }
 
@@ -240,12 +247,13 @@
 .navItem {
   width: 100%;
   padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height);
   font: inherit;
+  font-weight: 600;
   text-align: start;
   color: var(--color-text-muted);
   background: none;
-  border: 0;
-  border-inline-start: 3px solid transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius);
   cursor: pointer;
 }
@@ -256,10 +264,9 @@
 }
 
 .navItem[aria-current='true'] {
-  font-weight: 600;
   color: var(--color-text);
   background: var(--color-surface-selected);
-  border-inline-start-color: var(--color-accent);
+  border-color: var(--color-border);
 }
 
 /* Narrow windows: the list becomes a row across the top. */
@@ -282,12 +289,6 @@
 
   .navItem {
     width: auto;
-    border-inline-start: 0;
-    border-block-end: 3px solid transparent;
-  }
-
-  .navItem[aria-current='true'] {
-    border-block-end-color: var(--color-accent);
   }
 }
 
@@ -299,17 +300,10 @@
 
 :global([data-design='tonal']) .section {
   background: var(--color-surface-raised);
-  scroll-margin-block-start: var(--space-3);
 }
 
 :global([data-design='tonal']) .legend {
   font-size: var(--text-lg);
-}
-
-:global([data-design='tonal']) fieldset.section > .legend {
-  padding-inline: var(--space-2);
-  background: var(--color-surface-raised);
-  border-radius: var(--radius);
 }
 
 :global([data-design='tonal']) .navList {
@@ -331,7 +325,13 @@
   }
 
   :global([data-design='tonal']) .nav {
-    position: static;
+    inset-block-start: 0;
+    padding-block: var(--space-2);
+    background: var(--color-surface);
+  }
+
+  :global([data-design='tonal'][data-theme='light']) .nav {
+    background: var(--color-surface-sidebar);
   }
 
   :global([data-design='tonal']) .navList {
