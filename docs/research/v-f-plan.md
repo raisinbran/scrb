@@ -41,7 +41,7 @@ For each of the two sustained references, intersect its union of annotation
 intervals with the final provisional caption slot labels. Score 10 ms midpoint samples over 100 ms caption slots. Exclude simultaneous
 reference speech from primary scoring. Count a separated pair when both dominant
 non-fallback IDs differ and each covers at least 25% of its reference speech
-and at least one second. Count distinct IDs, promoted IDs, and unassigned
+and at least one second. Count distinct IDs, IDs observed with promoted labels in retained slots, and unassigned
 reference seconds. Prefer more separated tuning pairs, then fewer excess IDs
 above two, then less unassigned speech. Keep 1.2 on ties. Recommend a change
 only if it also preserves or improves pair separation on the confirmation
@@ -76,3 +76,13 @@ the segment XML bytes with the pinned archive, and verify the two models
 against `scripts/model-digests.json`. Inspect the binary dependency closure
 and record SHA-256 values for the tools and resolved non-system libraries
 before each execution batch.
+
+The driver requires a clean checkout and `SCRB_VF_INPUT_HASHES` pointing to
+a JSON map of expected SHA-256 values. Use basenames for the WAV, annotation
+files, models and executables, and the keys returned by
+`collectResearchRuntimeLibraries` for the staged runtime libraries. Verify
+the staged libraries against the full resolved dependency closure before
+creating that map. Annotation validation and the two duration floors run
+before any native tools. Both outcome and speaker-hop failure receipts
+include fixture and runtime identity, decoded PCM SHA-256, and total,
+exclusive, and excluded overlap ticks.

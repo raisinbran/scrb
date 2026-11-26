@@ -1,4 +1,4 @@
-### A-1196 — 2026-11-26 — V-f setup and accounting slips
+### A-1201 — 2026-11-26 — V-f setup and accounting slips
 
 - **Agent:** Codex Desktop (gpt-6.2-sol, low) / Mac.
 - **What happened:** The session ran at Low despite the Medium brief. The first task command read research before the quota observation. It also printed more policy output than needed. The linked worktree command hit the known read-only Git metadata restriction. Exploratory zsh globs errored on missing matches. A local clone initially selected stale local main and the fast-forward emitted a large file list. The initial npm install used an empty cache with blocked registry DNS. The public web lookup for #392 missed cache and the sandboxed Git probe could not resolve GitHub. The first register check rejected this incident’s heading format. The managed full check hit loopback EPERM and other worker test failures, and a process inspection probe was denied.
