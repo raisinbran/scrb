@@ -56,8 +56,14 @@
   border-radius: var(--radius);
 }
 
+/* One line is always reserved, so a one-line error never moves the buttons; a longer one grows the slot and pushes them down rather than covering them. */
+.errorSlot {
+  min-height: 1.5em;
+  margin-top: var(--space-1);
+}
+
 .error {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   color: var(--color-danger);
 }
 
@@ -65,5 +71,5 @@
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
-  margin-top: var(--space-5);
+  margin-top: var(--space-3);
 }

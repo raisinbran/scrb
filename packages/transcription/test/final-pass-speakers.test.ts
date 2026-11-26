@@ -106,7 +106,7 @@ describe('final speaker diagnostics', () => {
       clusterSecondsAfter: '60:14',
       closestRawSimilarity: 0,
       closestFinalSimilarity: 0,
-      mergeLine: 0.65,
+      mergeLine: 0.7,
       minSpeakerSeconds: expect.any(Number),
       shortSpeakerSeconds: expect.any(Number),
       shortMergeLine: expect.any(Number),

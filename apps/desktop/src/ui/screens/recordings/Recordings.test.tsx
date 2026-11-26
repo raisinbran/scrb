@@ -167,8 +167,29 @@ describe('Recordings', () => {
       );
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBe('60');
-      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
+    });
+
+    it('shows a small progress bar under a processing meeting in the list', async () => {
+      renderScreen();
+      const on = vi.spyOn(backend, 'on');
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      const bar = () =>
+        within(row).getByRole('progressbar', { name: 'Final transcript processing' });
+      expect(bar().hasAttribute('aria-valuenow')).toBe(false);
+      await waitFor(() =>
+        expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
+      );
+      act(() =>
+        backend.emit('finalPassProgress', {
+          meetingId: 'meeting-final-pass',
+          stage: 'transcribing',
+          fraction: 0.3,
+          startedAt: new Date().toISOString(),
+        }),
+      );
+      expect(bar().getAttribute('aria-valuenow')).toBe('30');
     });
 
     it('ignores progress that goes backwards, and starts over for a new pass', async () => {
@@ -201,20 +222,20 @@ describe('Recordings', () => {
       expect(value()).toBe('90');
       await report('transcribing', 0.2, A);
       expect(value()).toBe('90');
-      expect(screen.getByText('Working out who spoke')).toBeTruthy();
+      expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
       await report('finishing', 1, A);
       expect(value()).toBe('100');
       await report('diarizing', 0.95, A);
       expect(value()).toBe('100');
-      expect(screen.getByText('Finishing up')).toBeTruthy();
+      expect(screen.getByText('Finishing up...')).toBeTruthy();
       await report('queued', 0, B);
       expect(value()).toBe('0');
       // A late report from the older pass must not undo the newer one.
       await report('finishing', 1, A);
       expect(value()).toBe('0');
-      expect(screen.getByText('Waiting to start')).toBeTruthy();
+      expect(screen.getByText('Waiting to start...')).toBeTruthy();
     });
 
     it('other meetings progress does not touch this banner', async () => {
@@ -238,14 +259,14 @@ describe('Recordings', () => {
     it('lets the banner be dismissed with an X', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
     });
 
     it('shows the banner again after leaving and reopening the same processing meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
@@ -257,7 +278,7 @@ describe('Recordings', () => {
     it('keeps a dismissed banner hidden while switching tabs in the same meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
@@ -378,7 +399,9 @@ describe('Recordings', () => {
       renderScreen();
       await startImport();
       fireEvent.click(await button(/Cancel import/));
-      await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+      await waitFor(() =>
+        expect(screen.queryByRole('progressbar', { name: /Importing/ })).toBeNull(),
+      );
       expect(await backend.call('listMeetings', {})).toHaveLength(6);
     });
 
@@ -986,7 +1009,7 @@ describe('Recordings', () => {
           'Quick rename',
         ),
       );
-      // After the refreshed meeting has rendered, the same input is still there and focused.
+      // Enter leaves the field; after the refreshed meeting has rendered, the same input shows the saved title.
       await waitFor(() => {
         const names = calls.mock.calls.map(([name]) => name);
         expect(names.slice(names.indexOf('updateMeeting'))).toContain('getMeeting');
@@ -996,6 +1019,17 @@ describe('Recordings', () => {
       expect((screen.getByLabelText('Meeting title') as HTMLInputElement).value).toBe(
         'Quick rename',
       );
+      expect(document.activeElement).not.toBe(title);
+    });
+
+    it('keeps the title field focused on Enter when the title is empty, and shows the error', async () => {
+      renderScreen();
+      await openMeeting(/Vendor call/);
+      const title = (await screen.findByLabelText('Meeting title')) as HTMLInputElement;
+      title.focus();
+      fireEvent.change(title, { target: { value: '   ' } });
+      fireEvent.keyDown(title, { key: 'Enter' });
+      expect(await screen.findByText('A meeting needs a title.')).toBeTruthy();
       expect(document.activeElement).toBe(title);
     });
 
