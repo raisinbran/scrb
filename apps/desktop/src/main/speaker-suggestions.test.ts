@@ -179,19 +179,44 @@ describe('speaker suggestions (backend)', () => {
     expect(await answer(id, 's0', p.id, true)).toMatchObject({ ok: false });
   });
 
-  it('decline persists across a restart and a new matching run on the same pass', async () => {
+  it('decline persists across a restart and stays declined when matching re-runs on the same pass', async () => {
     const p = profile();
     const result = transcript([at(0.5)]);
     const id = await seed(result);
     await match(id, result);
+    expect(await answer(id, 's0', p.id, false)).toMatchObject({ ok: true });
+    // A second decline (a double click) is a no-op, not an error.
     expect(await answer(id, 's0', p.id, false)).toMatchObject({ ok: true });
     expect(await list(id)).toEqual([]);
     await library.close();
     library = await Library.open({ root: join(root, 'library') });
     opened = library;
     expect(await list(id)).toEqual([]);
+    await match(id, result);
+    expect(await list(id)).toEqual([]);
     expect(events).toHaveLength(1);
     expect((await library.readTranscript(id)).speakers[0]?.profileId).toBeNull();
+  });
+
+  it('accepting after the profile was deleted or merged away is refused and creates no profile', async () => {
+    const result = transcript([at(0.5)]);
+    for (const how of ['delete', 'merge'] as const) {
+      const p = profile({ name: `Invented ${how}` });
+      const keep = profile({ name: `Invented keep ${how}`, embedding: new Float32Array([0, 1]) });
+      const id = await seed(result);
+      await match(id, result);
+      const names = () =>
+        library.voiceProfiles
+          .list()
+          .map((x) => x.name)
+          .sort();
+      if (how === 'delete') library.voiceProfiles.delete(p.id);
+      else library.voiceProfiles.merge(p.id, keep.id);
+      const before = names();
+      expect(await answer(id, 's0', p.id, true)).toMatchObject({ ok: false });
+      expect(names()).toEqual(before);
+      expect((await library.readTranscript(id)).speakers[0]?.userNamed).toBe(false);
+    }
   });
 
   it('drops a suggestion when its profile is deleted or merged away', async () => {

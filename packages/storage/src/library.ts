@@ -1145,11 +1145,25 @@ export class Library {
     });
   }
 
-  /** Replaces the meeting's stored suggestions; an empty list removes the file. */
-  replaceSuggestions(meetingId: string, suggestions: StoredSuggestion[]): Promise<void> {
+  /**
+   * Replaces the meeting's stored suggestions; an empty list removes the file. A pair the owner
+   * already declined stays declined. Returns what was stored.
+   */
+  replaceSuggestions(
+    meetingId: string,
+    suggestions: StoredSuggestion[],
+  ): Promise<StoredSuggestion[]> {
     return this.withLock(meetingId, async () => {
-      if (getMeetingRow(this.db, meetingId) === null) return;
-      await writeSuggestionsFile(this.meetingPaths(meetingId).suggestions, suggestions);
+      if (getMeetingRow(this.db, meetingId) === null) return [];
+      const file = this.meetingPaths(meetingId).suggestions;
+      const declined = (await readSuggestionsFile(file)).filter((s) => s.status === 'declined');
+      const merged = suggestions.map((s) =>
+        declined.some((d) => d.speakerId === s.speakerId && d.profileId === s.profileId)
+          ? { ...s, status: 'declined' as const }
+          : s,
+      );
+      await writeSuggestionsFile(file, merged);
+      return merged;
     });
   }
 

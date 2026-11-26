@@ -608,11 +608,12 @@ export function createMeetingHandlers(
       };
       await requireMeeting(library, meetingId);
       const stale = new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
-      if (!(await library.hasSuggestion(meetingId, speakerId, profileId))) throw stale;
       if (!accepted) {
+        // Declining twice (a double click) is a no-op, not an error.
         if (!(await library.declineSuggestion(meetingId, speakerId, profileId))) throw stale;
         return;
       }
+      if (!(await library.hasSuggestion(meetingId, speakerId, profileId))) throw stale;
       const profile = library.voiceProfiles.get(profileId);
       if (!profile?.name) throw stale;
       const before = await library.readTranscript(meetingId);

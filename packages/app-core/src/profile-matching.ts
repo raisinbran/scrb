@@ -169,13 +169,14 @@ async function saveSuggestions(
   profiles: VoiceProfile[],
   notify: ((suggestion: ProfileSuggestionNotice) => void) | undefined,
 ): Promise<void> {
+  let stored: StoredSuggestion[];
   try {
-    await library.replaceSuggestions(meetingId, suggestions);
+    stored = await library.replaceSuggestions(meetingId, suggestions);
   } catch {
     library.logger.log('warn', 'suggestions-not-saved', {});
     return;
   }
-  for (const s of suggestions) {
+  for (const s of stored.filter((item) => item.status === 'pending')) {
     const profile = profiles.find((p) => p.id === s.profileId);
     if (!profile?.name) continue;
     try {
