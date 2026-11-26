@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { DECODING } from './backend.js';
 import type { PartialNotes } from './partial.js';
 import type { RefTopic } from './taskA.js';
+import type { OutlineItem } from '../../src/types.js';
 
 /** Frozen prompts and chunking (plan section 7). Changing any of this changes the manifest hash. */
 export const CHUNK_WORDS = 3000;
@@ -21,6 +22,24 @@ export function promptA(outline: readonly string[], transcript: string): string 
     'If the meeting clearly raised a topic that the outline lacks, add it as a new topic with its points.',
     CITE,
     'Reply as {"topics":[{"title":"...","points":[{"text":"...","cite":"L1-L2"}]}]}.',
+    '',
+    'Transcript:',
+    transcript,
+  ].join('\n');
+}
+
+export function promptAgenda(items: readonly OutlineItem[], transcript: string): string {
+  return [
+    'Agenda topics (use the id exactly):',
+    ...items.map((t) => `${'  '.repeat(t.level - 1)}${t.id}: ${t.text}`),
+    '',
+    'List EVERY decision, date or deadline, caveat or risk, action and open question the transcript contains for each topic, plus significant information. Skip small talk.',
+    'Kinds: decision (something agreed or decided, including a decision NOT to do something), date (a date, deadline or amount of time), caveat (a risk, condition or doubt), action (a task someone takes on), question (asked and not answered), info (anything else significant).',
+    'Keep tentative, conditional and disputed statements as such. If a value changed later, state only the final one and cite both places.',
+    'Use the topic id exactly; for a topic the agenda lacks, set "topic":"new" and "newTopic":"title".',
+    'Cite lines as "L12" or "L12-L14". A fact has one claim, at most 40 words.',
+    'Add "owner" only when a person is explicitly given a task in the cited lines ("Cy will..."); otherwise leave "owner" out. The speaker is not an owner.',
+    'Reply as {"facts":[{"topic":"o1","kind":"decision","text":"...","cite":"L1-L2"}]}.',
     '',
     'Transcript:',
     transcript,
@@ -54,6 +73,21 @@ export function renderPartial(topics: readonly RefTopic[], p: PartialNotes): str
       ].join('\n'),
     )
     .join('\n');
+}
+
+export const AGENDA_SYSTEM =
+  'You write meeting notes from a transcript. Reply with one JSON object only.';
+
+/** Hash of the agenda-aware prompt, system text, chunking and decoding; goes in the manifest beside promptHash. */
+export function agendaPromptHash(): string {
+  const item = { id: 'o1', level: 1, text: 'O' } as OutlineItem;
+  const src = [
+    AGENDA_SYSTEM,
+    promptAgenda([item], 'T'),
+    String(CHUNK_WORDS),
+    JSON.stringify(DECODING),
+  ].join('\u0000');
+  return createHash('sha256').update(src).digest('hex').slice(0, 16);
 }
 
 /** Hash of everything frozen about the prompts and decoding; goes in the manifest. */

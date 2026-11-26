@@ -1,6 +1,7 @@
 import { generateFacts, ratio, scoreAgenda } from './agenda.js';
 import { FLAWED, GOOD, PILOT } from './agenda-fixture.js';
 import type { Backend } from './backend.js';
+import { trigramEmbedder } from './validate.js';
 
 /** Replays scripted backends through the N1 pipeline and prints the numbers. No model, no network. */
 const scripted = (facts: unknown[]): Backend => ({
@@ -19,7 +20,7 @@ for (const [name, facts] of [
   ['unstructured baseline', flat],
 ] as const) {
   const g = await generateFacts(PILOT, scripted([...facts]));
-  const s = scoreAgenda(PILOT.facts, g.facts, g.verdicts);
+  const s = await scoreAgenda(PILOT, g.facts, g.verdicts, trigramEmbedder());
   console.log(
     name,
     JSON.stringify({
@@ -28,6 +29,8 @@ for (const [name, facts] of [
       hallucination: ratio(s.hallucination),
       validCitations: ratio(s.validCitations),
       edit: s.editDistance,
+      wordEdit: s.wordEdit,
+      review: s.review,
     }),
   );
 }
