@@ -40,6 +40,8 @@ export interface GenFact {
   cite: { from: number; to: number } | null;
   /** Citation of the statement a later one replaced, so a changed decision shows both places. */
   earlier?: { from: number; to: number } | null;
+  /** Why the citation is missing, when it is. */
+  citeIssue?: 'unparsed' | 'outside-chunk';
   owner?: string;
 }
 
@@ -74,12 +76,24 @@ export function toFacts(raw: unknown, total: number): GenFact[] {
       text: str(f.text),
       cite: parseLines(f.cite, total),
     };
+    if (!g.cite) g.citeIssue = 'unparsed';
     if (str(f.newTopic)) g.newTopic = str(f.newTopic);
     if (str(f.owner)) g.owner = str(f.owner);
     out.push(g);
   }
   return out;
 }
+
+export type Cause =
+  | 'ok'
+  | 'topic'
+  | 'cite-unparsed'
+  | 'cite-outside-chunk'
+  | 'number-not-in-cite'
+  | 'owner-not-in-cite'
+  | 'low-overlap'
+  | 'polarity'
+  | 'stale';
 
 export type Verdict = 'ok' | 'badTopic' | 'badCite' | 'unsupported' | 'contradicted' | 'stale';
 
@@ -136,15 +150,19 @@ export function isStale(f: GenFact, lines: readonly { text: string }[]): boolean
   return false;
 }
 
-/** Checks a fact against the lines it cites. Lexical overlap alone never verifies a date, owner or polarity. */
-export function verify(
+/** Verdict plus the specific cause. */
+export function verifyWhy(
   f: GenFact,
   items: readonly OutlineItem[],
   lines: readonly { text: string }[],
-): Verdict {
+): { verdict: Verdict; cause: Cause } {
   const known = items.some((i) => i.id === f.topic);
-  if (!known && !(f.topic === 'new' && f.newTopic)) return 'badTopic';
-  if (!f.cite) return 'badCite';
+  if (!known && !(f.topic === 'new' && f.newTopic)) return { verdict: 'badTopic', cause: 'topic' };
+  if (!f.cite)
+    return {
+      verdict: 'badCite',
+      cause: f.citeIssue === 'outside-chunk' ? 'cite-outside-chunk' : 'cite-unparsed',
+    };
   const at = (c: { from: number; to: number }): string =>
     lines
       .slice(c.from - 1, c.to)
@@ -153,12 +171,24 @@ export function verify(
   const span = at(f.cite);
   const both = f.earlier ? `${span} ${at(f.earlier)}` : span;
   const have = new Set(numbersOf(both));
-  if (numbersOf(f.text).some((n) => !have.has(n))) return 'unsupported';
-  if (f.owner && !both.toLowerCase().includes(f.owner.toLowerCase())) return 'unsupported';
-  if (f1(contentStems(span), contentStems(f.text)) < 0.15) return 'unsupported';
-  if (!polarityAgrees(f.text, span)) return 'contradicted';
-  if (isStale(f, lines)) return 'stale';
-  return 'ok';
+  if (numbersOf(f.text).some((n) => !have.has(n)))
+    return { verdict: 'unsupported', cause: 'number-not-in-cite' };
+  if (f.owner && !both.toLowerCase().includes(f.owner.toLowerCase()))
+    return { verdict: 'unsupported', cause: 'owner-not-in-cite' };
+  if (f1(contentStems(span), contentStems(f.text)) < 0.15)
+    return { verdict: 'unsupported', cause: 'low-overlap' };
+  if (!polarityAgrees(f.text, span)) return { verdict: 'contradicted', cause: 'polarity' };
+  if (isStale(f, lines)) return { verdict: 'stale', cause: 'stale' };
+  return { verdict: 'ok', cause: 'ok' };
+}
+
+/** Checks a fact against the lines it cites. Lexical overlap alone never verifies a date, owner or polarity. */
+export function verify(
+  f: GenFact,
+  items: readonly OutlineItem[],
+  lines: readonly { text: string }[],
+): Verdict {
+  return verifyWhy(f, items, lines).verdict;
 }
 
 /** Deterministic Markdown: agenda order and levels kept, facts under their topic, new topics last. */
@@ -197,6 +227,8 @@ export interface GenResult {
   /** Chunks whose output could not be read; coverage is incomplete when above zero. */
   failedChunks: number;
   chunks: number;
+  /** Count of facts per cause of failure (ok included). */
+  causes: Record<string, number>;
   /** Cross-chunk folding: paraphrased repeats dropped and later reversals applied. */
   reconciled: ReconcileStats;
 }
@@ -221,15 +253,22 @@ export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise
       });
       const incoming = toFacts(parseJson(text), m.lines.length);
       for (const f of incoming)
-        if (f.cite && (f.cite.from < c.from + 1 || f.cite.to > c.to + 1)) f.cite = null;
+        if (f.cite && (f.cite.from < c.from + 1 || f.cite.to > c.to + 1)) {
+          f.cite = null;
+          f.citeIssue = 'outside-chunk';
+        }
       facts = reconcile(facts, incoming, reconciled);
     } catch {
       failedChunks += 1;
     }
   }
+  const why = facts.map((f) => verifyWhy(f, items, m.lines));
+  const causes: Record<string, number> = {};
+  for (const w of why) causes[w.cause] = (causes[w.cause] ?? 0) + 1;
   return {
     facts,
-    verdicts: facts.map((f) => verify(f, items, m.lines)),
+    verdicts: why.map((w) => w.verdict),
+    causes,
     failedChunks,
     chunks: p.chunks.length,
     reconciled,
@@ -307,8 +346,15 @@ function notesWords(
   return keys.flatMap((k) => facts.filter((f) => key(f) === k).flatMap((f) => wordsOf(f.text)));
 }
 
-const classOf = (k: FactKind, strict: boolean): string =>
-  !strict ? 'all' : k === 'info' || k === 'caveat' ? 'note' : k;
+/** A date carries its own evidence, so a note that holds a month or weekday counts as a date. */
+const hasDate = (t: string): boolean => numbersOf(t).some((n) => isDateWord(n));
+const isDateWord = (n: string): boolean => /^[a-z]/.test(n);
+
+const classOf = (k: FactKind, strict: boolean, text = ''): string => {
+  if (!strict) return 'all';
+  if ((k === 'info' || k === 'caveat') && hasDate(text)) return 'date';
+  return k === 'info' || k === 'caveat' ? 'note' : k;
+};
 
 /**
  * Scores generated facts against reference facts with the Task A embedding match (`matchPoints`):
@@ -333,15 +379,18 @@ export async function scoreAgenda(
   const pair: number[] = ref.map(() => -1);
   const status: string[] = gen.map(() => 'unverified');
   const classes = [
-    ...new Set(
-      [...ref.map((r) => r.kind), ...gen.map((g) => g.kind)].map((k) => classOf(k, strict)),
-    ),
+    ...new Set([
+      ...ref.map((r) => classOf(r.kind, strict, r.text)),
+      ...gen.map((g) => classOf(g.kind, strict, g.text)),
+    ]),
   ];
   for (const cls of classes) {
     const gi = gen
-      .map((g, i) => (classOf(g.kind, strict) === cls && verdicts[i] === 'ok' ? i : -1))
+      .map((g, i) => (classOf(g.kind, strict, g.text) === cls && verdicts[i] === 'ok' ? i : -1))
       .filter((i) => i >= 0);
-    const ri = ref.map((r, i) => (classOf(r.kind, strict) === cls ? i : -1)).filter((i) => i >= 0);
+    const ri = ref
+      .map((r, i) => (classOf(r.kind, strict, r.text) === cls ? i : -1))
+      .filter((i) => i >= 0);
     if (gi.length === 0 || ri.length === 0) {
       gi.forEach((i) => (status[i] = 'extra'));
       continue;

@@ -12,7 +12,7 @@ import {
 } from '../../eval/model-test/agenda.js';
 import { manifest, parseJson } from '../../eval/model-test/run.js';
 import { promptHash } from '../../eval/model-test/prompts.js';
-import { reconcile } from '../../eval/model-test/reconcile.js';
+import { reconcile, spokenToDigits } from '../../eval/model-test/reconcile.js';
 import { trigramEmbedder } from '../../eval/model-test/validate.js';
 import { FLAWED, GOOD, PILOT } from '../../eval/model-test/agenda-fixture.js';
 import type { Backend } from '../../eval/model-test/backend.js';
@@ -115,7 +115,7 @@ describe('agenda pilot (mock replay)', () => {
     const strict = await scoreAgenda(PILOT, g.facts, g.verdicts, embed);
     const loose = await scoreAgenda(PILOT, g.facts, g.verdicts, embed, { kindStrict: false });
     expect(strict.decisionRecall).toEqual({ num: 0, den: 3 });
-    expect(strict.dateRecall).toEqual({ num: 0, den: 2 });
+    expect(strict.dateRecall).toEqual({ num: 2, den: 2 });
     expect(loose.decisionRecall).toEqual({ num: 3, den: 3 });
   });
   it('defect 2/3: a well-cited wrong value is counted by the embedding match, not only by verification', async () => {
@@ -237,5 +237,33 @@ describe('agenda pilot (mock replay)', () => {
     expect(mf.agendaPromptHash).toMatch(/^[0-9a-f]{16}$/);
     expect(mf.agendaPromptHash).not.toBe(promptHash());
     expect(parseJson('{"facts":[]}')).toEqual({ facts: [] });
+  });
+  it('dates are credited by value, not by kind label', async () => {
+    const asInfo = GOOD.map((f) => ({ ...f, kind: f.kind === 'date' ? 'info' : f.kind }));
+    const g = await generateFacts(PILOT, scripted(asInfo));
+    const s = await scoreAgenda(PILOT, g.facts, g.verdicts, embed);
+    expect(s.dateRecall).toEqual({ num: 2, den: 2 });
+    const decOnly = GOOD.map((f) => ({ ...f, kind: f.kind === 'decision' ? 'info' : f.kind }));
+    const g2 = await generateFacts(PILOT, scripted(decOnly));
+    expect((await scoreAgenda(PILOT, g2.facts, g2.verdicts, embed)).decisionRecall.num).toBe(0);
+  });
+  it('spoken numbers match their digits in the verifier', () => {
+    expect(spokenToDigits('sold for twenty five euros')).toBe('sold for 25 euros');
+    expect(spokenToDigits('profit of fifteen million')).toBe('profit of 15000000');
+    expect(spokenToDigits('one of us has twelve')).toBe('one of us has 12');
+    const items = parseOutline('1. Price').items;
+    const lines = [{ text: 'So the remote will sell for twenty five euros.' }];
+    expect(verify(gf('o1', 'The remote sells for 25 Euro', 1), items, lines)).toBe('ok');
+    expect(verify(gf('o1', 'The remote sells for 35 Euro', 1), items, lines)).toBe('unsupported');
+  });
+  it('failures are broken down by cause', async () => {
+    const g = await generateFacts(PILOT, scripted(FLAWED));
+    expect(g.causes).toMatchObject({
+      'number-not-in-cite': 1,
+      polarity: 1,
+      topic: 1,
+      'cite-unparsed': 1,
+      stale: 1,
+    });
   });
 });

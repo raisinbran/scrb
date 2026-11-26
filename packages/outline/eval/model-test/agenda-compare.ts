@@ -190,7 +190,12 @@ async function main(): Promise<void> {
         wallSeconds: secA,
       }),
       line('taskA-prompt (strict kinds)', aStrict, { ...meta }),
-      line('agenda-aware (kind-agnostic credit)', gLoose, { ...meta, kinds, verdictCounts }),
+      line('agenda-aware (kind-agnostic credit)', gLoose, {
+        ...meta,
+        kinds,
+        verdictCounts,
+        causes: g.causes,
+      }),
       line('agenda-aware (strict kinds)', gStrict, {
         ...meta,
         facts: g.facts.length,
