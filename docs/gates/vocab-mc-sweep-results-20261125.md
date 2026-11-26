@@ -33,7 +33,7 @@ Same harness, audio and **frozen** term sets as Stage 2: whisper.cpp `284029c`, 
 | 128 | carry | 155 | 26.94% | +0.54 | 15,204 | 4 | 4 |
 | 128 | nocarry | 114 | 26.64% | +0.24 | 14,864 | 5 | 4 |
 
-Against the Stage 2 hint-off `-mc 128` baseline the carry-128 and nocarry-128 WER rises are +1.50 and +1.20 points. No setting has WER at or below the `-mc 0` hint-off baseline, so none passes the "WER no worse" rule, and none is "just before a drop-off": the carry arm worsens as `-mc` falls and the no-carry arm broadly does (29.77, 28.64, 29.36, 28.69 at 16, 32, 48, 64), so there is no sweet spot. The least bad on WER is `-mc 128`; the 1-point skip rule is worst at low `-mc` (10 to 12 of 13 meetings).
+Against the Stage 2 hint-off `-mc 128` baseline the carry-128 and nocarry-128 WER rises are +1.50 and +1.20 points. No setting has WER at or below the `-mc 0` hint-off baseline, so none passes the "WER no worse" rule, and none is "just before a drop-off": the carry arm worsens as `-mc` falls and the no-carry arm broadly does (29.77, 28.64, 29.36, 28.69 at 16, 32, 48, 64), so there is no sweet spot. The least bad on WER is `-mc 128`; the 1-point skip rule is worst at low `-mc` (8 to 12 of 13 meetings at `-mc` 16 to 64).
 
 ## What `--carry-initial-prompt` does, and whether it explains the skipping
 
@@ -53,7 +53,7 @@ Run for the two best carry settings (the only ones with a recall gain of 40 or m
 | carry 128 (Stage 2 decodes, scored against `-mc 0` off) | 4 | 1 | 5 (Stage 2 count against its own baseline: 3 + 1 = 4) | 0.17 (up to 0.35) on 29.74 h | FAIL |
 | carry 96 | 9 | 2 | 11 | 0.37 (up to 0.61) on 29.74 h | FAIL |
 
-carry 96 negative events: ES2014b under IS1009b's hint and ES2015c under IS1009c's hint (one learned-term occurrence each). Counting the 22.31 negative-control hours alone, the rates would be 0.22 (5 events) and 0.49 (11 events). Both settings meet the "4 or more" FAIL band of the approved plan table, and both have WER above the baseline.
+carry 96 negative events: ES2014b under IS1009b's hint and ES2015c under IS1009c's hint (one learned-term occurrence each). Negative-control events alone: 1 and 2 over 22.31 h, 0.045 and 0.09 per hour. Both settings meet the "4 or more" FAIL band of the approved plan table, and both have WER above the baseline.
 
 ## Recommendation
 
