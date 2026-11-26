@@ -19,6 +19,8 @@ import {
 import { normalizeVocabularyTerm, SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
+import { desiredContributions } from './voice-contributions.ts';
+import { readVoicesFile, writeVoicesFile, type VoicesFile } from './voices-file.ts';
 import {
   CorrectionConflictError,
   MeetingNotFoundError,
@@ -63,6 +65,8 @@ import {
 } from './vocabulary-suggestions.ts';
 import { searchTranscript, type TranscriptHit } from './search.ts';
 
+/** Taken before any meeting lock, everywhere: matching, profile deletion and reconcile. */
+const PROFILE_LOCK = 'voice-profile-assignments';
 const DAY_MS = 86_400_000;
 const SEARCH_CONCURRENCY = 4;
 const RM_OPTIONS = { recursive: true, force: true, maxRetries: 5, retryDelay: 100 } as const;
@@ -666,10 +670,11 @@ export class Library {
 
   /** Reads the latest file under the lock, so corrections made during the pass are kept too. */
   applyFinalPass(meetingId: string, incoming: ModelReplacement): Promise<TranscriptFile> {
-    return this.changeTranscript(
-      meetingId,
-      (current) => corrections.applyFinalPass(current, incoming),
-      { userEdit: true, reprocessed: true },
+    return this.transcriptEdit(meetingId, () =>
+      this.changeTranscript(meetingId, (current) => corrections.applyFinalPass(current, incoming), {
+        userEdit: true,
+        reprocessed: true,
+      }),
     );
   }
 
@@ -691,7 +696,7 @@ export class Library {
   async deleteVoiceProfile(
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[]> {
-    return this.withLock('voice-profile-assignments', () => this.unlinkVoiceProfile(profileId));
+    return this.withLock(PROFILE_LOCK, () => this.unlinkVoiceProfile(profileId));
   }
 
   /** Share the assignment lock through scan, unlink and removal so no new link escapes the scan. */
@@ -774,6 +779,8 @@ export class Library {
       changed.push({ before, after });
     }
     this.voiceProfiles.delete(profileId);
+    // Once, here: this code holds the profile lock, so it cannot go through `transcriptEdit`.
+    for (const { meetingId } of affected) await this.reconcileQuietly(meetingId);
     return changed;
   }
 
@@ -789,9 +796,9 @@ export class Library {
         meetingIds: [...profile.meetingIds].sort(),
       });
     return this.withLock(
-      'voice-profile-assignments',
-      () =>
-        this.changeTranscript(
+      PROFILE_LOCK,
+      async () => {
+        const saved = await this.changeTranscript(
           meetingId,
           async (current) => {
             if ((await this.getMeeting(meetingId)).status !== 'ready') {
@@ -835,7 +842,10 @@ export class Library {
               }
             },
           },
-        ),
+        );
+        await this.reconcileQuietly(meetingId);
+        return saved;
+      },
       signal,
     );
   }
@@ -854,17 +864,19 @@ export class Library {
     newLabel: string,
     expectedRevision: number,
   ): Promise<TranscriptFile> {
-    return this.changeTranscript(
-      meetingId,
-      async (current) => {
-        if ((await this.getMeeting(meetingId)).status !== 'ready') {
-          throw new CorrectionConflictError(
-            'Wait for the final transcript before splitting a speaker.',
-          );
-        }
-        return corrections.splitSpeaker(current, wordIds, newLabel);
-      },
-      { userEdit: true, expectedRevision },
+    return this.transcriptEdit(meetingId, () =>
+      this.changeTranscript(
+        meetingId,
+        async (current) => {
+          if ((await this.getMeeting(meetingId)).status !== 'ready') {
+            throw new CorrectionConflictError(
+              'Wait for the final transcript before splitting a speaker.',
+            );
+          }
+          return corrections.splitSpeaker(current, wordIds, newLabel);
+        },
+        { userEdit: true, expectedRevision },
+      ),
     );
   }
 
@@ -888,7 +900,106 @@ export class Library {
     meetingId: string,
     change: (current: TranscriptFile) => TranscriptFile,
   ): Promise<TranscriptFile> {
-    return this.changeTranscript(meetingId, change, { userEdit: true });
+    return this.transcriptEdit(meetingId, () =>
+      this.changeTranscript(meetingId, change, { userEdit: true }),
+    );
+  }
+
+  /**
+   * Every entry point that edits a transcript's speakers goes through here: profile lock first,
+   * then the edit (which takes the meeting lock), then reconcile, still under the profile lock.
+   * Reconcile never runs inside `changeTranscript`, which holds the meeting lock.
+   */
+  private transcriptEdit<T>(meetingId: string, run: () => Promise<T>): Promise<T> {
+    return this.withLock(PROFILE_LOCK, async () => {
+      const result = await run();
+      await this.reconcileQuietly(meetingId);
+      return result;
+    });
+  }
+
+  /** The edit is already saved; a failed repair is retried by the next commit, never surfaced. */
+  private async reconcileQuietly(meetingId: string): Promise<void> {
+    try {
+      await this.reconcileLocked(meetingId);
+    } catch (error) {
+      this.logger.log('warn', 'voice-reconcile-failed', { meetingId, ...errorFields(error) });
+    }
+  }
+
+  /** For callers outside the library that already changed a meeting's speakers. */
+  reconcileContributions(meetingId: string): Promise<void> {
+    return this.withLock(PROFILE_LOCK, () => this.reconcileLocked(meetingId));
+  }
+
+  /**
+   * Makes this meeting's contribution rows match its transcript and `voices.json`. The caller
+   * holds the profile lock and not the meeting lock. Adds or replaces rows for hand-named,
+   * untouched speakers; removes rows nobody qualifies for. Never unlinks and never touches a
+   * plain link.
+   */
+  private reconcileLocked(meetingId: string): Promise<void> {
+    return this.withLock(meetingId, async () => {
+      if (getMeetingRow(this.db, meetingId) === null) return;
+      const store = this.voiceProfiles;
+      const existing = store.meetingContributions(meetingId);
+      let voices: VoicesFile | null;
+      try {
+        voices = await readVoicesFile(this.meetingPaths(meetingId).voices);
+      } catch (error) {
+        // Unreadable is not the same as absent: change nothing.
+        this.logger.log('warn', 'voices-unreadable', { meetingId, ...errorFields(error) });
+        return;
+      }
+      if (voices === null && existing.length === 0) return;
+      const transcript = await this.readTranscript(meetingId);
+      const desired = desiredContributions(transcript, voices, (id) => store.get(id) !== null);
+      // A profile merge leaves transcripts pointing at the removed profile; do not delete then.
+      if (!desired.dangling) {
+        for (const row of existing) {
+          if (!desired.qualifying.has(row.profileId)) {
+            store.removeContribution(row.profileId, meetingId);
+          }
+        }
+      }
+      for (const [profileId, want] of desired.wanted) {
+        const profile = store.get(profileId);
+        if (profile === null || profile.modelId !== want.modelId) continue;
+        if (profile.embedding.length !== want.embedding.length) continue;
+        const current = store.contribution(profileId, meetingId);
+        const same =
+          current !== null &&
+          current.sampleCount === want.sampleCount &&
+          current.modelId === want.modelId &&
+          current.embedding.length === want.embedding.length &&
+          current.embedding.every((value, i) => value === want.embedding[i]);
+        if (!same) store.setContribution({ profileId, meetingId, ...want });
+      }
+    });
+  }
+
+  /** Null when the meeting has none. Throws `VOICES_CORRUPT` when the file is unusable. */
+  readVoices(meetingId: string): Promise<VoicesFile | null> {
+    return readVoicesFile(this.meetingPaths(meetingId).voices);
+  }
+
+  /** Replaces the meeting's voices (a re-run pass changes speaker ids). Mode 0600 like the rest. */
+  saveVoices(meetingId: string, voices: VoicesFile): Promise<void> {
+    return this.withLock(meetingId, () =>
+      writeVoicesFile(this.meetingPaths(meetingId).voices, voices),
+    );
+  }
+
+  /** After a meeting's rows left: recompute what other meetings still support. Profile lock. */
+  private async settleProfiles(profileIds: string[]): Promise<void> {
+    if (profileIds.length === 0) return;
+    try {
+      await this.withLock(PROFILE_LOCK, async () =>
+        this.voiceProfiles.recomputeProfiles(profileIds),
+      );
+    } catch (error) {
+      this.logger.log('warn', 'voice-recompute-failed', errorFields(error));
+    }
   }
 
   /** Keeps the Vocabulary list in step with "Remember correction", through undo and redo. */
@@ -1234,9 +1345,10 @@ export class Library {
     importCleanup = false,
     removeLearnedData = false,
   ): Promise<DeleteReport> {
-    const { report, soleProfiles } = await this.withLock(meetingId, () =>
+    const { report, soleProfiles, contributed } = await this.withLock(meetingId, () =>
       this.deleteMeetingLocked(meetingId, importCleanup, removeLearnedData),
     );
+    await this.settleProfiles(contributed);
     if (!report.learned) return report;
     // Lock order is always the global profile lock first, never taken while a meeting lock is
     // held here: profile matching holds the global lock and then waits for a meeting lock.
@@ -1259,9 +1371,10 @@ export class Library {
     meetingId: string,
     importCleanup: boolean,
     removeLearnedData: boolean,
-  ): Promise<{ report: DeleteReport; soleProfiles: string[] }> {
+  ): Promise<{ report: DeleteReport; soleProfiles: string[]; contributed: string[] }> {
     const row = this.requireRow(meetingId);
     await this.assertDeletionIdle(row, importCleanup);
+    const contributed = this.voiceProfiles.contributedProfileIds(meetingId);
     // Chosen before the index links go. Anything another meeting also supports is kept.
     const soleTerms = removeLearnedData ? this.vocabulary.termsOnlyFrom(meetingId) : [];
     const soleProfiles = removeLearnedData
@@ -1287,14 +1400,19 @@ export class Library {
         transcriptChanges: [],
       };
     }
-    return { report, soleProfiles: gone ? soleProfiles : [] };
+    const removed = getMeetingRow(this.db, meetingId) === null;
+    return {
+      report,
+      soleProfiles: gone ? soleProfiles : [],
+      contributed: removed ? contributed : [],
+    };
   }
 
   /** Removes a profile only if no meeting still links it, checked under the global lock. */
   private removeOrphanProfile(
     profileId: string,
   ): Promise<{ before: TranscriptFile; after: TranscriptFile }[] | null> {
-    return this.withLock('voice-profile-assignments', async () => {
+    return this.withLock(PROFILE_LOCK, async () => {
       const profile = this.voiceProfiles.get(profileId);
       if (!profile || profile.meetingIds.length > 0) return null;
       return this.unlinkVoiceProfile(profileId);
@@ -1418,10 +1536,28 @@ export class Library {
   }
 
   /** Removes a meeting's audio and anything derived from it. Transcript and summary stay. */
-  deleteAudio(meetingId: string): Promise<DeleteReport> {
-    return this.withLock(meetingId, async () => {
+  async deleteAudio(meetingId: string): Promise<DeleteReport> {
+    const { report, contributed } = await this.withLock(meetingId, () =>
+      this.deleteAudioLocked(meetingId),
+    );
+    await this.settleProfiles(contributed);
+    return report;
+  }
+
+  private async deleteAudioLocked(
+    meetingId: string,
+  ): Promise<{ report: DeleteReport; contributed: string[] }> {
+    {
       const row = this.requireRow(meetingId);
       await this.assertDeletionIdle(row);
+      // Voice data derives from the audio: it goes first, so a partly failed delete still sheds it.
+      let contributed: string[] = [];
+      try {
+        await fs.rm(this.meetingPaths(meetingId).voices, { force: true });
+        contributed = this.voiceProfiles.dropMeetingContributions(meetingId);
+      } catch (error) {
+        this.logger.log('error', 'voices-delete-failed', errorFields(error));
+      }
       const files = this.meetingPaths(meetingId);
       const cache = meetingCachePath(this.paths, meetingId);
       const remaining: string[] = [];
@@ -1438,8 +1574,8 @@ export class Library {
         await this.writeMeta(meetingId, { audioDeletedAt: this.nowIso() });
       }
       this.logger.log(ok ? 'info' : 'error', 'audio-deleted', { meetingId, ok });
-      return { meetingId, ok, remaining };
-    });
+      return { report: { meetingId, ok, remaining }, contributed };
+    }
   }
 
   /** What auto-delete would remove now. For the Settings screen to show before a change. */
@@ -1522,6 +1658,13 @@ export class Library {
     return () => clearInterval(timer);
   }
 
+  /** Open-time cleanup, before anything else runs, so no lock is needed. */
+  private deleteRowsAndSettle(meetingId: string): void {
+    const contributed = this.voiceProfiles.contributedProfileIds(meetingId);
+    deleteMeetingRows(this.db, meetingId);
+    this.voiceProfiles.recomputeProfiles(contributed);
+  }
+
   /** Brings the index back in line with the folders, which win any disagreement. */
   async reconcile(): Promise<ReconcileReport> {
     const report: ReconcileReport = {
@@ -1543,7 +1686,7 @@ export class Library {
       if (name.startsWith(DELETING_PREFIX)) {
         const meetingId = name.slice(DELETING_PREFIX.length);
         await fs.rm(path.join(this.paths.meetings, name), RM_OPTIONS);
-        deleteMeetingRows(this.db, meetingId);
+        this.deleteRowsAndSettle(meetingId);
         this.vocabulary.discardMeetingHistory(meetingId);
         await fs.rm(meetingCachePath(this.paths, meetingId), RM_OPTIONS);
         report.finishedDeletes.push(meetingId);
@@ -1575,7 +1718,7 @@ export class Library {
 
     for (const row of this.listMeetings()) {
       if (!seen.has(row.id)) {
-        deleteMeetingRows(this.db, row.id);
+        this.deleteRowsAndSettle(row.id);
         this.vocabulary.discardMeetingHistory(row.id);
         await fs.rm(meetingCachePath(this.paths, row.id), RM_OPTIONS);
         report.removed.push(row.id);

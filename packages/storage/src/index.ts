@@ -31,5 +31,6 @@ export { SettingsStore } from './db/settings.ts';
 export { VocabularyStore } from './db/vocabulary.ts';
 export type { TermInput, VocabularyContextRef, VocabularyTerm } from './db/vocabulary.ts';
 export { VoiceProfileStore } from './db/voice-profiles.ts';
-export type { VoiceProfile } from './db/voice-profiles.ts';
+export type { VoiceProfile, VoiceContribution } from './db/voice-profiles.ts';
+export type { VoicesFile, VoiceEntry } from './voices-file.ts';
 export { INDEX_VERSION } from './db/migrations.ts';
