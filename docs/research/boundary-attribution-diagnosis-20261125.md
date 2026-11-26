@@ -19,6 +19,7 @@ Diagnosis only; no production code changed. Numbers only, on AMI (public). The o
 | Not near a boundary (3,850 words) | 84 wrong, 2.2% |
 | Boundaries (174) with at least one wrong word within 1 s | 72, 41% |
 | Same, both neighbouring turns 5 or more words (66) | 13, 20% |
+| Experiment 1 vs 2 (3,270 matched clean words, not 4,263) | wrong 94 with reference times, 114 with whisper times; 24 flip |
 | Distance of a wrong word to the nearest boundary | median 890 ms, p75 1,935, p90 3,370; 12% within 250 ms, 54% within 1 s |
 
 Substantive boundaries (both turns 5 or more words): the previous speaker's span ends a median 553 ms after their last word (p10 17, p90 2,914), and the next speaker's span starts a median 513 ms before their first word (p10 -2,681, p90 0). So spans of two speakers overlap at most hand-offs.
@@ -35,8 +36,8 @@ Exclusive categories, in this order:
 | other, within 1 s of a boundary | 34 | 19% |
 | other, interior (diarization put the stretch with the wrong voice) | 43 | 24% |
 
-- (a) Span edges are imprecise, but shifting word times by 100 or 200 ms in either direction moves the wrong count by under 3% (178 to 192 vs 182), and assigning by word midpoint gives 186. Edge precision is not recoverable by changing how words are matched.
-- (b) Whisper words start a median 130 ms before the reference (p10 -750, p90 +150). Using whisper times instead of reference times on the same 3,270 matched words: wrong 94 to 114 (24 words flip, +0.6 point). Real but small.
+- (a) Span edges are imprecise, but shifting word times by 100 or 200 ms in either direction moves the wrong count by within about 5% (178 to 192 vs 182), and assigning by word midpoint gives 186. Edge precision is not recoverable by changing how words are matched.
+- (b) Whisper words start a median 130 ms before the reference (p10 -750, p90 +150). Experiments 1 and 2 compared on the 3,270 clean words matched by text (not the 4,263 above): wrong with reference times 94, with whisper times 114 (24 words flip, +0.6 point). Real but small.
 - (c) Trimming overlapping different-speaker spans at the midpoint of the overlap: 182 to 176 wrong (3%); boundaries with a wrong word unchanged (72 of 174).
 - (d) Short turns are mostly never given their own span by the diarizer, so they take the neighbour's label. `embeddingSpans` (1.5 s minimum) only limits which spans are embedded; it does not remove spans. No relabel rule absorbs spans.
 
@@ -45,7 +46,7 @@ About 60% of errors (short turns, uncovered words, interior) are diarization out
 ## Recommendation (not implemented)
 
 1. Smallest change: none worth shipping alone. Midpoint trimming of overlapping spans is a few lines in `assignSpeakers` or `decideSpeakers`, but removes about 3% of wrong words and none of the boundary hits.
-2. Larger effect needs the diarizer: short-turn recall (sherpa minimum on and off durations in `scrb-sherpa`, and whether the over-split threshold yields spans for 1 to 3 word turns). Expected ceiling: the 40 short-turn words plus a share of the 31 uncovered words, roughly 15 to 30% of wrong words, unmeasured.
+2. Larger effect needs the diarizer: short-turn recall (sherpa minimum on and off durations in `scrb-sherpa`, and whether the over-split threshold yields spans for 1 to 3 word turns). Upper bound: the 40 short-turn words (22% of wrong words) plus all 31 uncovered words (17%), so at most about 39%; unmeasured, and the real gain is lower because the diarizer will not recover every one.
 3. Untested idea to evaluate before building: move each speaker change to the nearest inter-word pause of at least 250 ms within 1 s, so a turn never starts or ends mid-phrase. It targets the 34 boundary words left after the other categories.
 
 Test plan: replay the saved spans and words from this run (no re-decode) through each candidate and score with the same script; accept only if clean-word wrong rate falls by at least 0.5 point with no meeting worse; then confirm on 2 further AMI meetings and one real meeting on Regiurn.
