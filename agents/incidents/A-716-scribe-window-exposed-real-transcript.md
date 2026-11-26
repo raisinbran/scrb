@@ -1,0 +1,5 @@
+### A-716 — 2026-11-17 — Codex / Mac — Scribe window inspection exposed real transcript text
+- **Status / attribution:** Confirmed agent error at the time of action; no product defect.
+- **What failed:** Before the owner's later clarification allowing brief window exposure, I opened the running Scribe window to inspect its state. The accessibility snapshot included transcript text from a saved real meeting, contrary to the task's original no-private-meeting-inspection boundary.
+- **Impact:** Real transcript text appeared in the tool output. I stopped immediately; I did not play audio, copy or repeat any text, edit or delete the meeting, or send meeting content to GitHub. No transcript content is included in this incident record.
+- **Correction / remaining risk:** Disclosed the exposure to the owner. After the owner clarified that momentary exposure is permitted, I limited further UI checks to System Settings and did not inspect the meeting again. Low residual risk; the exposed content was not retained or used.
