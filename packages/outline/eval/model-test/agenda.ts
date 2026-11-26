@@ -42,6 +42,8 @@ export interface GenFact {
   earlier?: { from: number; to: number } | null;
   /** Why the citation is missing, when it is. */
   citeIssue?: 'unparsed' | 'outside-chunk';
+  /** True when the citation was found by search because the model's own did not verify. */
+  resolved?: boolean;
   owner?: string;
 }
 
@@ -191,6 +193,52 @@ export function verify(
   return verifyWhy(f, items, lines).verdict;
 }
 
+/** Causes where the claim may be right but the model pointed at the wrong lines. */
+const RESOLVABLE = new Set<Cause>([
+  'cite-unparsed',
+  'cite-outside-chunk',
+  'number-not-in-cite',
+  'low-overlap',
+  'owner-not-in-cite',
+]);
+
+/**
+ * Finds the 1 to 3 consecutive lines of the chunk that best support a fact: every number and date in the
+ * fact must appear there, and stem overlap must reach 0.3. Ties go to the window nearest the model's own
+ * citation. Returns null when nothing qualifies, so an invented claim stays unsupported.
+ */
+export function reanchor(
+  f: GenFact,
+  lines: readonly { text: string }[],
+  chunk: { from: number; to: number },
+): { from: number; to: number } | null {
+  const fs = contentStems(f.text);
+  const need = numbersOf(f.text);
+  let best: { from: number; to: number } | null = null;
+  let bestScore = 0;
+  let bestDist = Infinity;
+  for (let a = chunk.from; a <= chunk.to; a += 1) {
+    for (let len = 1; len <= 3 && a + len - 1 <= chunk.to; len += 1) {
+      const text = lines
+        .slice(a, a + len)
+        .map((l) => l.text)
+        .join(' ');
+      const have = new Set(numbersOf(text));
+      if (need.some((n) => !have.has(n))) continue;
+      if (f.owner && !text.toLowerCase().includes(f.owner.toLowerCase())) continue;
+      const sc = f1(contentStems(text), fs) - 0.02 * (len - 1);
+      if (sc < 0.3) continue;
+      const dist = f.cite ? Math.abs(a + 1 - f.cite.from) : 0;
+      if (sc > bestScore + 1e-9 || (Math.abs(sc - bestScore) <= 1e-9 && dist < bestDist)) {
+        best = { from: a + 1, to: a + len };
+        bestScore = sc;
+        bestDist = dist;
+      }
+    }
+  }
+  return best;
+}
+
 /** Deterministic Markdown: agenda order and levels kept, facts under their topic, new topics last. */
 export function renderMarkdown(
   items: readonly OutlineItem[],
@@ -229,18 +277,27 @@ export interface GenResult {
   chunks: number;
   /** Count of facts per cause of failure (ok included). */
   causes: Record<string, number>;
+  /** Cause per fact, same order as facts. */
+  why: Cause[];
+  /** Facts whose citation came from search, not from the model. */
+  resolvedCites: number;
   /** Cross-chunk folding: paraphrased repeats dropped and later reversals applied. */
   reconciled: ReconcileStats;
 }
 
 /** Runs one meeting: chunks, backend call, parse, reconcile across chunks, verify. */
-export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise<GenResult> {
+export async function generateFacts(
+  m: AgendaMeeting,
+  backend: Backend,
+  opts: { noResolve?: boolean } = {},
+): Promise<GenResult> {
   const parsed = parseOutline(m.agenda);
   const items = parsed.items;
   const p = prepare(m);
   let facts: GenFact[] = [];
   const reconciled: ReconcileStats = { duplicates: 0, reversals: 0 };
   let failedChunks = 0;
+  let resolvedCites = 0;
   for (const c of p.chunks) {
     const transcript = m.lines
       .slice(c.from, c.to + 1)
@@ -257,6 +314,18 @@ export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise
           f.cite = null;
           f.citeIssue = 'outside-chunk';
         }
+      if (!opts.noResolve)
+        for (const f of incoming) {
+          const w = verifyWhy(f, items, m.lines);
+          if (!RESOLVABLE.has(w.cause)) continue;
+          const found = reanchor(f, m.lines, c);
+          if (found) {
+            f.cite = found;
+            delete f.citeIssue;
+            f.resolved = true;
+            resolvedCites += 1;
+          }
+        }
       facts = reconcile(facts, incoming, reconciled);
     } catch {
       failedChunks += 1;
@@ -269,6 +338,8 @@ export async function generateFacts(m: AgendaMeeting, backend: Backend): Promise
     facts,
     verdicts: why.map((w) => w.verdict),
     causes,
+    why: why.map((w) => w.cause),
+    resolvedCites,
     failedChunks,
     chunks: p.chunks.length,
     reconciled,

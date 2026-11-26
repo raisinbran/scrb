@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   generateFacts,
   polarityAgrees,
+  reanchor,
   ratio,
   renderMarkdown,
   scoreAgenda,
@@ -38,7 +39,7 @@ const baseline = (m: AgendaMeeting): Backend => ({
 
 const embed = trigramEmbedder();
 async function run(b: Backend) {
-  const g = await generateFacts(PILOT, b);
+  const g = await generateFacts(PILOT, b, { noResolve: true });
   return { g, s: await scoreAgenda(PILOT, g.facts, g.verdicts, embed) };
 }
 const gf = (
@@ -257,7 +258,7 @@ describe('agenda pilot (mock replay)', () => {
     expect(verify(gf('o1', 'The remote sells for 35 Euro', 1), items, lines)).toBe('unsupported');
   });
   it('failures are broken down by cause', async () => {
-    const g = await generateFacts(PILOT, scripted(FLAWED));
+    const g = await generateFacts(PILOT, scripted(FLAWED), { noResolve: true });
     expect(g.causes).toMatchObject({
       'number-not-in-cite': 1,
       polarity: 1,
@@ -265,5 +266,23 @@ describe('agenda pilot (mock replay)', () => {
       'cite-unparsed': 1,
       stale: 1,
     });
+  });
+  it('re-anchors a wrong citation to the lines that hold the claim, and only then', async () => {
+    const chunk = { from: 0, to: PILOT.lines.length - 1 };
+    const found = reanchor(gf('o5', 'Marketing budget cut to $4,000', 2), PILOT.lines, chunk);
+    expect(found).not.toBeNull();
+    expect(found!.from).toBeLessThanOrEqual(14);
+    expect(found!.to).toBeGreaterThanOrEqual(14);
+    expect(reanchor(gf('o5', 'Marketing budget cut to $7,000', 2), PILOT.lines, chunk)).toBeNull();
+    const wrong = [
+      { topic: 'o5', kind: 'decision', text: 'Marketing budget cut to $4,000', cite: 'L2' },
+      { topic: 'o4', kind: 'decision', text: 'Hiring budget cut to $7,000', cite: 'L2' },
+    ];
+    const g = await generateFacts(PILOT, scripted(wrong));
+    expect(g.resolvedCites).toBe(1);
+    expect(g.facts.find((f) => f.resolved)?.text).toContain('$4,000');
+    expect(g.why).toContain('number-not-in-cite');
+    const off = await generateFacts(PILOT, scripted(wrong), { noResolve: true });
+    expect(off.resolvedCites).toBe(0);
   });
 });

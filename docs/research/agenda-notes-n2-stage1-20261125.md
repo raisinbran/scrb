@@ -129,3 +129,21 @@ Citations: all 48 agenda-prompt citations parsed (24 `LN-LN`, 24 `LN`); no comma
 AMI: decision recall agenda-aware 0/3 (ES2002a) and 0/6 (TS3003a); Task A 0/3 and 1/6. Agenda-aware hallucination 5/10 and 6/11 strict (8/11 kind-agnostic); Task A 5/8 and 6/13.
 
 Cost per meeting: agenda-aware 35 to 62 s (7B: 4 to 11 s), Task A 26 to 43 s (7B: 2 to 4 s). Peak server working set 10.5 GiB, GPU 9.2 GB total (baseline about 2.4 GB). The 14B clears the citation validity bar (100%) on invented data but still fails hallucination (27% against the 5% bar), and decision recall is 22% against 80%; AMI decisions remain unrecovered by either model.
+
+## Fix round 2 (owner authorized, 2026-11-25): diagnosis, citation re-anchoring, one prompt change, 14B confirmation
+
+Diagnosis (6 invented meetings, 7B; failing facts dumped with their cited lines): of 18 failures, 7 unparsed citations, 6 numbers not in the cited lines, 4 low overlap, 1 polarity. The inspected cases were the model citing lines that do not hold its claim (line-number drift inside a 3,000-word chunk) and compound facts bundling several numbers.
+
+Changes: (1) `reanchor`: when a fact's own citation fails for a citation-shaped cause, search the chunk for the 1 to 3 lines that contain every number, date and owner in the fact with stem overlap of at least 0.3, and use them; otherwise leave the fact unsupported. Results report model-cited and re-anchored citations separately. (2) Prompt v3 (hash `6ed489b881790279`): no `owner` field (the name goes in the text), one claim per fact, clearer decision and date definitions. 71 outline model-test tests pass; ESLint and the register check are clean.
+
+Fresh invented seeds each run plus AMI ES2002a and TS3003a; MiniLM, tau 0.79; synthetic figures pooled over 6 meetings, strict kinds.
+
+| Run                                       | Decision recall | Date recall | Hallucination | Valid citations (model-cited only) |
+| ----------------------------------------- | --------------: | ----------: | ------------: | ---------------------------------: |
+| 7B, prompt v2.1 + re-anchor (seeds 13-18) |            2/18 |        3/12 |         17/63 |                      62/63 (58/63) |
+| 7B, prompt v3 + re-anchor (seeds 19-24)   |            1/18 |        4/12 |          5/37 |                      36/37 (33/37) |
+| 14B, prompt v3 + re-anchor (seeds 19-24)  |            7/18 |        5/12 |          5/52 |                      52/52 (49/52) |
+
+Kind-agnostic decision recall: 4/18 (7B v2.1), 4/18 (7B v3), 7/18 (14B v3). Task A prompt on the same meetings, kind-agnostic: decision 6/18 (7B), 9/18 (14B). AMI (2 meetings, 9 decisions), agenda-aware: 0/9 on both models and both prompts; Task A 0/9 (7B), 1/9 (14B). AMI hallucination agenda-aware: 5/11 (7B v3), 9/28 strict (14B). The 14B run took 9.8 minutes for 8 meetings (peak server working set 13.7 GiB, GPU 9.4 GB total); the 7B runs about 1 minute each.
+
+Stop rule from the plan for this round: continue to a private campaign only at 60% decision recall and under 15% hallucination. Hallucination now passes on invented data (13% on the 7B, 10% on the 14B; the product bar is 5%), but decision recall does not (39% best, on the 14B; 6% on the 7B), and AMI decisions are not recovered by any configuration. **The stop rule is not met.** The limit is extraction recall: the models return too few decisions, and on real conversational speech none of the annotated decisions. Candidate designs for a different approach: a two-pass extract-then-classify (first list candidate statements per chunk by line, then assign topic and kind), or sentence-level candidate pre-selection with the model only classifying and rewriting.

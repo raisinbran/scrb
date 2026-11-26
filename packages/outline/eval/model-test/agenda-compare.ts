@@ -163,6 +163,7 @@ async function main(): Promise<void> {
     peak.gpuMiB = Math.max(peak.gpuMiB, s.gpuMiB ?? 0);
   }, 5000);
   const rows: object[] = [];
+  const dump: object[] = [];
   const t0 = Date.now();
   const todo: { label: string; m: AgendaMeeting }[] = [
     ...(arg('seeds') === 'none' ? [] : seeds).map((seed) => ({
@@ -187,6 +188,25 @@ async function main(): Promise<void> {
     const aLoose = await scoreAgenda(m, a.facts, aVerdicts, embed, { ...opt, kindStrict: false });
     const gStrict = await scoreAgenda(m, g.facts, g.verdicts, embed, opt);
     const gLoose = await scoreAgenda(m, g.facts, g.verdicts, embed, { ...opt, kindStrict: false });
+    g.facts.forEach((f, i) => {
+      if (g.why[i] === 'ok') return;
+      dump.push({
+        seed,
+        cause: g.why[i],
+        kind: f.kind,
+        topic: f.topic,
+        text: f.text,
+        cite: f.cite,
+        span: f.cite
+          ? m.lines
+              .slice(f.cite.from - 1, f.cite.to)
+              .map((l) => l.text)
+              .join(' | ')
+          : null,
+      });
+    });
+    const modelOnly = g.verdicts.map((v, i) => (g.facts[i]!.resolved ? ('badCite' as const) : v));
+    const gModel = await scoreAgenda(m, g.facts, modelOnly, embed, opt);
     const kinds: Record<string, number> = {};
     for (const f of g.facts) kinds[f.kind] = (kinds[f.kind] ?? 0) + 1;
     const verdictCounts: Record<string, number> = {};
@@ -201,6 +221,7 @@ async function main(): Promise<void> {
         wallSeconds: secA,
       }),
       line('taskA-prompt (strict kinds)', aStrict, { ...meta }),
+      line('agenda-aware (model citations only)', gModel, { ...meta }),
       line('agenda-aware (kind-agnostic credit)', gLoose, {
         ...meta,
         kinds,
@@ -267,6 +288,7 @@ async function main(): Promise<void> {
     peakGpuUsedMiB: peak.gpuMiB || null,
     citeStats,
     rejected,
+    dump,
     rows,
   };
   console.log(JSON.stringify(result, null, 2));
