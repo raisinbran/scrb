@@ -33,6 +33,7 @@ import { useTranscript } from './use-transcript.ts';
 import { ICONS, IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { Tooltip } from '../../components/Tooltip.tsx';
+import { nextRate, rateLabel } from '../../lib/playback-level.ts';
 import styles from './recordings.module.css';
 
 const TAB_KEY = 'scrb.recordings.tab';
@@ -107,7 +108,7 @@ function usePlayerKeys(meeting: MeetingDetail, playback: Playback, enabled: bool
 }
 
 function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Playback }) {
-  const { positionMs, isPlaying, play, pause, volume, muted } = playback;
+  const { positionMs, isPlaying, play, pause, volume, muted, rate } = playback;
   const { durationMs } = meeting;
   const move = (target: number) => movePlayback(playback, durationMs, target);
   return (
@@ -151,6 +152,17 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
       <span className={`${styles.time} ${styles.playerTime}`}>
         {formatElapsed(positionMs)} / {formatElapsed(durationMs)}
       </span>
+      <Tooltip label={`Playback speed ${rateLabel(rate)}. Click for ${rateLabel(nextRate(rate))}.`}>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.rateButton}`}
+          aria-label={`Playback speed ${rateLabel(rate)}`}
+          disabled={!meeting.hasAudio}
+          onClick={playback.cycleRate}
+        >
+          {rateLabel(rate)}
+        </button>
+      </Tooltip>
       <IconButton
         label={muted ? 'Unmute' : 'Mute'}
         icon={muted ? 'speakerOff' : 'speaker'}

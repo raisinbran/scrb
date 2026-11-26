@@ -80,6 +80,14 @@ export const MIGRATIONS: readonly string[] = [
    ) STRICT;
    CREATE INDEX vocabulary_misheard_sources_correction
      ON vocabulary_misheard_sources(correction_id);`,
+
+  // 6 -> 7: what each meeting contributed to a voice profile (number lists only, never audio).
+  // A link row with null embedding is a plain link; `kept` marks a profile the user renamed on
+  // the Speakers screen, which survives losing its last contribution.
+  `ALTER TABLE voice_profile_meetings ADD COLUMN embedding BLOB;
+   ALTER TABLE voice_profile_meetings ADD COLUMN sample_count INTEGER;
+   ALTER TABLE voice_profile_meetings ADD COLUMN model_id TEXT;
+   ALTER TABLE voice_profiles ADD COLUMN kept INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 export const INDEX_VERSION = MIGRATIONS.length;

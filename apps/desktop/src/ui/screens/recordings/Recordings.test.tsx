@@ -547,6 +547,50 @@ describe('Recordings', () => {
       expect(time()).toMatch(/00:15/);
     });
 
+    it('steps the playback speed from a fixed-width button that wraps after 2x', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const speed = () => screen.getByRole('button', { name: /^Playback speed/ });
+      expect(speed().textContent).toBe('1x');
+      fireEvent.click(speed());
+      await waitFor(() => expect(speed().textContent).toBe('1.25x'));
+      expect(speed().getAttribute('aria-label')).toBe('Playback speed 1.25x');
+      for (let i = 0; i < 7; i += 1) {
+        const before = speed().textContent;
+        fireEvent.click(speed());
+        await waitFor(() => expect(speed().textContent).not.toBe(before));
+      }
+      expect(speed().textContent).toBe('1x');
+    });
+
+    it('keeps the speed and shows an error when the backend refuses it', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const call = backend.call.bind(backend) as (
+        name: string,
+        request: unknown,
+      ) => Promise<unknown>;
+      vi.spyOn(backend, 'call').mockImplementation(((name: string, request: unknown) =>
+        name === 'setPlaybackRate'
+          ? Promise.reject(new Error('Speed could not be changed.'))
+          : call(name, request)) as typeof backend.call);
+      fireEvent.click(screen.getByRole('button', { name: /^Playback speed/ }));
+      expect((await screen.findByRole('alert')).textContent).toBe('Speed could not be changed.');
+      expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1x');
+    });
+
+    it('starts another meeting at 1x', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      fireEvent.click(screen.getByRole('button', { name: /^Playback speed/ }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1.25x'),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
+      await openMeeting(/Budget review/);
+      expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1x');
+    });
+
     it('sets the app volume with a labelled slider and mute button, and remembers it', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);

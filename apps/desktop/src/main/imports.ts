@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import { errorFields, type Library } from '@scrb/storage';
 import {
   toModelReplacement,
+  saveFinalVoices,
   startProfileMatching,
   jobVocabularyHint,
   type LargeModelGate,
@@ -41,6 +42,8 @@ export interface ImportDependencies {
   removeStaging?: ((folder: string) => Promise<void>) | undefined;
   modelGate?: LargeModelGate;
   startMatching?: typeof startProfileMatching;
+  /** Test seam: the embedding model's fingerprint. */
+  fingerprint?: (path: string) => Promise<string>;
 }
 
 const IMPORT_STAGE_NAME =
@@ -222,6 +225,13 @@ export class ImportCoordinator {
       const from = join(staging, 'audio', 'meeting');
       await cp(from, target, { recursive: true });
       if (abort.signal.aborted) throw new Error('cancelled');
+      await saveFinalVoices(
+        library,
+        meetingId,
+        result.transcript,
+        modelPath,
+        this.deps.fingerprint,
+      );
       await library.applyFinalPass(meetingId, toModelReplacement(result.transcript));
       if (abort.signal.aborted) throw new Error('cancelled');
       await library.updateMeeting(meetingId, { status: 'ready' });

@@ -821,6 +821,12 @@
   accent-color: var(--color-accent);
 }
 
+.rateButton {
+  flex: none;
+  min-width: 6ch;
+  text-align: center;
+}
+
 .playerTime {
   flex: none;
   min-width: 11ch;

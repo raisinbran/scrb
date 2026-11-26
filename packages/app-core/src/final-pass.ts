@@ -31,6 +31,7 @@ import {
   type ProfileMatchingJob,
   type ProfileAssignmentEdit,
 } from './profile-matching.ts';
+import { saveFinalVoices } from './voices.ts';
 import { jobVocabularyHint } from './vocabulary-hints.ts';
 import type { LargeModelGate } from './large-model-gate.ts';
 
@@ -282,6 +283,7 @@ export class FinalPassQueue {
     private readonly onProgress?: (report: FinalPassReport) => void,
     /** Called once the meeting is ready; must not block and its failure never fails the pass. */
     private readonly onReady?: (meetingId: string) => void,
+    private readonly fingerprint?: (path: string) => Promise<string>,
   ) {}
 
   enqueue(meetingId: string): void {
@@ -376,6 +378,7 @@ export class FinalPassQueue {
           ? await this.modelGate.run(job, this.abort.signal)
           : await job();
         this.abort.signal.throwIfAborted();
+        await saveFinalVoices(this.library, meetingId, transcript, modelPath, this.fingerprint);
         await this.library.applyFinalPass(meetingId, toModelReplacement(transcript));
       }
       this.abort.signal.throwIfAborted();

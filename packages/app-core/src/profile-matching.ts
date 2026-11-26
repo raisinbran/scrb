@@ -19,7 +19,7 @@ export type ProfileMatchingJob = (
   signal: AbortSignal,
 ) => Promise<ProfileAssignmentEdit | undefined>;
 
-async function hashModel(path: string): Promise<string> {
+export async function hashModel(path: string): Promise<string> {
   const hash = createHash('sha256');
   for await (const bytes of createReadStream(path)) hash.update(bytes);
   return hash.digest('hex');

@@ -10,7 +10,9 @@ export type AudioOutput = Pick<
   | 'currentTime'
   | 'load'
   | 'muted'
+  | 'defaultPlaybackRate'
   | 'pause'
+  | 'playbackRate'
   | 'paused'
   | 'play'
   | 'preload'
@@ -52,6 +54,7 @@ export class PlaybackEngine {
   private latest: PlaybackPosition | null = null;
   private volume = 1;
   private muted = false;
+  private rate = 1;
   /** Bumped by every restart, so a slower earlier grant is dropped. */
   private turn = 0;
   private readonly off: () => void;
@@ -92,6 +95,14 @@ export class PlaybackEngine {
     for (const { audio } of this.slots) this.applyVolume(audio);
   }
 
+  /** Speeds up or slows every element and the local clock together, without moving the position. */
+  setRate(rate: number): void {
+    const position = this.clock();
+    this.rate = rate;
+    if (position !== null) this.anchor = { positionMs: position, at: this.now() };
+    for (const { audio } of this.slots) audio.playbackRate = rate;
+  }
+
   private applyVolume(audio: AudioOutput): void {
     audio.volume = this.volume;
     audio.muted = this.muted;
@@ -111,7 +122,7 @@ export class PlaybackEngine {
   }
 
   private clock(): number | null {
-    return this.anchor && this.anchor.positionMs + (this.now() - this.anchor.at);
+    return this.anchor && this.anchor.positionMs + (this.now() - this.anchor.at) * this.rate;
   }
 
   private restart(positionMs: number): void {
@@ -212,6 +223,9 @@ export class PlaybackEngine {
     });
     audio.addEventListener('error', () => this.fail(slot));
     audio.src = chunk.url;
+    // Assigning `src` runs the load algorithm, which resets the speed to the default.
+    audio.defaultPlaybackRate = this.rate;
+    audio.playbackRate = this.rate;
     this.slots.push(slot);
   }
 
