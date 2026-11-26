@@ -21,8 +21,12 @@ For each row, check the completion result and displayed filename, confirm the fi
 
 1. Install and launch the candidate build with a disposable profile and library. Use only a seeded, invented meeting with a short transcript and summary.
 2. For each matrix row, open that meeting's Export dialog, select the content and format, and export. Check the saved file, open it, and compare it with the matching format/content row above.
-3. Repeat for a saved imported meeting if V05 import acceptance is in scope. Never use a real recording.
+3. Repeat all six combinations for a saved imported meeting as required V11 parity coverage. Use the invented speech-based fixture from `v-j-import-formats.md`; never use a real recording. Use a long-content imported meeting to check pagination and read back the full transcript and selected metadata (title, date, duration, speaker names, timestamps and correction state). Confirm imported-meeting Transcript, Summary and Both content matches the corresponding exports and that summary tables/options are present in both formats. Record any unavailable fixture or behavior as NOT VERIFIED; the six short-meeting exports do not cover this imported long-content check.
 4. Keep generated files and diagnostic evidence under the temporary test root until the owner passes the relevant gate and authorizes cleanup. Do not run any test whose full planned setup, export and read-back is expected to exceed 20 minutes without prior owner approval.
+
+## Acceptance record
+
+For each platform and each matrix case, record `PASS`, `FAIL` or `NOT VERIFIED` with the evidence location. Identify the exact Scribe version, source commit, package filename, architecture, package SHA-256 and host OS version. Record the invented fixture identifier and hash, the isolated temporary profile/library used, and any relevant output/read-back checks. Keep installed results separate from unit-test and CI results. If no packaged candidate or platform evidence is available, mark installed acceptance `NOT VERIFIED`.
 
 ## Automated coverage without an installed build
 

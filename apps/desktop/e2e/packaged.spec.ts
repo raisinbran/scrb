@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from '@playwright/test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Library } from '@scrb/storage';
 
 const executable = process.env['SCRB_PACKAGED_APP'];
@@ -14,15 +14,25 @@ test.skip(!executable, 'set SCRB_PACKAGED_APP to run');
 const refusal = process.platform === 'darwin' ? '--install-models' : 'Scribe cannot record yet';
 
 test('fresh packaged profile asks for location once and remembers it after relaunch', async () => {
+  const packagedAppRoot =
+    process.platform === 'darwin'
+      ? join(dirname(dirname(executable!)), 'Resources', 'app')
+      : join(dirname(executable!), 'resources', 'app');
+  const packagedMain = readFileSync(join(packagedAppRoot, 'dist-electron', 'main.cjs'), 'utf8');
+  // Refuse stale candidates that lack the fail-closed profile guard before launching them.
+  expect(packagedMain).toContain('scrb-isolated-test-profile');
+
   const home = mkdtempSync(join(tmpdir(), 'scrb-packaged-location-'));
-  const userData = join(home, 'userData');
+  const userData = join(home, 'profile');
   const library = join(home, 'library');
   mkdirSync(userData, { recursive: true });
+  mkdirSync(library, { recursive: true });
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
+  const canonicalLibrary = realpathSync(library);
   const launch = () =>
     electron.launch({
       executablePath: executable!,
-      args: [`--user-data-dir=${userData}`],
+      args: ['--scrb-isolated-test-profile', `--user-data-dir=${userData}`],
       env: { ...process.env, HOME: home, LOCALAPPDATA: join(home, 'AppData', 'Local') } as Record<
         string,
         string
@@ -30,32 +40,45 @@ test('fresh packaged profile asks for location once and remembers it after relau
     });
 
   const first = await launch();
-  const firstPage = await first.firstWindow();
-  await expect(firstPage.getByRole('dialog', { name: 'Where are you based?' })).toBeVisible();
-  expect(
-    await firstPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
-  ).toMatchObject({ ok: true, value: { locationSet: false } });
-  // Save through the backend API; this test never operates the blocking location dialog.
-  expect(
-    await firstPage.evaluate(() =>
-      window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
-    ),
-  ).toMatchObject({ ok: true });
-  await first.close();
+  try {
+    const firstPage = await first.firstWindow();
+    await expect(firstPage.getByRole('dialog', { name: 'Where are you based?' })).toBeVisible();
+    expect(
+      await firstPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
+    ).toMatchObject({ ok: true, value: { locationSet: false } });
+    // Prove the active backend is using only the disposable library before changing settings.
+    expect(
+      await firstPage.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)),
+    ).toMatchObject({ ok: true, value: { storageLocation: canonicalLibrary } });
+    // Save through the backend API; this test never operates the blocking location dialog.
+    expect(
+      await firstPage.evaluate(() =>
+        window.scribeBridge?.invoke('updateSettings', {
+          location: { country: 'US', usState: 'NY' },
+        }),
+      ),
+    ).toMatchObject({ ok: true });
+  } finally {
+    await first.close();
+  }
 
   const second = await launch();
-  const secondPage = await second.firstWindow();
-  await expect(secondPage.getByRole('dialog', { name: 'Where are you based?' })).toHaveCount(0);
-  expect(
-    await secondPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
-  ).toMatchObject({ ok: true, value: { locationSet: true } });
-  expect(
-    await secondPage.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)),
-  ).toMatchObject({
-    ok: true,
-    value: { location: { country: 'US', usState: 'NY' }, storageLocation: library },
-  });
-  await second.close();
+  try {
+    const secondPage = await second.firstWindow();
+    await expect(secondPage.getByRole('button', { name: 'Recordings', exact: true })).toBeVisible();
+    expect(
+      await secondPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
+    ).toMatchObject({ ok: true, value: { locationSet: true } });
+    expect(
+      await secondPage.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)),
+    ).toMatchObject({
+      ok: true,
+      value: { location: { country: 'US', usState: 'NY' }, storageLocation: canonicalLibrary },
+    });
+    await expect(secondPage.getByRole('dialog', { name: 'Where are you based?' })).toHaveCount(0);
+  } finally {
+    await second.close();
+  }
 });
 
 test('packaged app keeps the saved library, is named Scribe, and refuses to record without models', async () => {

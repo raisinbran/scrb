@@ -31,6 +31,10 @@ An import does not build voice profiles by default. If the user opts in for an i
 
 Keep test recordings and diagnostics until gate disposition and owner-authorized cleanup. Any planned test including setup, recording, processing and cleanup expected to exceed 20 minutes requires owner approval before it starts.
 
+## Acceptance record
+
+For each platform and each matrix case, record `PASS`, `FAIL` or `NOT VERIFIED` with the evidence location. Identify the exact Scribe version, source commit, package filename, architecture, package SHA-256 and host OS version. Record the invented fixture identifier and hash, the isolated temporary profile/library used, and any relevant output/read-back checks. Keep installed results separate from unit-test and CI results. If no packaged candidate or platform evidence is available, mark installed acceptance `NOT VERIFIED`.
+
 ## Automated coverage without an installed build
 
 - `packages/app-core/src/privacy.test.ts` checks listed/unlisted US states, listed countries, OS-country fallback and unknown location.

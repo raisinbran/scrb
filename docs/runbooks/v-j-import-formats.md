@@ -23,11 +23,16 @@ M4A may carry AAC or ALAC; the importer supports both. The generated one-second 
 ## Installed-build procedure
 
 1. Install a build with its import tools and models ready. Use a disposable profile and library under the OS temporary directory and seed the library pointer before launching an unpackaged real-backend app. For an unpackaged run, follow `AGENTS.md`: set `SCRB_DEV_AUTO_LOCATION=1`, pass explicit `--user-data-dir`, and point `library-location.json` to a separate temporary library. Packaged builds ignore that development flag.
-2. Generate one short tone file for each supported format. In the Recordings screen, import each file and check that one imported meeting appears, progress completes, duration is plausible, and the original file remains unchanged. Do not evaluate transcript accuracy from a tone.
-3. Import a damaged `.mp3`, an unsupported text file and an unsupported video/container. Confirm each reports a clear failure and creates no meeting or leftover import staging directory.
-4. If import transcription and cleanup for the planned cases could take more than 20 minutes in total, obtain owner approval before starting. Do not repeat failed or inconclusive long imports automatically.
+2. Generate one short tone file for each supported format. In the Recordings screen, import each file and check that one imported meeting appears, progress completes, duration is plausible, and the original file remains unchanged. These tones check decoding and import plumbing only; they do not establish speech recognition, final diarization, corrections, playback, summaries or exports.
+3. For full V05 acceptance, import a separate invented speech fixture with known words and at least two speaker turns. Check final multi-speaker diarization against that fixture's known speakers; make a correction and verify it survives final processing; seek to and play transcript positions; verify profile building is off by default and has no profile effect, then verify the explicit opt-in behavior; generate and read back a summary; and export/read back Transcript, Summary and Both in DOCX and PDF. Report each result separately from the tone-format matrix. If no suitable invented speech fixture or required model is available, record these checks as NOT VERIFIED; do not substitute tone results. These are the V05 behaviors listed under Audio file import in the V1 Requirements.
+4. Import a damaged `.mp3`, an unsupported text file and an unsupported video/container. Confirm each reports a clear failure and creates no meeting or leftover import staging directory. Also cancel an in-progress speech import and confirm it leaves no meeting or staging directory.
+5. If setup, all imports, final processing, read-back and cleanup for the planned cases could take more than 20 minutes total, obtain owner approval before starting. Do not repeat failed or inconclusive long imports automatically.
 
 Keep generated audio, imported meetings and diagnostics until the relevant gate is passed and the owner authorizes cleanup. Do not use private recordings.
+
+## Acceptance record
+
+For each platform and each matrix case, record `PASS`, `FAIL` or `NOT VERIFIED` with the evidence location. Identify the exact Scribe version, source commit, package filename, architecture, package SHA-256 and host OS version. Record the invented fixture identifier and hash, the isolated temporary profile/library used, and any relevant output/read-back checks. Keep installed results separate from unit-test and CI results. If no packaged candidate or platform evidence is available, mark installed acceptance `NOT VERIFIED`.
 
 ## Automated coverage without an installed build
 
