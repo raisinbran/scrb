@@ -4,7 +4,16 @@ import { DECODING, type Backend } from './backend.js';
 import { RunError } from './errors.js';
 import { SCORER, type Cite, type Embed, type Word } from './match.js';
 import { buildPartial, TASK_B_SEED } from './partial.js';
-import { CHUNK_WORDS, promptA, promptB, promptHash, renderPartial, SYSTEM } from './prompts.js';
+import {
+  agendaPromptHash,
+  twoPassPromptHash,
+  CHUNK_WORDS,
+  promptA,
+  promptB,
+  promptHash,
+  renderPartial,
+  SYSTEM,
+} from './prompts.js';
 import { norm, scoreTaskA, type GenTopic, type RefTopic, type TaskAResult } from './taskA.js';
 import { scoreTaskB, type TaskBOutput, type TaskBResult } from './taskB.js';
 
@@ -187,6 +196,9 @@ export async function runMeeting(
 export interface Manifest {
   version: 1;
   promptHash: string;
+  /** Hash of the agenda-aware prompt (defect 7). */
+  agendaPromptHash: string;
+  twoPassPromptHash: string;
   decoding: typeof DECODING;
   tau: number;
   scorer: typeof SCORER;
@@ -207,6 +219,8 @@ export function manifest(
   return {
     version: 1,
     promptHash: promptHash(),
+    agendaPromptHash: agendaPromptHash(),
+    twoPassPromptHash: twoPassPromptHash(),
     decoding: DECODING,
     tau,
     scorer: SCORER,
