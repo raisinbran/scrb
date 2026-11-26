@@ -3,12 +3,22 @@ import type { Backend, PlaybackPosition } from '@scrb/contracts';
 import { PlaybackEngine, type AudioOutput } from './playback-engine.ts';
 
 class FakeAudio {
-  src = '';
   preload = '';
   currentTime = 0;
   paused = true;
   seeking = false;
   volume = 1;
+  playbackRate = 1;
+  defaultPlaybackRate = 1;
+  private source = '';
+  get src() {
+    return this.source;
+  }
+  set src(value: string) {
+    this.source = value;
+    // Like a media element, loading a new source resets the speed to the default.
+    this.playbackRate = this.defaultPlaybackRate;
+  }
   muted = false;
   readyState = 4;
   listeners = new Map<string, () => void>();
@@ -93,6 +103,28 @@ afterEach(() => {
 });
 
 describe('PlaybackEngine', () => {
+  it('gives a chunk loaded after a speed change that speed', async () => {
+    const t = setup();
+    t.engine.setRate(2);
+    await t.engine.seek(0);
+    await t.settle();
+    expect(t.audios.length).toBeGreaterThan(0);
+    expect(t.audios.every(({ playbackRate }) => playbackRate === 2)).toBe(true);
+  });
+
+  it('applies the speed to every element and scales its clock without moving the position', async () => {
+    const t = setup();
+    await t.engine.seek(0);
+    await t.settle();
+    await t.advance(1000);
+    t.engine.setRate(2);
+    expect(t.audios.every(({ playbackRate }) => playbackRate === 2)).toBe(true);
+    await t.advance(1000);
+    const [microphone] = t.audios as [FakeAudio];
+    // 1 s at normal speed, then 1 s at double speed.
+    expect(microphone.currentTime).toBeCloseTo(3, 1);
+  });
+
   it('starts both tracks together at the offset inside their chunks', async () => {
     const t = setup();
     await t.engine.seek(1500);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MeetingId } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { PlaybackEngine } from '../../lib/playback-engine.ts';
-import { MUTED_KEY, storedVolume, VOLUME_KEY } from '../../lib/playback-level.ts';
+import { MUTED_KEY, nextRate, storedVolume, VOLUME_KEY } from '../../lib/playback-level.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { stopClipPlayback } from '../../lib/clip-player.ts';
 import { clipSessionOpen } from '../../lib/clip-session.ts';
@@ -24,6 +24,10 @@ export interface Playback {
   setVolume(volume: number): void;
   /** Silent: muted, or at zero volume. Unmuting restores an audible level. */
   toggleMute(): void;
+  /** Playback speed, 0.25 to 2. It starts at 1 for every meeting and is kept while one is open. */
+  rate: number;
+  /** Steps to the next speed. */
+  cycleRate(): void;
 }
 
 /** The backend keeps the clock; this mirrors its position for every tab of one meeting. */
@@ -41,6 +45,8 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
     const value = readStored<number>(AUDIBLE_KEY);
     return typeof value === 'number' && value > 0 && value <= 1 ? value : DEFAULT_AUDIBLE_VOLUME;
   });
+  const [rate, setRateState] = useState(1);
+  const rateRef = useRef(1);
   const level = useRef({ volume, muted });
   useEffect(() => {
     level.current = { volume, muted: muted || volume === 0 };
@@ -52,6 +58,8 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
     const audio = new PlaybackEngine(backend, meetingId, setError);
     engine.current = audio;
     audio.setVolume(level.current.volume, level.current.muted);
+    // The backend keeps one speed for all meetings, so every open starts both sides at 1x.
+    void backend.call('setPlaybackRate', { meetingId, rate: 1 }).catch(() => undefined);
     const off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
       // Events of a clip's borrowed session are not this meeting's, except a pause of its audio.
@@ -64,6 +72,12 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
       off();
       audio.dispose();
       engine.current = null;
+      // The backend keeps one speed; the next meeting starts at normal speed.
+      if (rateRef.current !== 1) {
+        rateRef.current = 1;
+        setRateState(1);
+        void backend.call('setPlaybackRate', { meetingId, rate: 1 }).catch(() => undefined);
+      }
       if (playing.current) void backend.call('pauseAudio', { meetingId }).catch(() => undefined);
       playing.current = false;
       setIsPlaying(false);
@@ -89,6 +103,22 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
   const pause = useCallback(() => {
     if (meetingId === null) return;
     backend.call('pauseAudio', { meetingId }).catch(report);
+  }, [backend, meetingId, report]);
+
+  const cycleRate = useCallback(() => {
+    if (meetingId === null) return;
+    const next = nextRate(rateRef.current);
+    const mine = engine.current;
+    backend
+      .call('setPlaybackRate', { meetingId, rate: next })
+      .then(() => {
+        // The meeting changed while the call was out; its answer is not this player's.
+        if (engine.current !== mine) return;
+        rateRef.current = next;
+        setRateState(next);
+        engine.current?.setRate(next);
+      })
+      .catch(report);
   }, [backend, meetingId, report]);
 
   const setVolume = useCallback((next: number) => {
@@ -126,5 +156,7 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
     muted: muted || volume === 0,
     setVolume,
     toggleMute,
+    rate,
+    cycleRate,
   };
 }
