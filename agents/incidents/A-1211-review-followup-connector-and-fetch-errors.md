@@ -1,4 +1,4 @@
-### A-1202 — 2026-11-26 — Codex — review follow-up tool calls used incorrect schema and hit read-only Git metadata
+### A-1211 — 2026-11-26 — Codex — review follow-up tool calls used incorrect schema and hit read-only Git metadata
 
 - **Agent:** Codex (model unavailable; Mac Codex desktop; Medium requested)
 - **Status / attribution:** Confirmed self-induced tool/setup errors; no product defect or data change.

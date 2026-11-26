@@ -1,4 +1,4 @@
-### A-1201 — 2026-11-26 — Codex — requested-worktree setup commands failed
+### A-1210 — 2026-11-26 — Codex — requested-worktree setup commands failed
 
 - **Agent:** Codex (model unavailable, Mac Codex desktop)
 - **Status / attribution:** Confirmed agent-controlled setup errors; no application defect. Renumbered from A-1196 after the review identified a distinct A-1196 in open PR #523; the earlier usage-row reference is superseded by the correction row for this follow-up.
