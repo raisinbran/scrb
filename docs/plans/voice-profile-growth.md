@@ -4,12 +4,12 @@ Status: draft, revised after independent review; owner decisions a to e approved
 
 **Goal.** When the owner names or fixes a speaker in a finished meeting, the app learns that voice, so later meetings are grouped and named correctly with no extra work.
 
-## What is missing today (verified in code, 2026-11-13, `main` at d1789d19)
+## What is missing today (verified in code, 2026-11-13, `main` at 3ce1fcf9)
 
 1. **Nothing ever creates or grows a profile.** `VoiceProfileStore.create` and `.grow` (`packages/storage/src/db/voice-profiles.ts`) have no production caller. `profileChanges`/`growProfile` in `packages/transcription/src/profiles.ts` are also unused outside tests. So `startProfileMatching` (`packages/app-core/src/profile-matching.ts`) always sees an empty profile list. Only rename, merge, delete and undo of existing profiles are wired (PR #156).
 2. **Voices are not kept after the final pass.** Per-speaker embeddings exist only in the in-memory `FinalTranscript`; the transcript file has no embedding field and the work dir is deleted (`final-pass.ts`, `process`). A later correction has nothing to learn from.
-3. **Recordings never opt in.** `createMeeting` defaults `buildVoiceProfiles` to `false` and `recording.ts:248` does not pass it; only imports pass the user's choice. Requirements say profiles are built silently from recordings.
-4. **Suggestions are empty.** `listSpeakerSuggestions` returns `[]` (`main/meetings.ts:464`); there is no `answerSpeakerSuggestion` handler in `apps/desktop/src/main/` at all. The matcher computes `suggest` results (0.45 to 0.60) and throws them away (`if (match.kind !== 'auto') continue`).
+3. **Recordings never opt in.** `createMeeting` defaults `buildVoiceProfiles` to `false` and the recording start path in `recording.ts` does not pass it; only imports pass the user's choice. Requirements say profiles are built silently from recordings.
+4. **Suggestions are empty.** `listSpeakerSuggestions` returns `[]` (in `main/meetings.ts`); there is no `answerSpeakerSuggestion` handler in `apps/desktop/src/main/` at all. The matcher computes `suggest` results (0.45 to 0.60) and throws them away (`if (match.kind !== 'auto') continue`).
 5. Renaming a meeting speaker only sets `name` and `userNamed` in the transcript (`corrections.renameSpeaker`); no profile is touched. Matching already skips `userNamed`, merged and overridden speakers, so owner edits are protected.
 
 ## Owner decisions (approved 2026-11-25)
@@ -40,7 +40,7 @@ Live-pass renames made before the final pass finishes never learn (accepted): `v
 - A speaker that loses `userNamed` (for example a rename undone) loses its contribution; its `profileId` is left alone.
 - Rename-away and unlink clear `speaker.profileId` in the same edit as the rename, so reconcile only deletes the row.
 - Merge, split and reassign of a learned speaker: the merged-away or split speaker is excluded, so its row is removed and the profile recomputed; a merge never adds or recomputes a combined contribution. If the survivor was not hand-named it has no contribution either.
-- A link row with no contribution row (crash, or pre-migration) is left as a plain link by reconcile.
+- A hand-named speaker with `profileId`, a `voices.json` entry and no contribution row (crash repair) gets its row added. A link row for any other speaker (not `userNamed`, no `voices.json` entry, auto-link, pre-migration link, or after audio-only auto-delete) is left as a plain link.
 
 The global lock also means a rename-learn during another meeting's matching job cannot make `assignSpeakerProfiles`' `beforeSave` throw `Profile changed`; the matching job's snapshot conflict then retries or skips as it does today.
 
@@ -56,7 +56,7 @@ The global lock also means a rename-learn during another meeting's matching job 
 
 Link and create set `speaker.profileId` and append to `voice_profile_meetings` in the same transcript edit, so the matcher's exclusion (`profile.meetingIds.includes(meetingId)`) holds.
 
-**Commit order and crash behaviour.** Transcript edit first, then store write, then reconcile. A crash after the transcript commit leaves a speaker with `profileId` but no contribution; the next commit in that meeting reconciles it (or it learns nothing, never wrongly). A crash before it loses only the edit.
+**Commit order and crash behaviour.** Transcript edit first, then store write, then reconcile. A crash after the transcript commit leaves a speaker with `profileId` but no contribution; the next commit in that meeting reconciles it (adds the row for a hand-named speaker). A crash before it loses only the edit.
 
 **Matcher snapshot.** `startProfileMatching` (the snapshot filter in `profile-matching.ts`) currently keeps only profiles with `sampleCount >= 8`, so thin profiles never even suggest. Change: keep every named, approved-model profile; `matchVoices` already returns `suggest` for a thin profile; add an explicit `sampleCount >= 8` check on the `auto` branch. `suggest` matches are collected and written to `suggestions.json`.
 
@@ -67,6 +67,7 @@ Link and create set `speaker.profileId` and append to `voice_profile_meetings` i
 
 **Privacy and deletion.** Imports keep the default of no building and no `voices.json`; existing profiles may still suggest and assign. Embeddings stay on this computer, never in logs, exports or transcript text. Rebuild after a profile model change is out of scope; `voices.json` makes it possible later.
 - `deleteProfile` (`deleteVoiceProfile` then `unlinkVoiceProfile`, already under the global lock) clears `profileId` in each linked transcript through `changeTranscript` with `userEdit: false`, then deletes the profile (contributions go by cascade). That inner call must not reconcile through the wrapper (lock held); it reconciles once at the end. The `voices.json` entries of those speakers stay.
+- **Purge paths** (audio-only auto-delete, manual delete-audio, meeting delete) drop that meeting's contribution rows and `voices.json` while holding the meeting lock (`deleteMeetingLocked`), so they must not take the global lock there. As `deleteMeeting` already does for `removeOrphanProfile`, they recompute surviving profiles after the meeting lock is released, taking the global lock first. A meeting delete with `removeLearnedData` false still recomputes any surviving profile when the cascade removes that meeting's row.
 - Meeting delete: the existing `removeOrphanProfile`/`soleProfiles` path (keyed on link rows, under the global lock) still owns deleting a profile whose last meeting goes, so a link row without a contribution row after a crash is handled by it. The zero-contribution rule covers the other removals (rename away, undo, split) and never deletes a profile that still has a link row without a contribution row.
 
 ## Contract
@@ -75,7 +76,7 @@ Link and create set `speaker.profileId` and append to `voice_profile_meetings` i
 
 ## Tests (invented data; AMI optional)
 
-Synthetic unit vectors with set cosines, no recordings. Storage: migration 6 to 7, contribution add/remove/recompute, profile merge then undo and redo, same-meeting double contribution, last contribution removed deletes profile (and hand-renamed profile survives), delete purges. App-core decision table (every row, 0.55 and 8-segment gates, highest cosine among same-name profiles, empty/default/`You` names, model-id mismatch skips learning). Reconcile: rename A to B to A; rename then transcript undo then redo; rename then split; reprocess after learning; crash between transcript commit and store write; concurrent rename-learn during a matching job. Lock ordering: a matching job plus reconcile on the same meeting, and `deleteProfile` with its inner unlink, never deadlock. `voices.json` is 0600 and absent from export and backup; manual delete-audio purges it; `suggestions.json` is invalidated on profile merge and delete. Handler tests use the real library, not a fake: rename learns, rename-away unlinks and clears `profileId`, accept/decline, no `voices.json` when the flag is off, audio-only auto-delete purges `voices.json` and contributions. One optional AMI ES2004 replay to confirm two meetings of one speaker group together. `npm run check` throughout.
+Synthetic unit vectors with set cosines, no recordings. Storage: migration 6 to 7, contribution add/remove/recompute, profile merge then undo and redo, same-meeting double contribution, last contribution removed deletes profile (and hand-renamed profile survives), delete purges. App-core decision table (every row, 0.55 and 8-segment gates, highest cosine among same-name profiles, empty/default/`You` names, model-id mismatch skips learning). Reconcile: rename A to B to A; rename then transcript undo then redo; rename then split; reprocess after learning; crash between transcript commit and store write; concurrent rename-learn during a matching job. Deleting a meeting that contributed to a profile other meetings still support recomputes that profile's embedding and `sample_count`. Lock ordering: a matching job plus reconcile on the same meeting, and `deleteProfile` with its inner unlink, never deadlock. `voices.json` is 0600 and absent from export and backup; manual delete-audio purges it; `suggestions.json` is invalidated on profile merge and delete. Handler tests use the real library, not a fake: rename learns, rename-away unlinks and clears `profileId`, accept/decline, no `voices.json` when the flag is off, audio-only auto-delete purges `voices.json` and contributions. One optional AMI ES2004 replay to confirm two meetings of one speaker group together. `npm run check` throughout.
 
 ## Risks
 
@@ -88,7 +89,7 @@ Synthetic unit vectors with set cosines, no recordings. Storage: migration 6 to 
 ## Slice order
 
 1. **Storage:** migration 6 to 7, contribution add/remove/recompute, merge, undo and redo carrying contributions, delete-by-zero rule, `voices.json` read/write/purge, tests. No behaviour change.
-2. **2a, removal paths first:** write `voices.json` after the final pass (exercised by an import test that explicitly opts in; imports keep the default of no building); `reconcileContributions` in `changeTranscript` and reprocess; meeting delete, auto-delete and delete-audio purges; `deleteProfile`; split/reassign/merge cleanup via reconcile; tests for each path.
+2. **2a, removal paths first:** write `voices.json` after the final pass (exercised by an import test that explicitly opts in; imports keep the default of no building); `reconcileContributions` in the wrapper after `changeTranscript` returns (and under the global lock in `assignSpeakerProfiles`, `unlinkVoiceProfile` and `removeOrphanProfile`), never inside `changeTranscript`; meeting delete, auto-delete and delete-audio purges; `deleteProfile`; split/reassign/merge cleanup via reconcile; tests for each path.
 3. **2b, the learning rule** in `renameSpeaker` (create, grow, unlink), with its tests.
 4. **Suggestions (backend):** matcher snapshot change, persist `suggest` results, real `listSpeakerSuggestions` and `answerSpeakerSuggestion`, event.
 5. **Suggestions (UI, no contract change):** `SpeakerSuggestionsProvider` loads stored suggestions on mount and meeting open; tests include restart and no-meeting-open.
