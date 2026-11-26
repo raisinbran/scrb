@@ -1,4 +1,4 @@
-### A-1192 — 2026-11-26 — Oversized draft publication payload
+### A-1213 — 2026-11-26 — Oversized draft publication payload
 
 - **Agent:** Codex (Desktop, Mac)
 - **Observed effect:** Preparing a GitHub tree from complete file contents exceeded the command output limit. Parsing the truncated response failed before the connector received a write.

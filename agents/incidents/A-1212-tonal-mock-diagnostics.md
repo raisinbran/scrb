@@ -1,4 +1,4 @@
-### A-1191 — 2026-11-26 — Tonal mock setup and capture errors
+### A-1212 — 2026-11-26 — Tonal mock setup and capture errors
 
 - **Agent:** Codex (Desktop, Mac)
 - **Observed effect:** Creating a linked worktree attempted a write to sandbox-protected Git metadata. The first server start attempted a loopback bind inside the sandbox and failed with EPERM. The incident draft also omitted the required agent field, which the register checker caught. The first full check also ran inside the sandbox, which blocked loopback test fixtures. Capturing immediately after a viewport change produced stale and partially painted screenshots.

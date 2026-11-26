@@ -1,4 +1,4 @@
-### A-1193 — 2026-11-26 — Settings regression test used an unavailable matcher
+### A-1214 — 2026-11-26 — Settings regression test used an unavailable matcher
 
 - **Agent:** Codex (Desktop, Mac)
 - **Observed effect:** The first focused run failed with an invalid Chai property. A companion tool call also hit an unbound workspace variable after it had started the test.

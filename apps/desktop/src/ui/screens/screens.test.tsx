@@ -342,6 +342,9 @@ describe('screens', () => {
         'Storage',
         'Location',
       ]);
+      const theme = document.getElementById('settings-theme')!;
+      const audio = document.getElementById('settings-audio')!;
+      expect(theme.compareDocumentPosition(audio) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
       const workspace = screen.getByRole('main');
       const scrollTo = vi.fn();

@@ -111,7 +111,9 @@ describe('component styles', () => {
     const bad = files.flatMap((file) =>
       [...readFileSync(join(uiDir, file), 'utf8').matchAll(/border-radius:\s*([^;]+);/g)]
         .map((m) => m[1] as string)
-        .filter((value) => !['var(--radius)', 'var(--radius-control)', '50%', '0'].includes(value.trim()))
+        .filter(
+          (value) => !['var(--radius)', 'var(--radius-control)', '50%', '0'].includes(value.trim()),
+        )
         .map((value) => `${file}: ${value}`),
     );
     expect(bad).toEqual([]);
