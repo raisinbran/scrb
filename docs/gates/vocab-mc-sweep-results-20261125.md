@@ -1,12 +1,12 @@
 # Vocabulary hints: `-mc` sweep and `--carry-initial-prompt` follow-up (2026-11-25)
 
-**Verdict: FAIL at every setting. Recommendation: turn hints off (keep `-mc 0` in the final pass).** No hint-on setting reached the Stage 2 rule (aggregate WER no worse than hint-off, fewer than 4 false-replacement events). There is no `-mc` value just before a drop-off that keeps the recall gain without cost: WER worsens steadily as `-mc` falls, and the recall gain comes only from `--carry-initial-prompt`. **Independent review pending.**
+**Verdict: FAIL at every setting. Recommendation: turn hints off (keep `-mc 0` in the final pass).** No hint-on setting reached the Stage 2 rule (aggregate WER no worse than hint-off, fewer than 4 false-replacement events). There is no `-mc` value just before a drop-off that keeps the recall gain without cost: WER broadly worsens as `-mc` falls, and the recall gain comes only from `--carry-initial-prompt`. **Independent review pending.**
 
 Follow-up to [Stage 2](vocab-gate5-stage2-results-20261125.md) (PR #497). Owner approved long tests for this task on 2026-11-25. No shipped code changed; `HINTED_MAX_CONTEXT` in `packages/transcription/src/whisper.ts` is untouched.
 
 ## Setup
 
-Same harness, audio and **frozen** term sets as Stage 2: whisper.cpp `284029c`, `ggml-large-v3-turbo-q5_0`, Silero VAD v6.2.0, `-t 4 -l en --vad -ml 1 -sow -ojf`, the same 13 AMI meetings (7.435 h, 255 term occurrences, 71,623 reference words), scored with `scripts/research/vocab_stage2.py score` unchanged (recall, WER, held-out false replacements, negative-control events). Only `-mc` and the carry flag changed. Hint-on arms: `--prompt <hint>` with (**carry**) and without (**nocarry**) `--carry-initial-prompt`, at `-mc` 16, 32, 48, 64, 96, 128 (carry 128 reuses the Stage 2 decodes). Baselines: hint-off `-mc 0` (the no-hint production setting, the baseline for everything below), the Stage 2 hint-off `-mc 128`, and one extra control, hint-off `-mc 64`. Each decode ran once, no retries, none failed (156 decodes in the sweep, 0 FAILED). AMI audio only, no owner recordings. Raw JSON, logs and scoring files stay in `~/scrb-dev-assets/eval-vocab/s2/sweep/` (not committed). The runner is `sweep_run.sh` there; each command is in `sweep/command-log.md`.
+Same harness, audio and **frozen** term sets as Stage 2: whisper.cpp `284029c`, `ggml-large-v3-turbo-q5_0`, Silero VAD v6.2.0, `-t 4 -l en --vad -ml 1 -sow -ojf`, the same 13 AMI meetings (7.435 h, 255 term occurrences, 71,623 reference words), scored with `scripts/research/vocab_stage2.py score` unchanged (recall, WER, held-out false replacements, negative-control events). Only `-mc` and the carry flag changed. Hint-on arms: `--prompt <hint>` with (**carry**) and without (**nocarry**) `--carry-initial-prompt`, at `-mc` 16, 32, 48, 64, 96, 128 (carry 128 reuses the Stage 2 decodes). Baselines: hint-off `-mc 0` (the no-hint production setting, the baseline for everything below), the Stage 2 hint-off `-mc 128`, and one extra control, hint-off `-mc 64`. Each decode ran once, no retries, none failed (169 sweep decodes: 11 new hint-on arms x 13 = 143, plus hint-off `-mc 0` and `-mc 64` x 13 = 26; plus 39 negative-control decodes = 208 in all; 0 FAILED). AMI audio only, no owner recordings. Raw JSON, logs and scoring files stay in `~/scrb-dev-assets/eval-vocab/s2/sweep/` (not committed). The runner is `sweep_run.sh` there; each command is in `sweep/command-log.md`.
 
 ## Baselines
 
@@ -33,14 +33,14 @@ Same harness, audio and **frozen** term sets as Stage 2: whisper.cpp `284029c`, 
 | 128 | carry | 155 | 26.94% | +0.54 | 15,204 | 4 | 4 |
 | 128 | nocarry | 114 | 26.64% | +0.24 | 14,864 | 5 | 4 |
 
-Against the Stage 2 hint-off `-mc 128` baseline the carry-128 and nocarry-128 WER rises are +1.50 and +1.20 points. No setting has WER at or below the `-mc 0` hint-off baseline, so none passes the "WER no worse" rule, and none is "just before a drop-off": the curve is monotone. The least bad on WER is `-mc 128`; the 1-point skip rule is worst at low `-mc` (10 to 12 of 13 meetings).
+Against the Stage 2 hint-off `-mc 128` baseline the carry-128 and nocarry-128 WER rises are +1.50 and +1.20 points. No setting has WER at or below the `-mc 0` hint-off baseline, so none passes the "WER no worse" rule, and none is "just before a drop-off": the carry arm worsens as `-mc` falls and the no-carry arm broadly does (29.77, 28.64, 29.36, 28.69 at 16, 32, 48, 64), so there is no sweet spot. The least bad on WER is `-mc 128`; the 1-point skip rule is worst at low `-mc` (10 to 12 of 13 meetings).
 
 ## What `--carry-initial-prompt` does, and whether it explains the skipping
 
 In whisper.cpp the initial prompt (`--prompt`) normally conditions only the first decode window; later windows are conditioned on the previous window's text. With `--carry-initial-prompt` the prompt is re-prepended to **every** window, so the hint terms stay in the decoder context throughout the file.
 
 - **It is what produces the recall gain.** Without it, the hint barely helps (nocarry recall 108 to 116 against 106 baseline at every `-mc`; carry 138 to 155).
-- **It is not the main cause of skipping.** The nocarry arm, which has no carried prompt, skips just as much (deletions 14,864 to 17,368, similar to carry) and has similar WER at every `-mc`. Hint-off at `-mc 64` already raises WER to 27.39% (deletions +820 over `-mc 0`). So most of the WER rise at low `-mc` comes from the context window setting itself in this setup, not from the hint.
+- **It is not the main cause of skipping.** The nocarry arm, which has no carried prompt, skips just as much (deletions 14,864 to 17,368, similar to carry) and has similar WER at every `-mc`. Hint-off at `-mc 64` already raises WER to 27.39% (deletions +820 over `-mc 0`). At `-mc 64`, hint-off adds +0.99 points over `-mc 0`, against +1.94 for carry and +2.29 for no-carry, so a substantial part of the rise comes from the context setting itself, but not all of it. Run-to-run noise is unmeasured: hint-off `-mc 0` and `-mc 128` differ by about 1 point on single decodes.
 - **Carry adds a smaller extra cost at the same `-mc`:** at 128, carry is +1.50 points over the hint-off `-mc 128` run and nocarry +1.20; at 64, carry 28.34% against hint-off 27.39% (+0.95). Single decodes, so differences of about 0.3 points between arms are not separable from run-to-run noise (not measured).
 - Side observation (not tested further, single run): hint-off `-mc 128` (25.44%) beat hint-off `-mc 0` (26.40%) and hint-off `-mc 64` (27.39%), so the effect of `-mc` alone is not monotone; if the owner wants the no-hint default revisited, that needs its own test with repeats.
 
@@ -48,16 +48,16 @@ In whisper.cpp the initial prompt (`--prompt`) normally conditions only the firs
 
 Run for the two best carry settings (the only ones with a recall gain of 40 or more and the smallest WER cost):
 
-| Setting | Held-out false replacements | Negative-control events | Total events | Per exposure hour (95% upper) | Verdict |
+| Setting | Held-out false replacements | Negative-control events | Total events | Events per exposure hour (95% upper; basis 29.74 h = 7.435 own-hint + 22.31 negative) | Verdict |
 |---|---|---|---|---|---|
-| carry 128 (Stage 2 decodes, scored against `-mc 0` off) | 4 | 1 | 5 (Stage 2 count against its own baseline: 3 + 1 = 4) | 0.17 (up to 0.35) | FAIL |
-| carry 96 | 9 | 2 | 11 | 0.37 (up to 0.61) | FAIL |
+| carry 128 (Stage 2 decodes, scored against `-mc 0` off) | 4 | 1 | 5 (Stage 2 count against its own baseline: 3 + 1 = 4) | 0.17 (up to 0.35) on 29.74 h | FAIL |
+| carry 96 | 9 | 2 | 11 | 0.37 (up to 0.61) on 29.74 h | FAIL |
 
-carry 96 negatives: "timer" in ES2014b under IS1009b's hint, "colouring" in ES2015c under IS1009c's hint. Both settings meet the "4 or more" FAIL band of the approved plan table, and both have WER above the baseline.
+carry 96 negative events: ES2014b under IS1009b's hint and ES2015c under IS1009c's hint (one learned-term occurrence each). Counting the 22.31 negative-control hours alone, the rates would be 0.22 (5 events) and 0.49 (11 events). Both settings meet the "4 or more" FAIL band of the approved plan table, and both have WER above the baseline.
 
 ## Recommendation
 
-**Turn hints off in the final pass** (no hint prompt, `-mc 0`). The best recall-preserving setting, carry at 128, costs +0.54 WER points against the no-hint baseline (+1.50 against the same-`-mc` baseline), skips speech in 4 meetings by over 1 point, and produces 4 to 5 false-replacement events. Lower `-mc` makes WER and skipping worse, and dropping the carry flag removes the recall gain. A hint design that does not add a window-wide prompt (for example a correction pass that only replaces terms in a finished transcript, as the approved Stage 2 plan describes) is the untested alternative. This is a recommendation; the owner decides.
+**Turn hints off in the final pass** (no hint prompt, `-mc 0`). The best recall-preserving setting, carry at 128, costs +0.54 WER points against the no-hint baseline (+1.50 against the same-`-mc` baseline), skips speech in 4 meetings by over 1 point, and produces 4 to 5 false-replacement events. Lower `-mc` makes WER and skipping worse, and dropping the carry flag removes the recall gain. A hint design that does not add a window-wide prompt (for example a correction pass that only replaces terms in a finished transcript, as the approved Stage 2 plan describes) is the untested alternative. The hints-off recommendation is already shipped in #505.
 
 ## Limits
 
