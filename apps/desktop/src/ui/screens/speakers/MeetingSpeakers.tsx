@@ -26,6 +26,13 @@ import styles from './MeetingSpeakers.module.css';
 const SEGMENT_LIMIT = 500;
 const UNAVAILABLE = new Set<MeetingListItem['status']>(['importing', 'deleting']);
 
+// Matches the message the backend sends for an overlap refusal (see docs/handoffs).
+const isOverlapRefusal = (error: unknown) =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: unknown }).code === 'conflict' &&
+  (error as { message?: unknown }).message === 'These words overlap other speech.';
+
 const rangeOf = (segment: TranscriptSegment): WordRange => ({
   firstWordId: segment.words[0]?.id as string,
   lastWordId: segment.words[segment.words.length - 1]?.id as string,
@@ -49,6 +56,7 @@ function SplitDialog(props: SplitDialogProps) {
   // Kept across retries, so a failure partway through never creates a second new speaker.
   const created = useRef<SpeakerId | null>(null);
   const moved = useRef(new Set<string>());
+  const [skipped, setSkipped] = useState<TranscriptSegment[]>([]);
   const [hasAudio, setHasAudio] = useState<boolean | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [clipError, setClipError] = useState<string | null>(null);
@@ -97,17 +105,34 @@ function SplitDialog(props: SplitDialogProps) {
   };
 
   const split = async () => {
+    if (skipped.length > 0) {
+      onDone();
+      return;
+    }
+    const refused: TranscriptSegment[] = [];
     for (const segment of own.filter((item) => chosen.has(item.id))) {
       if (moved.current.has(segment.id)) continue;
       const range = rangeOf(segment);
-      if (created.current === null) {
-        const result = await backend.call('splitSpeaker', { meetingId, range, newLabel: name });
-        created.current = result.speakerId;
-      } else {
-        const target = created.current;
-        await backend.call('reassignSpeaker', { meetingId, range, speakerId: target });
+      try {
+        if (created.current === null) {
+          const result = await backend.call('splitSpeaker', { meetingId, range, newLabel: name });
+          created.current = result.speakerId;
+        } else {
+          const target = created.current;
+          await backend.call('reassignSpeaker', { meetingId, range, speakerId: target });
+        }
+      } catch (error) {
+        if (isOverlapRefusal(error)) {
+          refused.push(segment);
+          continue;
+        }
+        throw error;
       }
       moved.current.add(segment.id);
+    }
+    if (refused.length > 0) {
+      setSkipped(refused);
+      return;
     }
     onDone();
   };
@@ -172,6 +197,21 @@ function SplitDialog(props: SplitDialogProps) {
       </fieldset>
       {hasAudio === false && <p className={styles.muted}>Audio isn’t saved for this meeting.</p>}
       {clipError && <p role="alert">{clipError}</p>}
+      {skipped.length > 0 && (
+        <div role="status">
+          <p>
+            {skipped.length === 1
+              ? '1 passage could not be moved because it overlaps other speech:'
+              : `${skipped.length} passages could not be moved because they overlap other speech:`}
+          </p>
+          <ul>
+            {skipped.map((segment) => (
+              <li key={segment.id}>{formatElapsed(segment.startMs)}</li>
+            ))}
+          </ul>
+          <p className={styles.muted}>The other passages were moved. Select Split to finish.</p>
+        </div>
+      )}
       {partial && (
         <p className={styles.muted}>
           Showing the start of this meeting. For later passages, select the words in the transcript.
