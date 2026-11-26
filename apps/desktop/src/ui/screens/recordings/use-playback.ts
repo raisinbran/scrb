@@ -58,6 +58,8 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
     const audio = new PlaybackEngine(backend, meetingId, setError);
     engine.current = audio;
     audio.setVolume(level.current.volume, level.current.muted);
+    // The backend keeps one speed for all meetings, so every open starts both sides at 1x.
+    void backend.call('setPlaybackRate', { meetingId, rate: 1 }).catch(() => undefined);
     const off = backend.on('playbackPosition', (position) => {
       if (position.meetingId !== meetingId) return;
       // Events of a clip's borrowed session are not this meeting's, except a pause of its audio.
@@ -106,9 +108,12 @@ export function usePlayback(meetingId: MeetingId | null): Playback {
   const cycleRate = useCallback(() => {
     if (meetingId === null) return;
     const next = nextRate(rateRef.current);
+    const mine = engine.current;
     backend
       .call('setPlaybackRate', { meetingId, rate: next })
       .then(() => {
+        // The meeting changed while the call was out; its answer is not this player's.
+        if (engine.current !== mine) return;
         rateRef.current = next;
         setRateState(next);
         engine.current?.setRate(next);

@@ -10,6 +10,7 @@ export type AudioOutput = Pick<
   | 'currentTime'
   | 'load'
   | 'muted'
+  | 'defaultPlaybackRate'
   | 'pause'
   | 'playbackRate'
   | 'paused'
@@ -216,13 +217,15 @@ export class PlaybackEngine {
     const slot: Slot = { chunk, audio, started: false, ended: false };
     audio.preload = 'auto';
     this.applyVolume(audio);
-    audio.playbackRate = this.rate;
     audio.addEventListener('ended', () => {
       slot.ended = true;
       this.sync();
     });
     audio.addEventListener('error', () => this.fail(slot));
     audio.src = chunk.url;
+    // Assigning `src` runs the load algorithm, which resets the speed to the default.
+    audio.defaultPlaybackRate = this.rate;
+    audio.playbackRate = this.rate;
     this.slots.push(slot);
   }
 
