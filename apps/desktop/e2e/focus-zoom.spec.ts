@@ -162,7 +162,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         'Weekly project sync — invented accessibility fixture with long project and participant labels',
       );
       await title.press('Enter');
-      await expect(title).toBeFocused();
+      await expect(title).not.toBeFocused();
       await page.getByRole('button', { name: /^Meeting date and time/ }).click();
       await inspectLayout(page, `${zoom}-detail-dialog`);
       await page.getByLabel('Meeting date and time', { exact: true }).press('Escape');

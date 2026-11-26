@@ -214,7 +214,7 @@ describe('LiveScreen', () => {
       fireEvent.click(button('Stop'));
       await advance(0);
       expect(notice()).toContain('final pass is running');
-      fireEvent.click(button('Dismiss notice'));
+      fireEvent.click(button('Dismiss'));
       expect(screen.queryByText(/^Recording stopped\./)).toBeNull();
     });
 

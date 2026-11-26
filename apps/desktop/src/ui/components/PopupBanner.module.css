@@ -19,11 +19,8 @@
 }
 
 .banner {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
+  position: relative;
+  padding: var(--space-1) var(--space-3);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-inline-start: 3px solid var(--color-accent);
@@ -42,10 +39,18 @@
 
 .body {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+  padding-inline: var(--space-5);
+  text-align: center;
+}
+
+/* Overlaid in the corner so it takes no column and the text stays centred. */
+.dismissSlot {
+  position: absolute;
+  inset-block-start: var(--space-1);
+  inset-inline-end: var(--space-1);
 }
 
 .body > p {

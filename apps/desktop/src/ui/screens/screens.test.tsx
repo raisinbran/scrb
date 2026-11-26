@@ -197,13 +197,12 @@ describe('screens', () => {
       );
     });
 
-    it('says how many terms are enabled and that only about 40 are used', async () => {
+    it('says how many terms are enabled and that they are not used yet', async () => {
       renderScreen(backend, <VocabularyScreen />);
       const terms = await backend.call('listTerms');
       const enabled = terms.filter((term) => term.enabled).length;
-      expect(await screen.findByText(`${enabled} enabled, up to 40 used.`)).toBeTruthy();
-      expect(screen.getByText(/at most 512 characters/)).toBeTruthy();
-      expect(screen.getByText(/Disabling terms you do not need frees room/)).toBeTruthy();
+      expect(await screen.findByText(`${enabled} enabled.`)).toBeTruthy();
+      expect(screen.getByText(/saved but not used for transcription yet/)).toBeTruthy();
     });
 
     it('lists suggested terms with their counts and their misheard forms', async () => {

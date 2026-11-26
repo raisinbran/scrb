@@ -73,7 +73,7 @@ function hashTree(dir: string): Record<string, string> {
 }
 
 describe('final pass after Stop', () => {
-  it('passes enabled vocabulary to the pass as a hint', async () => {
+  it('passes no vocabulary hint while hints are off', async () => {
     library.vocabulary.remember({ term: 'Rosmont' });
     library.vocabulary.update(library.vocabulary.remember({ term: 'Quillon' }).id, {
       enabled: false,
@@ -84,7 +84,7 @@ describe('final pass after Stop', () => {
       hint = input.vocabularyHint;
       return TRANSCRIPT;
     });
-    expect(hint).toBe('Rosmont');
+    expect(hint).toBe('');
   });
 
   it('logs one speaker-diagnostics line per pass, with no text or names', async () => {
