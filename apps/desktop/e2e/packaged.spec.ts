@@ -13,6 +13,51 @@ test.skip(!executable, 'set SCRB_PACKAGED_APP to run');
 // Both platforms' refusals start with this; macOS also names its install command.
 const refusal = process.platform === 'darwin' ? '--install-models' : 'Scribe cannot record yet';
 
+test('fresh packaged profile asks for location once and remembers it after relaunch', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'scrb-packaged-location-'));
+  const userData = join(home, 'userData');
+  const library = join(home, 'library');
+  mkdirSync(userData, { recursive: true });
+  writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root: library }));
+  const launch = () =>
+    electron.launch({
+      executablePath: executable!,
+      args: [`--user-data-dir=${userData}`],
+      env: { ...process.env, HOME: home, LOCALAPPDATA: join(home, 'AppData', 'Local') } as Record<
+        string,
+        string
+      >,
+    });
+
+  const first = await launch();
+  const firstPage = await first.firstWindow();
+  await expect(firstPage.getByRole('dialog', { name: 'Where are you based?' })).toBeVisible();
+  expect(
+    await firstPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
+  ).toMatchObject({ ok: true, value: { locationSet: false } });
+  // Save through the backend API; this test never operates the blocking location dialog.
+  expect(
+    await firstPage.evaluate(() =>
+      window.scribeBridge?.invoke('updateSettings', { location: { country: 'US', usState: 'NY' } }),
+    ),
+  ).toMatchObject({ ok: true });
+  await first.close();
+
+  const second = await launch();
+  const secondPage = await second.firstWindow();
+  await expect(secondPage.getByRole('dialog', { name: 'Where are you based?' })).toHaveCount(0);
+  expect(
+    await secondPage.evaluate(() => window.scribeBridge?.invoke('getSetupStatus', undefined)),
+  ).toMatchObject({ ok: true, value: { locationSet: true } });
+  expect(
+    await secondPage.evaluate(() => window.scribeBridge?.invoke('getSettings', undefined)),
+  ).toMatchObject({
+    ok: true,
+    value: { location: { country: 'US', usState: 'NY' }, storageLocation: library },
+  });
+  await second.close();
+});
+
 test('packaged app keeps the saved library, is named Scribe, and refuses to record without models', async () => {
   const home = mkdtempSync(join(tmpdir(), 'scrb-home-'));
   // Electron ignores HOME for its application-data folder, so an explicit one keeps this off the

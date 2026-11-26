@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { statSync } from 'node:fs';
 import {
   copyFile,
@@ -12,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assembleChunks, decodeChunk, pcmToWav } from '../src/audio.js';
 import { type ModelPaths } from '../src/config.js';
@@ -25,6 +27,7 @@ import {
 import { decoderGuard, haveFfmpeg, tools } from './decoder.js';
 
 const fixtures = join(import.meta.dirname, 'fixtures');
+const execFileAsync = promisify(execFile);
 decoderGuard('import.test.ts');
 
 function tone(seconds: number, hz = 440): Int16Array {
@@ -96,6 +99,35 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
       await expect(sweepAbandonedImports(dir)).resolves.toEqual([]);
     });
   }
+
+  it.each([
+    ['WAV', '.wav', null],
+    ['MP3', '.mp3', 'libmp3lame'],
+    ['M4A', '.m4a', 'aac'],
+    ['FLAC', '.flac', 'flac'],
+    ['Opus', '.opus', 'libopus'],
+  ] as const)(
+    'imports a one-second generated tone as %s without changing the source',
+    async (_label, extension, codec) => {
+      const wav = join(dir, 'invented-tone.wav');
+      const source = join(dir, `invented-tone${extension}`);
+      await writeFile(wav, pcmToWav(tone(1)));
+      if (codec) {
+        await execFileAsync(tools.ffmpeg, ['-v', 'error', '-y', '-i', wav, '-c:a', codec, source]);
+      } else {
+        await copyFile(wav, source);
+      }
+      const before = await sha(source);
+
+      const result = await run(source);
+
+      expect(await sha(source)).toBe(before);
+      expect(result.durationMs).toBeGreaterThan(500);
+      expect(result.durationMs).toBeLessThan(1600);
+      expect(result.chunks).toHaveLength(1);
+      expect(await readChunkManifest(meetingDir)).toEqual(result.chunks);
+    },
+  );
 
   it('downmixes stereo to one track', async () => {
     const source = join(dir, 'stereo.flac');
