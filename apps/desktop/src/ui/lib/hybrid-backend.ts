@@ -70,6 +70,7 @@ const MEETING_CALLS: ReadonlySet<CallName> = new Set([
   'redo',
   'seekAudio',
   'pauseAudio',
+  'setPlaybackRate',
   'getPlaybackMedia',
   'listSpeakerSuggestions',
   'splitSpeaker',
