@@ -12,3 +12,4 @@ export * from './large-model-gate.ts';
 export * from './profile-matching.ts';
 export * from './performance.ts';
 export * from './voices.ts';
+export * from './profile-learning.ts';

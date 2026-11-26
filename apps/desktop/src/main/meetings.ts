@@ -9,6 +9,7 @@ import {
   NOT_ENABLED_MESSAGE,
   WORKER_FAILED_MESSAGE,
   YOU_ID,
+  renameLearning,
   sealedTracks,
   type FinalPassQueue,
   type SegmentSpan,
@@ -705,7 +706,12 @@ export function createMeetingHandlers(
       await requireMeeting(library, target.meetingId);
       const before = await library.readTranscript(target.meetingId);
       try {
-        const after = await library.renameSpeaker(target.meetingId, target.speakerId, name);
+        const after = await library.renameSpeaker(
+          target.meetingId,
+          target.speakerId,
+          name,
+          renameLearning(),
+        );
         publishEdit(before, after, emit);
         await publishOutdated(library, before, after, emit);
       } catch (error) {

@@ -153,13 +153,15 @@ export class VoiceProfileStore {
   }
 
   create(input: {
+    /** Chosen by the caller when the transcript must point at the profile before it exists. */
+    id?: string;
     modelId: string;
     embedding: Float32Array;
     sampleCount?: number;
     name?: string;
     meetingId?: string;
   }): VoiceProfile {
-    const id = randomUUID();
+    const id = input.id ?? randomUUID();
     const now = this.now();
     this.db
       .prepare(

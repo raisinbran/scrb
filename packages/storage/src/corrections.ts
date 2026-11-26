@@ -296,9 +296,18 @@ export function renameSpeaker(
   transcript: TranscriptFile,
   speakerId: string,
   name: string,
+  /** Set in the same edit (and so the same undo step); undefined leaves the link alone. */
+  profileId?: string | null,
 ): TranscriptFile {
   const speaker = findSpeaker(transcript, speakerId);
-  return replaceSpeakers(transcript, 'Rename speaker', [{ ...speaker, name, userNamed: true }]);
+  return replaceSpeakers(transcript, 'Rename speaker', [
+    {
+      ...speaker,
+      name,
+      userNamed: true,
+      ...(profileId === undefined ? {} : { profileId }),
+    },
+  ]);
 }
 
 export function resolveSpeakerId(transcript: TranscriptFile, speakerId: string): string {

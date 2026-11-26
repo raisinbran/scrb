@@ -19,8 +19,13 @@ import {
 import { normalizeVocabularyTerm, SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
-import { desiredContributions } from './voice-contributions.ts';
-import { readVoicesFile, writeVoicesFile, type VoicesFile } from './voices-file.ts';
+import { desiredContributions, touchedSpeakers } from './voice-contributions.ts';
+import {
+  readVoicesFile,
+  writeVoicesFile,
+  type VoiceEntry,
+  type VoicesFile,
+} from './voices-file.ts';
 import {
   CorrectionConflictError,
   MeetingNotFoundError,
@@ -318,6 +323,18 @@ function isAlive(correction: Correction | undefined): boolean {
  * the index follows, so a crash between the two is repaired by `reconcile` on the next open.
  * All writes to one meeting run one at a time, so a slow final pass cannot overwrite an edit.
  */
+/** What a hand rename does to voice profiles. Chosen by the caller; see `profile-learning.ts`. */
+export type RenameLearning = (context: {
+  name: string;
+  speaker: Speaker;
+  voice: VoiceEntry | null;
+  voicesModelId: string | null;
+  /** Merged, split or overridden: this voice no longer stands for one person. */
+  touched: boolean;
+  linked: VoiceProfile | null;
+  profiles: VoiceProfile[];
+}) => { unlink: boolean; target: { profileId: string } | { create: string } | null };
+
 export class Library {
   readonly paths: LibraryPaths;
   /** True when the user-selected root appears readable by other local users. */
@@ -850,8 +867,85 @@ export class Library {
     );
   }
 
-  renameSpeaker(meetingId: string, speakerId: string, name: string): Promise<TranscriptFile> {
-    return this.edit(meetingId, (t) => corrections.renameSpeaker(t, speakerId, name));
+  /**
+   * With `learning`, the rename may also unlink, grow or create a voice profile. All of it is one
+   * call under the profile lock: the transcript edit (which sets or clears `profileId` in the
+   * same undo step), then a new profile if one is needed, then reconcile adds the contribution.
+   */
+  renameSpeaker(
+    meetingId: string,
+    speakerId: string,
+    name: string,
+    learning?: RenameLearning,
+  ): Promise<TranscriptFile> {
+    if (learning === undefined) {
+      return this.edit(meetingId, (t) => corrections.renameSpeaker(t, speakerId, name));
+    }
+    return this.transcriptEdit(meetingId, async () => {
+      const made: {
+        value: { id: string; name: string; voice: VoiceEntry; modelId: string } | null;
+      } = { value: null };
+      const saved = await this.changeTranscript(
+        meetingId,
+        async (current) => {
+          made.value = null;
+          const speaker = current.speakers.find((s) => s.id === speakerId);
+          if (speaker === undefined) return corrections.renameSpeaker(current, speakerId, name);
+          let voices: VoicesFile | null = null;
+          try {
+            voices = await readVoicesFile(this.meetingPaths(meetingId).voices);
+          } catch (error) {
+            this.logger.log('warn', 'voices-unreadable', { meetingId, ...errorFields(error) });
+          }
+          const voice = voices?.speakers.find((v) => v.speakerId === speakerId) ?? null;
+          const decision = learning({
+            name,
+            speaker,
+            voice,
+            voicesModelId: voices?.modelId ?? null,
+            touched: touchedSpeakers(current).has(speakerId),
+            linked: speaker.profileId === null ? null : this.voiceProfiles.get(speaker.profileId),
+            profiles: this.voiceProfiles.list(),
+          });
+          let profileId: string | null | undefined;
+          if (decision.target !== null && 'profileId' in decision.target) {
+            profileId = decision.target.profileId;
+          } else if (decision.target !== null && voice !== null && voices !== null) {
+            profileId = randomUUID();
+            made.value = {
+              id: profileId,
+              name: decision.target.create,
+              voice,
+              modelId: voices.modelId,
+            };
+          } else if (decision.unlink) {
+            profileId = null;
+          }
+          return corrections.renameSpeaker(current, speakerId, name, profileId);
+        },
+        { userEdit: true },
+      );
+      if (made.value !== null) {
+        const { id, name: profileName, voice, modelId } = made.value;
+        try {
+          this.voiceProfiles.create({
+            id,
+            name: profileName,
+            modelId,
+            embedding: voice.embedding,
+            sampleCount: voice.segments,
+            meetingId,
+          });
+        } catch (error) {
+          // The transcript points at a profile that was not made; the next reconcile ignores it.
+          this.logger.log('warn', 'voice-profile-not-created', {
+            meetingId,
+            ...errorFields(error),
+          });
+        }
+      }
+      return saved;
+    });
   }
 
   mergeSpeakers(meetingId: string, fromId: string, intoId: string): Promise<TranscriptFile> {
