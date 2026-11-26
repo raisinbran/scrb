@@ -114,7 +114,10 @@ test.describe('Gate 7 walkthrough', () => {
     const wav = join(userData, 'gate7 invented talk.wav');
     makeSpeech(userData, wav);
 
-    const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+    const app = await electron.launch({
+      args: ['.', `--user-data-dir=${userData}`],
+      env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
+    });
     try {
       await app.evaluate(({ dialog }, path) => {
         dialog.showOpenDialog = (async () => ({
@@ -306,7 +309,10 @@ test.describe('Gate 7 walkthrough', () => {
     await fresh.library.close();
 
     const launch = async () =>
-      electron.launch({ args: ['.', `--user-data-dir=${join(root, '..')}`] });
+      electron.launch({
+        args: ['.', `--user-data-dir=${join(root, '..')}`],
+        env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
+      });
     // A sweep removes the folder first and the index rows and audioDeletedAt last, and handles the
     // meetings one after another, so wait for the last step of every old meeting, not the first.
     const settle = async (app: ElectronApplication, done: () => boolean | Promise<boolean>) => {
