@@ -102,7 +102,10 @@ describe('App', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(async () =>
-      expect((await backend.call('getSettings')).location).toEqual({ country: 'US', usState: 'IL' }),
+      expect((await backend.call('getSettings')).location).toEqual({
+        country: 'US',
+        usState: 'IL',
+      }),
     );
 
     const start = async () => {
