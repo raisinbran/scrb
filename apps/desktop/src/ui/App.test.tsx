@@ -101,8 +101,14 @@ describe('App', () => {
     fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'IL' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(async () =>
+      expect((await backend.call('getSettings')).location).toEqual({ country: 'US', usState: 'IL' }),
+    );
 
-    const start = async () => fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+    const start = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+      await screen.findByRole('button', { name: 'Stop' });
+    };
     const stop = async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Stop' }));
       await screen.findByRole('button', { name: 'Start' });
