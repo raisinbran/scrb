@@ -152,6 +152,20 @@ export class VoiceProfileStore {
       .run(profileId, meetingId);
   }
 
+  /** Records that a meeting has a speaker on this profile (a plain link, no voice). */
+  ensureLink(profileId: string, meetingId: string): void {
+    this.link(profileId, meetingId);
+  }
+
+  /** Drops a plain link (one with no contribution). Never deletes the profile. */
+  removePlainLink(profileId: string, meetingId: string): void {
+    this.db
+      .prepare(
+        'DELETE FROM voice_profile_meetings WHERE profile_id = ? AND meeting_id = ? AND embedding IS NULL',
+      )
+      .run(profileId, meetingId);
+  }
+
   create(input: {
     /** Chosen by the caller when the transcript must point at the profile before it exists. */
     id?: string;

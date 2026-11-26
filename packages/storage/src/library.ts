@@ -885,10 +885,16 @@ export class Library {
       const made: {
         value: { id: string; name: string; voice: VoiceEntry; modelId: string } | null;
       } = { value: null };
+      const oldLink: { from: string | null; to: string | null | undefined } = {
+        from: null,
+        to: undefined,
+      };
       const saved = await this.changeTranscript(
         meetingId,
         async (current) => {
           made.value = null;
+          oldLink.from = null;
+          oldLink.to = undefined;
           const speaker = current.speakers.find((s) => s.id === speakerId);
           if (speaker === undefined) return corrections.renameSpeaker(current, speakerId, name);
           let voices: VoicesFile | null = null;
@@ -921,10 +927,17 @@ export class Library {
           } else if (decision.unlink) {
             profileId = null;
           }
+          oldLink.from = speaker.profileId;
+          oldLink.to = profileId;
           return corrections.renameSpeaker(current, speakerId, name, profileId);
         },
         { userEdit: true },
       );
+      // The speaker no longer points at the old profile: its plain link must not keep the
+      // meeting listed. Reconcile re-adds it if an undo points the speaker back.
+      if (oldLink.from !== null && oldLink.to !== undefined && oldLink.to !== oldLink.from) {
+        this.voiceProfiles.removePlainLink(oldLink.from, meetingId);
+      }
       if (made.value !== null) {
         const { id, name: profileName, voice, modelId } = made.value;
         try {
@@ -983,11 +996,33 @@ export class Library {
   }
 
   undo(meetingId: string): Promise<TranscriptFile> {
-    return this.edit(meetingId, corrections.undo);
+    return this.undoRedo(meetingId, 'undoStack', corrections.undo);
   }
 
   redo(meetingId: string): Promise<TranscriptFile> {
-    return this.edit(meetingId, corrections.redo);
+    return this.undoRedo(meetingId, 'redoStack', corrections.redo);
+  }
+
+  /** Undoing or redoing a rename may point a speaker back at a profile whose link went. */
+  private undoRedo(
+    meetingId: string,
+    stack: 'undoStack' | 'redoStack',
+    change: (current: TranscriptFile) => TranscriptFile,
+  ): Promise<TranscriptFile> {
+    const relink = { value: false };
+    return this.transcriptEdit(
+      meetingId,
+      () =>
+        this.changeTranscript(
+          meetingId,
+          (current) => {
+            relink.value = current[stack].at(-1)?.label === 'Rename speaker';
+            return change(current);
+          },
+          { userEdit: true },
+        ),
+      relink,
+    );
   }
 
   private edit(
@@ -1004,18 +1039,22 @@ export class Library {
    * then the edit (which takes the meeting lock), then reconcile, still under the profile lock.
    * Reconcile never runs inside `changeTranscript`, which holds the meeting lock.
    */
-  private transcriptEdit<T>(meetingId: string, run: () => Promise<T>): Promise<T> {
+  private transcriptEdit<T>(
+    meetingId: string,
+    run: () => Promise<T>,
+    relink: { value: boolean } = { value: false },
+  ): Promise<T> {
     return this.withLock(PROFILE_LOCK, async () => {
       const result = await run();
-      await this.reconcileQuietly(meetingId);
+      await this.reconcileQuietly(meetingId, relink.value);
       return result;
     });
   }
 
   /** The edit is already saved; a failed repair is retried by the next commit, never surfaced. */
-  private async reconcileQuietly(meetingId: string): Promise<void> {
+  private async reconcileQuietly(meetingId: string, relink = false): Promise<void> {
     try {
-      await this.reconcileLocked(meetingId);
+      await this.reconcileLocked(meetingId, relink);
     } catch (error) {
       this.logger.log('warn', 'voice-reconcile-failed', { meetingId, ...errorFields(error) });
     }
@@ -1032,7 +1071,7 @@ export class Library {
    * untouched speakers; removes rows nobody qualifies for. Never unlinks and never touches a
    * plain link.
    */
-  private reconcileLocked(meetingId: string): Promise<void> {
+  private reconcileLocked(meetingId: string, relink = false): Promise<void> {
     return this.withLock(meetingId, async () => {
       if (getMeetingRow(this.db, meetingId) === null) return;
       const store = this.voiceProfiles;
@@ -1045,8 +1084,15 @@ export class Library {
         this.logger.log('warn', 'voices-unreadable', { meetingId, ...errorFields(error) });
         return;
       }
-      if (voices === null && existing.length === 0) return;
       const transcript = await this.readTranscript(meetingId);
+      // After undo or redo, a speaker that points at a profile gets its link back (a rename-away
+      // removed it). Other edits never add links.
+      for (const speaker of relink ? transcript.speakers : []) {
+        if (speaker.profileId !== null && store.get(speaker.profileId) !== null) {
+          store.ensureLink(speaker.profileId, meetingId);
+        }
+      }
+      if (voices === null && existing.length === 0) return;
       const desired = desiredContributions(transcript, voices, (id) => store.get(id) !== null);
       // A profile merge leaves transcripts pointing at the removed profile; do not delete then.
       if (!desired.dangling) {

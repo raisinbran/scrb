@@ -223,6 +223,8 @@ describe('rename learning', () => {
     expect(await speakerOf(id, 'a')).toMatchObject({ userNamed: false, profileId: null });
     expect(library.voiceProfiles.get(pid)).toBeNull();
     await library.redo(id);
+    // Known limitation: undo deleted the profile (zero contributions), so redo leaves a
+    // profileId that points at nothing. Tolerated like the state after a profile merge.
     expect((await speakerOf(id, 'a'))?.profileId).toBe(pid);
     expect(library.voiceProfiles.get(pid)).toBeNull();
     await library.reconcileContributions(id);
@@ -256,5 +258,20 @@ describe('rename learning', () => {
     const id = await meeting({ a: [vec(1, 0, 0), 10] });
     await library.renameSpeaker(id, 'a', 'Invented Ann');
     expect(library.voiceProfiles.list()).toHaveLength(0);
+  });
+
+  it('renaming an auto-linked speaker to someone else unlinks the meeting; undo restores it', async () => {
+    const p = profile('Invented Ann');
+    const id = await meeting({ a: [vec(0, 1, 0), 10] }, APPROVED_PROFILE_MODEL, () => ({
+      profileId: p.id,
+      name: 'Invented Ann',
+    }));
+    library.voiceProfiles.ensureLink(p.id, id);
+    expect(library.voiceProfiles.get(p.id)?.meetingIds).toContain(id);
+    await rename(id, 'a', 'Invented Cy');
+    expect(library.voiceProfiles.get(p.id)?.meetingIds).not.toContain(id);
+    await library.undo(id);
+    expect((await speakerOf(id, 'a'))?.profileId).toBe(p.id);
+    expect(library.voiceProfiles.get(p.id)?.meetingIds).toContain(id);
   });
 });
