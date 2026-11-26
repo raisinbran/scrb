@@ -57,6 +57,7 @@ import {
   correctWordRange,
   finalizeProvisionalWords,
   reassignWordRange,
+  selectionOverlapsOtherSpeech,
   type TranscriptEdit,
 } from './corrections.ts';
 import { createPrng } from './prng.ts';
@@ -1319,6 +1320,12 @@ export class MockBackend implements Backend {
       this.correct(meetingId, range, text, remember),
     reassignSpeaker: ({ meetingId, range, speakerId }) => {
       this.findSpeaker(meetingId, speakerId);
+      if (selectionOverlapsOtherSpeech(this.transcriptOf(meetingId), range)) {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'These words overlap other speech.',
+        });
+      }
       const edit = reassignWordRange(this.transcriptOf(meetingId), range, speakerId);
       if (!edit) {
         throw new ContractError({ code: 'notFound', message: 'That text is no longer available.' });
@@ -1443,6 +1450,12 @@ export class MockBackend implements Backend {
       );
     },
     splitSpeaker: ({ meetingId, range, newLabel }) => {
+      if (selectionOverlapsOtherSpeech(this.transcriptOf(meetingId), range)) {
+        throw new ContractError({
+          code: 'conflict',
+          message: 'These words overlap other speech.',
+        });
+      }
       const speaker: Speaker = {
         id: this.id('sp-split'),
         label: newLabel,

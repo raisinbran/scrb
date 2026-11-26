@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ContractError } from '@scrb/contracts';
 import { SpeakerSuggestionsProvider } from '../../components/speakers/SpeakerSuggestions.tsx';
 import { BackendProvider } from '../../lib/backend-context.tsx';
 import { PlaybackProvider, useMeetingPlayback } from '../../lib/playback-context.tsx';
@@ -186,5 +187,36 @@ describe('Split a speaker: passage preview', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play meeting' }));
     await waitFor(() => expect(clip.paused).toBe(true));
     await dialog.findAllByRole('button', { name: /^Play passage at/ });
+  });
+
+  it('moves the other passages and lists the ones refused for overlap', async () => {
+    const real = backend.call.bind(backend) as (name: string, request: unknown) => Promise<unknown>;
+    let moves = 0;
+    const calls: string[] = [];
+    vi.spyOn(backend, 'call').mockImplementation(((name: string, request: unknown) => {
+      if (name === 'splitSpeaker' || name === 'reassignSpeaker') {
+        calls.push(name);
+        if (++moves === 2) {
+          return Promise.reject(
+            new ContractError({ code: 'conflict', message: 'These words overlap other speech.' }),
+          );
+        }
+      }
+      return real(name, request);
+    }) as typeof backend.call);
+    const dialog = await openDialog();
+    const boxes = await dialog.findAllByRole('checkbox');
+    expect(boxes.length).toBeGreaterThanOrEqual(3);
+    for (const box of boxes.slice(0, 3)) fireEvent.click(box);
+    fireEvent.change(dialog.getByLabelText('New speaker name'), { target: { value: 'Invented' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Split' }));
+    expect(
+      await dialog.findByText(/1 passage could not be moved because it overlaps/),
+    ).toBeTruthy();
+    expect(calls).toEqual(['splitSpeaker', 'reassignSpeaker', 'reassignSpeaker']);
+    // A second click closes; nothing is retried.
+    fireEvent.click(dialog.getByRole('button', { name: 'Split' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls.length).toBe(3);
   });
 });

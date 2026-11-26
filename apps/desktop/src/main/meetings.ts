@@ -357,6 +357,12 @@ function toTranscriptPage(
 }
 
 /** Real meetings for the Recordings screen. A meeting not in the library is `notFound`. */
+// The contract has no overlap code, so the UI recognises this exact message (see docs/handoffs).
+const OVERLAP_MESSAGE = 'These words overlap other speech.';
+const isOverlapRefusal = (error: CorrectionConflictError) =>
+  error.message === 'The selected words overlap other speech.';
+const overlapError = () => new ContractError({ code: 'conflict', message: OVERLAP_MESSAGE });
+
 export function createMeetingHandlers(
   library: Library,
   emit?: Emit,
@@ -530,6 +536,9 @@ export function createMeetingHandlers(
         await publishOutdated(library, before, after, emit);
         return { speakerId: speaker.id };
       } catch (error) {
+        if (error instanceof CorrectionConflictError && isOverlapRefusal(error)) {
+          throw overlapError();
+        }
         if (error instanceof CorrectionConflictError || error instanceof StaleRevisionError) {
           throw new ContractError({ code: 'conflict', message: 'The selected text changed.' });
         }
@@ -554,6 +563,9 @@ export function createMeetingHandlers(
         await publishOutdated(library, before, after, emit);
         return editState(after);
       } catch (error) {
+        if (error instanceof CorrectionConflictError && isOverlapRefusal(error)) {
+          throw overlapError();
+        }
         if (error instanceof CorrectionConflictError) {
           throw new ContractError({
             code: 'conflict',
