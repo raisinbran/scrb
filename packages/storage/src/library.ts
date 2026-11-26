@@ -19,6 +19,11 @@ import {
 import { normalizeVocabularyTerm, SettingsStore, type AutoDeletePeriod } from './db/settings.ts';
 import { VocabularyStore, type VocabularyContextRef } from './db/vocabulary.ts';
 import { VoiceProfileStore, type VoiceProfile } from './db/voice-profiles.ts';
+import {
+  readSuggestionsFile,
+  writeSuggestionsFile,
+  type StoredSuggestion,
+} from './suggestions-file.ts';
 import { desiredContributions, touchedSpeakers } from './voice-contributions.ts';
 import {
   readVoicesFile,
@@ -1125,15 +1130,96 @@ export class Library {
 
   /** Removes the meeting's voices.json, for a re-run pass that no longer qualifies. */
   deleteVoices(meetingId: string): Promise<void> {
-    return this.withLock(meetingId, () =>
-      fs.rm(this.meetingPaths(meetingId).voices, { force: true }),
-    );
+    return this.withLock(meetingId, async () => {
+      // Suggestions name speakers of the old pass: they go with the voices.
+      await fs.rm(this.meetingPaths(meetingId).suggestions, { force: true });
+      await fs.rm(this.meetingPaths(meetingId).voices, { force: true });
+    });
   }
 
   /** Replaces the meeting's voices (a re-run pass changes speaker ids). Mode 0600 like the rest. */
   saveVoices(meetingId: string, voices: VoicesFile): Promise<void> {
-    return this.withLock(meetingId, () =>
-      writeVoicesFile(this.meetingPaths(meetingId).voices, voices),
+    return this.withLock(meetingId, async () => {
+      await fs.rm(this.meetingPaths(meetingId).suggestions, { force: true });
+      await writeVoicesFile(this.meetingPaths(meetingId).voices, voices);
+    });
+  }
+
+  /** Replaces the meeting's stored suggestions; an empty list removes the file. */
+  replaceSuggestions(meetingId: string, suggestions: StoredSuggestion[]): Promise<void> {
+    return this.withLock(meetingId, async () => {
+      if (getMeetingRow(this.db, meetingId) === null) return;
+      await writeSuggestionsFile(this.meetingPaths(meetingId).suggestions, suggestions);
+    });
+  }
+
+  /**
+   * Open suggestions for one meeting, or for every meeting. Drops a speaker that is named,
+   * merged or gone, a profile that is gone or unnamed, and a profile already linked to the
+   * meeting. Declined ones are never listed.
+   */
+  async listSuggestions(
+    meetingId?: string,
+  ): Promise<{ meetingId: string; speakerId: string; profileId: string; profileName: string }[]> {
+    const ids = meetingId === undefined ? this.listMeetings().map((row) => row.id) : [meetingId];
+    const out: { meetingId: string; speakerId: string; profileId: string; profileName: string }[] =
+      [];
+    for (const id of ids) {
+      try {
+        const stored = (await readSuggestionsFile(this.meetingPaths(id).suggestions)).filter(
+          (s) => s.status === 'pending',
+        );
+        if (stored.length === 0) continue;
+        const transcript = await this.readTranscript(id);
+        for (const s of stored) {
+          const speaker = transcript.speakers.find((x) => x.id === s.speakerId);
+          const profile = this.voiceProfiles.get(s.profileId);
+          if (
+            !speaker ||
+            speaker.userNamed ||
+            speaker.mergedInto !== null ||
+            transcript.speakers.some((x) => x.mergedInto === s.speakerId) ||
+            speaker.profileId !== null ||
+            !profile ||
+            profile.name === null ||
+            profile.name.trim() === '' ||
+            profile.meetingIds.includes(id)
+          ) {
+            continue;
+          }
+          out.push({
+            meetingId: id,
+            speakerId: s.speakerId,
+            profileId: s.profileId,
+            profileName: profile.name,
+          });
+        }
+      } catch (error) {
+        // One unreadable meeting must not hide the others.
+        if (meetingId !== undefined) throw error;
+        this.logger.log('warn', 'suggestions-unreadable', { meetingId: id, ...errorFields(error) });
+      }
+    }
+    return out;
+  }
+
+  /** Marks one suggestion declined so it is not asked again. False when it is not stored. */
+  declineSuggestion(meetingId: string, speakerId: string, profileId: string): Promise<boolean> {
+    return this.withLock(meetingId, async () => {
+      const file = this.meetingPaths(meetingId).suggestions;
+      const stored = await readSuggestionsFile(file);
+      const hit = stored.find((s) => s.speakerId === speakerId && s.profileId === profileId);
+      if (!hit) return false;
+      hit.status = 'declined';
+      await writeSuggestionsFile(file, stored);
+      return true;
+    });
+  }
+
+  /** True when a pending suggestion for this speaker and profile is stored and still valid. */
+  async hasSuggestion(meetingId: string, speakerId: string, profileId: string): Promise<boolean> {
+    return (await this.listSuggestions(meetingId)).some(
+      (s) => s.speakerId === speakerId && s.profileId === profileId,
     );
   }
 
@@ -1704,11 +1790,14 @@ export class Library {
       let contributed: string[] = [];
       let voiceLeft = false;
       try {
+        await fs.rm(this.meetingPaths(meetingId).suggestions, { force: true });
         await fs.rm(voicesPath, { force: true });
       } catch (error) {
         this.logger.log('error', 'voices-delete-failed', errorFields(error));
       }
-      if (await exists(voicesPath)) voiceLeft = true;
+      if ((await exists(voicesPath)) || (await exists(this.meetingPaths(meetingId).suggestions))) {
+        voiceLeft = true;
+      }
       try {
         contributed = this.voiceProfiles.dropMeetingContributions(meetingId);
       } catch (error) {

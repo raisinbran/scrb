@@ -597,8 +597,38 @@ export function createMeetingHandlers(
     listSpeakerSuggestions: async (request) => {
       const { meetingId } = request as { meetingId?: string };
       if (meetingId) await requireMeeting(library, meetingId);
-      // No suggestion store exists yet: do not invent a voice match.
-      return [];
+      return library.listSuggestions(meetingId);
+    },
+    answerSpeakerSuggestion: async (request) => {
+      const { meetingId, speakerId, profileId, accepted } = request as {
+        meetingId: string;
+        speakerId: string;
+        profileId: string;
+        accepted: boolean;
+      };
+      await requireMeeting(library, meetingId);
+      const stale = new ContractError({ code: 'conflict', message: 'That suggestion changed.' });
+      if (!(await library.hasSuggestion(meetingId, speakerId, profileId))) throw stale;
+      if (!accepted) {
+        if (!(await library.declineSuggestion(meetingId, speakerId, profileId))) throw stale;
+        return;
+      }
+      const profile = library.voiceProfiles.get(profileId);
+      if (!profile?.name) throw stale;
+      const before = await library.readTranscript(meetingId);
+      try {
+        const after = await library.renameSpeaker(
+          meetingId,
+          speakerId,
+          profile.name,
+          renameLearning({ acceptProfileId: profileId }),
+        );
+        publishEdit(before, after, emit);
+        await publishOutdated(library, before, after, emit);
+      } catch (error) {
+        if (error instanceof CorrectionConflictError) throw stale;
+        throw error;
+      }
     },
     getProfileClips: async (request) => {
       const { profileId } = request as { profileId: string };

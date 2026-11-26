@@ -37,6 +37,8 @@ export interface MeetingPaths {
   summary: string;
   /** Per-speaker voice embeddings for profile learning. Never exported or backed up. */
   voices: string;
+  /** Pending and declined speaker-name suggestions: ids and scores, no voice data. */
+  suggestions: string;
   audio: string;
   audioMicrophone: string;
   audioMeeting: string;
@@ -50,6 +52,7 @@ export function meetingPaths(folder: string): MeetingPaths {
     transcript: path.join(folder, 'transcript.json'),
     summary: path.join(folder, 'summary.json'),
     voices: path.join(folder, 'voices.json'),
+    suggestions: path.join(folder, 'suggestions.json'),
     audio: path.join(folder, 'audio'),
     audioMicrophone: path.join(folder, 'audio', 'microphone'),
     audioMeeting: path.join(folder, 'audio', 'meeting'),

@@ -33,4 +33,5 @@ export type { TermInput, VocabularyContextRef, VocabularyTerm } from './db/vocab
 export { VoiceProfileStore } from './db/voice-profiles.ts';
 export type { VoiceProfile, VoiceContribution } from './db/voice-profiles.ts';
 export type { VoicesFile, VoiceEntry } from './voices-file.ts';
+export type { StoredSuggestion } from './suggestions-file.ts';
 export { INDEX_VERSION } from './db/migrations.ts';

@@ -1,7 +1,17 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { matchVoices, type FinalTranscript } from '@scrb/transcription';
-import type { Library, TranscriptFile, VoiceProfile } from '@scrb/storage';
+import type { Library, StoredSuggestion, TranscriptFile, VoiceProfile } from '@scrb/storage';
+
+/** A profile needs at least this many segments before it may name a speaker without asking. */
+export const minAutoProfileSegments = 8;
+
+export interface ProfileSuggestionNotice {
+  meetingId: string;
+  speakerId: string;
+  profileId: string;
+  profileName: string;
+}
 
 export const APPROVED_EMBEDDING_SHA256 =
   '1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b';
@@ -35,6 +45,7 @@ function normalize(vector: readonly number[]): number[] | null {
 export function startProfileMatching(
   library: Library,
   fingerprint: (path: string) => Promise<string> = hashModel,
+  onSuggestion?: (suggestion: ProfileSuggestionNotice) => void,
 ): ProfileMatchingJob {
   let profiles: VoiceProfile[];
   try {
@@ -44,8 +55,7 @@ export function startProfileMatching(
         (profile) =>
           profile.modelId === APPROVED_PROFILE_MODEL &&
           profile.name !== null &&
-          profile.name.trim() !== '' &&
-          profile.sampleCount >= 8,
+          profile.name.trim() !== '',
       );
   } catch {
     library.logger.log('warn', 'profile-matching-skipped', { reason: 'snapshot-unavailable' });
@@ -55,6 +65,7 @@ export function startProfileMatching(
     let before: TranscriptFile | undefined;
     const assignments: { speaker: TranscriptFile['speakers'][number]; profile: VoiceProfile }[] =
       [];
+    const suggestions: StoredSuggestion[] = [];
     try {
       if (signal.aborted || !modelPath) return;
       before = await library.readTranscript(meetingId);
@@ -85,12 +96,24 @@ export function startProfileMatching(
           normalized.filter((profile) => profile.embedding.length === dimension),
         );
         for (const [speakerId, match] of matches) {
-          if (match.kind !== 'auto') continue;
+          if (match.kind === 'unknown') continue;
           const speaker = before.speakers.find((s) => s.id === speakerId);
           const profile = profiles.find((p) => p.id === match.profileId);
-          if (speaker && profile) assignments.push({ speaker, profile });
+          if (!speaker || !profile) continue;
+          if (match.kind === 'auto' && profile.sampleCount >= minAutoProfileSegments) {
+            assignments.push({ speaker, profile });
+          } else {
+            suggestions.push({
+              speakerId,
+              profileId: profile.id,
+              score: match.score,
+              status: 'pending',
+            });
+          }
         }
       }
+      // A reprocess replaces the old pass's suggestions, so this runs even with none to add.
+      await saveSuggestions(library, meetingId, suggestions, profiles, onSuggestion);
       if (assignments.length === 0) return;
       const after = await library.assignSpeakerProfiles(
         meetingId,
@@ -137,4 +160,33 @@ export function startProfileMatching(
       return committed;
     }
   };
+}
+
+async function saveSuggestions(
+  library: Library,
+  meetingId: string,
+  suggestions: StoredSuggestion[],
+  profiles: VoiceProfile[],
+  notify: ((suggestion: ProfileSuggestionNotice) => void) | undefined,
+): Promise<void> {
+  try {
+    await library.replaceSuggestions(meetingId, suggestions);
+  } catch {
+    library.logger.log('warn', 'suggestions-not-saved', {});
+    return;
+  }
+  for (const s of suggestions) {
+    const profile = profiles.find((p) => p.id === s.profileId);
+    if (!profile?.name) continue;
+    try {
+      notify?.({
+        meetingId,
+        speakerId: s.speakerId,
+        profileId: s.profileId,
+        profileName: profile.name,
+      });
+    } catch {
+      library.logger.log('warn', 'profile-matching-notification-failed', {});
+    }
+  }
 }
