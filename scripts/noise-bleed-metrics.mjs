@@ -1,15 +1,26 @@
 // V-b0 metric harness for the recognition-copy noise/echo filter (plan: docs/plans/noise-filter-plan-20261125.md).
 // Dev tooling only: no runtime code imports it. Reads WAVs, never writes next to them.
-// Usage: node scripts/noise-bleed-metrics.mjs <config.json>   (see docs/research/noise-bleed-harness.md)
+// Usage: node scripts/noise-bleed-metrics.mjs manifest <out.json> <protected-path>...   (BEFORE any filtering)
+//        node scripts/noise-bleed-metrics.mjs <config.json>   (see docs/research/noise-bleed-harness.md)
 // Verdict PASS / FAIL / NOT_VERIFIED exits 0 / 1 / 2. Use public AMI audio and invented echoes only.
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  readlinkSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const TARGETS = { medianDb: 12, perConditionDb: 8, latencyP95Ms: 30 };
+const MIN_LIVE_SAMPLES = 20;
+const MIN_CORRELATION = 0.5;
 const FRAME_MS = 20;
 const SCORER = join(dirname(fileURLToPath(import.meta.url)), 'eval', 'score_ami_wer.py');
 
@@ -78,6 +89,7 @@ const energy = (x, from, to) => {
   for (let i = from; i < to; i++) e += x[i] * x[i];
   return e;
 };
+const rmsOf = (x) => Math.sqrt(energy(x, 0, x.length) / Math.max(x.length, 1));
 const median = (v) => {
   if (!v.length) return NaN;
   const s = [...v].sort((a, b) => a - b);
@@ -89,25 +101,27 @@ export const percentile = (v, p) => {
 };
 
 /**
- * Remote-voice leakage reduction in dB over far-end-active frames (reference RMS >= activeRms):
- * 10*log10(E_unfiltered / E_filtered) per frame, then the median and the pooled value.
- * `mask` (optional [{from,to}] seconds) restricts frames, e.g. to far-end-only windows.
+ * Leakage reduction in dB over far-end-active frames (reference RMS >= activeRms, reference shifted by
+ * `echoDelayMs` so frames line up with the echo). Only meaningful where the mic holds remote voice alone:
+ * pass far-end-only windows in `mask`. In double talk, local-speech attenuation would count as "echo reduction".
  */
 export function leakageReduction(
   unfiltered,
   filtered,
   reference,
   rate,
-  { activeRms = 0.005, mask } = {},
+  { activeRms = 0.005, mask, echoDelayMs = 0 } = {},
 ) {
   const hop = Math.round((rate * FRAME_MS) / 1000);
-  const n = Math.min(unfiltered.length, filtered.length, reference.length);
+  const shift = Math.round((echoDelayMs / 1000) * rate);
+  const n = Math.min(unfiltered.length, filtered.length, reference.length + shift);
   const frames = [];
   let eu = 0,
     ef = 0;
   for (let at = 0; at + hop <= n; at += hop) {
     if (mask && !mask.some((m) => at / rate >= m.from && (at + hop) / rate <= m.to)) continue;
-    if (Math.sqrt(energy(reference, at, at + hop) / hop) < activeRms) continue;
+    const rf = at - shift;
+    if (rf < 0 || Math.sqrt(energy(reference, rf, rf + hop) / hop) < activeRms) continue;
     const u = energy(unfiltered, at, at + hop) + 1e-12;
     const f = energy(filtered, at, at + hop) + 1e-12;
     frames.push(10 * Math.log10(u / f));
@@ -118,123 +132,277 @@ export function leakageReduction(
   return { frames: frames.length, medianDb: median(frames), pooledDb: 10 * Math.log10(eu / ef) };
 }
 
-/** Added latency (ms): lag of the filtered copy against the unfiltered one, by cross-correlation over the loudest segment. */
-export function addedLatencyMs(unfiltered, filtered, rate, { maxMs = 100, segmentS = 1 } = {}) {
+const SILENT_RMS = 1e-5;
+
+/**
+ * Offline alignment lag (ms) of the filtered copy against the unfiltered one: normalised cross-correlation over the
+ * loudest segment, searching -maxMs..+maxMs. status is "ok" or an invalid reason; an invalid result is never a pass.
+ * This is one waveform alignment, not live latency (see liveLatencySamplesMs).
+ */
+export function alignmentLag(unfiltered, filtered, rate, { maxMs = 100, segmentS = 1 } = {}) {
   const seg = Math.round(segmentS * rate);
   const maxLag = Math.round((maxMs / 1000) * rate);
   const n = Math.min(unfiltered.length, filtered.length);
-  if (n < seg + maxLag) return NaN;
-  let best = 0,
+  const bad = (status) => ({ ms: NaN, correlation: NaN, status });
+  if (n < seg + 2 * maxLag) return bad('too short for the lag search');
+  if (rmsOf(unfiltered) < SILENT_RMS) return bad('unfiltered signal is silent');
+  if (rmsOf(filtered) < SILENT_RMS) return bad('filtered signal is silent');
+  let best = maxLag,
     bestE = -1;
   const step = Math.round(rate / 4);
-  for (let at = 0; at + seg + maxLag <= n; at += step) {
+  for (let at = maxLag; at + seg + maxLag <= n; at += step) {
     const e = energy(unfiltered, at, at + seg);
     if (e > bestE) {
       bestE = e;
       best = at;
     }
   }
-  let bestLag = 0,
-    bestC = -Infinity;
-  for (let lag = 0; lag <= maxLag; lag++) {
-    let c = 0;
-    for (let i = 0; i < seg; i++) c += unfiltered[best + i] * filtered[best + i + lag];
-    if (c > bestC) {
-      bestC = c;
-      bestLag = lag;
+  if (bestE < seg * SILENT_RMS ** 2) return bad('loudest segment is silent');
+  const corr = new Float64Array(2 * maxLag + 1);
+  for (let lag = -maxLag; lag <= maxLag; lag++) {
+    let c = 0,
+      ef = 0;
+    for (let i = 0; i < seg; i++) {
+      const f = filtered[best + i + lag];
+      c += unfiltered[best + i] * f;
+      ef += f * f;
     }
+    corr[lag + maxLag] = ef > 0 ? c / Math.sqrt(bestE * ef) : 0;
   }
-  return (bestLag / rate) * 1000;
+  let pk = 0;
+  for (let i = 1; i < corr.length; i++) if (corr[i] > corr[pk]) pk = i;
+  const lag = pk - maxLag;
+  if (corr[pk] < MIN_CORRELATION) return bad(`weak correlation (${corr[pk].toFixed(2)})`);
+  if (pk === 0 || pk === corr.length - 1) return bad('lag at search boundary');
+  const guard = Math.round(rate / 1000);
+  for (let i = 0; i < corr.length; i++)
+    if (Math.abs(i - pk) > guard && corr[i] >= 0.95 * corr[pk])
+      return bad('ambiguous correlation peaks');
+  return { ms: (lag / rate) * 1000, correlation: corr[pk], status: 'ok' };
 }
 
 export const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-/** Hash every file under `paths` (files or folders, recursive) so originals can be re-verified later. */
-export function snapshot(paths) {
-  const out = {};
+/**
+ * Inventory of protected roots (files or folders): realpath, every file's size, SHA-256 and device:inode, symlinks recorded
+ * as links (never followed). Take it BEFORE any filtering runs; compare afterwards with compareManifest.
+ */
+export function createManifest(roots, now = Date.now()) {
+  const real = roots.map((r) => realpathSync(r));
+  const entries = {};
   const walk = (p) => {
-    if (statSync(p).isDirectory()) for (const f of readdirSync(p).sort()) walk(join(p, f));
-    else out[resolve(p)] = sha256(p);
+    const st = lstatSync(p);
+    if (st.isSymbolicLink()) entries[p] = { type: 'symlink', target: readlinkSync(p) };
+    else if (st.isDirectory()) {
+      entries[p] = { type: 'dir' };
+      for (const f of readdirSync(p).sort()) walk(join(p, f));
+    } else
+      entries[p] = { type: 'file', size: st.size, sha256: sha256(p), id: `${st.dev}:${st.ino}` };
   };
-  paths.forEach(walk);
-  return out;
+  real.forEach(walk);
+  return { version: 1, createdAtMs: now, roots: real, entries };
 }
 
-/** Raw-data invariants: originals byte-identical, none of the filtered outputs is an original or lives beside one. */
-export function verifyInvariants(before, filteredPaths = []) {
-  const problems = [];
-  const after = snapshot(Object.keys(before));
-  for (const [p, h] of Object.entries(before))
-    if (after[p] !== h) problems.push(`original changed: ${p}`);
-  const dirs = new Set(Object.keys(before).map(dirname));
-  for (const f of filteredPaths.map((p) => resolve(p))) {
-    if (f in before) problems.push(`filtered output is an original: ${f}`);
-    else if (dirs.has(dirname(f)))
-      problems.push(`filtered output sits in an originals folder: ${f}`);
+const same = (a, b) =>
+  a &&
+  b &&
+  a.type === b.type &&
+  a.sha256 === b.sha256 &&
+  a.size === b.size &&
+  a.target === b.target;
+
+/** Full inventory comparison: added, modified, deleted paths (empty arrays mean untouched). */
+export function compareManifest(manifest) {
+  const now = createManifest(manifest.roots.filter((r) => existsSync(r) || lstatExists(r))).entries;
+  const added = Object.keys(now).filter((p) => !(p in manifest.entries));
+  const deleted = Object.keys(manifest.entries).filter((p) => !(p in now));
+  const modified = Object.keys(manifest.entries).filter(
+    (p) => p in now && !same(manifest.entries[p], now[p]),
+  );
+  return { added, modified, deleted, ok: !added.length && !modified.length && !deleted.length };
+}
+function lstatExists(p) {
+  try {
+    lstatSync(p);
+    return true;
+  } catch {
+    return false;
   }
+}
+
+const inside = (child, root) => child === root || child.startsWith(root + sep);
+
+/** Each filtered output must be a plain single-link file outside every protected root, not an alias of a protected file, and newer than the manifest. */
+export function checkOutputs(manifest, outputs) {
+  const problems = [];
+  const ids = new Set(
+    Object.values(manifest.entries)
+      .map((e) => e.id)
+      .filter(Boolean),
+  );
+  for (const out of outputs.map((o) => resolve(o))) {
+    let st;
+    try {
+      st = lstatSync(out);
+    } catch {
+      problems.push(`filtered output missing: ${out}`);
+      continue;
+    }
+    if (st.isSymbolicLink()) problems.push(`filtered output is a symlink: ${out}`);
+    else if (!st.isFile()) problems.push(`filtered output is not a file: ${out}`);
+    const real = realpathSync(out);
+    if (manifest.roots.some((r) => inside(real, r) || inside(realpathSync(dirname(out)), r)))
+      problems.push(`filtered output is inside a protected root: ${out}`);
+    if (ids.has(`${st.dev}:${st.ino}`) || st.nlink > 1)
+      problems.push(`filtered output is a hardlink alias: ${out}`);
+    if (st.mtimeMs < manifest.createdAtMs)
+      problems.push(
+        `filtered output predates the manifest, so the manifest was not taken before filtering: ${out}`,
+      );
+  }
+  return problems;
+}
+
+/** Raw-data invariants: complete inventory unchanged, outputs contained. */
+export function verifyInvariants(manifest, outputs = []) {
+  const diff = compareManifest(manifest);
+  const problems = [
+    ...diff.added.map((p) => `added to a protected root: ${p}`),
+    ...diff.modified.map((p) => `original modified: ${p}`),
+    ...diff.deleted.map((p) => `original deleted: ${p}`),
+    ...checkOutputs(manifest, outputs),
+  ];
   return { ok: problems.length === 0, problems };
 }
 
-/** Run the existing scorer on hypothesis files; returns wer per file name. Needs `python3` and AMI annotations. */
-export function scoreWer(annotationDir, meeting, hypPaths, python = 'python3') {
-  const out = execFileSync(python, ['-I', SCORER, annotationDir, meeting, ...hypPaths], {
+/** Run the existing scorer on ONE hypothesis against an isolated reference; returns its JSON row. Needs python3 and AMI annotations. */
+export function scoreWer(
+  annotationDir,
+  meeting,
+  hypPath,
+  { speaker, from, to, python = 'python3' } = {},
+) {
+  if (speaker && !/^[A-Za-z0-9]+$/.test(speaker)) throw new Error('bad speaker id');
+  const args = ['-I', SCORER];
+  if (speaker) args.push('--speaker', speaker);
+  if (from !== undefined) args.push('--from', String(from));
+  if (to !== undefined) args.push('--to', String(to));
+  const out = execFileSync(python, [...args, annotationDir, meeting, hypPath], {
     encoding: 'utf8',
   });
-  return Object.fromEntries(
-    out
-      .trim()
-      .split('\n')
-      .map((l) => JSON.parse(l))
-      .map((r, i) => [hypPaths[i], r]),
-  );
+  const row = JSON.parse(out.trim());
+  if (row.hypothesis !== basename(hypPath))
+    throw new Error(`scorer returned ${row.hypothesis} for ${hypPath}`);
+  return row;
 }
 
-/** Evaluate one config (see docs/research/noise-bleed-harness.md) against the plan's targets. */
+/** Evaluate one config (see docs/research/noise-bleed-harness.md) against the plan's targets; unmeasured is never PASS. */
 export function evaluate(config, { wer = scoreWer } = {}) {
-  const base = config.baseDir ?? '.';
-  const at = (p) => resolve(base, p);
-  const before = snapshot((config.originals ?? []).map(at));
-  const conditions = [];
+  const at = (p) => resolve(config.baseDir ?? '.', p);
   const notes = [];
+  const conditions = [];
+  const minRef = config.minRefWords ?? 20;
   for (const c of config.conditions) {
+    const row = { name: c.name, farEndOnly: !!c.farEndOnly, nearEnd: !!c.nearEnd, issues: [] };
+    conditions.push(row);
     const u = parseWav(readFileSync(at(c.unfiltered)));
     const f = parseWav(readFileSync(at(c.filtered)));
     const r = parseWav(readFileSync(at(c.reference)));
-    if (u.rate !== f.rate || u.rate !== r.rate) throw new Error(`${c.name}: sample rates differ`);
-    const row = { name: c.name, farEndOnly: !!c.farEndOnly };
-    if (c.leakage !== false) {
-      row.leakage = leakageReduction(u.samples, f.samples, r.samples, u.rate, { mask: c.mask });
-      row.latencyMs = addedLatencyMs(u.samples, f.samples, u.rate);
+    if (u.rate !== f.rate || u.rate !== r.rate) {
+      row.issues.push('sample rates differ');
+      continue;
     }
-    if (c.hypUnfiltered && c.hypFiltered) {
-      const s = wer(at(config.annotationDir), c.meeting, [at(c.hypUnfiltered), at(c.hypFiltered)]);
-      const [a, b] = [s[at(c.hypUnfiltered)], s[at(c.hypFiltered)]];
-      row.wer = { unfiltered: a.wer, filtered: b.wer, refWords: a.ref_words, worse: b.wer > a.wer };
+    const tol = Math.round(u.rate * 0.02);
+    if (
+      Math.abs(u.samples.length - f.samples.length) > tol ||
+      Math.abs(u.samples.length - r.samples.length) > tol
+    )
+      row.issues.push(
+        'unfiltered, filtered and reference durations differ (truncated or mismatched)',
+      );
+    if (row.issues.length) continue;
+    if (c.farEndOnly || c.mask) {
+      if (rmsOf(f.samples) < SILENT_RMS)
+        row.issues.push(
+          'filtered output is digital silence: suppression cannot be told from muting',
+        );
+      else {
+        row.leakage = leakageReduction(u.samples, f.samples, r.samples, u.rate, {
+          mask: c.mask,
+          echoDelayMs: c.echoDelayMs,
+        });
+        if (!row.leakage.frames)
+          row.issues.push('no far-end-active frames in the measured windows');
+      }
+    } else if (!c.nearEnd)
+      row.issues.push(
+        'leakage not measured: needs farEndOnly or a far-end-only mask (double talk would count local attenuation as echo reduction)',
+      );
+    if (c.nearEnd) {
+      row.alignment = alignmentLag(u.samples, f.samples, u.rate);
+      if (row.alignment.status !== 'ok') row.issues.push(`alignment: ${row.alignment.status}`);
+      if (!c.hypUnfiltered || !c.hypFiltered || !c.meeting || !c.nearEndSpeaker)
+        row.issues.push(
+          'near-end WER inputs missing (meeting, nearEndSpeaker, hypUnfiltered, hypFiltered)',
+        );
+      else {
+        const opts = { speaker: c.nearEndSpeaker, from: c.nearEndFrom, to: c.nearEndTo };
+        const a = wer(at(config.annotationDir), c.meeting, at(c.hypUnfiltered), opts);
+        const b = wer(at(config.annotationDir), c.meeting, at(c.hypFiltered), opts);
+        if (a.ref_words < minRef || a.ref_words !== b.ref_words)
+          row.issues.push(
+            `near-end reference invalid (${a.ref_words}/${b.ref_words} words, need >= ${minRef} and equal)`,
+          );
+        else if (!a.hyp_words || !b.hyp_words) row.issues.push('empty hypothesis transcript');
+        else
+          row.wer = {
+            unfiltered: a.wer,
+            filtered: b.wer,
+            refWords: a.ref_words,
+            worse: b.wer > a.wer,
+          };
+      }
     }
-    conditions.push(row);
   }
-  const inv = verifyInvariants(
-    before,
-    config.conditions.map((c) => at(c.filtered)),
+  let inv = { ok: true, problems: [] };
+  if (config.manifest) {
+    const manifest = JSON.parse(readFileSync(at(config.manifest), 'utf8'));
+    inv = verifyInvariants(
+      manifest,
+      config.conditions.map((c) => at(c.filtered)),
+    );
+  }
+  const tri = (items, ok) =>
+    !items.length || items.some((x) => x === undefined) ? null : items.every(ok);
+  const fe = conditions.filter((c) => c.farEndOnly);
+  const lk = conditions.filter(
+    (c) => c.leakage || c.issues.some((i) => /leakage|silence|far-end-active/.test(i)),
   );
-  const fe = conditions.filter((c) => c.farEndOnly && c.leakage);
-  const medianDb = median(fe.map((c) => c.leakage.medianDb));
-  const leaky = conditions
-    .filter((c) => c.leakage && !(c.leakage.pooledDb >= TARGETS.perConditionDb))
-    .map((c) => c.name);
-  const lat = percentile(
-    conditions.map((c) => c.latencyMs).filter((v) => !Number.isNaN(v)),
-    0.95,
-  );
-  const werWorse = conditions.filter((c) => c.wer?.worse).map((c) => c.name);
+  const ne = conditions.filter((c) => c.nearEnd);
+  const median12 = median(fe.map((c) => c.leakage?.medianDb));
+  const live = config.liveLatencySamplesMs ?? [];
+  const liveP95 = live.length >= MIN_LIVE_SAMPLES ? percentile(live, 0.95) : NaN;
   const checks = {
-    medianLeakage: fe.length ? medianDb >= TARGETS.medianDb : null,
-    perConditionLeakage: conditions.some((c) => c.leakage) ? leaky.length === 0 : null,
-    latencyP95: Number.isNaN(lat) ? null : lat < TARGETS.latencyP95Ms,
-    nearEndWer: conditions.some((c) => c.wer) ? werWorse.length === 0 : null,
-    invariants: (config.originals ?? []).length ? inv.ok : null,
+    medianLeakage:
+      fe.length && fe.every((c) => c.leakage?.frames) ? median12 >= TARGETS.medianDb : null,
+    perConditionLeakage: tri(
+      lk.map((c) => c.leakage),
+      (l) => l.pooledDb >= TARGETS.perConditionDb,
+    ),
+    offlineAlignmentLag: tri(
+      ne.map((c) => (c.alignment?.status === 'ok' ? c.alignment : undefined)),
+      (a) => a.ms >= -1 && a.ms < TARGETS.latencyP95Ms,
+    ),
+    nearEndWer: tri(
+      ne.map((c) => c.wer),
+      (w) => !w.worse,
+    ),
+    liveLatencyP95: Number.isNaN(liveP95) ? null : liveP95 < TARGETS.latencyP95Ms,
+    invariants: config.manifest ? inv.ok : null,
   };
-  for (const [k, v] of Object.entries(checks)) if (v === null) notes.push(`${k} not measured`);
+  for (const [k, v] of Object.entries(checks))
+    if (v === null) notes.push(`${k} not measured or invalid`);
+  for (const c of conditions) for (const i of c.issues) notes.push(`${c.name}: ${i}`);
   const verdict = Object.values(checks).includes(false)
     ? 'FAIL'
     : notes.length
@@ -243,26 +411,28 @@ export function evaluate(config, { wer = scoreWer } = {}) {
   return {
     verdict,
     targets: TARGETS,
-    medianFarEndDb: medianDb,
-    latencyP95Ms: lat,
+    medianFarEndDb: median12,
+    liveLatencyP95Ms: liveP95,
     conditions,
     checks,
     problems: inv.problems,
-    leaky,
-    werWorse,
     notes,
   };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const file = process.argv[2];
-  if (!file) {
-    console.error('Usage: node scripts/noise-bleed-metrics.mjs <config.json>');
+  const [a, b, ...rest] = process.argv.slice(2);
+  if (a === 'manifest' && b && rest.length) {
+    writeFileSync(b, JSON.stringify(createManifest(rest), null, 2), { flag: 'wx' });
+    console.log(`manifest written: ${b}`);
+  } else if (a && a !== 'manifest') {
+    const config = JSON.parse(readFileSync(a, 'utf8'));
+    config.baseDir ??= dirname(resolve(a));
+    const result = evaluate(config);
+    console.log(JSON.stringify(result, null, 2));
+    process.exit({ PASS: 0, FAIL: 1, NOT_VERIFIED: 2 }[result.verdict]);
+  } else {
+    console.error('Usage: noise-bleed-metrics.mjs manifest <out.json> <path>... | <config.json>');
     process.exit(2);
   }
-  const config = JSON.parse(readFileSync(file, 'utf8'));
-  config.baseDir ??= dirname(resolve(file));
-  const result = evaluate(config);
-  console.log(JSON.stringify(result, null, 2));
-  process.exit({ PASS: 0, FAIL: 1, NOT_VERIFIED: 2 }[result.verdict]);
 }

@@ -4,16 +4,25 @@ Slice V-b0 of [the V-b plan](../plans/noise-filter-plan-20261125.md). Dev toolin
 
 ## Harness
 
-`node scripts/noise-bleed-metrics.mjs config.json` (code: `scripts/noise-bleed-metrics.mjs`, tests: `.test.mjs`). Exit 0 PASS, 1 FAIL, 2 NOT_VERIFIED (a target not measured is never PASS). Config: `baseDir`, `originals` (files/folders hashed before and after, including chunk folders), `annotationDir` (AMI), and `conditions[]` with `name`, `farEndOnly`, `unfiltered`, `filtered`, `reference` (all 16-bit PCM WAV, same rate), optional `mask` (`[{from,to}]` seconds), and optional `meeting`, `hypUnfiltered`, `hypFiltered` (transcripts of each copy from the same model).
+Two steps (code: `scripts/noise-bleed-metrics.mjs`, tests alongside):
 
-| Metric              | How                                                                                                                            | Target (plan)                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Leakage reduction   | 10log10(E_unfiltered/E_filtered) per 20 ms frame where reference RMS >= 0.005; median per condition, pooled per condition      | median over far-end-only conditions >= 12 dB; pooled >= 8 dB in every condition |
-| Near-end WER        | existing `scripts/eval/score_ami_wer.py` on both hypotheses                                                                    | filtered no worse than unfiltered; denominators reported                        |
-| Added latency       | lag of best cross-correlation over the loudest 1 s, 0-100 ms                                                                   | p95 across conditions < 30 ms                                                   |
-| Raw-data invariants | SHA-256 snapshot of originals re-checked after the run; filtered outputs must not be an original or sit in an originals folder | unchanged                                                                       |
+1. **Before any filtering:** `node scripts/noise-bleed-metrics.mjs manifest manifest.json <protected file or folder>...` records realpath, size, SHA-256 and device:inode of every file (symlinks recorded, never followed). It refuses to overwrite an existing manifest.
+2. **After filtering:** `node scripts/noise-bleed-metrics.mjs config.json`. Exit 0 PASS, 1 FAIL, 2 NOT_VERIFIED. Anything unmeasured, invalid or inconclusive is NOT_VERIFIED, never PASS.
 
-Limits: latency p95 is over conditions, not frames; missing first/last local words and double-talk loss are not measured here (V-b1).
+Config: `baseDir`, `manifest`, `annotationDir` (AMI), `minRefWords` (default 20), optional `liveLatencySamplesMs`, and `conditions[]` with `name`, `unfiltered`, `filtered`, `reference` (16-bit PCM WAV, same rate, durations within 20 ms), plus:
+
+- `farEndOnly: true` or a far-end-only `mask` (`[{from,to}]` s) for leakage; optional `echoDelayMs` shifts reference gating onto the echo.
+- `nearEnd: true` with `meeting`, `nearEndSpeaker` (AMI speaker letter), optional `nearEndFrom`/`nearEndTo`, `hypUnfiltered`, `hypFiltered` for WER and alignment.
+
+| Metric                | How                                                                                                                                                                                                                                                                                                    | Target (plan)                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Leakage reduction     | 10log10(E_unfiltered/E_filtered) per 20 ms frame where the (delay-shifted) reference RMS >= 0.005; only far-end-only windows, because in double talk local-speech attenuation would count as echo reduction. Digital-silence output is invalid (muting is not suppression)                             | median over far-end-only conditions >= 12 dB; pooled >= 8 dB per measured condition |
+| Near-end WER          | existing `scripts/eval/score_ami_wer.py` with `--speaker/--from/--to` (isolated near-end reference), one call per transcript, row name checked; invalid if the reference has fewer than `minRefWords`, the two denominators differ, or a transcript is empty                                           | filtered no worse than unfiltered in every near-end condition                       |
+| Offline alignment lag | normalised cross-correlation over the loudest 1 s, lags -100..+100 ms. Invalid for silent or too-short signals, correlation < 0.5, peak at the search boundary, or a second peak >= 95% of the best                                                                                                    | < 30 ms (one waveform alignment, **not** live latency)                              |
+| Live latency p95      | only from supplied `liveLatencySamplesMs` (>= 20 samples), measured in V-b2                                                                                                                                                                                                                            | < 30 ms p95                                                                         |
+| Raw-data invariants   | complete inventory compared with the pre-filter manifest: added, modified, deleted, symlink-replaced files all fail; each filtered output must be a plain single-link file outside every protected root (realpath checked, so symlinked folders and hardlink aliases fail) and newer than the manifest | unchanged                                                                           |
+
+Limits: missing first/last local words, double-talk loss and live latency are V-b1/V-b2 work; the harness does not claim them.
 
 ## License and pinning decision (not shipping clearance)
 
