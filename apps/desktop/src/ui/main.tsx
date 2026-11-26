@@ -27,6 +27,14 @@ const isMini = window.location.hash === '#mini';
 
 document.documentElement.dataset['platform'] = bridge?.platform ?? 'browser';
 
+if (
+  import.meta.env.DEV &&
+  !bridge &&
+  new URLSearchParams(window.location.search).get('design') !== 'baseline'
+) {
+  document.documentElement.dataset['design'] = 'tonal';
+}
+
 async function start() {
   const blocked = realBackend ? await detectSetupBlocked(realBackend) : null;
   const backend = realBackend

@@ -846,3 +846,61 @@ div.editHint {
 div.editHint button {
   pointer-events: auto;
 }
+
+:global([data-design='tonal'][data-theme='light']) .detail {
+  background: var(--color-surface-sidebar);
+}
+
+:global([data-design='tonal']) .detail {
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+
+:global([data-design='tonal']) .detailHead,
+:global([data-design='tonal']) .tabs,
+:global([data-design='tonal']) .panel,
+:global([data-design='tonal']) .playerRow {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .detailHead {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+:global([data-design='tonal']) .pageTitle,
+:global([data-design='tonal']) .detailHead .actions {
+  margin: 0;
+}
+
+:global([data-design='tonal']) .tabs,
+:global([data-design='tonal']) .playerRow {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-sidebar);
+}
+
+:global([data-design='tonal']) .tabOn {
+  font-weight: 600;
+  background: var(--color-surface-selected);
+  border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .playerRow {
+  flex-wrap: wrap;
+}
+
+:global([data-design='tonal']) .transcript {
+  padding-inline: var(--space-4);
+}
+
+:global([data-design='tonal']) .panel[aria-labelledby='meeting-tab-Transcript'] {
+  display: flex;
+  flex-direction: column;
+}
+
+:global([data-design='tonal']) .transcriptBox {
+  flex: 1;
+  height: auto;
+}
