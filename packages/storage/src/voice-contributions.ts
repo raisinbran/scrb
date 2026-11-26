@@ -6,7 +6,7 @@ import { weightedMean, type VoiceContribution } from './db/voice-profiles.ts';
  * Speakers whose saved voice no longer stands for one person: merged away, or a merge, split or
  * reassign touched their words. Their embedding must not teach a profile.
  */
-function touchedSpeakers(transcript: TranscriptFile): Set<string> {
+export function touchedSpeakers(transcript: TranscriptFile): Set<string> {
   const touched = new Set<string>();
   for (const speaker of transcript.speakers) {
     if (speaker.mergedInto !== null) touched.add(speaker.id);
