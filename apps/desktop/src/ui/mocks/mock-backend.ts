@@ -319,6 +319,7 @@ export class MockBackend implements Backend {
   private readonly activeImports = new Map<string, ActiveImport & { timer: Timer }>();
   private readonly pickedFiles = new Map<string, PickedAudioFile>();
   private playback: { meetingId: string; positionMs: number } | null = null;
+  private playbackRate = 1;
   private playbackTimer: ReturnType<typeof setInterval> | undefined;
   private readonly endedImports = new Set<string>();
   private health: RecordingHealth | null = null;
@@ -943,7 +944,10 @@ export class MockBackend implements Backend {
     this.playback = playback;
     this.playbackTimer = setInterval(() => {
       const endMs = this.audioEndMs(meetingId);
-      playback.positionMs = Math.min(playback.positionMs + PLAYBACK_STEP_MS, endMs);
+      playback.positionMs = Math.min(
+        playback.positionMs + PLAYBACK_STEP_MS * this.playbackRate,
+        endMs,
+      );
       const isPlaying = playback.positionMs < endMs;
       this.emit('playbackPosition', { ...playback, isPlaying });
       if (!isPlaying) this.stopPlayback();
@@ -1340,6 +1344,10 @@ export class MockBackend implements Backend {
       const positionMs = this.playback?.meetingId === meetingId ? this.playback.positionMs : 0;
       this.stopPlayback();
       this.emit('playbackPosition', { meetingId, positionMs, isPlaying: false });
+    },
+    setPlaybackRate: ({ meetingId, rate }) => {
+      this.findMeeting(meetingId);
+      this.playbackRate = rate;
     },
     // The mock moves the clock only; it has no audio files to serve.
     getPlaybackMedia: () => ({ chunks: [], nextPositionMs: null }),

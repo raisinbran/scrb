@@ -328,4 +328,10 @@ describe('isValidRequest', () => {
       ),
     ).toBe(true);
   });
+
+  it('accepts playback rates from 0.25 to 2 and refuses the rest', () => {
+    const request = (rate: number) => isValidRequest('setPlaybackRate', { meetingId: 'one', rate });
+    for (const rate of [0.25, 1, 2]) expect(request(rate)).toBe(true);
+    for (const rate of [0.24, 2.01, Number.NaN, Infinity]) expect(request(rate)).toBe(false);
+  });
 });
