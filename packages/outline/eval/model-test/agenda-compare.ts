@@ -130,7 +130,7 @@ async function main(): Promise<void> {
   const url = arg('url') ?? 'http://127.0.0.1:8089';
   const seeds = (arg('seeds') ?? '1,2,3').split(',').map(Number);
   const out = arg('out');
-  const inner = httpBackend(url, 'qwen2.5-7b-instruct-q4_k_m');
+  const inner = httpBackend(url, arg('model-label') ?? 'qwen2.5-7b-instruct-q4_k_m');
   const raws: { agenda: boolean; text: string; total: number }[] = [];
   let totalLines = 0;
   const backend: Backend = {
@@ -216,6 +216,10 @@ async function main(): Promise<void> {
         wallSeconds: secG,
       }),
     );
+    if (out) {
+      mkdirSync(dirname(resolve(out)), { recursive: true });
+      writeFileSync(out, JSON.stringify({ partial: true, rows }, null, 2));
+    }
   }
   clearInterval(timer);
   const citeStats: Record<string, Record<string, { count: number; parsed: number }>> = {

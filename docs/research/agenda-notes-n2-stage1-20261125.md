@@ -117,3 +117,15 @@ That is 6 rejected of 54, which are the 6 unparsed citations. The comma lists we
 Re-run once, same model, MiniLM, tau 0.79, same meetings (seeds 4-6 were used to find the problem, so these are not held out). Pooled synthetic, strict kinds, with the v2 fix-round result in parentheses: decision recall 1/9 (3/9), date recall 2/6 (1/6), hallucination 7/25 (13/34), valid citations 21/25 (28/34). Kind-agnostic: decision 3/9, date 3/6. Facts returned: synthetic 25 (34), AMI 8 (20). Citation formats after the change: `LN-LN` 16 of 16 parsed, `LN` 14 of 14, comma lists 4 of 4 rejected (two of them 60 to 90 entries long, degenerate repetition), 34 in all. Failure causes, synthetic: ok 18, cite-unparsed 4, owner-not-in-cite 1, stale 1, low-overlap 1; AMI: ok 4, low-overlap 1, number-not-in-cite 2, polarity 1. AMI decision recall 0/9 for both prompts. Task A unchanged. Wall time per meeting 4.0 to 11.0 s (agenda-aware); peak server working set 7.3 GiB, GPU 7.3 GB total; the run took about 1 minute.
 
 Reading: tightening cut hallucination (38% to 28%) and bad citations (6 to 4 of 25) mostly by making the model return fewer facts, and it lowered strict decision recall. The comma-list failure remains in 4 facts. The result is mixed, not an improvement in recall.
+
+## Tier 2: Qwen2.5-14B-Instruct Q4_K_M, identical comparison (owner approved, 2026-11-25)
+
+Model: official `Qwen/Qwen2.5-14B-Instruct-GGUF`, Apache-2.0, three shards (3,991,999,872 + 3,989,373,504 + 1,006,737,120 bytes), SHA-256 of all three matched the published values; stored on `D:` outside the repo. Server: `-c 12288 -ngl 30` (30 of 49 layers on the 12 GB GPU, the rest on CPU). Same prompt (hash `0d9afaeb791be7ab`), MiniLM, tau 0.79, same meetings, one run, 7.0 minutes (19:40 to 19:47 PST). Seeds 4-6 are not held out.
+
+Pooled synthetic, strict kinds, 14B against 7B (same prompt): decision recall 2/9 against 1/9; date recall 3/6 against 2/6; hallucination 7/26 against 7/25; valid citations 26/26 against 21/25. Facts returned 26 against 25. Task A prompt, kind-agnostic: 14B decision 4/9, date 3/6, hallucination 4/18, citations 18/18 (7B: 3/9, 2/6, 1/11, 11/11).
+
+Citations: all 48 agenda-prompt citations parsed (24 `LN-LN`, 24 `LN`); no comma lists; Task A 41 of 41 parsed. Chunks unparseable: 0 of 12 for both prompts. Failure causes, synthetic (26 facts): ok 19, low-overlap 5, number-not-in-cite 2. AMI (21 facts): ok 14, number-not-in-cite 4, polarity 2, low-overlap 1.
+
+AMI: decision recall agenda-aware 0/3 (ES2002a) and 0/6 (TS3003a); Task A 0/3 and 1/6. Agenda-aware hallucination 5/10 and 6/11 strict (8/11 kind-agnostic); Task A 5/8 and 6/13.
+
+Cost per meeting: agenda-aware 35 to 62 s (7B: 4 to 11 s), Task A 26 to 43 s (7B: 2 to 4 s). Peak server working set 10.5 GiB, GPU 9.2 GB total (baseline about 2.4 GB). The 14B clears the citation validity bar (100%) on invented data but still fails hallucination (27% against the 5% bar), and decision recall is 22% against 80%; AMI decisions remain unrecovered by either model.
