@@ -1,52 +1,83 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from '../SettingsScreen.module.css';
 
 export interface SettingsGroup {
-  /** The id of the group's heading or fieldset. */
+  /** The id of the group's heading. */
   id: string;
   label: string;
 }
 
-const groupOf = (id: string) => document.getElementById(id)?.closest('section, fieldset') ?? null;
+const groupOf = (id: string) => document.getElementById(id)?.closest('section') ?? null;
 
-/** Jump links to the settings groups; the group nearest the top of the screen is marked. */
+function readingOffset(nav: HTMLElement, section: HTMLElement) {
+  const menu = nav.getBoundingClientRect();
+  const topInset = parseFloat(getComputedStyle(nav).insetBlockStart) || 0;
+  const gap = parseFloat(getComputedStyle(section).scrollMarginBlockStart) || 0;
+  return menu.right > section.getBoundingClientRect().left ? menu.height + topInset + gap : gap;
+}
+
 export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
+  const nav = useRef<HTMLElement>(null);
   const [active, setActive] = useState(groups[0]?.id ?? '');
 
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
-    const visible = new Set<string>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const id = (entry.target as HTMLElement).dataset.settingsGroup ?? '';
-          if (entry.isIntersecting) visible.add(id);
-          else visible.delete(id);
-        }
-        const first = groups.find((group) => visible.has(group.id));
-        if (first) setActive(first.id);
-      },
-      // Only the top part of the panel counts, so the group being read is the one marked.
-      { rootMargin: '0px 0px -60% 0px' },
-    );
-    for (const group of groups) {
-      const element = groupOf(group.id);
-      if (element instanceof HTMLElement) {
-        element.dataset.settingsGroup = group.id;
-        observer.observe(element);
+    const menu = nav.current;
+    const workspace = menu?.closest('main');
+    const sections = groups.flatMap(({ id }) => {
+      const section = groupOf(id);
+      return section ? [{ id, section }] : [];
+    });
+    const first = sections[0];
+    const last = sections.at(-1);
+    if (!menu || !workspace || !first || !last) return;
+
+    const update = () => {
+      const { scrollTop, clientHeight, scrollHeight } = workspace;
+      const remaining = scrollHeight - clientHeight - scrollTop;
+      const offset = readingOffset(menu, first.section);
+      // Near the end, short sections may never reach the top of the workspace.
+      const tail = Math.max(0, (clientHeight - offset) * 0.6 - remaining);
+      const line = workspace.getBoundingClientRect().top + offset + tail + 1;
+      if (scrollTop > 0 && remaining <= 1) {
+        setActive(last.id);
+        return;
       }
+      const current = sections.findLast(
+        ({ section }) => section.getBoundingClientRect().top <= line,
+      );
+      setActive(current?.id ?? first.id);
+    };
+
+    workspace.addEventListener('scroll', update, { passive: true });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    for (const element of [workspace, menu, ...sections.map(({ section }) => section)]) {
+      observer?.observe(element);
     }
-    return () => observer.disconnect();
+    update();
+    return () => {
+      workspace.removeEventListener('scroll', update);
+      observer?.disconnect();
+    };
   }, [groups]);
 
   const jump = (id: string) => {
-    setActive(id);
+    const section = groupOf(id);
+    const menu = nav.current;
+    const workspace = menu?.closest('main');
+    if (!section || !menu || !workspace) return;
+    const top =
+      workspace.scrollTop +
+      section.getBoundingClientRect().top -
+      workspace.getBoundingClientRect().top -
+      readingOffset(menu, section);
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    groupOf(id)?.scrollIntoView?.({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    const end = workspace.scrollHeight - workspace.clientHeight;
+    const target = id === groups.at(-1)?.id ? end : Math.min(top, Math.max(0, end - 2));
+    workspace.scrollTo({ top: target, behavior: reduced ? 'instant' : 'smooth' });
   };
 
   return (
-    <nav className={styles.nav} aria-label="Settings groups">
+    <nav ref={nav} className={styles.nav} aria-label="Settings groups">
       <ul className={styles.navList}>
         {groups.map((group) => (
           <li key={group.id}>

@@ -325,24 +325,56 @@ describe('screens', () => {
       }
     });
 
-    it('lists the setting groups with Theme first and jumps to a group', async () => {
-      renderScreen(backend, <SettingsScreen />);
-      const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
-      const names = within(nav)
-        .getAllByRole('button')
-        .map((button) => button.textContent);
-      expect(names.slice(0, 2)).toEqual(['Theme', 'Audio']);
-      expect(names).toEqual(expect.arrayContaining(['Models', 'Storage']));
-      const theme = screen.getByRole('group', { name: 'Theme' });
-      const audio = document.getElementById('settings-audio')!.closest('section')!;
-      expect(theme.compareDocumentPosition(audio) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      const scrollIntoView = vi.fn();
-      audio.scrollIntoView = scrollIntoView;
-      fireEvent.click(within(nav).getByRole('button', { name: 'Audio' }));
-      expect(scrollIntoView).toHaveBeenCalled();
-      expect(within(nav).getByRole('button', { name: 'Audio' }).getAttribute('aria-current')).toBe(
-        'true',
+    it('jumps to a settings group and follows the workspace as it scrolls', async () => {
+      renderScreen(
+        backend,
+        <main>
+          <SettingsScreen />
+        </main>,
       );
+      const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
+      const buttons = within(nav).getAllByRole('button');
+      expect(buttons.map((button) => button.textContent)).toEqual([
+        'Theme',
+        'Audio',
+        'Transcription',
+        'Models',
+        'Storage',
+        'Location',
+      ]);
+
+      const workspace = screen.getByRole('main');
+      const scrollTo = vi.fn();
+      workspace.scrollTo = scrollTo;
+      Object.defineProperties(workspace, {
+        clientHeight: { value: 500 },
+        scrollHeight: { value: 1600 },
+      });
+      const sections = workspace.querySelectorAll('section');
+      sections.forEach((section, index) => {
+        section.getBoundingClientRect = () =>
+          new DOMRect(200, index * 260 - workspace.scrollTop, 500, 260);
+      });
+
+      fireEvent.click(buttons[1]!);
+      expect(scrollTo).toHaveBeenCalledWith({ top: 260, behavior: 'smooth' });
+      expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 270;
+      fireEvent.scroll(workspace);
+      expect(buttons[1]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 960;
+      fireEvent.scroll(workspace);
+      expect(buttons[4]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 1100;
+      fireEvent.scroll(workspace);
+      expect(buttons[5]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 0;
+      fireEvent.scroll(workspace);
+      expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
     });
 
     it('shows stored presets as unavailable without creating unsaved changes', async () => {

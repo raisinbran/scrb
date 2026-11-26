@@ -183,21 +183,25 @@ function SettingsForm({
     <div className={styles.layout}>
       <SettingsNav groups={GROUPS} />
       <div className={styles.groups}>
-        <fieldset id="settings-theme" className={styles.section}>
-          <legend className={styles.legend}>Theme</legend>
-          {THEME_OPTIONS.map((option) => (
-            <label key={option.value} className={styles.option}>
-              <input
-                type="radio"
-                name="theme"
-                value={option.value}
-                checked={theme === option.value}
-                onChange={() => setTheme(option.value)}
-              />
-              {option.label}
-            </label>
-          ))}
-        </fieldset>
+        <section className={styles.section} role="group" aria-labelledby="settings-theme">
+          <h2 id="settings-theme" className={styles.legend}>
+            Theme
+          </h2>
+          <div className={styles.themeOptions}>
+            {THEME_OPTIONS.map((option) => (
+              <label key={option.value} className={styles.option}>
+                <input
+                  type="radio"
+                  name="theme"
+                  value={option.value}
+                  checked={theme === option.value}
+                  onChange={() => setTheme(option.value)}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </section>
 
         <AudioSection audio={draft.audio} devices={devices} apps={apps} onChange={changeAudio} />
 
