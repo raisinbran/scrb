@@ -4,18 +4,24 @@
 
 ## What the stored transcripts show
 
-Sentence-ending marks (`.?!`) per 1000 words in the stored final words, per track (transcripts in the library with 200+ words per track):
+Sentence-ending marks (`.?!`) per 1000 words in the stored final words, per track (transcripts in the library with 200+ words per track; "(n)" is the library's suffix for the n-th recording of that day, so "11-17 (5)" is the fifth 11-17 recording; the two 11-24 rows are different recordings of 12 and 61 minutes):
 
-| Recording | Meeting track | Mic track |
-| --- | --- | --- |
-| 11-12 imported file (64 min) | **0** | n/a |
-| 11-13 to 11-16 (7 recordings) | 21 to 133 | 22 to 158 |
-| 11-17 (5) (43 min) | **0** (capitalised 14 per 1000) | 118 |
-| 11-23 (40 min) | 68 | n/a |
-| 11-24 (2) (12 min) | 81 | n/a |
-| 11-24 (61 min, the reported one) | **0** (first 60 min, every 10-minute bucket) | 140 |
+| Recording | Minutes | Meeting track | Mic track |
+| --- | --- | --- | --- |
+| 11-12 imported file | 64 | **0** | n/a |
+| 11-13 (3) | 3 | 73 | 48 |
+| 11-13 (5) | 72 | 21 | 22 |
+| 11-13 (6) | 1 | 122 | n/a |
+| 11-13 (7) | 13 | 60 | 85 |
+| 11-14 (2) | 3 | 59 | n/a |
+| 11-15 (2) | 4 | 133 | n/a |
+| 11-16 | 68 | 86 | 158 |
+| 11-17 (5) | 43 | **0** | 118 |
+| 11-23 | 40 | 68 | n/a |
+| 11-24 (2) | 12 | 81 | n/a |
+| 11-24 (the reported one) | 61 | **0** | 140 |
 
-So the loss is whole-track (every 10-minute bucket is zero), only on the meeting track, in 3 of the 6 recordings of 40 minutes or longer, and not tied to length, edit count (the import has no edits) or date. The live transcript is not kept after the final pass, so the live-versus-final comparison (step 1) cannot be made.
+So the loss is whole-track (every 10-minute bucket is zero), only on the meeting track, in 3 of the 6 recordings of 40 minutes or longer (11-12, 11-13 (5), 11-16, 11-17 (5), 11-23, 11-24), and not tied to length, edit count (the import has no edits) or date. The live transcript is not kept after the final pass, so the live-versus-final comparison (step 1) cannot be made.
 
 ## What was checked
 
@@ -30,7 +36,7 @@ So the loss is whole-track (every 10-minute bucket is zero), only on the meeting
 | 3 min, `-mc 128`, invented 3-character term | 256 | 85 |
 | 3 min, `-mc 0` | 290 | 27 |
 
-Every run is punctuated in every 10-minute bucket (10 to 135 sentence ends per bucket). The stored transcript for the same audio has 0.
+The two full 61-minute runs have 10 to 135 sentence ends in every 10-minute bucket; the 3-minute runs are not bucketed and are punctuated overall (27 to 86 per 1000). The stored transcript for the same audio has 0.
 
 ## Conclusion and open question
 
