@@ -1,4 +1,4 @@
-### A-1166 — 2026-11-25 — Mac — `npm install` in a fresh worktree rewrote package-lock.json
+### A-1174 — 2026-11-25 — Mac — `npm install` in a fresh worktree rewrote package-lock.json
 
 - **Agent:** Claude
 - **Attribution:** Confirmed self-induced. I ran `npm install` instead of `npm ci` to get dependencies and committed the result with `git add -A`.
