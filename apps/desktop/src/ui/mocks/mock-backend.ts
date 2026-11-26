@@ -943,7 +943,10 @@ export class MockBackend implements Backend {
     this.playback = playback;
     this.playbackTimer = setInterval(() => {
       const endMs = this.audioEndMs(meetingId);
-      playback.positionMs = Math.min(playback.positionMs + PLAYBACK_STEP_MS * this.playbackRate, endMs);
+      playback.positionMs = Math.min(
+        playback.positionMs + PLAYBACK_STEP_MS * this.playbackRate,
+        endMs,
+      );
       const isPlaying = playback.positionMs < endMs;
       this.emit('playbackPosition', { ...playback, isPlaying });
       if (!isPlaying) this.stopPlayback();
