@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ImportCoordinator } from './imports.ts';
 import { createMeetingHandlers } from './meetings.ts';
 import type { BackendEvents } from '@scrb/contracts';
-import type { ImportResult } from '@scrb/app-core';
+import { APPROVED_EMBEDDING_SHA256, type ImportResult } from '@scrb/app-core';
 import { Library } from '@scrb/storage';
 import { once, EventEmitter } from 'node:events';
 
@@ -173,6 +173,81 @@ describe('Electron import coordination', () => {
         expect(await readdir(join(library.paths.cache, 'imports'))).toEqual([]);
         expect(await readFile(selected, 'utf8')).toBe(original);
         expect((await stat(selected)).mtimeMs).toBe(before.mtimeMs);
+      } finally {
+        await coordinator.shutdown();
+        await library.close();
+        await rm(f.root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([true, false])(
+    'keeps voices.json for an import only when it opts in (buildVoiceProfiles %s)',
+    async (optIn) => {
+      const f = await fixture();
+      const library = await Library.open({ root: join(f.root, 'library') });
+      const terminal = new EventEmitter();
+      const coordinator = new ImportCoordinator({
+        ...f.deps,
+        library,
+        fingerprint: async () => APPROVED_EMBEDDING_SHA256,
+        run: async (input) => {
+          input.onEmbeddingModel?.('invented-model.onnx');
+          const result = await f.run(input);
+          const transcript = result.transcript!;
+          transcript.words = [
+            {
+              text: 'Wharf',
+              speakerId: 'voice',
+              track: 'meeting',
+              startMs: 100,
+              endMs: 400,
+              confidence: 1,
+            },
+          ];
+          transcript.turns = [
+            {
+              text: 'Wharf',
+              speakerId: 'voice',
+              startMs: 100,
+              endMs: 400,
+              firstWord: 0,
+              wordCount: 1,
+            },
+          ];
+          transcript.speakers = [
+            {
+              id: 'voice',
+              label: 'Speaker 1',
+              speechMs: 300,
+              embedding: [0, 2, 0],
+              embeddingSegments: 12,
+            },
+          ];
+          return result;
+        },
+        emit: (name, payload) => {
+          if (name === 'importFinished' || name === 'importFailed') terminal.emit('done', payload);
+        },
+      });
+      try {
+        const finished = once(terminal, 'done', { signal: AbortSignal.timeout(4000) });
+        void finished.catch(() => undefined);
+        const picked = (await coordinator.handlers.pickAudioFile!(undefined)) as {
+          fileToken: string;
+        };
+        await coordinator.handlers.importAudioFile!({
+          fileToken: picked.fileToken,
+          buildVoiceProfiles: optIn,
+        });
+        const [result] = (await finished) as [BackendEvents['importFinished']];
+        const voices = await library.readVoices(result.meetingId);
+        if (optIn) {
+          expect(voices?.speakers.map((v) => [v.speakerId, v.segments])).toEqual([['voice', 12]]);
+          expect(Array.from(voices?.speakers[0]?.embedding ?? [])).toEqual([0, 1, 0]);
+        } else {
+          expect(voices).toBeNull();
+        }
       } finally {
         await coordinator.shutdown();
         await library.close();
