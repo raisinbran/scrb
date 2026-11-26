@@ -380,6 +380,8 @@ export interface AgendaScore {
   wordEdit: { distance: number; refWords: number; norm: number };
   review: ReviewActions;
   matched: number;
+  /** For each reference fact, the index of the generated fact credited to it, or -1. */
+  pair: number[];
 }
 
 export interface ScoreOptions {
@@ -547,5 +549,6 @@ export async function scoreAgenda(
       reviewSeconds: null,
     },
     matched,
+    pair,
   };
 }

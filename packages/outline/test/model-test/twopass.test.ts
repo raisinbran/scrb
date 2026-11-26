@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AgendaMeeting } from '../../eval/model-test/agenda.js';
-import { diagnose, generateTwoPass, parseSpans } from '../../eval/model-test/agenda-twopass.js';
+import {
+  decisionDiag,
+  diagnose,
+  generateTwoPass,
+  parseSpans,
+} from '../../eval/model-test/agenda-twopass.js';
 import { synthMeeting } from '../../eval/model-test/agenda-synth.js';
 import type { Backend } from '../../eval/model-test/backend.js';
 import { CANDIDATE_SYSTEM, twoPassPromptHash } from '../../eval/model-test/prompts.js';
@@ -113,7 +118,7 @@ describe('two-pass pipeline', () => {
     const s = synthMeeting(19);
     expect(s.facts.every((f) => f.line && f.line <= s.lines.length)).toBe(true);
     const dec = s.facts.find((f) => f.kind === 'decision' && f.value)!;
-    expect(s.lines[dec.line! - 1]!.text).toContain(dec.value!.replace('$', '$'));
+    expect(s.lines[dec.line! - 1]!.text).toContain(dec.value!);
     expect(twoPassPromptHash()).toMatch(/^[0-9a-f]{16}$/);
   });
   it('runs pass 1 in windows and pass 2 in batches, counting other and unanswered', async () => {
@@ -146,5 +151,33 @@ describe('two-pass pipeline', () => {
     expect(Math.max(...batches)).toBeLessThanOrEqual(12);
     expect(g.unanswered).toBe(batches.length);
     expect(g.other).toBe(batches.length);
+  });
+  it('explains uncredited decisions at the scorer, numbers only', async () => {
+    const b = scripted(
+      ['L3', 'L4'],
+      [
+        { id: 1, topic: 'o1', kind: 'decision', text: 'Marketing cut to $4,000' },
+        { id: 2, topic: 'o1', kind: 'decision', text: 'No designer hired' },
+      ],
+    );
+    const g = await generateTwoPass(M, b);
+    const embed = async (t: string[]) => t.map(() => Float32Array.of(1));
+    // pretend the original scorer credited nothing
+    const d = await decisionDiag(M, g, g.verdicts, [-1, -1, -1], embed, 0.99);
+    expect(d).toMatchObject({
+      gold: 2,
+      candidate: 2,
+      keptAsDecision: 2,
+      keptOk: 2,
+      correctedCredited: 2,
+      originalCredited: 0,
+      topicRight: 1,
+    });
+    expect(
+      d.notCredited.claimTextBelowTau +
+        d.notCredited.citationNotSupported +
+        d.notCredited.otherFactCheckOrAssignment,
+    ).toBe(2);
+    expect(d.rows.length).toBe(2);
   });
 });

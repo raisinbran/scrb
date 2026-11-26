@@ -11,7 +11,8 @@ import {
 } from './agenda.js';
 import type { Backend } from './backend.js';
 import { CANDIDATE_SYSTEM, CLASSIFY_SYSTEM, promptCandidates, promptClassify } from './prompts.js';
-import { reconcile, type ReconcileStats } from './reconcile.js';
+import { citationSupported, dot, similarity, type Embed, type Word } from './match.js';
+import { numbersOf, reconcile, type ReconcileStats } from './reconcile.js';
 import { parseJson, prepare } from './run.js';
 import { parseOutline } from '../../src/parse.js';
 
@@ -211,6 +212,7 @@ export async function generateTwoPass(
             const found = reanchor(f, m.lines, c);
             if (found) {
               f.cite = found;
+              delete f.citeIssue;
               f.resolved = true;
               resolvedCites += 1;
             }
@@ -281,7 +283,9 @@ export function diagnose(m: AgendaMeeting, r: TwoPassResult): PassDiagnosis {
       d.candidateHit += 1;
       pk.candidate += 1;
     }
-    const f = r.facts.find((x) => x.cite && x.cite.from <= ref.line! && ref.line! <= x.cite.to);
+    const f = r.facts.find(
+      (x) => !x.resolved && x.cite && x.cite.from <= ref.line! && ref.line! <= x.cite.to,
+    );
     if (!f) continue;
     d.factHit += 1;
     pk.fact += 1;
@@ -292,4 +296,100 @@ export function diagnose(m: AgendaMeeting, r: TwoPassResult): PassDiagnosis {
     if (f.topic === ref.topic || (f.topic === 'new' && f.newTopic === ref.topic)) d.topicHit += 1;
   }
   return d;
+}
+
+export interface DecisionDiag {
+  /** Gold decisions with an evidence line. */
+  gold: number;
+  /** Pass 1 span covers the evidence line. */
+  candidate: number;
+  /** A fact of kind decision (any verdict) cites a span covering the line. */
+  keptAsDecision: number;
+  /** ... and its verification verdict is ok. */
+  keptOk: number;
+  /** Credited by the original scorer (embedding match, citation check, fact check, one-to-one). */
+  originalCredited: number;
+  /** Corrected scorer: kept as an ok decision whose span covers the evidence line and whose claim holds the reference value. */
+  correctedCredited: number;
+  /** Why kept, ok decisions were not credited by the original scorer. */
+  notCredited: {
+    claimTextBelowTau: number;
+    citationNotSupported: number;
+    otherFactCheckOrAssignment: number;
+  };
+  /** Kept decision facts whose topic equals the topic of the gold decision they cover. */
+  topicRight: number;
+  /** Per kept decision fact, numbers only: [factIndex, goldIndexOrMinus1, topicEq, verdictOk, cos, f1ish similarity s, supported, credited]. */
+  rows: [number, number, number, number, number, number, number, number][];
+}
+
+/**
+ * Where do kept decisions go missing at the scorer? Per kept decision fact: the gold decision whose
+ * evidence line its span covers (or the most similar gold decision when none), the similarity to it,
+ * whether the citation check passes, and whether the original scorer credited it. Numbers and indices only.
+ */
+export async function decisionDiag(
+  m: AgendaMeeting,
+  r: TwoPassResult,
+  verdicts: readonly string[],
+  pair: readonly number[],
+  embed: Embed,
+  tau: number,
+): Promise<DecisionDiag> {
+  const p = prepare(m);
+  const gold = m.facts.map((f, i) => ({ f, i })).filter((x) => x.f.kind === 'decision' && x.f.line);
+  const dec = r.facts.map((f, i) => ({ f, i })).filter((x) => x.f.kind === 'decision');
+  const vecs = await embed([...dec.map((x) => x.f.text), ...gold.map((x) => x.f.text)]);
+  const out: DecisionDiag = {
+    gold: gold.length,
+    candidate: 0,
+    keptAsDecision: 0,
+    keptOk: 0,
+    originalCredited: 0,
+    correctedCredited: 0,
+    notCredited: { claimTextBelowTau: 0, citationNotSupported: 0, otherFactCheckOrAssignment: 0 },
+    topicRight: 0,
+    rows: [],
+  };
+  const credited = new Set(pair.filter((g) => g >= 0));
+  const cite = (c: { from: number; to: number } | null | undefined) =>
+    c && c.from >= 1 && c.to <= p.span.length
+      ? { first: p.span[c.from - 1]!.first, last: p.span[c.to - 1]!.last }
+      : null;
+  const supp = (x: { f: (typeof dec)[number]['f'] }): boolean =>
+    citationSupported(x.f.text, cite(x.f.cite), p.words as Word[]);
+  gold.forEach((g, gk) => {
+    const line = g.f.line!;
+    if (r.candidates.some((s) => s.from <= line && line <= s.to)) out.candidate += 1;
+    const cover = dec.find(
+      (x) => !x.f.resolved && x.f.cite && x.f.cite.from <= line && line <= x.f.cite.to,
+    );
+    if (!cover) return;
+    out.keptAsDecision += 1;
+    const ok = verdicts[cover.i] === 'ok';
+    if (cover.f.topic === g.f.topic) out.topicRight += 1;
+    if (!ok) return;
+    out.keptOk += 1;
+    const vi = dec.indexOf(cover);
+    const cos = dot(vecs[vi]!, vecs[dec.length + gk]!);
+    const s = similarity(cos, cover.f.text, g.f.text);
+    const valueOk =
+      !g.f.value || numbersOf(g.f.value).every((n) => numbersOf(cover.f.text).includes(n));
+    if (valueOk) out.correctedCredited += 1;
+    if (pair[g.i]! >= 0) out.originalCredited += 1;
+    else if (s < tau) out.notCredited.claimTextBelowTau += 1;
+    else if (!supp(cover)) out.notCredited.citationNotSupported += 1;
+    else out.notCredited.otherFactCheckOrAssignment += 1;
+    out.rows.push([
+      cover.i,
+      g.i,
+      cover.f.topic === g.f.topic ? 1 : 0,
+      1,
+      +cos.toFixed(3),
+      +s.toFixed(3),
+      supp(cover) ? 1 : 0,
+      credited.has(cover.i) ? 1 : 0,
+    ]);
+  });
+  return out;
 }

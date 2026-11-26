@@ -13,7 +13,7 @@ import {
   type GenFact,
 } from './agenda.js';
 import { loadAmiAgenda } from './agenda-ami.js';
-import { diagnose, generateTwoPass, type TwoPassResult } from './agenda-twopass.js';
+import { decisionDiag, diagnose, generateTwoPass, type TwoPassResult } from './agenda-twopass.js';
 import { synthMeeting } from './agenda-synth.js';
 import { httpBackend, type Backend } from './backend.js';
 import { norm } from './taskA.js';
@@ -201,6 +201,10 @@ async function main(): Promise<void> {
     const aLoose = await scoreAgenda(m, a.facts, aVerdicts, embed, { ...opt, kindStrict: false });
     const gStrict = await scoreAgenda(m, g.facts, g.verdicts, embed, opt);
     const gLoose = await scoreAgenda(m, g.facts, g.verdicts, embed, { ...opt, kindStrict: false });
+    const decDiag =
+      tp && m.facts[0]?.line
+        ? await decisionDiag(m, tp, g.verdicts, gStrict.pair, embed, tau)
+        : null;
     g.facts.forEach((f, i) => {
       if (g.why[i] === 'ok') return;
       dump.push({
@@ -242,6 +246,7 @@ async function main(): Promise<void> {
         causes: g.causes,
         resolvedCites: g.resolvedCites,
         diag,
+        decDiag,
         nCandidates: tp?.candidates.length,
         dropped: tp?.dropped,
         other: tp?.other,
