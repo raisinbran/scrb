@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFile, execFileSync } from 'node:child_process';
 import { statSync } from 'node:fs';
 import {
   copyFile,
@@ -12,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assembleChunks, decodeChunk, pcmToWav } from '../src/audio.js';
 import { type ModelPaths } from '../src/config.js';
@@ -25,7 +27,32 @@ import {
 import { decoderGuard, haveFfmpeg, tools } from './decoder.js';
 
 const fixtures = join(import.meta.dirname, 'fixtures');
+const execFileAsync = promisify(execFile);
 decoderGuard('import.test.ts');
+
+const generatedOutputs = [
+  ['MP3', '.mp3', 'libmp3lame', 'mp3'],
+  ['M4A', '.m4a', 'aac', 'ipod'],
+  ['FLAC', '.flac', 'flac', 'flac'],
+  ['Opus', '.opus', 'libopus', 'opus'],
+] as const;
+
+const hasListedOutput = (listing: string, name: string, flag: string) =>
+  listing.split('\n').some((line) => {
+    const [flags, listedName] = line.trim().split(/\s+/, 2);
+    return listedName === name && flags?.includes(flag);
+  });
+
+const generatedFormatSupport = new Set<string>();
+if (haveFfmpeg) {
+  const encoders = execFileSync(tools.ffmpeg, ['-hide_banner', '-encoders'], { encoding: 'utf8' });
+  const muxers = execFileSync(tools.ffmpeg, ['-hide_banner', '-muxers'], { encoding: 'utf8' });
+  for (const [, extension, codec, muxer] of generatedOutputs) {
+    if (hasListedOutput(encoders, codec, 'A') && hasListedOutput(muxers, muxer, 'E')) {
+      generatedFormatSupport.add(extension);
+    }
+  }
+}
 
 function tone(seconds: number, hz = 440): Int16Array {
   const out = new Int16Array(seconds * 16_000);
@@ -95,6 +122,50 @@ describe.skipIf(!haveFfmpeg)('importAudioFile', () => {
       expect((await readdir(meetingDir)).sort()).toEqual(['audio']);
       await expect(sweepAbandonedImports(dir)).resolves.toEqual([]);
     });
+  }
+
+  it.each([['WAV', '.wav', null]] as const)(
+    'imports a one-second generated tone as %s without changing the source',
+    async (_label, extension, codec) => {
+      const wav = join(dir, 'invented-tone.wav');
+      const source = join(dir, `invented-tone${extension}`);
+      await writeFile(wav, pcmToWav(tone(1)));
+      if (codec) {
+        await execFileAsync(tools.ffmpeg, ['-v', 'error', '-y', '-i', wav, '-c:a', codec, source]);
+      } else {
+        await copyFile(wav, source);
+      }
+      const before = await sha(source);
+
+      const result = await run(source);
+
+      expect(await sha(source)).toBe(before);
+      expect(result.durationMs).toBeGreaterThan(500);
+      expect(result.durationMs).toBeLessThan(1600);
+      expect(result.chunks).toHaveLength(1);
+      expect(await readChunkManifest(meetingDir)).toEqual(result.chunks);
+    },
+  );
+
+  for (const [label, extension, codec] of generatedOutputs) {
+    it.skipIf(!generatedFormatSupport.has(extension))(
+      `imports a one-second generated tone as ${label} without changing the source`,
+      async () => {
+        const wav = join(dir, 'invented-tone.wav');
+        const source = join(dir, `invented-tone${extension}`);
+        await writeFile(wav, pcmToWav(tone(1)));
+        await execFileAsync(tools.ffmpeg, ['-v', 'error', '-y', '-i', wav, '-c:a', codec, source]);
+        const before = await sha(source);
+
+        const result = await run(source);
+
+        expect(await sha(source)).toBe(before);
+        expect(result.durationMs).toBeGreaterThan(500);
+        expect(result.durationMs).toBeLessThan(1600);
+        expect(result.chunks).toHaveLength(1);
+        expect(await readChunkManifest(meetingDir)).toEqual(result.chunks);
+      },
+    );
   }
 
   it('downmixes stereo to one track', async () => {
