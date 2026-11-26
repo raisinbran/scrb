@@ -1,7 +1,7 @@
-import { readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MIGRATIONS, migrate } from '../src/db/migrations.ts';
 import type { TranscriptFile } from '../src/formats/transcript.ts';
 import { Library } from '../src/library.ts';
@@ -524,6 +524,45 @@ describe('purge paths', () => {
     expect(library.voiceProfiles.get(pa.id)).toMatchObject({ sampleCount: 30 });
     expect(library.voiceProfiles.get(pa.id)?.meetingIds.sort()).toEqual([first, second].sort());
     expect(await library.readVoices(second)).not.toBeNull();
+    await library.close();
+  });
+
+  it('delete-audio fails and keeps the audio while voices.json cannot be removed', async () => {
+    const { library, pa, first } = await twoMeetings();
+    const voices = library.meetingPaths(first).voices;
+    await mkdir(path.join(path.dirname(voices), 'audio'), { recursive: true });
+    await writeFile(path.join(path.dirname(voices), 'audio', 'a.bin'), 'x');
+    // A non-empty folder in its place makes the plain file removal fail.
+    await rm(voices);
+    await mkdir(voices);
+    await writeFile(path.join(voices, 'stuck'), 'x');
+    const report = await library.deleteAudio(first);
+    expect(report.ok).toBe(false);
+    expect(report.remaining).toContain(voices);
+    expect((await stat(path.join(path.dirname(voices), 'audio', 'a.bin'))).isFile()).toBe(true);
+    expect((await library.getMeeting(first)).audioDeletedAt).toBeNull();
+    expect(library.voiceProfiles.contribution(pa.id, first)).toBeNull();
+    await library.close();
+  });
+
+  it('delete-audio fails and keeps the audio while contributions cannot be dropped', async () => {
+    const { library, first } = await twoMeetings();
+    const files = library.meetingPaths(first);
+    await mkdir(files.audio, { recursive: true });
+    await writeFile(path.join(files.audio, 'a.bin'), 'x');
+    const spy = vi
+      .spyOn(library.voiceProfiles, 'dropMeetingContributions')
+      .mockImplementationOnce(() => {
+        throw new Error('busy');
+      });
+    const report = await library.deleteAudio(first);
+    expect(report.ok).toBe(false);
+    expect((await stat(path.join(files.audio, 'a.bin'))).isFile()).toBe(true);
+    expect((await library.getMeeting(first)).audioDeletedAt).toBeNull();
+    spy.mockRestore();
+    // A retry completes the delete.
+    expect((await library.deleteAudio(first)).ok).toBe(true);
+    expect(library.voiceProfiles.meetingContributions(first)).toEqual([]);
     await library.close();
   });
 

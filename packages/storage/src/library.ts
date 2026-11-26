@@ -1557,13 +1557,27 @@ export class Library {
     {
       const row = this.requireRow(meetingId);
       await this.assertDeletionIdle(row);
-      // Voice data derives from the audio: it goes first, so a partly failed delete still sheds it.
+      // Voice data derives from the audio: it goes first and must be fully gone before the audio
+      // is touched, so voice data never outlives its audio. Each step is tried even if the other
+      // fails; any failure stops the delete with ok=false and leaves the audio for a retry.
+      const voicesPath = this.meetingPaths(meetingId).voices;
       let contributed: string[] = [];
+      let voiceLeft = false;
       try {
-        await fs.rm(this.meetingPaths(meetingId).voices, { force: true });
-        contributed = this.voiceProfiles.dropMeetingContributions(meetingId);
+        await fs.rm(voicesPath, { force: true });
       } catch (error) {
         this.logger.log('error', 'voices-delete-failed', errorFields(error));
+      }
+      if (await exists(voicesPath)) voiceLeft = true;
+      try {
+        contributed = this.voiceProfiles.dropMeetingContributions(meetingId);
+      } catch (error) {
+        voiceLeft = true;
+        this.logger.log('error', 'voices-delete-failed', errorFields(error));
+      }
+      if (voiceLeft) {
+        this.logger.log('error', 'audio-deleted', { meetingId, ok: false });
+        return { report: { meetingId, ok: false, remaining: [voicesPath] }, contributed };
       }
       const files = this.meetingPaths(meetingId);
       const cache = meetingCachePath(this.paths, meetingId);
