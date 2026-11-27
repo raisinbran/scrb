@@ -1,3 +1,4 @@
+import { startFinalPassProgress } from '../../lib/final-pass-progress.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -10,8 +11,8 @@ import { RecordingsScreen } from '../RecordingsScreen.tsx';
 const SLOW = { timeout: 5000 };
 let backend: MockBackend;
 
-function renderScreen() {
-  backend = new MockBackend();
+function renderScreen(existing?: MockBackend) {
+  backend = existing ?? new MockBackend();
   render(
     <BackendProvider backend={backend}>
       <RecordingsScreen />
@@ -198,9 +199,9 @@ describe('Recordings', () => {
       renderScreen();
       await openMeeting(/Budget review/);
       expect(screen.getByText(/Processing final transcript\. Text may change/)).toBeTruthy();
-      // The backend reports no final-pass progress, so the bar must not claim a position.
+      // No report yet: an empty, determinate bar, never a sweeping one.
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
-      expect(bar.getAttribute('aria-valuenow')).toBeNull();
+      expect(bar.getAttribute('aria-valuenow')).toBe('0');
       backend.finishFinalPass();
       await waitFor(
         () =>
@@ -247,7 +248,7 @@ describe('Recordings', () => {
       const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
       const bar = () =>
         within(row).getByRole('progressbar', { name: /Final transcript processing/ });
-      expect(bar().hasAttribute('aria-valuenow')).toBe(false);
+      expect(bar().getAttribute('aria-valuenow')).toBe('0');
       await waitFor(() =>
         expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
       );
@@ -295,11 +296,10 @@ describe('Recordings', () => {
       expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
-      await report('finishing', 1, A);
-      expect(value()).toBe('100');
+      await report('diarizing', 0.99, A);
+      expect(value()).toBe('99');
       await report('diarizing', 0.95, A);
-      expect(value()).toBe('100');
-      expect(screen.getByText('Finishing up...')).toBeTruthy();
+      expect(value()).toBe('99');
       await report('queued', 0, B);
       expect(value()).toBe('0');
       // A late report from the older pass must not undo the newer one.
@@ -323,7 +323,49 @@ describe('Recordings', () => {
         screen
           .getByRole('progressbar', { name: 'Final transcript processing' })
           .getAttribute('aria-valuenow'),
-      ).toBeNull();
+      ).toBe('0');
+    });
+
+    it('shows an empty bar for a re-run waiting behind the previous pass finishing at 100%', async () => {
+      const early = new MockBackend();
+      startFinalPassProgress(early);
+      early.emit('finalPassProgress', {
+        meetingId: 'meeting-final-pass',
+        stage: 'finishing',
+        fraction: 1,
+        startedAt: '2026-11-27T10:00:00.000Z',
+      });
+      renderScreen(early);
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      expect(
+        within(row)
+          .getByRole('progressbar', { name: /Final transcript processing/ })
+          .getAttribute('aria-valuenow'),
+      ).toBe('0');
+    });
+
+    it('seeds a row and banner that mount mid-pass from the latest report', async () => {
+      const early = new MockBackend();
+      startFinalPassProgress(early);
+      early.emit('finalPassProgress', {
+        meetingId: 'meeting-final-pass',
+        stage: 'transcribing',
+        fraction: 0.4,
+        startedAt: new Date().toISOString(),
+      });
+      renderScreen(early);
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      expect(
+        within(row)
+          .getByRole('progressbar', { name: /Final transcript processing/ })
+          .getAttribute('aria-valuenow'),
+      ).toBe('40');
+      await openMeeting(/Budget review/);
+      expect(
+        screen
+          .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('40');
     });
 
     it('lets the banner be dismissed with an X', async () => {

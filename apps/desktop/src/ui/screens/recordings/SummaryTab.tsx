@@ -522,7 +522,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
                 <p className={styles.fileName}>
                   {progress ? SUMMARY_STAGE_LABELS[progress.stage] : 'Generating the summary'}
                 </p>
-                <Progress label="Summary progress" fraction={progress?.fraction} />
+                <Progress label="Summary progress" fraction={progress?.fraction ?? 0} />
                 <p className={styles.muted}>
                   You can keep working. The summary appears here when it is ready.
                 </p>

@@ -88,9 +88,7 @@ function ModelRow({ model, progress, downloading }: ModelRowProps) {
           <span className={styles.help}>{progressText(progress)}</span>
           <Progress
             label={`${model.name} download`}
-            fraction={
-              progress.bytesTotal > 0 ? progress.bytesDone / progress.bytesTotal : undefined
-            }
+            fraction={progress.bytesTotal > 0 ? progress.bytesDone / progress.bytesTotal : 0}
           />
         </div>
       )}
@@ -257,7 +255,7 @@ export function ModelsSection() {
                       </span>
                       <Progress
                         label="Overall model download"
-                        fraction={overall.total > 0 ? overall.done / overall.total : undefined}
+                        fraction={overall.total > 0 ? overall.done / overall.total : 0}
                       />
                     </div>
                   )}
@@ -355,7 +353,7 @@ export function ModelsSection() {
                           fraction={
                             summaryProgress && summaryProgress.bytesTotal > 0
                               ? summaryProgress.bytesDone / summaryProgress.bytesTotal
-                              : undefined
+                              : 0
                           }
                         />
                       </div>
