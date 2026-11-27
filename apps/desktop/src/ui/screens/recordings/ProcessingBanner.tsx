@@ -3,7 +3,6 @@ import type { FinalPassProgress, FinalPassStage } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { PopupBanner } from '../../components/PopupBanner.tsx';
 import { Progress } from '../../components/Progress.tsx';
-import { formatElapsed } from '../../lib/format.ts';
 import styles from './recordings.module.css';
 
 const STAGE_ORDER: FinalPassStage[] = ['queued', 'transcribing', 'diarizing', 'finishing'];
@@ -29,7 +28,7 @@ const STAGE_LABELS: Record<FinalPassStage, string> = {
   finishing: 'Finishing up...',
 };
 
-/** Fills from the backend's final-pass progress; until a report arrives it shows time since the view opened. */
+/** Fills from the backend's final-pass progress; until a report arrives the bar only sweeps. */
 export function ProcessingBanner({ meetingId }: { meetingId: string }) {
   const [dismissed, setDismissed] = useState(false);
   const backend = useBackend();
@@ -41,26 +40,16 @@ export function ProcessingBanner({ meetingId }: { meetingId: string }) {
       }),
     [backend, meetingId],
   );
-  const [elapsedMs, setElapsedMs] = useState(0);
-  useEffect(() => {
-    const opened = performance.now();
-    const timer = setInterval(() => setElapsedMs(performance.now() - opened), 1000);
-    return () => clearInterval(timer);
-  }, []);
   if (dismissed) return null;
   return (
     <PopupBanner className={styles.processingBanner} onDismiss={() => setDismissed(true)}>
       <p role="status">
-        <strong>Final transcript is still being processed.</strong> This text is provisional and
-        will change when processing finishes. Your corrections are kept.
+        Processing final transcript. Text may change.{' '}
+        {progress && <span className={styles.muted}>{STAGE_LABELS[progress.stage]}</span>}
       </p>
-      {progress && <p className={styles.muted}>{STAGE_LABELS[progress.stage]}</p>}
-      <Progress label="Final transcript processing" fraction={progress?.fraction} />
-      {!progress && (
-        <p className={styles.muted} aria-hidden="true">
-          Time since you opened this view: {formatElapsed(elapsedMs)}. This updates by itself.
-        </p>
-      )}
+      <div className={styles.slimBar}>
+        <Progress label="Final transcript processing" fraction={progress?.fraction} />
+      </div>
     </PopupBanner>
   );
 }

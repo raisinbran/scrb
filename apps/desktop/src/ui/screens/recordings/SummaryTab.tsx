@@ -550,7 +550,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
                 <PopupBanner level="warning">
                   <p>
                     {doc.outdatedByReprocess
-                      ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
+                      ? 'Transcript was re-processed. The summary may be outdated.'
                       : 'May be outdated — regenerate?'}
                   </p>
                   <div>

@@ -771,7 +771,7 @@ function LoadedDetail(props: LoadedDetailProps) {
           )}
           {tab === 'Transcript' && canEdit && hintShown && (
             <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
-              <p>Double-click a word to correct it. Click a speaker name to rename them.</p>
+              <p>Double-click a word to correct it. Click a speaker to rename.</p>
             </PopupBanner>
           )}
           {copyError && (

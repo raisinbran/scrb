@@ -193,14 +193,14 @@ describe('Recordings', () => {
     it('shows a provisional-text banner in the meeting and removes it when processing ends', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+      expect(screen.getByText(/Processing final transcript\. Text may change/)).toBeTruthy();
       // The backend reports no final-pass progress, so the bar must not claim a position.
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBeNull();
-      expect(screen.getByText(/Time since you opened this view/)).toBeTruthy();
       backend.finishFinalPass();
       await waitFor(
-        () => expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull(),
+        () =>
+          expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull(),
         SLOW,
       );
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
@@ -209,7 +209,7 @@ describe('Recordings', () => {
     it('anchors the banner inside the transcript panel, never over the header or tabs', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      const banner = screen.getByText(/Final transcript is still being processed/);
+      const banner = screen.getByText(/Processing final transcript\. Text may change/);
       const panel = document.getElementById('meeting-panel');
       expect(panel?.contains(banner)).toBe(true);
       expect(screen.getByRole('tablist', { name: 'Meeting' }).contains(banner)).toBe(false);
@@ -235,7 +235,6 @@ describe('Recordings', () => {
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBe('60');
       expect(screen.getByText('Working out who spoke...')).toBeTruthy();
-      expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
     });
 
     it('shows a small progress bar under a processing meeting in the list', async () => {
@@ -327,18 +326,18 @@ describe('Recordings', () => {
       renderScreen();
       await openMeeting(/Budget review/);
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
     });
 
     it('shows the banner again after leaving and reopening the same processing meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
 
       await openMeeting(/Vendor call/);
       await openMeeting(/Budget review/);
-      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+      expect(screen.getByText(/Processing final transcript\. Text may change/)).toBeTruthy();
     });
 
     it('keeps a dismissed banner hidden while switching tabs in the same meeting', async () => {
@@ -347,14 +346,14 @@ describe('Recordings', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
     });
 
-    it('keeps the narrower banner and progress bar within the same content width', async () => {
+    it('keeps the banner slim, with a 2px progress bar along its bottom edge', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
       const banner = screen
-        .getByText(/Final transcript is still being processed/)
+        .getByText(/Processing final transcript\. Text may change/)
         .closest('[class*="processingBanner"]');
       const progress = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(banner?.contains(progress)).toBe(true);
@@ -370,11 +369,12 @@ describe('Recordings', () => {
         join(__dirname, '../../components/Progress.module.css'),
         'utf8',
       );
-      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/max-width: 448px/);
       expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(
         /font-size: var\(--text-sm\)/,
       );
-      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
+      expect(bannerCss.match(/\.slimBar \[role='progressbar'\],[^{]*\{([^}]*)\}/)?.[1]).toMatch(
+        /height: 2px/,
+      );
       expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/inset-inline: 0/);
       expect(progressCss.match(/\.track \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
     });
@@ -1305,9 +1305,7 @@ describe('Recordings', () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
       expect(
-        await screen.findByText(
-          'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.',
-        ),
+        await screen.findByText('Transcript was re-processed. The summary may be outdated.'),
       ).toBeTruthy();
       expect(screen.getByText(/does not cover it/)).toBeTruthy();
     });

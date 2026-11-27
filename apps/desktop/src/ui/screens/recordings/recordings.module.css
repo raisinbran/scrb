@@ -4,11 +4,22 @@
 }
 
 .processingBanner {
-  padding-block: var(--space-2);
-  width: 100%;
-  max-width: 448px;
-  margin-inline: auto;
+  padding-block: var(--space-1) var(--space-2);
+  overflow: hidden;
   font-size: var(--text-sm);
+}
+
+/* A 2px bar along the bottom edge of the banner. */
+.slimBar {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+}
+
+.slimBar [role='progressbar'],
+.slimBar [role='progressbar'] > div {
+  height: 2px;
+  border-radius: 0;
 }
 
 .srOnly {
@@ -184,7 +195,7 @@
 
 .rowTitle {
   display: block;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Every line is one line; a long title or date is cut with an ellipsis. */

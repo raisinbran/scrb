@@ -109,3 +109,11 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Compact lists       | Vocabulary terms and the Help and Settings group lists are 28 px rows                                                                                                                                                 |
 | Location            | A searchable Country control, then a searchable State control that is only enabled for the United States, then a fixed-height note area. Nothing grows, shrinks or moves. The first-launch dialog uses the same field |
 | Live consent banner | Pressing Start shows the standard banner over the transcript with the saved state's privacy wording, dismissible for that recording, and never over the controls. Live transcript uses the inset panel look           |
+
+## Owner comments, round 11
+
+| Comment           | Change                                                                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Processing banner | One slim row: "Processing final transcript. Text may change." with the stage in muted text and a 2 px progress bar along the bottom edge. The elapsed-time line and its timer are gone |
+| Other banners     | Banner bodies lay out as one row that wraps only when needed, balanced. Shorter wording for the outdated summary and the transcript hint                                               |
+| List title weight | Vocabulary terms, Recordings titles and the Help and Settings group items all use weight 500                                                                                           |
