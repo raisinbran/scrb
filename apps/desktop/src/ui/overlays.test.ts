@@ -9,7 +9,7 @@ const rule = (source: string, selector: string) =>
 describe('banners never move the content under them', () => {
   it('floats the app-level notices over the workspace', () => {
     const notices = rule(css('shell/AppShell.module.css'), '.notices');
-    expect(notices).toMatch(/position: absolute/);
+    expect(notices).toMatch(/composes: stack from/);
     // At the top, never the bottom edge where the player, save and Live control bars sit.
     expect(notices).toMatch(/inset-block-start: var\(--space-1\)/);
     expect(notices).not.toMatch(/inset-block-end/);
@@ -17,7 +17,15 @@ describe('banners never move the content under them', () => {
 
   it('floats the popup banners, the live notice and the list notes', () => {
     expect(rule(css('components/PopupBanner.module.css'), '.layer')).toMatch(/height: 0;/);
-    expect(rule(css('components/PopupBanner.module.css'), '.stack')).toMatch(/position: absolute/);
+    expect(rule(css('components/PopupBanner.module.css'), '.stack')).toMatch(
+      /composes: stack from/,
+    );
+    // One shared container: centred, as wide as the widest banner, every banner stretched to it.
+    const stack = rule(css('components/Banner.module.css'), '.stack');
+    expect(stack).toMatch(/position: absolute/);
+    expect(stack).toMatch(/width: max-content/);
+    expect(stack).toMatch(/max-width: 75%/);
+    expect(stack).toMatch(/align-items: stretch/);
     expect(rule(css('screens/LiveScreen.module.css'), '.finished')).toMatch(/position: absolute/);
     expect(rule(css('screens/recordings/recordings.module.css'), '.floatNote')).toMatch(
       /position: absolute/,

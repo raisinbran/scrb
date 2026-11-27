@@ -713,7 +713,28 @@
 
 .segmentOn,
 .segmentOff {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+/* Tonal: separate buttons, selected = the dark fill, available = the light one; no outline, no accent. */
+:global([data-design='tonal']) .segmented {
+  gap: var(--space-1);
+  border: 0;
+  border-radius: 0;
+}
+
+/* The off segment is the same fill as the other buttons in a card; the selected one is the dark fill. */
+:global([data-design='tonal']) .segmentOff {
+  background: var(--color-card-inset);
+}
+
+:global([data-design='tonal']) .segmentOn {
+  color: var(--color-text);
+  background: var(--color-control);
 }
 
 .segmentOn {
@@ -998,15 +1019,16 @@ div.editHint button {
 
 :global([data-design='tonal']) .tab {
   color: var(--color-text);
-  background: var(--btn-fill);
+  background: var(--color-card);
 }
 
 :global([data-design='tonal']) .tab:hover {
-  background: var(--btn-hover);
+  background: var(--color-surface-hover);
 }
 
+/* Selected is the dark fill, available is the light one. */
 :global([data-design='tonal']) .tabOn {
-  background: var(--color-card);
+  background: var(--btn-fill);
 }
 
 :global([data-design='tonal']) .panel[aria-labelledby='meeting-tab-Transcript'] {
@@ -1074,11 +1096,6 @@ div.editHint button {
 :global([data-design='tonal']) .badgeStrong,
 :global([data-design='tonal']) .badgeWarning {
   padding-inline: var(--space-2);
-  background: var(--color-card-inset);
-  border: 0;
-}
-
-:global([data-design='tonal']) .segmented {
   background: var(--color-card-inset);
   border: 0;
 }

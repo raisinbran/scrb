@@ -389,3 +389,9 @@ Every screen must handle every state the UI Specification lists for it. A state 
 | Tags and chips                                           | `Chip`                                                           | text height                           | `--space-1` × `--space-2` | `--text-xs`              |
 
 The Live and Recordings transcript toolbars use the same two `IconButton`s for text size, so they match in size, radius and icon.
+
+## Round 15 rules
+
+- **Toggle rule (one sentence):** in content and detail panels, the selected tab or segmented option takes the dark fill (`--color-control`) and every available option takes the lighter fill (`--color-card` on the page, `--color-card-inset` inside a card); disabled is about 30% of the idle fill. Menus and lists (Help, Settings groups, the Recordings list, filter menus) keep their own selected style.
+- Every segmented option and every button uses `--radius-control` and the shared button size; the selected segment never uses the accent colour.
+- Stacked banners share one container: as wide as the widest banner (at least 280 px, at most 75% of the panel), centred at the top of the panel, each banner stretched to that width, 8 px between them, X at the top-right of each. The same container class is used by panel stacks, Live alerts and the app notices.

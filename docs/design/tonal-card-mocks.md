@@ -170,3 +170,11 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Toolbar buttons | A- and A+ and undo/redo are the same 30 px IconButtons in the Live and Recordings toolbars; text buttons share a 30 px minimum height and the same padding     |
 | Banner surface  | New tokens `--color-banner` and `--shadow-banner`: a lighter step in dark, a cool off-white with a stronger shadow in light, plus the coloured left accent     |
 | Settings        | The 56 px reserve under the last section exists only while the Save bar shows; Country and State share one row; Notifications use two columns when wide enough |
+
+## Owner comments, round 18
+
+| Comment         | Change                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Selected fills  | Flipped: the selected tab or Brief/Full option is the dark fill, available ones the lighter fill; the accent colour is no longer used for the selected segment |
+| Summary buttons | Brief/Full are two separate buttons with the control radius, 30 px high and the shared padding, like Edit and Regenerate                                       |
+| Stacked banners | One shared container, centred in the panel, as wide as the widest banner (280 px to 75%); every banner stretches to it and keeps its own X at the top-right    |

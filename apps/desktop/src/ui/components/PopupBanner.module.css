@@ -7,15 +7,10 @@
   pointer-events: none;
 }
 
-/* The banners themselves are 75% of the panel, set by the shared banner look. */
+/* One container for all the banners; the shared stack look makes them one width and one edge. */
 .stack {
-  position: absolute;
+  composes: stack from './Banner.module.css';
   inset-block-start: var(--space-1);
-  inset-inline: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: center;
 }
 
 /* The X sits at the top-right, level with the first line; a one-line banner looks the same as centred. */
