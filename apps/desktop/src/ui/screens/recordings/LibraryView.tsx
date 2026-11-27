@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
-import type {
-  Backend,
-  FinalPassProgress,
-  MeetingFilter,
-  PickedAudioFile,
-  SearchResult,
-} from '@scrb/contracts';
+import type { Backend, MeetingFilter, PickedAudioFile, SearchResult } from '@scrb/contracts';
 import list from '../../components/ListItem.module.css';
 import { Chip } from './Chip.tsx';
 import { Progress } from '../../components/Progress.tsx';
@@ -21,7 +15,7 @@ import { SplitLayout } from '../SplitLayout.tsx';
 import { FilterSearch, type Origin } from './FilterSearch.tsx';
 import { Highlight } from './highlight.tsx';
 import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
-import { nextProgress } from './ProcessingBanner.tsx';
+import { useFinalPassProgress } from '../../lib/final-pass-progress.ts';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
@@ -35,7 +29,7 @@ interface RowProps {
   onOpen(id: string, atMs?: number): void;
 }
 
-/** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
+/** A small bar under a meeting whose final transcript is processing; empty until the first report, then fills with the real progress. */
 function RowProgress({
   meetingId,
   title,
@@ -46,21 +40,16 @@ function RowProgress({
   /** Where the bar starts, so it sits one row gap after the status badge. */
   left: number | null;
 }) {
-  const backend = useBackend();
-  const [progress, setProgress] = useState<FinalPassProgress | null>(null);
-  useEffect(
-    () =>
-      backend.on('finalPassProgress', (report) => {
-        if (report.meetingId === meetingId) setProgress((current) => nextProgress(current, report));
-      }),
-    [backend, meetingId],
-  );
+  const progress = useFinalPassProgress(meetingId);
   return (
     <div
       className={styles.rowProgress}
       style={left === null ? undefined : { insetInlineStart: `calc(${left}px + var(--space-2))` }}
     >
-      <Progress label={`Final transcript processing: ${title}`} fraction={progress?.fraction} />
+      <Progress
+        label={`Final transcript processing: ${title}`}
+        fraction={progress?.fraction ?? 0}
+      />
     </div>
   );
 }
