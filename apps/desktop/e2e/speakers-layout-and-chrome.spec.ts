@@ -109,56 +109,62 @@ test('Speakers shows its empty state in the list column and fits at 760px', asyn
   }
 });
 
-test('keeps populated voice-profile actions inside the detail card at 900px', async () => {
-  const userData = testUserData('scrb-speakers-profile-900-');
-  const library = await Library.open({ root: join(userData, 'library') });
-  library.voiceProfiles.create({
-    modelId: 'invented-test-model',
-    embedding: new Float32Array([1, 0]),
-    name: 'Invented Profile One',
-  });
-  library.voiceProfiles.create({
-    modelId: 'invented-test-model',
-    embedding: new Float32Array([0, 1]),
-    name: 'Invented Profile Two',
-  });
-  await library.close();
-  const { app, page } = await openMockApp(userData);
-  try {
-    await page.setViewportSize({ width: 900, height: 720 });
-    await page.getByRole('button', { name: 'Speakers', exact: true }).click();
-    await expect(page.getByRole('list', { name: 'Voice profiles' })).toBeVisible();
-    await inspectSplit(page, 900);
-    await page
-      .getByRole('list', { name: 'Voice profiles' })
-      .getByRole('button', { name: /Invented Profile One/ })
-      .click();
-    const card = page.getByRole('region', { name: 'Invented Profile One' });
-    await expect(card).toBeVisible();
-    const cardBounds = await card.boundingBox();
-    expect(cardBounds).not.toBeNull();
-    for (const name of [
-      'Play sample of Invented Profile One',
-      'Rename Invented Profile One',
-      'Merge Invented Profile One into another voice',
-      'Split Invented Profile One into two voices',
-      'Delete Invented Profile One',
-    ]) {
-      const button = card.getByRole('button', { name, exact: true });
-      await expect(button).toBeVisible();
-      const bounds = await button.boundingBox();
-      expect(bounds).not.toBeNull();
-      expect(bounds!.x).toBeGreaterThanOrEqual(cardBounds!.x - 1);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(cardBounds!.x + cardBounds!.width + 1);
-      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
-        cardBounds!.y + cardBounds!.height + 1,
-      );
+for (const width of [900, 720]) {
+  test(`keeps populated voice-profile actions inside the detail card at ${width}px`, async () => {
+    const userData = testUserData(`scrb-speakers-profile-${width}-`);
+    const library = await Library.open({ root: join(userData, 'library') });
+    library.voiceProfiles.create({
+      modelId: 'invented-test-model',
+      embedding: new Float32Array([1, 0]),
+      name: 'Invented Profile One',
+    });
+    library.voiceProfiles.create({
+      modelId: 'invented-test-model',
+      embedding: new Float32Array([0, 1]),
+      name: 'Invented Profile Two',
+    });
+    await library.close();
+    const { app, page } = await openMockApp(userData);
+    try {
+      await page.setViewportSize({ width, height: 720 });
+      await page.getByRole('button', { name: 'Speakers', exact: true }).click();
+      await expect(page.getByRole('list', { name: 'Voice profiles' })).toBeVisible();
+      await inspectSplit(page, width);
+      await page
+        .getByRole('list', { name: 'Voice profiles' })
+        .getByRole('button', { name: /Invented Profile One/ })
+        .click();
+      const card = page.getByRole('region', { name: 'Invented Profile One' });
+      await expect(card).toBeVisible();
+      const cardBounds = await card.boundingBox();
+      expect(cardBounds).not.toBeNull();
+      for (const name of [
+        'Play sample of Invented Profile One',
+        'Rename Invented Profile One',
+        'Merge Invented Profile One into another voice',
+        'Split Invented Profile One into two voices',
+        'Delete Invented Profile One',
+      ]) {
+        const button = card.getByRole('button', { name, exact: true });
+        await expect(button).toBeVisible();
+        const bounds = await button.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.x).toBeGreaterThanOrEqual(cardBounds!.x - 1);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+          cardBounds!.x + cardBounds!.width + 1,
+        );
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+          cardBounds!.y + cardBounds!.height + 1,
+        );
+      }
+      await page.screenshot({
+        path: join(evidenceDir, `after-speakers-${width}-populated-profile.png`),
+      });
+    } finally {
+      await app.close();
     }
-    await page.screenshot({ path: join(evidenceDir, 'after-speakers-900-populated-profile.png') });
-  } finally {
-    await app.close();
-  }
-});
+  });
+}
 
 test('places Live meters beside the source pickers and Settings Test mic above Input Profile', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-audio-layout-'));

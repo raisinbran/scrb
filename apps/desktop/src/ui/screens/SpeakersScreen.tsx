@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Backend, MeetingListItem, SpeakerSuggestion, VoiceProfile } from '@scrb/contracts';
 import { Button } from '../components/Button.tsx';
 import { IconButton } from '../components/IconButton.tsx';
@@ -130,7 +130,7 @@ function Detail({
             Merge into…
           </Button>
           <Tooltip label={SPLIT_TIP}>
-            <Button disabled aria-label={`Split ${name} into two voices`}>
+            <Button aria-disabled="true" aria-label={`Split ${name} into two voices`}>
               Split into…
             </Button>
           </Tooltip>
@@ -236,14 +236,16 @@ function Rows({
   selectedId,
   deletingId,
   onSelect,
+  listRef,
 }: {
   profiles: VoiceProfile[];
   selectedId: string | null;
   deletingId: string | null;
   onSelect(id: string): void;
+  listRef: React.RefObject<HTMLUListElement | null>;
 }) {
   return (
-    <ul className={list.list} aria-label="Voice profiles">
+    <ul className={list.list} aria-label="Voice profiles" ref={listRef}>
       {profiles.map((profile) => (
         <li key={profile.id}>
           <button
@@ -284,12 +286,22 @@ function Loaded({
   const [dismissed, setDismissed] = useState(false);
   const { error, run } = useAction();
   const selected = profiles.find((profile) => profile.id === picked) ?? profiles[0] ?? null;
+  const listRef = useRef<HTMLUListElement>(null);
+  const refocus = useRef(false);
+
+  // After a delete the detail card unmounts; keep keyboard focus in the list.
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    listRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+  }, [profiles]);
 
   const remove = (profile: VoiceProfile) => {
     setDismissed(false);
     setDeletingId(profile.id);
     void run(async () => {
       await backend.call('deleteProfile', { profileId: profile.id });
+      refocus.current = true;
       onChanged();
     }).finally(() => setDeletingId(null));
   };
@@ -308,6 +320,7 @@ function Loaded({
             selectedId={selected?.id ?? null}
             deletingId={deletingId}
             onSelect={setPicked}
+            listRef={listRef}
           />
         )
       }

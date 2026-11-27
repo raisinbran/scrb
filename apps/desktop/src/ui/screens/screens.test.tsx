@@ -80,13 +80,16 @@ describe('screens', () => {
       ]) {
         expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(false);
       }
-      expect(
-        (
-          screen.getByRole('button', {
-            name: 'Split Priya Natarajan into two voices',
-          }) as HTMLButtonElement
-        ).disabled,
-      ).toBe(true);
+      const split = screen.getByRole('button', {
+        name: 'Split Priya Natarajan into two voices',
+      }) as HTMLButtonElement;
+      // Focusable (not `disabled`) so keyboard users can reach the reason.
+      expect(split.disabled).toBe(false);
+      expect(split.getAttribute('aria-disabled')).toBe('true');
+      split.focus();
+      expect(document.activeElement).toBe(split);
+      fireEvent.click(split);
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('renames the selected profile', async () => {
@@ -123,6 +126,10 @@ describe('screens', () => {
       await vi.waitFor(() => expect(screen.queryByText('Tomas Lindgren')).toBeNull(), {
         timeout: 2000,
       });
+      await vi.waitFor(() =>
+        expect(document.activeElement?.closest('[aria-label="Voice profiles"]')).not.toBeNull(),
+      );
+      expect(document.activeElement?.getAttribute('aria-current')).toBe('true');
     });
 
     it('keeps the profile and says so in a dismissible banner when delete fails', async () => {

@@ -314,7 +314,12 @@ export function MeetingSpeakersTab({
                   changed();
                 }}
                 onCancel={close}
-              />
+              >
+                <p>
+                  Both speakers become one in this meeting. The speaker you choose keeps its name,
+                  and {open.speaker.label} is removed from the list.
+                </p>
+              </ChoiceDialog>
             )}
             {open?.kind === 'split' && (
               <SplitDialog
