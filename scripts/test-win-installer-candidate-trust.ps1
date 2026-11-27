@@ -52,7 +52,7 @@ try {
     $env:GITHUB_RUN_ID = '1234567'
     $env:GITHUB_RUN_ATTEMPT = '1'
     $env:SCRB_TRUST_TEST_MARKER = Join-Path $base 'launch-marker'
-    $installer = Join-Path $artifact 'Scribe Setup 0.1.0.exe'
+    $installer = Join-Path $artifact 'Scribe Setup 0.2.0.exe'
     $application = Join-Path $artifact 'Scribe.exe'
     $provenance = Join-Path $artifact 'PROVENANCE.json'
     $audit = Join-Path $artifact 'DEPENDENCY-AUDIT.json'

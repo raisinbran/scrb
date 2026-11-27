@@ -34,7 +34,7 @@ Import-Module (Join-Path $PSScriptRoot 'win-installed-app-readiness.psm1') -Forc
 $expectedInstallerBytes = 131037432
 $expectedInstallerSha256 = 'ec5c1ecd5207d44049d7b7dc065b2da7deb607497f04b7ca12488e78e37718d6'
 $expectedApplicationSha256 = '31817c8b75c860fa36ddd0055677d5cbd374f4a564fa02097ccc77449993ae31'
-$expectedInstallerName = 'Scribe Setup 0.1.0.exe'
+$expectedInstallerName = 'Scribe Setup 0.2.0.exe'
 $isCurrentCandidate = -not [string]::IsNullOrWhiteSpace($CandidateManifestPath)
 $candidateSourceCommit = if ($isCurrentCandidate) { $null } else { '73e899d0a45234617b9fbc81cf8f599747ec652b' }
 $stepStatuses = [ordered]@{
