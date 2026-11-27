@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { access, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -28,13 +28,35 @@ async function meetingWithVoice(library: Library, title: string) {
     [speaker('synthetic-speaker', 'Invented speaker')],
   );
   await writeFile(path.join(files.audioMeeting, 'invented.wav'), 'invented audio bytes');
+  await library.saveGeneratedSummary(id, {
+    generatedAt: null,
+    brief: {
+      sections: [
+        { id: 'invented-summary', heading: null, text: 'invented summary', edited: false },
+      ],
+    },
+    full: null,
+    actionItems: [],
+    decisions: [],
+    openQuestions: [],
+    warnings: [],
+  });
+  await writeFile(path.join(files.exports, 'invented.txt'), 'invented export bytes');
+  const cache = library.meetingCache(id);
+  await mkdir(cache, { recursive: true });
+  await writeFile(path.join(cache, 'invented-cache.bin'), 'invented cache bytes');
   await library.saveVoices(id, {
     modelId: MODEL,
     speakers: [
       { speakerId: 'synthetic-speaker', embedding: new Float32Array([1, 0]), segments: 8 },
     ],
   });
-  return { id, files };
+  return {
+    id,
+    files,
+    cache,
+    textFiles: [files.transcript, files.summary, path.join(files.exports, 'invented.txt')],
+  };
 }
 
 function dbRows(root: string, meetingId: string) {
@@ -68,8 +90,16 @@ async function fileExists(file: string): Promise<boolean> {
   try {
     await access(file);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function expectFilesUnchanged(files: string[], contents: Buffer[]) {
+  for (const [index, file] of files.entries()) {
+    await expect(fileExists(file), `${file} exists`).resolves.toBe(true);
+    await expect(readFile(file)).resolves.toEqual(contents[index]);
   }
 }
 
@@ -114,10 +144,12 @@ describe('retention verification', () => {
         modelId: MODEL,
       });
       library.settings.setAutoDelete({ period, scope });
+      const oldTextContents = await Promise.all(old.textFiles.map((file) => readFile(file)));
+      const freshTextContents = await Promise.all(fresh.textFiles.map((file) => readFile(file)));
 
       const run = await library.runAutoDelete();
       const deleted = period === 'never' ? false : true;
-      expect(run.results.map((result) => result.meetingId)).toEqual(deleted ? [old.id] : []);
+      expect(run.results).toEqual(deleted ? [{ meetingId: old.id, ok: true, remaining: [] }] : []);
 
       const oldRows = dbRows(root, old.id);
       const freshRows = dbRows(root, fresh.id);
@@ -126,6 +158,8 @@ describe('retention verification', () => {
       expect(freshRows.profileLinks).toHaveLength(1);
       expect(await fileExists(fresh.files.audio)).toBe(true);
       expect(await fileExists(fresh.files.voices)).toBe(true);
+      await expect(fileExists(fresh.cache)).resolves.toBe(true);
+      await expectFilesUnchanged(fresh.textFiles, freshTextContents);
 
       if (!deleted) {
         expect(oldRows.meeting?.id).toBe(old.id);
@@ -135,6 +169,8 @@ describe('retention verification', () => {
         expect(await fileExists(old.files.audio)).toBe(true);
         expect(await fileExists(old.files.voices)).toBe(true);
         expect(await fileExists(old.files.folder)).toBe(true);
+        expect(await fileExists(old.cache)).toBe(true);
+        await expectFilesUnchanged(old.textFiles, oldTextContents);
       } else if (scope === 'audio') {
         expect(oldRows.meeting?.id).toBe(old.id);
         expect(oldRows.meeting?.audio_deleted_at).not.toBeNull();
@@ -143,12 +179,13 @@ describe('retention verification', () => {
         expect(await fileExists(old.files.folder)).toBe(true);
         expect(await fileExists(old.files.audio)).toBe(false);
         expect(await fileExists(old.files.voices)).toBe(false);
-        expect(await fileExists(old.files.transcript)).toBe(true);
+        expect(await fileExists(old.cache)).toBe(false);
+        await expectFilesUnchanged(old.textFiles, oldTextContents);
       } else {
         expect(oldRows.meeting).toBeUndefined();
         expect(oldRows.contributions).toEqual([]);
         expect(await fileExists(old.files.folder)).toBe(false);
-        expect(await fileExists(path.join(root, 'cache', old.id))).toBe(false);
+        expect(await fileExists(old.cache)).toBe(false);
       }
       await library.close();
     },
