@@ -102,13 +102,23 @@
 /* Library */
 
 .filters {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.filterSource {
-  grid-column: 1 / -1;
+/* Label on the left, field filling the rest, so a date never has to squeeze into half a column. */
+.filters .field {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.filters .input {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding-inline: var(--space-2);
 }
 
 .search {
@@ -145,7 +155,9 @@
 /* Speaker count and status badges share one line. */
 .rowStatus {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
   gap: var(--space-1) var(--space-2);
   align-items: center;
   min-height: 20px;
@@ -177,6 +189,14 @@
   font-weight: 600;
 }
 
+/* Every line is one line; a long title or date is cut with an ellipsis. */
+.rowMain > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .badges {
   display: flex;
   flex-wrap: wrap;
@@ -187,6 +207,8 @@
 .badge,
 .badgeStrong,
 .badgeWarning {
+  flex: none;
+  white-space: nowrap;
   padding: 0 var(--space-1);
   font-size: var(--text-xs);
   color: var(--color-text-muted);

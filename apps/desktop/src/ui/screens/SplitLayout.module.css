@@ -3,7 +3,7 @@
 .split {
   display: grid;
   flex: 1;
-  grid-template-columns: clamp(200px, 24vw, 280px) minmax(0, 1fr);
+  grid-template-columns: clamp(240px, 28vw, 320px) minmax(0, 1fr);
   gap: var(--space-card-gap);
   min-height: 360px;
   padding: var(--space-card-gap);

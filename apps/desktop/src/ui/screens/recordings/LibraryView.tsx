@@ -34,6 +34,25 @@ interface RowProps {
   onOpen(id: string, atMs?: number): void;
 }
 
+/** Short forms for the narrow list; the full text stays in the tooltip and for screen readers. */
+const COMPACT_LABELS: Record<string, string> = {
+  'Processing final transcript': 'Processing',
+  'Recovered after crash': 'Recovered',
+  'Transcription failed': 'Failed',
+  'Summary generating': 'Generating',
+};
+
+function Chip({ text, className }: { text: string; className: string | undefined }) {
+  const short = COMPACT_LABELS[text];
+  if (!short) return <span className={className}>{text}</span>;
+  return (
+    <span className={className} title={text}>
+      <span aria-hidden="true">{short}</span>
+      <span className={styles.srOnly}>{text}</span>
+    </span>
+  );
+}
+
 /** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
 function RowProgress({ meetingId, title }: { meetingId: string; title: string }) {
   const backend = useBackend();
@@ -79,14 +98,13 @@ function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: R
           <span className={styles.muted}>
             {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
           </span>
-          {meeting.origin === 'imported' && <span className={styles.badge}>Imported</span>}
-          {status && <span className={styles.badgeStrong}>{status}</span>}
+          {meeting.origin === 'imported' && <Chip text="Imported" className={styles.badge} />}
+          {status && <Chip text={status} className={styles.badgeStrong} />}
           {summary && (
-            <span
+            <Chip
+              text={summary}
               className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
-            >
-              {summary}
-            </span>
+            />
           )}
         </span>
       </button>
@@ -224,7 +242,7 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
             Import audio file
           </button>
           <div className={styles.filters}>
-            <label className={`${styles.field} ${styles.filterSource}`}>
+            <label className={styles.field}>
               Source
               <select
                 className={styles.input}
@@ -255,11 +273,7 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
               />
             </label>
             {filtered && (
-              <button
-                type="button"
-                className={`${styles.button} ${styles.filterSource}`}
-                onClick={clearFilters}
-              >
+              <button type="button" className={styles.button} onClick={clearFilters}>
                 Clear
               </button>
             )}
