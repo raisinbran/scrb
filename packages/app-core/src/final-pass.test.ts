@@ -323,6 +323,46 @@ describe('final pass after Stop', () => {
     expect(new Set(reports.map((r) => r.startedAt)).size).toBe(1);
   });
 
+  it('keeps the latest report while a pass runs and drops it when the pass ends, fails or is cancelled', async () => {
+    const ok = await sealedMeeting();
+    const failing = await sealedMeeting();
+    const cancelled = await sealedMeeting();
+    let seenWhileRunning: FinalPassReport | undefined;
+    let queue: FinalPassQueue;
+    queue = new FinalPassQueue(library, async ({ onProgress }) => {
+      onProgress?.({ phase: 'transcribing', fraction: 0.5 });
+      seenWhileRunning = queue.currentProgress(ok.id);
+      return TRANSCRIPT;
+    });
+    queue.enqueue(ok.id);
+    await queue.idle();
+    expect(seenWhileRunning).toMatchObject({ meetingId: ok.id, stage: 'transcribing' });
+    expect(seenWhileRunning!.fraction).toBeGreaterThan(0);
+    expect(queue.currentProgress(ok.id)).toBeUndefined();
+
+    queue = new FinalPassQueue(library, async ({ onProgress }) => {
+      onProgress?.({ phase: 'transcribing', fraction: 0.5 });
+      throw new Error('boom');
+    });
+    queue.enqueue(failing.id);
+    await queue.idle();
+    expect(queue.currentProgress(failing.id)).toBeUndefined();
+
+    queue = new FinalPassQueue(
+      library,
+      ({ signal, onProgress }) =>
+        new Promise((_, reject) => {
+          onProgress?.({ phase: 'transcribing', fraction: 0.2 });
+          signal.addEventListener('abort', () => reject(new Error('stopped')));
+        }),
+    );
+    queue.enqueue(cancelled.id);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(queue.currentProgress(cancelled.id)).toMatchObject({ stage: 'transcribing' });
+    await queue.shutdown();
+    expect(queue.currentProgress(cancelled.id)).toBeUndefined();
+  });
+
   it('stops reporting when the pass fails', async () => {
     const { id } = await sealedMeeting();
     const reports: FinalPassReport[] = [];

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { Backend, FinalPassProgress, FinalPassStage } from '@scrb/contracts';
+import type { Backend, FinalPassProgress, FinalPassStage, MeetingListItem } from '@scrb/contracts';
 import { useBackend } from './backend-context.tsx';
 
 const STAGE_ORDER: FinalPassStage[] = ['queued', 'transcribing', 'diarizing', 'finishing'];
@@ -24,18 +24,27 @@ class ProgressStore {
   private readonly listeners = new Set<() => void>();
 
   constructor(backend: Backend) {
-    backend.on('finalPassProgress', (report) => {
-      const before = this.latest.get(report.meetingId) ?? null;
-      const after = nextProgress(before, report);
-      if (after && after !== before) {
-        this.latest.set(report.meetingId, after);
-        this.notify();
-      }
-    });
-    // A pass that ended another way (failed, cancelled, ready) must not leave its last value for the next one.
-    backend.on('meetingChanged', ({ id, status }) => {
-      if (status !== 'finalPassRunning' && this.latest.delete(id)) this.notify();
-    });
+    backend.on('finalPassProgress', (report) => this.apply(report));
+    backend.on('meetingChanged', (item) => this.seed([item]));
+  }
+
+  private apply(report: FinalPassProgress): void {
+    const before = this.latest.get(report.meetingId) ?? null;
+    const after = nextProgress(before, report);
+    if (after && after !== before) {
+      this.latest.set(report.meetingId, after);
+      this.notify();
+    }
+  }
+
+  /** List items carry the current progress of a pass already under way, so a list opened mid-pass or after a restart starts at the real value. */
+  seed(items: readonly MeetingListItem[]): void {
+    for (const { id, status, finalPassProgress } of items) {
+      if (status === 'finalPassRunning') {
+        if (finalPassProgress) this.apply(finalPassProgress);
+        // A pass that ended another way (failed, cancelled, ready) must not leave its last value for the next one.
+      } else if (this.latest.delete(id)) this.notify();
+    }
   }
 
   private notify(): void {
@@ -67,4 +76,10 @@ export function useFinalPassProgress(meetingId: string): FinalPassProgress | nul
   startFinalPassProgress(backend);
   const store = stores.get(backend) as ProgressStore;
   return useSyncExternalStore(store.subscribe, () => store.get(meetingId));
+}
+
+/** Seeds the store from meetings the backend just returned. */
+export function seedFinalPassProgress(backend: Backend, items: readonly MeetingListItem[]): void {
+  startFinalPassProgress(backend);
+  stores.get(backend)?.seed(items);
 }

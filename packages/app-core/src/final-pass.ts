@@ -270,6 +270,7 @@ function finalPassDir(library: Library, meetingId: string): string {
 export class FinalPassQueue {
   private waiting: string[] = [];
   private readonly active = new Set<string>();
+  private readonly latest = new Map<string, FinalPassReport>();
   private running: Promise<void> | null = null;
   private closing = false;
   private readonly abort = new AbortController();
@@ -298,6 +299,11 @@ export class FinalPassQueue {
     return this.active.has(meetingId);
   }
 
+  /** The latest report of a queued or running pass; undefined once it has ended, so never stale. */
+  currentProgress(meetingId: string): FinalPassReport | undefined {
+    return this.latest.get(meetingId);
+  }
+
   /** True while any meeting is queued or running. */
   hasWork(): boolean {
     return this.active.size > 0;
@@ -313,6 +319,7 @@ export class FinalPassQueue {
     this.closing = true;
     this.waiting = [];
     this.active.clear();
+    this.latest.clear();
     this.abort.abort();
     await this.running;
   }
@@ -342,10 +349,12 @@ export class FinalPassQueue {
     let reporting = true;
     let last = 0;
     const report = (stage: FinalPassReport['stage'], fraction: number): void => {
-      if (!reporting || this.abort.signal.aborted || !this.onProgress) return;
+      if (!reporting || this.abort.signal.aborted) return;
       last = Math.max(last, Math.min(1, fraction));
+      const progress = { meetingId, stage, fraction: last, startedAt };
+      this.latest.set(meetingId, progress);
       try {
-        this.onProgress({ meetingId, stage, fraction: last, startedAt });
+        this.onProgress?.(progress);
       } catch {
         // Progress is advisory; a failing listener must not fail the pass.
       }
@@ -416,6 +425,7 @@ export class FinalPassQueue {
       await this.fail(meetingId, error);
     } finally {
       reporting = false;
+      this.latest.delete(meetingId);
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }

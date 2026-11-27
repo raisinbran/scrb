@@ -22,6 +22,7 @@ import {
   type WordRange,
   type MeetingDetail,
   type MeetingFilter,
+  type FinalPassProgress,
   type MeetingListItem,
   type MeetingStatus,
   type ProfileClip,
@@ -226,6 +227,7 @@ function toListItem(
   meeting: MeetingFacts,
   summaryState: SummaryState = 'notGenerated',
   speakerCount = 0,
+  progress?: FinalPassProgress,
 ): MeetingListItem {
   return {
     id: meeting.id,
@@ -236,6 +238,16 @@ function toListItem(
     status: toContractStatus(meeting.status),
     summaryState,
     speakerCount,
+    ...(progress && meeting.status === 'finalPassRunning'
+      ? {
+          finalPassProgress: {
+            meetingId: progress.meetingId,
+            stage: progress.stage,
+            fraction: progress.fraction,
+            startedAt: progress.startedAt,
+          },
+        }
+      : {}),
   };
 }
 
@@ -377,7 +389,12 @@ export function createMeetingHandlers(
       readSummaryState(library, meeting.id, summaryRunning),
       readSpeakerCount(library, meeting.id),
     ]);
-    return toListItem(meeting, summaryState, speakerCount);
+    return toListItem(
+      meeting,
+      summaryState,
+      speakerCount,
+      finalPasses?.currentProgress?.(meeting.id),
+    );
   };
   return {
     listMeetings: async (request) => {

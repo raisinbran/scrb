@@ -10,6 +10,7 @@ import {
   type CallName,
   type DeleteResult,
   type EventName,
+  type FinalPassProgress,
   type ActiveImport,
   type ImportFailureReason,
   type ImportStage,
@@ -246,7 +247,22 @@ function finalized(segment: TranscriptSegment): TranscriptSegment {
   return finalizeProvisionalWords(segment) ?? segment;
 }
 
-function toListItem(meeting: MeetingDetail): MeetingListItem {
+/** The fixture pass that is already under way when the mock starts, as after an app restart. */
+function midPassProgress(): Map<string, FinalPassProgress> {
+  return new Map([
+    [
+      'meeting-final-pass',
+      {
+        meetingId: 'meeting-final-pass',
+        stage: 'transcribing',
+        fraction: 0.4,
+        startedAt: '2026-10-29T17:00:00Z',
+      },
+    ],
+  ]);
+}
+
+function toListItem(meeting: MeetingDetail, progress?: FinalPassProgress): MeetingListItem {
   return {
     id: meeting.id,
     title: meeting.title,
@@ -256,6 +272,7 @@ function toListItem(meeting: MeetingDetail): MeetingListItem {
     status: meeting.status,
     summaryState: meeting.summaryState,
     speakerCount: meeting.speakerCount,
+    ...(progress && meeting.status === 'finalPassRunning' ? { finalPassProgress: progress } : {}),
   };
 }
 
@@ -277,6 +294,8 @@ export class MockBackend implements Backend {
     readStored<SettingsPatch>(SETTINGS_KEY) ?? {},
   );
   private library: MeetingDetail[] = createLibrary();
+  private latestProgress = midPassProgress();
+
   private profiles: VoiceProfile[] = VOICE_PROFILES.map((profile) => ({ ...profile }));
   private profileUndo: {
     kind: 'rename' | 'merge';
@@ -378,6 +397,7 @@ export class MockBackend implements Backend {
   reset(): void {
     this.armed.clear();
     this.library = createLibrary();
+    this.latestProgress = midPassProgress();
     this.summaries.clear();
     this.transcripts.clear();
     this.history.clear();
@@ -397,6 +417,16 @@ export class MockBackend implements Backend {
 
   private finalPassStarts = new Map<string, string>();
 
+  /** Sets what an already running pass reports in the meeting list, as after an app restart; null means no report yet. */
+  setMidPassProgress(meetingId: string, report: FinalPassProgress | null): void {
+    if (report) this.latestProgress.set(meetingId, report);
+    else this.latestProgress.delete(meetingId);
+  }
+
+  private listItem(meeting: MeetingDetail): MeetingListItem {
+    return toListItem(meeting, this.latestProgress.get(meeting.id));
+  }
+
   private emitFinalPassProgress(
     meetingId: string,
     stage: 'queued' | 'transcribing' | 'diarizing' | 'finishing',
@@ -404,8 +434,13 @@ export class MockBackend implements Backend {
   ): void {
     const startedAt = this.finalPassStarts.get(meetingId) ?? new Date().toISOString();
     this.finalPassStarts.set(meetingId, startedAt);
-    this.emit('finalPassProgress', { meetingId, stage, fraction, startedAt });
-    if (stage === 'finishing' && fraction === 1) this.finalPassStarts.delete(meetingId);
+    const report = { meetingId, stage, fraction, startedAt };
+    this.latestProgress.set(meetingId, report);
+    this.emit('finalPassProgress', report);
+    if (stage === 'finishing' && fraction === 1) {
+      this.finalPassStarts.delete(meetingId);
+      this.latestProgress.delete(meetingId);
+    }
   }
 
   /** What the end of a real final pass looks like to the UI: final words and a ready meeting. */
@@ -417,7 +452,7 @@ export class MockBackend implements Backend {
       this.rewriteHistory(meeting.id, finalized);
       this.updateMeetingStatus(meeting.id, { status: 'ready', transcriptionFailure: null });
       this.emitFinalPassProgress(meeting.id, 'finishing', 1);
-      this.emit('meetingChanged', toListItem(this.findMeeting(meeting.id)));
+      this.emit('meetingChanged', this.listItem(this.findMeeting(meeting.id)));
     }
   }
 
@@ -430,9 +465,9 @@ export class MockBackend implements Backend {
     if (
       after &&
       before &&
-      JSON.stringify(toListItem(after)) !== JSON.stringify(toListItem(before))
+      JSON.stringify(this.listItem(after)) !== JSON.stringify(this.listItem(before))
     ) {
-      this.emit('meetingChanged', toListItem(after));
+      this.emit('meetingChanged', this.listItem(after));
     }
   }
 
@@ -1150,7 +1185,7 @@ export class MockBackend implements Backend {
         },
         ...this.library,
       ];
-      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      this.emit('meetingChanged', this.listItem(this.findMeeting(meetingId)));
       this.transcripts.set(meetingId, []);
       this.second = 0;
       this.liveStartMs = 0;
@@ -1625,7 +1660,7 @@ export class MockBackend implements Backend {
       this.library
         .filter((meeting) => matchesMeetingFilter(meeting, filter))
         .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
-        .map(toListItem),
+        .map((meeting) => this.listItem(meeting)),
     getMeeting: ({ meetingId }) => this.findMeeting(meetingId),
     retryFinalPass: ({ meetingId }) => {
       const meeting = this.findMeeting(meetingId);
@@ -1643,7 +1678,7 @@ export class MockBackend implements Backend {
         status: 'finalPassRunning',
         transcriptionFailure: null,
       });
-      this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+      this.emit('meetingChanged', this.listItem(this.findMeeting(meetingId)));
       this.emitFinalPassProgress(meetingId, 'queued', 0);
       setTimeout(() => {
         if (this.library.find((item) => item.id === meetingId)?.status === 'finalPassRunning') {
@@ -1655,7 +1690,7 @@ export class MockBackend implements Backend {
         if (current?.status !== 'finalPassRunning') return;
         this.updateMeetingStatus(meetingId, { status: 'ready' });
         this.emitFinalPassProgress(meetingId, 'finishing', 1);
-        this.emit('meetingChanged', toListItem(this.findMeeting(meetingId)));
+        this.emit('meetingChanged', this.listItem(this.findMeeting(meetingId)));
       }, 1000);
     },
     updateMeeting: ({ meetingId, ...patch }) => {
@@ -1683,7 +1718,7 @@ export class MockBackend implements Backend {
           ...(inIndex ? [{ segmentId: null, startMs: null, snippet: null }] : []),
           ...this.textMatches(meeting.id, needle),
         ];
-        return matches.length > 0 ? [{ meeting: toListItem(meeting), matches }] : [];
+        return matches.length > 0 ? [{ meeting: this.listItem(meeting), matches }] : [];
       });
     },
     deleteMeeting: async ({ meetingId, removeLearnedData }): Promise<DeleteResult> => {

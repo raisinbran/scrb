@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-test('a list opened mid-pass shows a determinate filling bar, never the sweep', async () => {
+test('a list opened while a pass is already under way shows its real progress at once, never the sweep', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'scrb-pass-bar-'));
   writeFileSync(
     join(userData, 'library-location.json'),
@@ -31,11 +31,11 @@ test('a list opened mid-pass shows a determinate filling bar, never the sweep', 
     await page.getByRole('button', { name: 'Recordings', exact: true }).click();
     const row = page.getByRole('listitem').filter({ hasText: 'Budget review' });
     const bar = row.getByRole('progressbar', { name: /Final transcript processing/ });
-    // No report has arrived for this meeting: the bar is empty, not sweeping.
-    await expect(bar).toHaveAttribute('aria-valuenow', '0');
+    // As after a restart: no event has arrived, but the list carries the pass's current progress.
+    await expect(bar).toHaveAttribute('aria-valuenow', '40');
     const fill = bar.locator('div');
     await expect(fill).toHaveCSS('animation-name', 'none');
-    await expect(fill).toHaveCSS('width', '0px');
+    await expect(fill).not.toHaveCSS('width', '0px');
   } finally {
     await app.close();
   }
