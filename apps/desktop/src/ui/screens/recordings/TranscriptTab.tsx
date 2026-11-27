@@ -13,6 +13,7 @@ import {
 } from 'react';
 import type { Speaker, TimelineGap, TranscriptSegment } from '@scrb/contracts';
 import { formatElapsed } from '../../lib/format.ts';
+import { useScrollbarDrag } from '../../lib/use-scrollbar-drag.ts';
 import { animateTranscriptScroll } from '../../lib/transcript-scroll.ts';
 import { recall, remember } from '../../lib/tab-memory.ts';
 import { ContextMenu } from '../../components/ContextMenu.tsx';
@@ -410,6 +411,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
     return values;
   }, [rows, heights]);
   const layout = useRef({ rows, offsets, heights });
+  const dragging = useRef(false);
 
   useEffect(() => {
     layout.current = { rows, offsets, heights };
@@ -438,7 +440,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
     if (!changed) return;
     layout.current = { ...current, heights: next };
     setHeights(next);
-    if (element && shiftAbove !== 0) element.scrollTop += shiftAbove;
+    if (element && shiftAbove !== 0 && !dragging.current) element.scrollTop += shiftAbove;
   }, []);
 
   // Only the reader's own wheel, touch, scrollbar or keys stop following; scrolling done here
@@ -695,7 +697,11 @@ export function TranscriptTab(props: TranscriptTabProps) {
   }, [playing, followPlayback, activeIndex, activeWordKey, viewportPx]);
 
   const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
-  const contentHeight = (offsets[rows.length] as number) + unloaded;
+  const drag = useScrollbarDrag((offsets[rows.length] as number) + unloaded);
+  useEffect(() => {
+    dragging.current = drag.dragging;
+  }, [drag.dragging]);
+  const contentHeight = drag.value;
   const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
   const jumpToPosition = () => {
     const element = scroller.current;
@@ -763,6 +769,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
         onTouchMove={stopFollowing}
         onPointerDown={(event) => {
           // A press on the scroller itself is its scrollbar; the rows handle their own clicks.
+          drag.onPointerDown(event);
           if (event.target === event.currentTarget) stopFollowing();
         }}
         onKeyDown={(event) => {
