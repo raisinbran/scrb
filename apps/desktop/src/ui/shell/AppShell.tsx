@@ -8,9 +8,6 @@ import { Sidebar } from './Sidebar.tsx';
 import { TitleBar } from './TitleBar.tsx';
 import styles from './AppShell.module.css';
 
-/** Fixed: the narrowest width at which every tab label still fits. */
-const SIDEBAR_WIDTH = 160;
-
 interface AppShellProps {
   screenId: ScreenId;
   onSelectScreen(id: ScreenId): void;
@@ -56,7 +53,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <PrivacyBanner />
       <ModelsNotice />
       <div className={styles.body}>
-        <div className={styles.sidebar} style={{ width: SIDEBAR_WIDTH }}>
+        <div className={styles.sidebar}>
           <Sidebar selected={screenId} onSelect={onSelectScreen} />
         </div>
         <main

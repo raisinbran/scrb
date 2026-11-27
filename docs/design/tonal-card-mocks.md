@@ -25,3 +25,14 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 - Are 10px and 6px right, or should panels go to 12px?
 
 - Does the playback card have enough prominence when you move between Transcript, Summary, and Audio?
+
+## Owner comments, round 3
+
+| Comment                          | Change                                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gap under the recording title    | The title kept an empty reserved line for errors. It now exists only while an error shows                                                                                    |
+| No borders on buttons and panels | Buttons, icon buttons, tabs, badges, cards and the save bar lose their outline in the preview; a fill and radius separate them. Inputs keep a subtle edge for field contrast |
+| Tabs outside the transcript card | Transcript / Summary / Audio, undo, redo, A- and A+ are a row of buttons on the page above the card. The card holds only content                                             |
+| Recordings list                  | Each recording is a row in a card, with the Settings group list's hover and selected look (shared `ListItem.module.css`). The list scrolls inside its card                   |
+| Gutter between panels            | One token, `--space-card-gap` (8px, was 12px), used between cards in Settings, Recordings and the meeting view                                                               |
+| Wasted width                     | Sidebar 140px (was 160px) with tighter padding; the Settings group list hugs its labels; the settings and meeting panels use the freed width. The group list stays sticky    |

@@ -31,3 +31,21 @@
   color: var(--color-danger);
   border-color: var(--color-danger);
 }
+
+/* Tonal preview: no outline; a fill and the control radius tell buttons apart. */
+:global([data-design='tonal']) .button {
+  background: var(--btn-fill, var(--color-card-inset));
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .button:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+:global([data-design='tonal']) .primary {
+  background: var(--color-accent);
+}
+
+:global([data-design='tonal']) .danger {
+  border-color: transparent;
+}

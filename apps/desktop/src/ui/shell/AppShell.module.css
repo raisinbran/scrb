@@ -12,6 +12,8 @@
 
 .sidebar {
   flex: none;
+  /* Fixed: the narrowest width at which every tab label still fits. */
+  width: 160px;
   min-height: 0;
 }
 
@@ -24,4 +26,8 @@
   min-width: 0;
   overflow-y: auto;
   background: var(--color-surface);
+}
+
+:global([data-design='tonal']) .sidebar {
+  width: 140px;
 }

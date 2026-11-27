@@ -1,0 +1,15 @@
+/* Tonal preview: the look every list-style menu item shares (Settings groups, the Recordings list).
+   Layout, padding and text colour stay with each user; only the hover and selected fills live here. */
+:global([data-design='tonal']) .item {
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+:global([data-design='tonal']) .item:hover:not(:disabled) {
+  background: var(--color-card-inset);
+}
+
+:global([data-design='tonal']) .item[aria-current='true'] {
+  background: var(--color-page);
+}

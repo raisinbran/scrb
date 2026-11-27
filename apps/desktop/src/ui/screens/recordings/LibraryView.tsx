@@ -7,6 +7,7 @@ import type {
   PickedAudioFile,
   SearchResult,
 } from '@scrb/contracts';
+import item from '../../components/ListItem.module.css';
 import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
@@ -58,7 +59,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
     <li className={styles.row}>
       <button
         type="button"
-        className={styles.rowMain}
+        className={`${styles.rowMain} ${item.item}`}
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
       >
@@ -90,7 +91,7 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
         <button
           key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
           type="button"
-          className={styles.snippet}
+          className={`${styles.snippet} ${item.item}`}
           onClick={() => onOpen(meeting.id, match.startMs as number)}
         >
           <span className={styles.time}>{formatElapsed(match.startMs as number)}</span>
@@ -189,7 +190,7 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   };
 
   return (
-    <Screen title="Recordings">
+    <Screen title="Recordings" className={styles.libraryScreen ?? ''}>
       <div className={styles.toolbar}>
         <input
           ref={searchBox}

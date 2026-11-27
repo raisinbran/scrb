@@ -109,6 +109,7 @@ Grid is 4px, steps are tokens:
 
 `--space-1` 4 · `--space-2` 8 · `--space-3` 12 · `--space-4` 16 · `--space-5` 24 · `--space-6` 32 · `--space-7` 48
 
+- Tonal preview: one gap, `--space-card-gap` (8px), between stacked cards and panels. Buttons, tabs, cards and panels have no outline: a fill (`--color-card-inset` inside a card, `--color-card` on the page background, set per row with `--btn-fill`) and the radius separate them. Disabled keeps 0.5-0.6 opacity, selected keeps a fill, the keyboard focus ring stays. Inputs and selects keep their subtle edge so the field passes non-text contrast. List-style menus (Settings groups, the Recordings list) share `components/ListItem.module.css`: hover `--color-card-inset`, selected `--color-page`. Secondary menus hug their content; the main panel takes the rest.
 - Two corner radii: `--radius` (10px) for panels, cards, dialogs, menus, section boxes and the save bar; `--radius-control` (6px) for buttons, inputs, selects, tabs, list items, tooltips, banners (compact strips), badges and small bars. A test allows only those two tokens, `50%` or `0`. The mini window is exempt from the test but uses `--radius-control`. A control inside a card is always one step tighter than the card.
 - `--control-height` 30px: dropdowns, buttons and icon buttons that share a row are this tall so they line up.
 - Screen padding: `--space-5` top, `--space-6` sides, max width 880px (`Screen.module.css`).

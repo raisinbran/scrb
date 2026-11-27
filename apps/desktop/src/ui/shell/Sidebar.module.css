@@ -173,3 +173,12 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+/* Tonal preview: tighter padding so the main panel gets the width. */
+:global([data-design='tonal']) .sidebar {
+  padding: var(--space-1);
+}
+
+:global([data-design='tonal']) .item {
+  padding: var(--space-2);
+}

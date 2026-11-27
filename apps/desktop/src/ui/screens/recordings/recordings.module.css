@@ -387,9 +387,8 @@
   max-width: 640px;
 }
 
-/* One line under the title is always reserved, so an error never covers a long title or moves anything. */
+/* Only present while there is an error; a reserved empty line would leave a gap under every title. */
 .titleErrorSlot {
-  min-height: 1.4em;
   font-size: var(--text-sm);
 }
 
@@ -849,22 +848,21 @@ div.editHint button {
 }
 
 :global([data-design='tonal']) .detail {
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-card-gap);
+  padding: var(--space-card-gap) var(--space-3);
   background: var(--color-page);
 }
 
 :global([data-design='tonal']) .detailHead,
-:global([data-design='tonal']) .tabs,
 :global([data-design='tonal']) .panel,
 :global([data-design='tonal']) .playerRow {
   background: var(--color-card);
-  border: 1px solid var(--color-border-soft);
+  border: 0;
   border-radius: var(--radius);
 }
 
 :global([data-design='tonal']) .detailHead {
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
 }
 
@@ -873,36 +871,33 @@ div.editHint button {
   margin: 0;
 }
 
-:global([data-design='tonal']) .tabs,
-:global([data-design='tonal']) .playerRow {
-  padding: var(--space-2) var(--space-4);
-}
-
-/* The tab bar and the panel read as one card: the bar is the inset step, the panel the card. */
-:global([data-design='tonal']) .tabs {
-  background: var(--color-card-inset);
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
-}
-
-:global([data-design='tonal']) .tabOn {
-  background: var(--color-card);
-  border-color: var(--color-border-soft);
-}
-
-:global([data-design='tonal']) .panel {
-  margin-block-start: calc(-1 * var(--space-3));
-  border-block-start: 0;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
+:global([data-design='tonal']) .detailHead .actions {
+  margin-block-start: var(--space-1);
 }
 
 :global([data-design='tonal']) .playerRow {
   flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
 }
 
-:global([data-design='tonal']) .transcript {
-  padding-inline: var(--space-4);
+/* Tabs and the transcript tools are a button row on the page, above the card that holds the content. */
+:global([data-design='tonal']) .tabs {
+  --btn-fill: var(--color-card);
+  padding: 0;
+  border: 0;
+}
+
+:global([data-design='tonal']) .tab,
+:global([data-design='tonal']) .tabOn {
+  border: 0;
+}
+
+:global([data-design='tonal']) .tab:hover {
+  background: var(--color-surface-hover);
+}
+
+:global([data-design='tonal']) .tabOn {
+  background: var(--color-card);
 }
 
 :global([data-design='tonal']) .panel[aria-labelledby='meeting-tab-Transcript'] {
@@ -910,7 +905,118 @@ div.editHint button {
   flex-direction: column;
 }
 
+:global([data-design='tonal']) .transcript {
+  padding-inline: var(--space-4);
+}
+
 :global([data-design='tonal']) .transcriptBox {
   flex: 1;
   height: auto;
+}
+
+/* Borderless controls: a fill and the control radius tell them apart. */
+:global([data-design='tonal']) .button,
+:global([data-design='tonal']) .primary,
+:global([data-design='tonal']) .danger,
+:global([data-design='tonal']) .dangerQuiet {
+  background: var(--btn-fill, var(--color-card-inset));
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .button:hover:enabled,
+:global([data-design='tonal']) .dangerQuiet:hover:enabled {
+  background: var(--color-surface-hover);
+}
+
+:global([data-design='tonal']) .primary {
+  background: var(--color-accent);
+}
+
+:global([data-design='tonal']) .danger {
+  background: var(--color-danger);
+}
+
+:global([data-design='tonal']) .jumpToPosition {
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .badge,
+:global([data-design='tonal']) .badgeStrong,
+:global([data-design='tonal']) .badgeWarning {
+  padding-inline: var(--space-2);
+  background: var(--color-card-inset);
+  border: 0;
+}
+
+:global([data-design='tonal']) .segmented {
+  background: var(--color-card-inset);
+  border: 0;
+}
+
+:global([data-design='tonal']) .meetingTitle:hover:not(:read-only),
+:global([data-design='tonal']) .dateButton:hover {
+  background: var(--color-card-inset);
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .imports {
+  background: var(--color-card);
+  border: 0;
+}
+
+/* Recordings list: a card of rows that share the Settings group list's hover and selected look. */
+:global([data-design='tonal']) .libraryScreen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: none;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-page);
+}
+
+:global([data-design='tonal']) .libraryScreen > h1 {
+  margin-block-end: var(--space-3);
+}
+
+:global([data-design='tonal']) .libraryScreen .toolbar,
+:global([data-design='tonal']) .libraryScreen .filters {
+  margin-block-end: var(--space-card-gap);
+}
+
+:global([data-design='tonal']) .libraryScreen .toolbar {
+  padding-inline-end: 0;
+}
+
+:global([data-design='tonal']) .libraryScreen .imports {
+  margin-block-end: var(--space-card-gap);
+}
+
+:global([data-design='tonal']) .rows {
+  flex: 1;
+  min-height: 160px;
+  padding: var(--space-2);
+  overflow-y: auto;
+  background: var(--color-card);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .row {
+  border: 0;
+}
+
+:global([data-design='tonal']) .row + .row {
+  margin-block-start: var(--space-1);
+}
+
+:global([data-design='tonal']) .rowMain {
+  padding: var(--space-2) var(--space-3);
+}
+
+:global([data-design='tonal']) .rowProgress {
+  padding-inline: var(--space-3);
+}
+
+:global([data-design='tonal']) .snippet {
+  padding-inline-start: var(--space-5);
 }

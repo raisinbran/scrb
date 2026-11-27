@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import item from '../../components/ListItem.module.css';
 import styles from '../SettingsScreen.module.css';
 
 export interface SettingsGroup {
@@ -83,7 +84,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
           <li key={group.id}>
             <button
               type="button"
-              className={styles.navItem}
+              className={`${styles.navItem} ${item.item}`}
               aria-current={active === group.id ? 'true' : undefined}
               onClick={() => jump(group.id)}
             >
