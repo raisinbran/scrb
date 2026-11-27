@@ -1267,7 +1267,7 @@ describe('Recordings', () => {
       expect(banner.closest('[class*="layer"]')).not.toBeNull();
       const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
       expect(css).not.toMatch(/\.inline/);
-      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: 0/);
+      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: var\(--popup-gutter, 0\)/);
       expect(css.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/position: absolute/);
     });
 
