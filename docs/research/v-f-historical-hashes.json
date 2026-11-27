@@ -1,0 +1,41 @@
+{
+  "historicalBatchInputSha256": {
+    "IS1009a.Mix-Headset.wav": "6eb5a0ede0d9e72794f976ce7bea5b78133eae969f99b4c5418b43c2468d25b1",
+    "IS1009b.Mix-Headset.wav": "07c2891ae6ad7c507b2a4f15b2dcd0a2343491df9e4e6a58f9db0d0b2c5e1382",
+    "TS3003b.Mix-Headset.wav": "0c94f3a09ab747caa7714efe8852f5ff37d36cf272b75709344991df1aa266ca",
+    "ami_public_manual_1.6.2.zip": "b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d",
+    "IS1009a.A.segments.xml": "86f545f8fb114f4ac515fe364bfac318f2e2bda29f8d3248707baa8fc1a845f3",
+    "IS1009a.B.segments.xml": "9e5e4e9247f294cbfefb2b470b48b56b5fa5ac59fc033988f2157233dd8944cc",
+    "IS1009a.C.segments.xml": "67b7db585df2c2eb5d99a71e27a1d57c5102dd5e5b3877981c1b792111935567",
+    "IS1009a.D.segments.xml": "fa930c99ffa100b5318b957df024915ac770f5f623716815843a4aaca9fad7c9",
+    "IS1009b.A.segments.xml": "ce8274aff7a99170f9021c50edab0f635522c217860c95abcbce0f573a006af1",
+    "IS1009b.B.segments.xml": "abb566affa72d8c8f9de79073be780c0e981d96889350305e0fb7acaf0b05e22",
+    "IS1009b.C.segments.xml": "a390c9e685b789dce2117b94e3ea11181af6da128e613190381891e5cf9668d0",
+    "IS1009b.D.segments.xml": "0a328de04dc37ef80336cdc0d1a70768c646f2f90130a6180c06db90b495b1c0",
+    "TS3003b.A.segments.xml": "3da3846f3155417cd5080fe863097ea8155dd847cac956b177929bbe2dc954ce",
+    "TS3003b.B.segments.xml": "161a28b55c679833ee49a3d84eb086582ffaf0a7142614cc3a25d5be01513af9",
+    "TS3003b.C.segments.xml": "16cbb73ebc9eecf7109f11fce6262fda3d750e1fc70bffd13d21376f01e96a5d",
+    "TS3003b.D.segments.xml": "706d2f017eba45c1c2d42edff7562fc1b8356c16aa01bbf082b392d7a593f222",
+    "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx": "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+    "segmentation-model.int8.onnx": "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
+    "ffmpeg": "40d2487d10d48ad9f84167a3cc8862ab1c3d0d3e82c1c7bbe30b695622a79ff7",
+    "scrb-sherpa": "36cf1487df1de4445d9aabfabd72c24fade835b40e795e6364321246e5a4e95f",
+    "libonnxruntime.dylib": "b0613d0ae53199a83b05fa48e169211498e9d40d54beaa372068ebe5ec5b0929",
+    "libsherpa-onnx-c-api.dylib": "f0adaf11e08e0f3df2458e3fd4ea6aab215953e423e55b567f601ea6eb3530f3"
+  },
+  "historicalSuccessfulNumericReportSha256": {
+    "IS1009a-240-0.8.json": "17a38a0f5f6daa874e9600a12e11224135fe83b951900f23d3e7e26389c94f67",
+    "IS1009a-240-1.0.json": "4375ff1425084b20d738127f28e3287bc264710092c8639bb9247691731c9889",
+    "IS1009a-240-1.2.json": "323d1723366fbe1e2c489536c1322b1e5fc20474dab84828c851ce190bd9a78f",
+    "IS1009a-360-0.8.json": "1d6bb734e6389c41e6eefac4d3fa35e53e6799ad86daa002d1029f6f87708e3d",
+    "IS1009a-360-1.0.json": "72789998b87021c4f7e3df99cdc003eb0faa86b0b741ec97c746e4226b86cf8e",
+    "IS1009a-360-1.2.json": "8576e1c1fd80462bef52185948922106190b13878cba12ac4130f2118f127f00"
+  },
+  "historicalFailure": {
+    "meeting": "IS1009b",
+    "start": 300,
+    "duration": 60,
+    "threshold": 1.2,
+    "retainedStdoutBytes": 0
+  }
+}
