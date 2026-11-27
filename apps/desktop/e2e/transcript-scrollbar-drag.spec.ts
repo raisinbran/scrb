@@ -38,43 +38,61 @@ for (const [width, height] of [
       const scroller = page.getByRole('region', { name: 'Transcript' });
       await expect(scroller).toHaveAttribute('aria-busy', 'false');
 
-      // The thumb is a native control, so its place is derived from the scroll position. Its
-      // length only shifts the result by half of itself, which the tolerance covers.
-      const thumb = () =>
-        scroller.evaluate((el) => {
-          const rect = el.getBoundingClientRect();
-          const track = el.clientHeight;
-          const length = Math.max((track * track) / el.scrollHeight, 20);
-          const range = el.scrollHeight - track;
-          const fraction = range > 0 ? el.scrollTop / range : 0;
-          return {
-            x: rect.right - 3,
-            top: rect.top,
-            bottom: rect.top + track,
-            length,
-            centre: rect.top + length / 2 + fraction * (track - length),
-          };
-        });
-
-      // Overlay scrollbars only exist while the pointer is over the list.
+      // The thumb is native, and its size and arrow buttons differ by platform, so the transcript
+      // is compared with a plain scroller of the same box and height dragged the same way: both
+      // must be scrolled to the same fraction by the same pointer positions.
       const box = await scroller.boundingBox();
       if (!box) throw new Error('Transcript has no box');
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel(0, 30);
-      await page.waitForTimeout(300);
+      const drag = async (target: typeof scroller) => {
+        const g = await target.evaluate((el) => {
+          const rect = el.getBoundingClientRect();
+          const bar = el.offsetWidth - el.clientWidth;
+          return {
+            x: rect.right - (bar > 0 ? bar / 2 : 3),
+            top: rect.top + bar,
+            bottom: rect.top + el.clientHeight - bar,
+            track: el.clientHeight,
+          };
+        });
+        const fraction = () =>
+          target.evaluate((el) => el.scrollTop / (el.scrollHeight - el.clientHeight));
+        // Overlay scrollbars only exist while the pointer is over the list.
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.wheel(0, 30);
+        await page.waitForTimeout(300);
+        await page.mouse.move(g.x, g.top + 10);
+        await page.mouse.down();
+        const fractions: number[] = [];
+        for (let step = 1; step <= STEPS; step += 1) {
+          await page.mouse.move(g.x, g.top + 10 + ((g.bottom - g.top - 14) * step) / STEPS);
+          await page.waitForTimeout(40);
+          fractions.push(await fraction());
+        }
+        await page.mouse.up();
+        return { fractions, track: g.track };
+      };
 
-      const start = await thumb();
-      const end = start.bottom - start.length / 2;
-      await page.mouse.move(start.x, start.centre);
-      await page.mouse.down();
-      let worst = 0;
-      for (let step = 1; step <= STEPS; step += 1) {
-        const y = start.centre + ((end - start.centre) * step) / STEPS;
-        await page.mouse.move(start.x, y);
-        await page.waitForTimeout(40);
-        worst = Math.max(worst, Math.abs((await thumb()).centre - y));
-      }
-      await page.mouse.up();
+      const scrollHeight = await scroller.evaluate((el) => el.scrollHeight);
+      await page.evaluate(
+        ({ rect, height }) => {
+          const control = document.createElement('div');
+          control.id = 'drag-control';
+          control.style.cssText = `position:fixed;z-index:99999;overflow-y:auto;background:#fff;left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px`;
+          control.innerHTML = `<div style="height:${height}px"></div>`;
+          document.body.append(control);
+        },
+        { rect: box, height: scrollHeight },
+      );
+      const reference = await drag(page.locator('#drag-control'));
+      await page.evaluate(() => document.getElementById('drag-control')?.remove());
+      expect(reference.fractions.at(-1)).toBeGreaterThan(0.8);
+
+      const actual = await drag(scroller);
+      const worst = Math.max(
+        ...actual.fractions.map(
+          (f, i) => Math.abs(f - (reference.fractions[i] ?? 0)) * actual.track,
+        ),
+      );
       expect(worst).toBeLessThanOrEqual(MAX_OFFSET_PX);
     } finally {
       await app.close();
