@@ -25,7 +25,7 @@ export function SkipButton({
           <g
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.7"
+            strokeWidth="1.3"
             strokeLinecap="round"
             strokeLinejoin="round"
             transform={direction === 'back' ? 'translate(24 0) scale(-1 1)' : undefined}
@@ -38,7 +38,7 @@ export function SkipButton({
             y="15.2"
             textAnchor="middle"
             fontSize="7.5"
-            fontWeight="600"
+            fontWeight="700"
             fill="currentColor"
             stroke="none"
           >
