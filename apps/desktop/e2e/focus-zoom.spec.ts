@@ -146,32 +146,23 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(editor).toBeFocused();
       await inspectLayout(page, `${zoom}-live-editor`);
       await page.keyboard.press('Escape');
-      // The scripted mock meeting pauses itself at second 15 and resumes at second 20. A click on
-      // Pause can land just as that pause swaps the button for Resume (resuming instead), and the
-      // scripted resume can undo a user pause before it is seen. Press Pause again until Resume shows.
+      // The real backend can show the shared-library notice (on Windows) a moment after launch. It
+      // floats over the header at the minimum window and 200% zoom and covers Pause (the CI run that
+      // failed listed it beside Pause), so dismiss it first, as a person would. The scripted mock
+      // meeting also pauses itself at second 15 and resumes at second 20, so a click can land on the
+      // Resume it swaps in, or a scripted resume can undo the pause before it is seen: press Pause
+      // again until Resume shows.
       await expect(async () => {
+        const notice = page.getByRole('button', {
+          name: 'Dismiss shared library permissions notice',
+        });
+        if (await notice.isVisible()) await notice.click();
         const pause = page.getByRole('button', { name: 'Pause', exact: true });
-        if (await pause.isVisible()) await pause.click();
+        if (await pause.isVisible()) await pause.click({ timeout: 3_000 });
         await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible({
           timeout: 1_500,
         });
-      })
-        .toPass({ timeout: 15_000 })
-        .catch(async (error) => {
-          // TEMP-DIAG
-          const names = await page
-            .getByRole('button')
-            .evaluateAll((els) =>
-              els.map(
-                (el) =>
-                  `${el.getAttribute('aria-label') ?? el.textContent}${(el as HTMLButtonElement).disabled ? '(disabled)' : ''}`,
-              ),
-            );
-          const alerts = await page.locator('[role="alert"], [role="status"]').allInnerTexts();
-          console.log('DIAG buttons', JSON.stringify(names));
-          console.log('DIAG alerts', JSON.stringify(alerts));
-          throw error;
-        });
+      }).toPass({ timeout: 15_000 });
       await inspectLayout(page, `${zoom}-live-paused`);
       await trigger('stop');
       await page.getByRole('button', { name: 'Recordings', exact: true }).click();
