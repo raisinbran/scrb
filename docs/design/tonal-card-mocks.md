@@ -56,3 +56,10 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Idle fill on the page   | New tokens `--color-control` and `--color-control-hover` in both themes: slightly recessed against the page, so the lighter selected tab stands out. Contrast is tested like the other surfaces                                                   |
 | Back button             | The "< Recordings" button is gone from the meeting panel; the list column stays beside it at every width. Pressing Recordings in the sidebar still closes the open meeting                                                                        |
 | Speakers and Vocabulary | Unchanged for now                                                                                                                                                                                                                                 |
+
+## Owner comments, round 6 (Vocabulary V-B)
+
+| Comment    | Change                                                                                                                                                                                                                                                      |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vocabulary | Now `SplitLayout`: search and the usage note on top of the column, then Suggested, Enabled and Disabled groups with counts. The selected term gets a panel sized to its content plus a small History panel; a suggestion shows counts, Remember and Dismiss |
+| Speakers   | Unchanged                                                                                                                                                                                                                                                   |

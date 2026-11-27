@@ -183,8 +183,14 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    const pick = async (name: string) => {
+      const row = await screen.findByText(name, { selector: 'span' });
+      fireEvent.click(row.closest('button') as HTMLElement);
+    };
+
     it('focuses the heading after deleting a term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Kestrel API');
       const remove = await screen.findByRole('button', { name: 'Delete Kestrel API' });
       remove.focus();
       fireEvent.click(remove);
@@ -205,24 +211,65 @@ describe('screens', () => {
       expect(screen.getByText(/saved but not used for transcription yet/)).toBeTruthy();
     });
 
-    it('lists suggested terms with their counts and their misheard forms', async () => {
+    it('groups terms under Suggested, Enabled and Disabled with counts', async () => {
       renderScreen(backend, <VocabularyScreen />);
-      expect(await screen.findByRole('heading', { name: 'Suggested terms' })).toBeTruthy();
-      expect(screen.getByText('4 corrections in 3 meetings')).toBeTruthy();
-      expect(screen.getByText('2 corrections in 2 meetings')).toBeTruthy();
+      const terms = await backend.call('listTerms');
+      const off = terms.filter((term) => !term.enabled).length;
+      expect(await screen.findByRole('heading', { name: 'Suggested (2)' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: `Enabled (${terms.length - off})` })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: `Disabled (${off})` })).toBeTruthy();
     });
 
-    it('remembers a suggestion and refreshes both lists', async () => {
+    it('starts with a calm empty panel and marks the selected term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      expect(await screen.findByText('Select a term')).toBeTruthy();
+      await pick('Kestrel API');
+      expect(screen.queryByText('Select a term')).toBeNull();
+      const row = screen.getByText('Kestrel API', { selector: 'span' }).closest('button');
+      expect(row?.getAttribute('aria-current')).toBe('true');
+      expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy();
+    });
+
+    it('filters the list by spelling or misheard version', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await screen.findByText('Kestrel API', { selector: 'span' });
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search vocabulary' }), {
+        target: { value: 'kestrel' },
+      });
+      expect(screen.queryByText('Halden Depot', { selector: 'span' })).toBeNull();
+      expect(screen.getByText('Kestrel API', { selector: 'span' })).toBeTruthy();
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search vocabulary' }), {
+        target: { value: 'zzzz' },
+      });
+      expect(screen.getByText('No matching terms.')).toBeTruthy();
+    });
+
+    it('shows a suggestion with its counts and misheard forms', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await pick('Marlow Quay');
+      expect(await screen.findByText('4 corrections in 3 meetings')).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Heard as' })).toBeTruthy();
+      await pick('Tessel');
+      expect(await screen.findByText('2 corrections in 2 meetings')).toBeTruthy();
+    });
+
+    it('remembers a suggestion and refreshes the groups', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await pick('Marlow Quay');
       fireEvent.click(await screen.findByRole('button', { name: 'Remember Marlow Quay' }));
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull(),
       );
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Suggested (1)' })).toBeTruthy(),
+      );
+      await pick('Marlow Quay');
       expect(await screen.findByRole('button', { name: 'Edit Marlow Quay' })).toBeTruthy();
     });
 
     it('dismisses a suggestion without adding a term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Tessel');
       fireEvent.click(await screen.findByRole('button', { name: 'Dismiss Tessel' }));
       await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
       expect((await backend.call('listTerms')).some((term) => term.term === 'Tessel')).toBe(false);
@@ -230,6 +277,7 @@ describe('screens', () => {
 
     it('shows an error and refreshes when a suggestion changed', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Tessel');
       const remember = await screen.findByRole('button', { name: 'Remember Tessel' });
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       fireEvent.click(remember);
@@ -237,31 +285,37 @@ describe('screens', () => {
       await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
     });
 
-    it('hides the section when there are no suggestions', async () => {
+    it('hides the Suggested group when there are no suggestions', async () => {
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       renderScreen(backend, <VocabularyScreen />);
       await screen.findByText('Kestrel API');
-      expect(screen.queryByRole('heading', { name: 'Suggested terms' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: /^Suggested/ })).toBeNull();
     });
 
     it('shows the empty state', async () => {
       backend.setTerms([]);
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       renderScreen(backend, <VocabularyScreen />);
       expect(await screen.findByText('No terms yet')).toBeTruthy();
     });
 
     it('marks a disabled entry and enables it', async () => {
       renderScreen(backend, <VocabularyScreen />);
-      expect(await screen.findByText('Disabled')).toBeTruthy();
+      await pick('Q-Track');
+      expect(await screen.findByText('Disabled', { selector: 'span' })).toBeTruthy();
       fireEvent.click(screen.getByRole('button', { name: 'Enable Q-Track' }));
-      await vi.waitFor(() => expect(screen.queryByText('Disabled')).toBeNull());
+      await vi.waitFor(() =>
+        expect(screen.queryByText('Disabled', { selector: 'span' })).toBeNull(),
+      );
       const terms = await backend.call('listTerms');
       expect(terms.find((term) => term.id === 'term-3')?.history.at(-1)?.action).toBe('enabled');
     });
 
     it('edits spelling and misheard versions', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Kestrel API');
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Kestrel API' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Correct spelling' }), {
         target: { value: 'Kestrel Gateway' },
@@ -270,13 +324,14 @@ describe('screens', () => {
         target: { value: 'castrol api\n  kessel gateway  \n\ncastrol api' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(await screen.findByText('Kestrel Gateway')).toBeTruthy();
+      expect(await screen.findByRole('heading', { name: 'Kestrel Gateway' })).toBeTruthy();
       const term = (await backend.call('listTerms')).find((item) => item.id === 'term-2');
       expect(term?.misheard).toEqual(['castrol api', 'kessel gateway']);
     });
 
     it('deletes a term after confirming', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Halden Depot');
       fireEvent.click(await screen.findByRole('button', { name: 'Delete Halden Depot' }));
       fireEvent.click(screen.getByRole('button', { name: 'Delete term' }));
       await vi.waitFor(() => expect(screen.queryByText('Halden Depot')).toBeNull());

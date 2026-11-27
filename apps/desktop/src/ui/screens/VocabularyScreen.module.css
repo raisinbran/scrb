@@ -1,34 +1,60 @@
-.list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--color-border);
-}
-
-.row {
-  padding: var(--space-2) var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.main {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
-  justify-content: space-between;
-}
-
-.text {
+.content {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  gap: var(--space-card-gap);
+  min-height: 100%;
+}
+
+.emptyPanel {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  background: var(--color-card);
+  border-radius: var(--radius);
+}
+
+/* Sized to its content, never a tall empty card. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-self: stretch;
+  padding: var(--space-4);
+  background: var(--color-card);
+  border-radius: var(--radius);
+}
+
+.name {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.subheading {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+}
+
+.groupHeading {
+  margin: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .term {
   font-weight: 600;
-}
-
-.disabled .term {
-  color: var(--color-text-muted);
 }
 
 .badge {
@@ -42,45 +68,47 @@
 }
 
 .muted {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+
+.heard {
+  margin: 0;
+  padding-inline-start: var(--space-4);
 }
 
 .actions {
   display: flex;
-  flex: none;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .history {
-  margin-top: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-4);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-}
-
-.history ul {
-  margin: var(--space-1) 0 0;
-  padding-inline-start: var(--space-4);
 }
 
 .error {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   color: var(--color-danger);
 }
 
-.suggestions {
-  margin-bottom: var(--space-4);
-}
-
-.subheading {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-md);
-}
-
 .note {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-sm);
+  margin: 0;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+
+.search {
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 /* Enable and Disable swap in place; the button keeps one width. */

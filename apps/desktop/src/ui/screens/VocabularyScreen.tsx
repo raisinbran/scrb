@@ -12,7 +12,9 @@ import { useBackend } from '../lib/backend-context.tsx';
 import { formatMeetingDate } from '../lib/format.ts';
 import { useAction } from '../lib/use-action.ts';
 import { useBackendData } from '../lib/use-backend-data.ts';
-import { DataView, EmptyState, Screen } from './Screen.tsx';
+import list from '../components/ListItem.module.css';
+import { DataView, EmptyState } from './Screen.tsx';
+import { SplitLayout } from './SplitLayout.tsx';
 import styles from './VocabularyScreen.module.css';
 
 const load = async (backend: Backend) => {
@@ -82,33 +84,85 @@ function EditDialog({
   );
 }
 
-function TermRow({
+type Entry =
+  | {
+      kind: 'suggestion';
+      key: string;
+      name: string;
+      misheard: string[];
+      item: VocabularySuggestion;
+    }
+  | { kind: 'term'; key: string; name: string; misheard: string[]; item: VocabularyTerm };
+
+const matches = (entry: Entry, query: string) =>
+  [entry.name, ...entry.misheard].some((text) => text.toLowerCase().includes(query));
+
+function EntryRow({
+  entry,
+  selected,
+  onSelect,
+}: {
+  entry: Entry;
+  selected: boolean;
+  onSelect(): void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        className={`${list.item} ${styles.entry}`}
+        aria-current={selected ? 'true' : undefined}
+        onClick={onSelect}
+      >
+        <span className={styles.term}>{entry.name}</span>
+        <span className={styles.muted}>
+          {entry.misheard.length > 0
+            ? `Heard as: ${entry.misheard.join(', ')}`
+            : 'No misheard versions'}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function HeardAs({ misheard }: { misheard: string[] }) {
+  return (
+    <div>
+      <h3 className={styles.subheading}>Heard as</h3>
+      {misheard.length > 0 ? (
+        <ul className={styles.heard}>
+          {misheard.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className={styles.muted}>No misheard versions</p>
+      )}
+    </div>
+  );
+}
+
+function TermPanel({
   term,
+  busy,
   onEdit,
   onDelete,
   onToggle,
-  toggleDisabled,
 }: {
   term: VocabularyTerm;
+  busy: boolean;
   onEdit(): void;
   onDelete(): void;
   onToggle(): void;
-  toggleDisabled: boolean;
 }) {
   return (
-    <li className={term.enabled ? styles.row : `${styles.row} ${styles.disabled}`}>
-      <div className={styles.main}>
-        <div className={styles.text}>
-          <span className={styles.term}>
-            {term.term}
-            {!term.enabled && <span className={styles.badge}>Disabled</span>}
-          </span>
-          <span className={styles.muted}>
-            {term.misheard.length > 0
-              ? `Heard as: ${term.misheard.join(', ')}`
-              : 'No misheard versions'}
-          </span>
-        </div>
+    <>
+      <section aria-labelledby="vocab-term-name" className={styles.panel}>
+        <h2 id="vocab-term-name" className={styles.name}>
+          {term.term}
+          {!term.enabled && <span className={styles.badge}>Disabled</span>}
+        </h2>
+        <HeardAs misheard={term.misheard} />
         <div className={styles.actions}>
           <Button aria-label={`Edit ${term.term}`} onClick={onEdit}>
             Edit
@@ -116,7 +170,7 @@ function TermRow({
           <Button
             className={styles.toggleTerm}
             aria-label={`${term.enabled ? 'Disable' : 'Enable'} ${term.term}`}
-            disabled={toggleDisabled}
+            disabled={busy}
             onClick={onToggle}
           >
             {term.enabled ? 'Disable' : 'Enable'}
@@ -125,18 +179,61 @@ function TermRow({
             Delete
           </Button>
         </div>
-      </div>
-      <details className={styles.history}>
-        <summary>History</summary>
-        <ul>
+      </section>
+      <section aria-labelledby="vocab-history" className={styles.panel}>
+        <h3 id="vocab-history" className={styles.subheading}>
+          History
+        </h3>
+        <ul className={styles.history}>
           {term.history.map((entry) => (
             <li key={`${entry.at}/${entry.action}/${entry.detail}`}>
               {formatMeetingDate(entry.at)}: {HISTORY_LABELS[entry.action]}. {entry.detail}
             </li>
           ))}
         </ul>
-      </details>
-    </li>
+      </section>
+    </>
+  );
+}
+
+function SuggestionPanel({
+  suggestion,
+  busy,
+  onAnswer,
+}: {
+  suggestion: VocabularySuggestion;
+  busy: boolean;
+  onAnswer(accepted: boolean): void;
+}) {
+  const { correctionCount, meetingCount } = suggestion;
+  return (
+    <section aria-labelledby="vocab-term-name" className={styles.panel}>
+      <h2 id="vocab-term-name" className={styles.name}>
+        {suggestion.term}
+        <span className={styles.badge}>Suggested</span>
+      </h2>
+      <HeardAs misheard={suggestion.misheard.slice(0, 3)} />
+      <p className={styles.muted}>
+        {correctionCount} {correctionCount === 1 ? 'correction' : 'corrections'} in {meetingCount}{' '}
+        {meetingCount === 1 ? 'meeting' : 'meetings'}
+      </p>
+      <div className={styles.actions}>
+        <Button
+          aria-label={`Remember ${suggestion.term}`}
+          disabled={busy}
+          onClick={() => onAnswer(true)}
+        >
+          Remember
+        </Button>
+        <Button
+          aria-label={`Dismiss ${suggestion.term}`}
+          disabled={busy}
+          onClick={() => onAnswer(false)}
+        >
+          Dismiss
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -149,157 +246,188 @@ function UsageNote({ terms }: { terms: VocabularyTerm[] }) {
   );
 }
 
-function Terms({ terms, onChanged }: { terms: VocabularyTerm[]; onChanged(): void }) {
-  const backend = useBackend();
-  const [editing, setEditing] = useState<VocabularyTerm | null>(null);
-  const [deleting, setDeleting] = useState<VocabularyTerm | null>(null);
-  const { busy, error, run } = useAction();
-
-  const toggle = (term: VocabularyTerm) =>
-    void run(async () => {
-      await backend.call('updateTerm', { id: term.id, patch: { enabled: !term.enabled } });
-      onChanged();
-    });
-
-  const remove = async (term: VocabularyTerm) => {
-    await backend.call('deleteTerm', { id: term.id });
-    setDeleting(null);
-    onChanged();
-  };
-
+function Groups({
+  groups,
+  selectedKey,
+  onSelect,
+}: {
+  groups: { id: string; label: string; entries: Entry[] }[];
+  selectedKey: string | null;
+  onSelect(key: string): void;
+}) {
+  if (groups.length === 0) return <p className={styles.muted}>No matching terms.</p>;
   return (
     <>
-      <UsageNote terms={terms} />
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
-      <ul className={styles.list}>
-        {terms.map((term) => (
-          <TermRow
-            key={term.id}
-            term={term}
-            toggleDisabled={busy}
-            onEdit={() => setEditing(term)}
-            onDelete={() => setDeleting(term)}
-            onToggle={() => toggle(term)}
-          />
-        ))}
-      </ul>
-      {editing && (
-        <EditDialog
-          term={editing}
-          onSaved={() => {
-            setEditing(null);
-            onChanged();
-          }}
-          onCancel={() => setEditing(null)}
-        />
-      )}
-      {deleting && (
-        <ActionDialog
-          title={`Delete ${deleting.term}?`}
-          confirmLabel="Delete term"
-          danger
-          onConfirm={() => remove(deleting)}
-          onCancel={() => setDeleting(null)}
-        >
-          <p>Later meetings will stop using this term. Past transcripts do not change.</p>
-        </ActionDialog>
-      )}
+      {groups.map((group) => (
+        <section key={group.id} aria-labelledby={`vocab-group-${group.id}`}>
+          <h2 id={`vocab-group-${group.id}`} className={styles.groupHeading}>
+            {group.label} ({group.entries.length})
+          </h2>
+          <ul className={list.list}>
+            {group.entries.map((entry) => (
+              <EntryRow
+                key={entry.key}
+                entry={entry}
+                selected={entry.key === selectedKey}
+                onSelect={() => onSelect(entry.key)}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
     </>
   );
 }
 
-function Suggestions({
-  suggestions,
-  onChanged,
-}: {
-  suggestions: VocabularySuggestion[];
-  onChanged(): void;
-}) {
+export function VocabularyScreen() {
   const backend = useBackend();
+  const { state, reload } = useBackendData(load);
+  const [query, setQuery] = useState('');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [editing, setEditing] = useState<VocabularyTerm | null>(null);
+  const [deleting, setDeleting] = useState<VocabularyTerm | null>(null);
   const { busy, error, run } = useAction();
+
+  const data = state.status === 'ready' ? state.data : null;
+  const entries: Entry[] = data
+    ? [
+        ...data.suggestions.map((item): Entry => ({
+          kind: 'suggestion',
+          key: `suggestion:${item.id}`,
+          name: item.term,
+          misheard: item.misheard,
+          item,
+        })),
+        ...data.terms.map((item): Entry => ({
+          kind: 'term',
+          key: `term:${item.id}`,
+          name: item.term,
+          misheard: item.misheard,
+          item,
+        })),
+      ]
+    : [];
+  const needle = query.trim().toLowerCase();
+  const shown = needle ? entries.filter((entry) => matches(entry, needle)) : entries;
+  const groups = [
+    { id: 'suggested', label: 'Suggested', entries: shown.filter((e) => e.kind === 'suggestion') },
+    {
+      id: 'enabled',
+      label: 'Enabled',
+      entries: shown.filter((e) => e.kind === 'term' && e.item.enabled),
+    },
+    {
+      id: 'disabled',
+      label: 'Disabled',
+      entries: shown.filter((e) => e.kind === 'term' && !e.item.enabled),
+    },
+  ].filter((group) => group.entries.length > 0);
+  const selected = entries.find((entry) => entry.key === selectedKey) ?? null;
+
+  const toggle = (term: VocabularyTerm) =>
+    void run(async () => {
+      await backend.call('updateTerm', { id: term.id, patch: { enabled: !term.enabled } });
+      reload();
+    });
 
   const answer = (suggestion: VocabularySuggestion, accepted: boolean) =>
     void run(async () => {
       try {
         await backend.call('answerVocabularySuggestion', { id: suggestion.id, accepted });
       } finally {
-        onChanged();
+        reload();
       }
     });
 
-  return (
-    <section aria-labelledby="suggested-terms" className={styles.suggestions}>
-      <h2 id="suggested-terms" className={styles.subheading}>
-        Suggested terms
-      </h2>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
-      <ul className={styles.list}>
-        {suggestions.map((suggestion) => (
-          <li key={suggestion.id} className={styles.row}>
-            <div className={styles.main}>
-              <div className={styles.text}>
-                <span className={styles.term}>{suggestion.term}</span>
-                {suggestion.misheard.length > 0 && (
-                  <span className={styles.muted}>
-                    Heard as: {suggestion.misheard.slice(0, 3).join(', ')}
-                  </span>
-                )}
-                <span className={styles.muted}>
-                  {suggestion.correctionCount}{' '}
-                  {suggestion.correctionCount === 1 ? 'correction' : 'corrections'} in{' '}
-                  {suggestion.meetingCount} {suggestion.meetingCount === 1 ? 'meeting' : 'meetings'}
-                </span>
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  aria-label={`Remember ${suggestion.term}`}
-                  disabled={busy}
-                  onClick={() => answer(suggestion, true)}
-                >
-                  Remember
-                </Button>
-                <Button
-                  aria-label={`Dismiss ${suggestion.term}`}
-                  disabled={busy}
-                  onClick={() => answer(suggestion, false)}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
+  const remove = async (term: VocabularyTerm) => {
+    await backend.call('deleteTerm', { id: term.id });
+    setDeleting(null);
+    reload();
+  };
 
-export function VocabularyScreen() {
-  const { state, reload } = useBackendData(load);
   return (
-    <Screen title="Vocabulary">
-      <DataView state={state}>
-        {({ terms, suggestions }) => (
+    <SplitLayout
+      title="Vocabulary"
+      header={
+        data && entries.length > 0 ? (
           <>
-            {suggestions.length > 0 && <Suggestions suggestions={suggestions} onChanged={reload} />}
-            {terms.length === 0 ? (
-              <EmptyState title="No terms yet">
-                Corrections you choose to remember will appear here.
-              </EmptyState>
-            ) : (
-              <Terms terms={terms} onChanged={reload} />
-            )}
+            <input
+              type="search"
+              className={styles.search}
+              aria-label="Search vocabulary"
+              placeholder="Search terms and misheard versions"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <UsageNote terms={data.terms} />
           </>
+        ) : null
+      }
+      list={
+        data && entries.length > 0 ? (
+          <Groups groups={groups} selectedKey={selected?.key ?? null} onSelect={setSelectedKey} />
+        ) : null
+      }
+    >
+      <DataView state={state}>
+        {() => (
+          <div className={styles.content}>
+            {error && (
+              <p role="alert" className={styles.error}>
+                {error}
+              </p>
+            )}
+            {entries.length === 0 ? (
+              <div className={styles.emptyPanel}>
+                <EmptyState title="No terms yet">
+                  Corrections you choose to remember will appear here.
+                </EmptyState>
+              </div>
+            ) : selected?.kind === 'term' ? (
+              <TermPanel
+                term={selected.item}
+                busy={busy}
+                onEdit={() => setEditing(selected.item)}
+                onDelete={() => setDeleting(selected.item)}
+                onToggle={() => toggle(selected.item)}
+              />
+            ) : selected?.kind === 'suggestion' ? (
+              <SuggestionPanel
+                suggestion={selected.item}
+                busy={busy}
+                onAnswer={(accepted) => answer(selected.item, accepted)}
+              />
+            ) : (
+              <div className={styles.emptyPanel}>
+                <EmptyState title="Select a term">
+                  Choose a term to see how it is heard, or to edit it.
+                </EmptyState>
+              </div>
+            )}
+            {editing && (
+              <EditDialog
+                term={editing}
+                onSaved={() => {
+                  setEditing(null);
+                  reload();
+                }}
+                onCancel={() => setEditing(null)}
+              />
+            )}
+            {deleting && (
+              <ActionDialog
+                title={`Delete ${deleting.term}?`}
+                confirmLabel="Delete term"
+                danger
+                onConfirm={() => remove(deleting)}
+                onCancel={() => setDeleting(null)}
+              >
+                <p>Later meetings will stop using this term. Past transcripts do not change.</p>
+              </ActionDialog>
+            )}
+          </div>
         )}
       </DataView>
-    </Screen>
+    </SplitLayout>
   );
 }
