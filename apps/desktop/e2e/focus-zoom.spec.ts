@@ -154,7 +154,11 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(page.getByRole('button', { name: /Weekly project sync/ })).toBeVisible();
       await inspectLayout(page, `${zoom}-recordings`);
       await page.getByRole('button', { name: /Weekly project sync/ }).click();
-      await expect(page.getByRole('heading', { level: 1, name: 'Recordings' })).toBeFocused();
+      // The list stays beside the open meeting, so the clicked row keeps focus.
+      await expect(page.getByRole('button', { name: /Weekly project sync/ })).toHaveAttribute(
+        'aria-current',
+        'true',
+      );
       await inspectLayout(page, `${zoom}-detail`);
       await expectPanelHeight(page, '[role="tabpanel"]', 200);
       const title = page.getByLabel('Meeting title', { exact: true });
@@ -172,7 +176,7 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         page,
         page.getByRole('button', { name: 'Play from 00:00', exact: true }),
       );
-      await page.getByRole('button', { name: 'Back to Recordings', exact: true }).click();
+      // The list stays beside the meeting, so there is no Back button to press.
       await inspectLayout(page, `${zoom}-long-list`);
     }
   } finally {
