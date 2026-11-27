@@ -1,75 +1,50 @@
-.manual {
-  margin-bottom: var(--space-5);
+/* One continuous page of every topic; the list column beside it jumps to a topic and follows the scroll. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-card-pad);
+  background: var(--color-card);
+  border-radius: var(--radius);
 }
 
-.searchLabel {
-  display: block;
-  margin-bottom: var(--space-1);
-  font-weight: 600;
+.topic {
+  scroll-margin-block-start: var(--space-card-pad);
 }
 
+.topicTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+/* Sits in the list column's title row, right of "Help", and never wider than the column. */
 .search {
   box-sizing: border-box;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  max-width: 180px;
   min-height: var(--control-height);
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
   color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
-.search:focus-visible,
-.sectionLink:focus-visible,
-.articleTitle:focus-visible {
+.search:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
 .status,
 .noResults {
-  color: var(--color-text-muted);
-}
-
-.manualLayout {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-  align-items: start;
-}
-
-.contents {
-  list-style: none;
   margin: 0;
-  padding: 0;
-}
-
-.sectionLink {
-  display: block;
-  padding: var(--space-2);
-  border-radius: var(--radius);
-  text-decoration: none;
-  color: var(--color-text);
-}
-
-.sectionLink:hover {
-  background: var(--color-surface-hover);
-}
-
-.sectionLink[aria-current] {
-  background: var(--color-surface-selected);
-  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .article {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.articleTitle {
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-lg);
 }
 
 .article table {
@@ -88,10 +63,4 @@
 .article :is(p, ul, ol) {
   margin-top: 0;
   margin-bottom: var(--space-3);
-}
-
-@media (max-width: 700px) {
-  .manualLayout {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }

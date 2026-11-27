@@ -9,11 +9,11 @@
   color: var(--color-text);
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+  background: var(--btn-hover, var(--color-surface-hover));
 }
 
 .info {
@@ -45,4 +45,25 @@
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Tonal preview: no outline; a fill and the control radius tell buttons apart. */
+:global([data-design='tonal']) .button {
+  background: var(--btn-fill, var(--color-card-inset));
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .button:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+/* Disabled: muted text and a fill that nearly vanishes into the background. */
+:global([data-design='tonal']) .button:disabled:not(.primary):not(.danger) {
+  background: color-mix(in srgb, var(--btn-fill, var(--color-card-inset)) 30%, transparent);
+}
+
+/* The skip glyph carries a number, so it is a little larger than the line icons. */
+.skipIcon {
+  width: 28px;
+  height: 28px;
 }

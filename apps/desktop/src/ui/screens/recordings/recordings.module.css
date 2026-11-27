@@ -4,11 +4,22 @@
 }
 
 .processingBanner {
-  padding-block: var(--space-2);
-  width: 100%;
-  max-width: 448px;
-  margin-inline: auto;
+  padding-block: var(--space-1) var(--space-2);
+  overflow: hidden;
   font-size: var(--text-sm);
+}
+
+/* A 2px bar along the bottom edge of the banner. */
+.slimBar {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+}
+
+.slimBar [role='progressbar'],
+.slimBar [role='progressbar'] > div {
+  height: 2px;
+  border-radius: 0;
 }
 
 .srOnly {
@@ -37,10 +48,11 @@
 .primary,
 .danger,
 .dangerQuiet {
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   background: none;
   color: var(--color-text);
 }
@@ -67,6 +79,7 @@
 }
 
 .button:disabled,
+.showButton[aria-disabled='true'],
 .primary:disabled,
 .danger:disabled,
 .dangerQuiet:disabled {
@@ -81,7 +94,7 @@
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .field {
@@ -101,26 +114,34 @@
 
 /* Library */
 
-.toolbar,
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: flex-end;
-  margin-bottom: var(--space-3);
+/* Notes under the search float over the list top, so showing or clearing one never moves the list. */
+.floatSlot {
+  position: absolute;
+  inset-block-end: var(--space-2);
+  inset-inline: 0;
+  z-index: 5;
+  height: 0;
 }
 
-.toolbar {
-  padding-inline-end: var(--space-6);
+.floatNote {
+  composes: banner from '../../components/Banner.module.css';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  margin-block: 0;
+}
+
+.floatNote + .floatNote {
+  inset-block-end: 2.2em;
 }
 
 .search {
-  flex: 1;
+  width: 100%;
   padding: var(--space-1) var(--space-3);
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .rows,
@@ -130,40 +151,71 @@
   list-style: none;
 }
 
-.rows {
-  border-top: 1px solid var(--color-border);
-}
-
 .row {
-  border-bottom: 1px solid var(--color-border);
+  position: relative;
 }
 
+/* Padding, radius, hover and selected tint come from the shared list item. */
 .rowMain {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
-  padding: var(--space-2) var(--space-2);
-  color: inherit;
-  text-align: start;
-  background: none;
-  border: 0;
-}
-
-.rowMain:hover:enabled {
-  background: var(--color-surface-hover);
 }
 
 .rowMain:disabled {
   opacity: 0.7;
 }
 
+/* Speaker count and status badges share one line. */
+.rowStatus {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  min-height: 20px;
+  margin-top: 2px;
+}
+
+/* A short bar on the status line, outside the button so it keeps its progress role. */
 .rowProgress {
-  padding: 0 var(--space-2) var(--space-2);
+  position: absolute;
+  inset-block-end: calc(var(--space-2) + 7px);
+  inset-inline: calc(50% + var(--space-2)) var(--space-3);
+  max-width: 56px;
+}
+
+.emptyPanel {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  background: var(--color-card);
+  border-radius: var(--radius);
 }
 
 .rowTitle {
-  font-weight: 600;
+  display: block;
+  font-weight: 500;
+}
+
+/* Every line is one line; a long title or date is cut with an ellipsis. */
+.rowMain > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.metaRow .badges {
+  margin-top: 0;
 }
 
 .badges {
@@ -176,11 +228,13 @@
 .badge,
 .badgeStrong,
 .badgeWarning {
+  flex: none;
+  white-space: nowrap;
   padding: 0 var(--space-1);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .badgeStrong {
@@ -207,8 +261,12 @@
   border: 0;
 }
 
+.snippet {
+  border-radius: var(--radius-control);
+}
+
 .snippet:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-card-inset);
 }
 
 .mark {
@@ -337,10 +395,6 @@
   margin: 0;
 }
 
-.pageTitle {
-  margin-bottom: var(--space-1);
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -353,43 +407,14 @@
   border: 0;
 }
 
-/* A breadcrumb link above the meeting title, shaped like a sidebar item. */
-.backLink {
-  display: inline-flex;
-  gap: var(--space-1);
-  align-items: center;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
-  margin-inline-start: calc(-1 * var(--space-1));
-  color: var(--color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--radius);
-}
-
-.backLink:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
-.backIcon {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .titleWrap {
   position: relative;
   width: 100%;
   max-width: 640px;
 }
 
-/* One line under the title is always reserved, so an error never covers a long title or moves anything. */
+/* Only present while there is an error; a reserved empty line would leave a gap under every title. */
 .titleErrorSlot {
-  min-height: 1.4em;
   font-size: var(--text-sm);
 }
 
@@ -408,7 +433,7 @@
   text-overflow: ellipsis;
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .meetingTitle:hover:not(:read-only) {
@@ -427,7 +452,7 @@
   color: inherit;
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .dateButton:hover {
@@ -442,7 +467,7 @@
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-focus);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .dateError {
@@ -501,8 +526,8 @@
   padding: var(--space-2) var(--space-3);
   color: var(--color-text-muted);
   background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
 }
 
 .tab:hover {
@@ -511,7 +536,8 @@
 
 .tabOn {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  background: var(--color-surface-selected);
+  border-color: var(--color-border);
 }
 
 .fontControls {
@@ -547,7 +573,7 @@
   color: var(--color-on-accent);
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow-overlay);
   transform: translateX(-50%);
 }
@@ -682,12 +708,33 @@
 .segmented {
   display: inline-flex;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .segmentOn,
 .segmentOff {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+/* Tonal: separate buttons, selected = the dark fill, available = the light one; no outline, no accent. */
+:global([data-design='tonal']) .segmented {
+  gap: var(--space-1);
+  border: 0;
+  border-radius: 0;
+}
+
+/* The off segment is the same fill as the other buttons in a card; the selected one is the dark fill. */
+:global([data-design='tonal']) .segmentOff {
+  background: var(--color-card-inset);
+}
+
+:global([data-design='tonal']) .segmentOn {
+  color: var(--color-text);
+  background: var(--color-control);
 }
 
 .segmentOn {
@@ -781,7 +828,7 @@
   width: 100%;
   height: 12px;
   background: var(--color-surface-selected);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .timelineGap {
@@ -802,7 +849,6 @@
 
 .player {
   display: flex;
-  flex-wrap: wrap;
   flex: 1;
   gap: var(--space-2);
   align-items: center;
@@ -811,14 +857,95 @@
 
 .slider {
   flex: 1;
-  min-width: 60px;
+  min-width: 120px;
   accent-color: var(--color-accent);
 }
 
 .volume {
-  flex: 0 0 80px;
+  flex: 0 1 80px;
   min-width: 48px;
   accent-color: var(--color-accent);
+}
+
+.showButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.showIcon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/*
+ * The player's room depends on the panel, not the window (sidebar and list column take their share),
+ * so it narrows by its own width. The seek track keeps at least 120px: first the volume track goes,
+ * then Mute goes, and last the seek track drops to its own row.
+ */
+.playerRow {
+  container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+  .volume {
+    display: none;
+  }
+}
+
+@container (max-width: 500px) {
+  .muteButton,
+  .player > :has(> .muteButton) {
+    display: none;
+  }
+}
+
+@container (max-width: 440px) {
+  .player {
+    flex-wrap: wrap;
+  }
+
+  .player .slider {
+    flex: 1 0 100%;
+    order: 10;
+  }
+
+  .player .playerTime {
+    flex: 1;
+  }
+
+  .showButton {
+    align-self: flex-start;
+  }
+}
+
+/* Media transport (play, skip) is bare icons: a round fill appears only on hover, focus or press. */
+.player .transport,
+:global([data-design='tonal']) .player .transport {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 50%;
+}
+
+.player .transport:hover:not(:disabled),
+:global([data-design='tonal']) .player .transport:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+.player .transport:active:not(:disabled),
+:global([data-design='tonal']) .player .transport:active:not(:disabled) {
+  background: var(--color-control);
 }
 
 .rateButton {
@@ -845,4 +972,170 @@ div.editHint {
 
 div.editHint button {
   pointer-events: auto;
+}
+
+:global([data-design='tonal']) .detail {
+  gap: var(--space-card-gap);
+}
+
+:global([data-design='tonal']) .detailHead,
+:global([data-design='tonal']) .panel,
+:global([data-design='tonal']) .playerRow {
+  background: var(--color-card);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .detailHead {
+  gap: var(--space-1);
+  padding: var(--space-card-pad);
+}
+
+:global([data-design='tonal']) .detailHead .actions {
+  margin: 0;
+}
+
+:global([data-design='tonal']) .detailHead .actions {
+  margin-block-start: var(--space-1);
+}
+
+:global([data-design='tonal']) .playerRow {
+  padding: var(--space-card-pad);
+}
+
+/* Tabs and the transcript tools are a button row on the page, above the card that holds the content. */
+:global([data-design='tonal']) .tabs {
+  --btn-fill: var(--color-control);
+  --btn-hover: var(--color-control-hover);
+  padding: 0;
+  border: 0;
+}
+
+:global([data-design='tonal']) .tab,
+:global([data-design='tonal']) .tabOn {
+  padding-inline: var(--space-card-pad);
+  border: 0;
+}
+
+:global([data-design='tonal']) .tab {
+  color: var(--color-text);
+  background: var(--color-card);
+}
+
+:global([data-design='tonal']) .tab:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Selected is the dark fill, available is the light one. */
+:global([data-design='tonal']) .tabOn {
+  background: var(--btn-fill);
+}
+
+:global([data-design='tonal']) .panel[aria-labelledby='meeting-tab-Transcript'] {
+  display: flex;
+  flex-direction: column;
+}
+
+:global([data-design='tonal']) .transcript {
+  padding: var(--space-card-pad);
+}
+
+/* The tinted line bleeds into the padding so its text starts on the card inset, like everything else. */
+:global([data-design='tonal']) .segment,
+:global([data-design='tonal']) .segmentActive {
+  margin-inline: calc(-1 * (var(--space-2) + 3px));
+}
+
+:global([data-design='tonal']) .summary,
+:global([data-design='tonal']) .audio {
+  padding: var(--space-card-pad);
+}
+
+:global([data-design='tonal']) .importRow {
+  padding: var(--space-2) var(--space-card-pad);
+}
+
+:global([data-design='tonal']) .transcriptBox {
+  flex: 1;
+  height: auto;
+}
+
+/* Borderless controls: a fill and the control radius tell them apart. */
+:global([data-design='tonal']) .button,
+:global([data-design='tonal']) .primary,
+:global([data-design='tonal']) .danger,
+:global([data-design='tonal']) .dangerQuiet {
+  background: var(--btn-fill, var(--color-card-inset));
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .button:hover:enabled,
+:global([data-design='tonal']) .dangerQuiet:hover:enabled {
+  background: var(--btn-hover, var(--color-surface-hover));
+}
+
+:global([data-design='tonal']) .button:disabled,
+:global([data-design='tonal']) .showButton[aria-disabled='true'],
+:global([data-design='tonal']) .dangerQuiet:disabled {
+  background: color-mix(in srgb, var(--btn-fill, var(--color-card-inset)) 30%, transparent);
+}
+
+:global([data-design='tonal']) .primary {
+  background: var(--color-accent);
+}
+
+:global([data-design='tonal']) .danger {
+  background: var(--color-danger);
+}
+
+:global([data-design='tonal']) .jumpToPosition {
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .badge,
+:global([data-design='tonal']) .badgeStrong,
+:global([data-design='tonal']) .badgeWarning {
+  padding-inline: var(--space-2);
+  background: var(--color-card-inset);
+  border: 0;
+}
+
+:global([data-design='tonal']) .meetingTitle:hover:not(:read-only),
+:global([data-design='tonal']) .dateButton:hover {
+  background: var(--color-card-inset);
+  border-color: transparent;
+}
+
+:global([data-design='tonal']) .imports {
+  background: var(--color-card);
+  border: 0;
+}
+
+/* Compact Import in the list's title row: a plus and a word. */
+.importButton {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-weight: 600;
+  color: var(--color-on-accent);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.importButton:hover {
+  filter: brightness(1.08);
+}
+
+.importIcon {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
 }

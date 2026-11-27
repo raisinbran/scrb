@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
 import type {
   Backend,
@@ -7,15 +7,20 @@ import type {
   PickedAudioFile,
   SearchResult,
 } from '@scrb/contracts';
+import list from '../../components/ListItem.module.css';
+import { Chip } from './Chip.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
-import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
+import { formatDurationShort, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { DataView, EmptyState, Screen } from '../Screen.tsx';
+import { DataView, EmptyState } from '../Screen.tsx';
+import { SplitLayout } from '../SplitLayout.tsx';
+import { FilterSearch, type Origin } from './FilterSearch.tsx';
 import { Highlight } from './highlight.tsx';
+import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
 import { nextProgress } from './ProcessingBanner.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
@@ -23,16 +28,24 @@ import styles from './recordings.module.css';
 
 const SEARCH_DELAY_MS = 200;
 
-type Origin = NonNullable<MeetingFilter['origin']> | '';
-
 interface RowProps {
   result: SearchResult;
   query: string;
+  selected: boolean;
   onOpen(id: string, atMs?: number): void;
 }
 
 /** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
-function RowProgress({ meetingId }: { meetingId: string }) {
+function RowProgress({
+  meetingId,
+  title,
+  left,
+}: {
+  meetingId: string;
+  title: string;
+  /** Where the bar starts, so it sits one row gap after the status badge. */
+  left: number | null;
+}) {
   const backend = useBackend();
   const [progress, setProgress] = useState<FinalPassProgress | null>(null);
   useEffect(
@@ -43,49 +56,73 @@ function RowProgress({ meetingId }: { meetingId: string }) {
     [backend, meetingId],
   );
   return (
-    <div className={styles.rowProgress}>
-      <Progress label="Final transcript processing" fraction={progress?.fraction} />
+    <div
+      className={styles.rowProgress}
+      style={left === null ? undefined : { insetInlineStart: `calc(${left}px + var(--space-2))` }}
+    >
+      <Progress label={`Final transcript processing: ${title}`} fraction={progress?.fraction} />
     </div>
   );
 }
 
-function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
+function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: RowProps) {
   const playing = useNowPlaying() === meeting.id;
   const status = STATUS_LABELS[meeting.status];
   const summary = SUMMARY_STATE_LABELS[meeting.summaryState];
   const snippets = matches.filter((match) => match.snippet !== null && match.startMs !== null);
+  const busy = meeting.status === 'finalPassRunning';
+  const { element: titleBox, hotHandlers } = useTitleScroll<HTMLSpanElement>();
+  const item = useRef<HTMLLIElement>(null);
+  const [barLeft, setBarLeft] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const row = item.current;
+    const chip = row?.querySelector<HTMLElement>('[data-busy-chip]');
+    if (!busy || !row || !chip) return;
+    const measure = () =>
+      setBarLeft(chip.getBoundingClientRect().right - row.getBoundingClientRect().left);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [busy]);
+  const titleText = (
+    <span ref={titleBox} className={styles.rowTitle}>
+      <Highlight text={meeting.title} query={query} />
+      {playing && <PlayingIndicator className={styles.rowPlaying} />}
+    </span>
+  );
   return (
-    <li className={styles.row}>
+    <li ref={item} className={styles.row}>
       <button
         type="button"
-        className={styles.rowMain}
+        className={`${styles.rowMain} ${list.item}`}
+        aria-current={selected ? 'true' : undefined}
+        // Reduced motion never scrolls, so the full title is on the focusable row for pointer and keyboard.
+        title={prefersReducedMotion() ? meeting.title : undefined}
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
+        {...hotHandlers}
       >
-        <span className={styles.rowTitle}>
-          <Highlight text={meeting.title} query={query} />
-          {playing && <PlayingIndicator className={styles.rowPlaying} />}
-        </span>
+        {titleText}
         <span className={styles.muted}>
-          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
-          {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
+          {formatMeetingWhen(meeting.startedAt)} · {formatDurationShort(meeting.durationMs)}
         </span>
-        <span className={styles.badges}>
-          {meeting.origin === 'imported' && <span className={styles.badge}>Imported</span>}
-          {status && <span className={styles.badgeStrong}>{status}</span>}
-          {meeting.status === 'finalPassRunning' && (
-            <span className={styles.muted}>Text will change</span>
-          )}
+        <span className={styles.rowStatus}>
+          <span className={styles.muted}>
+            {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
+          </span>
+          {meeting.origin === 'imported' && <Chip text="Imported" className={styles.badge} />}
+          {status && <Chip text={status} className={styles.badgeStrong} busy={busy} />}
           {summary && (
-            <span
+            <Chip
+              text={summary}
               className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
-            >
-              {summary}
-            </span>
+            />
           )}
         </span>
       </button>
-      {meeting.status === 'finalPassRunning' && <RowProgress meetingId={meeting.id} />}
+      {busy && <RowProgress meetingId={meeting.id} title={meeting.title} left={barLeft} />}
       {snippets.map((match) => (
         <button
           key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
@@ -105,10 +142,14 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
 
 interface LibraryViewProps {
   notice: string | null;
+  /** The open meeting, marked in the list. */
+  selectedId: string | null;
+  /** The content panel beside the list. */
+  children: ReactNode;
   onOpen(id: string, atMs?: number): void;
 }
 
-export function LibraryView({ notice, onOpen }: LibraryViewProps) {
+export function LibraryView({ notice, selectedId, onOpen, children }: LibraryViewProps) {
   const backend = useBackend();
   const searchBox = useRef<HTMLInputElement>(null);
   const [typed, setTyped] = useRemembered('library.typed', '');
@@ -153,6 +194,13 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   );
   const { state, reload } = useBackendData(load);
 
+  // The list stays beside the meeting, so closing one (or deleting it) refreshes the list.
+  const lastSelected = useRef(selectedId);
+  useEffect(() => {
+    if (lastSelected.current !== null && selectedId === null) reload();
+    lastSelected.current = selectedId;
+  }, [selectedId, reload]);
+
   useEffect(() => {
     let status: string | undefined;
     const stops = [
@@ -180,90 +228,80 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   };
 
   const filtered = Boolean(query || origin || from || to);
-  const clearFilters = () => {
-    setTyped('');
-    setQuery('');
-    setOrigin('');
-    setFrom('');
-    setTo('');
-  };
-
   return (
-    <Screen title="Recordings">
-      <div className={styles.toolbar}>
-        <input
-          ref={searchBox}
-          type="search"
-          className={styles.search}
-          aria-label="Search recordings"
-          placeholder="Search titles, dates and transcripts"
-          value={typed}
-          onChange={(event) => setTyped(event.target.value)}
-        />
-        <button type="button" className={styles.primary} onClick={() => void pickFile()}>
-          Import audio file
+    <SplitLayout
+      title="Recordings"
+      titleAction={
+        <button
+          type="button"
+          className={styles.importButton}
+          aria-label="Import audio file"
+          onClick={() => void pickFile()}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.importIcon}>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Import
         </button>
-      </div>
-      <div className={styles.filters}>
-        <label className={styles.field}>
-          Source
-          <select
-            className={styles.input}
-            value={origin}
-            onChange={(event) => setOrigin(event.target.value as Origin)}
-          >
-            <option value="">All</option>
-            <option value="recorded">Recorded</option>
-            <option value="imported">Imported</option>
-          </select>
-        </label>
-        <label className={styles.field}>
-          From
-          <input
-            type="date"
-            className={styles.input}
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
+      }
+      header={
+        <>
+          <FilterSearch
+            inputRef={searchBox}
+            text={typed}
+            onText={setTyped}
+            origin={origin}
+            from={from}
+            to={to}
+            onOrigin={setOrigin}
+            onFrom={setFrom}
+            onTo={setTo}
           />
-        </label>
-        <label className={styles.field}>
-          To
-          <input
-            type="date"
-            className={styles.input}
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
-        {filtered && (
-          <button type="button" className={styles.button} onClick={clearFilters}>
-            Clear
-          </button>
-        )}
-      </div>
-      {notice && <p role="status">{notice}</p>}
-      {pickError && <p role="alert">{pickError}</p>}
-      <ImportPanel onOpen={onOpen} />
-      <DataView state={state}>
-        {(results) =>
-          results.length > 0 ? (
-            <ul className={styles.rows}>
-              {results.map((result) => (
-                <MeetingRow key={result.meeting.id} result={result} query={query} onOpen={onOpen} />
-              ))}
-            </ul>
-          ) : filtered ? (
-            <EmptyState title="No matching recordings">
-              Try different words, or clear the filters.
-            </EmptyState>
-          ) : (
-            <EmptyState title="No recordings yet">
-              Meetings you record or import will appear here.
-            </EmptyState>
-          )
-        }
-      </DataView>
+          <div className={styles.floatSlot}>
+            {notice && (
+              <p role="status" className={styles.floatNote}>
+                {notice}
+              </p>
+            )}
+            {pickError && (
+              <p role="alert" className={styles.floatNote}>
+                {pickError}
+              </p>
+            )}
+          </div>
+          <ImportPanel onOpen={onOpen} />
+        </>
+      }
+      list={
+        <DataView state={state}>
+          {(results) =>
+            results.length > 0 ? (
+              <ul className={`${styles.rows} ${list.list}`}>
+                {results.map((result) => (
+                  <MeetingRow
+                    key={result.meeting.id}
+                    result={result}
+                    query={query}
+                    selected={result.meeting.id === selectedId}
+                    onOpen={onOpen}
+                  />
+                ))}
+              </ul>
+            ) : filtered ? (
+              <EmptyState compact title="No matching recordings">
+                Try different words, or clear the filters.
+              </EmptyState>
+            ) : (
+              <EmptyState compact title="No recordings yet">
+                Meetings you record or import will appear here.
+              </EmptyState>
+            )
+          }
+        </DataView>
+      }
+    >
+      {children}
       {picked && <ImportDialog file={picked} onClose={() => setPicked(null)} />}
-    </Screen>
+    </SplitLayout>
   );
 }

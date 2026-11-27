@@ -1,3 +1,9 @@
+import {
+  NOTIFICATION_CATEGORIES,
+  setNotificationEnabled,
+  useNotificationEnabled,
+  type NotificationCategory,
+} from '../lib/notification-prefs.ts';
 import { cachedSources, fetchSources, forgetSources, sourcesNow } from '../lib/sources-cache.ts';
 import { useEffect, useState } from 'react';
 import type {
@@ -20,9 +26,10 @@ import { readStored, writeStored } from '../lib/stored-value.ts';
 import { useAction } from '../lib/use-action.ts';
 import { useBackendData } from '../lib/use-backend-data.ts';
 import { useTheme } from '../theme/ThemeProvider.tsx';
-import { DataView, Screen } from './Screen.tsx';
+import { DataView } from './Screen.tsx';
 import { AudioSection } from './settings/AudioSection.tsx';
 import { ModelsSection } from './settings/ModelsSection.tsx';
+import { SplitLayout } from './SplitLayout.tsx';
 import { SettingsNav, type SettingsGroup } from './settings/SettingsNav.tsx';
 import styles from './SettingsScreen.module.css';
 
@@ -71,6 +78,7 @@ const GROUPS: SettingsGroup[] = [
   { id: 'settings-models', label: 'Models' },
   { id: 'settings-storage', label: 'Storage' },
   { id: 'settings-location', label: 'Location' },
+  { id: 'settings-notifications', label: 'Notifications' },
 ];
 
 type Draft = Pick<
@@ -132,6 +140,41 @@ function Select<T extends string>({
   );
 }
 
+function NotificationRow({
+  id,
+  label,
+  description,
+}: {
+  id: NotificationCategory;
+  label: string;
+  description: string;
+}) {
+  const enabled = useNotificationEnabled(id);
+  return (
+    <label className={styles.check}>
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(event) => setNotificationEnabled(id, event.target.checked)}
+      />
+      <span>
+        {label}
+        <span className={styles.help}>{description}</span>
+      </span>
+    </label>
+  );
+}
+
+function NotificationToggles() {
+  return (
+    <div className={styles.notifyList}>
+      {NOTIFICATION_CATEGORIES.map((category) => (
+        <NotificationRow key={category.id} {...category} />
+      ))}
+    </div>
+  );
+}
+
 function SettingsForm({
   initial,
   devices,
@@ -180,11 +223,12 @@ function SettingsForm({
   };
 
   return (
-    <div className={styles.layout}>
-      <SettingsNav groups={GROUPS} />
-      <div className={styles.groups}>
-        <fieldset id="settings-theme" className={styles.section}>
-          <legend className={styles.legend}>Theme</legend>
+    <div className={styles.groups}>
+      <section className={styles.section} role="group" aria-labelledby="settings-theme">
+        <h2 id="settings-theme" className={styles.legend}>
+          Theme
+        </h2>
+        <div className={styles.themeOptions}>
           {THEME_OPTIONS.map((option) => (
             <label key={option.value} className={styles.option}>
               <input
@@ -197,109 +241,126 @@ function SettingsForm({
               {option.label}
             </label>
           ))}
-        </fieldset>
-
-        <AudioSection audio={draft.audio} devices={devices} apps={apps} onChange={changeAudio} />
-
-        <section className={styles.section} aria-labelledby="settings-transcription">
-          <h2 id="settings-transcription" className={styles.legend}>
-            Transcription and summaries
-          </h2>
-          <div className={styles.fields}>
-            <Select
-              label="Performance"
-              value={draft.transcriptionQuality}
-              options={QUALITY_OPTIONS}
-              onChange={(transcriptionQuality) => change({ transcriptionQuality })}
-            />
-            <Select
-              label="Summary default length"
-              value={draft.summaryDefaultLength}
-              options={LENGTH_OPTIONS}
-              onChange={(summaryDefaultLength) => change({ summaryDefaultLength })}
-            />
-          </div>
-          <p className={styles.help}>
-            Fast turns live text off: the text appears after Stop. A change applies to the next
-            recording. The final transcript is not affected by live text.
-          </p>
-        </section>
-
-        <ModelsSection />
-
-        <section className={styles.section} aria-labelledby="settings-storage">
-          <h2 id="settings-storage" className={styles.legend}>
-            Storage
-          </h2>
-          <div className={styles.inline}>
-            <span className={styles.path}>{storageLocation}</span>
-            <Button disabled aria-describedby="settings-storage-move-help">
-              Change location…
-            </Button>
-          </div>
-          <p id="settings-storage-move-help" className={styles.help}>
-            Moving a saved library is not available yet. Your existing storage location is
-            unchanged.
-          </p>
-          <div className={styles.fields}>
-            <Select
-              label="Auto-delete meetings after"
-              value={draft.autoDelete.period}
-              options={PERIOD_OPTIONS}
-              onChange={(period) => changeAutoDelete({ period })}
-            />
-            <Select
-              label="What to delete"
-              value={draft.autoDelete.scope}
-              options={SCOPE_OPTIONS}
-              disabled={draft.autoDelete.period === 'never'}
-              onChange={(scope) => changeAutoDelete({ scope })}
-            />
-          </div>
-          {draft.autoDelete.period !== 'never' && (
-            <p className={styles.help}>{autoDeleteSentence(draft.autoDelete)}</p>
-          )}
-        </section>
-
-        <section className={styles.section} aria-labelledby="settings-location">
-          <h2 id="settings-location" className={styles.legend}>
-            Location for the privacy banner
-          </h2>
-          <LocationField value={draft.location} onChange={(location) => change({ location })} />
-        </section>
-
-        {error && (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        )}
-        <div className={styles.saveDock}>
-          {dirty && (
-            <div className={styles.saveBar} role="status">
-              <span>You have unsaved changes.</span>
-              <div className={styles.actions}>
-                <Button disabled={busy} onClick={discard}>
-                  Discard
-                </Button>
-                <Button variant="primary" disabled={busy} onClick={save}>
-                  Save
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
-        {confirming && (
-          <ActionDialog
-            title="Turn on auto-delete?"
-            confirmLabel="Save and turn on"
-            danger
-            onConfirm={commit}
-            onCancel={() => setConfirming(false)}
-          >
-            <p>{autoDeleteSentence(draft.autoDelete)} This cannot be undone.</p>
-          </ActionDialog>
+      </section>
+
+      <AudioSection audio={draft.audio} devices={devices} apps={apps} onChange={changeAudio} />
+
+      <section className={styles.section} aria-labelledby="settings-transcription">
+        <h2 id="settings-transcription" className={styles.legend}>
+          Transcription and summaries
+        </h2>
+        <div className={styles.fields}>
+          <Select
+            label="Performance"
+            value={draft.transcriptionQuality}
+            options={QUALITY_OPTIONS}
+            onChange={(transcriptionQuality) => change({ transcriptionQuality })}
+          />
+          <Select
+            label="Summary default length"
+            value={draft.summaryDefaultLength}
+            options={LENGTH_OPTIONS}
+            onChange={(summaryDefaultLength) => change({ summaryDefaultLength })}
+          />
+        </div>
+        <p className={styles.help}>
+          Fast turns live text off: the text appears after Stop. A change applies to the next
+          recording. The final transcript is not affected by live text.
+        </p>
+      </section>
+
+      <ModelsSection />
+
+      <section className={styles.section} aria-labelledby="settings-storage">
+        <h2 id="settings-storage" className={styles.legend}>
+          Storage
+        </h2>
+        <div className={styles.inline}>
+          <span className={styles.path}>{storageLocation}</span>
+          <Button disabled aria-describedby="settings-storage-move-help">
+            Change location…
+          </Button>
+        </div>
+        <p id="settings-storage-move-help" className={styles.help}>
+          Moving a saved library is not available yet. Your existing storage location is unchanged.
+        </p>
+        <div className={styles.fields}>
+          <Select
+            label="Auto-delete meetings after"
+            value={draft.autoDelete.period}
+            options={PERIOD_OPTIONS}
+            onChange={(period) => changeAutoDelete({ period })}
+          />
+          <Select
+            label="What to delete"
+            value={draft.autoDelete.scope}
+            options={SCOPE_OPTIONS}
+            disabled={draft.autoDelete.period === 'never'}
+            onChange={(scope) => changeAutoDelete({ scope })}
+          />
+        </div>
+        {draft.autoDelete.period !== 'never' && (
+          <p className={styles.help}>{autoDeleteSentence(draft.autoDelete)}</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="settings-location">
+        <h2 id="settings-location" className={styles.legend}>
+          Location for the privacy banner
+        </h2>
+        <LocationField
+          value={draft.location}
+          idleNote="Some places have laws about voice data. Scribe builds voice profiles, and this answer decides whether a privacy banner shows when you record."
+          onChange={(location) => change({ location })}
+        />
+      </section>
+
+      <section className={styles.section} aria-labelledby="settings-notifications">
+        <h2 id="settings-notifications" className={styles.legend}>
+          Notifications
+        </h2>
+        <p className={styles.help}>
+          Choose which banners appear. A change applies at once and is not part of Save.
+        </p>
+        <NotificationToggles />
+        <p className={styles.help}>
+          Errors and anything that affects recording or the safety of your data, such as storage,
+          permissions and failures, always show.
+        </p>
+      </section>
+
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
+      <div className={styles.saveDock} data-open={dirty}>
+        {dirty && (
+          <div className={styles.saveBar} role="status">
+            <span>You have unsaved changes.</span>
+            <div className={styles.actions}>
+              <Button disabled={busy} onClick={discard}>
+                Discard
+              </Button>
+              <Button variant="primary" disabled={busy} onClick={save}>
+                Save
+              </Button>
+            </div>
+          </div>
         )}
       </div>
+      {confirming && (
+        <ActionDialog
+          title="Turn on auto-delete?"
+          confirmLabel="Save and turn on"
+          danger
+          onConfirm={commit}
+          onCancel={() => setConfirming(false)}
+        >
+          <p>{autoDeleteSentence(draft.autoDelete)} This cannot be undone.</p>
+        </ActionDialog>
+      )}
     </div>
   );
 }
@@ -331,12 +392,15 @@ export function SettingsScreen() {
     [backend, reload],
   );
   return (
-    <Screen title="Settings" className={styles.screenWide ?? ''}>
+    <SplitLayout
+      title="Settings"
+      list={state.status === 'ready' ? <SettingsNav groups={GROUPS} /> : null}
+    >
       <DataView state={state}>
         {([settings, devices, apps]) => (
           <SettingsForm initial={settings} devices={devices} apps={apps} />
         )}
       </DataView>
-    </Screen>
+    </SplitLayout>
   );
 }

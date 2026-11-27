@@ -112,3 +112,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+:global([data-design='tonal']) .profileColumn,
+:global([data-design='tonal']) .meetingColumn {
+  background: var(--color-card-inset);
+  border: 0;
+}

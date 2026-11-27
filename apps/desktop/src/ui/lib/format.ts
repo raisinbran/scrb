@@ -15,6 +15,12 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
+/** The shortest form, for a list row: 58 min, or 8h 0m from an hour up. */
+export function formatDurationShort(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export function formatMeetingDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: 'numeric',

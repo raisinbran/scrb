@@ -11,9 +11,14 @@ import styles from './Sidebar.module.css';
 interface SidebarProps {
   selected: ScreenId;
   onSelect(id: ScreenId): void;
+  /** Icons only; the labels stay for screen readers and show in tooltips. */
+  collapsed: boolean;
+  /** False while the window is too narrow to leave it open. */
+  canToggle: boolean;
+  onToggle(): void;
 }
 
-export function Sidebar({ selected, onSelect }: SidebarProps) {
+export function Sidebar({ selected, onSelect, collapsed, canToggle, onToggle }: SidebarProps) {
   const { recording, lag } = useRecordingStatus();
   const nowPlaying = useNowPlaying();
   const processing = useAnyProcessing();
@@ -25,7 +30,7 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
       <button
         key={screen.id}
         type="button"
-        className={styles.item}
+        className={collapsed ? `${styles.item} ${styles.itemCollapsed}` : styles.item}
         aria-current={screen.id === selected ? 'page' : undefined}
         aria-describedby={
           screen.id === 'recordings' && processing ? 'recordings-processing' : undefined
@@ -57,12 +62,12 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
             <path d={screen.icon} />
           </svg>
         )}
-        {screen.label}
+        <span className={collapsed ? styles.hidden : undefined}>{screen.label}</span>
         {/* Named after the label so the button's own name still starts with it. */}
         {screen.id === 'live' && dot && (
           <span role="img" className={styles.hidden} aria-label={tip} />
         )}
-        {screen.id === 'recordings' && nowPlaying && (
+        {screen.id === 'recordings' && nowPlaying && !collapsed && (
           <PlayingIndicator className={styles.playing} />
         )}
       </button>
@@ -70,12 +75,12 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
     // The button is the focus target, so its tooltip explains the dot for keyboard users too.
     // The Live item is always wrapped, so the button is not remounted when a recording starts.
     return screen.id === 'live' ? (
-      <Tooltip key={screen.id} label={tip}>
+      <Tooltip key={screen.id} label={collapsed ? (tip ? `Live: ${tip}` : screen.label) : tip}>
         {button}
       </Tooltip>
     ) : screen.id === 'recordings' ? (
       <Fragment key={screen.id}>
-        {button}
+        {collapsed ? <Tooltip label={screen.label}>{button}</Tooltip> : button}
         {/* Outside the button, so it describes it without becoming part of its name. */}
         {processing && (
           <span id="recordings-processing" className={styles.hidden}>
@@ -83,6 +88,10 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
           </span>
         )}
       </Fragment>
+    ) : collapsed ? (
+      <Tooltip key={screen.id} label={screen.label}>
+        {button}
+      </Tooltip>
     ) : (
       button
     );
@@ -90,9 +99,25 @@ export function Sidebar({ selected, onSelect }: SidebarProps) {
   const pinned = SCREENS.filter((screen) => screen.pinnedToBottom);
 
   return (
-    <nav className={styles.sidebar} aria-label="Main">
+    <nav
+      className={collapsed ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar}
+      aria-label="Main"
+    >
       <div className={styles.group}>{SCREENS.filter((s) => !s.pinnedToBottom).map(item)}</div>
-      <div className={styles.footer}>
+      <div className={collapsed ? `${styles.footer} ${styles.footerCollapsed}` : styles.footer}>
+        <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button
+            type="button"
+            className={`${styles.iconButton} ${styles.toggle}`}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            disabled={!canToggle}
+            onClick={onToggle}
+          >
+            <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+              <path d={collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} />
+            </svg>
+          </button>
+        </Tooltip>
         {pinned.map((screen) => (
           <Tooltip key={screen.id} label={screen.label}>
             <button

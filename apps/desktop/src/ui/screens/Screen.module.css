@@ -63,3 +63,14 @@
     visibility: visible;
   }
 }
+
+/* Tonal preview: a screen without a list is one content card on the page tone, with the same
+   outer gutter as the split layout. */
+:global([data-design='tonal']) .screen {
+  min-height: calc(100% - var(--space-card-gap) * 2);
+  max-width: none;
+  margin: var(--space-card-gap);
+  padding: var(--space-card-pad);
+  background: var(--color-card);
+  border-radius: var(--radius);
+}

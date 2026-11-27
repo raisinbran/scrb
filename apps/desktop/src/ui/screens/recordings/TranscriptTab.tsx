@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  type MutableRefObject,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -359,6 +360,10 @@ interface TranscriptTabProps {
   onEditorOpenChange?(open: boolean): void;
   /** Names the meeting whose reading position is kept while another tab is open. */
   restoreKey?: string;
+  /** Filled with the in-tab jump, so the player's Show in transcript can scroll to the playhead. */
+  controlRef?: MutableRefObject<{ jumpToPosition(): void } | null>;
+  /** Reports whether the list is already following the playhead (or has none to follow). */
+  onFollowChange?(following: boolean): void;
 }
 
 export interface TranscriptEditing {
@@ -380,6 +385,8 @@ export function TranscriptTab(props: TranscriptTabProps) {
     editing,
     onEditorOpenChange,
     restoreKey,
+    controlRef,
+    onFollowChange,
   } = props;
   const { segments, speakers, totalSegments, loading, error } = transcript;
   const scroller = useRef<HTMLDivElement>(null);
@@ -690,6 +697,39 @@ export function TranscriptTab(props: TranscriptTabProps) {
   const unloaded = Math.max(0, totalSegments - segments.length) * ESTIMATED_ROW_PX;
   const contentHeight = (offsets[rows.length] as number) + unloaded;
   const { first, end } = renderedRange(offsets, rows.length, scrollTop, viewportPx);
+  const jumpToPosition = () => {
+    const element = scroller.current;
+    const top = offsets[activeIndex];
+    if (!element || top === undefined) return;
+    jumpCancel.current?.();
+    alignmentAttempts.current = 0;
+    missingWordRetry.current = null;
+    alignedJump.current = null;
+    jumpCancel.current = animateTranscriptScroll(element, Math.max(0, top - FOLLOW_MARGIN_PX), {
+      maxDurationMs: 480,
+      // Keep the virtual window moving with the visible scroll animation.
+      onPosition: setScrollTop,
+      onComplete: () => {
+        jumpCancel.current = null;
+        setJumpToCurrentNonce((nonce) => nonce + 1);
+      },
+    });
+    element.focus();
+  };
+  useEffect(() => {
+    if (controlRef) controlRef.current = { jumpToPosition };
+  });
+  const following = followPlayback || !showPosition;
+  useEffect(() => {
+    onFollowChange?.(following);
+  }, [following, onFollowChange]);
+  useEffect(
+    () => () => {
+      if (controlRef) controlRef.current = null;
+    },
+    [controlRef],
+  );
+
   if (error)
     return (
       <div className={styles.transcriptBox}>
@@ -774,33 +814,7 @@ export function TranscriptTab(props: TranscriptTabProps) {
         )}
       </div>
       {!followPlayback && showPosition && (
-        <button
-          type="button"
-          className={styles.jumpToPosition}
-          onClick={() => {
-            const element = scroller.current;
-            const top = offsets[activeIndex];
-            if (!element || top === undefined) return;
-            jumpCancel.current?.();
-            alignmentAttempts.current = 0;
-            missingWordRetry.current = null;
-            alignedJump.current = null;
-            jumpCancel.current = animateTranscriptScroll(
-              element,
-              Math.max(0, top - FOLLOW_MARGIN_PX),
-              {
-                maxDurationMs: 480,
-                // Keep the virtual window moving with the visible scroll animation.
-                onPosition: setScrollTop,
-                onComplete: () => {
-                  jumpCancel.current = null;
-                  setJumpToCurrentNonce((nonce) => nonce + 1);
-                },
-              },
-            );
-            element.focus();
-          }}
-        >
+        <button type="button" className={styles.jumpToPosition} onClick={jumpToPosition}>
           Jump to current position
         </button>
       )}

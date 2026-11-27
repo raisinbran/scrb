@@ -34,7 +34,7 @@
   white-space: nowrap;
   background: none;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .item:hover {
@@ -142,7 +142,7 @@
   color: var(--color-text-muted);
   background: none;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   text-decoration: none;
   box-shadow: none;
 }
@@ -172,4 +172,35 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+
+/* Tonal preview: tighter padding so the main panel gets the width. */
+:global([data-design='tonal']) .sidebar {
+  padding: var(--space-1);
+}
+
+:global([data-design='tonal']) .item {
+  padding: var(--space-2);
+}
+
+/* Collapsed to icons: every item and the footer are one narrow column. */
+.itemCollapsed {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.sidebarCollapsed .group > span {
+  justify-content: center;
+}
+
+.footerCollapsed {
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Trial: the sidebar as its own card, like the other panels. Turn it off with
+   document.documentElement.dataset.sidebarCard = 'off'. */
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebar {
+  background: var(--color-card);
+  border-radius: var(--radius);
 }

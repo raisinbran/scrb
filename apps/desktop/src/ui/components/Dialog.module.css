@@ -53,7 +53,7 @@
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 /* One line is always reserved, so a one-line error never moves the buttons; a longer one grows the slot and pushes them down rather than covering them. */

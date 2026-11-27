@@ -1,17 +1,12 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type RefObject,
-} from 'react';
+import { TeachingToast } from '../../components/TeachingToast.tsx';
+import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { DataView, useFocusFallback } from '../Screen.tsx';
+import { DataView } from '../Screen.tsx';
 import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
@@ -25,12 +20,14 @@ import {
   type JumpTarget,
   type TranscriptEditing,
 } from './TranscriptTab.tsx';
+import { Chip } from './Chip.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { useMeetingPlayback } from '../../lib/playback-context.tsx';
 import type { Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
-import { ICONS, IconButton } from '../../components/IconButton.tsx';
+import { SkipButton } from '../../components/SkipButton.tsx';
+import { IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { Tooltip } from '../../components/Tooltip.tsx';
 import { nextRate, rateLabel } from '../../lib/playback-level.ts';
@@ -114,29 +111,24 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
   return (
     <div className={styles.player} role="group" aria-label="Audio player">
       <IconButton
+        className={styles.transport}
         label={isPlaying ? 'Pause' : 'Play'}
         icon={isPlaying ? 'pause' : 'play'}
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       />
-      <button
-        type="button"
-        className={styles.button}
-        aria-label="Back 15 seconds"
+      <SkipButton
+        className={styles.transport}
+        direction="back"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs - SKIP_MS)}
-      >
-        −15 s
-      </button>
-      <button
-        type="button"
-        className={styles.button}
-        aria-label="Forward 15 seconds"
+      />
+      <SkipButton
+        className={styles.transport}
+        direction="forward"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs + SKIP_MS)}
-      >
-        +15 s
-      </button>
+      />
       <input
         type="range"
         className={styles.slider}
@@ -164,6 +156,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         </button>
       </Tooltip>
       <IconButton
+        className={styles.muteButton}
         label={muted ? 'Unmute' : 'Mute'}
         icon={muted ? 'speakerOff' : 'speaker'}
         aria-pressed={muted}
@@ -234,37 +227,6 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
   );
 }
 
-/**
- * A breadcrumb-style link above the meeting title goes back to the list. The "Recordings" heading
- * stays in the page for screen readers and for focus after the screen opens.
- */
-function DetailTitle({
-  headingRef,
-  onBack,
-}: {
-  headingRef?: RefObject<HTMLHeadingElement | null>;
-  onBack(): void;
-}) {
-  return (
-    <div className={styles.pageTitle}>
-      <h1 ref={headingRef} className={styles.srOnly} tabIndex={-1}>
-        Recordings
-      </h1>
-      <button
-        type="button"
-        className={styles.backLink}
-        aria-label="Back to Recordings"
-        onClick={onBack}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.backIcon}>
-          <path d={ICONS.back} />
-        </svg>
-        Recordings
-      </button>
-    </div>
-  );
-}
-
 /** Looks like a heading; click to edit in place. Enter or leaving the field saves, Escape cancels. */
 function MeetingTitle({
   title,
@@ -326,13 +288,13 @@ function MeetingTitle({
         }}
         onBlur={commit}
       />
-      <div className={styles.titleErrorSlot}>
-        {error && (
+      {error && (
+        <div className={styles.titleErrorSlot}>
           <p role="alert" className={styles.titleError}>
             {error}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -555,7 +517,6 @@ function LoadedDetail(props: LoadedDetailProps) {
   const { meeting, settings, initialJumpMs, onBack, onChanged } = props;
   const backend = useBackend();
   const meetingId = meeting.id;
-  const heading = useFocusFallback();
   const [tab, setTab] = useState<Tab>(() =>
     initialJumpMs === undefined ? (readStored<Tab>(TAB_KEY) ?? 'Transcript') : 'Transcript',
   );
@@ -565,6 +526,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   );
   // A word at 0 ms leaves the position at 0, so "placed" is tracked on its own.
   const [editorOpen, setEditorOpen] = useState(false);
+  const tipsOn = useNotificationEnabled('tips');
   const [hintShown, setHintShown] = useState(() => readStored<boolean>(HINT_KEY) !== true);
   const [placed, setPlaced] = useState(false);
   const [popupSlot, setPopupSlot] = useState<HTMLDivElement | null>(null);
@@ -603,7 +565,14 @@ function LoadedDetail(props: LoadedDetailProps) {
     backend.call('updateSettings', { transcriptFontPx: next }).catch(() => undefined);
   };
 
+  // On the Transcript tab the list reports whether it already follows the playhead; elsewhere there is always somewhere to go.
+  const transcriptControl = useRef<{ jumpToPosition(): void } | null>(null);
+  const [transcriptFollowing, setTranscriptFollowing] = useState(true);
   const showInTranscript = () => {
+    if (tab === 'Transcript') {
+      transcriptControl.current?.jumpToPosition();
+      return;
+    }
     selectTab('Transcript');
     setJump({ ms: playback.positionMs, nonce: Date.now() });
   };
@@ -658,6 +627,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const dismissHint = () => {
     setHintShown(false);
     writeStored(HINT_KEY, true);
+    noteOptionalDismiss();
   };
   const unfinished = isUnfinished(meeting.status);
   const canReprocess =
@@ -668,7 +638,6 @@ function LoadedDetail(props: LoadedDetailProps) {
   return (
     <div className={styles.detail}>
       <header className={styles.detailHead}>
-        <DetailTitle headingRef={heading} onBack={() => onBack()} />
         <MeetingTitle
           title={meeting.title}
           readOnly={!canEdit}
@@ -677,20 +646,34 @@ function LoadedDetail(props: LoadedDetailProps) {
             onChanged();
           }}
         />
-        <p className={styles.muted}>
-          <MeetingDate
-            startedAt={meeting.startedAt}
-            readOnly={!canEdit}
-            onSave={async (startedAt) => {
-              await backend.call('updateMeeting', { meetingId, startedAt });
-              onChanged();
-            }}
-          />{' '}
-          · {formatDuration(meeting.durationMs)} ·{' '}
-          {meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
-          {status ? ` · ${status}` : ''}
-          {summaryLabel ? ` · ${summaryLabel}` : ''}
-        </p>
+        <div className={styles.metaRow}>
+          <p className={styles.muted}>
+            <MeetingDate
+              startedAt={meeting.startedAt}
+              readOnly={!canEdit}
+              onSave={async (startedAt) => {
+                await backend.call('updateMeeting', { meetingId, startedAt });
+                onChanged();
+              }}
+            />{' '}
+            · {formatDuration(meeting.durationMs)}
+          </p>
+          <div className={styles.badges}>
+            <Chip
+              text={meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
+              className={styles.badge}
+              full
+            />
+            {status && <Chip text={status} className={styles.badgeStrong} full />}
+            {summaryLabel && (
+              <Chip
+                full
+                text={summaryLabel}
+                className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
+              />
+            )}
+          </div>
+        </div>
         <div className={styles.actions}>
           <IconButton
             label="Export"
@@ -770,22 +753,18 @@ function LoadedDetail(props: LoadedDetailProps) {
                 />
               </>
             )}
-            <button
-              type="button"
-              className={styles.button}
-              aria-label="Smaller transcript text"
+            <IconButton
+              label="Smaller transcript text"
+              tip="Decrease text size"
+              icon="textSmaller"
               onClick={() => changeFont(-1)}
-            >
-              A−
-            </button>
-            <button
-              type="button"
-              className={styles.button}
-              aria-label="Larger transcript text"
+            />
+            <IconButton
+              label="Larger transcript text"
+              tip="Increase text size"
+              icon="textLarger"
               onClick={() => changeFont(1)}
-            >
-              A+
-            </button>
+            />
           </span>
         )}
       </div>
@@ -796,11 +775,15 @@ function LoadedDetail(props: LoadedDetailProps) {
         aria-labelledby={`meeting-tab-${tab}`}
         className={styles.panel}
       >
-        {undoState.error && <p role="alert">{undoState.error}</p>}
-        <PopupLayer stackRef={setPopupSlot} inline={tab === 'Summary'}>
-          {tab === 'Transcript' && canEdit && hintShown && (
+        <PopupLayer stackRef={setPopupSlot}>
+          {undoState.error && (
+            <PopupBanner role="alert" level="danger">
+              <p>{undoState.error}</p>
+            </PopupBanner>
+          )}
+          {tab === 'Transcript' && canEdit && hintShown && tipsOn && (
             <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
-              <p>Double-click a word to correct it. Click a speaker name to rename them.</p>
+              <p>Double-click a word to correct it. Click a speaker to rename.</p>
             </PopupBanner>
           )}
           {copyError && (
@@ -859,6 +842,7 @@ function LoadedDetail(props: LoadedDetailProps) {
               <p>This meeting is being deleted.</p>
             </PopupBanner>
           )}
+          <TeachingToast />
         </PopupLayer>
         {tab === 'Transcript' && (
           <TranscriptTab
@@ -869,6 +853,8 @@ function LoadedDetail(props: LoadedDetailProps) {
             showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
             playing={playback.isPlaying}
             jump={jump}
+            controlRef={transcriptControl}
+            onFollowChange={setTranscriptFollowing}
             restoreKey={meetingId}
             onPlay={playback.play}
             editing={editing}
@@ -896,11 +882,19 @@ function LoadedDetail(props: LoadedDetailProps) {
       {!live && (
         <div className={styles.playerRow}>
           <PlayerBar meeting={meeting} playback={playback} />
-          {tab !== 'Transcript' && (
-            <button type="button" className={styles.button} onClick={showInTranscript}>
-              Show in transcript
+          <Tooltip label="Show in transcript">
+            <button
+              type="button"
+              className={`${styles.button} ${styles.showButton}`}
+              aria-label="Show in transcript"
+              aria-disabled={tab === 'Transcript' && transcriptFollowing ? true : undefined}
+              onClick={tab === 'Transcript' && transcriptFollowing ? undefined : showInTranscript}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.showIcon}>
+                <path d="M4 6h16M4 12h16M4 18h10" />
+              </svg>
             </button>
-          )}
+          </Tooltip>
         </div>
       )}
 
@@ -951,7 +945,6 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
   if (state.status === 'failed') {
     return (
       <div className={styles.detailHead}>
-        <DetailTitle onBack={() => onBack()} />
         <p role="alert">{state.message}</p>
       </div>
     );

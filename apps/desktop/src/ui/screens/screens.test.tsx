@@ -1,6 +1,7 @@
+import { chooseOption } from '../components/choose-option.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { Backend } from '@scrb/contracts';
@@ -183,8 +184,19 @@ describe('screens', () => {
   });
 
   describe('Vocabulary', () => {
+    const openFilter = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Filter terms' }));
+      await screen.findByRole('menu', { name: 'Show terms' });
+    };
+
+    const pick = async (name: string) => {
+      const row = await screen.findByText(name, { selector: 'span' });
+      fireEvent.click(row.closest('button') as HTMLElement);
+    };
+
     it('focuses the heading after deleting a term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Kestrel API');
       const remove = await screen.findByRole('button', { name: 'Delete Kestrel API' });
       remove.focus();
       fireEvent.click(remove);
@@ -201,28 +213,93 @@ describe('screens', () => {
       renderScreen(backend, <VocabularyScreen />);
       const terms = await backend.call('listTerms');
       const enabled = terms.filter((term) => term.enabled).length;
-      expect(await screen.findByText(`${enabled} enabled.`)).toBeTruthy();
-      expect(screen.getByText(/saved but not used for transcription yet/)).toBeTruthy();
+      expect(
+        await screen.findByRole('button', {
+          name: `${enabled} enabled. Terms are saved but not used for transcription yet.`,
+        }),
+      ).toBeTruthy();
     });
 
-    it('lists suggested terms with their counts and their misheard forms', async () => {
+    it('filters by state with counts, lists suggestions first, and tags rows', async () => {
       renderScreen(backend, <VocabularyScreen />);
-      expect(await screen.findByRole('heading', { name: 'Suggested terms' })).toBeTruthy();
-      expect(screen.getByText('4 corrections in 3 meetings')).toBeTruthy();
-      expect(screen.getByText('2 corrections in 2 meetings')).toBeTruthy();
+      const terms = await backend.call('listTerms');
+      const off = terms.filter((term) => !term.enabled).length;
+      await screen.findByText('Kestrel API', { selector: 'span' });
+      await openFilter();
+      expect(screen.getByRole('menuitemradio', { name: `All (${terms.length + 2})` })).toBeTruthy();
+      expect(screen.getByRole('menuitemradio', { name: 'Suggested (2)' })).toBeTruthy();
+      expect(
+        screen.getByRole('menuitemradio', { name: `Enabled (${terms.length - off})` }),
+      ).toBeTruthy();
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+      const names = () =>
+        screen
+          .getAllByRole('button', { name: /./ })
+          .filter(
+            (button) =>
+              button.getAttribute('aria-current') !== null || button.className.includes('entry'),
+          )
+          .map((button) => button.querySelector('span')?.textContent);
+      expect(names()[0]).toBe('Marlow Quay');
+      expect(screen.getAllByText('Suggested', { selector: 'span' }).length).toBeGreaterThanOrEqual(
+        2,
+      );
+      await openFilter();
+      fireEvent.click(screen.getByRole('menuitemradio', { name: `Disabled (${off})` }));
+      expect(screen.queryByText('Marlow Quay', { selector: 'span' })).toBeNull();
+      expect(screen.queryByText(/Heard as:/)).toBeNull();
     });
 
-    it('remembers a suggestion and refreshes both lists', async () => {
+    it('opens on the first suggestion, and marks the selected term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      expect(await screen.findByRole('button', { name: 'Remember Marlow Quay' })).toBeTruthy();
+      await pick('Kestrel API');
+      expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull();
+      const row = screen.getByText('Kestrel API', { selector: 'span' }).closest('button');
+      expect(row?.getAttribute('aria-current')).toBe('true');
+      expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy();
+    });
+
+    it('filters the list by spelling or misheard version', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await screen.findByText('Kestrel API', { selector: 'span' });
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search vocabulary' }), {
+        target: { value: 'kestrel' },
+      });
+      expect(screen.queryByText('Halden Depot', { selector: 'span' })).toBeNull();
+      expect(screen.getByText('Kestrel API', { selector: 'span' })).toBeTruthy();
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search vocabulary' }), {
+        target: { value: 'zzzz' },
+      });
+      expect(screen.getByText('No matching terms.')).toBeTruthy();
+    });
+
+    it('shows a suggestion with its counts and misheard forms', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await pick('Marlow Quay');
+      expect(await screen.findByText('4 corrections in 3 meetings')).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Heard as' })).toBeTruthy();
+      await pick('Tessel');
+      expect(await screen.findByText('2 corrections in 2 meetings')).toBeTruthy();
+    });
+
+    it('remembers a suggestion and refreshes the groups', async () => {
+      renderScreen(backend, <VocabularyScreen />);
+      await pick('Marlow Quay');
       fireEvent.click(await screen.findByRole('button', { name: 'Remember Marlow Quay' }));
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull(),
       );
+      await openFilter();
+      expect(screen.getByRole('menuitemradio', { name: 'Suggested (1)' })).toBeTruthy();
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+      await pick('Marlow Quay');
       expect(await screen.findByRole('button', { name: 'Edit Marlow Quay' })).toBeTruthy();
     });
 
     it('dismisses a suggestion without adding a term', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Tessel');
       fireEvent.click(await screen.findByRole('button', { name: 'Dismiss Tessel' }));
       await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
       expect((await backend.call('listTerms')).some((term) => term.term === 'Tessel')).toBe(false);
@@ -230,6 +307,7 @@ describe('screens', () => {
 
     it('shows an error and refreshes when a suggestion changed', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Tessel');
       const remember = await screen.findByRole('button', { name: 'Remember Tessel' });
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       fireEvent.click(remember);
@@ -237,31 +315,39 @@ describe('screens', () => {
       await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
     });
 
-    it('hides the section when there are no suggestions', async () => {
+    it('hides the Suggested filter when there are no suggestions', async () => {
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       renderScreen(backend, <VocabularyScreen />);
       await screen.findByText('Kestrel API');
-      expect(screen.queryByRole('heading', { name: 'Suggested terms' })).toBeNull();
+      await openFilter();
+      expect(screen.queryByRole('menuitemradio', { name: /^Suggested/ })).toBeNull();
     });
 
     it('shows the empty state', async () => {
       backend.setTerms([]);
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
+      await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       renderScreen(backend, <VocabularyScreen />);
       expect(await screen.findByText('No terms yet')).toBeTruthy();
     });
 
     it('marks a disabled entry and enables it', async () => {
       renderScreen(backend, <VocabularyScreen />);
-      expect(await screen.findByText('Disabled')).toBeTruthy();
+      await pick('Q-Track');
+      // One badge in the list row, one beside the name in the panel.
+      expect((await screen.findAllByText('Disabled', { selector: 'span' })).length).toBe(2);
       fireEvent.click(screen.getByRole('button', { name: 'Enable Q-Track' }));
-      await vi.waitFor(() => expect(screen.queryByText('Disabled')).toBeNull());
+      await vi.waitFor(() =>
+        expect(screen.queryAllByText('Disabled', { selector: 'span' }).length).toBe(0),
+      );
       const terms = await backend.call('listTerms');
       expect(terms.find((term) => term.id === 'term-3')?.history.at(-1)?.action).toBe('enabled');
     });
 
     it('edits spelling and misheard versions', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Kestrel API');
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Kestrel API' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Correct spelling' }), {
         target: { value: 'Kestrel Gateway' },
@@ -270,13 +356,14 @@ describe('screens', () => {
         target: { value: 'castrol api\n  kessel gateway  \n\ncastrol api' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(await screen.findByText('Kestrel Gateway')).toBeTruthy();
+      expect(await screen.findByRole('heading', { name: 'Kestrel Gateway' })).toBeTruthy();
       const term = (await backend.call('listTerms')).find((item) => item.id === 'term-2');
       expect(term?.misheard).toEqual(['castrol api', 'kessel gateway']);
     });
 
     it('deletes a term after confirming', async () => {
       renderScreen(backend, <VocabularyScreen />);
+      await pick('Halden Depot');
       fireEvent.click(await screen.findByRole('button', { name: 'Delete Halden Depot' }));
       fireEvent.click(screen.getByRole('button', { name: 'Delete term' }));
       await vi.waitFor(() => expect(screen.queryByText('Halden Depot')).toBeNull());
@@ -325,24 +412,59 @@ describe('screens', () => {
       }
     });
 
-    it('lists the setting groups with Theme first and jumps to a group', async () => {
+    it('jumps to a settings group and follows the workspace as it scrolls', async () => {
       renderScreen(backend, <SettingsScreen />);
       const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
-      const names = within(nav)
-        .getAllByRole('button')
-        .map((button) => button.textContent);
-      expect(names.slice(0, 2)).toEqual(['Theme', 'Audio']);
-      expect(names).toEqual(expect.arrayContaining(['Models', 'Storage']));
-      const theme = screen.getByRole('group', { name: 'Theme' });
-      const audio = document.getElementById('settings-audio')!.closest('section')!;
+      // findBy can resolve before React runs the nav's effects; wait so its scroll listener exists.
+      await act(async () => {});
+      const buttons = within(nav).getAllByRole('button');
+      expect(buttons.map((button) => button.textContent)).toEqual([
+        'Theme',
+        'Audio',
+        'Transcription',
+        'Models',
+        'Storage',
+        'Location',
+        'Notifications',
+      ]);
+      const theme = document.getElementById('settings-theme')!;
+      const audio = document.getElementById('settings-audio')!;
       expect(theme.compareDocumentPosition(audio) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      const scrollIntoView = vi.fn();
-      audio.scrollIntoView = scrollIntoView;
-      fireEvent.click(within(nav).getByRole('button', { name: 'Audio' }));
-      expect(scrollIntoView).toHaveBeenCalled();
-      expect(within(nav).getByRole('button', { name: 'Audio' }).getAttribute('aria-current')).toBe(
-        'true',
-      );
+
+      const workspace = document.querySelector<HTMLElement>('[data-split-content]') as HTMLElement;
+      const scrollTo = vi.fn();
+      workspace.scrollTo = scrollTo;
+      Object.defineProperties(workspace, {
+        clientHeight: { value: 500 },
+        scrollHeight: { value: 1600 },
+      });
+      const sections = workspace.querySelectorAll('section');
+      sections.forEach((section, index) => {
+        section.getBoundingClientRect = () =>
+          new DOMRect(200, index * 260 - workspace.scrollTop, 500, 260);
+      });
+
+      // jsdom has no layout, so the group list can only learn the real positions from a scroll.
+      fireEvent.scroll(workspace);
+      fireEvent.click(buttons[1]!);
+      expect(scrollTo).toHaveBeenCalledWith({ top: 260, behavior: 'smooth' });
+      expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 270;
+      fireEvent.scroll(workspace);
+      expect(buttons[1]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 960;
+      fireEvent.scroll(workspace);
+      expect(buttons[4]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 1100;
+      fireEvent.scroll(workspace);
+      expect(buttons[6]?.getAttribute('aria-current')).toBe('true');
+
+      workspace.scrollTop = 0;
+      fireEvent.scroll(workspace);
+      expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
     });
 
     it('shows stored presets as unavailable without creating unsaved changes', async () => {
@@ -566,9 +688,8 @@ describe('screens', () => {
 
     it('warns under a listed state', async () => {
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.change(await screen.findByRole('combobox', { name: /State where you live/ }), {
-        target: { value: 'WA' },
-      });
+      await chooseOption('Country', 'United States');
+      await chooseOption('State', 'Washington');
       expect(screen.getByText(/Washington has a biometric-privacy law/)).toBeTruthy();
     });
 

@@ -37,7 +37,7 @@
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .button:hover:not(:disabled) {
@@ -130,7 +130,7 @@ button:disabled {
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 /* Room for two lines of helper text, so showing or hiding one moves nothing. */
@@ -219,7 +219,7 @@ button:disabled {
   height: 8px;
   overflow: hidden;
   background: var(--color-surface-selected);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .meterFill {
@@ -239,31 +239,19 @@ button:disabled {
 }
 
 .alerts {
-  position: absolute;
+  composes: stack from '../components/Banner.module.css';
   inset-block-start: 0;
-  inset-inline-start: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  max-width: min(560px, 100%);
 }
 
 .banner {
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-sm);
-  background: var(--color-surface-sidebar);
-  border: 1px solid var(--color-border);
-  border-inline-start: 3px solid var(--color-text-muted);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-overlay);
-}
-
-.banner[data-level='warning'] {
-  border-inline-start-color: var(--color-warning);
+  composes: banner from '../components/Banner.module.css';
+  margin: 0;
 }
 
 .banner[data-level='failed'] {
-  border-inline-start-color: var(--color-danger);
+  box-shadow:
+    inset 3px 0 0 var(--color-danger),
+    var(--shadow-banner);
 }
 
 .bannerTime {
@@ -272,12 +260,13 @@ button:disabled {
 }
 
 .finished {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
+  composes: banner from '../components/Banner.module.css';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--space-1);
+  margin-block: 0;
+  align-items: flex-start;
   justify-content: space-between;
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -304,4 +293,142 @@ button:disabled {
 
 .pickersPending {
   visibility: hidden;
+}
+
+/* Tonal preview: Live is one content card on the page tone, like every screen without a list. */
+.headCard {
+  display: contents;
+}
+
+/* Tonal: the page tone shows between two cards. The header card holds the title, controls, pickers
+   and meters; the transcript is its own card below, filling to the sidebar's bottom edge. */
+:global([data-design='tonal']) .live {
+  height: calc(100% - var(--space-card-gap) * 2);
+  margin: var(--space-card-gap);
+  padding: 0;
+  gap: var(--space-card-gap);
+}
+
+:global([data-design='tonal']) .headCard {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-card-pad);
+  background: var(--color-card);
+  border-radius: var(--radius);
+}
+
+/* Tonal preview: the same layout language as the other screens. Fills instead of borders, one gap,
+   and the level meters in the pickers' own row. */
+:global([data-design='tonal']) .header {
+  padding-inline-end: 0;
+}
+
+:global([data-design='tonal']) .button,
+:global([data-design='tonal']) .startButton,
+:global([data-design='tonal']) .stopButton {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .button:hover:not(:disabled),
+:global([data-design='tonal']) .stopButton:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+:global([data-design='tonal']) .startButton {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+:global([data-design='tonal']) .picker select {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .sources {
+  gap: var(--space-2) var(--space-5);
+  align-items: flex-start;
+  padding-block: 0;
+}
+
+:global([data-design='tonal']) .levels {
+  margin-inline-start: 0;
+  transform: none;
+}
+
+/* Two thin meters fit inside the pickers' own height, so every item in the row shares its edges. */
+:global([data-design='tonal']) .levels .meterRow {
+  height: 12px;
+}
+
+:global([data-design='tonal']) .meters {
+  gap: 6px;
+}
+
+:global([data-design='tonal']) .meter {
+  height: 6px;
+}
+
+:global([data-design='tonal']) .meter {
+  background: var(--color-card-inset);
+}
+
+:global([data-design='tonal']) .idle {
+  padding-block: var(--space-6);
+  background: var(--color-card);
+  border-radius: var(--radius);
+}
+
+/* Nothing recorded yet: the card is only as tall as its controls, with no big empty area under them. */
+:global([data-design='tonal']) .live:has(.idle) {
+  height: auto;
+}
+
+:global([data-design='tonal']) .live:has(.idle) .idle {
+  margin-block-end: 0;
+}
+
+:global([data-design='tonal']) .idle {
+  flex: none;
+  padding-block: var(--space-4);
+}
+
+/* Tonal: pickers and meters stay on one row at every width; the pickers shrink, the meters do not wrap. */
+:global([data-design='tonal']) .sources {
+  flex-wrap: nowrap;
+}
+
+:global([data-design='tonal']) .pickers {
+  flex: 1;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+:global([data-design='tonal']) .picker {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: 260px;
+}
+
+:global([data-design='tonal']) .levels .meter {
+  width: 88px;
+}
+
+/* Tonal: the hint under a picker floats over the card's bottom padding, so the card hugs its controls and
+   a hint appearing moves nothing. */
+:global([data-design='tonal']) .hintSlot {
+  position: relative;
+  height: 0;
+}
+
+:global([data-design='tonal']) .hintSlot .hint {
+  position: absolute;
+  inset-block-start: var(--space-1);
+  inset-inline: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -55,7 +55,11 @@ describe('Recordings', () => {
       );
       fireEvent.click(button);
       expect(await screen.findByRole('progressbar', {}, SLOW)).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull();
+      // The library list has its own progress bar, so wait for the detail view to swap the button out.
+      await waitFor(
+        () => expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull(),
+        SLOW,
+      );
     });
   });
 
@@ -70,7 +74,10 @@ describe('Recordings', () => {
     it('filters by source', async () => {
       renderScreen();
       await button(/Budget review/);
-      fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'imported' } });
+      fireEvent.focus(screen.getByLabelText('Search recordings'));
+      fireEvent.click(screen.getByRole('menuitem', { name: /From a specific source/ }));
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Imported' }));
+      expect(screen.getByText('Source: Imported')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
       expect(screen.getByText('Imported interview recording')).toBeTruthy();
     });
@@ -78,17 +85,81 @@ describe('Recordings', () => {
     it('filters by date', async () => {
       renderScreen();
       await button(/Budget review/);
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /Recorded before a date/ }));
       fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-22' } });
+      expect(screen.getByText('To: 10/22/26')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
+    });
+
+    it('opens the filter list by typing a keyword, and removes a chip with Backspace', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings') as HTMLInputElement;
+      fireEvent.change(search, { target: { value: 'source:' } });
+      expect(search.value).toBe('');
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Imported' }));
+      await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
+      fireEvent.keyDown(search, { key: 'Backspace' });
+      expect(screen.queryByText('Source: Imported')).toBeNull();
+      expect(await button(/Budget review/)).toBeTruthy();
+    });
+
+    it('opens the dropdown on focus, narrows it by typing a keyword prefix, and closes on Escape', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings');
+      fireEvent.focus(search);
+      expect(screen.getByRole('menu', { name: 'Filters' })).toBeTruthy();
+      fireEvent.change(search, { target: { value: 'fr' } });
+      expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+      fireEvent.change(search, { target: { value: 'weekly' } });
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('applies several filters from the More filters dialog and clears them', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      fireEvent.focus(screen.getByLabelText('Search recordings'));
+      fireEvent.click(screen.getByRole('menuitem', { name: /More filters/ }));
+      const dialog = await screen.findByRole('dialog', { name: 'Filters' });
+      fireEvent.change(within(dialog).getByRole('combobox', { name: /^Source/ }), {
+        target: { value: 'imported' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add date' }));
+      fireEvent.change(within(dialog).getByLabelText('Before date'), {
+        target: { value: '2026-10-30' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apply filters' }));
+      expect(await screen.findByText('Source: Imported')).toBeTruthy();
+      expect(screen.getByText('To: 10/30/26')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('moves through the filter list with the arrow keys and closes with Escape', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings');
+      fireEvent.keyDown(search, { key: 'ArrowDown' });
+      const items = screen.getAllByRole('menuitem');
+      expect(items).toHaveLength(4);
+      expect(items[3]?.textContent).toContain('More filters');
+      await waitFor(() => expect(document.activeElement).toBe(items[0]));
+      fireEvent.keyDown(items[0] as HTMLElement, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[1]);
+      fireEvent.keyDown(items[1] as HTMLElement, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(search);
     });
 
     it('focuses the title after meeting navigation', async () => {
       renderScreen();
-      (await button(/Weekly project sync/)).focus();
+      const row = await button(/Weekly project sync/);
+      row.focus();
       await openMeeting(/Weekly project sync/);
-      await waitFor(() =>
-        expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Recordings' })),
-      );
+      // The list stays beside the meeting, so focus stays on the row that was pressed.
+      await waitFor(() => expect(document.activeElement).toBe(row));
+      expect(row.getAttribute('aria-current')).toBe('true');
     });
 
     it('searches transcripts and opens a match at its time', async () => {
@@ -126,14 +197,14 @@ describe('Recordings', () => {
     it('shows a provisional-text banner in the meeting and removes it when processing ends', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+      expect(screen.getByText(/Processing final transcript\. Text may change/)).toBeTruthy();
       // The backend reports no final-pass progress, so the bar must not claim a position.
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBeNull();
-      expect(screen.getByText(/Time since you opened this view/)).toBeTruthy();
       backend.finishFinalPass();
       await waitFor(
-        () => expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull(),
+        () =>
+          expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull(),
         SLOW,
       );
       expect(screen.getByRole('tab', { name: 'Transcript' })).toBeTruthy();
@@ -142,7 +213,7 @@ describe('Recordings', () => {
     it('anchors the banner inside the transcript panel, never over the header or tabs', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      const banner = screen.getByText(/Final transcript is still being processed/);
+      const banner = screen.getByText(/Processing final transcript\. Text may change/);
       const panel = document.getElementById('meeting-panel');
       expect(panel?.contains(banner)).toBe(true);
       expect(screen.getByRole('tablist', { name: 'Meeting' }).contains(banner)).toBe(false);
@@ -168,7 +239,6 @@ describe('Recordings', () => {
       const bar = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(bar.getAttribute('aria-valuenow')).toBe('60');
       expect(screen.getByText('Working out who spoke...')).toBeTruthy();
-      expect(screen.queryByText(/Time since you opened this view/)).toBeNull();
     });
 
     it('shows a small progress bar under a processing meeting in the list', async () => {
@@ -176,7 +246,7 @@ describe('Recordings', () => {
       const on = vi.spyOn(backend, 'on');
       const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
       const bar = () =>
-        within(row).getByRole('progressbar', { name: 'Final transcript processing' });
+        within(row).getByRole('progressbar', { name: /Final transcript processing/ });
       expect(bar().hasAttribute('aria-valuenow')).toBe(false);
       await waitFor(() =>
         expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
@@ -260,19 +330,18 @@ describe('Recordings', () => {
       renderScreen();
       await openMeeting(/Budget review/);
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
     });
 
     it('shows the banner again after leaving and reopening the same processing meeting', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
-      await button(/Budget review/);
+      await openMeeting(/Vendor call/);
       await openMeeting(/Budget review/);
-      expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
+      expect(screen.getByText(/Processing final transcript\. Text may change/)).toBeTruthy();
     });
 
     it('keeps a dismissed banner hidden while switching tabs in the same meeting', async () => {
@@ -281,14 +350,14 @@ describe('Recordings', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
-      expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
+      expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
     });
 
-    it('keeps the narrower banner and progress bar within the same content width', async () => {
+    it('keeps the banner slim, with a 2px progress bar along its bottom edge', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
       const banner = screen
-        .getByText(/Final transcript is still being processed/)
+        .getByText(/Processing final transcript\. Text may change/)
         .closest('[class*="processingBanner"]');
       const progress = screen.getByRole('progressbar', { name: 'Final transcript processing' });
       expect(banner?.contains(progress)).toBe(true);
@@ -304,21 +373,21 @@ describe('Recordings', () => {
         join(__dirname, '../../components/Progress.module.css'),
         'utf8',
       );
-      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/max-width: 448px/);
       expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(
         /font-size: var\(--text-sm\)/,
       );
-      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
-      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(
-        /width: min\(640px, calc\(100% - var\(--space-5\) \* 2\)\)/,
+      expect(bannerCss.match(/\.slimBar \[role='progressbar'\],[^{]*\{([^}]*)\}/)?.[1]).toMatch(
+        /height: 2px/,
       );
+      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/composes: stack from/);
       expect(progressCss.match(/\.track \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
     });
 
     it('marks the library row as changing', async () => {
       renderScreen();
       await screen.findByText('Processing final transcript');
-      expect(screen.getByText('Text will change')).toBeTruthy();
+      expect(screen.queryByText('Text will change')).toBeNull();
+      expect(screen.getByRole('progressbar', { name: /Final transcript processing/ })).toBeTruthy();
     });
   });
 
@@ -365,7 +434,6 @@ describe('Recordings', () => {
 
       fireEvent.click(await button(/Budget review/));
       await screen.findByRole('tab', { name: 'Transcript' });
-      fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
       await button('Import audio file');
       expect(screen.queryByText(reminder)).toBeNull();
     });
@@ -507,7 +575,7 @@ describe('Recordings', () => {
       expect(call).toHaveBeenCalledWith('pauseAudio', expect.anything());
       expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
       for (const control of [
-        screen.getByRole('button', { name: 'Back 15 seconds' }),
+        screen.getByRole('button', { name: 'Skip back 15 seconds' }),
         screen.getByRole('tab', { name: 'Transcript' }),
         screen.getByRole('slider', { name: 'Playback position' }),
       ]) {
@@ -537,7 +605,7 @@ describe('Recordings', () => {
       await openMeeting(/Weekly project sync/);
       await screen.findAllByRole('button', { name: /Play from/ });
       const time = () => screen.getByRole('group', { name: 'Audio player' }).textContent;
-      const forward = screen.getByRole('button', { name: 'Forward 15 seconds' });
+      const forward = screen.getByRole('button', { name: 'Skip forward 15 seconds' });
       fireEvent.click(forward);
       expect(time()).toMatch(/00:15/);
       expect(fireEvent.keyDown(forward, { key: 'ArrowRight' })).toBe(false);
@@ -545,6 +613,22 @@ describe('Recordings', () => {
       const slider = screen.getByRole('slider', { name: 'Playback position' });
       expect(fireEvent.keyDown(slider, { key: 'ArrowLeft' })).toBe(false);
       expect(time()).toMatch(/00:15/);
+    });
+
+    it('always shows Show in transcript as an icon, disabled only while the transcript already follows', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const show = () => screen.getByRole('button', { name: 'Show in transcript' });
+      expect(show().textContent).toBe('');
+      expect(show().getAttribute('aria-disabled')).toBe('true');
+      fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+      expect(show().getAttribute('aria-disabled')).toBeNull();
+      fireEvent.click(show());
+      await screen.findAllByRole('button', { name: /Play from/ });
+      expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe(
+        'true',
+      );
+      expect(show().getAttribute('aria-disabled')).toBe('true');
     });
 
     it('steps the playback speed from a fixed-width button that wraps after 2x', async () => {
@@ -586,7 +670,6 @@ describe('Recordings', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1.25x'),
       );
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
       await openMeeting(/Budget review/);
       expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1x');
     });
@@ -850,10 +933,8 @@ describe('Recordings', () => {
         await openMeeting(/Weekly project sync/);
         await correct(await firstWord(), 'Zebra');
         await waitFor(() => expect(undoButton().disabled).toBe(false));
-        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
         await openMeeting(/Vendor call/);
         await waitFor(() => expect(undoButton().disabled).toBe(true));
-        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
         await openMeeting(/Weekly project sync/);
         await waitFor(() => expect(undoButton().disabled).toBe(false));
       });
@@ -983,7 +1064,10 @@ describe('Recordings', () => {
             ).toISOString(),
           ).toBe(expected),
         );
-        const updated = await screen.findByRole('button', { name: /Oct 1, 2026/ });
+        const updated = await within(document.querySelector('header') as HTMLElement).findByRole(
+          'button',
+          { name: /Oct 1, 2026/ },
+        );
         expect(document.activeElement).toBe(updated);
       });
 
@@ -1077,21 +1161,16 @@ describe('Recordings', () => {
       expect(document.activeElement).toBe(title);
     });
 
-    it('keeps the Recordings title and a named back button', async () => {
+    it('has no back button: the list column stays beside the open meeting', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
-      expect(screen.getByRole('heading', { level: 1, name: 'Recordings' })).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
-      expect(await screen.findByLabelText('Search recordings')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Back to Recordings' })).toBeNull();
+      expect(screen.getByLabelText('Search recordings')).toBeTruthy();
     });
 
-    it('puts the back link above the meeting title and keeps the player outside the scrolling panel', async () => {
+    it('keeps the player outside the scrolling panel', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
-      const back = screen.getByRole('button', { name: 'Back to Recordings' });
-      expect(back.textContent).toBe('Recordings');
-      const title = screen.getByRole('textbox', { name: /title/i });
-      expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       const panel = screen.getByRole('tabpanel');
       const player = screen.getByRole('group', { name: 'Audio player' });
       expect(panel.contains(player)).toBe(false);
@@ -1231,27 +1310,36 @@ describe('Recordings', () => {
       expect(await button('Generate Summary')).toBeTruthy();
     });
 
-    it('keeps banners in flow ahead of the Brief/Full toggle, so none covers it', async () => {
+    it('floats banners over the summary, so showing or dismissing one never moves it', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
       const banner = await screen.findByRole('button', { name: 'Regenerate' });
-      const layer = banner.closest('[class*="inline"]');
-      expect(layer).not.toBeNull();
-      const toggle = screen.getByRole('radiogroup', { name: 'Summary length' });
-      expect(layer?.compareDocumentPosition(toggle)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(banner.closest('[class*="layer"]')).not.toBeNull();
       const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
-      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
+      expect(css).not.toMatch(/\.inline/);
+      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: 0;/);
+      expect(css.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/composes: stack from/);
     });
 
     it('flags an outdated summary and its warnings', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
       expect(
-        await screen.findByText(
-          'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.',
-        ),
+        await screen.findByText('Transcript was re-processed. The summary may be outdated.'),
       ).toBeTruthy();
       expect(screen.getByText(/does not cover it/)).toBeTruthy();
+    });
+
+    it('lets the outdated banner be dismissed with an X, keeping Regenerate, and shows the pointer', async () => {
+      renderScreen();
+      await openTab(/Weekly project sync/, 'Summary');
+      const text = 'Transcript was re-processed. The summary may be outdated.';
+      await screen.findByText(text);
+      expect(screen.getByRole('button', { name: 'Regenerate' })).toBeTruthy();
+      const banner = screen.getByText(text).closest('[role="status"]') as HTMLElement;
+      fireEvent.click(within(banner).getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByText(text)).toBeNull();
+      expect(screen.getByText(/turn banners on or off in Settings/)).toBeTruthy();
     });
 
     it('turns outdated when the event arrives', async () => {
