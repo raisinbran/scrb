@@ -132,7 +132,15 @@ export function FilterSearch({
   };
 
   return (
-    <div ref={wrap} className={styles.wrap}>
+    <div
+      ref={wrap}
+      className={styles.wrap}
+      onBlur={(event) => {
+        // Tab or focus moving outside the field and its popover closes the popover.
+        if (step !== null && !event.currentTarget.contains(event.relatedTarget as Node | null))
+          setStep(null);
+      }}
+    >
       <div
         role="group"
         aria-label="Search and filters"
@@ -164,7 +172,7 @@ export function FilterSearch({
           type="search"
           className={styles.input}
           aria-label="Search recordings"
-          aria-haspopup="menu"
+          aria-haspopup={step === 'from' || step === 'to' ? 'dialog' : 'menu'}
           aria-expanded={step !== null}
           aria-controls={step === null ? undefined : popoverId}
           placeholder={chips.length > 0 ? 'Search' : 'Search titles, dates and transcripts'}
@@ -177,7 +185,7 @@ export function FilterSearch({
           type="button"
           className={styles.filterButton}
           aria-label="Filters"
-          aria-haspopup="menu"
+          aria-haspopup={step === 'from' || step === 'to' ? 'dialog' : 'menu'}
           aria-expanded={step !== null}
           aria-controls={step === null ? undefined : popoverId}
           onClick={() => (step === null ? open('menu', true) : close(false))}
@@ -192,7 +200,7 @@ export function FilterSearch({
           ref={popover}
           id={popoverId}
           className={styles.popover}
-          role={step === 'from' || step === 'to' ? 'group' : 'menu'}
+          role={step === 'from' || step === 'to' ? 'dialog' : 'menu'}
           aria-label={
             step === 'source'
               ? 'Source'

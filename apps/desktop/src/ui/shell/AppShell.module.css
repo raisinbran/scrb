@@ -17,8 +17,9 @@
   min-height: 0;
 }
 
-/* Holds the workspace and the notices that float over its top edge: a notice appearing or being
-   dismissed never moves or resizes anything below it. */
+/* Holds the workspace and the notices that float over it. Notices sit in the top gutter above the
+   cards, centred and compact, so they never move anything and stay clear of the player bar, the
+   save bar and the Live controls at the bottom. */
 .workspaceFrame {
   position: relative;
   display: flex;
@@ -28,9 +29,11 @@
 
 .notices {
   position: absolute;
-  inset-block-end: 0;
-  inset-inline: 0;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
   z-index: 30;
+  width: min(640px, calc(100% - var(--space-5) * 2));
+  transform: translateX(-50%);
   box-shadow: var(--shadow-overlay);
 }
 

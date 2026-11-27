@@ -17,7 +17,6 @@ import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState } from '../Screen.tsx';
 import { SplitLayout } from '../SplitLayout.tsx';
-import { Tooltip } from '../../components/Tooltip.tsx';
 import { FilterSearch, type Origin } from './FilterSearch.tsx';
 import { Highlight } from './highlight.tsx';
 import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
@@ -126,23 +125,19 @@ function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: R
       {playing && <PlayingIndicator className={styles.rowPlaying} />}
     </span>
   );
-  // Reduced motion never scrolls: the full title is in a tooltip instead.
-  const titleLine = prefersReducedMotion() ? (
-    <Tooltip label={meeting.title}>{titleText}</Tooltip>
-  ) : (
-    titleText
-  );
   return (
     <li ref={item} className={styles.row}>
       <button
         type="button"
         className={`${styles.rowMain} ${list.item}`}
         aria-current={selected ? 'true' : undefined}
+        // Reduced motion never scrolls, so the full title is on the focusable row for pointer and keyboard.
+        title={prefersReducedMotion() ? meeting.title : undefined}
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
         {...hotHandlers}
       >
-        {titleLine}
+        {titleText}
         <span className={styles.muted}>
           {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)}
         </span>

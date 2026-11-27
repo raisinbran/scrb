@@ -126,26 +126,6 @@
   inset-block-end: 2.2em;
 }
 
-.filters {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-/* Label on the left, field filling the rest, so a date never has to squeeze into half a column. */
-.filters .field {
-  display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.filters .input {
-  min-width: 0;
-  min-height: var(--control-height);
-  padding-inline: var(--space-2);
-}
-
 .search {
   width: 100%;
   padding: var(--space-1) var(--space-3);

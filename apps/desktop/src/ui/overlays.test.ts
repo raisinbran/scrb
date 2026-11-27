@@ -8,7 +8,11 @@ const rule = (source: string, selector: string) =>
 
 describe('banners never move the content under them', () => {
   it('floats the app-level notices over the workspace', () => {
-    expect(rule(css('shell/AppShell.module.css'), '.notices')).toMatch(/position: absolute/);
+    const notices = rule(css('shell/AppShell.module.css'), '.notices');
+    expect(notices).toMatch(/position: absolute/);
+    // At the top, never the bottom edge where the player, save and Live control bars sit.
+    expect(notices).toMatch(/inset-block-start: 0/);
+    expect(notices).not.toMatch(/inset-block-end/);
   });
 
   it('floats the popup banners, the live notice and the list notes', () => {
