@@ -117,3 +117,13 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Processing banner | One slim row: "Processing final transcript. Text may change." with the stage in muted text and a 2 px progress bar along the bottom edge. The elapsed-time line and its timer are gone |
 | Other banners     | Banner bodies lay out as one row that wraps only when needed, balanced. Shorter wording for the outdated summary and the transcript hint                                               |
 | List title weight | Vocabulary terms, Recordings titles and the Help and Settings group items all use weight 500                                                                                           |
+
+## Owner comments, round 12
+
+| Comment         | Change                                                                                                                                                                              |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live layout     | A header card (title, controls, pickers, two thin meters in the pickers' own height) and a separate transcript card that fills to the sidebar's bottom edge and only scrolls inside |
+| Skip icons      | Thinner ring and a small 15 with space around the digits                                                                                                                            |
+| Player gaps     | The hidden Mute button's wrapper no longer adds a gap; the seek track absorbs spare width                                                                                           |
+| Recordings rows | The progress bar shrinks to stay inside the card; list durations read "8h 0m"                                                                                                       |
+| Location        | Search placeholders on both controls; the existing explanatory sentence fills the note area when no state warning applies                                                           |

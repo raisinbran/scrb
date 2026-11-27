@@ -130,34 +130,36 @@ export function LiveScreen() {
 
   return (
     <div className={styles.live}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Live</h1>
-        <RecordingControls
-          status={status}
-          elapsedMs={recording.elapsedMs}
-          pauseReason={recording.pauseReason}
-          busy={busy}
-          transcribing={isTranscribing(lag)}
-          startBlocked={startBlocked}
-          startBlockedReason={models.startBlockedReason ?? undefined}
-          onStart={start}
-          onPause={pause}
-          onResume={resume}
-          onStop={stop}
-        />
-      </div>
-      <div className={styles.sources}>
-        {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
-        <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
-          <SourcePickers
-            devices={sources.devices}
-            apps={sources.apps}
-            selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
-            switching={switching}
-            onSelect={selectSources}
+      <div className={styles.headCard}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Live</h1>
+          <RecordingControls
+            status={status}
+            elapsedMs={recording.elapsedMs}
+            pauseReason={recording.pauseReason}
+            busy={busy}
+            transcribing={isTranscribing(lag)}
+            startBlocked={startBlocked}
+            startBlockedReason={models.startBlockedReason ?? undefined}
+            onStart={start}
+            onPause={pause}
+            onResume={resume}
+            onStop={stop}
           />
         </div>
-        <LevelMeters active={status === 'recording'} />
+        <div className={styles.sources}>
+          {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
+          <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
+            <SourcePickers
+              devices={sources.devices}
+              apps={sources.apps}
+              selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
+              switching={switching}
+              onSelect={selectSources}
+            />
+          </div>
+          <LevelMeters active={status === 'recording'} />
+        </div>
       </div>
       <div className={styles.alertsSlot}>
         <LiveAlerts

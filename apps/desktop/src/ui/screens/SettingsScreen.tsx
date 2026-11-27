@@ -267,7 +267,11 @@ function SettingsForm({
         <h2 id="settings-location" className={styles.legend}>
           Location for the privacy banner
         </h2>
-        <LocationField value={draft.location} onChange={(location) => change({ location })} />
+        <LocationField
+          value={draft.location}
+          idleNote="Some places have laws about voice data. Scribe builds voice profiles, and this answer decides whether a privacy banner shows when you record."
+          onChange={(location) => change({ location })}
+        />
       </section>
 
       {error && (

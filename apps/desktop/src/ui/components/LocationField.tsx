@@ -52,9 +52,12 @@ const STATE_OPTIONS: SearchOption[] = US_STATES.map((state) => ({
 export function LocationField({
   value,
   onChange,
+  idleNote,
 }: {
   value: Location;
   onChange(location: Location): void;
+  /** Existing explanatory wording to show in the note area when no warning or country note applies. */
+  idleNote?: string;
 }) {
   const noteId = useId();
   // The United States is held here until a state is chosen, so a half answer is never saved.
@@ -69,7 +72,7 @@ export function LocationField({
         Country where you live or most often work
         <SearchSelect
           label="Country"
-          placeholder="Choose…"
+          placeholder="Type to search countries"
           options={COUNTRIES}
           value={country}
           autoFocus
@@ -88,7 +91,7 @@ export function LocationField({
         State
         <SearchSelect
           label="State"
-          placeholder={country === 'US' ? 'Choose…' : 'Only for the United States'}
+          placeholder={country === 'US' ? 'Type to search states' : 'Only for the United States'}
           options={STATE_OPTIONS}
           value={pendingUS ? '' : (value.usState ?? '')}
           disabled={country !== 'US'}
@@ -113,6 +116,7 @@ export function LocationField({
             banner.
           </p>
         )}
+        {!listed && !outside && idleNote && <p className={styles.note}>{idleNote}</p>}
       </div>
     </div>
   );

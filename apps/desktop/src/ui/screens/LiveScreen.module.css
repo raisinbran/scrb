@@ -300,20 +300,31 @@ button:disabled {
 }
 
 /* Tonal preview: Live is one content card on the page tone, like every screen without a list. */
+.headCard {
+  display: contents;
+}
+
+/* Tonal: the page tone shows between two cards. The header card holds the title, controls, pickers
+   and meters; the transcript is its own card below, filling to the sidebar's bottom edge. */
 :global([data-design='tonal']) .live {
   height: calc(100% - var(--space-card-gap) * 2);
   margin: var(--space-card-gap);
-  padding: var(--space-card-pad);
+  padding: 0;
+  gap: var(--space-card-gap);
+}
+
+:global([data-design='tonal']) .headCard {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-card-pad) var(--space-card-pad) 0;
   background: var(--color-card);
   border-radius: var(--radius);
 }
 
 /* Tonal preview: the same layout language as the other screens. Fills instead of borders, one gap,
    and the level meters in the pickers' own row. */
-:global([data-design='tonal']) .live {
-  gap: var(--space-3);
-}
-
 :global([data-design='tonal']) .header {
   padding-inline-end: 0;
 }
@@ -351,13 +362,26 @@ button:disabled {
   transform: none;
 }
 
+/* Two thin meters fit inside the pickers' own height, so every item in the row shares its edges. */
+:global([data-design='tonal']) .levels .meterRow {
+  height: 12px;
+}
+
+:global([data-design='tonal']) .meters {
+  gap: 6px;
+}
+
+:global([data-design='tonal']) .meter {
+  height: 6px;
+}
+
 :global([data-design='tonal']) .meter {
   background: var(--color-card-inset);
 }
 
 :global([data-design='tonal']) .idle {
   padding-block: var(--space-6);
-  background: var(--color-card-inset);
+  background: var(--color-card);
   border-radius: var(--radius);
 }
 
@@ -366,7 +390,33 @@ button:disabled {
   height: auto;
 }
 
+:global([data-design='tonal']) .live:has(.idle) .idle {
+  margin-block-end: 0;
+}
+
 :global([data-design='tonal']) .idle {
   flex: none;
   padding-block: var(--space-4);
+}
+
+/* Tonal: pickers and meters stay on one row at every width; the pickers shrink, the meters do not wrap. */
+:global([data-design='tonal']) .sources {
+  flex-wrap: nowrap;
+}
+
+:global([data-design='tonal']) .pickers {
+  flex: 1;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+:global([data-design='tonal']) .picker {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: 260px;
+}
+
+:global([data-design='tonal']) .levels .meter {
+  width: 88px;
 }

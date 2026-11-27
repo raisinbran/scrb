@@ -1,7 +1,7 @@
 import { Tooltip } from './Tooltip.tsx';
 import styles from './IconButton.module.css';
 
-/** A bold open circular arrow with 15 inside; clockwise skips forward, mirrored skips back. */
+/** A thin open circular arrow with a small 15 inside, with air around the digits; clockwise skips forward, mirrored skips back. */
 export function SkipButton({
   direction,
   disabled,
@@ -25,7 +25,7 @@ export function SkipButton({
           <g
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.4"
+            strokeWidth="1.7"
             strokeLinecap="round"
             strokeLinejoin="round"
             transform={direction === 'back' ? 'translate(24 0) scale(-1 1)' : undefined}
@@ -35,10 +35,10 @@ export function SkipButton({
           </g>
           <text
             x="12"
-            y="16.4"
+            y="15.2"
             textAnchor="middle"
-            fontSize="10"
-            fontWeight="700"
+            fontSize="7.5"
+            fontWeight="600"
             fill="currentColor"
             stroke="none"
           >

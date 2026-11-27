@@ -180,9 +180,8 @@
 .rowProgress {
   position: absolute;
   inset-block-end: calc(var(--space-2) + 7px);
-  inset-inline-start: calc(50% + var(--space-2));
-  width: 56px;
-  max-width: calc(50% - var(--space-card-pad));
+  inset-inline: calc(50% + var(--space-2)) var(--space-3);
+  max-width: 56px;
 }
 
 .emptyPanel {
@@ -861,7 +860,8 @@
 /* Narrower still: Show in transcript becomes an icon, Mute goes, and the time loses its width floor. */
 @media (max-width: 900px) {
   .showText,
-  .muteButton {
+  .muteButton,
+  .player > :has(> .muteButton) {
     display: none;
   }
 

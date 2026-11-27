@@ -245,8 +245,11 @@
 
 /* The same look as the recorded transcript: an inset panel, filled buttons, no borders. */
 :global([data-design='tonal']) .transcript {
-  background: var(--color-card-inset);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-card);
   border: 0;
+  border-radius: var(--radius);
 }
 
 :global([data-design='tonal']) .toolbar {

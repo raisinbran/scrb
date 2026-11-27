@@ -13,7 +13,7 @@ import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
-import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
+import { formatDurationShort, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState } from '../Screen.tsx';
@@ -106,7 +106,7 @@ function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: R
       >
         {titleText}
         <span className={styles.muted}>
-          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)}
+          {formatMeetingWhen(meeting.startedAt)} · {formatDurationShort(meeting.durationMs)}
         </span>
         <span className={styles.rowStatus}>
           <span className={styles.muted}>
