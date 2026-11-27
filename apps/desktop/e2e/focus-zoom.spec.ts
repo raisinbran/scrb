@@ -160,6 +160,13 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(row).toBeFocused();
       await inspectLayout(page, `${zoom}-detail`);
       await expectPanelHeight(page, '[role="tabpanel"]', 200);
+      // The real backend can show the shared-library notice (on Windows). It floats over the top of the
+      // workspace until acknowledged, so at the minimum window and 200% zoom it covers the header
+      // controls this test clicks next. A person dismisses it first, and so does the test.
+      const sharedNotice = page.getByRole('button', {
+        name: 'Dismiss shared library permissions notice',
+      });
+      if (await sharedNotice.isVisible()) await sharedNotice.click();
       const title = page.getByLabel('Meeting title', { exact: true });
       await title.fill(
         'Weekly project sync — invented accessibility fixture with long project and participant labels',
