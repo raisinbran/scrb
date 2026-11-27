@@ -155,16 +155,23 @@ test('keeps minimum-window controls usable at real zoom', async () => {
         await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible({
           timeout: 1_500,
         });
-      }).toPass({ timeout: 15_000 }).catch(async (error) => {
-        // TEMP-DIAG
-        const names = await page.getByRole('button').evaluateAll((els) =>
-          els.map((el) => `${el.getAttribute('aria-label') ?? el.textContent}${(el as HTMLButtonElement).disabled ? '(disabled)' : ''}`),
-        );
-        const alerts = await page.locator('[role="alert"], [role="status"]').allInnerTexts();
-        console.log('DIAG buttons', JSON.stringify(names));
-        console.log('DIAG alerts', JSON.stringify(alerts));
-        throw error;
-      });
+      })
+        .toPass({ timeout: 15_000 })
+        .catch(async (error) => {
+          // TEMP-DIAG
+          const names = await page
+            .getByRole('button')
+            .evaluateAll((els) =>
+              els.map(
+                (el) =>
+                  `${el.getAttribute('aria-label') ?? el.textContent}${(el as HTMLButtonElement).disabled ? '(disabled)' : ''}`,
+              ),
+            );
+          const alerts = await page.locator('[role="alert"], [role="status"]').allInnerTexts();
+          console.log('DIAG buttons', JSON.stringify(names));
+          console.log('DIAG alerts', JSON.stringify(alerts));
+          throw error;
+        });
       await inspectLayout(page, `${zoom}-live-paused`);
       await trigger('stop');
       await page.getByRole('button', { name: 'Recordings', exact: true }).click();
