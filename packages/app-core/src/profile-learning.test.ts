@@ -1,10 +1,13 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Library } from '@scrb/storage';
 import { minProfileSegments, renameLearning, silentGrowCosine } from './profile-learning.ts';
 import { APPROVED_PROFILE_MODEL } from './profile-matching.ts';
+
+// Each test opens a real SQLite library; on windows-latest that takes 6-8 s against the 5 s default (storage tests run ~15x slower there).
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 const vec = (...v: number[]): Float32Array => Float32Array.from(v);
 /** A unit vector at a set cosine to (1, 0, 0). */
