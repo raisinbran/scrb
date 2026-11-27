@@ -13,6 +13,7 @@ import { Modal } from './Modal.tsx';
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
+import { MeetingSpeakersTab } from '../speakers/MeetingSpeakers.tsx';
 import {
   EDITOR_MARK,
   TranscriptTab,
@@ -34,7 +35,7 @@ import { nextRate, rateLabel } from '../../lib/playback-level.ts';
 import styles from './recordings.module.css';
 
 const TAB_KEY = 'scrb.recordings.tab';
-const TABS = ['Transcript', 'Summary', 'Audio'] as const;
+const TABS = ['Transcript', 'Summary', 'Speakers', 'Audio'] as const;
 type Tab = (typeof TABS)[number];
 const SKIP_MS = 15_000;
 const MIN_FONT_PX = 11;
@@ -876,6 +877,7 @@ function LoadedDetail(props: LoadedDetailProps) {
             onPlay={playback.play}
           />
         )}
+        {tab === 'Speakers' && <MeetingSpeakersTab meetingId={meetingId} onChanged={onChanged} />}
         {tab === 'Audio' && <AudioTab meeting={meeting} onOpenAudio={() => openFolder('audio')} />}
       </div>
 

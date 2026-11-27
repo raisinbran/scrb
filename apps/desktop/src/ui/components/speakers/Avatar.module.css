@@ -1,0 +1,24 @@
+/* A round initial, the contacts-style marker for a voice. Fixed size so rows never shift. */
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-card-inset);
+  border-radius: 50%;
+}
+
+.large {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-xl);
+}
+
+/* On a card-inset surface the avatar steps to the page tone so it stays visible. */
+.onInset {
+  background: var(--color-page);
+}
