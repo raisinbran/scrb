@@ -581,7 +581,10 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
   return (
     <section className={styles.transcript} aria-label="Transcript">
       <div className={styles.toolbar}>
-        <IconButton label="Text styles" tip={STYLE_HELP} icon="info" />
+        <div className={styles.heading}>
+          <h2 className={styles.title}>Live transcript</h2>
+          <IconButton label="Text styles" tip={STYLE_HELP} icon="info" />
+        </div>
         {playback.positionMs !== null && (
           <span className={styles.playing} role="status">
             Playing {formatElapsed(playback.positionMs)}
@@ -592,24 +595,9 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
         )}
         <div className={styles.tools}>
           <IconButton
-            label="Undo"
-            icon="undo"
-            className={styles.toolIcon}
-            disabled={!undoState.canUndo}
-            onClick={undoState.undo}
-          />
-          <IconButton
-            label="Redo"
-            icon="redo"
-            className={styles.toolIcon}
-            disabled={!undoState.canRedo}
-            onClick={undoState.redo}
-          />
-          <IconButton
             label="Smaller transcript text"
             tip="Decrease text size"
             icon="textSmaller"
-            className={styles.toolIcon}
             disabled={fontPx <= MIN_FONT_PX}
             onClick={() => onFontChange(fontPx - 1)}
           />
@@ -617,7 +605,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             label="Larger transcript text"
             tip="Increase text size"
             icon="textLarger"
-            className={styles.toolIcon}
             disabled={fontPx >= MAX_FONT_PX}
             onClick={() => onFontChange(fontPx + 1)}
           />
@@ -679,11 +666,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
         <p className={styles.srOnly} role="status">
           {cursorWord ? `${cursorWord.text}, ${formatElapsed(cursorWord.startMs)}` : ''}
         </p>
-        {!following && (
-          <button type="button" className={styles.jump} onClick={jumpToLive}>
-            Jump to Live
-          </button>
-        )}
         {menu && (
           <ContextMenu
             label="Transcript actions"
@@ -705,6 +687,16 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             onCancel={closeEditor}
           />
         )}
+      </div>
+      <div className={styles.footer}>
+        <button
+          type="button"
+          className={styles.jump}
+          aria-disabled={following ? true : undefined}
+          onClick={following ? undefined : jumpToLive}
+        >
+          Jump to Live
+        </button>
       </div>
     </section>
   );

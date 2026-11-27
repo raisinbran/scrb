@@ -1,3 +1,4 @@
+import { chooseOption } from './choose-option.ts';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -194,6 +195,16 @@ describe('shared components', () => {
   });
 
   describe('LocationField', () => {
+    it('keeps the state control in place but disabled outside the United States', () => {
+      wrap(
+        backend,
+        <LocationField value={{ country: 'CA', usState: null }} onChange={() => undefined} />,
+      );
+      expect((screen.getByRole('combobox', { name: 'State' }) as HTMLInputElement).disabled).toBe(
+        true,
+      );
+    });
+
     it('warns directly under a listed state and not under others', () => {
       const location = { country: 'US', usState: 'IL' };
       const { rerender } = wrap(
@@ -209,17 +220,21 @@ describe('shared components', () => {
       expect(screen.queryByRole('status')).toBeNull();
     });
 
-    it('delegates a location outside the US to the operating-system country', () => {
+    it('saves a chosen country, or the operating-system country when not listed', async () => {
       const onChange = vi.fn();
       wrap(backend, <LocationField value={{ country: null, usState: null }} onChange={onChange} />);
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'outside' } });
+      await chooseOption('Country', "Not listed (use this computer's country)");
       expect(onChange).toHaveBeenCalledWith({ country: 'ZZ', usState: null });
+      await chooseOption('Country', 'Canada');
+      expect(onChange).toHaveBeenLastCalledWith({ country: 'CA', usState: null });
     });
 
-    it('reports a chosen state with its country', () => {
+    it('reports a chosen state with its country only once a state is chosen', async () => {
       const onChange = vi.fn();
       wrap(backend, <LocationField value={{ country: null, usState: null }} onChange={onChange} />);
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'TX' } });
+      await chooseOption('Country', 'United States');
+      expect(onChange).not.toHaveBeenCalled();
+      await chooseOption('State', 'Texas');
       expect(onChange).toHaveBeenCalledWith({ country: 'US', usState: 'TX' });
     });
   });
@@ -240,7 +255,9 @@ describe('shared components', () => {
       expect(screen.getByRole('dialog')).toBeTruthy();
       const next = screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
       expect(next.disabled).toBe(true);
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'IL' } });
+      await chooseOption('Country', 'United States');
+      expect(next.disabled).toBe(true);
+      await chooseOption('State', 'Illinois');
       fireEvent.click(next);
       await vi.waitFor(() => expect(onAnswered).toHaveBeenCalled());
       const settings = await backend.call('getSettings');

@@ -1,6 +1,7 @@
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import { Button } from '../../components/Button.tsx';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useReducer, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type {
   ActionItem,
@@ -420,6 +421,9 @@ interface SummaryTabProps {
   onPlay(ms: number): void;
 }
 
+/** Meetings whose outdated-summary banner was dismissed; it stays gone until the app restarts. */
+const outdatedDismissals = new Set<string>();
+
 export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: SummaryTabProps) {
   const backend = useBackend();
   const openModels = useOpenModels();
@@ -432,6 +436,15 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
   const { state: setupState } = useBackendData(loadSetupStatus);
   const [length, setLength] = useState(defaultLength);
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
+  const summaryNoticesOn = useNotificationEnabled('summary');
+  const [, bumpOutdated] = useReducer((count: number) => count + 1, 0);
+  const outdatedDismissed = outdatedDismissals.has(meetingId);
+  const dismissOutdated = () => {
+    outdatedDismissals.add(meetingId);
+    bumpOutdated();
+    noteOptionalDismiss();
+  };
+  const pausedNoticesOn = useNotificationEnabled('paused');
   const [saved, setSaved] = useState<MeetingSummaryDoc | null>(null);
   const [progress, setProgress] = useState<SummaryProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -546,11 +559,11 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
           const sections = doc.narrative[length];
           const banners = (
             <>
-              {doc.state === 'outdated' && (
-                <PopupBanner level="warning">
+              {doc.state === 'outdated' && summaryNoticesOn && !outdatedDismissed && (
+                <PopupBanner level="warning" onDismiss={dismissOutdated}>
                   <p>
                     {doc.outdatedByReprocess
-                      ? 'This transcript was recently re-processed. This summary may be outdated. Recommend generating the summary again.'
+                      ? 'Transcript was re-processed. The summary may be outdated.'
                       : 'May be outdated — regenerate?'}
                   </p>
                   <div>
@@ -566,11 +579,15 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
               )}
               {doc.warnings
                 .filter((warning) => !dismissedWarnings.includes(warning))
+                .filter((warning) => (/\bpaused\b/i.test(warning) ? pausedNoticesOn : true))
                 .map((warning) => (
                   <PopupBanner
                     key={warning}
                     level="warning"
-                    onDismiss={() => setDismissedWarnings([...dismissedWarnings, warning])}
+                    onDismiss={() => {
+                      setDismissedWarnings([...dismissedWarnings, warning]);
+                      if (/\bpaused\b/i.test(warning)) noteOptionalDismiss();
+                    }}
                   >
                     <p>{warning}</p>
                   </PopupBanner>
@@ -579,11 +596,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
           );
           return (
             <>
-              {popupSlot ? (
-                createPortal(banners, popupSlot)
-              ) : (
-                <PopupLayer inline>{banners}</PopupLayer>
-              )}
+              {popupSlot ? createPortal(banners, popupSlot) : <PopupLayer>{banners}</PopupLayer>}
               <div className={styles.summaryBar}>
                 <LengthToggle length={length} onChange={setLength} />
                 {doc.state === 'edited' && <span className={styles.badge}>Edited</span>}

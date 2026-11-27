@@ -397,7 +397,9 @@ describe('final pass after Stop', () => {
   it('reports a meeting busy until the pass and matching finish', async () => {
     const { id } = await sealedMeeting();
     let release: () => void = () => undefined;
+    let started = false;
     const matching = async () => {
+      started = true;
       await new Promise<void>((resolve) => (release = resolve));
       return undefined;
     };
@@ -411,6 +413,8 @@ describe('final pass after Stop', () => {
     queue.enqueue(id);
     expect(queue.isBusy(id)).toBe(true);
     await vi.waitFor(async () => expect((await library.getMeeting(id)).status).toBe('ready'));
+    // Matching starts after the status flips; releasing earlier would be lost and hang the queue.
+    await vi.waitFor(() => expect(started).toBe(true));
     expect(queue.isBusy(id)).toBe(true);
     release();
     await queue.idle();

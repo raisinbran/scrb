@@ -1,0 +1,36 @@
+/* The look every list-style menu row shares (Settings groups, the Recordings list): reset list,
+   a row with the control radius, a soft hover and a selected tint. Callers add their own content
+   layout; padding and radius come from here so rows match across screens. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.item:hover:not(:disabled) {
+  background: var(--color-card-inset);
+}
+
+.item[aria-current='true'] {
+  background: var(--color-page);
+}
+
+.item:disabled {
+  cursor: default;
+}

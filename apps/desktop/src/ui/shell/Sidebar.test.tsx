@@ -48,7 +48,13 @@ describe('Recordings disc', () => {
     await act(async () => {
       render(
         <BackendProvider backend={f.backend}>
-          <Sidebar selected="live" onSelect={() => undefined} />
+          <Sidebar
+            selected="live"
+            onSelect={() => undefined}
+            collapsed={false}
+            canToggle
+            onToggle={() => undefined}
+          />
         </BackendProvider>,
       );
     });
@@ -66,7 +72,13 @@ describe('Recordings disc', () => {
     await act(async () => {
       render(
         <BackendProvider backend={f.backend}>
-          <Sidebar selected="live" onSelect={() => undefined} />
+          <Sidebar
+            selected="live"
+            onSelect={() => undefined}
+            collapsed={false}
+            canToggle
+            onToggle={() => undefined}
+          />
         </BackendProvider>,
       );
     });
@@ -81,7 +93,13 @@ describe('Recordings disc', () => {
     await act(async () => {
       render(
         <BackendProvider backend={mixed.backend} processingBackend={real.backend}>
-          <Sidebar selected="settings" onSelect={() => undefined} />
+          <Sidebar
+            selected="settings"
+            onSelect={() => undefined}
+            collapsed={false}
+            canToggle
+            onToggle={() => undefined}
+          />
         </BackendProvider>,
       );
     });
@@ -117,7 +135,7 @@ describe('Sidebar footer buttons', () => {
     const rule = (selector: string) =>
       css.match(new RegExp(`${selector.replace(/[.[\]'=()]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
     expect(rule('.iconButton')).toMatch(/border: 0/);
-    expect(rule('.iconButton')).toMatch(/border-radius: var\(--radius\)/);
+    expect(rule('.iconButton')).toMatch(/border-radius: var\(--radius-control\)/);
     expect(rule('.iconButton')).toMatch(/text-decoration: none/);
     expect(rule('.iconButton')).toMatch(/box-shadow: none/);
     expect(css).toMatch(/\.iconButton:focus:not\(:focus-visible\)\s*\{\s*outline: none/);
@@ -125,5 +143,31 @@ describe('Sidebar footer buttons', () => {
     expect(css).toMatch(
       /\.iconButton\[aria-current='page'\],\s*\.iconButton\[aria-expanded='true'\] \{[^}]*--color-surface-selected/,
     );
+  });
+});
+
+describe('Collapse toggle', () => {
+  it('keeps every item named while icons only, and the toggle says what it does', async () => {
+    const f = fake([]);
+    let toggled = 0;
+    await act(async () => {
+      render(
+        <BackendProvider backend={f.backend}>
+          <Sidebar
+            selected="live"
+            onSelect={() => undefined}
+            collapsed
+            canToggle={false}
+            onToggle={() => (toggled += 1)}
+          />
+        </BackendProvider>,
+      );
+    });
+    for (const name of ['Live', 'Recordings', 'Speakers', 'Vocabulary', 'Settings', 'Help']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+    }
+    const toggle = screen.getByRole('button', { name: 'Expand sidebar' }) as HTMLButtonElement;
+    expect(toggle.disabled).toBe(true);
+    expect(toggled).toBe(0);
   });
 });

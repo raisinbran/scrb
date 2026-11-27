@@ -491,8 +491,8 @@ describe('MiniRecording', () => {
     const css = readFileSync(path.resolve(__dirname, 'MiniRecording.module.css'), 'utf8');
     const tokens = readFileSync(path.resolve(__dirname, '../theme/tokens.css'), 'utf8');
     const used = new Set(css.match(/var\(--radius[\w-]*\)/g));
-    expect([...used]).toEqual(['var(--radius)']);
-    expect(tokens).toMatch(/--radius:/);
+    expect([...used].sort()).toEqual(['var(--radius-control)']);
+    expect(tokens).toMatch(/--radius-control:/);
     expect(css).not.toMatch(/border-radius: \d+px/);
   });
 });

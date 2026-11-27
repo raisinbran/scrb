@@ -64,6 +64,33 @@ describe('settings handlers', () => {
     expect(store.getAutoDelete()).toEqual({ period: '90d', scope: 'meeting' });
   });
 
+  it.each([
+    ['never', 'audioOnly', 'audio'],
+    ['never', 'wholeMeeting', 'meeting'],
+    ['30d', 'audioOnly', 'audio'],
+    ['30d', 'wholeMeeting', 'meeting'],
+    ['90d', 'audioOnly', 'audio'],
+    ['90d', 'wholeMeeting', 'meeting'],
+    ['180d', 'audioOnly', 'audio'],
+    ['180d', 'wholeMeeting', 'meeting'],
+    ['1y', 'audioOnly', 'audio'],
+    ['1y', 'wholeMeeting', 'meeting'],
+  ] as const)(
+    'round-trips auto-delete %s / %s through the backend setting (%s)',
+    (period, scope, storedScope) => {
+      const store = memoryStore();
+      const handlers = createSettingsHandlers(store, '/lib');
+      const updated = handlers.updateSettings({ autoDelete: { period, scope } });
+
+      expect(updated.autoDelete).toEqual({ period, scope });
+      expect(store.getAutoDelete()).toEqual({ period, scope: storedScope });
+      expect(createSettingsHandlers(store, '/lib').getSettings().autoDelete).toEqual({
+        period,
+        scope,
+      });
+    },
+  );
+
   it('never moves the library through a settings change', () => {
     const { updateSettings } = createSettingsHandlers(memoryStore(), '/lib');
     expect(updateSettings({ storageLocation: '/elsewhere' }).storageLocation).toBe('/lib');

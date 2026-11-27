@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -101,7 +102,9 @@ const walk = (root: string, base = root): string[] =>
 
 const newUserData = (prefix: string) => {
   const userData = mkdtempSync(join(tmpdir(), prefix));
-  const root = join(userData, 'library');
+  const libraryParent = mkdtempSync(join(tmpdir(), `${prefix}library-`));
+  const root = join(libraryParent, 'library');
+  mkdirSync(root, { recursive: true });
   writeFileSync(join(userData, 'library-location.json'), JSON.stringify({ root }));
   return { userData, root };
 };
@@ -114,7 +117,10 @@ test.describe('Gate 7 walkthrough', () => {
     const wav = join(userData, 'gate7 invented talk.wav');
     makeSpeech(userData, wav);
 
-    const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`] });
+    const app = await electron.launch({
+      args: ['.', '--scrb-isolated-test-profile', `--user-data-dir=${userData}`],
+      env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
+    });
     try {
       await app.evaluate(({ dialog }, path) => {
         dialog.showOpenDialog = (async () => ({
@@ -123,6 +129,17 @@ test.describe('Gate 7 walkthrough', () => {
         })) as unknown as typeof dialog.showOpenDialog;
       }, wav);
       const page = await app.firstWindow();
+      await expect.poll(() => page.evaluate(() => Boolean(window.scribeBridge))).toBe(true);
+      const selected = await page.evaluate(() =>
+        window.scribeBridge?.invoke('getSettings', undefined),
+      );
+      expect(selected).toMatchObject({
+        ok: true,
+        value: { storageLocation: realpathSync(root) },
+      });
+      expect(
+        await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {})),
+      ).toMatchObject({ ok: true, value: [] });
       await page.evaluate(() =>
         window.scribeBridge?.invoke('updateSettings', {
           location: { country: 'US', usState: 'NY' },
@@ -248,7 +265,7 @@ test.describe('Gate 7 walkthrough', () => {
 
   test('auto-delete removes exactly the chosen data', async () => {
     test.setTimeout(240_000);
-    const { root } = newUserData('scrb-gate7-auto-');
+    const { userData, root } = newUserData('scrb-gate7-auto-');
     const old = new Date(Date.now() - 200 * 86_400_000);
     const seeded = async (now: () => Date, title: string, word: string) => {
       const library = await Library.open({ root, now });
@@ -300,13 +317,22 @@ test.describe('Gate 7 walkthrough', () => {
     await oldB.library.close();
     const fresh = await seeded(() => new Date(), 'Fresh charlie', 'marmoset');
     const ids = { a: oldA.id, b: oldB.id, c: fresh.id };
+    expect(
+      fresh.library
+        .listMeetings()
+        .map((meeting) => meeting.id)
+        .sort(),
+    ).toEqual(Object.values(ids).sort());
     const snapshot = (folder: string) => walk(folder).sort();
     const beforeFresh = snapshot(fresh.folder);
     const beforeOldA = snapshot(oldA.folder);
     await fresh.library.close();
 
     const launch = async () =>
-      electron.launch({ args: ['.', `--user-data-dir=${join(root, '..')}`] });
+      electron.launch({
+        args: ['.', '--scrb-isolated-test-profile', `--user-data-dir=${userData}`],
+        env: { ...process.env, SCRB_DEV_AUTO_LOCATION: '1' },
+      });
     // A sweep removes the folder first and the index rows and audioDeletedAt last, and handles the
     // meetings one after another, so wait for the last step of every old meeting, not the first.
     const settle = async (app: ElectronApplication, done: () => boolean | Promise<boolean>) => {
@@ -317,11 +343,26 @@ test.describe('Gate 7 walkthrough', () => {
     // Round 1: delete audio only.
     let app = await launch();
     try {
-      await settle(app, () =>
-        [oldA, oldB].every(
-          (old) => JSON.parse(readFileSync(old.paths.meta, 'utf8')).audioDeletedAt !== null,
-        ),
+      const page = await app.firstWindow();
+      await expect.poll(() => page.evaluate(() => Boolean(window.scribeBridge))).toBe(true);
+      const selected = await page.evaluate(() =>
+        window.scribeBridge?.invoke('getSettings', undefined),
       );
+      expect(selected).toMatchObject({
+        ok: true,
+        value: { storageLocation: realpathSync(root) },
+      });
+      const listed = await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {}));
+      expect(JSON.stringify(listed)).toContain(ids.a);
+      expect(JSON.stringify(listed)).toContain(ids.b);
+      expect(JSON.stringify(listed)).toContain(ids.c);
+      await expect
+        .poll(() =>
+          [oldA, oldB].every(
+            (old) => JSON.parse(readFileSync(old.paths.meta, 'utf8')).audioDeletedAt !== null,
+          ),
+        )
+        .toBe(true);
     } finally {
       await app.close();
     }
@@ -346,6 +387,14 @@ test.describe('Gate 7 walkthrough', () => {
     app = await launch();
     try {
       const page = await app.firstWindow();
+      await expect.poll(() => page.evaluate(() => Boolean(window.scribeBridge))).toBe(true);
+      const selected = await page.evaluate(() =>
+        window.scribeBridge?.invoke('getSettings', undefined),
+      );
+      expect(selected).toMatchObject({
+        ok: true,
+        value: { storageLocation: realpathSync(root) },
+      });
       await settle(app, async () => {
         const listed = JSON.stringify(
           await page.evaluate(() => window.scribeBridge?.invoke('listMeetings', {})),

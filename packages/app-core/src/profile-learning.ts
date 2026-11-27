@@ -1,4 +1,4 @@
-import type { RenameLearning, VoiceProfile } from '@scrb/storage';
+import { CorrectionConflictError, type RenameLearning, type VoiceProfile } from '@scrb/storage';
 import { APPROVED_PROFILE_MODEL } from './profile-matching.ts';
 
 /** A hand rename grows an existing same-name profile silently only at or above this cosine. */
@@ -37,6 +37,14 @@ export function renameLearning(options: { acceptProfileId?: string } = {}): Rena
     const name = rawName.trim();
     const none = { unlink: false, target: null };
     if (name === '' || DEFAULT_LABEL.test(name) || name.toLowerCase() === 'you') return none;
+    // The accepted profile may have been deleted or merged since the owner was asked: never
+    // fall through to creating a new profile under its old name.
+    if (
+      options.acceptProfileId !== undefined &&
+      !profiles.some((profile) => profile.id === options.acceptProfileId)
+    ) {
+      throw new CorrectionConflictError('That voice profile no longer exists.');
+    }
     // Renaming away from the linked profile's name cuts the link, whatever the voice data says.
     const unlink = linked !== null && !sameName(linked.name, name);
     if (
@@ -67,6 +75,7 @@ export function renameLearning(options: { acceptProfileId?: string } = {}): Rena
     ) {
       return { unlink: false, target: { profileId: best.profile.id } };
     }
+    if (options.acceptProfileId !== undefined) return { unlink: false, target: null };
     return { unlink, target: { create: name } };
   };
 }

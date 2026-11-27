@@ -26,12 +26,13 @@
 }
 
 .toolButton {
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .toolButton:hover:not(:disabled) {
@@ -44,13 +45,14 @@
 }
 
 .primaryButton {
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-on-accent);
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .primaryButton:disabled {
@@ -119,7 +121,7 @@
 
 .word {
   cursor: text;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .word[data-state='provisional'] {
@@ -159,19 +161,43 @@
   color: var(--color-text-muted);
 }
 
+.heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+/* A fixed strip under the text, so the button is always there and nothing moves when it enables. */
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
 .jump {
-  position: absolute;
-  inset-block-end: var(--space-3);
-  inset-inline-start: 50%;
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-on-accent);
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-overlay);
-  transform: translateX(-50%);
+  border-radius: var(--radius-control);
+}
+
+.jump[aria-disabled='true'] {
+  color: var(--color-text-muted);
+  background: var(--color-control);
+  border-color: transparent;
+  opacity: 0.6;
 }
 
 .editor {
@@ -201,7 +227,7 @@
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .editorCheck {
@@ -231,14 +257,37 @@
   white-space: nowrap;
 }
 
-.toolbar .toolIcon {
-  width: 26px;
-  height: 26px;
-}
-
 /* The tooltip behind the info button: one sample line per style, each in that style. */
 .styleHelp {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+/* The same look as the recorded transcript: an inset panel, filled buttons, no borders. */
+:global([data-design='tonal']) .transcript {
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-card);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+:global([data-design='tonal']) .toolbar {
+  padding: var(--space-2) var(--space-card-pad);
+  border-bottom: 0;
+}
+
+:global([data-design='tonal']) .toolButton {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .toolButton:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+:global([data-design='tonal']) .footer {
+  padding: var(--space-2) var(--space-card-pad);
+  border-top: 0;
 }

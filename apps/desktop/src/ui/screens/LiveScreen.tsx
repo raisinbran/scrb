@@ -9,6 +9,8 @@ import { formatFileSize } from '../lib/format.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
+import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
+import { TeachingToast } from '../components/TeachingToast.tsx';
 import { LiveAlerts } from './live/LiveAlerts.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
@@ -129,34 +131,36 @@ export function LiveScreen() {
 
   return (
     <div className={styles.live}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Live</h1>
-        <RecordingControls
-          status={status}
-          elapsedMs={recording.elapsedMs}
-          pauseReason={recording.pauseReason}
-          busy={busy}
-          transcribing={isTranscribing(lag)}
-          startBlocked={startBlocked}
-          startBlockedReason={models.startBlockedReason ?? undefined}
-          onStart={start}
-          onPause={pause}
-          onResume={resume}
-          onStop={stop}
-        />
-      </div>
-      <div className={styles.sources}>
-        {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
-        <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
-          <SourcePickers
-            devices={sources.devices}
-            apps={sources.apps}
-            selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
-            switching={switching}
-            onSelect={selectSources}
+      <div className={styles.headCard}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Live</h1>
+          <RecordingControls
+            status={status}
+            elapsedMs={recording.elapsedMs}
+            pauseReason={recording.pauseReason}
+            busy={busy}
+            transcribing={isTranscribing(lag)}
+            startBlocked={startBlocked}
+            startBlockedReason={models.startBlockedReason ?? undefined}
+            onStart={start}
+            onPause={pause}
+            onResume={resume}
+            onStop={stop}
           />
         </div>
-        <LevelMeters active={status === 'recording'} />
+        <div className={styles.sources}>
+          {/* Until the lists arrive the pickers take their final room but stay invisible, so nothing moves. */}
+          <div className={selection && sourcesReady ? undefined : styles.pickersPending}>
+            <SourcePickers
+              devices={sources.devices}
+              apps={sources.apps}
+              selection={selection ?? { micDeviceId: null, meetingAppId: WHOLE_COMPUTER_SOURCE_ID }}
+              switching={switching}
+              onSelect={selectSources}
+            />
+          </div>
+          <LevelMeters active={status === 'recording'} />
+        </div>
       </div>
       <div className={styles.alertsSlot}>
         <LiveAlerts
@@ -170,10 +174,15 @@ export function LiveScreen() {
             setDevice(null);
           }}
           onDismissDevice={() => setDevice(null)}
-        />
+        >
+          <PrivacyBanner />
+          <TeachingToast />
+        </LiveAlerts>
       </div>
       {status === 'idle' && lastMeetingId && (
-        <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
+        <div className={styles.alertsSlot}>
+          <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
+        </div>
       )}
       {meetingId ? (
         <TranscriptView

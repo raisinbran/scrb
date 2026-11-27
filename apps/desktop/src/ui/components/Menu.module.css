@@ -17,7 +17,7 @@
   text-align: start;
   background: none;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .item:hover,

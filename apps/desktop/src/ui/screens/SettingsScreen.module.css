@@ -1,5 +1,6 @@
 .section {
   min-width: 0;
+  scroll-margin-block-start: var(--space-3);
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface-sidebar);
@@ -14,11 +15,16 @@
   font-weight: 600;
 }
 
+.themeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
 .option {
   display: inline-flex;
   gap: var(--space-1);
   align-items: center;
-  margin-inline-end: var(--space-4);
 }
 
 .fields {
@@ -42,7 +48,7 @@
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .group {
@@ -62,6 +68,13 @@
   align-items: flex-start;
   padding: var(--space-1) 0;
   font-weight: 400;
+}
+
+.notifyList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-1) var(--space-5);
+  margin-block: var(--space-2);
 }
 
 .toggles {
@@ -170,7 +183,11 @@
   inset-block-end: var(--space-3);
   z-index: 20;
   height: 0;
-  /* Reserved whether or not the bar shows, so the last section is never covered. */
+  margin-block-end: 0;
+}
+
+/* Room under the last section only while the bar shows, so it never covers it. */
+.saveDock[data-open='true'] {
   margin-block-end: 56px;
 }
 
@@ -193,7 +210,7 @@
 .check:has(input:disabled),
 .field:has(select:disabled) {
   opacity: 0.55;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .legendRow {
@@ -206,87 +223,42 @@
   margin: 0 0 var(--space-3);
 }
 
-/* The screen is wider than the others: a group list on the left, the settings on the right. */
-.screenWide {
-  max-width: 1100px;
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
+/* The content column of the shared split layout; the group list is in the second column. */
 .groups {
   min-width: 0;
-  max-width: 800px;
 }
 
-.nav {
-  position: sticky;
-  inset-block-start: var(--space-3);
-}
-
-.navList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+button.navItem {
+  min-height: 28px;
+  padding-block: var(--space-1);
 }
 
 .navItem {
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  font: inherit;
-  text-align: start;
+  font-weight: 500;
   color: var(--color-text-muted);
-  background: none;
-  border: 0;
-  border-inline-start: 3px solid transparent;
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
-.navItem:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
+.navItem:hover,
 .navItem[aria-current='true'] {
-  font-weight: 600;
   color: var(--color-text);
-  background: var(--color-surface-selected);
-  border-inline-start-color: var(--color-accent);
 }
 
-/* Narrow windows: the list becomes a row across the top. */
-@media (max-width: 760px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
-  }
+:global([data-design='tonal']) .section {
+  padding: var(--space-card-pad);
+  margin-block-end: var(--space-card-gap);
+  background: var(--color-card);
+  border: 0;
+}
 
-  .nav {
-    z-index: 10;
-    inset-block-start: 0;
-    padding-block: var(--space-1);
-    background: var(--color-surface);
-  }
+:global([data-design='tonal']) .legend {
+  font-size: var(--text-lg);
+}
 
-  .navList {
-    flex-flow: row wrap;
-  }
+:global([data-design='tonal']) .saveBar {
+  border: 0;
+}
 
-  .navItem {
-    width: auto;
-    border-inline-start: 0;
-    border-block-end: 3px solid transparent;
-  }
-
-  .navItem[aria-current='true'] {
-    border-block-end-color: var(--color-accent);
-  }
+:global([data-design='tonal']) .slider input {
+  flex: 0 1 220px;
+  min-width: 0;
 }

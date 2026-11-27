@@ -12,7 +12,30 @@
 
 .sidebar {
   flex: none;
+  /* Fixed: the narrowest width at which every tab label still fits. */
+  width: 160px;
   min-height: 0;
+}
+
+/* Holds the workspace and the notices that float over it. Notices sit in the top gutter above the
+   cards, centred and compact, so they never move anything and stay clear of the player bar, the
+   save bar and the Live controls at the bottom. */
+.workspaceFrame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.notices {
+  composes: stack from '../components/Banner.module.css';
+  inset-block-start: var(--space-1);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.notices > * {
+  pointer-events: auto;
 }
 
 /* A column, so the zero-size wrapper of the corner button never adds an empty line above a screen. */
@@ -24,4 +47,29 @@
   min-width: 0;
   overflow-y: auto;
   background: var(--color-surface);
+}
+
+:global([data-design='tonal']) .sidebar {
+  width: 140px;
+}
+
+.sidebarCollapsed,
+:global([data-design='tonal']) .sidebarCollapsed {
+  width: 52px;
+}
+
+:global([data-design='tonal']) .workspace {
+  background: var(--color-page);
+}
+
+/* Trial: the sidebar floats as a card on the page tone, with the same gutter as the other panels. */
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebar {
+  box-sizing: border-box;
+  width: calc(140px + var(--space-card-gap));
+  padding: var(--space-card-gap) 0 var(--space-card-gap) var(--space-card-gap);
+  background: var(--color-page);
+}
+
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebarCollapsed {
+  width: calc(52px + var(--space-card-gap));
 }

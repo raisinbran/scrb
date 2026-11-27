@@ -290,7 +290,10 @@ export async function openBackend(
             library,
             createFinalPassRunner(finalPassConfig, () => plan().finalThreads),
             modelGate,
-            undefined,
+            (store) =>
+              startProfileMatching(store, undefined, (suggestion) =>
+                emit('speakerSuggestion', suggestion),
+              ),
             (before, after) => publishEdit(before, after, emit),
             (report) => emit('finalPassProgress', report),
             (meetingId) => titles.enqueue(meetingId),
@@ -376,7 +379,9 @@ export async function openBackend(
           },
           run: createConfiguredImportRunner(finalPassConfig),
           startMatching: (store) => {
-            const match = startProfileMatching(store);
+            const match = startProfileMatching(store, undefined, (suggestion) =>
+              emit('speakerSuggestion', suggestion),
+            );
             return async (...args) => {
               const edit = await match(...args);
               if (edit) {

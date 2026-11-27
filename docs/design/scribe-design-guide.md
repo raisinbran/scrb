@@ -45,26 +45,27 @@ When unsure, do less and match what exists. A plain screen that matches beats a 
 
 All values live only in `tokens.css`. A test fails any `#hex`, `rgb()` or `hsl()` in any other `.css` or `.tsx` under `ui/` (SVG path data is exempt).
 
-| Token                                       | Use                                                                      | Do not use for                   |
-| ------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------- |
-| `--color-app`                               | Window frame behind everything                                           | Panels                           |
-| `--color-surface`                           | Main workspace, inputs                                                   | Raised cards                     |
-| `--color-surface-sidebar`                   | Sidebar, Settings section boxes                                          | Workspace                        |
-| `--color-surface-raised`                    | Dialogs, popups, tooltips, save bar                                      | Page background                  |
-| `--color-surface-hover`                     | Hover fill                                                               | Selected state                   |
-| `--color-surface-selected`                  | Selected tab or item, meter track                                        | Hover                            |
-| `--color-border`                            | Every 1px border and divider                                             | Text                             |
-| `--color-text`                              | Body and headings                                                        | Hints                            |
-| `--color-text-muted`                        | Hints, secondary lines, inactive items                                   | Anything that must be read first |
-| `--color-word-idle`, `--color-word-current` | Transcript word states                                                   | Other text                       |
-| `--color-accent`, `--color-on-accent`       | Primary button, focus-adjacent emphasis, checkbox colour; text on accent | Status                           |
-| `--color-focus`                             | Focus ring only                                                          | Decoration                       |
-| `--color-recording`                         | Recording only                                                           | Errors                           |
-| `--color-paused`, `--color-warning`         | Paused, warnings                                                         | Errors                           |
-| `--color-ok`                                | Success, level meter fill                                                | Neutral info                     |
-| `--color-danger`                            | Errors, destructive actions                                              | Warnings                         |
-| `--color-backdrop`                          | Behind modal dialogs                                                     | Anything else                    |
-| `--shadow-overlay`                          | Dialogs, popups, tooltips, save bar                                      | Flat panels                      |
+| Token                                                | Use                                                                                         | Do not use for                   |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
+| `--color-app`                                        | Window frame behind everything                                                              | Panels                           |
+| `--color-surface`                                    | Main workspace, inputs                                                                      | Raised cards                     |
+| `--color-surface-sidebar`                            | Sidebar, Settings section boxes                                                             | Workspace                        |
+| `--color-surface-raised`                             | Dialogs, popups, tooltips, save bar                                                         | Page background                  |
+| `--color-surface-hover`                              | Hover fill                                                                                  | Selected state                   |
+| `--color-surface-selected`                           | Selected tab or item, meter track                                                           | Hover                            |
+| `--color-page`, `--color-card`, `--color-card-inset` | Tonal preview only: backdrop, card, and the step inside a card (tab bar, selected nav item) | Dialogs and popups               |
+| `--color-border`                                     | Every 1px border and divider                                                                | Text                             |
+| `--color-text`                                       | Body and headings                                                                           | Hints                            |
+| `--color-text-muted`                                 | Hints, secondary lines, inactive items                                                      | Anything that must be read first |
+| `--color-word-idle`, `--color-word-current`          | Transcript word states                                                                      | Other text                       |
+| `--color-accent`, `--color-on-accent`                | Primary button, focus-adjacent emphasis, checkbox colour; text on accent                    | Status                           |
+| `--color-focus`                                      | Focus ring only                                                                             | Decoration                       |
+| `--color-recording`                                  | Recording only                                                                              | Errors                           |
+| `--color-paused`, `--color-warning`                  | Paused, warnings                                                                            | Errors                           |
+| `--color-ok`                                         | Success, level meter fill                                                                   | Neutral info                     |
+| `--color-danger`                                     | Errors, destructive actions                                                                 | Warnings                         |
+| `--color-backdrop`                                   | Behind modal dialogs                                                                        | Anything else                    |
+| `--shadow-overlay`                                   | Dialogs, popups, tooltips, save bar                                                         | Flat panels                      |
 
 Rules:
 
@@ -108,7 +109,16 @@ Grid is 4px, steps are tokens:
 
 `--space-1` 4 · `--space-2` 8 · `--space-3` 12 · `--space-4` 16 · `--space-5` 24 · `--space-6` 32 · `--space-7` 48
 
-- `--radius` is 4px and is the **only** corner radius (buttons, inputs, selects, panels, cards, popovers). A test allows only `var(--radius)`, `50%` or `0`. The mini window is exempt from the test but still uses the token.
+- **Layout B (every screen):** left sidebar | optional second column (a scrollable list) | content panel. Screens with a list (Recordings, Settings, Vocabulary) use `screens/SplitLayout.tsx` and nothing else: one fixed column width (`clamp(200px, 24vw, 280px)`), title at the top of the column, an optional pinned header (search, filters, actions), then the list on its own scroll; the content panel scrolls on its own too. List rows use `components/ListItem.module.css` (`list` and `item`: same padding, radius, hover and selected tint). Screens without a list (Live, Speakers, Help) are one content card on the page tone with the same outer gutter. Do not invent another screen layout, and do not use top pills for sections.
+- **Sidebar:** labels and icons by default; a toggle at its top shrinks it to icons only (state saved in the browser's local storage under `scrb.sidebar.collapsed`, since the contract has no field for it). Icons-only items keep their names for screen readers and show them in the shared tooltip. At 1000px window width or less it collapses on its own and the toggle is disabled.
+- **List rows with status:** the status badge sits on the same line as the speaker count; a processing meeting shows a short fixed-width bar on that line (outside the row button so it keeps its progress role). No separate rows for status.
+- **One inner padding:** `--space-card-pad` (tokens.css) is the padding of every card and panel. Text, inputs, buttons and tabs start that far from the card edge; a row with its own tint (list rows, transcript lines) extends into it by its own padding so its text lands on the same edge. No one-off panel paddings.
+- **Banners never push content:** every banner, notice and note is an overlay (absolutely positioned, raised, higher z-index) in a space that is always reserved and empty, so it moves nothing and hides no text: the meeting panel keeps a 40px strip at its top (`--popup-gutter`); app notices and list notes float at the bottom edge. Showing or dismissing one must not move or resize anything below it. Use `PopupLayer`/`PopupBanner`; `overlays.test.ts` guards the rule.
+- **Progress bars:** a known percentage fills left to right; with none, a short soft segment sweeps left to right and restarts (never back and forth); reduced motion shows a static partial fill. Keep `role="progressbar"`.
+- **Recordings search:** clicking into the field opens a Filters dropdown: rows with an icon, plain wording and the typed keyword in muted text (`source:`, `from:`, `to:`), then More filters, which opens a dialog (Source, Before/After dates, Clear filters, Cancel, Apply filters). Typing a keyword prefix narrows the rows; a picked filter becomes a chip in the field; the x or Backspace removes it. Escape, an outside click and Tab-away close it.
+- **Skip buttons:** `SkipButton`, an open circular arrow with 15 inside, clockwise to skip forward and mirrored to skip back.
+- Tonal preview: one gap, `--space-card-gap` (8px), between stacked cards and panels. Buttons, tabs, cards and panels have no outline: a fill (`--color-card-inset` inside a card, `--color-card` on the page background, set per row with `--btn-fill`) and the radius separate them. Every button, tab and toggle has three looks: selected (card tone, unchanged), idle (soft neutral fill, full-strength text; on the page use `--color-control` with hover `--color-control-hover`, set per row with `--btn-fill` and `--btn-hover`) and disabled (muted text, fill at 30% of idle so it nearly vanishes into the background; stays legible). The keyboard focus ring stays. Inputs and selects keep their subtle edge so the field passes non-text contrast. List-style menus (Settings groups, the Recordings list) share `components/ListItem.module.css`: hover `--color-card-inset`, selected `--color-page`. Secondary menus hug their content; the main panel takes the rest.
+- Two corner radii: `--radius` (10px) for panels, cards, dialogs, menus, section boxes and the save bar; `--radius-control` (6px) for buttons, inputs, selects, tabs, list items, tooltips, banners (compact strips), badges and small bars. A test allows only those two tokens, `50%` or `0`. The mini window is exempt from the test but uses `--radius-control`. A control inside a card is always one step tighter than the card.
 - `--control-height` 30px: dropdowns, buttons and icon buttons that share a row are this tall so they line up.
 - Screen padding: `--space-5` top, `--space-6` sides, max width 880px (`Screen.module.css`).
 
@@ -143,11 +153,13 @@ Grid is 4px, steps are tokens:
 
 **Live:** Start/Pause/Stop controls; Meeting app and Microphone pickers with the Mic and Meeting meters beside them in the same row, under a "Levels" label; elapsed time, transcript, privacy banner where it applies. Transcript rows: speaker name (underlined dotted when editable), timestamp link, text. Provisional text is italic. **Settings**, not Live, contains Test mic and its mic-only level meter; PR #383 positions them directly above Input Profile.
 
-**Recordings:** list view with search and filters, import action; detail view with a back link, title, meta line, one action row (export, open meeting folder, open audio folder, optional Re-process, delete, Copy transcript at the far right), tabs Transcript / Summary / Audio. Copy transcript uses a shared icon button with the standard overlapping-documents icon and hover tooltip; it never adds a second row above transcript text. Tabs use `role="tablist"`, arrow keys move between them, the selected tab has an accent underline. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
+**Recordings:** list view with search and filters, import action; detail view beside the list (no back button; the sidebar Recordings item closes it), title, meta line, one action row (export, open meeting folder, open audio folder, optional Re-process, delete, Copy transcript at the far right), tabs Transcript / Summary / Audio. Copy transcript uses a shared icon button with the standard overlapping-documents icon and hover tooltip; it never adds a second row above transcript text. Tabs use `role="tablist"`, arrow keys move between them, the selected tab uses a tonal fill. Hints that explain a button go in that button's tooltip, not in a permanent paragraph.
 
 **Settings:** stack of boxed sections (audio, transcription, summary, storage, auto-delete, theme and others). The Test mic button and mic-only meter sit together immediately above Input Profile inside the Audio section. Unsaved changes show a **save bar docked to the bottom of the panel**, out of the layout flow, with space always reserved so the last section is never covered and nothing shifts when it appears.
 
-**Speakers / Vocabulary:** `Screen` + `ItemList` rows (`--space-2` vertical padding, 1px border-bottom). Empty states use `EmptyState`.
+**Vocabulary:** `SplitLayout`. Second column: search field and the usage note pinned on top, then terms under Suggested (n), Enabled (n) and Disabled (n) headers (empty groups are hidden), each term one `ListItem` row with the selected tint. Content panel: the selected term's panel sized to its content (name, Heard as, Edit / Enable or Disable / Delete; a suggestion shows its correction counts with Remember and Dismiss) and a separate small History panel. With nothing selected it says "Select a term". The note "Terms are saved but not used for transcription yet." stays in the column header.
+
+**Speakers:** `Screen` + `ItemList` rows (`--space-2` vertical padding, 1px border-bottom). Empty states use `EmptyState`.
 
 **Dialogs:** `Dialog` / `ActionDialog` (440px wide, 24px padding, title at `--text-lg`, actions right aligned with `--space-2` gap, 24px above them). Focus is trapped, Escape closes unless the dialog is required, focus returns to the opener.
 
@@ -292,14 +304,14 @@ Every screen must handle every state the UI Specification lists for it. A state 
 8. **Do not add a hidden option.** A setting, field or contract change that is not approved stays out of the UI. `packages/contracts/` changes only with owner approval; if the contract lacks something, write a handoff note in `docs/handoffs/`. Example: a model picker or benchmark button needs approved contract changes, so it is documented in a handoff, not built.
 9. **Do not show what does not work.** Hide or label honestly (see "Automatic" sensitivity).
 10. **Layout does not shift.** Fixed-size bars, reserved space for the save bar, zero-height banner layer, delayed loading text.
-11. **Colours only from tokens; radius only `--radius`.** Both are tests.
+11. **Colours only from tokens; radius only `--radius` or `--radius-control`.** Both are tests. Use a tonal fill for selected buttons and tabs. Keep the focus ring for keyboard focus.
 12. **Mouse clicks leave no ring on sidebar tabs and footer buttons.** Keyboard focus keeps it.
 
 ## 14. Pre-merge UI checklist (copy into the PR and tick)
 
 - [ ] Read this guide and matched the nearest existing screen.
 - [ ] Spacing: only `--space-*`; sibling gaps equal; settings rows and headings use the standard rhythm.
-- [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)`.
+- [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)` (panels) or `var(--radius-control)` (controls).
 - [ ] Reused shared components (Button, IconButton, Tooltip, PopupBanner, Dialog, Progress, meters); nothing duplicated.
 - [ ] Every icon-only control has a `label` and tooltip.
 - [ ] Banners use `PopupLayer` inside the right panel and cover no control (checked at 1280×720).
@@ -324,7 +336,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 | Generous hit targets                      | 30px icon buttons, 36px footer buttons, 160px sidebar with full-width items. Larger targets for primary actions are welcome, smaller are not. |
 | System fonts                              | `system-ui` stack; no font downloads.                                                                                                         |
 | Restraint with motion                     | Only state-reporting motion, always with a reduced-motion branch.                                                                             |
-| Consistent small radius                   | A single 4px radius.                                                                                                                          |
+| Consistent rounded corners                | 10px panels and 6px controls, set by two tokens.                                                                                              |
 | Responsive to the window                  | Grids wrap, text ellipsises, fixed controls keep their size. Not a mobile design: **not implemented** for phone widths.                       |
 
 **Not implemented (do not assume):** inspector panel, draggable panel sizes, a high-contrast theme, a font-size setting beyond the transcript, a command palette, animations other than those listed in section 10.
@@ -339,3 +351,47 @@ Every screen must handle every state the UI Specification lists for it. A state 
 6. Give each interactive element a name; wire Escape and arrow keys where a pattern exists.
 7. Add the screen's states to the mock backend (`ui/mocks/`, dev menu: Ctrl+Shift+Alt+D) and cover them with a test.
 8. Run `npm run check`; tick section 14.
+
+- **One banner look:** every banner or notice that pops over a panel uses `components/Banner.module.css`: 75% of that panel's width, centred, compact padding, raised surface, no border (a coloured inner edge marks warnings and errors). Never set another width or look on a banner.
+- **One list column width:** every two-column screen (Recordings, Settings, Vocabulary, and Speakers later) uses `SplitLayout`'s `clamp(240px, 28vw, 320px)` column and nothing else. Measured in the browser: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920, identical on all three screens.
+- **Vocabulary list:** one line per term (name, then a small badge for Suggested or Disabled, none for Enabled), a segmented All, Suggested, Enabled, Disabled filter with counts above, sorted Suggested, Enabled, Disabled. The misheard versions live in the detail panel.
+
+## Round 9 rules
+
+- Banners hug their text: `fit-content`, centred, at most 75% of the panel, `text-wrap: balance`. Stacked banners keep a gap.
+- The playback row narrows by its own width (container query): volume track, then the Show in transcript text, then Mute go; last the seek track (at least 120 px) takes its own row. The window minimum width is 720 px.
+- Deliberate exception to the soft idle fill: media transport icons (play, skip back, skip forward) have no idle fill. A round fill shows on hover, focus and press; the hit target stays 34 px. Speed and Show in transcript keep the normal button fill.
+- The sidebar toggle sits at the bottom; the sidebar is its own card.
+- Search fields show their full placeholder at 960 px. A title-row action (Import, info icon) sits right of the title.
+
+## Round 13 rules
+
+- Disabled controls keep the normal default cursor everywhere. Never use `cursor: not-allowed` (the crossed-out circle); greyed text and the faded fill already say it is off.
+- Show in transcript is always in the player row, always an icon with a tooltip and `aria-label`. It is disabled while the transcript tab already follows the playhead, like Jump to Live in the live transcript, and enabled on every other tab.
+- Banners hug their content: `fit-content`, minimum 280 px, at most 75% of the panel, 16 px symmetric horizontal padding, balanced text with a dismiss button after it in the same row. Stacks run vertically with a gap and overlay the content.
+- Settings > Notifications has one checkbox per optional banner category (tips, summary, paused audio, privacy reminder, processing progress), all on by default and saved in the UI's own storage. Errors and anything that affects recording or data safety have no toggle.
+- The first dismissal of an optional banner shows one temporary pointer to Settings > Notifications (8 s, once ever). It appears in the popup stack of the panel the person is in (Live, a recording, otherwise the app notices), looks like every other banner and moves nothing.
+- Live transcript toolbar: the title "Live transcript" with the text-styles info icon on the left, only A- and A+ on the right. Undo and redo exist in the Recordings transcript only; live corrections stay on double-click and Ctrl+Z. Jump to Live sits in a fixed strip under the text, always present, and is disabled (default cursor) while the transcript already follows.
+
+## Round 14 rules
+
+- No banner gutter. The popup layer has zero height and banners float over the top of the card; every card keeps the same small top padding (`--space-card-pad`).
+- Every optional banner has an X; only errors and recording or data-safety notices lack one. A dismissal lasts for that meeting or session and counts as the first dismissal for the one-time pointer. The pointer is persisted when it closes, so a dismissal with no pointer showing is never lost.
+- Banners use the elevated tokens `--color-banner` (lighter than the card in dark, a cool off-white in light) and `--shadow-banner`, plus the coloured left accent for warning and danger.
+- Button set (the only styles in use; add none without a stated reason):
+
+| Role                                                     | Component                                                        | Size                                  | Padding                   | Type                     |
+| -------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------- | ------------------------- | ------------------------ |
+| Text button (secondary, primary, danger)                 | `Button`, and the Recordings and Live text buttons that match it | min-height 30 px (`--control-height`) | `--space-1` × `--space-3` | `--text-sm`, primary 600 |
+| Icon button, incl. A−/A+, undo/redo, export, trash, info | `IconButton`                                                     | 30 × 30, 16 px icon                   | none                      | none                     |
+| Media transport (play, skip)                             | `IconButton`/`SkipButton`                                        | 34 px target, no idle fill            | none                      | none                     |
+| Start and Stop (Live)                                    | `.startButton`/`.stopButton`                                     | 88 px wide, 30 px high                | `--space-1` × `--space-3` | 600                      |
+| Tags and chips                                           | `Chip`                                                           | text height                           | `--space-1` × `--space-2` | `--text-xs`              |
+
+The Live and Recordings transcript toolbars use the same two `IconButton`s for text size, so they match in size, radius and icon.
+
+## Round 15 rules
+
+- **Toggle rule (one sentence):** in content and detail panels, the selected tab or segmented option takes the dark fill (`--color-control`) and every available option takes the lighter fill (`--color-card` on the page, `--color-card-inset` inside a card); disabled is about 30% of the idle fill. Menus and lists (Help, Settings groups, the Recordings list, filter menus) keep their own selected style.
+- Every segmented option and every button uses `--radius-control` and the shared button size; the selected segment never uses the accent colour.
+- Stacked banners share one container: as wide as the widest banner (at least 280 px, at most 75% of the panel), centred at the top of the panel, each banner stretched to that width, 8 px between them, X at the top-right of each. The same container class is used by panel stacks, Live alerts and the app notices.

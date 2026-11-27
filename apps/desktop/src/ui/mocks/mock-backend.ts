@@ -1530,10 +1530,13 @@ export class MockBackend implements Backend {
       }
       this.suggestions = this.suggestions.filter((item) => item.id !== id);
       if (accepted) {
+        // Fixture terms already use term-1..3, so a fresh id must skip any that are taken.
+        let termId = this.id('term');
+        while (this.terms.some((item) => item.id === termId)) termId = this.id('term');
         this.terms = [
           ...this.terms,
           {
-            id: this.id('term'),
+            id: termId,
             term: suggestion.term,
             misheard: suggestion.misheard,
             contexts: [],
