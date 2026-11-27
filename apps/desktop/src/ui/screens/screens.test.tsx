@@ -1,3 +1,4 @@
+import { chooseOption } from '../components/choose-option.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -686,9 +687,8 @@ describe('screens', () => {
 
     it('warns under a listed state', async () => {
       renderScreen(backend, <SettingsScreen />);
-      fireEvent.change(await screen.findByRole('combobox', { name: /State where you live/ }), {
-        target: { value: 'WA' },
-      });
+      await chooseOption('Country', 'United States');
+      await chooseOption('State', 'Washington');
       expect(screen.getByText(/Washington has a biometric-privacy law/)).toBeTruthy();
     });
 

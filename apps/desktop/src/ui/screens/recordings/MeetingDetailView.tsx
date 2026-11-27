@@ -151,6 +151,7 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         </button>
       </Tooltip>
       <IconButton
+        className={styles.muteButton}
         label={muted ? 'Unmute' : 'Mute'}
         icon={muted ? 'speakerOff' : 'speaker'}
         aria-pressed={muted}
@@ -867,9 +868,19 @@ function LoadedDetail(props: LoadedDetailProps) {
         <div className={styles.playerRow}>
           <PlayerBar meeting={meeting} playback={playback} />
           {tab !== 'Transcript' && (
-            <button type="button" className={styles.button} onClick={showInTranscript}>
-              Show in transcript
-            </button>
+            <Tooltip label="Show in transcript">
+              <button
+                type="button"
+                className={`${styles.button} ${styles.showButton}`}
+                aria-label="Show in transcript"
+                onClick={showInTranscript}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.showIcon}>
+                  <path d="M4 6h16M4 12h16M4 18h10" />
+                </svg>
+                <span className={styles.showText}>Show in transcript</span>
+              </button>
+            </Tooltip>
           )}
         </div>
       )}

@@ -217,6 +217,11 @@
   min-width: 0;
 }
 
+button.navItem {
+  min-height: 28px;
+  padding-block: var(--space-1);
+}
+
 .navItem {
   font-weight: 600;
   color: var(--color-text-muted);

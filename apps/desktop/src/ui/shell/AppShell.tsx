@@ -90,7 +90,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
         <div className={styles.workspaceFrame}>
           <div className={styles.notices}>
             <SharedLibraryNotice />
-            <PrivacyBanner />
+            {screenId !== 'live' && <PrivacyBanner />}
             <ModelsNotice />
           </div>
           <main

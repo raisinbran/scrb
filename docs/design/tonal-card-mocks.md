@@ -99,3 +99,13 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Import             | A compact "+ Import" button in the Recordings title row                                                                                                         |
 | Vocabulary         | The usage note is an info icon with a tooltip beside the title; the state filter is a dropdown in the search field                                              |
 | Narrow widths      | The player stays on one row: the volume slider hides at 1000 px or less. The window minimum width is 960 px                                                     |
+
+## Owner comments, round 10
+
+| Comment             | Change                                                                                                                                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Window width        | Minimum 720 px so a Windows half-screen snap is clean (768 px at 125% scaling). Checked at 720, 768, 800, 960, 1080 and 1920 in both themes                                                                           |
+| Player              | One row down to 720 px: the volume track hides at 1000 px or less; at 900 px or less Mute goes and Show in transcript becomes an icon with a tooltip. The seek track takes the spare room                             |
+| Compact lists       | Vocabulary terms and the Help and Settings group lists are 28 px rows                                                                                                                                                 |
+| Location            | A searchable Country control, then a searchable State control that is only enabled for the United States, then a fixed-height note area. Nothing grows, shrinks or moves. The first-launch dialog uses the same field |
+| Live consent banner | Pressing Start shows the standard banner over the transcript with the saved state's privacy wording, dismissible for that recording, and never over the controls. Live transcript uses the inset panel look           |

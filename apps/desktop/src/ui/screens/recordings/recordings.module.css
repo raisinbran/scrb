@@ -171,7 +171,7 @@
   inset-block-end: calc(var(--space-2) + 7px);
   inset-inline-start: calc(50% + var(--space-2));
   width: 56px;
-  max-width: calc(50% - var(--space-3));
+  max-width: calc(50% - var(--space-card-pad));
 }
 
 .emptyPanel {
@@ -815,7 +815,7 @@
 
 .slider {
   flex: 1;
-  min-width: 40px;
+  min-width: 24px;
   accent-color: var(--color-accent);
 }
 
@@ -829,6 +829,37 @@
 @media (max-width: 1000px) {
   .volume {
     display: none;
+  }
+}
+
+.showButton {
+  flex: none;
+  white-space: nowrap;
+}
+
+.showIcon {
+  display: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Narrower still: Show in transcript becomes an icon, Mute goes, and the time loses its width floor. */
+@media (max-width: 900px) {
+  .showText,
+  .muteButton {
+    display: none;
+  }
+
+  .showIcon {
+    display: block;
+  }
+
+  .player .playerTime {
+    min-width: 0;
   }
 }
 

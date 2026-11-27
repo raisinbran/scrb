@@ -242,3 +242,23 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+
+/* The same look as the recorded transcript: an inset panel, filled buttons, no borders. */
+:global([data-design='tonal']) .transcript {
+  background: var(--color-card-inset);
+  border: 0;
+}
+
+:global([data-design='tonal']) .toolbar {
+  padding: var(--space-2) var(--space-card-pad);
+  border-bottom: 0;
+}
+
+:global([data-design='tonal']) .toolButton {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .toolButton:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}

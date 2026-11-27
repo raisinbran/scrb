@@ -1,3 +1,5 @@
+import { chooseOption } from './components/choose-option.ts';
+import { US_STATES } from './lib/us-states.ts';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
@@ -98,7 +100,8 @@ describe('App', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Where are you based?' });
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(screen.getByRole('dialog', { name: 'Where are you based?' })).toBe(dialog);
-    fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'IL' } });
+    await chooseOption('Country', 'United States');
+    await chooseOption('State', 'Illinois');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
@@ -110,9 +113,11 @@ describe('App', () => {
     const dismiss = /Dismiss voice-profile privacy reminder for this recording/;
     const changeState = async (usState: string) => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-      fireEvent.change(await screen.findByRole('combobox', { name: /State where you live/ }), {
-        target: { value: usState },
-      });
+      await chooseOption('Country', 'United States');
+      await chooseOption(
+        'State',
+        US_STATES.find((state) => state.code === usState)?.name ?? usState,
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       await waitFor(async () =>
         expect((await backend.call('getSettings')).location).toEqual({ country: 'US', usState }),

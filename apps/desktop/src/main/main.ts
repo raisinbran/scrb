@@ -292,7 +292,7 @@ function createMainWindow(
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 960,
+    minWidth: 720,
     minHeight: 560,
     show: false,
     ...devWindowIcon(),

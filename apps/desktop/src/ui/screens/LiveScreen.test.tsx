@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TranscriptSegment } from '@scrb/contracts';
-import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { forgetSources } from '../lib/sources-cache.ts';
 import { BackendProvider } from '../lib/backend-context.tsx';
 import { createHybridBackend } from '../lib/hybrid-backend.ts';
@@ -26,7 +25,6 @@ const selected = () => [...document.querySelectorAll('[data-selected]')].map((w)
 async function renderLive() {
   render(
     <BackendProvider backend={backend}>
-      <PrivacyBanner />
       <LiveScreen />
     </BackendProvider>,
   );

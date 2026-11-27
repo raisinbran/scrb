@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   DeviceChange,
   RecordingHealth,
@@ -58,12 +59,14 @@ interface LiveAlertsProps {
   error: string | null;
   onUseDevice(device: DeviceChange['device']): void;
   onDismissDevice(): void;
+  children?: ReactNode;
 }
 
 export function LiveAlerts(props: LiveAlertsProps) {
   const { health, lag, active, device, error } = props;
   return (
     <div className={styles.alerts}>
+      {props.children}
       {error && (
         <div className={styles.banner} data-level="failed" role="alert">
           {error}

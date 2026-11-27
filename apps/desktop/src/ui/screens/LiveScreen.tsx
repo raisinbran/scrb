@@ -9,6 +9,7 @@ import { formatFileSize } from '../lib/format.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
+import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { LiveAlerts } from './live/LiveAlerts.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
@@ -170,7 +171,9 @@ export function LiveScreen() {
             setDevice(null);
           }}
           onDismissDevice={() => setDevice(null)}
-        />
+        >
+          <PrivacyBanner />
+        </LiveAlerts>
       </div>
       {status === 'idle' && lastMeetingId && (
         <div className={styles.alertsSlot}>

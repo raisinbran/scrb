@@ -35,6 +35,12 @@
   font-size: var(--text-md);
 }
 
+/* Compact rows, about 28px high, like the Help list. */
+button.entry {
+  min-height: 28px;
+  padding-block: var(--space-1);
+}
+
 .entry {
   display: flex;
   gap: var(--space-2);
