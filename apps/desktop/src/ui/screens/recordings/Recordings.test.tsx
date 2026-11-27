@@ -296,11 +296,10 @@ describe('Recordings', () => {
       expect(screen.getByText('Working out who spoke...')).toBeTruthy();
       await report('diarizing', 0.9, A);
       expect(value()).toBe('90');
-      await report('finishing', 1, A);
-      expect(value()).toBe('100');
+      await report('diarizing', 0.99, A);
+      expect(value()).toBe('99');
       await report('diarizing', 0.95, A);
-      expect(value()).toBe('100');
-      expect(screen.getByText('Finishing up...')).toBeTruthy();
+      expect(value()).toBe('99');
       await report('queued', 0, B);
       expect(value()).toBe('0');
       // A late report from the older pass must not undo the newer one.
@@ -323,6 +322,24 @@ describe('Recordings', () => {
       expect(
         screen
           .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('0');
+    });
+
+    it('shows an empty bar for a re-run waiting behind the previous pass finishing at 100%', async () => {
+      const early = new MockBackend();
+      startFinalPassProgress(early);
+      early.emit('finalPassProgress', {
+        meetingId: 'meeting-final-pass',
+        stage: 'finishing',
+        fraction: 1,
+        startedAt: '2026-11-27T10:00:00.000Z',
+      });
+      renderScreen(early);
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      expect(
+        within(row)
+          .getByRole('progressbar', { name: /Final transcript processing/ })
           .getAttribute('aria-valuenow'),
       ).toBe('0');
     });

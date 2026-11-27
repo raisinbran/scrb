@@ -29,13 +29,23 @@ class ProgressStore {
       const after = nextProgress(before, report);
       if (after && after !== before) {
         this.latest.set(report.meetingId, after);
-        this.listeners.forEach((listener) => listener());
+        this.notify();
       }
+    });
+    // A pass that ended another way (failed, cancelled, ready) must not leave its last value for the next one.
+    backend.on('meetingChanged', ({ id, status }) => {
+      if (status !== 'finalPassRunning' && this.latest.delete(id)) this.notify();
     });
   }
 
+  private notify(): void {
+    this.listeners.forEach((listener) => listener());
+  }
+
+  /** A finished pass reads as no report, so a re-run waiting to start shows an empty bar, never 100%. */
   get(meetingId: string): FinalPassProgress | null {
-    return this.latest.get(meetingId) ?? null;
+    const report = this.latest.get(meetingId);
+    return report && !(report.stage === 'finishing' && report.fraction >= 1) ? report : null;
   }
 
   subscribe = (listener: () => void): (() => void) => {
