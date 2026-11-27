@@ -46,7 +46,7 @@ for (const [width, height] of [
       const drag = async (target: typeof scroller) => {
         const g = await target.evaluate((el) => {
           const rect = el.getBoundingClientRect();
-          const bar = el.offsetWidth - el.clientWidth;
+          const bar = (el as HTMLElement).offsetWidth - el.clientWidth;
           return {
             x: rect.right - (bar > 0 ? bar / 2 : 3),
             top: rect.top + bar,
