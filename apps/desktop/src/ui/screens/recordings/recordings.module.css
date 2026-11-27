@@ -825,7 +825,7 @@
 
 .slider {
   flex: 1;
-  min-width: 24px;
+  min-width: 120px;
   accent-color: var(--color-accent);
 }
 
@@ -833,13 +833,6 @@
   flex: 0 1 80px;
   min-width: 48px;
   accent-color: var(--color-accent);
-}
-
-/* At half-screen width the long volume track goes, so the player stays on one row; Mute stays. */
-@media (max-width: 1000px) {
-  .volume {
-    display: none;
-  }
 }
 
 .showButton {
@@ -857,20 +850,54 @@
   stroke-linecap: round;
 }
 
-/* Narrower still: Show in transcript becomes an icon, Mute goes, and the time loses its width floor. */
-@media (max-width: 900px) {
-  .showText,
-  .muteButton,
-  .player > :has(> .muteButton) {
+/*
+ * The player's room depends on the panel, not the window (sidebar and list column take their share),
+ * so it narrows by its own width. The seek track keeps at least 120px: first the volume track goes,
+ * then Show in transcript becomes an icon, then Mute goes, and last the seek track drops to its own row.
+ */
+.playerRow {
+  container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+  .volume {
+    display: none;
+  }
+}
+
+@container (max-width: 590px) {
+  .showText {
     display: none;
   }
 
   .showIcon {
     display: block;
   }
+}
+
+@container (max-width: 500px) {
+  .muteButton,
+  .player > :has(> .muteButton) {
+    display: none;
+  }
+}
+
+@container (max-width: 440px) {
+  .player {
+    flex-wrap: wrap;
+  }
+
+  .player .slider {
+    flex: 1 0 100%;
+    order: 10;
+  }
 
   .player .playerTime {
-    min-width: 0;
+    flex: 1;
+  }
+
+  .showButton {
+    align-self: flex-start;
   }
 }
 

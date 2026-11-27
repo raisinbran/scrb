@@ -127,3 +127,9 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Player gaps     | The hidden Mute button's wrapper no longer adds a gap; the seek track absorbs spare width                                                                                           |
 | Recordings rows | The progress bar shrinks to stay inside the card; list durations read "8h 0m"                                                                                                       |
 | Location        | Search placeholders on both controls; the existing explanatory sentence fills the note area when no state warning applies                                                           |
+
+## Owner comments, round 13
+
+| Comment | Change                                                                                                                                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Player  | The seek track keeps at least 120 px. The player narrows by its own width, not the window's: the volume track goes first, then Show in transcript becomes an icon, then Mute goes, and last the seek track drops to its own row |
