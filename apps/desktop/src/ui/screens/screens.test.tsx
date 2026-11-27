@@ -211,13 +211,28 @@ describe('screens', () => {
       expect(screen.getByText(/saved but not used for transcription yet/)).toBeTruthy();
     });
 
-    it('groups terms under Suggested, Enabled and Disabled with counts', async () => {
+    it('filters by state with counts, lists suggestions first, and tags rows', async () => {
       renderScreen(backend, <VocabularyScreen />);
       const terms = await backend.call('listTerms');
       const off = terms.filter((term) => !term.enabled).length;
-      expect(await screen.findByRole('heading', { name: 'Suggested (2)' })).toBeTruthy();
-      expect(screen.getByRole('heading', { name: `Enabled (${terms.length - off})` })).toBeTruthy();
-      expect(screen.getByRole('heading', { name: `Disabled (${off})` })).toBeTruthy();
+      expect(await screen.findByRole('radio', { name: `All (${terms.length + 2})` })).toBeTruthy();
+      expect(screen.getByRole('radio', { name: 'Suggested (2)' })).toBeTruthy();
+      expect(screen.getByRole('radio', { name: `Enabled (${terms.length - off})` })).toBeTruthy();
+      const names = () =>
+        screen
+          .getAllByRole('button', { name: /./ })
+          .filter(
+            (button) =>
+              button.getAttribute('aria-current') !== null || button.className.includes('entry'),
+          )
+          .map((button) => button.querySelector('span')?.textContent);
+      expect(names()[0]).toBe('Marlow Quay');
+      expect(screen.getAllByText('Suggested', { selector: 'span' }).length).toBeGreaterThanOrEqual(
+        2,
+      );
+      fireEvent.click(screen.getByRole('radio', { name: `Disabled (${off})` }));
+      expect(screen.queryByText('Marlow Quay', { selector: 'span' })).toBeNull();
+      expect(screen.queryByText(/Heard as:/)).toBeNull();
     });
 
     it('opens on the first suggestion, and marks the selected term', async () => {
@@ -261,7 +276,7 @@ describe('screens', () => {
         expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull(),
       );
       await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Suggested (1)' })).toBeTruthy(),
+        expect(screen.getByRole('radio', { name: 'Suggested (1)' })).toBeTruthy(),
       );
       await pick('Marlow Quay');
       expect(await screen.findByRole('button', { name: 'Edit Marlow Quay' })).toBeTruthy();
@@ -285,12 +300,12 @@ describe('screens', () => {
       await waitFor(() => expect(screen.queryByText('Tessel')).toBeNull());
     });
 
-    it('hides the Suggested group when there are no suggestions', async () => {
+    it('hides the Suggested filter when there are no suggestions', async () => {
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-1', accepted: false });
       await backend.call('answerVocabularySuggestion', { id: 'suggestion-2', accepted: false });
       renderScreen(backend, <VocabularyScreen />);
       await screen.findByText('Kestrel API');
-      expect(screen.queryByRole('heading', { name: /^Suggested/ })).toBeNull();
+      expect(screen.queryByRole('radio', { name: /^Suggested/ })).toBeNull();
     });
 
     it('shows the empty state', async () => {
@@ -304,10 +319,11 @@ describe('screens', () => {
     it('marks a disabled entry and enables it', async () => {
       renderScreen(backend, <VocabularyScreen />);
       await pick('Q-Track');
-      expect(await screen.findByText('Disabled', { selector: 'span' })).toBeTruthy();
+      // One badge in the list row, one beside the name in the panel.
+      expect((await screen.findAllByText('Disabled', { selector: 'span' })).length).toBe(2);
       fireEvent.click(screen.getByRole('button', { name: 'Enable Q-Track' }));
       await vi.waitFor(() =>
-        expect(screen.queryByText('Disabled', { selector: 'span' })).toBeNull(),
+        expect(screen.queryAllByText('Disabled', { selector: 'span' }).length).toBe(0),
       );
       const terms = await backend.call('listTerms');
       expect(terms.find((term) => term.id === 'term-3')?.history.at(-1)?.action).toBe('enabled');

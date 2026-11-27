@@ -76,3 +76,12 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Long titles         | An ellipsis at rest; after 400 ms of hover or focus the title scrolls to the end and back on leave. Reduced motion uses a tooltip with the full title                                                                            |
 | Vocabulary          | Opens on the first suggestion, else the first enabled term                                                                                                                                                                       |
 | Skip buttons        | Icon buttons with a circular arrow and 15 inside, named Skip back 15 seconds and Skip forward 15 seconds, with the usual tooltip                                                                                                 |
+
+## Owner comments, round 8
+
+| Comment            | Change                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Search filters     | Clicking the search field opens a Filters dropdown (icon, plain wording, muted keyword) with More filters opening a dialog for Source and Before/After dates. Typing a keyword prefix narrows the rows |
+| Banners            | One shared look: 75% of the panel, centred, same compact height, no border; the 640px cap is gone                                                                                                      |
+| Vocabulary list    | One line per term with a Suggested or Disabled badge at the right; a segmented All / Suggested / Enabled / Disabled filter with counts replaces the group headers                                      |
+| List column widths | Recordings, Settings and Vocabulary measured identical: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920                                                                                        |

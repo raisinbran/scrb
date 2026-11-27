@@ -70,8 +70,8 @@ describe('Recordings', () => {
     it('filters by source', async () => {
       renderScreen();
       await button(/Budget review/);
-      fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Source' }));
+      fireEvent.focus(screen.getByLabelText('Search recordings'));
+      fireEvent.click(screen.getByRole('menuitem', { name: /From a specific source/ }));
       fireEvent.click(screen.getByRole('menuitemradio', { name: 'Imported' }));
       expect(screen.getByText('Source: Imported')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
@@ -82,7 +82,7 @@ describe('Recordings', () => {
       renderScreen();
       await button(/Budget review/);
       fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'To' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /Recorded before a date/ }));
       fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-22' } });
       expect(screen.getByText('To: 10/22/26')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
@@ -101,13 +101,45 @@ describe('Recordings', () => {
       expect(await button(/Budget review/)).toBeTruthy();
     });
 
+    it('opens the dropdown on focus, narrows it by typing a keyword prefix, and closes on Escape', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings');
+      fireEvent.focus(search);
+      expect(screen.getByRole('menu', { name: 'Filters' })).toBeTruthy();
+      fireEvent.change(search, { target: { value: 'fr' } });
+      expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+      fireEvent.change(search, { target: { value: 'weekly' } });
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('applies several filters from the More filters dialog and clears them', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      fireEvent.focus(screen.getByLabelText('Search recordings'));
+      fireEvent.click(screen.getByRole('menuitem', { name: /More filters/ }));
+      const dialog = await screen.findByRole('dialog', { name: 'Filters' });
+      fireEvent.change(within(dialog).getByRole('combobox', { name: /^Source/ }), {
+        target: { value: 'imported' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add date' }));
+      fireEvent.change(within(dialog).getByLabelText('Before date'), {
+        target: { value: '2026-10-30' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apply filters' }));
+      expect(await screen.findByText('Source: Imported')).toBeTruthy();
+      expect(screen.getByText('To: 10/30/26')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('moves through the filter list with the arrow keys and closes with Escape', async () => {
       renderScreen();
       await button(/Budget review/);
       const search = screen.getByLabelText('Search recordings');
       fireEvent.keyDown(search, { key: 'ArrowDown' });
       const items = screen.getAllByRole('menuitem');
-      expect(items.map((item) => item.textContent)).toEqual(['Source', 'From', 'To']);
+      expect(items).toHaveLength(4);
+      expect(items[3]?.textContent).toContain('More filters');
       await waitFor(() => expect(document.activeElement).toBe(items[0]));
       fireEvent.keyDown(items[0] as HTMLElement, { key: 'ArrowDown' });
       expect(document.activeElement).toBe(items[1]);
@@ -343,9 +375,7 @@ describe('Recordings', () => {
         /font-size: var\(--text-sm\)/,
       );
       expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
-      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(
-        /width: min\(640px, calc\(100% - var\(--space-5\) \* 2\)\)/,
-      );
+      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/inset-inline: 0/);
       expect(progressCss.match(/\.track \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
     });
 

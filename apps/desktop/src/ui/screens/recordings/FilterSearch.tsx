@@ -1,9 +1,12 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { Button } from '../../components/Button.tsx';
+import { Dialog, DialogActions } from '../../components/Dialog.tsx';
 import styles from './filterSearch.module.css';
 
 export type Origin = 'recorded' | 'imported' | '';
 
 type Step = 'menu' | 'source' | 'from' | 'to';
+type MenuRow = (typeof ROWS)[number]['id'];
 
 const KEYWORDS: Record<string, Step> = { source: 'source', from: 'from', to: 'to' };
 const ORIGIN_LABELS = { recorded: 'Recorded', imported: 'Imported' } as const;
@@ -13,6 +16,155 @@ const shortDate = (iso: string) => {
   const [year, month, day] = iso.split('-');
   return year && month && day ? `${month}/${day}/${year.slice(2)}` : iso;
 };
+
+const ICONS: Record<string, string> = {
+  source: 'M4 7h6l2 2h8v9H4z',
+  from: 'M5 6h14v13H5z M5 10h14 M9 4v3 M15 4v3 M12 13v3 M10.5 14.5L12 13l1.5 1.5',
+  to: 'M5 6h14v13H5z M5 10h14 M9 4v3 M15 4v3 M12 16v-3 M10.5 14.5L12 16l1.5-1.5',
+  more: 'M4 7h9 M17 7h3 M4 17h3 M11 17h9 M15 4.5v5 M9 14.5v5',
+};
+
+function RowIcon({ name }: { name: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.rowIcon}>
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
+/** The rows of the Filters list: plain wording on top, the keyword that does the same typed below. */
+const ROWS = [
+  {
+    id: 'source',
+    title: 'From a specific source',
+    keyword: 'source:',
+    hint: 'recorded or imported',
+  },
+  { id: 'from', title: 'Recorded after a date', keyword: 'from:', hint: 'date' },
+  { id: 'to', title: 'Recorded before a date', keyword: 'to:', hint: 'date' },
+  { id: 'more', title: 'More filters', keyword: '', hint: 'dates, sources and more' },
+] as const;
+
+type DateKind = 'from' | 'to';
+interface DateRow {
+  kind: DateKind;
+  date: string;
+}
+
+function MoreFilters({
+  origin,
+  from,
+  to,
+  onApply,
+  onCancel,
+}: {
+  origin: Origin;
+  from: string;
+  to: string;
+  onApply(next: { origin: Origin; from: string; to: string }): void;
+  onCancel(): void;
+}) {
+  const [draftOrigin, setDraftOrigin] = useState<Origin>(origin);
+  const [rows, setRows] = useState<DateRow[]>(() => [
+    ...(from ? [{ kind: 'from' as const, date: from }] : []),
+    ...(to ? [{ kind: 'to' as const, date: to }] : []),
+  ]);
+  const count = (draftOrigin ? 1 : 0) + rows.filter((row) => row.date).length;
+  const used = (kind: DateKind, at: number) =>
+    rows.some((row, index) => index !== at && row.kind === kind);
+  const update = (at: number, patch: Partial<DateRow>) =>
+    setRows((current) => current.map((row, index) => (index === at ? { ...row, ...patch } : row)));
+  const apply = () =>
+    onApply({
+      origin: draftOrigin,
+      from: rows.find((row) => row.kind === 'from')?.date ?? '',
+      to: rows.find((row) => row.kind === 'to')?.date ?? '',
+    });
+  return (
+    <Dialog title="Filters" onClose={onCancel}>
+      <div className={styles.moreBody}>
+        <label className={styles.moreField}>
+          <span className={styles.moreLabel}>Source</span>
+          <span className={styles.moreHint}>Where the recording came from</span>
+          <select
+            data-autofocus
+            value={draftOrigin}
+            onChange={(event) => setDraftOrigin(event.target.value as Origin)}
+          >
+            <option value="">Any source</option>
+            <option value="recorded">Recorded</option>
+            <option value="imported">Imported</option>
+          </select>
+        </label>
+        <div className={styles.moreField} role="group" aria-label="Date">
+          <span className={styles.moreLabel}>Date</span>
+          <span className={styles.moreHint}>When the recording was made</span>
+          {rows.map((row, at) => (
+            <div key={row.kind} className={styles.dateRow}>
+              <select
+                aria-label="Date comparison"
+                value={row.kind}
+                onChange={(event) => update(at, { kind: event.target.value as DateKind })}
+              >
+                <option value="to" disabled={used('to', at)}>
+                  Before
+                </option>
+                <option value="from" disabled={used('from', at)}>
+                  After
+                </option>
+              </select>
+              <input
+                type="date"
+                aria-label={`${row.kind === 'from' ? 'After' : 'Before'} date`}
+                value={row.date}
+                onChange={(event) => update(at, { date: event.target.value })}
+              />
+              <button
+                type="button"
+                className={styles.trash}
+                aria-label="Remove date filter"
+                onClick={() => setRows((current) => current.filter((_, index) => index !== at))}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.chipIcon}>
+                  <path d="M5 7h14 M10 7V5h4v2 M7 7l1 12h8l1-12 M10 11v5 M14 11v5" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          {rows.length < 2 && (
+            <Button
+              onClick={() =>
+                setRows((current) => [
+                  ...current,
+                  { kind: current.some((row) => row.kind === 'to') ? 'from' : 'to', date: '' },
+                ])
+              }
+            >
+              Add date
+            </Button>
+          )}
+        </div>
+      </div>
+      <DialogActions>
+        <button
+          type="button"
+          className={styles.clearAll}
+          disabled={count === 0}
+          onClick={() => {
+            setDraftOrigin('');
+            setRows([]);
+          }}
+        >
+          Clear filters{count > 0 ? ` (${count})` : ''}
+        </button>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={apply}>
+          Apply filters
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 interface Props {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -48,6 +200,21 @@ export function FilterSearch({
   const popover = useRef<HTMLDivElement>(null);
   const filterButton = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
+  const [more, setMore] = useState(false);
+  // Focus handed back after a pick must not pop the list open again.
+  const quiet = useRef(false);
+  const closeMore = () => {
+    setMore(false);
+    requestAnimationFrame(() => {
+      quiet.current = true;
+      inputRef.current?.focus();
+      quiet.current = false;
+    });
+  };
+  const token = text.trim().toLowerCase();
+  const rows = ROWS.filter(
+    (row) => token === '' || (row.keyword !== '' && row.keyword.startsWith(token)),
+  );
 
   const open = (next: Step, focus: boolean) => {
     setStep(next);
@@ -55,7 +222,11 @@ export function FilterSearch({
   };
   const close = (refocus: boolean) => {
     setStep(null);
-    if (refocus) inputRef.current?.focus();
+    if (refocus) {
+      quiet.current = true;
+      inputRef.current?.focus();
+      quiet.current = false;
+    }
   };
 
   // Keyboard users land on the first choice of whatever list just opened.
@@ -158,7 +329,9 @@ export function FilterSearch({
               aria-label={`Remove ${chip.name} filter`}
               onClick={() => {
                 chip.clear();
+                quiet.current = true;
                 inputRef.current?.focus();
+                quiet.current = false;
               }}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.chipIcon}>
@@ -177,6 +350,12 @@ export function FilterSearch({
           aria-controls={step === null ? undefined : popoverId}
           placeholder={chips.length > 0 ? 'Search' : 'Search titles, dates and transcripts'}
           value={text}
+          onFocus={() => {
+            if (!quiet.current && step === null) open('menu', false);
+          }}
+          onClick={() => {
+            if (step === null) open('menu', false);
+          }}
           onChange={(event) => change(event.target.value)}
           onKeyDown={onInputKey}
         />
@@ -195,7 +374,7 @@ export function FilterSearch({
           </svg>
         </button>
       </div>
-      {step !== null && (
+      {step !== null && !(step === 'menu' && rows.length === 0) && (
         <div
           ref={popover}
           id={popoverId}
@@ -212,30 +391,31 @@ export function FilterSearch({
         >
           {step === 'menu' && (
             <>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                onClick={() => open('source', true)}
-              >
-                Source
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                onClick={() => open('from', true)}
-              >
-                From
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                onClick={() => open('to', true)}
-              >
-                To
-              </button>
+              <div className={styles.popoverTitle} aria-hidden="true">
+                Filters
+              </div>
+              {rows.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  role="menuitem"
+                  className={styles.row}
+                  onClick={() => {
+                    if (row.id === 'more') {
+                      setStep(null);
+                      setMore(true);
+                    } else open(row.id as Exclude<MenuRow, 'more'>, true);
+                  }}
+                >
+                  <RowIcon name={row.id} />
+                  <span className={styles.rowText}>
+                    <span className={styles.rowTitle}>{row.title}</span>
+                    <span className={styles.rowHint}>
+                      {row.keyword !== '' && <b>{row.keyword}</b>} {row.hint}
+                    </span>
+                  </span>
+                </button>
+              ))}
             </>
           )}
           {step === 'source' &&
@@ -249,7 +429,9 @@ export function FilterSearch({
                 onClick={() => {
                   onOrigin(origin === value ? '' : value);
                   setStep(null);
+                  quiet.current = true;
                   inputRef.current?.focus();
+                  quiet.current = false;
                 }}
               >
                 {ORIGIN_LABELS[value]}
@@ -270,6 +452,20 @@ export function FilterSearch({
             </label>
           )}
         </div>
+      )}
+      {more && (
+        <MoreFilters
+          origin={origin}
+          from={from}
+          to={to}
+          onCancel={closeMore}
+          onApply={(next) => {
+            onOrigin(next.origin);
+            onFrom(next.from);
+            onTo(next.to);
+            closeMore();
+          }}
+        />
       )}
     </div>
   );

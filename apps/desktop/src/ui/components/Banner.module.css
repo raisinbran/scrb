@@ -1,0 +1,33 @@
+/* The one banner look: every banner or notice that pops over a panel is 75% of that panel's width,
+   centred, with the same compact padding, the raised surface and the overlay shadow. The wrapper
+   that places it (never this class) decides where it floats. */
+.banner {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  width: 75%;
+  margin-inline: auto;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-align: center;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-overlay);
+}
+
+/* A coloured edge says how serious it is, without a border. */
+.banner[data-level='warning'] {
+  box-shadow:
+    inset 3px 0 0 var(--color-warning),
+    var(--shadow-overlay);
+}
+
+.banner[data-level='danger'] {
+  box-shadow:
+    inset 3px 0 0 var(--color-danger),
+    var(--shadow-overlay);
+}

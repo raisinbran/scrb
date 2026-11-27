@@ -35,25 +35,54 @@
   font-size: var(--text-md);
 }
 
-.groupHeading {
-  margin: var(--space-2) var(--space-3) var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
 .entry {
   display: flex;
-  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
 }
 
-.entry .muted {
+.term {
+  min-width: 0;
   overflow: hidden;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.term {
+/* The same small badge as a recording's status, at the right of the row. */
+.tag {
+  flex: none;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  background: var(--color-card-inset);
+  border-radius: var(--radius-control);
+}
+
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.filterButton {
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  cursor: pointer;
+  background: var(--color-control);
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.filterButton:hover {
+  background: var(--color-control-hover);
+}
+
+.filterButton[aria-checked='true'] {
+  background: var(--color-card-inset);
   font-weight: 600;
 }
 

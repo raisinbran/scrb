@@ -11,7 +11,7 @@ describe('banners never move the content under them', () => {
     const notices = rule(css('shell/AppShell.module.css'), '.notices');
     expect(notices).toMatch(/position: absolute/);
     // At the top, never the bottom edge where the player, save and Live control bars sit.
-    expect(notices).toMatch(/inset-block-start: 0/);
+    expect(notices).toMatch(/inset-block-start: var\(--space-1\)/);
     expect(notices).not.toMatch(/inset-block-end/);
   });
 
@@ -35,5 +35,22 @@ describe('progress bar', () => {
     expect(source).toMatch(
       /prefers-reduced-motion: reduce\) \{\s*\.unknown \{[^}]*animation: none/,
     );
+  });
+});
+
+describe('one banner look', () => {
+  it('is 75% of the panel, centred, and shared by every banner', () => {
+    const shared = rule(css('components/Banner.module.css'), '.banner');
+    expect(shared).toMatch(/width: 75%/);
+    expect(shared).toMatch(/margin-inline: auto/);
+    for (const file of [
+      'components/PopupBanner.module.css',
+      'components/PrivacyBanner.module.css',
+      'components/SharedLibraryNotice.module.css',
+      'components/ModelsNotice.module.css',
+      'screens/LiveScreen.module.css',
+      'screens/recordings/recordings.module.css',
+    ])
+      expect(css(file)).toMatch(/composes: banner from '[./]+(components\/)?Banner\.module\.css'/);
   });
 });

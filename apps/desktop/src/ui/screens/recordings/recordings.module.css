@@ -105,21 +105,18 @@
 .floatSlot {
   position: absolute;
   inset-block-end: var(--space-2);
-  inset-inline: var(--space-2);
+  inset-inline: 0;
   z-index: 5;
   height: 0;
 }
 
 .floatNote {
+  composes: banner from '../../components/Banner.module.css';
   position: absolute;
-  inset-inline: 0;
+  inset-inline: 12.5%;
   inset-block-end: 0;
+  width: auto;
   margin: 0;
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-sm);
-  background: var(--color-surface-raised);
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-overlay);
 }
 
 .floatNote + .floatNote {

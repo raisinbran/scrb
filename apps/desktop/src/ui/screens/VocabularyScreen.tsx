@@ -106,6 +106,7 @@ function EntryRow({
   selected: boolean;
   onSelect(): void;
 }) {
+  const tag = entry.kind === 'suggestion' ? 'Suggested' : entry.item.enabled ? null : 'Disabled';
   return (
     <li>
       <button
@@ -115,11 +116,7 @@ function EntryRow({
         onClick={onSelect}
       >
         <span className={styles.term}>{entry.name}</span>
-        <span className={styles.muted}>
-          {entry.misheard.length > 0
-            ? `Heard as: ${entry.misheard.join(', ')}`
-            : 'No misheard versions'}
-        </span>
+        {tag && <span className={styles.tag}>{tag}</span>}
       </button>
     </li>
   );
@@ -246,36 +243,70 @@ function UsageNote({ terms }: { terms: VocabularyTerm[] }) {
   );
 }
 
-function Groups({
-  groups,
+type Filter = 'all' | 'suggested' | 'enabled' | 'disabled';
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'suggested', label: 'Suggested' },
+  { id: 'enabled', label: 'Enabled' },
+  { id: 'disabled', label: 'Disabled' },
+];
+
+const stateOf = (entry: Entry): Exclude<Filter, 'all'> =>
+  entry.kind === 'suggestion' ? 'suggested' : entry.item.enabled ? 'enabled' : 'disabled';
+
+const ORDER = { suggested: 0, enabled: 1, disabled: 2 } as const;
+
+function FilterToggle({
+  value,
+  counts,
+  onChange,
+}: {
+  value: Filter;
+  counts: Record<Filter, number>;
+  onChange(next: Filter): void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Show terms" className={styles.filter}>
+      {FILTERS.filter((item) => item.id === 'all' || counts[item.id] > 0 || item.id === value).map(
+        (item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="radio"
+            aria-checked={value === item.id}
+            className={styles.filterButton}
+            onClick={() => onChange(item.id)}
+          >
+            {item.label} ({counts[item.id]})
+          </button>
+        ),
+      )}
+    </div>
+  );
+}
+
+function Entries({
+  entries,
   selectedKey,
   onSelect,
 }: {
-  groups: { id: string; label: string; entries: Entry[] }[];
+  entries: Entry[];
   selectedKey: string | null;
   onSelect(key: string): void;
 }) {
-  if (groups.length === 0) return <p className={styles.muted}>No matching terms.</p>;
+  if (entries.length === 0) return <p className={styles.muted}>No matching terms.</p>;
   return (
-    <>
-      {groups.map((group) => (
-        <section key={group.id} aria-labelledby={`vocab-group-${group.id}`}>
-          <h2 id={`vocab-group-${group.id}`} className={styles.groupHeading}>
-            {group.label} ({group.entries.length})
-          </h2>
-          <ul className={list.list}>
-            {group.entries.map((entry) => (
-              <EntryRow
-                key={entry.key}
-                entry={entry}
-                selected={entry.key === selectedKey}
-                onSelect={() => onSelect(entry.key)}
-              />
-            ))}
-          </ul>
-        </section>
+    <ul className={list.list}>
+      {entries.map((entry) => (
+        <EntryRow
+          key={entry.key}
+          entry={entry}
+          selected={entry.key === selectedKey}
+          onSelect={() => onSelect(entry.key)}
+        />
       ))}
-    </>
+    </ul>
   );
 }
 
@@ -283,6 +314,7 @@ export function VocabularyScreen() {
   const backend = useBackend();
   const { state, reload } = useBackendData(load);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<VocabularyTerm | null>(null);
   const [deleting, setDeleting] = useState<VocabularyTerm | null>(null);
@@ -309,19 +341,16 @@ export function VocabularyScreen() {
     : [];
   const needle = query.trim().toLowerCase();
   const shown = needle ? entries.filter((entry) => matches(entry, needle)) : entries;
-  const groups = [
-    { id: 'suggested', label: 'Suggested', entries: shown.filter((e) => e.kind === 'suggestion') },
-    {
-      id: 'enabled',
-      label: 'Enabled',
-      entries: shown.filter((e) => e.kind === 'term' && e.item.enabled),
-    },
-    {
-      id: 'disabled',
-      label: 'Disabled',
-      entries: shown.filter((e) => e.kind === 'term' && !e.item.enabled),
-    },
-  ].filter((group) => group.entries.length > 0);
+  const counts: Record<Filter, number> = {
+    all: shown.length,
+    suggested: shown.filter((e) => stateOf(e) === 'suggested').length,
+    enabled: shown.filter((e) => stateOf(e) === 'enabled').length,
+    disabled: shown.filter((e) => stateOf(e) === 'disabled').length,
+  };
+  // Suggested first, then enabled, then disabled; the loaded order holds inside each state.
+  const visible = shown
+    .filter((e) => filter === 'all' || stateOf(e) === filter)
+    .sort((x, y) => ORDER[stateOf(x)] - ORDER[stateOf(y)]);
   // Nothing picked (or the picked one is gone): show the first suggestion, else the first enabled term.
   const selected =
     entries.find((entry) => entry.key === selectedKey) ??
@@ -365,13 +394,18 @@ export function VocabularyScreen() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
+            <FilterToggle value={filter} counts={counts} onChange={setFilter} />
             <UsageNote terms={data.terms} />
           </>
         ) : null
       }
       list={
         data && entries.length > 0 ? (
-          <Groups groups={groups} selectedKey={selected?.key ?? null} onSelect={setSelectedKey} />
+          <Entries
+            entries={visible}
+            selectedKey={selected?.key ?? null}
+            onSelect={setSelectedKey}
+          />
         ) : null
       }
     >
