@@ -11,10 +11,26 @@
   font-weight: 600;
 }
 
+/* Country and State side by side, each a fixed width; State keeps its room even when it is disabled. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-start;
+}
+
+.country {
+  width: 300px;
+}
+
+.state {
+  width: 220px;
+}
+
 /* Room for the longest note, so the controls above never move. */
 .notes {
-  min-height: 7.5em;
-  max-width: 320px;
+  min-height: 4.5em;
+  max-width: 540px;
 }
 
 .warning,

@@ -71,9 +71,9 @@
 }
 
 .notifyList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-1) var(--space-5);
   margin-block: var(--space-2);
 }
 
@@ -183,7 +183,11 @@
   inset-block-end: var(--space-3);
   z-index: 20;
   height: 0;
-  /* Reserved whether or not the bar shows, so the last section is never covered. */
+  margin-block-end: 0;
+}
+
+/* Room under the last section only while the bar shows, so it never covers it. */
+.saveDock[data-open='true'] {
   margin-block-end: 56px;
 }
 

@@ -159,3 +159,14 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Comment                 | Change                                                                                                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Live transcript toolbar | Title and info icon left, A- and A+ right; no undo or redo buttons (Ctrl+Z and double-click still work). Jump to Live is a fixed strip under the text, disabled while following |
+
+## Owner comments, round 17
+
+| Comment         | Change                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Banner gutter   | Removed: the popup layer has zero height and banners float over the card, so every card has the same top padding                                               |
+| Dismiss X       | The outdated and re-processed summary banner has an X beside Regenerate; dismissal lasts for that meeting and counts as the first dismissal                    |
+| Pointer         | The one-time pointer appears in the popup stack of the panel the person is in (a recording or Live), like every other banner                                   |
+| Toolbar buttons | A- and A+ and undo/redo are the same 30 px IconButtons in the Live and Recordings toolbars; text buttons share a 30 px minimum height and the same padding     |
+| Banner surface  | New tokens `--color-banner` and `--shadow-banner`: a lighter step in dark, a cool off-white with a stronger shadow in light, plus the coloured left accent     |
+| Settings        | The 56 px reserve under the last section exists only while the Save bar shows; Country and State share one row; Notifications use two columns when wide enough |

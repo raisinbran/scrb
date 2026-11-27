@@ -69,16 +69,17 @@ export function setNotificationEnabled(category: NotificationCategory, enabled: 
 /** Call when a person dismisses an optional banner. The first time, it opens the one-time pointer to Settings. */
 export function noteOptionalDismiss(): void {
   if (taught) return;
-  taught = true;
   teaching = true;
-  publish();
+  version += 1;
+  listeners.forEach((listener) => listener());
 }
 
+/** Closing the pointer, by any route, is what counts as taught: a dismissal with no pointer shown is not lost. */
 export function closeTeaching(): void {
   if (!teaching) return;
   teaching = false;
-  version += 1;
-  listeners.forEach((listener) => listener());
+  taught = true;
+  publish();
 }
 
 export function useTeachingOpen(): boolean {

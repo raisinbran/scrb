@@ -40,6 +40,7 @@ const BACKGROUNDS = [
   '--color-surface',
   '--color-surface-sidebar',
   '--color-surface-raised',
+  '--color-banner',
   '--color-surface-hover',
   '--color-line-current',
   '--color-page',

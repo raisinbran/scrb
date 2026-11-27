@@ -370,5 +370,22 @@ Every screen must handle every state the UI Specification lists for it. A state 
 - Show in transcript is always in the player row, always an icon with a tooltip and `aria-label`. It is disabled while the transcript tab already follows the playhead, like Jump to Live in the live transcript, and enabled on every other tab.
 - Banners hug their content: `fit-content`, minimum 280 px, at most 75% of the panel, 16 px symmetric horizontal padding, balanced text with a dismiss button after it in the same row. Stacks run vertically with a gap and overlay the content.
 - Settings > Notifications has one checkbox per optional banner category (tips, summary, paused audio, privacy reminder, processing progress), all on by default and saved in the UI's own storage. Errors and anything that affects recording or data safety have no toggle.
-- The first dismissal of an optional banner shows one temporary pointer to Settings > Notifications (8 s, once ever). It floats with the app notices and moves nothing.
+- The first dismissal of an optional banner shows one temporary pointer to Settings > Notifications (8 s, once ever). It appears in the popup stack of the panel the person is in (Live, a recording, otherwise the app notices), looks like every other banner and moves nothing.
 - Live transcript toolbar: the title "Live transcript" with the text-styles info icon on the left, only A- and A+ on the right. Undo and redo exist in the Recordings transcript only; live corrections stay on double-click and Ctrl+Z. Jump to Live sits in a fixed strip under the text, always present, and is disabled (default cursor) while the transcript already follows.
+
+## Round 14 rules
+
+- No banner gutter. The popup layer has zero height and banners float over the top of the card; every card keeps the same small top padding (`--space-card-pad`).
+- Every optional banner has an X; only errors and recording or data-safety notices lack one. A dismissal lasts for that meeting or session and counts as the first dismissal for the one-time pointer. The pointer is persisted when it closes, so a dismissal with no pointer showing is never lost.
+- Banners use the elevated tokens `--color-banner` (lighter than the card in dark, a cool off-white in light) and `--shadow-banner`, plus the coloured left accent for warning and danger.
+- Button set (the only styles in use; add none without a stated reason):
+
+| Role                                                     | Component                                                        | Size                                  | Padding                   | Type                     |
+| -------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------- | ------------------------- | ------------------------ |
+| Text button (secondary, primary, danger)                 | `Button`, and the Recordings and Live text buttons that match it | min-height 30 px (`--control-height`) | `--space-1` × `--space-3` | `--text-sm`, primary 600 |
+| Icon button, incl. A−/A+, undo/redo, export, trash, info | `IconButton`                                                     | 30 × 30, 16 px icon                   | none                      | none                     |
+| Media transport (play, skip)                             | `IconButton`/`SkipButton`                                        | 34 px target, no idle fill            | none                      | none                     |
+| Start and Stop (Live)                                    | `.startButton`/`.stopButton`                                     | 88 px wide, 30 px high                | `--space-1` × `--space-3` | 600                      |
+| Tags and chips                                           | `Chip`                                                           | text height                           | `--space-1` × `--space-2` | `--text-xs`              |
+
+The Live and Recordings transcript toolbars use the same two `IconButton`s for text size, so they match in size, radius and icon.

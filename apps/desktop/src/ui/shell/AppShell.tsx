@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
-import { TeachingToast } from '../components/TeachingToast.tsx';
+import { OpenNotificationSettings, TeachingToast } from '../components/TeachingToast.tsx';
 import { SharedLibraryNotice } from '../components/SharedLibraryNotice.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
@@ -105,22 +105,24 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
             <SharedLibraryNotice />
             {screenId !== 'live' && <PrivacyBanner />}
             <ModelsNotice />
-            <TeachingToast onOpenSettings={openNotificationSettings} />
+            {screenId !== 'live' && screenId !== 'recordings' && <TeachingToast />}
           </div>
-          <main
-            ref={workspace}
-            className={styles.workspace}
-            onScroll={(event) => {
-              if (userScrolled.current)
-                remember(`scroll.${screenId}`, event.currentTarget.scrollTop);
-            }}
-            onWheel={noteUserScroll}
-            onTouchMove={noteUserScroll}
-            onPointerDown={noteUserScroll}
-            onKeyDown={noteUserScroll}
-          >
-            {children}
-          </main>
+          <OpenNotificationSettings.Provider value={openNotificationSettings}>
+            <main
+              ref={workspace}
+              className={styles.workspace}
+              onScroll={(event) => {
+                if (userScrolled.current)
+                  remember(`scroll.${screenId}`, event.currentTarget.scrollTop);
+              }}
+              onWheel={noteUserScroll}
+              onTouchMove={noteUserScroll}
+              onPointerDown={noteUserScroll}
+              onKeyDown={noteUserScroll}
+            >
+              {children}
+            </main>
+          </OpenNotificationSettings.Provider>
         </div>
       </div>
     </div>

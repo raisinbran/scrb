@@ -1313,7 +1313,7 @@ describe('Recordings', () => {
       expect(banner.closest('[class*="layer"]')).not.toBeNull();
       const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
       expect(css).not.toMatch(/\.inline/);
-      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: var\(--popup-gutter, 0\)/);
+      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: 0;/);
       expect(css.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/position: absolute/);
     });
 
@@ -1324,6 +1324,18 @@ describe('Recordings', () => {
         await screen.findByText('Transcript was re-processed. The summary may be outdated.'),
       ).toBeTruthy();
       expect(screen.getByText(/does not cover it/)).toBeTruthy();
+    });
+
+    it('lets the outdated banner be dismissed with an X, keeping Regenerate, and shows the pointer', async () => {
+      renderScreen();
+      await openTab(/Weekly project sync/, 'Summary');
+      const text = 'Transcript was re-processed. The summary may be outdated.';
+      await screen.findByText(text);
+      expect(screen.getByRole('button', { name: 'Regenerate' })).toBeTruthy();
+      const banner = screen.getByText(text).closest('[role="status"]') as HTMLElement;
+      fireEvent.click(within(banner).getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByText(text)).toBeNull();
+      expect(screen.getByText(/turn banners on or off in Settings/)).toBeTruthy();
     });
 
     it('turns outdated when the event arrives', async () => {

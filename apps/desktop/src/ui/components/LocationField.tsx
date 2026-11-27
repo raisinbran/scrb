@@ -68,39 +68,41 @@ export function LocationField({
   const outside = country !== '' && country !== 'US';
   return (
     <div className={styles.field}>
-      <div className={styles.label}>
-        Country where you live or most often work
-        <SearchSelect
-          label="Country"
-          placeholder="Type to search countries"
-          options={COUNTRIES}
-          value={country}
-          autoFocus
-          describedBy={noteId}
-          onChange={(code) => {
-            if (code === 'US') {
-              if (value.country !== 'US') setPendingUS(true);
-              return;
-            }
-            setPendingUS(false);
-            onChange({ country: code, usState: null });
-          }}
-        />
-      </div>
-      <div className={styles.label}>
-        State
-        <SearchSelect
-          label="State"
-          placeholder={country === 'US' ? 'Type to search states' : 'Only for the United States'}
-          options={STATE_OPTIONS}
-          value={pendingUS ? '' : (value.usState ?? '')}
-          disabled={country !== 'US'}
-          describedBy={noteId}
-          onChange={(code) => {
-            setPendingUS(false);
-            onChange({ country: 'US', usState: code });
-          }}
-        />
+      <div className={styles.row}>
+        <div className={`${styles.label} ${styles.country}`}>
+          Country where you live or most often work
+          <SearchSelect
+            label="Country"
+            placeholder="Type to search countries"
+            options={COUNTRIES}
+            value={country}
+            autoFocus
+            describedBy={noteId}
+            onChange={(code) => {
+              if (code === 'US') {
+                if (value.country !== 'US') setPendingUS(true);
+                return;
+              }
+              setPendingUS(false);
+              onChange({ country: code, usState: null });
+            }}
+          />
+        </div>
+        <div className={`${styles.label} ${styles.state}`}>
+          State
+          <SearchSelect
+            label="State"
+            placeholder={country === 'US' ? 'Type to search states' : 'Only for the United States'}
+            options={STATE_OPTIONS}
+            value={pendingUS ? '' : (value.usState ?? '')}
+            disabled={country !== 'US'}
+            describedBy={noteId}
+            onChange={(code) => {
+              setPendingUS(false);
+              onChange({ country: 'US', usState: code });
+            }}
+          />
+        </div>
       </div>
       <div id={noteId} className={styles.notes}>
         {listed && (

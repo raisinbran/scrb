@@ -1,3 +1,4 @@
+import { TeachingToast } from '../../components/TeachingToast.tsx';
 import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
@@ -752,22 +753,18 @@ function LoadedDetail(props: LoadedDetailProps) {
                 />
               </>
             )}
-            <button
-              type="button"
-              className={styles.button}
-              aria-label="Smaller transcript text"
+            <IconButton
+              label="Smaller transcript text"
+              tip="Decrease text size"
+              icon="textSmaller"
               onClick={() => changeFont(-1)}
-            >
-              A−
-            </button>
-            <button
-              type="button"
-              className={styles.button}
-              aria-label="Larger transcript text"
+            />
+            <IconButton
+              label="Larger transcript text"
+              tip="Increase text size"
+              icon="textLarger"
               onClick={() => changeFont(1)}
-            >
-              A+
-            </button>
+            />
           </span>
         )}
       </div>
@@ -845,6 +842,7 @@ function LoadedDetail(props: LoadedDetailProps) {
               <p>This meeting is being deleted.</p>
             </PopupBanner>
           )}
+          <TeachingToast />
         </PopupLayer>
         {tab === 'Transcript' && (
           <TranscriptTab

@@ -335,7 +335,7 @@ function SettingsForm({
           {error}
         </p>
       )}
-      <div className={styles.saveDock}>
+      <div className={styles.saveDock} data-open={dirty}>
         {dirty && (
           <div className={styles.saveBar} role="status">
             <span>You have unsaved changes.</span>

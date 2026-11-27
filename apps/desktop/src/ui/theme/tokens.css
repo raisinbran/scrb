@@ -65,6 +65,8 @@
   --color-danger: #b42020;
   --color-backdrop: #00000066;
   --shadow-overlay: 0 4px 16px #0000002e;
+  --color-banner: #eef0f5;
+  --shadow-banner: 0 6px 20px #0000003d, 0 1px 3px #0000002e;
 }
 
 :root[data-theme='dark'] {
@@ -97,6 +99,8 @@
   --color-danger: #f58585;
   --color-backdrop: #00000099;
   --shadow-overlay: 0 4px 16px #00000080;
+  --color-banner: #383b41;
+  --shadow-banner: 0 6px 20px #000000a6, 0 1px 3px #00000080;
 }
 
 * {

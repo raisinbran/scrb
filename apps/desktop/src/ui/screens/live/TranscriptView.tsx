@@ -598,7 +598,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             label="Smaller transcript text"
             tip="Decrease text size"
             icon="textSmaller"
-            className={styles.toolIcon}
             disabled={fontPx <= MIN_FONT_PX}
             onClick={() => onFontChange(fontPx - 1)}
           />
@@ -606,7 +605,6 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
             label="Larger transcript text"
             tip="Increase text size"
             icon="textLarger"
-            className={styles.toolIcon}
             disabled={fontPx >= MAX_FONT_PX}
             onClick={() => onFontChange(fontPx + 1)}
           />

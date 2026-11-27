@@ -1,9 +1,9 @@
-/* Reserved gutter at the top of a panel (height comes from --popup-gutter); banners float in it. */
+/* Zero-height anchor at the top of a panel: banners float over the content and never reserve space. */
 .layer {
   position: relative;
   z-index: 20;
   flex: none;
-  height: var(--popup-gutter, 0);
+  height: 0;
   pointer-events: none;
 }
 

@@ -256,7 +256,7 @@ button:disabled {
 .banner[data-level='failed'] {
   box-shadow:
     inset 3px 0 0 var(--color-danger),
-    var(--shadow-overlay);
+    var(--shadow-banner);
 }
 
 .bannerTime {

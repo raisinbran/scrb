@@ -10,6 +10,7 @@ import { useRecordingStatus } from '../shell/use-recording-status.ts';
 import { LevelMeters } from './live/LevelMeters.tsx';
 import { FinishedNotice } from './live/FinishedNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
+import { TeachingToast } from '../components/TeachingToast.tsx';
 import { LiveAlerts } from './live/LiveAlerts.tsx';
 import { RecordingControls } from './live/RecordingControls.tsx';
 import { SourcePickers } from './live/SourcePickers.tsx';
@@ -175,6 +176,7 @@ export function LiveScreen() {
           onDismissDevice={() => setDevice(null)}
         >
           <PrivacyBanner />
+          <TeachingToast />
         </LiveAlerts>
       </div>
       {status === 'idle' && lastMeetingId && (

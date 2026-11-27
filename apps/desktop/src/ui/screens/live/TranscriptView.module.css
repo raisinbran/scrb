@@ -26,7 +26,8 @@
 }
 
 .toolButton {
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text);
   background: var(--color-surface-raised);
@@ -44,6 +45,7 @@
 }
 
 .primaryButton {
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -253,11 +255,6 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-.toolbar .toolIcon {
-  width: 26px;
-  height: 26px;
 }
 
 /* The tooltip behind the info button: one sample line per style, each in that style. */

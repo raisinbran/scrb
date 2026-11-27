@@ -16,9 +16,7 @@ describe('banners never move the content under them', () => {
   });
 
   it('floats the popup banners, the live notice and the list notes', () => {
-    expect(rule(css('components/PopupBanner.module.css'), '.layer')).toMatch(
-      /height: var\(--popup-gutter, 0\)/,
-    );
+    expect(rule(css('components/PopupBanner.module.css'), '.layer')).toMatch(/height: 0;/);
     expect(rule(css('components/PopupBanner.module.css'), '.stack')).toMatch(/position: absolute/);
     expect(rule(css('screens/LiveScreen.module.css'), '.finished')).toMatch(/position: absolute/);
     expect(rule(css('screens/recordings/recordings.module.css'), '.floatNote')).toMatch(
