@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { Backend } from '@scrb/contracts';
@@ -328,6 +328,8 @@ describe('screens', () => {
     it('jumps to a settings group and follows the workspace as it scrolls', async () => {
       renderScreen(backend, <SettingsScreen />);
       const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
+      // findBy can resolve before React runs the nav's effects; wait so its scroll listener exists.
+      await act(async () => {});
       const buttons = within(nav).getAllByRole('button');
       expect(buttons.map((button) => button.textContent)).toEqual([
         'Theme',
@@ -354,6 +356,8 @@ describe('screens', () => {
           new DOMRect(200, index * 260 - workspace.scrollTop, 500, 260);
       });
 
+      // jsdom has no layout, so the group list can only learn the real positions from a scroll.
+      fireEvent.scroll(workspace);
       fireEvent.click(buttons[1]!);
       expect(scrollTo).toHaveBeenCalledWith({ top: 260, behavior: 'smooth' });
       expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
