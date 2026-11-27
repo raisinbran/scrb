@@ -146,8 +146,16 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await expect(editor).toBeFocused();
       await inspectLayout(page, `${zoom}-live-editor`);
       await page.keyboard.press('Escape');
-      await page.getByRole('button', { name: 'Pause', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
+      // The scripted mock meeting pauses itself at second 15 and resumes at second 20. A click on
+      // Pause can land just as that pause swaps the button for Resume (resuming instead), and the
+      // scripted resume can undo a user pause before it is seen. Press Pause again until Resume shows.
+      await expect(async () => {
+        const pause = page.getByRole('button', { name: 'Pause', exact: true });
+        if (await pause.isVisible()) await pause.click();
+        await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible({
+          timeout: 1_500,
+        });
+      }).toPass({ timeout: 15_000 });
       await inspectLayout(page, `${zoom}-live-paused`);
       await trigger('stop');
       await page.getByRole('button', { name: 'Recordings', exact: true }).click();
