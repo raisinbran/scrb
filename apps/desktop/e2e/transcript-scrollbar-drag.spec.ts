@@ -43,15 +43,16 @@ for (const [width, height] of [
       // must be scrolled to the same fraction by the same pointer positions.
       const box = await scroller.boundingBox();
       if (!box) throw new Error('Transcript has no box');
-      const drag = async (target: typeof scroller) => {
+      // Where the thumb starts differs by platform (arrow buttons on Windows, a hidden overlay on
+      // macOS), so the press point is found by trying points down the edge on the plain scroller.
+      const drag = async (target: typeof scroller, grab?: number) => {
         const g = await target.evaluate((el) => {
           const rect = el.getBoundingClientRect();
           const bar = (el as HTMLElement).offsetWidth - el.clientWidth;
           return {
             x: rect.right - (bar > 0 ? bar / 2 : 3),
-            top: rect.top + bar,
-            bottom: rect.top + el.clientHeight - bar,
-            track: el.clientHeight,
+            top: rect.top,
+            bottom: rect.top + el.clientHeight,
           };
         });
         const fraction = () =>
@@ -60,16 +61,31 @@ for (const [width, height] of [
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
         await page.mouse.wheel(0, 30);
         await page.waitForTimeout(300);
-        await page.mouse.move(g.x, g.top + 10);
+        let press = grab;
+        for (let offset = 2; press === undefined && offset < 100; offset += 4) {
+          await page.mouse.move(g.x, g.top + offset);
+          await page.mouse.down();
+          await page.mouse.move(g.x, g.top + offset + 40);
+          await page.waitForTimeout(100);
+          const moved = (await fraction()) > 0.01;
+          await page.mouse.up();
+          await target.evaluate((el) => {
+            el.scrollTop = 30;
+          });
+          if (moved) press = offset;
+        }
+        if (press === undefined) throw new Error('No scrollbar thumb found to press');
+        await page.mouse.move(g.x, g.top + press);
         await page.mouse.down();
         const fractions: number[] = [];
+        const span = g.bottom - g.top - press - 14;
         for (let step = 1; step <= STEPS; step += 1) {
-          await page.mouse.move(g.x, g.top + 10 + ((g.bottom - g.top - 14) * step) / STEPS);
+          await page.mouse.move(g.x, g.top + press + (span * step) / STEPS);
           await page.waitForTimeout(40);
           fractions.push(await fraction());
         }
         await page.mouse.up();
-        return { fractions, track: g.track };
+        return { fractions, press, track: g.bottom - g.top };
       };
 
       const scrollHeight = await scroller.evaluate((el) => el.scrollHeight);
@@ -87,7 +103,7 @@ for (const [width, height] of [
       await page.evaluate(() => document.getElementById('drag-control')?.remove());
       expect(reference.fractions.at(-1)).toBeGreaterThan(0.8);
 
-      const actual = await drag(scroller);
+      const actual = await drag(scroller, reference.press);
       const worst = Math.max(
         ...actual.fractions.map(
           (f, i) => Math.abs(f - (reference.fractions[i] ?? 0)) * actual.track,
