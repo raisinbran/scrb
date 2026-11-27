@@ -1,4 +1,4 @@
-### A-1218 — 2026-11-26 — Source probes for the import/export plan
+### A-1223 — 2026-11-26 — Source probes for the import/export plan
 
 - **Agent:** Codex Desktop (model unavailable, Apple Silicon Mac).
 - **What happened:** A source search named a nonexistent contract file. Unmatched shell globs prevented portions of two later source searches. A legacy incident lookup searched the entire file while limiting displayed output to the last three matching headings.
