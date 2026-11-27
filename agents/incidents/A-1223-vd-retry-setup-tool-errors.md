@@ -1,0 +1,8 @@
+### A-1223 — 2026-11-27 — Codex — V-d retry setup command errors
+
+- **Agent:** Codex (active model and effort unavailable from per-turn metadata; Windows Codex desktop surface)
+- **Status / attribution:** Confirmed agent-caused setup and command errors; no application defect.
+- **What failed:** Two initial new-session requests had invalid arguments. A projectless task was created, whose PowerShell, CMD and Node launch attempts then failed before execution with `CreateProcessWithLogonW ... 1920`. On the retry, three default-sandbox PowerShell commands hit the same process-creation failure. The first `npm ci` request used the original checkout as its working directory and was rejected before execution by the safety reviewer. The corrected install started in the isolated clone, but I did not retain its command-session identifier and therefore did not capture its exit code directly.
+- **Impact:** Delayed setup and two failed task-session launches. The safety rejection prevented `npm ci` from running against the original repository. No files in the original checkout were changed.
+- **Correction:** Used the authorized elevated shell for the isolated clone, ran `npm ci` with the clone as the working directory, and verified the resulting dependency tree with `npm ls --depth=0` (exit 0) and package sentinels. The original checkout remained on its existing branch.
+- **Remaining risk:** `npm ci`'s direct exit code was not captured; the dependency tree was verified usable. No application code was changed. Low.
