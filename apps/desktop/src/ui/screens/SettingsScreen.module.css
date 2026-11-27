@@ -70,6 +70,13 @@
   font-weight: 400;
 }
 
+.notifyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-block: var(--space-2);
+}
+
 .toggles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -199,7 +206,7 @@
 .check:has(input:disabled),
 .field:has(select:disabled) {
   opacity: 0.55;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .legendRow {

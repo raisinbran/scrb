@@ -363,3 +363,11 @@ Every screen must handle every state the UI Specification lists for it. A state 
 - Deliberate exception to the soft idle fill: media transport icons (play, skip back, skip forward) have no idle fill. A round fill shows on hover, focus and press; the hit target stays 34 px. Speed and Show in transcript keep the normal button fill.
 - The sidebar toggle sits at the bottom; the sidebar is its own card.
 - Search fields show their full placeholder at 960 px. A title-row action (Import, info icon) sits right of the title.
+
+## Round 13 rules
+
+- Disabled controls keep the normal default cursor everywhere. Never use `cursor: not-allowed` (the crossed-out circle); greyed text and the faded fill already say it is off.
+- Show in transcript is always in the player row, always an icon with a tooltip and `aria-label`. It is disabled while the transcript tab already follows the playhead, like Jump to Live in the live transcript, and enabled on every other tab.
+- Banners hug their content: `fit-content`, minimum 280 px, at most 75% of the panel, 16 px symmetric horizontal padding, balanced text with a dismiss button after it in the same row. Stacks run vertically with a gap and overlay the content.
+- Settings > Notifications has one checkbox per optional banner category (tips, summary, paused audio, privacy reminder, processing progress), all on by default and saved in the UI's own storage. Errors and anything that affects recording or data safety have no toggle.
+- The first dismissal of an optional banner shows one temporary pointer to Settings > Notifications (8 s, once ever). It floats with the app notices and moves nothing.

@@ -1,4 +1,5 @@
 import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import { Button } from '../../components/Button.tsx';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -432,6 +433,8 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
   const { state: setupState } = useBackendData(loadSetupStatus);
   const [length, setLength] = useState(defaultLength);
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
+  const summaryNoticesOn = useNotificationEnabled('summary');
+  const pausedNoticesOn = useNotificationEnabled('paused');
   const [saved, setSaved] = useState<MeetingSummaryDoc | null>(null);
   const [progress, setProgress] = useState<SummaryProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -546,7 +549,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
           const sections = doc.narrative[length];
           const banners = (
             <>
-              {doc.state === 'outdated' && (
+              {doc.state === 'outdated' && summaryNoticesOn && (
                 <PopupBanner level="warning">
                   <p>
                     {doc.outdatedByReprocess
@@ -566,11 +569,15 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
               )}
               {doc.warnings
                 .filter((warning) => !dismissedWarnings.includes(warning))
+                .filter((warning) => (/\bpaused\b/i.test(warning) ? pausedNoticesOn : true))
                 .map((warning) => (
                   <PopupBanner
                     key={warning}
                     level="warning"
-                    onDismiss={() => setDismissedWarnings([...dismissedWarnings, warning])}
+                    onDismiss={() => {
+                      setDismissedWarnings([...dismissedWarnings, warning]);
+                      if (/\bpaused\b/i.test(warning)) noteOptionalDismiss();
+                    }}
                   >
                     <p>{warning}</p>
                   </PopupBanner>

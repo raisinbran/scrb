@@ -611,6 +611,22 @@ describe('Recordings', () => {
       expect(time()).toMatch(/00:15/);
     });
 
+    it('always shows Show in transcript as an icon, disabled only while the transcript already follows', async () => {
+      renderScreen();
+      await openMeeting(/Weekly project sync/);
+      const show = () => screen.getByRole('button', { name: 'Show in transcript' });
+      expect(show().textContent).toBe('');
+      expect((show() as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
+      expect((show() as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(show());
+      await screen.findAllByRole('button', { name: /Play from/ });
+      expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe(
+        'true',
+      );
+      expect((show() as HTMLButtonElement).disabled).toBe(true);
+    });
+
     it('steps the playback speed from a fixed-width button that wraps after 2x', async () => {
       renderScreen();
       await openMeeting(/Weekly project sync/);

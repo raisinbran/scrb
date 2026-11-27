@@ -1,3 +1,4 @@
+import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
@@ -524,6 +525,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   );
   // A word at 0 ms leaves the position at 0, so "placed" is tracked on its own.
   const [editorOpen, setEditorOpen] = useState(false);
+  const tipsOn = useNotificationEnabled('tips');
   const [hintShown, setHintShown] = useState(() => readStored<boolean>(HINT_KEY) !== true);
   const [placed, setPlaced] = useState(false);
   const [popupSlot, setPopupSlot] = useState<HTMLDivElement | null>(null);
@@ -562,7 +564,14 @@ function LoadedDetail(props: LoadedDetailProps) {
     backend.call('updateSettings', { transcriptFontPx: next }).catch(() => undefined);
   };
 
+  // On the Transcript tab the list reports whether it already follows the playhead; elsewhere there is always somewhere to go.
+  const transcriptControl = useRef<{ jumpToPosition(): void } | null>(null);
+  const [transcriptFollowing, setTranscriptFollowing] = useState(true);
   const showInTranscript = () => {
+    if (tab === 'Transcript') {
+      transcriptControl.current?.jumpToPosition();
+      return;
+    }
     selectTab('Transcript');
     setJump({ ms: playback.positionMs, nonce: Date.now() });
   };
@@ -617,6 +626,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   const dismissHint = () => {
     setHintShown(false);
     writeStored(HINT_KEY, true);
+    noteOptionalDismiss();
   };
   const unfinished = isUnfinished(meeting.status);
   const canReprocess =
@@ -774,7 +784,7 @@ function LoadedDetail(props: LoadedDetailProps) {
               <p>{undoState.error}</p>
             </PopupBanner>
           )}
-          {tab === 'Transcript' && canEdit && hintShown && (
+          {tab === 'Transcript' && canEdit && hintShown && tipsOn && (
             <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
               <p>Double-click a word to correct it. Click a speaker to rename.</p>
             </PopupBanner>
@@ -845,6 +855,8 @@ function LoadedDetail(props: LoadedDetailProps) {
             showPosition={playback.isPlaying || playback.positionMs > 0 || placed}
             playing={playback.isPlaying}
             jump={jump}
+            controlRef={transcriptControl}
+            onFollowChange={setTranscriptFollowing}
             restoreKey={meetingId}
             onPlay={playback.play}
             editing={editing}
@@ -872,21 +884,19 @@ function LoadedDetail(props: LoadedDetailProps) {
       {!live && (
         <div className={styles.playerRow}>
           <PlayerBar meeting={meeting} playback={playback} />
-          {tab !== 'Transcript' && (
-            <Tooltip label="Show in transcript">
-              <button
-                type="button"
-                className={`${styles.button} ${styles.showButton}`}
-                aria-label="Show in transcript"
-                onClick={showInTranscript}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.showIcon}>
-                  <path d="M4 6h16M4 12h16M4 18h10" />
-                </svg>
-                <span className={styles.showText}>Show in transcript</span>
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip label="Show in transcript">
+            <button
+              type="button"
+              className={`${styles.button} ${styles.showButton}`}
+              aria-label="Show in transcript"
+              disabled={tab === 'Transcript' && transcriptFollowing}
+              onClick={showInTranscript}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.showIcon}>
+                <path d="M4 6h16M4 12h16M4 18h10" />
+              </svg>
+            </button>
+          </Tooltip>
         </div>
       )}
 

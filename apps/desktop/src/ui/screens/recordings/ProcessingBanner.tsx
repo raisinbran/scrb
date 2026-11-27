@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import type { FinalPassProgress, FinalPassStage } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { PopupBanner } from '../../components/PopupBanner.tsx';
@@ -31,6 +32,7 @@ const STAGE_LABELS: Record<FinalPassStage, string> = {
 /** Fills from the backend's final-pass progress; until a report arrives the bar only sweeps. */
 export function ProcessingBanner({ meetingId }: { meetingId: string }) {
   const [dismissed, setDismissed] = useState(false);
+  const progressNoticesOn = useNotificationEnabled('progress');
   const backend = useBackend();
   const [progress, setProgress] = useState<FinalPassProgress | null>(null);
   useEffect(
@@ -40,9 +42,15 @@ export function ProcessingBanner({ meetingId }: { meetingId: string }) {
       }),
     [backend, meetingId],
   );
-  if (dismissed) return null;
+  if (dismissed || !progressNoticesOn) return null;
   return (
-    <PopupBanner className={styles.processingBanner} onDismiss={() => setDismissed(true)}>
+    <PopupBanner
+      className={styles.processingBanner}
+      onDismiss={() => {
+        setDismissed(true);
+        noteOptionalDismiss();
+      }}
+    >
       <p role="status">
         Processing final transcript. Text may change.{' '}
         {progress && <span className={styles.muted}>{STAGE_LABELS[progress.stage]}</span>}

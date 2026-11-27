@@ -9,9 +9,10 @@
   align-items: center;
   justify-content: center;
   width: fit-content;
+  min-width: min(280px, 100%);
   max-width: 75%;
   margin-inline: auto;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
   color: var(--color-text);
   text-align: center;

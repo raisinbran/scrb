@@ -852,12 +852,17 @@
 }
 
 .showButton {
+  display: inline-flex;
   flex: none;
-  white-space: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
 }
 
 .showIcon {
-  display: none;
+  display: block;
   width: 18px;
   height: 18px;
   fill: none;
@@ -869,7 +874,7 @@
 /*
  * The player's room depends on the panel, not the window (sidebar and list column take their share),
  * so it narrows by its own width. The seek track keeps at least 120px: first the volume track goes,
- * then Show in transcript becomes an icon, then Mute goes, and last the seek track drops to its own row.
+ * then Mute goes, and last the seek track drops to its own row.
  */
 .playerRow {
   container-type: inline-size;
@@ -878,16 +883,6 @@
 @container (max-width: 700px) {
   .volume {
     display: none;
-  }
-}
-
-@container (max-width: 590px) {
-  .showText {
-    display: none;
-  }
-
-  .showIcon {
-    display: block;
   }
 }
 

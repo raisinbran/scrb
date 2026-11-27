@@ -425,6 +425,7 @@ describe('screens', () => {
         'Models',
         'Storage',
         'Location',
+        'Notifications',
       ]);
       const theme = document.getElementById('settings-theme')!;
       const audio = document.getElementById('settings-audio')!;
@@ -459,7 +460,7 @@ describe('screens', () => {
 
       workspace.scrollTop = 1100;
       fireEvent.scroll(workspace);
-      expect(buttons[5]?.getAttribute('aria-current')).toBe('true');
+      expect(buttons[6]?.getAttribute('aria-current')).toBe('true');
 
       workspace.scrollTop = 0;
       fireEvent.scroll(workspace);

@@ -142,3 +142,14 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Live header    | The card hugs its controls with equal padding; the reserved hint lines under the pickers now float over the bottom padding                       |
 | Player buttons | Play, skip back and skip forward are bare icons; a round fill shows on hover, focus and press. Speed and Show in transcript keep the normal fill |
 | Detail header  | The status tags sit on the date and duration line and wrap below only when the width cannot fit them                                             |
+
+## Owner comments, round 15
+
+| Comment                | Change                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Show in transcript     | Always visible as an icon in the same place on every tab; disabled while the transcript already follows the playhead |
+| Disabled cursor        | The default cursor, never the crossed-out circle                                                                     |
+| Banners                | Hug the content with 16 px side padding, 280 px minimum and 75% maximum; the dismiss button sits after the text      |
+| Settings Notifications | One checkbox per optional banner category with a one-line description; errors and data-safety notices always show    |
+| First dismissal        | A one-time, 8 second pointer to Settings > Notifications with an Open settings button                                |
+| Transport icons        | Bare icons for play and skip (approved)                                                                              |

@@ -29,16 +29,16 @@
   gap: var(--space-1) var(--space-2);
   align-items: center;
   justify-content: center;
+  flex: 1;
   min-width: 0;
-  padding-inline: var(--space-4);
   text-align: center;
 }
 
-/* Overlaid in the corner so it takes no column and the text stays centred. */
+/* In the row after the text, so the text keeps its own symmetric padding and the box still hugs. */
 .dismissSlot {
-  position: absolute;
-  inset-block-start: var(--space-1);
-  inset-inline-end: var(--space-1);
+  display: flex;
+  flex: none;
+  margin-inline-end: calc(-1 * var(--space-2));
 }
 
 .body > p {

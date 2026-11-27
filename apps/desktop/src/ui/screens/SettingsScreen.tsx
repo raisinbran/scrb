@@ -1,3 +1,9 @@
+import {
+  NOTIFICATION_CATEGORIES,
+  setNotificationEnabled,
+  useNotificationEnabled,
+  type NotificationCategory,
+} from '../lib/notification-prefs.ts';
 import { cachedSources, fetchSources, forgetSources, sourcesNow } from '../lib/sources-cache.ts';
 import { useEffect, useState } from 'react';
 import type {
@@ -72,6 +78,7 @@ const GROUPS: SettingsGroup[] = [
   { id: 'settings-models', label: 'Models' },
   { id: 'settings-storage', label: 'Storage' },
   { id: 'settings-location', label: 'Location' },
+  { id: 'settings-notifications', label: 'Notifications' },
 ];
 
 type Draft = Pick<
@@ -130,6 +137,41 @@ function Select<T extends string>({
         ))}
       </select>
     </label>
+  );
+}
+
+function NotificationRow({
+  id,
+  label,
+  description,
+}: {
+  id: NotificationCategory;
+  label: string;
+  description: string;
+}) {
+  const enabled = useNotificationEnabled(id);
+  return (
+    <label className={styles.check}>
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(event) => setNotificationEnabled(id, event.target.checked)}
+      />
+      <span>
+        {label}
+        <span className={styles.help}>{description}</span>
+      </span>
+    </label>
+  );
+}
+
+function NotificationToggles() {
+  return (
+    <div className={styles.notifyList}>
+      {NOTIFICATION_CATEGORIES.map((category) => (
+        <NotificationRow key={category.id} {...category} />
+      ))}
+    </div>
   );
 }
 
@@ -272,6 +314,20 @@ function SettingsForm({
           idleNote="Some places have laws about voice data. Scribe builds voice profiles, and this answer decides whether a privacy banner shows when you record."
           onChange={(location) => change({ location })}
         />
+      </section>
+
+      <section className={styles.section} aria-labelledby="settings-notifications">
+        <h2 id="settings-notifications" className={styles.legend}>
+          Notifications
+        </h2>
+        <p className={styles.help}>
+          Choose which banners appear. A change applies at once and is not part of Save.
+        </p>
+        <NotificationToggles />
+        <p className={styles.help}>
+          Errors and anything that affects recording or the safety of your data, such as storage,
+          permissions and failures, always show.
+        </p>
       </section>
 
       {error && (

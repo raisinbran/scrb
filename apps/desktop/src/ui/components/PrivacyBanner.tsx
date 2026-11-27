@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MeetingId } from '@scrb/contracts';
+import { noteOptionalDismiss, useNotificationEnabled } from '../lib/notification-prefs.ts';
 import { useBackend } from '../lib/backend-context.tsx';
 import { US_STATES, isListedState } from '../lib/us-states.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
@@ -22,6 +23,7 @@ export function PrivacyBanner() {
   const backend = useBackend();
   const { recording } = useRecordingStatus();
   const dismissed = useSyncExternalStore(subscribe, () => dismissedId);
+  const privacyOn = useNotificationEnabled('privacy');
   const [usState, setUsState] = useState<string | null>(null);
   const meetingId = recording.meetingId;
   // The saved location is read at the start of each recording, so a change in Settings applies.
@@ -35,7 +37,7 @@ export function PrivacyBanner() {
       live = false;
     };
   }, [backend, meetingId]);
-  if (!recording.privacyBannerRequired || meetingId === dismissed) return null;
+  if (!privacyOn || !recording.privacyBannerRequired || meetingId === dismissed) return null;
   const stateName = isListedState(usState)
     ? US_STATES.find((state) => state.code === usState)?.name
     : undefined;
@@ -50,7 +52,11 @@ export function PrivacyBanner() {
         type="button"
         className={styles.dismiss}
         aria-label="Dismiss voice-profile privacy reminder for this recording"
-        onClick={() => meetingId && dismissOnly(meetingId)}
+        onClick={() => {
+          if (!meetingId) return;
+          dismissOnly(meetingId);
+          noteOptionalDismiss();
+        }}
       >
         Dismiss
       </button>

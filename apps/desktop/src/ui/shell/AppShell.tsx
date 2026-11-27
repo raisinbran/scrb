@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
+import { TeachingToast } from '../components/TeachingToast.tsx';
 import { SharedLibraryNotice } from '../components/SharedLibraryNotice.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
@@ -69,6 +70,18 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
     };
   }, [screenId]);
 
+  const openNotificationSettings = () => {
+    onSelectScreen('settings');
+    // The Settings form loads its data first, so wait briefly for the section to exist.
+    let tries = 0;
+    const find = () => {
+      const heading = document.getElementById('settings-notifications');
+      if (heading) heading.scrollIntoView({ block: 'start' });
+      else if (tries++ < 40) setTimeout(find, 50);
+    };
+    find();
+  };
+
   return (
     <div className={styles.shell}>
       <TitleBar />
@@ -92,6 +105,7 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
             <SharedLibraryNotice />
             {screenId !== 'live' && <PrivacyBanner />}
             <ModelsNotice />
+            <TeachingToast onOpenSettings={openNotificationSettings} />
           </div>
           <main
             ref={workspace}
