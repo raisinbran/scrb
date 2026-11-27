@@ -4,6 +4,7 @@ import { createBridgeBackend, type ScribeBridge } from '@scrb/contracts';
 import { App } from './App.tsx';
 import { BackendProvider } from './lib/backend-context.tsx';
 import { MockModeProvider, detectMockMode, detectSetupBlocked } from './lib/mock-mode.tsx';
+import { startFinalPassProgress } from './lib/final-pass-progress.ts';
 import { createHybridBackend } from './lib/hybrid-backend.ts';
 import { MiniRecording } from './shell/MiniRecording.tsx';
 import { DevMenu, MockBackend } from './mocks/index.ts';
@@ -40,6 +41,7 @@ async function start() {
   const backend = realBackend
     ? createHybridBackend(realBackend, mock, { setupBlocked: blocked !== null })
     : mock;
+  startFinalPassProgress(backend);
   const mockRecording = realBackend ? await detectMockMode(realBackend) : true;
   createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
