@@ -5,10 +5,12 @@ import styles from './IconButton.module.css';
 export function SkipButton({
   direction,
   disabled,
+  className,
   onClick,
 }: {
   direction: 'back' | 'forward';
   disabled?: boolean;
+  className?: string | undefined;
   onClick(): void;
 }) {
   const label = direction === 'back' ? 'Skip back 15 seconds' : 'Skip forward 15 seconds';
@@ -18,7 +20,7 @@ export function SkipButton({
         type="button"
         aria-label={label}
         disabled={disabled}
-        className={styles.button}
+        className={className ? `${styles.button} ${className}` : styles.button}
         onClick={onClick}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.skipIcon}>

@@ -318,7 +318,7 @@ button:disabled {
   flex: none;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-card-pad) var(--space-card-pad) 0;
+  padding: var(--space-card-pad);
   background: var(--color-card);
   border-radius: var(--radius);
 }
@@ -419,4 +419,20 @@ button:disabled {
 
 :global([data-design='tonal']) .levels .meter {
   width: 88px;
+}
+
+/* Tonal: the hint under a picker floats over the card's bottom padding, so the card hugs its controls and
+   a hint appearing moves nothing. */
+:global([data-design='tonal']) .hintSlot {
+  position: relative;
+  height: 0;
+}
+
+:global([data-design='tonal']) .hintSlot .hint {
+  position: absolute;
+  inset-block-start: var(--space-1);
+  inset-inline: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

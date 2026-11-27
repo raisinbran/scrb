@@ -133,3 +133,12 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Comment | Change                                                                                                                                                                                                                          |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Player  | The seek track keeps at least 120 px. The player narrows by its own width, not the window's: the volume track goes first, then Show in transcript becomes an icon, then Mute goes, and last the seek track drops to its own row |
+
+## Owner comments, round 14
+
+| Comment        | Change                                                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Audio tab      | With no status banner showing, the Audio content starts at the card padding instead of under an empty banner strip                               |
+| Live header    | The card hugs its controls with equal padding; the reserved hint lines under the pickers now float over the bottom padding                       |
+| Player buttons | Play, skip back and skip forward are bare icons; a round fill shows on hover, focus and press. Speed and Show in transcript keep the normal fill |
+| Detail header  | The status tags sit on the date and duration line and wrap below only when the width cannot fit them                                             |

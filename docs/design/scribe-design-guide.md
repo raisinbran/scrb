@@ -359,6 +359,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 ## Round 9 rules
 
 - Banners hug their text: `fit-content`, centred, at most 75% of the panel, `text-wrap: balance`. Stacked banners keep a gap.
-- The playback row never wraps; the volume slider hides at 1000 px or less. The window minimum width is 960 px.
+- The playback row narrows by its own width (container query): volume track, then the Show in transcript text, then Mute go; last the seek track (at least 120 px) takes its own row. The window minimum width is 720 px.
+- Deliberate exception to the soft idle fill: media transport icons (play, skip back, skip forward) have no idle fill. A round fill shows on hover, focus and press; the hit target stays 34 px. Speed and Show in transcript keep the normal button fill.
 - The sidebar toggle sits at the bottom; the sidebar is its own card.
 - Search fields show their full placeholder at 960 px. A title-row action (Import, info icon) sits right of the title.

@@ -205,6 +205,17 @@
   white-space: nowrap;
 }
 
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.metaRow .badges {
+  margin-top: 0;
+}
+
 .badges {
   display: flex;
   flex-wrap: wrap;
@@ -540,6 +551,11 @@
   flex: 1;
   min-height: 200px;
   overflow-y: auto;
+}
+
+/* Audio has no hint banner, so with no status banner showing its content starts at the card padding, not under an empty strip. */
+.panel[aria-labelledby='meeting-tab-Audio']:not(:has([role='status'], [role='alert'])) {
+  --popup-gutter: 0px;
 }
 
 /* Transcript */
@@ -899,6 +915,26 @@
   .showButton {
     align-self: flex-start;
   }
+}
+
+/* Media transport (play, skip) is bare icons: a round fill appears only on hover, focus or press. */
+.player .transport,
+:global([data-design='tonal']) .player .transport {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 50%;
+}
+
+.player .transport:hover:not(:disabled),
+:global([data-design='tonal']) .player .transport:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+.player .transport:active:not(:disabled),
+:global([data-design='tonal']) .player .transport:active:not(:disabled) {
+  background: var(--color-control);
 }
 
 .rateButton {

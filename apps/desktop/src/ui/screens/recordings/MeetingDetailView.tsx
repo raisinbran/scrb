@@ -109,17 +109,20 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
   return (
     <div className={styles.player} role="group" aria-label="Audio player">
       <IconButton
+        className={styles.transport}
         label={isPlaying ? 'Pause' : 'Play'}
         icon={isPlaying ? 'pause' : 'play'}
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       />
       <SkipButton
+        className={styles.transport}
         direction="back"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs - SKIP_MS)}
       />
       <SkipButton
+        className={styles.transport}
         direction="forward"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs + SKIP_MS)}
@@ -632,31 +635,33 @@ function LoadedDetail(props: LoadedDetailProps) {
             onChanged();
           }}
         />
-        <p className={styles.muted}>
-          <MeetingDate
-            startedAt={meeting.startedAt}
-            readOnly={!canEdit}
-            onSave={async (startedAt) => {
-              await backend.call('updateMeeting', { meetingId, startedAt });
-              onChanged();
-            }}
-          />{' '}
-          · {formatDuration(meeting.durationMs)}
-        </p>
-        <div className={styles.badges}>
-          <Chip
-            text={meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
-            className={styles.badge}
-            full
-          />
-          {status && <Chip text={status} className={styles.badgeStrong} full />}
-          {summaryLabel && (
+        <div className={styles.metaRow}>
+          <p className={styles.muted}>
+            <MeetingDate
+              startedAt={meeting.startedAt}
+              readOnly={!canEdit}
+              onSave={async (startedAt) => {
+                await backend.call('updateMeeting', { meetingId, startedAt });
+                onChanged();
+              }}
+            />{' '}
+            · {formatDuration(meeting.durationMs)}
+          </p>
+          <div className={styles.badges}>
             <Chip
+              text={meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
+              className={styles.badge}
               full
-              text={summaryLabel}
-              className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
             />
-          )}
+            {status && <Chip text={status} className={styles.badgeStrong} full />}
+            {summaryLabel && (
+              <Chip
+                full
+                text={summaryLabel}
+                className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
+              />
+            )}
+          </div>
         </div>
         <div className={styles.actions}>
           <IconButton
