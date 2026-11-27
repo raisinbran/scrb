@@ -55,7 +55,11 @@ describe('Recordings', () => {
       );
       fireEvent.click(button);
       expect(await screen.findByRole('progressbar', {}, SLOW)).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull();
+      // The library list has its own progress bar, so wait for the detail view to swap the button out.
+      await waitFor(
+        () => expect(screen.queryByRole('button', { name: 'Re-process' })).toBeNull(),
+        SLOW,
+      );
     });
   });
 
