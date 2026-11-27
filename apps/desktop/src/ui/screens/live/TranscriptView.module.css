@@ -13,7 +13,7 @@
   gap: var(--space-2) var(--space-4);
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-card-pad);
   font-size: var(--text-sm);
   border-bottom: 1px solid var(--color-border);
 }
@@ -60,6 +60,7 @@
 }
 
 .notice {
+  padding-inline: var(--space-card-pad);
   margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-warning);
@@ -179,7 +180,7 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2);
+  padding: var(--space-card-pad);
   border-top: 1px solid var(--color-border);
 }
 
@@ -274,7 +275,6 @@
 }
 
 :global([data-design='tonal']) .toolbar {
-  padding: var(--space-2) var(--space-card-pad);
   border-bottom: 0;
 }
 
@@ -288,6 +288,5 @@
 }
 
 :global([data-design='tonal']) .footer {
-  padding: var(--space-2) var(--space-card-pad);
   border-top: 0;
 }
