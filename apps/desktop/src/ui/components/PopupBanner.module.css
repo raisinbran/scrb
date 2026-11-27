@@ -18,9 +18,15 @@
   align-items: center;
 }
 
+/* The X sits at the top-right, level with the first line; a one-line banner looks the same as centred. */
 .banner {
   composes: banner from './Banner.module.css';
   pointer-events: auto;
+}
+
+/* Doubled so it wins over the composed base rule whatever the stylesheet order. */
+.banner.banner {
+  align-items: flex-start;
 }
 
 .body {
@@ -31,6 +37,7 @@
   justify-content: center;
   flex: 1;
   min-width: 0;
+  min-height: var(--dismiss-size);
   text-align: center;
 }
 
@@ -39,6 +46,7 @@
   display: flex;
   flex: none;
   margin-inline-end: calc(-1 * var(--space-2));
+  height: var(--dismiss-size);
 }
 
 .body > p {
