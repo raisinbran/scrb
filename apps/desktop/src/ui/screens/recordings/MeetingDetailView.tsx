@@ -1,17 +1,10 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type RefObject,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { AppSettings, Backend, MeetingDetail } from '@scrb/contracts';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { readStored, writeStored } from '../../lib/stored-value.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { DataView, useFocusFallback } from '../Screen.tsx';
+import { DataView } from '../Screen.tsx';
 import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
@@ -234,22 +227,10 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
   );
 }
 
-/**
- * A breadcrumb-style link above the meeting title goes back to the list. The "Recordings" heading
- * stays in the page for screen readers and for focus after the screen opens.
- */
-function DetailTitle({
-  headingRef,
-  onBack,
-}: {
-  headingRef?: RefObject<HTMLHeadingElement | null>;
-  onBack(): void;
-}) {
+/** A breadcrumb-style link above the meeting title closes the meeting and shows the empty panel. */
+function DetailTitle({ onBack }: { onBack(): void }) {
   return (
     <div className={styles.pageTitle}>
-      <h1 ref={headingRef} className={styles.srOnly} tabIndex={-1}>
-        Recordings
-      </h1>
       <button
         type="button"
         className={styles.backLink}
@@ -555,7 +536,6 @@ function LoadedDetail(props: LoadedDetailProps) {
   const { meeting, settings, initialJumpMs, onBack, onChanged } = props;
   const backend = useBackend();
   const meetingId = meeting.id;
-  const heading = useFocusFallback();
   const [tab, setTab] = useState<Tab>(() =>
     initialJumpMs === undefined ? (readStored<Tab>(TAB_KEY) ?? 'Transcript') : 'Transcript',
   );
@@ -668,7 +648,7 @@ function LoadedDetail(props: LoadedDetailProps) {
   return (
     <div className={styles.detail}>
       <header className={styles.detailHead}>
-        <DetailTitle headingRef={heading} onBack={() => onBack()} />
+        <DetailTitle onBack={() => onBack()} />
         <MeetingTitle
           title={meeting.title}
           readOnly={!canEdit}

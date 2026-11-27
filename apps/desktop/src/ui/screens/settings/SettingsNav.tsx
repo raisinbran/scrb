@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import item from '../../components/ListItem.module.css';
+import list from '../../components/ListItem.module.css';
 import styles from '../SettingsScreen.module.css';
 
 export interface SettingsGroup {
@@ -10,12 +10,13 @@ export interface SettingsGroup {
 
 const groupOf = (id: string) => document.getElementById(id)?.closest('section') ?? null;
 
-function readingOffset(nav: HTMLElement, section: HTMLElement) {
-  const menu = nav.getBoundingClientRect();
-  const topInset = parseFloat(getComputedStyle(nav).insetBlockStart) || 0;
-  const gap = parseFloat(getComputedStyle(section).scrollMarginBlockStart) || 0;
-  return menu.right > section.getBoundingClientRect().left ? menu.height + topInset + gap : gap;
+/** The group list is its own column, so a heading only needs its own margin above it. */
+function readingOffset(section: HTMLElement) {
+  return parseFloat(getComputedStyle(section).scrollMarginBlockStart) || 0;
 }
+
+const scrollerOf = (nav: HTMLElement) =>
+  nav.closest('[data-split]')?.querySelector<HTMLElement>('[data-split-content]') ?? null;
 
 export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
   const nav = useRef<HTMLElement>(null);
@@ -23,7 +24,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
 
   useEffect(() => {
     const menu = nav.current;
-    const workspace = menu?.closest('main');
+    const workspace = menu ? scrollerOf(menu) : null;
     const sections = groups.flatMap(({ id }) => {
       const section = groupOf(id);
       return section ? [{ id, section }] : [];
@@ -35,7 +36,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
     const update = () => {
       const { scrollTop, clientHeight, scrollHeight } = workspace;
       const remaining = scrollHeight - clientHeight - scrollTop;
-      const offset = readingOffset(menu, first.section);
+      const offset = readingOffset(first.section);
       // Near the end, short sections may never reach the top of the workspace.
       const tail = Math.max(0, (clientHeight - offset) * 0.6 - remaining);
       const line = workspace.getBoundingClientRect().top + offset + tail + 1;
@@ -64,13 +65,13 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
   const jump = (id: string) => {
     const section = groupOf(id);
     const menu = nav.current;
-    const workspace = menu?.closest('main');
+    const workspace = menu ? scrollerOf(menu) : null;
     if (!section || !menu || !workspace) return;
     const top =
       workspace.scrollTop +
       section.getBoundingClientRect().top -
       workspace.getBoundingClientRect().top -
-      readingOffset(menu, section);
+      readingOffset(section);
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const end = workspace.scrollHeight - workspace.clientHeight;
     const target = id === groups.at(-1)?.id ? end : Math.min(top, Math.max(0, end - 2));
@@ -78,13 +79,13 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
   };
 
   return (
-    <nav ref={nav} className={styles.nav} aria-label="Settings groups">
-      <ul className={styles.navList}>
+    <nav ref={nav} aria-label="Settings groups">
+      <ul className={list.list}>
         {groups.map((group) => (
           <li key={group.id}>
             <button
               type="button"
-              className={`${styles.navItem} ${item.item}`}
+              className={`${styles.navItem} ${list.item}`}
               aria-current={active === group.id ? 'true' : undefined}
               onClick={() => jump(group.id)}
             >

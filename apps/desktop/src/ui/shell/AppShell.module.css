@@ -31,3 +31,12 @@
 :global([data-design='tonal']) .sidebar {
   width: 140px;
 }
+
+.sidebarCollapsed,
+:global([data-design='tonal']) .sidebarCollapsed {
+  width: 52px;
+}
+
+:global([data-design='tonal']) .workspace {
+  background: var(--color-page);
+}

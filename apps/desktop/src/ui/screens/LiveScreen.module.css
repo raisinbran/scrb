@@ -305,3 +305,12 @@ button:disabled {
 .pickersPending {
   visibility: hidden;
 }
+
+/* Tonal preview: Live is one content card on the page tone, like every screen without a list. */
+:global([data-design='tonal']) .live {
+  height: calc(100% - var(--space-card-gap) * 2);
+  margin: var(--space-card-gap);
+  padding: var(--space-4);
+  background: var(--color-card);
+  border-radius: var(--radius);
+}

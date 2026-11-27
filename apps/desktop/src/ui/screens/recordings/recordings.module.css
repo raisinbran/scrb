@@ -101,21 +101,18 @@
 
 /* Library */
 
-.toolbar,
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: flex-end;
-  margin-bottom: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
-.toolbar {
-  padding-inline-end: var(--space-6);
+.filterSource {
+  grid-column: 1 / -1;
 }
 
 .search {
-  flex: 1;
+  width: 100%;
   padding: var(--space-1) var(--space-3);
   color: var(--color-text);
   background: var(--color-surface-raised);
@@ -130,36 +127,50 @@
   list-style: none;
 }
 
-.rows {
-  border-top: 1px solid var(--color-border);
-}
-
 .row {
-  border-bottom: 1px solid var(--color-border);
+  position: relative;
 }
 
+/* Padding, radius, hover and selected tint come from the shared list item. */
 .rowMain {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
-  padding: var(--space-2) var(--space-2);
-  color: inherit;
-  text-align: start;
-  background: none;
-  border: 0;
-}
-
-.rowMain:hover:enabled {
-  background: var(--color-surface-hover);
 }
 
 .rowMain:disabled {
   opacity: 0.7;
 }
 
+/* Speaker count and status badges share one line. */
+.rowStatus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  min-height: 20px;
+  margin-top: 2px;
+}
+
+/* Room on the right of the status line for the compact bar. */
+.rowStatusBusy {
+  padding-inline-end: calc(56px + var(--space-2));
+}
+
+/* A short bar on the status line, outside the button so it keeps its progress role. */
 .rowProgress {
-  padding: 0 var(--space-2) var(--space-2);
+  position: absolute;
+  inset-block-end: calc(var(--space-2) + 7px);
+  inset-inline-end: var(--space-3);
+  width: 56px;
+}
+
+.emptyPanel {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  background: var(--color-card);
+  border-radius: var(--radius);
 }
 
 .rowTitle {
@@ -207,8 +218,12 @@
   border: 0;
 }
 
+.snippet {
+  border-radius: var(--radius-control);
+}
+
 .snippet:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-card-inset);
 }
 
 .mark {
@@ -849,8 +864,6 @@ div.editHint button {
 
 :global([data-design='tonal']) .detail {
   gap: var(--space-card-gap);
-  padding: var(--space-card-gap) var(--space-3);
-  background: var(--color-page);
 }
 
 :global([data-design='tonal']) .detailHead,
@@ -962,61 +975,4 @@ div.editHint button {
 :global([data-design='tonal']) .imports {
   background: var(--color-card);
   border: 0;
-}
-
-/* Recordings list: a card of rows that share the Settings group list's hover and selected look. */
-:global([data-design='tonal']) .libraryScreen {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  max-width: none;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-page);
-}
-
-:global([data-design='tonal']) .libraryScreen > h1 {
-  margin-block-end: var(--space-3);
-}
-
-:global([data-design='tonal']) .libraryScreen .toolbar,
-:global([data-design='tonal']) .libraryScreen .filters {
-  margin-block-end: var(--space-card-gap);
-}
-
-:global([data-design='tonal']) .libraryScreen .toolbar {
-  padding-inline-end: 0;
-}
-
-:global([data-design='tonal']) .libraryScreen .imports {
-  margin-block-end: var(--space-card-gap);
-}
-
-:global([data-design='tonal']) .rows {
-  flex: 1;
-  min-height: 160px;
-  padding: var(--space-2);
-  overflow-y: auto;
-  background: var(--color-card);
-  border: 0;
-  border-radius: var(--radius);
-}
-
-:global([data-design='tonal']) .row {
-  border: 0;
-}
-
-:global([data-design='tonal']) .row + .row {
-  margin-block-start: var(--space-1);
-}
-
-:global([data-design='tonal']) .rowMain {
-  padding: var(--space-2) var(--space-3);
-}
-
-:global([data-design='tonal']) .rowProgress {
-  padding-inline: var(--space-3);
-}
-
-:global([data-design='tonal']) .snippet {
-  padding-inline-start: var(--space-5);
 }

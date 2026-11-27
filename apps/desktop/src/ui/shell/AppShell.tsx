@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { SharedLibraryNotice } from '../components/SharedLibraryNotice.tsx';
 import type { ScreenId } from '../screens/index.ts';
 import { recall, remember } from '../lib/tab-memory.ts';
+import { readStored, writeStored } from '../lib/stored-value.ts';
 import { Sidebar } from './Sidebar.tsx';
 import { TitleBar } from './TitleBar.tsx';
 import styles from './AppShell.module.css';
@@ -14,8 +15,30 @@ interface AppShellProps {
   children: ReactNode;
 }
 
+const COLLAPSED_KEY = 'scrb.sidebar.collapsed';
+/** At about half of a 1920 screen the sidebar shrinks to icons whatever the saved choice. */
+const NARROW_QUERY = '(max-width: 1000px)';
+
+function useNarrowWindow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW_QUERY).matches ?? false);
+  useEffect(() => {
+    const query = window.matchMedia?.(NARROW_QUERY);
+    if (!query) return;
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return narrow;
+}
+
 export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) {
   const workspace = useRef<HTMLElement>(null);
+  const [chosenCollapsed, setChosenCollapsed] = useState(
+    () => readStored<boolean>(COLLAPSED_KEY) === true,
+  );
+  const narrow = useNarrowWindow();
+  const collapsed = chosenCollapsed || narrow;
   // Only the reader's own scrolling is remembered: the browser's clamping while a screen is
   // empty or still loading must not overwrite the place. This also covers every way of changing
   // screens, such as F1.
@@ -53,8 +76,19 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
       <PrivacyBanner />
       <ModelsNotice />
       <div className={styles.body}>
-        <div className={styles.sidebar}>
-          <Sidebar selected={screenId} onSelect={onSelectScreen} />
+        <div
+          className={collapsed ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar}
+        >
+          <Sidebar
+            selected={screenId}
+            onSelect={onSelectScreen}
+            collapsed={collapsed}
+            canToggle={!narrow}
+            onToggle={() => {
+              setChosenCollapsed(!chosenCollapsed);
+              writeStored(COLLAPSED_KEY, !chosenCollapsed);
+            }}
+          />
         </div>
         <main
           ref={workspace}

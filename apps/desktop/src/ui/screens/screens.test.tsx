@@ -326,12 +326,7 @@ describe('screens', () => {
     });
 
     it('jumps to a settings group and follows the workspace as it scrolls', async () => {
-      renderScreen(
-        backend,
-        <main>
-          <SettingsScreen />
-        </main>,
-      );
+      renderScreen(backend, <SettingsScreen />);
       const nav = await screen.findByRole('navigation', { name: 'Settings groups' });
       const buttons = within(nav).getAllByRole('button');
       expect(buttons.map((button) => button.textContent)).toEqual([
@@ -346,7 +341,7 @@ describe('screens', () => {
       const audio = document.getElementById('settings-audio')!;
       expect(theme.compareDocumentPosition(audio) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-      const workspace = screen.getByRole('main');
+      const workspace = document.querySelector<HTMLElement>('[data-split-content]') as HTMLElement;
       const scrollTo = vi.fn();
       workspace.scrollTo = scrollTo;
       Object.defineProperties(workspace, {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
 import type {
   Backend,
@@ -7,7 +7,7 @@ import type {
   PickedAudioFile,
   SearchResult,
 } from '@scrb/contracts';
-import item from '../../components/ListItem.module.css';
+import list from '../../components/ListItem.module.css';
 import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
@@ -15,7 +15,8 @@ import { useBackend } from '../../lib/backend-context.tsx';
 import { formatDuration, formatElapsed, formatMeetingWhen } from '../../lib/format.ts';
 import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { DataView, EmptyState, Screen } from '../Screen.tsx';
+import { DataView, EmptyState } from '../Screen.tsx';
+import { SplitLayout } from '../SplitLayout.tsx';
 import { Highlight } from './highlight.tsx';
 import { nextProgress } from './ProcessingBanner.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
@@ -29,11 +30,12 @@ type Origin = NonNullable<MeetingFilter['origin']> | '';
 interface RowProps {
   result: SearchResult;
   query: string;
+  selected: boolean;
   onOpen(id: string, atMs?: number): void;
 }
 
 /** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
-function RowProgress({ meetingId }: { meetingId: string }) {
+function RowProgress({ meetingId, title }: { meetingId: string; title: string }) {
   const backend = useBackend();
   const [progress, setProgress] = useState<FinalPassProgress | null>(null);
   useEffect(
@@ -45,12 +47,12 @@ function RowProgress({ meetingId }: { meetingId: string }) {
   );
   return (
     <div className={styles.rowProgress}>
-      <Progress label="Final transcript processing" fraction={progress?.fraction} />
+      <Progress label={`Final transcript processing: ${title}`} fraction={progress?.fraction} />
     </div>
   );
 }
 
-function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
+function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: RowProps) {
   const playing = useNowPlaying() === meeting.id;
   const status = STATUS_LABELS[meeting.status];
   const summary = SUMMARY_STATE_LABELS[meeting.summaryState];
@@ -59,7 +61,8 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
     <li className={styles.row}>
       <button
         type="button"
-        className={`${styles.rowMain} ${item.item}`}
+        className={`${styles.rowMain} ${list.item}`}
+        aria-current={selected ? 'true' : undefined}
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
       >
@@ -68,15 +71,16 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
           {playing && <PlayingIndicator className={styles.rowPlaying} />}
         </span>
         <span className={styles.muted}>
-          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)} ·{' '}
-          {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
+          {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)}
         </span>
-        <span className={styles.badges}>
+        <span
+          className={`${styles.rowStatus} ${meeting.status === 'finalPassRunning' ? styles.rowStatusBusy : ''}`}
+        >
+          <span className={styles.muted}>
+            {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
+          </span>
           {meeting.origin === 'imported' && <span className={styles.badge}>Imported</span>}
           {status && <span className={styles.badgeStrong}>{status}</span>}
-          {meeting.status === 'finalPassRunning' && (
-            <span className={styles.muted}>Text will change</span>
-          )}
           {summary && (
             <span
               className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
@@ -86,12 +90,14 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
           )}
         </span>
       </button>
-      {meeting.status === 'finalPassRunning' && <RowProgress meetingId={meeting.id} />}
+      {meeting.status === 'finalPassRunning' && (
+        <RowProgress meetingId={meeting.id} title={meeting.title} />
+      )}
       {snippets.map((match) => (
         <button
           key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
           type="button"
-          className={`${styles.snippet} ${item.item}`}
+          className={styles.snippet}
           onClick={() => onOpen(meeting.id, match.startMs as number)}
         >
           <span className={styles.time}>{formatElapsed(match.startMs as number)}</span>
@@ -106,10 +112,14 @@ function MeetingRow({ result: { meeting, matches }, query, onOpen }: RowProps) {
 
 interface LibraryViewProps {
   notice: string | null;
+  /** The open meeting, marked in the list. */
+  selectedId: string | null;
+  /** The content panel beside the list. */
+  children: ReactNode;
   onOpen(id: string, atMs?: number): void;
 }
 
-export function LibraryView({ notice, onOpen }: LibraryViewProps) {
+export function LibraryView({ notice, selectedId, onOpen, children }: LibraryViewProps) {
   const backend = useBackend();
   const searchBox = useRef<HTMLInputElement>(null);
   const [typed, setTyped] = useRemembered('library.typed', '');
@@ -154,6 +164,13 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   );
   const { state, reload } = useBackendData(load);
 
+  // The list stays beside the meeting, so closing one (or deleting it) refreshes the list.
+  const lastSelected = useRef(selectedId);
+  useEffect(() => {
+    if (lastSelected.current !== null && selectedId === null) reload();
+    lastSelected.current = selectedId;
+  }, [selectedId, reload]);
+
   useEffect(() => {
     let status: string | undefined;
     const stops = [
@@ -190,81 +207,98 @@ export function LibraryView({ notice, onOpen }: LibraryViewProps) {
   };
 
   return (
-    <Screen title="Recordings" className={styles.libraryScreen ?? ''}>
-      <div className={styles.toolbar}>
-        <input
-          ref={searchBox}
-          type="search"
-          className={styles.search}
-          aria-label="Search recordings"
-          placeholder="Search titles, dates and transcripts"
-          value={typed}
-          onChange={(event) => setTyped(event.target.value)}
-        />
-        <button type="button" className={styles.primary} onClick={() => void pickFile()}>
-          Import audio file
-        </button>
-      </div>
-      <div className={styles.filters}>
-        <label className={styles.field}>
-          Source
-          <select
-            className={styles.input}
-            value={origin}
-            onChange={(event) => setOrigin(event.target.value as Origin)}
-          >
-            <option value="">All</option>
-            <option value="recorded">Recorded</option>
-            <option value="imported">Imported</option>
-          </select>
-        </label>
-        <label className={styles.field}>
-          From
+    <SplitLayout
+      title="Recordings"
+      header={
+        <>
           <input
-            type="date"
-            className={styles.input}
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
+            ref={searchBox}
+            type="search"
+            className={styles.search}
+            aria-label="Search recordings"
+            placeholder="Search titles, dates and transcripts"
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
           />
-        </label>
-        <label className={styles.field}>
-          To
-          <input
-            type="date"
-            className={styles.input}
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
-        {filtered && (
-          <button type="button" className={styles.button} onClick={clearFilters}>
-            Clear
+          <button type="button" className={styles.primary} onClick={() => void pickFile()}>
+            Import audio file
           </button>
-        )}
-      </div>
-      {notice && <p role="status">{notice}</p>}
-      {pickError && <p role="alert">{pickError}</p>}
-      <ImportPanel onOpen={onOpen} />
-      <DataView state={state}>
-        {(results) =>
-          results.length > 0 ? (
-            <ul className={styles.rows}>
-              {results.map((result) => (
-                <MeetingRow key={result.meeting.id} result={result} query={query} onOpen={onOpen} />
-              ))}
-            </ul>
-          ) : filtered ? (
-            <EmptyState title="No matching recordings">
-              Try different words, or clear the filters.
-            </EmptyState>
-          ) : (
-            <EmptyState title="No recordings yet">
-              Meetings you record or import will appear here.
-            </EmptyState>
-          )
-        }
-      </DataView>
+          <div className={styles.filters}>
+            <label className={`${styles.field} ${styles.filterSource}`}>
+              Source
+              <select
+                className={styles.input}
+                value={origin}
+                onChange={(event) => setOrigin(event.target.value as Origin)}
+              >
+                <option value="">All</option>
+                <option value="recorded">Recorded</option>
+                <option value="imported">Imported</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              From
+              <input
+                type="date"
+                className={styles.input}
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+              />
+            </label>
+            <label className={styles.field}>
+              To
+              <input
+                type="date"
+                className={styles.input}
+                value={to}
+                onChange={(event) => setTo(event.target.value)}
+              />
+            </label>
+            {filtered && (
+              <button
+                type="button"
+                className={`${styles.button} ${styles.filterSource}`}
+                onClick={clearFilters}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {notice && <p role="status">{notice}</p>}
+          {pickError && <p role="alert">{pickError}</p>}
+          <ImportPanel onOpen={onOpen} />
+        </>
+      }
+      list={
+        <DataView state={state}>
+          {(results) =>
+            results.length > 0 ? (
+              <ul className={`${styles.rows} ${list.list}`}>
+                {results.map((result) => (
+                  <MeetingRow
+                    key={result.meeting.id}
+                    result={result}
+                    query={query}
+                    selected={result.meeting.id === selectedId}
+                    onOpen={onOpen}
+                  />
+                ))}
+              </ul>
+            ) : filtered ? (
+              <EmptyState compact title="No matching recordings">
+                Try different words, or clear the filters.
+              </EmptyState>
+            ) : (
+              <EmptyState compact title="No recordings yet">
+                Meetings you record or import will appear here.
+              </EmptyState>
+            )
+          }
+        </DataView>
+      }
+    >
+      {children}
       {picked && <ImportDialog file={picked} onClose={() => setPicked(null)} />}
-    </Screen>
+    </SplitLayout>
   );
 }

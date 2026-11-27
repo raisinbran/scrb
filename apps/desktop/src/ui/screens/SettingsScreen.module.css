@@ -212,109 +212,19 @@
   margin: 0 0 var(--space-3);
 }
 
-/* The screen is wider than the others: a group list on the left, the settings on the right. */
-.screenWide {
-  max-width: 1100px;
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
+/* The content column of the shared split layout; the group list is in the second column. */
 .groups {
   min-width: 0;
-  max-width: 800px;
-}
-
-.nav {
-  position: sticky;
-  z-index: 10;
-  inset-block-start: var(--space-3);
-}
-
-.navList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .navItem {
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  min-height: var(--control-height);
-  font: inherit;
   font-weight: 600;
-  text-align: start;
   color: var(--color-text-muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  cursor: pointer;
 }
 
-.navItem:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
+.navItem:hover,
 .navItem[aria-current='true'] {
   color: var(--color-text);
-  background: var(--color-surface-selected);
-  border-color: var(--color-border);
-}
-
-/* Narrow windows: the list becomes a row across the top. */
-@media (max-width: 760px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
-  }
-
-  .nav {
-    z-index: 10;
-    inset-block-start: 0;
-    padding-block: var(--space-1);
-    background: var(--color-surface);
-  }
-
-  .navList {
-    flex-flow: row wrap;
-  }
-
-  .navItem {
-    width: auto;
-  }
-}
-
-:global([data-design='tonal']) .screenWide {
-  min-height: 100%;
-  padding: var(--space-3) var(--space-4);
-  max-width: none;
-  background: var(--color-page);
-}
-
-:global([data-design='tonal']) .screenWide > h1 {
-  margin-block-end: var(--space-3);
-}
-
-/* The group list hugs its labels and the settings take the rest of the width. */
-:global([data-design='tonal']) .layout {
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--space-card-gap);
-}
-
-:global([data-design='tonal']) .groups {
-  max-width: none;
-}
-
-:global([data-design='tonal']) .nav {
-  inset-block-start: 0;
 }
 
 :global([data-design='tonal']) .section {
@@ -327,22 +237,6 @@
   font-size: var(--text-lg);
 }
 
-:global([data-design='tonal']) .navList {
-  padding: var(--space-2);
-  background: var(--color-card);
-  border-radius: var(--radius);
-}
-
-:global([data-design='tonal']) .navItem {
-  padding-inline: var(--space-3);
-  border: 0;
-  white-space: nowrap;
-}
-
-:global([data-design='tonal']) .navItem[aria-current='true'] {
-  border: 0;
-}
-
 :global([data-design='tonal']) .saveBar {
   border: 0;
 }
@@ -350,24 +244,4 @@
 :global([data-design='tonal']) .slider input {
   flex: 0 1 220px;
   min-width: 0;
-}
-
-@media (max-width: 980px) {
-  :global([data-design='tonal']) .layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-card-gap);
-  }
-
-  :global([data-design='tonal']) .nav {
-    padding-block: var(--space-1);
-    background: var(--color-page);
-  }
-
-  :global([data-design='tonal']) .navList {
-    flex-flow: row wrap;
-  }
-
-  :global([data-design='tonal']) .navItem {
-    width: auto;
-  }
 }

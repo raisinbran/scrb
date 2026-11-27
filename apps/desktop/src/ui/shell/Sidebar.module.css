@@ -182,3 +182,26 @@
 :global([data-design='tonal']) .item {
   padding: var(--space-2);
 }
+
+.toggle {
+  margin-block-end: var(--space-1);
+}
+
+/* Collapsed to icons: every item and the footer are one narrow column. */
+.itemCollapsed {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.sidebarCollapsed .group > span {
+  justify-content: center;
+}
+
+.sidebarCollapsed .toggle {
+  align-self: center;
+}
+
+.footerCollapsed {
+  flex-direction: column;
+  gap: var(--space-1);
+}

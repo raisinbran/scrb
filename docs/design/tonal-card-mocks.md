@@ -36,3 +36,14 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Recordings list                  | Each recording is a row in a card, with the Settings group list's hover and selected look (shared `ListItem.module.css`). The list scrolls inside its card                   |
 | Gutter between panels            | One token, `--space-card-gap` (8px, was 12px), used between cards in Settings, Recordings and the meeting view                                                               |
 | Wasted width                     | Sidebar 140px (was 160px) with tighter padding; the Settings group list hugs its labels; the settings and meeting panels use the freed width. The group list stays sticky    |
+
+## Owner comments, round 4 (Layout B)
+
+| Comment                 | Change                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| One layout everywhere   | Sidebar, optional second column, content panel. Recordings and Settings share `SplitLayout`; the other screens are a single content card with the same gutters     |
+| Recordings              | The list is the second column with search, Import and filters pinned above it. An open meeting shows beside it; with none open the panel says "Select a recording" |
+| Settings                | The group list is the second column, content on the right. The old top pills are gone                                                                              |
+| Sidebar toggle          | A button at the top of the sidebar switches icons only on and off; the choice is saved. At 1000px or narrower it collapses on its own                              |
+| Compact list rows       | Speaker count, status badge and a short progress bar share one line. "Text will change" is no longer in the list                                                   |
+| Speakers and Vocabulary | Not turned into list plus detail: their rows carry actions and have no detail view, so they use the single content card                                            |

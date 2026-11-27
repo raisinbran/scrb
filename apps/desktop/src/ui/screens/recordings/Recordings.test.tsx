@@ -84,11 +84,12 @@ describe('Recordings', () => {
 
     it('focuses the title after meeting navigation', async () => {
       renderScreen();
-      (await button(/Weekly project sync/)).focus();
+      const row = await button(/Weekly project sync/);
+      row.focus();
       await openMeeting(/Weekly project sync/);
-      await waitFor(() =>
-        expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Recordings' })),
-      );
+      // The list stays beside the meeting, so focus stays on the row that was pressed.
+      await waitFor(() => expect(document.activeElement).toBe(row));
+      expect(row.getAttribute('aria-current')).toBe('true');
     });
 
     it('searches transcripts and opens a match at its time', async () => {
@@ -176,7 +177,7 @@ describe('Recordings', () => {
       const on = vi.spyOn(backend, 'on');
       const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
       const bar = () =>
-        within(row).getByRole('progressbar', { name: 'Final transcript processing' });
+        within(row).getByRole('progressbar', { name: /Final transcript processing/ });
       expect(bar().hasAttribute('aria-valuenow')).toBe(false);
       await waitFor(() =>
         expect(on).toHaveBeenCalledWith('finalPassProgress', expect.any(Function)),
@@ -318,7 +319,8 @@ describe('Recordings', () => {
     it('marks the library row as changing', async () => {
       renderScreen();
       await screen.findByText('Processing final transcript');
-      expect(screen.getByText('Text will change')).toBeTruthy();
+      expect(screen.queryByText('Text will change')).toBeNull();
+      expect(screen.getByRole('progressbar', { name: /Final transcript processing/ })).toBeTruthy();
     });
   });
 
@@ -983,7 +985,10 @@ describe('Recordings', () => {
             ).toISOString(),
           ).toBe(expected),
         );
-        const updated = await screen.findByRole('button', { name: /Oct 1, 2026/ });
+        const updated = await within(document.querySelector('header') as HTMLElement).findByRole(
+          'button',
+          { name: /Oct 1, 2026/ },
+        );
         expect(document.activeElement).toBe(updated);
       });
 
