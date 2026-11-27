@@ -7,3 +7,11 @@ The Speakers detail card shows **Split into…** next to Rename, Merge into… a
 Until this is decided the button is disabled with the tooltip "To split a speaker, open the meeting in Recordings and use its Speakers tab." That path works today: the meeting's Speakers tab has Split into… per speaker.
 
 To enable it on the profile card the UI needs, with owner approval in `packages/contracts/APPROVALS.md`: a way to list the meetings a profile appears in (or its passages), and a profile-level split call, for example `splitProfile { profileId, passages: PassageRef[], newName }` returning the new `ProfileId`. The UI would then reuse the meeting split dialog's passage picker.
+
+## Status: V1.1 candidate, not V1
+
+The owner accepts the disabled button for now. The value is unknown, so revisit only if profile mixing is observed in real use. Enabling it would need:
+
+- a new backend call to split a profile;
+- a way to list the passages or meetings a profile came from;
+- an owner approval row in `packages/contracts/APPROVALS.md`.
