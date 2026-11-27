@@ -155,10 +155,9 @@ test('keeps minimum-window controls usable at real zoom', async () => {
       await inspectLayout(page, `${zoom}-recordings`);
       await page.getByRole('button', { name: /Weekly project sync/ }).click();
       // The list stays beside the open meeting, so the clicked row keeps focus.
-      await expect(page.getByRole('button', { name: /Weekly project sync/ })).toHaveAttribute(
-        'aria-current',
-        'true',
-      );
+      const row = page.getByRole('button', { name: /Weekly project sync/ });
+      await expect(row).toHaveAttribute('aria-current', 'true');
+      await expect(row).toBeFocused();
       await inspectLayout(page, `${zoom}-detail`);
       await expectPanelHeight(page, '[role="tabpanel"]', 200);
       const title = page.getByLabel('Meeting title', { exact: true });
