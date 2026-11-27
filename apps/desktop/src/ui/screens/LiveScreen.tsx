@@ -173,7 +173,9 @@ export function LiveScreen() {
         />
       </div>
       {status === 'idle' && lastMeetingId && (
-        <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
+        <div className={styles.alertsSlot}>
+          <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
+        </div>
       )}
       {meetingId ? (
         <TranscriptView

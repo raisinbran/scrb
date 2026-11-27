@@ -228,6 +228,7 @@
 }
 
 :global([data-design='tonal']) .section {
+  padding: var(--space-card-pad);
   margin-block-end: var(--space-card-gap);
   background: var(--color-card);
   border: 0;

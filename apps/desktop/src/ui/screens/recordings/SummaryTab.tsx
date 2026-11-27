@@ -579,11 +579,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
           );
           return (
             <>
-              {popupSlot ? (
-                createPortal(banners, popupSlot)
-              ) : (
-                <PopupLayer inline>{banners}</PopupLayer>
-              )}
+              {popupSlot ? createPortal(banners, popupSlot) : <PopupLayer>{banners}</PopupLayer>}
               <div className={styles.summaryBar}>
                 <LengthToggle length={length} onChange={setLength} />
                 {doc.state === 'edited' && <span className={styles.badge}>Edited</span>}

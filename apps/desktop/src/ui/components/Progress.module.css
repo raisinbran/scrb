@@ -16,51 +16,38 @@
   transition: width 0.3s ease;
 }
 
-/* A soft highlight keeps moving across the fill, so a slow job never looks frozen. */
-.fill::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-  background: linear-gradient(90deg, transparent, var(--color-sheen), transparent);
-  transform: translateX(-100%);
-  animation: sheen 2s ease-in-out infinite;
-}
-
-/* No progress reported yet: a short segment slides back and forth, never a full bar. */
+/* No percentage yet: a short soft segment sweeps left to right, then starts over. It never
+   reverses, so it reads as a bar being worked on, not a bouncing indicator. */
 .unknown {
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
-  width: 30%;
-  animation: slide 1.4s ease-in-out infinite alternate;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-accent) 35%,
+    var(--color-accent) 65%,
+    transparent
+  );
+  border-radius: 0;
+  transition: none;
+  animation: sweep 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.unknown::after {
-  display: none;
-}
-
-@keyframes sheen {
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes slide {
+@keyframes sweep {
   from {
-    transform: translateX(0);
+    transform: translateX(-100%);
   }
   to {
-    transform: translateX(233%);
+    transform: translateX(250%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fill::after {
-    display: none;
-  }
-
   .unknown {
-    inset-inline-start: 35%;
+    inset-inline-start: 0;
+    width: 40%;
     animation: none;
   }
 }

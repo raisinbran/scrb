@@ -70,7 +70,10 @@ describe('Recordings', () => {
     it('filters by source', async () => {
       renderScreen();
       await button(/Budget review/);
-      fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'imported' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Source' }));
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Imported' }));
+      expect(screen.getByText('Source: Imported')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
       expect(screen.getByText('Imported interview recording')).toBeTruthy();
     });
@@ -78,8 +81,39 @@ describe('Recordings', () => {
     it('filters by date', async () => {
       renderScreen();
       await button(/Budget review/);
+      fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'To' }));
       fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-22' } });
+      expect(screen.getByText('To: 10/22/26')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
+    });
+
+    it('opens the filter list by typing a keyword, and removes a chip with Backspace', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings') as HTMLInputElement;
+      fireEvent.change(search, { target: { value: 'source:' } });
+      expect(search.value).toBe('');
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Imported' }));
+      await waitFor(() => expect(screen.queryByText('Budget review')).toBeNull());
+      fireEvent.keyDown(search, { key: 'Backspace' });
+      expect(screen.queryByText('Source: Imported')).toBeNull();
+      expect(await button(/Budget review/)).toBeTruthy();
+    });
+
+    it('moves through the filter list with the arrow keys and closes with Escape', async () => {
+      renderScreen();
+      await button(/Budget review/);
+      const search = screen.getByLabelText('Search recordings');
+      fireEvent.keyDown(search, { key: 'ArrowDown' });
+      const items = screen.getAllByRole('menuitem');
+      expect(items.map((item) => item.textContent)).toEqual(['Source', 'From', 'To']);
+      await waitFor(() => expect(document.activeElement).toBe(items[0]));
+      fireEvent.keyDown(items[0] as HTMLElement, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[1]);
+      fireEvent.keyDown(items[1] as HTMLElement, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(search);
     });
 
     it('focuses the title after meeting navigation', async () => {
@@ -507,7 +541,7 @@ describe('Recordings', () => {
       expect(call).toHaveBeenCalledWith('pauseAudio', expect.anything());
       expect(call).not.toHaveBeenCalledWith('seekAudio', expect.anything());
       for (const control of [
-        screen.getByRole('button', { name: 'Back 15 seconds' }),
+        screen.getByRole('button', { name: 'Skip back 15 seconds' }),
         screen.getByRole('tab', { name: 'Transcript' }),
         screen.getByRole('slider', { name: 'Playback position' }),
       ]) {
@@ -537,7 +571,7 @@ describe('Recordings', () => {
       await openMeeting(/Weekly project sync/);
       await screen.findAllByRole('button', { name: /Play from/ });
       const time = () => screen.getByRole('group', { name: 'Audio player' }).textContent;
-      const forward = screen.getByRole('button', { name: 'Forward 15 seconds' });
+      const forward = screen.getByRole('button', { name: 'Skip forward 15 seconds' });
       fireEvent.click(forward);
       expect(time()).toMatch(/00:15/);
       expect(fireEvent.keyDown(forward, { key: 'ArrowRight' })).toBe(false);
@@ -1226,16 +1260,15 @@ describe('Recordings', () => {
       expect(await button('Generate Summary')).toBeTruthy();
     });
 
-    it('keeps banners in flow ahead of the Brief/Full toggle, so none covers it', async () => {
+    it('floats banners over the summary, so showing or dismissing one never moves it', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
       const banner = await screen.findByRole('button', { name: 'Regenerate' });
-      const layer = banner.closest('[class*="inline"]');
-      expect(layer).not.toBeNull();
-      const toggle = screen.getByRole('radiogroup', { name: 'Summary length' });
-      expect(layer?.compareDocumentPosition(toggle)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(banner.closest('[class*="layer"]')).not.toBeNull();
       const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
-      expect(css.match(/\.inline \.stack \{([^}]*)\}/)?.[1]).toMatch(/position: static/);
+      expect(css).not.toMatch(/\.inline/);
+      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: 0/);
+      expect(css.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/position: absolute/);
     });
 
     it('flags an outdated summary and its warnings', async () => {

@@ -72,9 +72,6 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
   return (
     <div className={styles.shell}>
       <TitleBar />
-      <SharedLibraryNotice />
-      <PrivacyBanner />
-      <ModelsNotice />
       <div className={styles.body}>
         <div
           className={collapsed ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar}
@@ -90,19 +87,27 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
             }}
           />
         </div>
-        <main
-          ref={workspace}
-          className={styles.workspace}
-          onScroll={(event) => {
-            if (userScrolled.current) remember(`scroll.${screenId}`, event.currentTarget.scrollTop);
-          }}
-          onWheel={noteUserScroll}
-          onTouchMove={noteUserScroll}
-          onPointerDown={noteUserScroll}
-          onKeyDown={noteUserScroll}
-        >
-          {children}
-        </main>
+        <div className={styles.workspaceFrame}>
+          <div className={styles.notices}>
+            <SharedLibraryNotice />
+            <PrivacyBanner />
+            <ModelsNotice />
+          </div>
+          <main
+            ref={workspace}
+            className={styles.workspace}
+            onScroll={(event) => {
+              if (userScrolled.current)
+                remember(`scroll.${screenId}`, event.currentTarget.scrollTop);
+            }}
+            onWheel={noteUserScroll}
+            onTouchMove={noteUserScroll}
+            onPointerDown={noteUserScroll}
+            onKeyDown={noteUserScroll}
+          >
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

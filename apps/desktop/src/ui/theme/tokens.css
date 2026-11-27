@@ -25,6 +25,10 @@
   /* The one gap between stacked cards and panels. */
   --space-card-gap: var(--space-2);
 
+  /* The one inner padding of every card and panel. Text, inputs, buttons and tabs start this far from
+     the card edge; rows with their own tint extend into it by their own padding. */
+  --space-card-pad: var(--space-4);
+
   /* Dropdowns and buttons that share a row are this tall, so they line up. */
   --control-height: 30px;
   --titlebar-height: 40px;
@@ -47,7 +51,6 @@
   --color-control: #e0e3e8;
   --color-control-hover: #e2e5ea;
   --color-progress-track: #8a909a;
-  --color-sheen: #ffffff33;
   --color-line-current: #e8e9f8;
   --color-text: #1f2328;
   --color-text-muted: #4e5560;
@@ -81,7 +84,6 @@
   --color-control: #1b1c20;
   --color-control-hover: #27292d;
   --color-progress-track: #80858f;
-  --color-sheen: #ffffff33;
   --color-line-current: #343650;
   --color-text: #f2f3f5;
   --color-text-muted: #b5bac1;

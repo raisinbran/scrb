@@ -23,6 +23,7 @@ import { useMeetingPlayback } from '../../lib/playback-context.tsx';
 import type { Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
+import { SkipButton } from '../../components/SkipButton.tsx';
 import { IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { Tooltip } from '../../components/Tooltip.tsx';
@@ -112,24 +113,16 @@ function PlayerBar({ meeting, playback }: { meeting: MeetingDetail; playback: Pl
         disabled={!meeting.hasAudio}
         onClick={() => (isPlaying ? pause() : play(positionMs))}
       />
-      <button
-        type="button"
-        className={styles.button}
-        aria-label="Back 15 seconds"
+      <SkipButton
+        direction="back"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs - SKIP_MS)}
-      >
-        −15 s
-      </button>
-      <button
-        type="button"
-        className={styles.button}
-        aria-label="Forward 15 seconds"
+      />
+      <SkipButton
+        direction="forward"
         disabled={!meeting.hasAudio}
         onClick={() => move(positionMs + SKIP_MS)}
-      >
-        +15 s
-      </button>
+      />
       <input
         type="range"
         className={styles.slider}
@@ -756,11 +749,12 @@ function LoadedDetail(props: LoadedDetailProps) {
         aria-labelledby={`meeting-tab-${tab}`}
         className={styles.panel}
       >
-        {undoState.error && <p role="alert">{undoState.error}</p>}
-        <PopupLayer
-          stackRef={setPopupSlot}
-          inline={tab === 'Summary' || document.documentElement.dataset['design'] === 'tonal'}
-        >
+        <PopupLayer stackRef={setPopupSlot}>
+          {undoState.error && (
+            <PopupBanner role="alert" level="danger">
+              <p>{undoState.error}</p>
+            </PopupBanner>
+          )}
           {tab === 'Transcript' && canEdit && hintShown && (
             <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
               <p>Double-click a word to correct it. Click a speaker name to rename them.</p>

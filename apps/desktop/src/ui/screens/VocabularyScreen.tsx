@@ -322,7 +322,13 @@ export function VocabularyScreen() {
       entries: shown.filter((e) => e.kind === 'term' && !e.item.enabled),
     },
   ].filter((group) => group.entries.length > 0);
-  const selected = entries.find((entry) => entry.key === selectedKey) ?? null;
+  // Nothing picked (or the picked one is gone): show the first suggestion, else the first enabled term.
+  const selected =
+    entries.find((entry) => entry.key === selectedKey) ??
+    entries.find((entry) => entry.kind === 'suggestion') ??
+    entries.find((entry) => entry.kind === 'term' && entry.item.enabled) ??
+    entries[0] ??
+    null;
 
   const toggle = (term: VocabularyTerm) =>
     void run(async () => {
@@ -397,13 +403,7 @@ export function VocabularyScreen() {
                 busy={busy}
                 onAnswer={(accepted) => answer(selected.item, accepted)}
               />
-            ) : (
-              <div className={styles.emptyPanel}>
-                <EmptyState title="Select a term">
-                  Choose a term to see how it is heard, or to edit it.
-                </EmptyState>
-              </div>
-            )}
+            ) : null}
             {editing && (
               <EditDialog
                 term={editing}

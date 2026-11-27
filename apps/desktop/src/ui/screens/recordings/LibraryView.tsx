@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { matchesMeetingFilter } from '@scrb/contracts';
 import type {
   Backend,
@@ -17,15 +17,16 @@ import { useRemembered } from '../../lib/tab-memory.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
 import { DataView, EmptyState } from '../Screen.tsx';
 import { SplitLayout } from '../SplitLayout.tsx';
+import { Tooltip } from '../../components/Tooltip.tsx';
+import { FilterSearch, type Origin } from './FilterSearch.tsx';
 import { Highlight } from './highlight.tsx';
+import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
 import { nextProgress } from './ProcessingBanner.tsx';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
 
 const SEARCH_DELAY_MS = 200;
-
-type Origin = NonNullable<MeetingFilter['origin']> | '';
 
 interface RowProps {
   result: SearchResult;
@@ -42,11 +43,26 @@ const COMPACT_LABELS: Record<string, string> = {
   'Summary generating': 'Generating',
 };
 
-function Chip({ text, className }: { text: string; className: string | undefined }) {
+function Chip({
+  text,
+  className,
+  busy = false,
+}: {
+  text: string;
+  className: string | undefined;
+  /** Marks the chip the progress bar sits next to. */
+  busy?: boolean;
+}) {
   const short = COMPACT_LABELS[text];
-  if (!short) return <span className={className}>{text}</span>;
+  const mark = busy ? { 'data-busy-chip': '' } : {};
+  if (!short)
+    return (
+      <span className={className} {...mark}>
+        {text}
+      </span>
+    );
   return (
-    <span className={className} title={text}>
+    <span className={className} title={text} {...mark}>
       <span aria-hidden="true">{short}</span>
       <span className={styles.srOnly}>{text}</span>
     </span>
@@ -54,7 +70,16 @@ function Chip({ text, className }: { text: string; className: string | undefined
 }
 
 /** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
-function RowProgress({ meetingId, title }: { meetingId: string; title: string }) {
+function RowProgress({
+  meetingId,
+  title,
+  left,
+}: {
+  meetingId: string;
+  title: string;
+  /** Where the bar starts, so it sits one row gap after the status badge. */
+  left: number | null;
+}) {
   const backend = useBackend();
   const [progress, setProgress] = useState<FinalPassProgress | null>(null);
   useEffect(
@@ -65,7 +90,10 @@ function RowProgress({ meetingId, title }: { meetingId: string; title: string })
     [backend, meetingId],
   );
   return (
-    <div className={styles.rowProgress}>
+    <div
+      className={styles.rowProgress}
+      style={left === null ? undefined : { insetInlineStart: `calc(${left}px + var(--space-2))` }}
+    >
       <Progress label={`Final transcript processing: ${title}`} fraction={progress?.fraction} />
     </div>
   );
@@ -76,30 +104,54 @@ function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: R
   const status = STATUS_LABELS[meeting.status];
   const summary = SUMMARY_STATE_LABELS[meeting.summaryState];
   const snippets = matches.filter((match) => match.snippet !== null && match.startMs !== null);
+  const busy = meeting.status === 'finalPassRunning';
+  const { element: titleBox, hotHandlers } = useTitleScroll<HTMLSpanElement>();
+  const item = useRef<HTMLLIElement>(null);
+  const [barLeft, setBarLeft] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const row = item.current;
+    const chip = row?.querySelector<HTMLElement>('[data-busy-chip]');
+    if (!busy || !row || !chip) return;
+    const measure = () =>
+      setBarLeft(chip.getBoundingClientRect().right - row.getBoundingClientRect().left);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [busy]);
+  const titleText = (
+    <span ref={titleBox} className={styles.rowTitle}>
+      <Highlight text={meeting.title} query={query} />
+      {playing && <PlayingIndicator className={styles.rowPlaying} />}
+    </span>
+  );
+  // Reduced motion never scrolls: the full title is in a tooltip instead.
+  const titleLine = prefersReducedMotion() ? (
+    <Tooltip label={meeting.title}>{titleText}</Tooltip>
+  ) : (
+    titleText
+  );
   return (
-    <li className={styles.row}>
+    <li ref={item} className={styles.row}>
       <button
         type="button"
         className={`${styles.rowMain} ${list.item}`}
         aria-current={selected ? 'true' : undefined}
         disabled={meeting.status === 'deleting'}
         onClick={() => onOpen(meeting.id)}
+        {...hotHandlers}
       >
-        <span className={styles.rowTitle}>
-          <Highlight text={meeting.title} query={query} />
-          {playing && <PlayingIndicator className={styles.rowPlaying} />}
-        </span>
+        {titleLine}
         <span className={styles.muted}>
           {formatMeetingWhen(meeting.startedAt)} · {formatDuration(meeting.durationMs)}
         </span>
-        <span
-          className={`${styles.rowStatus} ${meeting.status === 'finalPassRunning' ? styles.rowStatusBusy : ''}`}
-        >
+        <span className={styles.rowStatus}>
           <span className={styles.muted}>
             {meeting.speakerCount === 1 ? '1 speaker' : `${meeting.speakerCount} speakers`}
           </span>
           {meeting.origin === 'imported' && <Chip text="Imported" className={styles.badge} />}
-          {status && <Chip text={status} className={styles.badgeStrong} />}
+          {status && <Chip text={status} className={styles.badgeStrong} busy={busy} />}
           {summary && (
             <Chip
               text={summary}
@@ -108,9 +160,7 @@ function MeetingRow({ result: { meeting, matches }, query, selected, onOpen }: R
           )}
         </span>
       </button>
-      {meeting.status === 'finalPassRunning' && (
-        <RowProgress meetingId={meeting.id} title={meeting.title} />
-      )}
+      {busy && <RowProgress meetingId={meeting.id} title={meeting.title} left={barLeft} />}
       {snippets.map((match) => (
         <button
           key={`${match.segmentId ?? 'index'}-${match.startMs ?? 'none'}`}
@@ -216,70 +266,37 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
   };
 
   const filtered = Boolean(query || origin || from || to);
-  const clearFilters = () => {
-    setTyped('');
-    setQuery('');
-    setOrigin('');
-    setFrom('');
-    setTo('');
-  };
-
   return (
     <SplitLayout
       title="Recordings"
       header={
         <>
-          <input
-            ref={searchBox}
-            type="search"
-            className={styles.search}
-            aria-label="Search recordings"
-            placeholder="Search titles, dates and transcripts"
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
+          <FilterSearch
+            inputRef={searchBox}
+            text={typed}
+            onText={setTyped}
+            origin={origin}
+            from={from}
+            to={to}
+            onOrigin={setOrigin}
+            onFrom={setFrom}
+            onTo={setTo}
           />
           <button type="button" className={styles.primary} onClick={() => void pickFile()}>
             Import audio file
           </button>
-          <div className={styles.filters}>
-            <label className={styles.field}>
-              Source
-              <select
-                className={styles.input}
-                value={origin}
-                onChange={(event) => setOrigin(event.target.value as Origin)}
-              >
-                <option value="">All</option>
-                <option value="recorded">Recorded</option>
-                <option value="imported">Imported</option>
-              </select>
-            </label>
-            <label className={styles.field}>
-              From
-              <input
-                type="date"
-                className={styles.input}
-                value={from}
-                onChange={(event) => setFrom(event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              To
-              <input
-                type="date"
-                className={styles.input}
-                value={to}
-                onChange={(event) => setTo(event.target.value)}
-              />
-            </label>
-            {filtered && (
-              <button type="button" className={styles.button} onClick={clearFilters}>
-                Clear
-              </button>
+          <div className={styles.floatSlot}>
+            {notice && (
+              <p role="status" className={styles.floatNote}>
+                {notice}
+              </p>
+            )}
+            {pickError && (
+              <p role="alert" className={styles.floatNote}>
+                {pickError}
+              </p>
             )}
           </div>
-          {notice && <p role="status">{notice}</p>}
-          {pickError && <p role="alert">{pickError}</p>}
           <ImportPanel onOpen={onOpen} />
         </>
       }

@@ -220,11 +220,11 @@ describe('screens', () => {
       expect(screen.getByRole('heading', { name: `Disabled (${off})` })).toBeTruthy();
     });
 
-    it('starts with a calm empty panel and marks the selected term', async () => {
+    it('opens on the first suggestion, and marks the selected term', async () => {
       renderScreen(backend, <VocabularyScreen />);
-      expect(await screen.findByText('Select a term')).toBeTruthy();
+      expect(await screen.findByRole('button', { name: 'Remember Marlow Quay' })).toBeTruthy();
       await pick('Kestrel API');
-      expect(screen.queryByText('Select a term')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Remember Marlow Quay' })).toBeNull();
       const row = screen.getByText('Kestrel API', { selector: 'span' }).closest('button');
       expect(row?.getAttribute('aria-current')).toBe('true');
       expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy();

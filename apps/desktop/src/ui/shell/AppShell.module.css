@@ -17,6 +17,27 @@
   min-height: 0;
 }
 
+/* Holds the workspace and the notices that float over its top edge: a notice appearing or being
+   dismissed never moves or resizes anything below it. */
+.workspaceFrame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.notices {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 30;
+  box-shadow: var(--shadow-overlay);
+}
+
+.notices:empty {
+  box-shadow: none;
+}
+
 /* A column, so the zero-size wrapper of the corner button never adds an empty line above a screen. */
 .workspace {
   position: relative;

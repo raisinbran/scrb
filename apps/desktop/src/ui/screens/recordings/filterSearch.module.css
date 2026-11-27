@@ -1,0 +1,143 @@
+.wrap {
+  position: relative;
+}
+
+/* Looks like the other text fields; chips and the text share it and wrap onto more lines. */
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 2px var(--space-1) 2px var(--space-2);
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.field:focus-within {
+  box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+.input {
+  flex: 1;
+  min-width: 6ch;
+  padding: var(--space-1) 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  outline: 2px solid transparent;
+  appearance: none;
+}
+
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  padding: 0 2px 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  white-space: nowrap;
+  background: var(--color-card-inset);
+  border-radius: var(--radius-control);
+}
+
+.chipRemove,
+.filterButton {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.chipRemove {
+  width: 18px;
+  height: 18px;
+}
+
+.filterButton {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.chipRemove:hover,
+.filterButton:hover,
+.filterButton[aria-expanded='true'] {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.chipIcon,
+.filterIcon {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.popover {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(100% + var(--space-1));
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1);
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-overlay);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.item:hover,
+.item:focus-visible,
+.item[aria-checked='true'] {
+  background: var(--color-card-inset);
+}
+
+.item[aria-checked='true'] {
+  font-weight: 600;
+}
+
+.date {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+}
+
+.dateInput {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding-inline: var(--space-2);
+}
+
+/* The field around it draws the focus ring. */
+.input:focus-visible {
+  outline-color: transparent;
+}
