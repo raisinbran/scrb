@@ -47,3 +47,12 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Sidebar toggle          | A button at the top of the sidebar switches icons only on and off; the choice is saved. At 1000px or narrower it collapses on its own                              |
 | Compact list rows       | Speaker count, status badge and a short progress bar share one line. "Text will change" is no longer in the list                                                   |
 | Speakers and Vocabulary | Not turned into list plus detail: their rows carry actions and have no detail view, so they use the single content card                                            |
+
+## Owner comments, round 5
+
+| Comment                 | Change                                                                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Button states           | Three looks. Selected is unchanged (card tone). Idle is a soft neutral fill with full-strength text, now also on unselected tabs, so tabs match undo, redo, A- and A+. Disabled keeps muted text and a fill at 30% of idle, so it nearly vanishes |
+| Idle fill on the page   | New tokens `--color-control` and `--color-control-hover` in both themes: slightly recessed against the page, so the lighter selected tab stands out. Contrast is tested like the other surfaces                                                   |
+| Back button             | The "< Recordings" button is gone from the meeting panel; the list column stays beside it at every width. Pressing Recordings in the sidebar still closes the open meeting                                                                        |
+| Speakers and Vocabulary | Unchanged for now                                                                                                                                                                                                                                 |

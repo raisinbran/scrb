@@ -44,6 +44,8 @@
   --color-page: #eceef1;
   --color-card: #ffffff;
   --color-card-inset: #f4f5f7;
+  --color-control: #e0e3e8;
+  --color-control-hover: #e2e5ea;
   --color-progress-track: #8a909a;
   --color-sheen: #ffffff33;
   --color-line-current: #e8e9f8;
@@ -76,6 +78,8 @@
   --color-page: #232428;
   --color-card: #2f3136;
   --color-card-inset: #282a2e;
+  --color-control: #1b1c20;
+  --color-control-hover: #27292d;
   --color-progress-track: #80858f;
   --color-sheen: #ffffff33;
   --color-line-current: #343650;

@@ -49,3 +49,7 @@
 :global([data-design='tonal']) .testButton:hover:not(:disabled) {
   background: var(--color-surface-hover);
 }
+
+:global([data-design='tonal']) .testButton:disabled {
+  background: color-mix(in srgb, var(--color-card-inset) 30%, transparent);
+}

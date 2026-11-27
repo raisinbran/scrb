@@ -23,7 +23,7 @@ import { useMeetingPlayback } from '../../lib/playback-context.tsx';
 import type { Playback } from './use-playback.ts';
 import { useMeetingUndo } from './use-meeting-undo.ts';
 import { useTranscript } from './use-transcript.ts';
-import { ICONS, IconButton } from '../../components/IconButton.tsx';
+import { IconButton } from '../../components/IconButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { Tooltip } from '../../components/Tooltip.tsx';
 import { nextRate, rateLabel } from '../../lib/playback-level.ts';
@@ -223,25 +223,6 @@ function AudioTab({ meeting, onOpenAudio }: { meeting: MeetingDetail; onOpenAudi
           </ul>
         )}
       </section>
-    </div>
-  );
-}
-
-/** A breadcrumb-style link above the meeting title closes the meeting and shows the empty panel. */
-function DetailTitle({ onBack }: { onBack(): void }) {
-  return (
-    <div className={styles.pageTitle}>
-      <button
-        type="button"
-        className={styles.backLink}
-        aria-label="Back to Recordings"
-        onClick={onBack}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.backIcon}>
-          <path d={ICONS.back} />
-        </svg>
-        Recordings
-      </button>
     </div>
   );
 }
@@ -648,7 +629,6 @@ function LoadedDetail(props: LoadedDetailProps) {
   return (
     <div className={styles.detail}>
       <header className={styles.detailHead}>
-        <DetailTitle onBack={() => onBack()} />
         <MeetingTitle
           title={meeting.title}
           readOnly={!canEdit}
@@ -934,7 +914,6 @@ export function MeetingDetailView({ meetingId, jumpMs, onBack }: MeetingDetailVi
   if (state.status === 'failed') {
     return (
       <div className={styles.detailHead}>
-        <DetailTitle onBack={() => onBack()} />
         <p role="alert">{state.message}</p>
       </div>
     );

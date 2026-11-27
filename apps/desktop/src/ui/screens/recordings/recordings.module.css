@@ -374,10 +374,6 @@
   margin: 0;
 }
 
-.pageTitle {
-  margin-bottom: var(--space-1);
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -388,34 +384,6 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
-}
-
-/* A breadcrumb link above the meeting title, shaped like a sidebar item. */
-.backLink {
-  display: inline-flex;
-  gap: var(--space-1);
-  align-items: center;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
-  margin-inline-start: calc(-1 * var(--space-1));
-  color: var(--color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-control);
-}
-
-.backLink:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
-.backIcon {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .titleWrap {
@@ -901,7 +869,6 @@ div.editHint button {
   padding: var(--space-3) var(--space-4);
 }
 
-:global([data-design='tonal']) .pageTitle,
 :global([data-design='tonal']) .detailHead .actions {
   margin: 0;
 }
@@ -917,7 +884,8 @@ div.editHint button {
 
 /* Tabs and the transcript tools are a button row on the page, above the card that holds the content. */
 :global([data-design='tonal']) .tabs {
-  --btn-fill: var(--color-card);
+  --btn-fill: var(--color-control);
+  --btn-hover: var(--color-control-hover);
   padding: 0;
   border: 0;
 }
@@ -927,8 +895,13 @@ div.editHint button {
   border: 0;
 }
 
+:global([data-design='tonal']) .tab {
+  color: var(--color-text);
+  background: var(--btn-fill);
+}
+
 :global([data-design='tonal']) .tab:hover {
-  background: var(--color-surface-hover);
+  background: var(--btn-hover);
 }
 
 :global([data-design='tonal']) .tabOn {
@@ -960,7 +933,12 @@ div.editHint button {
 
 :global([data-design='tonal']) .button:hover:enabled,
 :global([data-design='tonal']) .dangerQuiet:hover:enabled {
-  background: var(--color-surface-hover);
+  background: var(--btn-hover, var(--color-surface-hover));
+}
+
+:global([data-design='tonal']) .button:disabled,
+:global([data-design='tonal']) .dangerQuiet:disabled {
+  background: color-mix(in srgb, var(--btn-fill, var(--color-card-inset)) 30%, transparent);
 }
 
 :global([data-design='tonal']) .primary {

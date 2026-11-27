@@ -270,8 +270,7 @@ describe('Recordings', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(/Final transcript is still being processed/)).toBeNull();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
-      await button(/Budget review/);
+      await openMeeting(/Vendor call/);
       await openMeeting(/Budget review/);
       expect(screen.getByText(/Final transcript is still being processed/)).toBeTruthy();
     });
@@ -367,7 +366,6 @@ describe('Recordings', () => {
 
       fireEvent.click(await button(/Budget review/));
       await screen.findByRole('tab', { name: 'Transcript' });
-      fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
       await button('Import audio file');
       expect(screen.queryByText(reminder)).toBeNull();
     });
@@ -588,7 +586,6 @@ describe('Recordings', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1.25x'),
       );
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
       await openMeeting(/Budget review/);
       expect(screen.getByRole('button', { name: /^Playback speed/ }).textContent).toBe('1x');
     });
@@ -852,10 +849,8 @@ describe('Recordings', () => {
         await openMeeting(/Weekly project sync/);
         await correct(await firstWord(), 'Zebra');
         await waitFor(() => expect(undoButton().disabled).toBe(false));
-        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
         await openMeeting(/Vendor call/);
         await waitFor(() => expect(undoButton().disabled).toBe(true));
-        fireEvent.click(screen.getByRole('button', { name: /Recordings/ }));
         await openMeeting(/Weekly project sync/);
         await waitFor(() => expect(undoButton().disabled).toBe(false));
       });
@@ -1082,21 +1077,16 @@ describe('Recordings', () => {
       expect(document.activeElement).toBe(title);
     });
 
-    it('keeps the Recordings title and a named back button', async () => {
+    it('has no back button: the list column stays beside the open meeting', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
-      expect(screen.getByRole('heading', { level: 1, name: 'Recordings' })).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
-      expect(await screen.findByLabelText('Search recordings')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Back to Recordings' })).toBeNull();
+      expect(screen.getByLabelText('Search recordings')).toBeTruthy();
     });
 
-    it('puts the back link above the meeting title and keeps the player outside the scrolling panel', async () => {
+    it('keeps the player outside the scrolling panel', async () => {
       renderScreen();
       await openMeeting(/Vendor call/);
-      const back = screen.getByRole('button', { name: 'Back to Recordings' });
-      expect(back.textContent).toBe('Recordings');
-      const title = screen.getByRole('textbox', { name: /title/i });
-      expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       const panel = screen.getByRole('tabpanel');
       const player = screen.getByRole('group', { name: 'Audio player' });
       expect(panel.contains(player)).toBe(false);

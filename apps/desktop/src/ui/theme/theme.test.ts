@@ -45,6 +45,8 @@ const BACKGROUNDS = [
   '--color-page',
   '--color-card',
   '--color-card-inset',
+  '--color-control',
+  '--color-control-hover',
 ];
 
 describe('resolveTheme', () => {

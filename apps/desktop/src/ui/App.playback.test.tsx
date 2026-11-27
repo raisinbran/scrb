@@ -70,7 +70,6 @@ describe('playback across tabs', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Vendor call/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Play' }));
     await screen.findByRole('button', { name: 'Pause' });
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
     const row = (await screen.findByRole('button', { name: /Vendor call/ })).closest('li');
     expect(within(row as HTMLElement).getByRole('img', { name: 'Playing audio' })).toBeTruthy();
     const others = screen
@@ -91,7 +90,6 @@ describe('playback across tabs', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Play' }));
     await screen.findByRole('button', { name: 'Pause' });
     const call = vi.spyOn(backend, 'call');
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Recordings' }));
     fireEvent.click(await screen.findByRole('button', { name: /Weekly project sync/ }));
     await screen.findByRole('tab', { name: 'Transcript' });
     expect(call).toHaveBeenCalledWith('pauseAudio', expect.objectContaining({}));
