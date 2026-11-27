@@ -159,10 +159,29 @@
   color: var(--color-text-muted);
 }
 
+.heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+/* A fixed strip under the text, so the button is always there and nothing moves when it enables. */
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
 .jump {
-  position: absolute;
-  inset-block-end: var(--space-3);
-  inset-inline-start: 50%;
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -170,8 +189,13 @@
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-overlay);
-  transform: translateX(-50%);
+}
+
+.jump:disabled {
+  color: var(--color-text-muted);
+  background: var(--color-control);
+  border-color: transparent;
+  opacity: 0.6;
 }
 
 .editor {
@@ -264,4 +288,9 @@
 
 :global([data-design='tonal']) .toolButton:hover:not(:disabled) {
   background: var(--color-control-hover);
+}
+
+:global([data-design='tonal']) .footer {
+  padding: var(--space-2) var(--space-card-pad);
+  border-top: 0;
 }

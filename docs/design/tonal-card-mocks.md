@@ -153,3 +153,9 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Settings Notifications | One checkbox per optional banner category with a one-line description; errors and data-safety notices always show    |
 | First dismissal        | A one-time, 8 second pointer to Settings > Notifications with an Open settings button                                |
 | Transport icons        | Bare icons for play and skip (approved)                                                                              |
+
+## Owner comments, round 16
+
+| Comment                 | Change                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live transcript toolbar | Title and info icon left, A- and A+ right; no undo or redo buttons (Ctrl+Z and double-click still work). Jump to Live is a fixed strip under the text, disabled while following |

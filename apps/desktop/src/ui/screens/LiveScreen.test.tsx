@@ -572,7 +572,7 @@ describe('LiveScreen', () => {
       // This test exercises reduced-motion completion; eased movement has separate coverage.
       vi.stubGlobal('matchMedia', () => ({ matches: true }));
       await startMeeting();
-      expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
+      expect(button('Jump to Live')).toHaveProperty('disabled', true);
       dragAcross(words()[0] as HTMLElement, words()[1] as HTMLElement);
       expect(transcript().dataset['following']).toBe('false');
       fireEvent.click(button('Jump to Live'));
@@ -629,7 +629,7 @@ describe('LiveScreen', () => {
       fireEvent.mouseDown(transcript());
       fireEvent.mouseUp(transcript());
       expect(transcript().dataset['following']).toBe('true');
-      expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
+      expect(button('Jump to Live')).toHaveProperty('disabled', true);
     });
 
     it('treats a tiny movement across words as a click, not a selection', async () => {
@@ -640,14 +640,14 @@ describe('LiveScreen', () => {
       fireEvent.mouseUp(second, { clientX: 12, clientY: 11, detail: 1 });
       expect(selected()).toEqual([]);
       expect(transcript().dataset['following']).toBe('true');
-      expect(screen.queryByRole('button', { name: 'Jump to Live' })).toBeNull();
+      expect(button('Jump to Live')).toHaveProperty('disabled', true);
     });
 
     it('stops following on a wheel scroll', async () => {
       await startMeeting();
       fireEvent.wheel(transcript());
       expect(transcript().dataset['following']).toBe('false');
-      expect(button('Jump to Live')).toBeTruthy();
+      expect(button('Jump to Live')).toHaveProperty('disabled', false);
     });
 
     it('keeps a selection and its draft through 60 seconds of incoming text', async () => {
@@ -693,10 +693,10 @@ describe('LiveScreen', () => {
       expect(words()[0]?.dataset['state']).toBe('corrected');
       expect((await backend.call('listTerms')).at(-1)?.term).toBe('Halden Depot');
 
-      fireEvent.click(button('Undo'));
+      expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
       await advance(0);
       expect(words()[0]?.dataset['state']).not.toBe('corrected');
-      expect(button('Undo')).toHaveProperty('disabled', true);
 
       fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
       await advance(0);
