@@ -79,6 +79,7 @@
 }
 
 .button:disabled,
+.showButton[aria-disabled='true'],
 .primary:disabled,
 .danger:disabled,
 .dangerQuiet:disabled {
@@ -1052,6 +1053,7 @@ div.editHint button {
 }
 
 :global([data-design='tonal']) .button:disabled,
+:global([data-design='tonal']) .showButton[aria-disabled='true'],
 :global([data-design='tonal']) .dangerQuiet:disabled {
   background: color-mix(in srgb, var(--btn-fill, var(--color-card-inset)) 30%, transparent);
 }

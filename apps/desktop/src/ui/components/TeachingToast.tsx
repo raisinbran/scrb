@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect } from 'react';
-import { closeTeaching, useTeachingOpen } from '../lib/notification-prefs.ts';
+import { closeTeaching, registerTeachingHost, useTeachingOpen } from '../lib/notification-prefs.ts';
 import { PopupBanner } from './PopupBanner.tsx';
 import styles from './PrivacyBanner.module.css';
 
@@ -12,10 +12,21 @@ export const OpenNotificationSettings = createContext<() => void>(() => undefine
 export function TeachingToast({ onOpenSettings }: { onOpenSettings?: () => void } = {}) {
   const open = useTeachingOpen();
   const openFromShell = useContext(OpenNotificationSettings);
+  useEffect(registerTeachingHost, []);
   useEffect(() => {
     if (!open) return;
-    const timer = setTimeout(closeTeaching, AUTO_HIDE_MS);
-    return () => clearTimeout(timer);
+    // Counts as seen only if the window was visible when it went away.
+    const timer = setTimeout(() => {
+      if (document.visibilityState === 'visible') closeTeaching();
+    }, AUTO_HIDE_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setTimeout(closeTeaching, AUTO_HIDE_MS);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [open]);
   if (!open) return null;
   return (

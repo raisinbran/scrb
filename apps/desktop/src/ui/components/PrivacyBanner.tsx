@@ -30,9 +30,12 @@ export function PrivacyBanner() {
   useEffect(() => {
     if (!meetingId) return;
     let live = true;
-    void backend.call('getSettings').then(({ location }) => {
-      if (live) setUsState(location.country === 'US' ? location.usState : null);
-    });
+    void backend
+      .call('getSettings')
+      .then(({ location }) => {
+        if (live) setUsState(location.country === 'US' ? location.usState : null);
+      })
+      .catch(() => undefined);
     return () => {
       live = false;
     };

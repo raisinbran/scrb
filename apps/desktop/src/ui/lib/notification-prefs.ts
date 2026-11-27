@@ -41,6 +41,7 @@ interface Stored {
 let off = new Set<NotificationCategory>(readStored<Stored>(KEY)?.off ?? []);
 let taught = readStored<Stored>(KEY)?.taught === true;
 let teaching = false;
+let hosts = 0;
 let version = 0;
 const listeners = new Set<() => void>();
 
@@ -68,13 +69,22 @@ export function setNotificationEnabled(category: NotificationCategory, enabled: 
 
 /** Call when a person dismisses an optional banner. The first time, it opens the one-time pointer to Settings. */
 export function noteOptionalDismiss(): void {
-  if (taught) return;
+  // With no pointer mounted the dismissal would be shown later, out of context, so it does not count.
+  if (taught || hosts === 0) return;
   teaching = true;
   version += 1;
   listeners.forEach((listener) => listener());
 }
 
 /** Closing the pointer, by any route, is what counts as taught: a dismissal with no pointer shown is not lost. */
+/** A mounted pointer registers here, so a dismissal only counts when someone can see the pointer. */
+export function registerTeachingHost(): () => void {
+  hosts += 1;
+  return () => {
+    hosts -= 1;
+  };
+}
+
 export function closeTeaching(): void {
   if (!teaching) return;
   teaching = false;

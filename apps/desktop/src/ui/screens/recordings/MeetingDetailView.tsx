@@ -887,8 +887,8 @@ function LoadedDetail(props: LoadedDetailProps) {
               type="button"
               className={`${styles.button} ${styles.showButton}`}
               aria-label="Show in transcript"
-              disabled={tab === 'Transcript' && transcriptFollowing}
-              onClick={showInTranscript}
+              aria-disabled={tab === 'Transcript' && transcriptFollowing ? true : undefined}
+              onClick={tab === 'Transcript' && transcriptFollowing ? undefined : showInTranscript}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.showIcon}>
                 <path d="M4 6h16M4 12h16M4 18h10" />

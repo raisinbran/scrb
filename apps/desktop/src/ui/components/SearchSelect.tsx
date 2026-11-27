@@ -40,6 +40,7 @@ export function SearchSelect({
   const close = () => {
     setOpen(false);
     setQuery('');
+    setActive(0);
   };
   const pick = (option: SearchOption) => {
     onChange(option.value);
@@ -103,6 +104,9 @@ export function SearchSelect({
               id={`${listId}-${index}`}
               role="option"
               aria-selected={option.value === value}
+              ref={(element) => {
+                if (index === active) element?.scrollIntoView?.({ block: 'nearest' });
+              }}
               data-active={index === active ? '' : undefined}
               className={styles.option}
               onMouseDown={(event) => {

@@ -193,7 +193,7 @@
   border-radius: var(--radius-control);
 }
 
-.jump:disabled {
+.jump[aria-disabled='true'] {
   color: var(--color-text-muted);
   background: var(--color-control);
   border-color: transparent;

@@ -689,7 +689,12 @@ export function TranscriptView({ meetingId, fontPx, onFontChange, ref }: Transcr
         )}
       </div>
       <div className={styles.footer}>
-        <button type="button" className={styles.jump} disabled={following} onClick={jumpToLive}>
+        <button
+          type="button"
+          className={styles.jump}
+          aria-disabled={following ? true : undefined}
+          onClick={following ? undefined : jumpToLive}
+        >
           Jump to Live
         </button>
       </div>
