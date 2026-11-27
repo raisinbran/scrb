@@ -363,13 +363,17 @@ test('keeps sidebar tooltips visible and information buttons circular in both th
         probe.remove();
         return color;
       });
-      // The tooltip opens from the pointer event; Chromium applies :hover on a later style pass, so the
-      // first read can still see the resting transparent background. Poll for the hover colour.
+      // Reposition after the tooltip layout settles so the pointer remains over the button in both
+      // Windows and macOS Chromium runs.
+      await unselected.button.hover();
       await expect
         .poll(() =>
-          unselected.button.evaluate((element) => getComputedStyle(element).backgroundColor),
+          unselected.button.evaluate((element) => ({
+            hovered: element.matches(':hover'),
+            background: getComputedStyle(element).backgroundColor,
+          })),
         )
-        .toBe(hoverToken);
+        .toEqual({ hovered: true, background: hoverToken });
       expect(unselectedStyle.shadow).toBe('none');
       expect(unselectedStyle.underline).toBe('none');
       expect(unselectedStyle.borderBottom).toBe('0px');
