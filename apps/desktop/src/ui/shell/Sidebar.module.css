@@ -183,10 +183,6 @@
   padding: var(--space-2);
 }
 
-.toggle {
-  margin-block-end: var(--space-1);
-}
-
 /* Collapsed to icons: every item and the footer are one narrow column. */
 .itemCollapsed {
   justify-content: center;
@@ -197,11 +193,14 @@
   justify-content: center;
 }
 
-.sidebarCollapsed .toggle {
-  align-self: center;
-}
-
 .footerCollapsed {
   flex-direction: column;
   gap: var(--space-1);
+}
+
+/* Trial: the sidebar as its own card, like the other panels. Turn it off with
+   document.documentElement.dataset.sidebarCard = 'off'. */
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebar {
+  background: var(--color-card);
+  border-radius: var(--radius);
 }

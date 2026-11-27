@@ -103,7 +103,8 @@ export function Sidebar({ selected, onSelect, collapsed, canToggle, onToggle }: 
       className={collapsed ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar}
       aria-label="Main"
     >
-      <div className={styles.group}>
+      <div className={styles.group}>{SCREENS.filter((s) => !s.pinnedToBottom).map(item)}</div>
+      <div className={collapsed ? `${styles.footer} ${styles.footerCollapsed}` : styles.footer}>
         <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           <button
             type="button"
@@ -117,9 +118,6 @@ export function Sidebar({ selected, onSelect, collapsed, canToggle, onToggle }: 
             </svg>
           </button>
         </Tooltip>
-        {SCREENS.filter((s) => !s.pinnedToBottom).map(item)}
-      </div>
-      <div className={collapsed ? `${styles.footer} ${styles.footerCollapsed}` : styles.footer}>
         {pinned.map((screen) => (
           <Tooltip key={screen.id} label={screen.label}>
             <button

@@ -18,7 +18,13 @@ function readingOffset(section: HTMLElement) {
 const scrollerOf = (nav: HTMLElement) =>
   nav.closest('[data-split]')?.querySelector<HTMLElement>('[data-split-content]') ?? null;
 
-export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
+export function SettingsNav({
+  groups,
+  label = 'Settings groups',
+}: {
+  groups: SettingsGroup[];
+  label?: string;
+}) {
   const nav = useRef<HTMLElement>(null);
   const [active, setActive] = useState(groups[0]?.id ?? '');
 
@@ -79,7 +85,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
   };
 
   return (
-    <nav ref={nav} aria-label="Settings groups">
+    <nav ref={nav} aria-label={label}>
       <ul className={list.list}>
         {groups.map((group) => (
           <li key={group.id}>

@@ -348,7 +348,7 @@ export function FilterSearch({
           aria-haspopup={step === 'from' || step === 'to' ? 'dialog' : 'menu'}
           aria-expanded={step !== null}
           aria-controls={step === null ? undefined : popoverId}
-          placeholder={chips.length > 0 ? 'Search' : 'Search titles, dates and transcripts'}
+          placeholder={chips.length > 0 ? 'Search' : 'Search recordings'}
           value={text}
           onFocus={() => {
             if (!quiet.current && step === null) open('menu', false);

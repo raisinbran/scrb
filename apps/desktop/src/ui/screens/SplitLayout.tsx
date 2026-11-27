@@ -9,11 +9,14 @@ import styles from './SplitLayout.module.css';
  */
 export function SplitLayout({
   title,
+  titleAction,
   header,
   list,
   children,
 }: {
   title: string;
+  /** Sits at the right end of the title row: a compact button or a search field. */
+  titleAction?: ReactNode;
   /** Pinned under the title: search, filters, actions. */
   header?: ReactNode;
   /** Scrolls on its own. */
@@ -25,9 +28,12 @@ export function SplitLayout({
   return (
     <div className={styles.split} data-split>
       <div className={styles.column}>
-        <h1 ref={heading} className={styles.title} tabIndex={-1}>
-          {title}
-        </h1>
+        <div className={styles.titleRow}>
+          <h1 ref={heading} className={styles.title} tabIndex={-1}>
+            {title}
+          </h1>
+          {titleAction}
+        </div>
         {header && <div className={styles.header}>{header}</div>}
         <div className={styles.listScroll}>{list}</div>
       </div>

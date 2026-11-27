@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type {
   Backend,
   VocabularyHistoryEntry,
@@ -13,6 +13,8 @@ import { formatMeetingDate } from '../lib/format.ts';
 import { useAction } from '../lib/use-action.ts';
 import { useBackendData } from '../lib/use-backend-data.ts';
 import list from '../components/ListItem.module.css';
+import searchStyles from './recordings/filterSearch.module.css';
+import { Tooltip } from '../components/Tooltip.tsx';
 import { DataView, EmptyState } from './Screen.tsx';
 import { SplitLayout } from './SplitLayout.tsx';
 import styles from './VocabularyScreen.module.css';
@@ -234,12 +236,19 @@ function SuggestionPanel({
   );
 }
 
+/** Said once, beside the title, so it never sits between the search bar and the list. */
 function UsageNote({ terms }: { terms: VocabularyTerm[] }) {
   const enabled = terms.filter((term) => term.enabled).length;
+  const text = `${enabled} enabled. Terms are saved but not used for transcription yet.`;
   return (
-    <p className={styles.note}>
-      <strong>{enabled} enabled.</strong> Terms are saved but not used for transcription yet.
-    </p>
+    <Tooltip label={text}>
+      <button type="button" className={styles.info} aria-label={text}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.infoIcon}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5M12 8v.01" />
+        </svg>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -257,30 +266,129 @@ const stateOf = (entry: Entry): Exclude<Filter, 'all'> =>
 
 const ORDER = { suggested: 0, enabled: 1, disabled: 2 } as const;
 
-function FilterToggle({
+/** The Recordings search bar, with the state filter as a chip and a dropdown instead of a chip row. */
+function VocabularySearch({
+  query,
+  onQuery,
   value,
   counts,
   onChange,
 }: {
+  query: string;
+  onQuery(next: string): void;
   value: Filter;
   counts: Record<Filter, number>;
   onChange(next: Filter): void;
 }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const popoverId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: PointerEvent) => {
+      if (!wrap.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+  const choose = (next: Filter) => {
+    onChange(next);
+    setOpen(false);
+    input.current?.focus();
+  };
+  const label = FILTERS.find((item) => item.id === value)?.label ?? '';
   return (
-    <div role="radiogroup" aria-label="Show terms" className={styles.filter}>
-      {FILTERS.filter((item) => item.id === 'all' || counts[item.id] > 0 || item.id === value).map(
-        (item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="radio"
-            aria-checked={value === item.id}
-            className={styles.filterButton}
-            onClick={() => onChange(item.id)}
-          >
-            {item.label} ({counts[item.id]})
-          </button>
-        ),
+    <div
+      ref={wrap}
+      className={searchStyles.wrap}
+      onBlur={(event) => {
+        if (open && !event.currentTarget.contains(event.relatedTarget as Node | null))
+          setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          event.preventDefault();
+          setOpen(false);
+          input.current?.focus();
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          const items = [
+            ...(wrap.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? []),
+          ];
+          if (!open) {
+            event.preventDefault();
+            setOpen(true);
+            return;
+          }
+          const at = items.indexOf(document.activeElement as HTMLElement);
+          const next =
+            event.key === 'ArrowDown'
+              ? (at + 1) % items.length
+              : (at - 1 + items.length) % items.length;
+          event.preventDefault();
+          items[next]?.focus();
+        }
+      }}
+    >
+      <div role="group" aria-label="Search and filter" className={searchStyles.field}>
+        {value !== 'all' && (
+          <span className={searchStyles.chip}>
+            Show: {label}
+            <button
+              type="button"
+              className={searchStyles.chipRemove}
+              aria-label="Remove state filter"
+              onClick={() => onChange('all')}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={searchStyles.chipIcon}>
+                <path d="M7 7l10 10M17 7L7 17" />
+              </svg>
+            </button>
+          </span>
+        )}
+        <input
+          ref={input}
+          type="search"
+          className={searchStyles.input}
+          aria-label="Search vocabulary"
+          placeholder="Search vocabulary"
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+        />
+        <button
+          type="button"
+          className={searchStyles.filterButton}
+          aria-label="Filter terms"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={open ? popoverId : undefined}
+          onClick={() => setOpen(!open)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={searchStyles.filterIcon}>
+            <path d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <div id={popoverId} role="menu" aria-label="Show terms" className={searchStyles.popover}>
+          <div className={searchStyles.popoverTitle} aria-hidden="true">
+            Show
+          </div>
+          {FILTERS.filter(
+            (item) => item.id === 'all' || counts[item.id] > 0 || item.id === value,
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === item.id}
+              className={searchStyles.item}
+              onClick={() => choose(item.id)}
+            >
+              {item.label} ({counts[item.id]})
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -383,20 +491,16 @@ export function VocabularyScreen() {
   return (
     <SplitLayout
       title="Vocabulary"
+      titleAction={data ? <UsageNote terms={data.terms} /> : null}
       header={
         data && entries.length > 0 ? (
-          <>
-            <input
-              type="search"
-              className={styles.search}
-              aria-label="Search vocabulary"
-              placeholder="Search terms and misheard versions"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <FilterToggle value={filter} counts={counts} onChange={setFilter} />
-            <UsageNote terms={data.terms} />
-          </>
+          <VocabularySearch
+            query={query}
+            onQuery={setQuery}
+            value={filter}
+            counts={counts}
+            onChange={setFilter}
+          />
         ) : null
       }
       list={

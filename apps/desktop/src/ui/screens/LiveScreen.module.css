@@ -241,15 +241,15 @@ button:disabled {
 .alerts {
   position: absolute;
   inset-block-start: 0;
-  inset-inline: 12.5%;
+  inset-inline: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  align-items: center;
 }
 
 .banner {
   composes: banner from '../components/Banner.module.css';
-  width: 100%;
   margin: 0;
 }
 
@@ -267,10 +267,9 @@ button:disabled {
 .finished {
   composes: banner from '../components/Banner.module.css';
   position: absolute;
-  inset-inline: 12.5%;
+  inset-inline: 0;
   inset-block-start: var(--space-1);
-  width: auto;
-  margin: 0;
+  margin-block: 0;
   justify-content: space-between;
   color: var(--color-text-muted);
 }
@@ -307,4 +306,67 @@ button:disabled {
   padding: var(--space-card-pad);
   background: var(--color-card);
   border-radius: var(--radius);
+}
+
+/* Tonal preview: the same layout language as the other screens. Fills instead of borders, one gap,
+   and the level meters in the pickers' own row. */
+:global([data-design='tonal']) .live {
+  gap: var(--space-3);
+}
+
+:global([data-design='tonal']) .header {
+  padding-inline-end: 0;
+}
+
+:global([data-design='tonal']) .button,
+:global([data-design='tonal']) .startButton,
+:global([data-design='tonal']) .stopButton {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .button:hover:not(:disabled),
+:global([data-design='tonal']) .stopButton:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+:global([data-design='tonal']) .startButton {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+:global([data-design='tonal']) .picker select {
+  background: var(--color-control);
+  border: 0;
+}
+
+:global([data-design='tonal']) .sources {
+  gap: var(--space-2) var(--space-5);
+  align-items: flex-start;
+  padding-block: 0;
+}
+
+:global([data-design='tonal']) .levels {
+  margin-inline-start: 0;
+  transform: none;
+}
+
+:global([data-design='tonal']) .meter {
+  background: var(--color-card-inset);
+}
+
+:global([data-design='tonal']) .idle {
+  padding-block: var(--space-6);
+  background: var(--color-card-inset);
+  border-radius: var(--radius);
+}
+
+/* Nothing recorded yet: the card is only as tall as its controls, with no big empty area under them. */
+:global([data-design='tonal']) .live:has(.idle) {
+  height: auto;
+}
+
+:global([data-design='tonal']) .idle {
+  flex: none;
+  padding-block: var(--space-4);
 }

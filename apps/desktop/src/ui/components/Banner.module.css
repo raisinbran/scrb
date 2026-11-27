@@ -1,5 +1,5 @@
-/* The one banner look: every banner or notice that pops over a panel is 75% of that panel's width,
-   centred, with the same compact padding, the raised surface and the overlay shadow. The wrapper
+/* The one banner look: every banner or notice that pops over a panel hugs its text, up to 75% of that
+   panel's width, centred, with the same compact padding, the raised surface and the overlay shadow. The wrapper
    that places it (never this class) decides where it floats. */
 .banner {
   position: relative;
@@ -8,12 +8,14 @@
   gap: var(--space-3);
   align-items: center;
   justify-content: center;
-  width: 75%;
+  width: fit-content;
+  max-width: 75%;
   margin-inline: auto;
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text);
   text-align: center;
+  text-wrap: balance;
   background: var(--color-surface-raised);
   border-radius: var(--radius-control);
   box-shadow: var(--shadow-overlay);

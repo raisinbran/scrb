@@ -8,6 +8,7 @@ import type {
   SearchResult,
 } from '@scrb/contracts';
 import list from '../../components/ListItem.module.css';
+import { Chip } from './Chip.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import { PlayingIndicator } from '../../components/PlayingIndicator.tsx';
 import { useNowPlaying } from '../../lib/playback-context.tsx';
@@ -32,40 +33,6 @@ interface RowProps {
   query: string;
   selected: boolean;
   onOpen(id: string, atMs?: number): void;
-}
-
-/** Short forms for the narrow list; the full text stays in the tooltip and for screen readers. */
-const COMPACT_LABELS: Record<string, string> = {
-  'Processing final transcript': 'Processing',
-  'Recovered after crash': 'Recovered',
-  'Transcription failed': 'Failed',
-  'Summary generating': 'Generating',
-};
-
-function Chip({
-  text,
-  className,
-  busy = false,
-}: {
-  text: string;
-  className: string | undefined;
-  /** Marks the chip the progress bar sits next to. */
-  busy?: boolean;
-}) {
-  const short = COMPACT_LABELS[text];
-  const mark = busy ? { 'data-busy-chip': '' } : {};
-  if (!short)
-    return (
-      <span className={className} {...mark}>
-        {text}
-      </span>
-    );
-  return (
-    <span className={className} title={text} {...mark}>
-      <span aria-hidden="true">{short}</span>
-      <span className={styles.srOnly}>{text}</span>
-    </span>
-  );
 }
 
 /** A small bar under a meeting whose final transcript is processing; indeterminate until the first report. */
@@ -264,6 +231,19 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
   return (
     <SplitLayout
       title="Recordings"
+      titleAction={
+        <button
+          type="button"
+          className={styles.importButton}
+          aria-label="Import audio file"
+          onClick={() => void pickFile()}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.importIcon}>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Import
+        </button>
+      }
       header={
         <>
           <FilterSearch
@@ -277,9 +257,6 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
             onFrom={setFrom}
             onTo={setTo}
           />
-          <button type="button" className={styles.primary} onClick={() => void pickFile()}>
-            Import audio file
-          </button>
           <div className={styles.floatSlot}>
             {notice && (
               <p role="status" className={styles.floatNote}>

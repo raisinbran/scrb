@@ -35,6 +35,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  align-items: center;
   pointer-events: none;
 }
 
@@ -64,4 +65,16 @@
 
 :global([data-design='tonal']) .workspace {
   background: var(--color-page);
+}
+
+/* Trial: the sidebar floats as a card on the page tone, with the same gutter as the other panels. */
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebar {
+  box-sizing: border-box;
+  width: calc(140px + var(--space-card-gap));
+  padding: var(--space-card-gap) 0 var(--space-card-gap) var(--space-card-gap);
+  background: var(--color-page);
+}
+
+:global([data-design='tonal']:not([data-sidebar-card='off'])) .sidebarCollapsed {
+  width: calc(52px + var(--space-card-gap));
 }

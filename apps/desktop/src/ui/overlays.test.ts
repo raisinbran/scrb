@@ -41,7 +41,8 @@ describe('progress bar', () => {
 describe('one banner look', () => {
   it('is 75% of the panel, centred, and shared by every banner', () => {
     const shared = rule(css('components/Banner.module.css'), '.banner');
-    expect(shared).toMatch(/width: 75%/);
+    expect(shared).toMatch(/max-width: 75%/);
+    expect(shared).toMatch(/text-wrap: balance/);
     expect(shared).toMatch(/margin-inline: auto/);
     for (const file of [
       'components/PopupBanner.module.css',

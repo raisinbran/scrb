@@ -18,6 +18,7 @@ import {
   type JumpTarget,
   type TranscriptEditing,
 } from './TranscriptTab.tsx';
+import { Chip } from './Chip.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS, isUnfinished } from './labels.ts';
 import { useMeetingPlayback } from '../../lib/playback-context.tsx';
 import type { Playback } from './use-playback.ts';
@@ -639,11 +640,23 @@ function LoadedDetail(props: LoadedDetailProps) {
               onChanged();
             }}
           />{' '}
-          · {formatDuration(meeting.durationMs)} ·{' '}
-          {meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
-          {status ? ` · ${status}` : ''}
-          {summaryLabel ? ` · ${summaryLabel}` : ''}
+          · {formatDuration(meeting.durationMs)}
         </p>
+        <div className={styles.badges}>
+          <Chip
+            text={meeting.origin === 'imported' ? 'Imported' : 'Recorded'}
+            className={styles.badge}
+            full
+          />
+          {status && <Chip text={status} className={styles.badgeStrong} full />}
+          {summaryLabel && (
+            <Chip
+              full
+              text={summaryLabel}
+              className={meeting.summaryState === 'outdated' ? styles.badgeWarning : styles.badge}
+            />
+          )}
+        </div>
         <div className={styles.actions}>
           <IconButton
             label="Export"

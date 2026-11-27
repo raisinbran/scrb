@@ -85,3 +85,17 @@ The radius change applies to the whole app, not only the preview; the tonal laye
 | Banners            | One shared look: 75% of the panel, centred, same compact height, no border; the 640px cap is gone                                                                                                      |
 | Vocabulary list    | One line per term with a Suggested or Disabled badge at the right; a segmented All / Suggested / Enabled / Disabled filter with counts replaces the group headers                                      |
 | List column widths | Recordings, Settings and Vocabulary measured identical: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920                                                                                        |
+
+## Owner comments, round 9
+
+| Comment            | Change                                                                                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Banners            | Each box hugs its text, is centred, at most 75% of the panel, balanced so no word is left alone on a line. Several banners stack with a gap and never overlap   |
+| Live               | Same cards, filled controls and spacing as the other screens, no borders; the idle panel is compact                                                             |
+| Placeholders       | "Search recordings", "Search vocabulary" and "Search help" fit at 960 px                                                                                        |
+| Detail header tags | The same tag component as the list, with full wording                                                                                                           |
+| Help               | One scrolling page of all topics. The left list works like the Settings group list: click scrolls, scrolling highlights. One search field sits beside the title |
+| Sidebar            | Toggle at the bottom beside Settings and Help; nav starts at the top. The sidebar is its own card, matching the other panels                                    |
+| Import             | A compact "+ Import" button in the Recordings title row                                                                                                         |
+| Vocabulary         | The usage note is an info icon with a tooltip beside the title; the state filter is a dropdown in the search field                                              |
+| Narrow widths      | The player stays on one row: the volume slider hides at 1000 px or less. The window minimum width is 960 px                                                     |

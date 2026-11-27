@@ -355,3 +355,10 @@ Every screen must handle every state the UI Specification lists for it. A state 
 - **One banner look:** every banner or notice that pops over a panel uses `components/Banner.module.css`: 75% of that panel's width, centred, compact padding, raised surface, no border (a coloured inner edge marks warnings and errors). Never set another width or look on a banner.
 - **One list column width:** every two-column screen (Recordings, Settings, Vocabulary, and Speakers later) uses `SplitLayout`'s `clamp(240px, 28vw, 320px)` column and nothing else. Measured in the browser: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920, identical on all three screens.
 - **Vocabulary list:** one line per term (name, then a small badge for Suggested or Disabled, none for Enabled), a segmented All, Suggested, Enabled, Disabled filter with counts above, sorted Suggested, Enabled, Disabled. The misheard versions live in the detail panel.
+
+## Round 9 rules
+
+- Banners hug their text: `fit-content`, centred, at most 75% of the panel, `text-wrap: balance`. Stacked banners keep a gap.
+- The playback row never wraps; the volume slider hides at 1000 px or less. The window minimum width is 960 px.
+- The sidebar toggle sits at the bottom; the sidebar is its own card.
+- Search fields show their full placeholder at 960 px. A title-row action (Import, info icon) sits right of the title.
