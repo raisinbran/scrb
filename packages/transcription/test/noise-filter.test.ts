@@ -91,7 +91,7 @@ describe('filterMicCopy', () => {
     expect(r).toEqual({ kind: 'filtered', wavPath: expect.stringContaining(FILTERED_MIC_NAME) });
     if (r.kind === 'filtered') {
       expect(r.wavPath).not.toBe(mic);
-      expect(dirname(r.wavPath)).toBe(dirname(realpathSync(mic)));
+      expect(dirname(r.wavPath)).toBe(dirname(realpathSync.native(mic)));
     }
     expect([hash(mic), hash(meeting)]).toEqual(before);
   });
