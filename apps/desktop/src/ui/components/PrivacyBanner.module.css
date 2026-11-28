@@ -6,16 +6,6 @@
   justify-content: center;
 }
 
-.dismiss {
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  background: var(--color-control);
-  border: 0;
-  border-radius: var(--radius-control);
-}
-
-.dismiss:hover {
-  color: var(--color-text);
-  background: var(--color-control-hover);
+.dismissSlot {
+  composes: dismissSlot from './Banner.module.css';
 }

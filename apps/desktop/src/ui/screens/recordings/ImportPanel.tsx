@@ -4,6 +4,7 @@ import { formatFileSize, formatMeetingDate } from '../../lib/format.ts';
 import { IMPORT_STAGE_LABELS } from './labels.ts';
 import { Modal } from './Modal.tsx';
 import { useImports, type ImportEntry } from './import-tracker.ts';
+import { DismissButton } from '../../components/DismissButton.tsx';
 import { Progress } from '../../components/Progress.tsx';
 import styles from './recordings.module.css';
 
@@ -105,14 +106,12 @@ function ImportRow({ entry, onOpen }: { entry: ImportEntry; onOpen(id: string): 
                   ? 'Voice-profile building was enabled for this import.'
                   : 'Voice-profile building is enabled for this import.'}
               </span>
-              <button
-                type="button"
-                className={styles.button}
-                aria-label={`Dismiss voice-profile privacy reminder for ${entry.fileName}`}
-                onClick={() => tracker.dismissPrivacy(entry.importId)}
-              >
-                Dismiss
-              </button>
+              <span className={styles.bannerDismissSlot}>
+                <DismissButton
+                  label={`Dismiss voice-profile privacy reminder for ${entry.fileName}`}
+                  onClick={() => tracker.dismissPrivacy(entry.importId)}
+                />
+              </span>
             </div>
           )}
         {entry.state === 'running' && (

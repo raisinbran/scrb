@@ -9,6 +9,7 @@ import type {
 } from '@scrb/contracts';
 import { LAG_NOTICE_MS } from '../../lib/lag.ts';
 import { formatElapsed } from '../../lib/format.ts';
+import { DismissButton } from '../../components/DismissButton.tsx';
 import styles from '../LiveScreen.module.css';
 
 const WARNING_TITLES: Record<RecordingWarningKind, string> = {
@@ -132,9 +133,9 @@ function DeviceNotice({
           Use {name}
         </button>
       )}
-      <button type="button" className={styles.linkButton} onClick={onDismissDevice}>
-        Dismiss
-      </button>
+      <span className={styles.dismissSlot}>
+        <DismissButton label="Dismiss" onClick={onDismissDevice} />
+      </span>
     </div>
   );
 }
