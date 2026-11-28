@@ -43,9 +43,14 @@ export interface SuiteOutcome {
   };
 }
 
-async function creditedCount(c: SuiteCase<string>, embed: Embed, tau: number): Promise<number> {
+async function creditedCount(
+  c: SuiteCase<string>,
+  embed: Embed,
+  tau: number,
+  wEmbed: number,
+): Promise<number> {
   const gens = c.gens.map((text) => ({ text, cite: { first: 0, last: c.span.length - 1 } }));
-  const m = await matchPoints(gens, [c.ref], c.span, embed, { tau });
+  const m = await matchPoints(gens, [c.ref], c.span, embed, { tau, wEmbed });
   return m.status.filter((s) => s === 'credited').length;
 }
 
@@ -53,6 +58,7 @@ export async function runGeneral(
   cases: SuiteCase<GeneralKind>[],
   embed: Embed,
   tau: number,
+  wEmbed: number = SCORER.wEmbed,
 ): Promise<
   Pick<
     SuiteOutcome,
@@ -69,7 +75,7 @@ export async function runGeneral(
     duplicatesExactlyOnce: { num: 0, den: 0 },
   };
   for (const c of cases) {
-    const n = await creditedCount(c, embed, tau);
+    const n = await creditedCount(c, embed, tau, wEmbed);
     if (c.kind === 'paraphrase') {
       r.paraphraseRecall.den += 1;
       if (n === 1) r.paraphraseRecall.num += 1;
@@ -91,13 +97,14 @@ export async function runAdversarial(
   cases: SuiteCase<AdversarialKind>[],
   embed: Embed,
   tau: number,
+  wEmbed: number = SCORER.wEmbed,
 ): Promise<SuiteOutcome['adversarialCredited']> {
   const perKind = {} as SuiteOutcome['adversarialCredited']['perKind'];
   let num = 0;
   for (const c of cases) {
     const k = (perKind[c.kind] ??= { num: 0, den: 0 });
     k.den += 1;
-    if ((await creditedCount(c, embed, tau)) > 0) {
+    if ((await creditedCount(c, embed, tau, wEmbed)) > 0) {
       k.num += 1;
       num += 1;
     }
