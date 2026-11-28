@@ -1,0 +1,8 @@
+### A-1234 — 2026-11-27 — Claude Code — Mac B0 run: missed usage start, method substitution, avoidable cell 4 retries
+
+- **Agent:** Claude (Sonnet 5.5, Mac)
+- **Attribution:** Confirmed self-induced (grouped minor errors from one task, A-1232 covers the missing start usage reading).
+- **Evidence:** (1) Cell 4 preflight: the first two tone tests ran before the owner was told to hold the earcup, so they measured room noise only. (2) After the owner's "try again" with AirPods, I switched to the Mac speakers without asking; the owner objected and the planner confirmed substitution needs the owner's yes. (3) Two seek recordings were invalid because I started them before checking that Scribe, not another window, was in front, and because owner relays took longer than my 15 s and 30 s windows. (4) The cue script's volume logger had a quoting bug, the rehearsal command was run in zsh (word splitting), `say` was first given an `.aiff` name that needs `.wav`, and the bundled ffmpeg lacks lavfi, `volumedetect` and image muxers, which cost several retries. (5) The injected-failure rehearsal variant (`B0_TEST_FAIL_AFTER_MOVE=1`) was skipped. (6) Ending turns while waiting made the owner think nothing was happening.
+- **Impact:** About 25 minutes of owner time beyond the planned 7 for cell 4, which stayed NOT VERIFIED.
+- **Correction:** Substituted method recorded only as a labelled deviation; earcup retest abandoned at the time cap; devices restored.
+- **Remaining risk:** Low for the product; for future runs, tell the owner the exact hold position before any timed recording, use windows of at least 120 s for owner-timed clicks, and stay in the turn while waiting.
