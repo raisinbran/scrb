@@ -315,6 +315,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 - [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)` (panels) or `var(--radius-control)` (controls).
 - [ ] Reused shared components (Button, IconButton, Tooltip, PopupBanner, Dialog, Progress, meters); nothing duplicated.
 - [ ] Every icon-only control has a `label` and tooltip.
+- [ ] Banners, notices and toasts are dismissed with the shared X `DismissButton`, never a text button.
 - [ ] Banners use `PopupLayer` inside the right panel and cover no control (checked at 1280×720).
 - [ ] Any audio input control shows the shared level meter.
 - [ ] Keyboard: reachable, operable, focus ring visible, Escape works where expected.
@@ -353,6 +354,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 7. Add the screen's states to the mock backend (`ui/mocks/`, dev menu: Ctrl+Shift+Alt+D) and cover them with a test.
 8. Run `npm run check`; tick section 14.
 
+- **Dismissing is always the X:** dismissing a banner, notice or toast uses the shared `DismissButton` (X, tooltip and name "Dismiss…") in the banner's `dismissSlot`, never a text button; `components/dismiss-button-rule.test.ts` fails on a text Dismiss button.
 - **One banner look:** every banner or notice that pops over a panel uses `components/Banner.module.css`: 75% of that panel's width, centred, compact padding, raised surface, no border (a coloured inner edge marks warnings and errors). Never set another width or look on a banner.
 - **One list column width:** every two-column screen (Recordings, Settings, Vocabulary, and Speakers later) uses `SplitLayout`'s `clamp(240px, 28vw, 320px)` column and nothing else. Measured in the browser: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920, identical on all three screens.
 - **Vocabulary list:** one line per term (name, then a small badge for Suggested or Disabled, none for Enabled), a segmented All, Suggested, Enabled, Disabled filter with counts above, sorted Suggested, Enabled, Disabled. The misheard versions live in the detail panel.

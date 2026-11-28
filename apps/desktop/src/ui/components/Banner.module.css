@@ -58,3 +58,12 @@
   max-width: none;
   margin: 0;
 }
+
+/* The X sits after the text; the negative end margin pulls its box so its top and right insets equal the
+   banner's own padding. Every banner with a dismiss button uses this slot and DismissButton, never text. */
+.dismissSlot {
+  display: flex;
+  flex: none;
+  height: var(--dismiss-size);
+  margin-inline-end: calc(-1 * var(--space-2));
+}

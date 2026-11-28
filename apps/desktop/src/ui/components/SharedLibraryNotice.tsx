@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useBackend } from '../lib/backend-context.tsx';
+import { DismissButton } from './DismissButton.tsx';
 import styles from './SharedLibraryNotice.module.css';
 
 /** Acknowledgement is stored by the real backend in the current library's settings. */
@@ -31,14 +32,12 @@ export function SharedLibraryNotice() {
   return (
     <div className={styles.notice} role="status">
       <span>{notice}</span>
-      <button
-        type="button"
-        className={styles.dismiss}
-        aria-label="Dismiss shared library permissions notice"
-        onClick={() => void dismiss().catch(() => undefined)}
-      >
-        Dismiss
-      </button>
+      <span className={styles.dismissSlot}>
+        <DismissButton
+          label="Dismiss shared library permissions notice"
+          onClick={() => void dismiss().catch(() => undefined)}
+        />
+      </span>
     </div>
   );
 }

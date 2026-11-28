@@ -4,6 +4,7 @@ import { noteOptionalDismiss, useNotificationEnabled } from '../lib/notification
 import { useBackend } from '../lib/backend-context.tsx';
 import { US_STATES, isListedState } from '../lib/us-states.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
+import { DismissButton } from './DismissButton.tsx';
 import styles from './PrivacyBanner.module.css';
 
 // One dismissal is shared by every place the banner can show (Live and the app shell).
@@ -51,18 +52,16 @@ export function PrivacyBanner() {
         Voice profiles are being built from this recording.
         {stateName ? " Check whether you need people's consent." : ''}
       </span>
-      <button
-        type="button"
-        className={styles.dismiss}
-        aria-label="Dismiss voice-profile privacy reminder for this recording"
-        onClick={() => {
-          if (!meetingId) return;
-          dismissOnly(meetingId);
-          noteOptionalDismiss();
-        }}
-      >
-        Dismiss
-      </button>
+      <span className={styles.dismissSlot}>
+        <DismissButton
+          label="Dismiss voice-profile privacy reminder for this recording"
+          onClick={() => {
+            if (!meetingId) return;
+            dismissOnly(meetingId);
+            noteOptionalDismiss();
+          }}
+        />
+      </span>
     </div>
   );
 }

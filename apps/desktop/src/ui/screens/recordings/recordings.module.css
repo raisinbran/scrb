@@ -1135,3 +1135,10 @@ div.editHint button {
   stroke-width: 2.4;
   stroke-linecap: round;
 }
+
+/* The X's box pulls into the banner's padding so its insets equal it. */
+.bannerDismissSlot {
+  display: flex;
+  flex: none;
+  margin-inline-end: calc(-1 * var(--space-1));
+}
