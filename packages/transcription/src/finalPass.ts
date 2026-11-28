@@ -1,6 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { assembleChunks } from './audio.js';
+import { filterMicCopy, type NoiseFilterSettings } from './noiseFilter.js';
 import {
   echoLikeness,
   estimateLagMs,
@@ -75,6 +76,16 @@ export interface FinalPassOptions {
   finalDiarizationThreshold?: number;
   /** Called once per pass with counts and similarities only: no audio, text or names. */
   onDiagnostics?: (fields: FinalPassDiagnostics) => void;
+  /**
+   * Off unless set. Recognition then runs on a disposable filtered copy of the mic track; the saved
+   * tracks are never changed, and any problem falls back to the unfiltered mic copy.
+   */
+  noiseFilter?: {
+    helperPath: string | undefined;
+    settings: NoiseFilterSettings;
+    /** Outcome only: no audio, text or paths. */
+    onResult?: (r: { filtered: boolean; bypassReason?: string }) => void;
+  };
   signal?: AbortSignal;
   onProgress?: (p: Progress<FinalPhase>) => void;
 }
@@ -109,19 +120,44 @@ export async function runFinalPass(o: FinalPassOptions): Promise<FinalTranscript
       prepared.push({ kind: track.kind, wavPath });
     }
 
+    const meetingWav = prepared.find((t) => t.kind === 'meeting')?.wavPath;
+    const recognitionPath = new Map<string, string>();
+    if (o.noiseFilter) {
+      for (const track of prepared) {
+        if (track.kind !== 'mic') continue;
+        const r = await filterMicCopy({
+          helperPath: o.noiseFilter.helperPath,
+          micWav: track.wavPath,
+          meetingWav,
+          workDir: o.workDir,
+          settings: o.noiseFilter.settings,
+          ...(o.signal ? { signal: o.signal } : {}),
+        });
+        if (r.kind === 'filtered') recognitionPath.set(track.wavPath, r.wavPath);
+        o.noiseFilter.onResult?.(
+          r.kind === 'filtered' ? { filtered: true } : { filtered: false, bypassReason: r.reason },
+        );
+      }
+    }
+
     const transcribeStart = Date.now();
     const results: TrackResult[] = [];
     for (const [i, track] of prepared.entries()) {
-      const words = await transcribeWholeFile(o.tools, track.wavPath, o.workDir, {
-        model: o.models.speechFinal,
-        vadModel: o.models.vad,
-        threads,
-        ...(o.useGpu === undefined ? {} : { useGpu: o.useGpu }),
-        ...(o.language ? { language: o.language } : {}),
-        ...(o.vocabularyHint ? { prompt: o.vocabularyHint } : {}),
-        ...(o.signal ? { signal: o.signal } : {}),
-        onFraction: (f) => report('transcribing', (i + f) / prepared.length),
-      });
+      const words = await transcribeWholeFile(
+        o.tools,
+        recognitionPath.get(track.wavPath) ?? track.wavPath,
+        o.workDir,
+        {
+          model: o.models.speechFinal,
+          vadModel: o.models.vad,
+          threads,
+          ...(o.useGpu === undefined ? {} : { useGpu: o.useGpu }),
+          ...(o.language ? { language: o.language } : {}),
+          ...(o.vocabularyHint ? { prompt: o.vocabularyHint } : {}),
+          ...(o.signal ? { signal: o.signal } : {}),
+          onFraction: (f) => report('transcribing', (i + f) / prepared.length),
+        },
+      );
       results.push({ kind: track.kind, wavPath: track.wavPath, words });
     }
     const transcribeMs = Date.now() - transcribeStart;

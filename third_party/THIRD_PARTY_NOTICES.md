@@ -73,3 +73,27 @@ production notice section.
 - Full license text: `licenses/llama.cpp-MIT.txt` (copied to
   `Contents/Resources/bin/licenses/llama.cpp-MIT.txt` in the Mac app).
 
+## WebRTC audio processing (recognition-copy noise and echo filter, slice V-b1)
+
+Built only into the `scrb-apm-filter` helper (`native/apm-filter/`). Not yet packaged or shipped: the
+packaging notice step and legal review are still open, and nothing here is shipping clearance.
+
+- Repository: https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing (tag `v2.1`)
+- Commit: `846fe90a289f58b7c9303a635142aa2c7caa93e5`
+- License: BSD-3-Clause, Copyright (c) 2011, Google Inc. (`licenses/webrtc-audio-processing-COPYING.txt`,
+  `licenses/webrtc-LICENSE.txt`); patent grant in `licenses/webrtc-PATENTS.txt`
+- Local changes: none to the library. The helper links it unmodified; the build forces C++20 for MSVC.
+- Bundled sub-components in that commit, each with its own notice:
+
+| Component                                | Path in the library                              | Notice file                                  |
+| ---------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
+| Ooura FFT                                | `webrtc/common_audio/third_party/ooura`          | `licenses/webrtc-ooura-fft-LICENSE.txt`      |
+| spl_sqrt_floor (Wilco Dijkstra)          | `webrtc/common_audio/third_party/spl_sqrt_floor` | `licenses/webrtc-spl-sqrt-floor-LICENSE.txt` |
+| FFT (Mark Olesen)                        | `webrtc/modules/third_party/fft`                 | `licenses/webrtc-olesen-fft-LICENSE.txt`     |
+| PFFFT (Julien Pommier)                   | `webrtc/third_party/pffft`                       | `licenses/webrtc-pffft-LICENSE.txt`          |
+| RNNoise-derived code (Mozilla, Xiph.Org) | `webrtc/third_party/rnnoise`                     | `licenses/webrtc-rnnoise-COPYING.txt`        |
+
+- Abseil C++ 20240722.0: Apache-2.0 (`licenses/abseil-cpp-Apache-2.0.txt`), fetched by the Meson wrap
+  `native/apm-filter/subprojects/abseil-cpp.wrap`, whose source hash is pinned there.
+- Not audited: the embedded neural-network weights used by APM's voice-activity code (check their license
+  separately before packaging), and the transitive licenses of any future macOS build.
