@@ -1,0 +1,5 @@
+build/
+subprojects/*/
+subprojects/packagecache/
+build.log
+subprojects/.wraplock

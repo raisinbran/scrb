@@ -14,3 +14,4 @@ export * from './livePcmProtocol.js';
 export * from './livePcmEngine.js';
 export * from './liveAudioWorker.js';
 export * from './liveEcho.js';
+export * from './noiseFilter.js';
