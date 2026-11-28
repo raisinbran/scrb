@@ -311,9 +311,11 @@ function Loaded({
       title="Speakers"
       list={
         profiles.length === 0 ? (
-          <EmptyState compact title="No voice profiles yet">
-            Profiles appear after your first recording.
-          </EmptyState>
+          <div className={styles.listEmpty}>
+            <EmptyState compact title="No voice profiles yet">
+              Profiles appear after your first recording.
+            </EmptyState>
+          </div>
         ) : (
           <Rows
             profiles={profiles}
@@ -326,13 +328,15 @@ function Loaded({
       }
     >
       <div className={styles.content} data-testid="speaker-detail">
-        <PopupLayer>
-          {error && !dismissed && (
-            <PopupBanner level="danger" role="alert" onDismiss={() => setDismissed(true)}>
-              <p>{error}</p>
-            </PopupBanner>
-          )}
-        </PopupLayer>
+        <div className={styles.popups}>
+          <PopupLayer>
+            {error && !dismissed && (
+              <PopupBanner level="danger" role="alert" onDismiss={() => setDismissed(true)}>
+                <p>{error}</p>
+              </PopupBanner>
+            )}
+          </PopupLayer>
+        </div>
         {suggestions.length > 0 && (
           <section aria-labelledby="speaker-suggestions" className={styles.panel}>
             <h2 id="speaker-suggestions" className={styles.subheading}>
@@ -360,8 +364,14 @@ function Loaded({
             onDelete={() => remove(selected)}
           />
         ) : (
-          <div className={styles.emptyPanel}>
-            <p className={styles.muted}>Select a voice</p>
+          <div className={styles.emptyPanel} data-testid="speaker-empty">
+            {profiles.length === 0 ? (
+              <EmptyState title="Voices will appear here">
+                After a recording, each speaker's voice is listed here so you can name it.
+              </EmptyState>
+            ) : (
+              <p className={styles.muted}>Select a voice</p>
+            )}
           </div>
         )}
       </div>

@@ -6,6 +6,17 @@
   min-height: 100%;
 }
 
+/* Out of flow so the empty popup layer adds no flex gap above the first card. */
+.popups {
+  position: absolute;
+  inset: 0 0 auto;
+}
+
+/* Lands the compact empty text on the same inset as the heading (the list pads rows by --space-3). */
+.listEmpty {
+  padding-inline: calc(var(--space-3) - var(--space-1));
+}
+
 .emptyPanel {
   display: grid;
   flex: 1;

@@ -53,7 +53,7 @@ describe('screens', () => {
       renderScreen(backend, <SpeakersScreen />);
       const empty = (await screen.findByText('No voice profiles yet')).parentElement;
       expect(empty?.className).toMatch(/emptyCompact/);
-      expect(await screen.findByText('Select a voice')).toBeTruthy();
+      expect(await screen.findByText('Voices will appear here')).toBeTruthy();
     });
 
     it('lists the voices in the shared list column and selects the first', async () => {

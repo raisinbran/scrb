@@ -68,6 +68,21 @@ async function inspectSplit(page: Page, width: number) {
   return result!;
 }
 
+/** Real boxes: heading and first list text share a left edge; list card and detail card share a top. */
+async function expectAligned(page: Page, firstListText: Locator) {
+  const heading = await page.getByRole('heading', { level: 1, name: 'Speakers' }).boundingBox();
+  const text = await firstListText.boundingBox();
+  const column = await page.locator('[data-split] > :first-child').boundingBox();
+  const card = await page
+    .locator('[data-testid="speaker-detail"]')
+    .locator('section, [data-testid="speaker-empty"]')
+    .first()
+    .boundingBox();
+  expect(heading && text && column && card).toBeTruthy();
+  expect(Math.abs(text!.x - heading!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(card!.y - column!.y)).toBeLessThanOrEqual(1);
+}
+
 async function tooltipBounds(page: Page, label: string) {
   const button = page.getByRole('button', { name: label, exact: true });
   await button.hover();
@@ -101,8 +116,11 @@ test('Speakers shows its empty state in the list column and fits at 760px', asyn
     await expect(page.getByRole('heading', { level: 1, name: 'Speakers' })).toBeVisible();
     await expect(page.getByText('Profiles appear after your first recording.')).toBeVisible();
     await inspectSplit(page, 1280);
+    await expectAligned(page, page.getByText('No voice profiles yet', { exact: true }).first());
+    await expect(page.getByText('Voices will appear here')).toBeVisible();
     await page.setViewportSize({ width: 760, height: 720 });
     await inspectSplit(page, 760);
+    await expectAligned(page, page.getByText('No voice profiles yet', { exact: true }).first());
     await page.screenshot({ path: join(evidenceDir, 'after-speakers-narrow.png') });
   } finally {
     await app.close();
