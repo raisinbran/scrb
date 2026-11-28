@@ -28,4 +28,6 @@ With the owner's earcup path failing, one seek was recorded through the Mac spea
 
 ## Restore
 
-`scripts/b0-mac-swap.sh rollback` restored the previous app: fingerprint equals `backup.sha` (files `9d1f5f22...412c`, links `30001a54...f88af`). The candidate app was moved aside by the script; the temporary profile and library were not deleted. Speaker volume and mute: see the PR comment for the final verified state.
+At about 21:38 PT the candidate was re-installed for a cell 4 earcup retest (best level seen at the mic through an AirPod was -19.8 dB, never held above -32 dB for 2 s), the retest was cancelled by the owner at about 21:46, and the previous app was restored a second time with the same fingerprint check.
+
+`scripts/b0-mac-swap.sh rollback` restored the previous app: fingerprint equals `backup.sha` (files `9d1f5f22...412c`, links `30001a54...f88af`). The candidate app was moved aside by the script; the temporary profile and library were not deleted. Final audio state, verified read-only at 21:47 PT: output MacBook Air Speakers, input MacBook Air Microphone, volume 25, unmuted. The owner's AirPods Automatic Ear Detection setting is theirs to confirm.
