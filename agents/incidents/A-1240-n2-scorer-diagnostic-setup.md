@@ -1,4 +1,4 @@
-### A-1239 — 2026-11-28 — ChatGPT — N2 diagnostic setup and enumeration errors
+### A-1240 — 2026-11-28 — ChatGPT — N2 diagnostic setup and enumeration errors
 
 - **Agent:** ChatGPT (GPT-6.2, cloud chat)
 - **Attribution:** Confirmed self-induced setup mistakes, not an application defect.
