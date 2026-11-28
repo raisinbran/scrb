@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Backend, MeetingListItem, SpeakerSuggestion, VoiceProfile } from '@scrb/contracts';
 import { Button } from '../components/Button.tsx';
 import { IconButton } from '../components/IconButton.tsx';
 import { ActionDialog, ChoiceDialog, TextDialog } from '../components/Dialog.tsx';
+import { Tooltip } from '../components/Tooltip.tsx';
+import { Avatar } from '../components/speakers/Avatar.tsx';
 import { useSpeakerSuggestions } from '../components/speakers/SpeakerSuggestions.tsx';
+import { PopupBanner, PopupLayer } from '../components/PopupBanner.tsx';
+import list from '../components/ListItem.module.css';
 import { useBackend } from '../lib/backend-context.tsx';
 import { formatMeetingDate } from '../lib/format.ts';
+import { useRemembered } from '../lib/tab-memory.ts';
 import { useAction } from '../lib/use-action.ts';
 import { useBackendData } from '../lib/use-backend-data.ts';
-import { DataView, EmptyState, Screen } from './Screen.tsx';
-import { MeetingSpeakers } from './speakers/MeetingSpeakers.tsx';
+import { DataView, EmptyState } from './Screen.tsx';
+import { SplitLayout } from './SplitLayout.tsx';
 import { useProfilePreview } from './speakers/use-profile-preview.ts';
 import styles from './SpeakersScreen.module.css';
 
@@ -19,7 +24,9 @@ const load = (backend: Backend) =>
 const nameOf = (profile: VoiceProfile) => profile.name ?? 'Unnamed voice';
 const meetingsText = (count: number) => `${count} ${count === 1 ? 'meeting' : 'meetings'}`;
 
-function SuggestionRow({
+const SPLIT_TIP = 'To split a speaker, open the meeting in Recordings and use its Speakers tab.';
+
+function SuggestionCard({
   suggestion,
   meetings,
   onAnswered,
@@ -38,7 +45,7 @@ function SuggestionRow({
     });
   return (
     <li className={styles.suggestion}>
-      <div className={styles.rowText}>
+      <div className={styles.text}>
         <span>Could this be {suggestion.profileName}?</span>
         <span className={styles.muted}>
           An unnamed voice in {title ?? 'a meeting'} sounds like this profile.
@@ -61,178 +68,160 @@ function SuggestionRow({
   );
 }
 
-type ProfileDialog = { kind: 'rename' | 'merge' | 'delete'; profile: VoiceProfile } | null;
+type Dialog = 'rename' | 'merge' | 'delete' | null;
 
-function ProfileRow({
+function Detail({
   profile,
+  profiles,
   deleting,
-  canMerge,
-  onDialog,
+  onChanged,
+  onDelete,
 }: {
   profile: VoiceProfile;
+  profiles: VoiceProfile[];
   deleting: boolean;
-  canMerge: boolean;
-  onDialog(kind: 'rename' | 'merge' | 'delete'): void;
+  onChanged(): void;
+  onDelete(): void;
 }) {
-  const preview = useProfilePreview(profile.id);
-  return (
-    <li className={`${styles.row} ${styles.wrap}`} aria-busy={deleting}>
-      <div className={styles.rowText}>
-        <span className={profile.name ? styles.name : styles.unnamed}>{nameOf(profile)}</span>
-        <span className={styles.muted}>
-          {deleting
-            ? 'Deleting…'
-            : `${meetingsText(profile.meetingCount)} · Last heard ${formatMeetingDate(profile.lastHeardAt)}`}
-        </span>
-      </div>
-      <div className={styles.actions}>
-        <IconButton
-          disabled={deleting || preview.loading}
-          label={`${preview.playing === null ? 'Play sample of' : 'Stop sample of'} ${nameOf(profile)}`}
-          icon={preview.playing === null ? 'play' : 'stop'}
-          tip={preview.playing === null ? 'Play sample' : 'Stop'}
-          onClick={() => void preview.play()}
-        />
-        <Button
-          disabled={deleting}
-          aria-label={`Rename ${nameOf(profile)}`}
-          onClick={() => onDialog('rename')}
-        >
-          Rename
-        </Button>
-        <Button
-          disabled={deleting || !canMerge}
-          aria-label={`Merge ${nameOf(profile)}`}
-          onClick={() => onDialog('merge')}
-        >
-          Merge
-        </Button>
-        <Button
-          variant="danger"
-          disabled={deleting}
-          aria-label={`Delete ${nameOf(profile)}`}
-          onClick={() => onDialog('delete')}
-        >
-          Delete
-        </Button>
-      </div>
-      {preview.message && (
-        <p role="status" className={`${styles.muted} ${styles.clips}`}>
-          {preview.message}
-        </p>
-      )}
-      {preview.clips.length > 0 && (
-        <ul
-          className={`${styles.clipList} ${styles.clips}`}
-          aria-label={`Samples of ${nameOf(profile)}`}
-        >
-          {preview.clips.map((clip, at) => (
-            <li key={`${clip.meetingId}/${clip.startMs}`} className={styles.clip}>
-              <div className={styles.rowText}>
-                <span className={styles.muted}>
-                  {clip.meetingTitle} · {formatMeetingDate(clip.date)}
-                </span>
-                <span>{clip.text}</span>
-              </div>
-              <IconButton
-                label={`${preview.playing === at ? 'Stop' : 'Play'} sample from ${clip.meetingTitle}`}
-                icon={preview.playing === at ? 'stop' : 'play'}
-                tip={preview.playing === at ? 'Stop' : 'Play'}
-                onClick={() => void preview.play(at)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
-function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged(): void }) {
   const backend = useBackend();
-  const [dialog, setDialog] = useState<ProfileDialog>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { error, run } = useAction();
+  const preview = useProfilePreview(profile.id);
+  const [dialog, setDialog] = useState<Dialog>(null);
   const close = () => setDialog(null);
-
-  const rename = async (profile: VoiceProfile, name: string) => {
-    await backend.call('renameSpeaker', {
-      target: { kind: 'profile', profileId: profile.id },
-      name,
-    });
-    close();
-    onChanged();
-  };
-
-  const merge = async (profile: VoiceProfile, into: string) => {
-    await backend.call('mergeSpeakers', { kind: 'profiles', from: profile.id, into });
-    close();
-    onChanged();
-  };
-
-  const remove = (profile: VoiceProfile) => {
-    close();
-    setDeletingId(profile.id);
-    void run(async () => {
-      await backend.call('deleteProfile', { profileId: profile.id });
-      onChanged();
-    }).finally(() => setDeletingId(null));
-  };
+  const name = nameOf(profile);
+  const others = profiles.filter((other) => other.id !== profile.id);
+  const playing = preview.playing !== null;
 
   return (
     <>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
+      <section aria-labelledby="speaker-name" className={styles.panel} aria-busy={deleting}>
+        <div className={styles.head}>
+          <Avatar name={name} large />
+          <div className={styles.text}>
+            <h2 id="speaker-name" className={profile.name ? styles.title : styles.titleUnnamed}>
+              {name}
+            </h2>
+            <p className={styles.muted}>
+              {deleting
+                ? 'Deleting…'
+                : `${meetingsText(profile.meetingCount)} · Last heard ${formatMeetingDate(profile.lastHeardAt)}`}
+            </p>
+          </div>
+        </div>
+        <div className={styles.actions}>
+          <Button
+            disabled={deleting || preview.loading}
+            aria-label={`${playing ? 'Stop sample of' : 'Play sample of'} ${name}`}
+            onClick={() => void preview.play()}
+          >
+            {playing ? 'Stop sample' : 'Play sample'}
+          </Button>
+          <Button
+            disabled={deleting}
+            aria-label={`Rename ${name}`}
+            onClick={() => setDialog('rename')}
+          >
+            Rename
+          </Button>
+          <Button
+            disabled={deleting || others.length === 0}
+            aria-label={`Merge ${name} into another voice`}
+            onClick={() => setDialog('merge')}
+          >
+            Merge into…
+          </Button>
+          <Tooltip label={SPLIT_TIP}>
+            <Button aria-disabled="true" aria-label={`Split ${name} into two voices`}>
+              Split into…
+            </Button>
+          </Tooltip>
+          <Button
+            variant="danger"
+            disabled={deleting}
+            aria-label={`Delete ${name}`}
+            onClick={() => setDialog('delete')}
+          >
+            Delete
+          </Button>
+        </div>
+        {preview.message && (
+          <p role="status" className={styles.muted}>
+            {preview.message}
+          </p>
+        )}
+      </section>
+      {preview.clips.length > 0 && (
+        <section aria-labelledby="speaker-samples" className={styles.panel}>
+          <h3 id="speaker-samples" className={styles.subheading}>
+            Samples
+          </h3>
+          <ul className={styles.clips} aria-label={`Samples of ${name}`}>
+            {preview.clips.map((clip, at) => (
+              <li key={`${clip.meetingId}/${clip.startMs}`} className={styles.clip}>
+                <div className={styles.text}>
+                  <span className={styles.muted}>
+                    {clip.meetingTitle} · {formatMeetingDate(clip.date)}
+                  </span>
+                  <span>{clip.text}</span>
+                </div>
+                <IconButton
+                  label={`${preview.playing === at ? 'Stop' : 'Play'} sample from ${clip.meetingTitle}`}
+                  icon={preview.playing === at ? 'stop' : 'play'}
+                  tip={preview.playing === at ? 'Stop' : 'Play'}
+                  onClick={() => void preview.play(at)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-      <ul className={styles.list}>
-        {profiles.map((profile) => (
-          <ProfileRow
-            key={profile.id}
-            profile={profile}
-            deleting={deletingId === profile.id}
-            canMerge={profiles.length >= 2}
-            onDialog={(kind) => setDialog({ kind, profile })}
-          />
-        ))}
-      </ul>
-      {dialog?.kind === 'rename' && (
+      {dialog === 'rename' && (
         <TextDialog
           title="Rename voice profile"
           label="Name"
-          initial={dialog.profile.name ?? ''}
+          initial={profile.name ?? ''}
           confirmLabel="Rename"
-          onConfirm={(name) => rename(dialog.profile, name)}
+          onConfirm={async (next) => {
+            await backend.call('renameSpeaker', {
+              target: { kind: 'profile', profileId: profile.id },
+              name: next,
+            });
+            close();
+            onChanged();
+          }}
           onCancel={close}
         />
       )}
-      {dialog?.kind === 'merge' && (
+      {dialog === 'merge' && (
         <ChoiceDialog
-          title={`Merge ${nameOf(dialog.profile)}`}
+          title={`Merge ${name}`}
           label="Merge into"
-          choices={profiles
-            .filter((profile) => profile.id !== dialog.profile.id)
-            .map((profile) => ({
-              id: profile.id,
-              label: `${nameOf(profile)} (${meetingsText(profile.meetingCount)})`,
-            }))}
+          choices={others.map((other) => ({
+            id: other.id,
+            label: `${nameOf(other)} (${meetingsText(other.meetingCount)})`,
+          }))}
           confirmLabel="Merge"
-          onConfirm={(into) => merge(dialog.profile, into)}
+          onConfirm={async (into) => {
+            await backend.call('mergeSpeakers', { kind: 'profiles', from: profile.id, into });
+            close();
+            onChanged();
+          }}
           onCancel={close}
         >
           <p>
-            Both profiles become one voice. The profile you choose keeps its name, and{' '}
-            {nameOf(dialog.profile)} is removed from this list.
+            Both profiles become one voice. The profile you choose keeps its name, and {name} is
+            removed from this list.
           </p>
         </ChoiceDialog>
       )}
-      {dialog?.kind === 'delete' && (
+      {dialog === 'delete' && (
         <ActionDialog
-          title={`Delete ${nameOf(dialog.profile)}?`}
+          title={`Delete ${name}?`}
           confirmLabel="Delete profile"
           danger
-          onConfirm={async () => remove(dialog.profile)}
+          onConfirm={async () => {
+            close();
+            onDelete();
+          }}
           onCancel={close}
         >
           <p>This removes the voice data for this profile and cannot be undone.</p>
@@ -242,51 +231,151 @@ function Profiles({ profiles, onChanged }: { profiles: VoiceProfile[]; onChanged
   );
 }
 
-export function SpeakersScreen() {
-  const { state, reload } = useBackendData(load);
-  const { suggestions } = useSpeakerSuggestions();
+function Rows({
+  profiles,
+  selectedId,
+  deletingId,
+  onSelect,
+  listRef,
+}: {
+  profiles: VoiceProfile[];
+  selectedId: string | null;
+  deletingId: string | null;
+  onSelect(id: string): void;
+  listRef: React.RefObject<HTMLUListElement | null>;
+}) {
   return (
-    <Screen title="Speakers" className={styles.screen ?? ''}>
-      <DataView state={state}>
-        {([profiles, meetings]) => (
-          <div className={styles.columns} data-testid="speakers-columns">
-            <div className={styles.profileColumn} data-testid="voice-profile-column">
-              {suggestions.length > 0 && (
-                <section aria-labelledby="speaker-suggestions" className={styles.section}>
-                  <h2 id="speaker-suggestions" className={styles.heading}>
-                    Suggested matches
-                  </h2>
-                  <ul className={styles.list}>
-                    {suggestions.map((suggestion) => (
-                      <SuggestionRow
-                        key={`${suggestion.meetingId}/${suggestion.speakerId}`}
-                        suggestion={suggestion}
-                        meetings={meetings}
-                        onAnswered={reload}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              )}
-              <section aria-labelledby="voice-profiles" className={styles.section}>
-                <h2 id="voice-profiles" className={styles.heading}>
-                  Voice profiles
-                </h2>
-                {profiles.length === 0 ? (
-                  <EmptyState title="No voice profiles yet">
-                    Profiles appear after your first recording.
-                  </EmptyState>
-                ) : (
-                  <Profiles profiles={profiles} onChanged={reload} />
-                )}
-              </section>
-            </div>
-            <div className={styles.meetingColumn} data-testid="meeting-speakers-column">
-              <MeetingSpeakers meetings={meetings} onChanged={reload} />
-            </div>
+    <ul className={list.list} aria-label="Voice profiles" ref={listRef}>
+      {profiles.map((profile) => (
+        <li key={profile.id}>
+          <button
+            type="button"
+            className={`${list.item} ${styles.row}`}
+            aria-current={profile.id === selectedId ? 'true' : undefined}
+            onClick={() => onSelect(profile.id)}
+          >
+            <Avatar name={nameOf(profile)} />
+            <span className={styles.rowText}>
+              <span className={profile.name ? styles.rowName : styles.rowUnnamed}>
+                {nameOf(profile)}
+              </span>
+              <span className={styles.muted}>
+                {deletingId === profile.id ? 'Deleting…' : meetingsText(profile.meetingCount)}
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Loaded({
+  profiles,
+  meetings,
+  onChanged,
+}: {
+  profiles: VoiceProfile[];
+  meetings: MeetingListItem[];
+  onChanged(): void;
+}) {
+  const backend = useBackend();
+  const { suggestions } = useSpeakerSuggestions();
+  const [picked, setPicked] = useRemembered<string | null>('speakers.profile', null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const { error, run } = useAction();
+  const selected = profiles.find((profile) => profile.id === picked) ?? profiles[0] ?? null;
+  const listRef = useRef<HTMLUListElement>(null);
+  const refocus = useRef(false);
+
+  // After a delete the detail card unmounts; keep keyboard focus in the list.
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    listRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+  }, [profiles]);
+
+  const remove = (profile: VoiceProfile) => {
+    setDismissed(false);
+    setDeletingId(profile.id);
+    void run(async () => {
+      await backend.call('deleteProfile', { profileId: profile.id });
+      refocus.current = true;
+      onChanged();
+    }).finally(() => setDeletingId(null));
+  };
+
+  return (
+    <SplitLayout
+      title="Speakers"
+      list={
+        profiles.length === 0 ? (
+          <EmptyState compact title="No voice profiles yet">
+            Profiles appear after your first recording.
+          </EmptyState>
+        ) : (
+          <Rows
+            profiles={profiles}
+            selectedId={selected?.id ?? null}
+            deletingId={deletingId}
+            onSelect={setPicked}
+            listRef={listRef}
+          />
+        )
+      }
+    >
+      <div className={styles.content} data-testid="speaker-detail">
+        <PopupLayer>
+          {error && !dismissed && (
+            <PopupBanner level="danger" role="alert" onDismiss={() => setDismissed(true)}>
+              <p>{error}</p>
+            </PopupBanner>
+          )}
+        </PopupLayer>
+        {suggestions.length > 0 && (
+          <section aria-labelledby="speaker-suggestions" className={styles.panel}>
+            <h2 id="speaker-suggestions" className={styles.subheading}>
+              Suggested matches
+            </h2>
+            <ul className={styles.suggestions}>
+              {suggestions.map((suggestion) => (
+                <SuggestionCard
+                  key={`${suggestion.meetingId}/${suggestion.speakerId}`}
+                  suggestion={suggestion}
+                  meetings={meetings}
+                  onAnswered={onChanged}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
+        {selected ? (
+          <Detail
+            key={selected.id}
+            profile={selected}
+            profiles={profiles}
+            deleting={deletingId === selected.id}
+            onChanged={onChanged}
+            onDelete={() => remove(selected)}
+          />
+        ) : (
+          <div className={styles.emptyPanel}>
+            <p className={styles.muted}>Select a voice</p>
           </div>
         )}
-      </DataView>
-    </Screen>
+      </div>
+    </SplitLayout>
+  );
+}
+
+export function SpeakersScreen() {
+  const { state, reload } = useBackendData(load);
+  return (
+    <DataView state={state}>
+      {([profiles, meetings]) => (
+        <Loaded profiles={profiles} meetings={meetings} onChanged={reload} />
+      )}
+    </DataView>
   );
 }

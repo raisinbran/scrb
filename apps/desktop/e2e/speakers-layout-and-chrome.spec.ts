@@ -40,56 +40,31 @@ async function openMockApp(userData: string) {
   return { app, page };
 }
 
-async function inspectNoHorizontalOverflow(page: Page, width: number) {
+async function inspectSplit(page: Page, width: number) {
   const result = await page.evaluate(() => {
-    const columns = document.querySelector<HTMLElement>('[data-testid="speakers-columns"]');
-    const left = document.querySelector<HTMLElement>('[data-testid="voice-profile-column"]');
-    const right = document.querySelector<HTMLElement>('[data-testid="meeting-speakers-column"]');
-    const workspace = document.querySelector<HTMLElement>('main');
-    if (!columns || !left || !right || !workspace) return null;
-    const box = (element: HTMLElement) => {
+    const split = document.querySelector<HTMLElement>('[data-split]');
+    const content = document.querySelector<HTMLElement>('[data-split-content]');
+    if (!split || !content) return null;
+    const column = split.firstElementChild as HTMLElement;
+    const box = (element: Element) => {
       const rect = element.getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     };
     return {
       viewportWidth: innerWidth,
       pageOverflow: document.documentElement.scrollWidth > innerWidth + 1,
-      columns: box(columns),
-      left: box(left),
-      right: box(right),
-      workspace: box(workspace),
-      leftStyle: {
-        backgroundColor: getComputedStyle(left).backgroundColor,
-        borderTopWidth: getComputedStyle(left).borderTopWidth,
-      },
-      rightStyle: {
-        backgroundColor: getComputedStyle(right).backgroundColor,
-        borderTopWidth: getComputedStyle(right).borderTopWidth,
-      },
-      leftScrollWidth: left.scrollWidth,
-      rightScrollWidth: right.scrollWidth,
-      rightClientWidth: right.clientWidth,
-      chips: [...right.querySelectorAll<HTMLElement>('[class*="labels"] li')].map(box),
-      selector: (() => {
-        const select = right.querySelector('select');
-        return select ? box(select) : null;
-      })(),
+      column: box(column),
+      content: box(content),
+      columnScroll: column.scrollWidth - column.clientWidth,
+      contentScroll: content.scrollWidth - content.clientWidth,
     };
   });
   expect(result).not.toBeNull();
   expect(result!.viewportWidth).toBeLessThanOrEqual(width + 1);
   expect(result!.pageOverflow).toBe(false);
-  expect(result!.leftScrollWidth).toBeLessThanOrEqual(result!.left.width + 1);
-  expect(result!.rightScrollWidth).toBeLessThanOrEqual(result!.rightClientWidth + 1);
-  expect(result!.selector).not.toBeNull();
-  expect(result!.selector!.x).toBeGreaterThanOrEqual(result!.right.x - 1);
-  expect(result!.selector!.x + result!.selector!.width).toBeLessThanOrEqual(
-    result!.right.x + result!.right.width + 1,
-  );
-  for (const chip of result!.chips) {
-    expect(chip.x).toBeGreaterThanOrEqual(result!.right.x - 1);
-    expect(chip.x + chip.width).toBeLessThanOrEqual(result!.right.x + result!.right.width + 1);
-  }
+  expect(result!.columnScroll).toBeLessThanOrEqual(1);
+  expect(result!.contentScroll).toBeLessThanOrEqual(1);
+  expect(result!.content.x).toBeGreaterThan(result!.column.x + result!.column.width - 1);
   return result!;
 }
 
@@ -119,134 +94,77 @@ async function focusByTab(page: Page, target: Locator) {
   throw new Error('The target was not reachable by keyboard Tab');
 }
 
-test('Speakers columns stack at narrow width and real 200% zoom', async () => {
+test('Speakers shows its empty state in the list column and fits at 760px', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-speakers-layout-'));
   try {
     await page.getByRole('button', { name: 'Speakers', exact: true }).click();
-    const heading = page.getByRole('heading', { level: 1, name: 'Speakers' });
-    const columns = page.getByTestId('speakers-columns');
-    const left = page.getByTestId('voice-profile-column');
-    const right = page.getByTestId('meeting-speakers-column');
-    const emptyTitle = page.getByText('No voice profiles yet');
+    await expect(page.getByRole('heading', { level: 1, name: 'Speakers' })).toBeVisible();
     await expect(page.getByText('Profiles appear after your first recording.')).toBeVisible();
-    await page
-      .locator('label')
-      .filter({ hasText: /^Meeting/ })
-      .locator('select')
-      .selectOption('meeting-outdated');
-    await expect(page.getByRole('button', { name: /Speaker:/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Split a speaker…' })).toBeVisible();
-
-    const [headingBounds, columnsBounds, leftBounds, rightBounds, emptyBounds] = await Promise.all([
-      heading.boundingBox(),
-      columns.boundingBox(),
-      left.boundingBox(),
-      right.boundingBox(),
-      emptyTitle.boundingBox(),
-    ]);
-    expect(headingBounds).not.toBeNull();
-    expect(columnsBounds).not.toBeNull();
-    expect(leftBounds).not.toBeNull();
-    expect(rightBounds).not.toBeNull();
-    expect(emptyBounds).not.toBeNull();
-    expect(headingBounds!.x).toBeCloseTo(columnsBounds!.x, 0);
-    expect(headingBounds!.x + headingBounds!.width).toBeCloseTo(
-      columnsBounds!.x + columnsBounds!.width,
-      0,
-    );
-    expect(rightBounds!.x).toBeGreaterThan(leftBounds!.x + leftBounds!.width);
-    const layout = await inspectNoHorizontalOverflow(page, 1280);
-    const dividerCenter = (layout.left.x + layout.left.width + layout.right.x) / 2;
-    expect(dividerCenter).toBeCloseTo(layout.workspace.x + layout.workspace.width / 2, 0);
-    expect(layout.leftStyle.backgroundColor).toBe(layout.rightStyle.backgroundColor);
-    expect(layout.leftStyle.borderTopWidth).toBe('1px');
-    expect(layout.rightStyle.borderTopWidth).toBe('1px');
-    expect(emptyBounds!.x + emptyBounds!.width / 2).toBeCloseTo(
-      leftBounds!.x + leftBounds!.width / 2,
-      0,
-    );
-    await page.screenshot({ path: join(evidenceDir, 'after-speakers-wide-light.png') });
-
+    await inspectSplit(page, 1280);
     await page.setViewportSize({ width: 760, height: 720 });
-    const narrow = await inspectNoHorizontalOverflow(page, 760);
-    expect(narrow.right.y).toBeGreaterThan(narrow.left.y + narrow.left.height - 1);
+    await inspectSplit(page, 760);
     await page.screenshot({ path: join(evidenceDir, 'after-speakers-narrow.png') });
+  } finally {
+    await app.close();
+  }
+});
 
-    await app.evaluate(async ({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0]!;
-      window.setSize(1280, 720);
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const width = window.getContentBounds().width;
-      const effectiveZoom = Math.min(2, (width * 2) / 1280);
-      window.webContents.setZoomFactor(effectiveZoom);
+for (const width of [900, 720]) {
+  test(`keeps populated voice-profile actions inside the detail card at ${width}px`, async () => {
+    const userData = testUserData(`scrb-speakers-profile-${width}-`);
+    const library = await Library.open({ root: join(userData, 'library') });
+    library.voiceProfiles.create({
+      modelId: 'invented-test-model',
+      embedding: new Float32Array([1, 0]),
+      name: 'Invented Profile One',
     });
-    await expect.poll(() => page.evaluate(() => innerWidth)).toBeLessThan(840);
-    const zoomed = await inspectNoHorizontalOverflow(page, 840);
-    expect(zoomed.right.y).toBeGreaterThan(zoomed.left.y + zoomed.left.height - 1);
-    await page.screenshot({ path: join(evidenceDir, 'after-speakers-200-percent.png') });
-  } finally {
-    await app.close();
-  }
-});
-
-test('keeps populated voice-profile actions inside their card at 900px', async () => {
-  const userData = testUserData('scrb-speakers-profile-900-');
-  const library = await Library.open({ root: join(userData, 'library') });
-  library.voiceProfiles.create({
-    modelId: 'invented-test-model',
-    embedding: new Float32Array([1, 0]),
-    name: 'Invented Profile One',
-  });
-  library.voiceProfiles.create({
-    modelId: 'invented-test-model',
-    embedding: new Float32Array([0, 1]),
-    name: 'Invented Profile Two',
-  });
-  await library.close();
-  const { app, page } = await openMockApp(userData);
-  try {
-    await page.setViewportSize({ width: 900, height: 720 });
-    await page.getByRole('button', { name: 'Speakers', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Voice profiles' })).toBeVisible();
-    const layout = await inspectNoHorizontalOverflow(page, 900);
-    expect(layout.right.x).toBeGreaterThan(layout.left.x + layout.left.width);
-
-    const card = page.getByTestId('voice-profile-column');
-    const actions = card
-      .locator('li')
-      .filter({ hasText: 'Invented Profile One' })
-      .locator('[class*="actions"]');
-    await expect(actions).toBeVisible();
-    const names = [
-      'Play sample of Invented Profile One',
-      'Rename Invented Profile One',
-      'Merge Invented Profile One',
-      'Delete Invented Profile One',
-    ];
-    const cardBounds = await card.boundingBox();
-    expect(cardBounds).not.toBeNull();
-    for (const name of names) {
-      const button = card.getByRole('button', { name, exact: true });
-      await expect(button).toBeVisible();
-      const bounds = await button.boundingBox();
-      expect(bounds).not.toBeNull();
-      expect(bounds!.x).toBeGreaterThanOrEqual(cardBounds!.x - 1);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(cardBounds!.x + cardBounds!.width + 1);
-      expect(bounds!.y).toBeGreaterThanOrEqual(cardBounds!.y - 1);
-      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
-        cardBounds!.y + cardBounds!.height + 1,
-      );
+    library.voiceProfiles.create({
+      modelId: 'invented-test-model',
+      embedding: new Float32Array([0, 1]),
+      name: 'Invented Profile Two',
+    });
+    await library.close();
+    const { app, page } = await openMockApp(userData);
+    try {
+      await page.setViewportSize({ width, height: 720 });
+      await page.getByRole('button', { name: 'Speakers', exact: true }).click();
+      await expect(page.getByRole('list', { name: 'Voice profiles' })).toBeVisible();
+      await inspectSplit(page, width);
+      await page
+        .getByRole('list', { name: 'Voice profiles' })
+        .getByRole('button', { name: /Invented Profile One/ })
+        .click();
+      const card = page.getByRole('region', { name: 'Invented Profile One' });
+      await expect(card).toBeVisible();
+      const cardBounds = await card.boundingBox();
+      expect(cardBounds).not.toBeNull();
+      for (const name of [
+        'Play sample of Invented Profile One',
+        'Rename Invented Profile One',
+        'Merge Invented Profile One into another voice',
+        'Split Invented Profile One into two voices',
+        'Delete Invented Profile One',
+      ]) {
+        const button = card.getByRole('button', { name, exact: true });
+        await expect(button).toBeVisible();
+        const bounds = await button.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.x).toBeGreaterThanOrEqual(cardBounds!.x - 1);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+          cardBounds!.x + cardBounds!.width + 1,
+        );
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+          cardBounds!.y + cardBounds!.height + 1,
+        );
+      }
+      await page.screenshot({
+        path: join(evidenceDir, `after-speakers-${width}-populated-profile.png`),
+      });
+    } finally {
+      await app.close();
     }
-    const actionOverflow = await actions.evaluate((element) => ({
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    }));
-    expect(actionOverflow.scrollWidth).toBeLessThanOrEqual(actionOverflow.clientWidth + 1);
-    await page.screenshot({ path: join(evidenceDir, 'after-speakers-900-populated-profile.png') });
-  } finally {
-    await app.close();
-  }
-});
+  });
+}
 
 test('places Live meters beside the source pickers and Settings Test mic above Input Profile', async () => {
   const { app, page } = await openMockApp(testUserData('scrb-audio-layout-'));

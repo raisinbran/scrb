@@ -1,120 +1,124 @@
-.screen {
-  max-width: none;
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card-gap);
+  min-height: 100%;
 }
 
-.columns {
+.emptyPanel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
-}
-
-.profileColumn,
-.meetingColumn {
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-sidebar);
-  border: 1px solid var(--color-border);
+  flex: 1;
+  place-items: center;
+  background: var(--color-card);
   border-radius: var(--radius);
 }
 
-.section {
-  margin-bottom: var(--space-5);
+/* Sized to its content, never a tall empty card. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-self: stretch;
+  padding: var(--space-card-pad);
+  background: var(--color-card);
+  border-radius: var(--radius);
 }
 
-.heading {
-  margin: 0 0 var(--space-2);
+.head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.title,
+.titleUnnamed {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.titleUnnamed {
+  font-style: italic;
+}
+
+.subheading {
+  margin: 0;
   font-size: var(--text-md);
   font-weight: 600;
 }
 
-.list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--color-border);
-}
-
-.row,
-.suggestion {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.suggestion {
-  padding-inline: var(--space-3);
-  background: var(--color-surface-sidebar);
-  border-inline-start: 3px solid var(--color-accent);
-}
-
-.rowText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.name {
-  font-weight: 600;
-}
-
-.unnamed {
-  font-style: italic;
-}
-
 .muted {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
-.actions {
-  display: flex;
-  max-width: 100%;
-  min-width: 0;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
 .error {
-  margin: 0 0 var(--space-2);
   color: var(--color-danger);
 }
 
-.wrap {
+.actions {
+  display: flex;
   flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.clips {
-  flex-basis: 100%;
+/* List rows: the shared ListItem look, with the avatar before two lines of text. */
+.row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.rowText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.rowName,
+.rowUnnamed {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowUnnamed {
+  font-style: italic;
+}
+
+.clips,
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card-gap);
   margin: 0;
-}
-
-.clipList {
   padding: 0;
   list-style: none;
 }
 
-.clip {
+.clip,
+.suggestion {
   display: flex;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-3);
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-}
-
-@media (max-width: 840px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-:global([data-design='tonal']) .profileColumn,
-:global([data-design='tonal']) .meetingColumn {
+  padding: var(--space-2) var(--space-3);
   background: var(--color-card-inset);
-  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.clip,
+.suggestion .actions {
+  --btn-fill: var(--color-page);
 }
