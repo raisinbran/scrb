@@ -1,4 +1,4 @@
-### A-1228 — 2026-11-27 — Claude Code — Measured the dev-only tonal design as if shipped; no start usage reading
+### A-1231 — 2026-11-27 — Claude Code — Measured the dev-only tonal design as if shipped; no start usage reading
 
 - **Agent:** Claude
 - **Attribution:** Confirmed self-induced. The first transcript-inset measurements ran in the dev browser, where `main.tsx` applies the tonal design only when there is no Electron bridge, so the shipped app uses the baseline rules and the first numbers did not match what the owner sees. Usage was also not read at task start.
