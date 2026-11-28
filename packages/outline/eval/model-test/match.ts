@@ -56,8 +56,13 @@ export function dot(a: Float32Array, b: Float32Array): number {
 }
 
 /** s(g, r) = 0.5 x cosine + 0.5 x F1 of stemmed content words. */
-export function similarity(cos: number, a: string, b: string): number {
-  return SCORER.wEmbed * Math.max(0, cos) + SCORER.wWords * f1(contentStems(a), contentStems(b));
+export function similarity(
+  cos: number,
+  a: string,
+  b: string,
+  wEmbed: number = SCORER.wEmbed,
+): number {
+  return wEmbed * Math.max(0, cos) + (1 - wEmbed) * f1(contentStems(a), contentStems(b));
 }
 
 /** Supported only if the range exists and at least half of the point's content words occur in it. */
@@ -143,6 +148,8 @@ export function assign(weight: number[][], rows: number, cols: number): number[]
 
 export interface MatchOptions {
   tau?: number;
+  /** Experimental calibration only; defaults to the frozen scorer weight. */
+  wEmbed?: number;
 }
 
 /**
@@ -157,6 +164,10 @@ export async function matchPoints(
   opts: MatchOptions = {},
 ): Promise<MatchResult> {
   const tau = opts.tau ?? SCORER.tau;
+  const wEmbed = opts.wEmbed ?? SCORER.wEmbed;
+  if (!Number.isFinite(wEmbed) || wEmbed < 0 || wEmbed > 1) {
+    throw new RangeError('Invalid embedding weight');
+  }
   const vecs = await embed([...gens.map((g) => g.text), ...refs]);
   const gv = vecs.slice(0, gens.length);
   const rv = vecs.slice(gens.length);
@@ -176,7 +187,7 @@ export async function matchPoints(
     const clauses = clausesOf(words.slice(g.cite!.first, g.cite!.last + 1));
     refs.forEach((r, j) => {
       const cos = dot(gv[i]!, rv[j]!);
-      const s = similarity(cos, g.text, r);
+      const s = similarity(cos, g.text, r, wEmbed);
       if (s < tau) return;
       candidate[i]![j] = true;
       if (factCheck(gFacts[i]!, rFacts[j]!, clauses, cos, common).ok) {
