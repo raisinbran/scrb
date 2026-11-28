@@ -48,9 +48,17 @@ test('the Electron renderer carries the tonal design on every screen', async () 
     const go = (name: string) => page.getByRole('button', { name, exact: true }).click();
     await go('Live');
     await shoot('01-live-idle');
+    // The real backend can show the shared-library notice (on Windows); it floats over the controls.
+    const dismissNotice = async () => {
+      const notice = page.getByRole('button', {
+        name: 'Dismiss shared library permissions notice',
+      });
+      if (await notice.isVisible()) await notice.click();
+    };
     await trigger('start');
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
     await page.waitForTimeout(1500);
+    await dismissNotice();
     await shoot('02-live-recording');
     await trigger('lagging');
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
