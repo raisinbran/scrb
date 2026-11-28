@@ -175,13 +175,17 @@ describe('Voice profile sample', () => {
           : inner(name, request)) as typeof backend.call);
     await open();
     fireEvent.click(screen.getByRole('button', { name: 'Play sample of Priya Natarajan' }));
+    fireEvent.click(
+      within(screen.getByRole('list', { name: 'Voice profiles' })).getByRole('button', {
+        name: /Tomas Lindgren/,
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Play sample of Tomas Lindgren' }));
     await waitFor(() => expect(FakeAudio.all.some((audio) => !audio.paused)).toBe(true));
     const playing = FakeAudio.all.filter((audio) => !audio.paused);
     release();
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(FakeAudio.all.filter((audio) => !audio.paused)).toEqual(playing);
-    expect(screen.queryByRole('list', { name: 'Samples of Priya Natarajan' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Stop sample of Tomas Lindgren' })).toBeTruthy();
   });
 
