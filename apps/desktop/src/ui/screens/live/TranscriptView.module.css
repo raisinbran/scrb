@@ -267,7 +267,6 @@
 
 /* The same look as the recorded transcript: an inset panel, filled buttons, no borders. */
 :global([data-design='tonal']) .transcript {
-  min-height: 0;
   overflow: hidden;
   background: var(--color-card);
   border: 0;
