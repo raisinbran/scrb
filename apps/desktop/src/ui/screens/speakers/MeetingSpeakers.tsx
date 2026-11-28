@@ -2,29 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Backend,
   MeetingId,
-  MeetingListItem,
   Speaker,
   SpeakerId,
   TranscriptSegment,
   WordRange,
 } from '@scrb/contracts';
 import { Button } from '../../components/Button.tsx';
+import { ChoiceDialog, TextDialog } from '../../components/Dialog.tsx';
 import { IconButton } from '../../components/IconButton.tsx';
+import { Avatar } from '../../components/speakers/Avatar.tsx';
 import { ActionDialog } from '../../components/Dialog.tsx';
-import { SpeakerLabel } from '../../components/speakers/SpeakerLabel.tsx';
 import { useBackend } from '../../lib/backend-context.tsx';
 import { ClipPlayer } from '../../lib/clip-player.ts';
 import { usePauseSharedPlayback } from '../../lib/playback-context.tsx';
-import { formatElapsed, formatMeetingDate } from '../../lib/format.ts';
+import { formatElapsed } from '../../lib/format.ts';
 import { useBackendData } from '../../lib/use-backend-data.ts';
-import { useRemembered } from '../../lib/tab-memory.ts';
 import { DataView } from '../Screen.tsx';
 import fieldStyles from '../../components/Dialog.module.css';
 import styles from './MeetingSpeakers.module.css';
 
 // Enough for the common case. Later passages are split by selecting words in the transcript.
 const SEGMENT_LIMIT = 500;
-const UNAVAILABLE = new Set<MeetingListItem['status']>(['importing', 'deleting']);
 
 // Matches the message the backend sends for an overlap refusal (see docs/handoffs).
 const isOverlapRefusal = (error: unknown) =>
@@ -39,6 +37,8 @@ const rangeOf = (segment: TranscriptSegment): WordRange => ({
 });
 
 interface SplitDialogProps {
+  /** The speaker the dialog starts on. */
+  initialSpeakerId?: SpeakerId;
   meetingId: MeetingId;
   speakers: Speaker[];
   segments: TranscriptSegment[];
@@ -47,10 +47,10 @@ interface SplitDialogProps {
   onCancel(): void;
 }
 
-function SplitDialog(props: SplitDialogProps) {
-  const { meetingId, speakers, segments, partial, onDone, onCancel } = props;
+export function SplitDialog(props: SplitDialogProps) {
+  const { initialSpeakerId, meetingId, speakers, segments, partial, onDone, onCancel } = props;
   const backend = useBackend();
-  const [speakerId, setSpeakerId] = useState<SpeakerId>(speakers[0]?.id ?? '');
+  const [speakerId, setSpeakerId] = useState<SpeakerId>(initialSpeakerId ?? speakers[0]?.id ?? '');
   const [newLabel, setNewLabel] = useState('');
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   // Kept across retries, so a failure partway through never creates a second new speaker.
@@ -221,96 +221,120 @@ function SplitDialog(props: SplitDialogProps) {
   );
 }
 
-function SpeakersOfMeeting({ meetingId, onChanged }: { meetingId: MeetingId; onChanged(): void }) {
+type Open =
+  { kind: 'rename' | 'merge'; speaker: Speaker } | { kind: 'split'; speaker: Speaker } | null;
+
+/** The Speakers tab of a meeting: one row per speaker with Rename, Merge into and Split into. */
+export function MeetingSpeakersTab({
+  meetingId,
+  onChanged,
+}: {
+  meetingId: MeetingId;
+  onChanged(): void;
+}) {
+  const backend = useBackend();
   const load = useCallback(
-    (backend: Backend) =>
-      backend.call('getTranscript', { meetingId, offset: 0, limit: SEGMENT_LIMIT }),
+    (source: Backend) =>
+      source.call('getTranscript', { meetingId, offset: 0, limit: SEGMENT_LIMIT }),
     [meetingId],
   );
   const { state, reload } = useBackendData(load);
-  const [splitting, setSplitting] = useState(false);
-
+  const [open, setOpen] = useState<Open>(null);
+  const close = () => setOpen(null);
   const changed = () => {
+    close();
     reload();
     onChanged();
   };
 
   return (
     <DataView state={state}>
-      {(page) => (
-        <div className={styles.speakers}>
-          <ul className={styles.labels} aria-label="Speakers in this meeting">
-            {page.speakers.map((speaker) => (
-              <li key={speaker.id}>
-                <SpeakerLabel
-                  meetingId={meetingId}
-                  speaker={speaker}
-                  speakers={page.speakers}
-                  onChanged={changed}
-                />
-              </li>
-            ))}
-          </ul>
-          <Button onClick={() => setSplitting(true)}>Split a speaker…</Button>
-          {splitting && (
-            <SplitDialog
-              meetingId={meetingId}
-              speakers={page.speakers}
-              segments={page.segments}
-              partial={page.totalSegments > page.segments.length}
-              onDone={() => {
-                setSplitting(false);
-                changed();
-              }}
-              onCancel={() => setSplitting(false)}
-            />
-          )}
-        </div>
-      )}
-    </DataView>
-  );
-}
-
-/** Fixes a single meeting's speakers: pick a meeting, then use each speaker's menu. */
-export function MeetingSpeakers({
-  meetings,
-  onChanged,
-}: {
-  meetings: MeetingListItem[];
-  onChanged(): void;
-}) {
-  const available = meetings.filter((meeting) => !UNAVAILABLE.has(meeting.status));
-  const [meetingId, setMeetingId] = useRemembered<MeetingId | null>('speakers.meeting', null);
-  const selected = available.some((meeting) => meeting.id === meetingId) ? meetingId : null;
-  return (
-    <section aria-labelledby="meeting-speakers">
-      <h2 id="meeting-speakers" className={styles.heading}>
-        Speakers in a meeting
-      </h2>
-      {available.length === 0 ? (
-        <p className={styles.muted}>No meetings are currently available for speaker editing.</p>
-      ) : (
-        <>
-          <p className={styles.muted}>Rename, merge or split the speakers of one meeting.</p>
-          <label className={`${fieldStyles.field} ${styles.picker}`}>
-            Meeting
-            <select
-              value={selected ?? ''}
-              onChange={(event) => setMeetingId(event.target.value || null)}
-            >
-              <option value="">Choose a meeting…</option>
-              {available.map((meeting) => (
-                <option key={meeting.id} value={meeting.id}>
-                  {meeting.title} ({formatMeetingDate(meeting.startedAt)})
-                </option>
+      {(page) => {
+        const others = (speaker: Speaker) => page.speakers.filter(({ id }) => id !== speaker.id);
+        return (
+          <div className={styles.tab}>
+            <ul className={styles.rows} aria-label="Speakers in this meeting">
+              {page.speakers.map((speaker) => (
+                <li key={speaker.id} className={styles.speaker}>
+                  <Avatar name={speaker.label} onInset />
+                  <span className={styles.name}>{speaker.label}</span>
+                  <div className={styles.actions}>
+                    <Button
+                      aria-label={`Rename ${speaker.label}`}
+                      onClick={() => setOpen({ kind: 'rename', speaker })}
+                    >
+                      Rename
+                    </Button>
+                    <Button
+                      aria-label={`Merge ${speaker.label} into another speaker`}
+                      disabled={others(speaker).length === 0}
+                      onClick={() => setOpen({ kind: 'merge', speaker })}
+                    >
+                      Merge into…
+                    </Button>
+                    <Button
+                      aria-label={`Split ${speaker.label} into two speakers`}
+                      onClick={() => setOpen({ kind: 'split', speaker })}
+                    >
+                      Split into…
+                    </Button>
+                  </div>
+                </li>
               ))}
-            </select>
-          </label>
-          {selected && (
-            <SpeakersOfMeeting key={selected} meetingId={selected} onChanged={onChanged} />
-          )}
-        </>
-      )}
-    </section>
+            </ul>
+            {open?.kind === 'rename' && (
+              <TextDialog
+                title="Rename speaker"
+                label="Name"
+                initial={open.speaker.label}
+                confirmLabel="Rename"
+                onConfirm={async (name) => {
+                  await backend.call('renameSpeaker', {
+                    target: { kind: 'meetingSpeaker', meetingId, speakerId: open.speaker.id },
+                    name,
+                  });
+                  changed();
+                }}
+                onCancel={close}
+              />
+            )}
+            {open?.kind === 'merge' && (
+              <ChoiceDialog
+                title={`Merge ${open.speaker.label}`}
+                label="Merge into"
+                choices={others(open.speaker).map(({ id, label }) => ({ id, label }))}
+                confirmLabel="Merge"
+                onConfirm={async (into) => {
+                  await backend.call('mergeSpeakers', {
+                    kind: 'meetingSpeakers',
+                    meetingId,
+                    from: open.speaker.id,
+                    into,
+                  });
+                  changed();
+                }}
+                onCancel={close}
+              >
+                <p>
+                  Both speakers become one in this meeting. The speaker you choose keeps its name,
+                  and {open.speaker.label} is removed from the list.
+                </p>
+              </ChoiceDialog>
+            )}
+            {open?.kind === 'split' && (
+              <SplitDialog
+                initialSpeakerId={open.speaker.id}
+                meetingId={meetingId}
+                speakers={page.speakers}
+                segments={page.segments}
+                partial={page.totalSegments > page.segments.length}
+                onDone={changed}
+                onCancel={close}
+              />
+            )}
+          </div>
+        );
+      }}
+    </DataView>
   );
 }
