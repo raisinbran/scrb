@@ -1,4 +1,4 @@
-### A-1232 — 2026-11-27 — Claude Code — No start usage reading on the Mac build and B0 prep tasks; blocked UI click attempt
+### A-1237 — 2026-11-27 — Claude Code — No start usage reading on the Mac build and B0 prep tasks; blocked UI click attempt
 
 - **Agent:** Claude (Sonnet 5.5, Mac)
 - **Attribution:** Confirmed self-induced. Usage was not read at the start of either the 2026-11-25 installed-build task or this 2026-11-27 sheet task. On 2026-11-25 I also tried to click the isolated Scribe window with `osascript` System Events, which the auto-mode classifier denied; I stopped and reported instead of working around it.
