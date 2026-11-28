@@ -1,0 +1,7 @@
+### A-1230 — 2026-11-27 — Claude (Sonnet 5.5, Mac desktop app) — Scrollbar drag test assumed macOS overlay scrollbars
+
+- **Agent:** Claude (Sonnet 5.5, Mac desktop app)
+- **What failed:** The first `transcript-scrollbar-drag` e2e computed the thumb position from an assumed 20 px thumb with no arrow buttons, and grabbed it 10 px below the track top. On Windows, classic scrollbars have arrow buttons, so the press landed on the up arrow and the Windows job failed with a 437 px offset.
+- **Impact and evidence:** PR 539 run 46070709087, Windows job failed on both sizes while macOS passed; one CI round and one cross-session message wasted.
+- **Correction / remaining risk:** The test now drags a plain scroller of the same box and height with the same pointer path and compares scroll fractions, so it needs no platform thumb geometry. Windows behaviour is still not verified locally. Medium.
+- **Follow-up (same incident):** my first correction still pressed a fixed distance below the track top (shifted by the scrollbar width), which failed the macOS CI job (plain scroller reached only 0.07 of its range). The press point is now found by trying points on the plain scroller, so no platform geometry is assumed. I ran only my local Mac before pushing and should have reasoned about classic macOS scrollbars too.
