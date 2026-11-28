@@ -438,6 +438,19 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
   const summaryNoticesOn = useNotificationEnabled('summary');
   const [, bumpOutdated] = useReducer((count: number) => count + 1, 0);
+  // Banners float over the panel; while any show, the content starts below them instead of under them.
+  const [bannerReserve, setBannerReserve] = useState(0);
+  useEffect(() => {
+    if (!popupSlot || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      const height = popupSlot.getBoundingClientRect().height;
+      setBannerReserve(height > 0 ? Math.ceil(height) : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(popupSlot);
+    return () => observer.disconnect();
+  }, [popupSlot]);
   const outdatedDismissed = outdatedDismissals.has(meetingId);
   const dismissOutdated = () => {
     outdatedDismissals.add(meetingId);
@@ -496,7 +509,14 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
     !setupState.data.models.some((model) => model.role === 'summary' && model.installed);
 
   return (
-    <div className={styles.summary}>
+    <div
+      className={styles.summary}
+      style={
+        bannerReserve > 0
+          ? { paddingBlockStart: `calc(var(--space-card-pad) + ${bannerReserve}px)` }
+          : undefined
+      }
+    >
       {error && (
         <p role="alert" className={styles.bannerDanger}>
           {error}
