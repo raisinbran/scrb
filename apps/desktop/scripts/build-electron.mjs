@@ -1,4 +1,8 @@
 import { build } from 'esbuild';
+import { writeLicenses } from '../../../scripts/generate-licenses.mjs';
+
+// Fails the build if any shipped dependency has no resolvable license.
+writeLicenses('dist-electron/licenses.json');
 
 // Sandboxed preload scripts must be a single CommonJS file, so both processes are bundled.
 await build({

@@ -33,6 +33,7 @@ import { createDocxRenderer } from './export-worker.ts';
 import { printHtmlToPdf } from './export-print.ts';
 import { createSetupStatusHandler, readVerifiedConfiguredModels } from './setup-status.ts';
 import { createAppInfoHandler } from './app-info.ts';
+import { createLicensesHandler } from './licenses.ts';
 import {
   DIGESTS,
   MODELS,
@@ -453,8 +454,7 @@ export async function openBackend(
                   cacheFile: verifiedCache,
                 }),
         }),
-        // An empty list is explicit until redistribution licenses are verified.
-        getLicenses: async () => [],
+        getLicenses: createLicensesHandler(path.join(__dirname, 'licenses.json')),
         listImports: async () => imports?.list() ?? [],
         ...imports?.handlers,
         getPrivacyJurisdictions: async () => privacyJurisdictions(library.paths.root),
