@@ -237,6 +237,8 @@ export interface MeetingListItem {
   status: MeetingStatus;
   summaryState: SummaryState;
   speakerCount: number;
+  /** Latest final-pass progress, present only while the final pass is queued or running. */
+  finalPassProgress?: FinalPassProgress;
 }
 
 export interface MeetingDetail extends MeetingListItem {

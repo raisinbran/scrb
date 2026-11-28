@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TranscriptPage } from '@scrb/contracts';
+import type { MeetingListItem, TranscriptPage } from '@scrb/contracts';
 import { CorrectionConflictError, Library } from '@scrb/storage';
 import { dispatchCall, type CallHandlers } from './dispatch.ts';
 import { createMeetingHandlers } from './meetings.ts';
@@ -44,6 +44,42 @@ describe('createMeetingHandlers', () => {
 
   const recorded = (title: string, date: string) =>
     library.createMeeting({ title, date, source: 'recorded', status: 'ready', durationMs: 5000 });
+
+  describe('final pass progress in the list', () => {
+    const report = {
+      meetingId: '',
+      stage: 'transcribing' as const,
+      fraction: 0.4,
+      startedAt: '2026-11-27T10:00:00.000Z',
+    };
+
+    it('carries the current progress only while the final pass is running', async () => {
+      const running = await library.createMeeting({
+        title: 'Running',
+        date: '2026-11-03T10:00:00Z',
+        source: 'recorded',
+        status: 'finalPassRunning',
+        durationMs: 5000,
+      });
+      const done = await recorded('Done', '2026-11-04T10:00:00Z');
+      const progress = new Map([
+        [running.id, { ...report, meetingId: running.id }],
+        [done.id, { ...report, meetingId: done.id }],
+      ]);
+      handlers = createMeetingHandlers(library, vi.fn(), undefined, {
+        currentProgress: (id: string) => progress.get(id),
+      } as never);
+      const items = (await value('listMeetings', {})) as MeetingListItem[];
+      expect(items.find((item) => item.id === running.id)?.finalPassProgress).toEqual({
+        ...report,
+        meetingId: running.id,
+      });
+      expect(items.find((item) => item.id === done.id)).not.toHaveProperty('finalPassProgress');
+      progress.clear();
+      const after = (await value('listMeetings', {})) as MeetingListItem[];
+      expect(after.find((item) => item.id === running.id)).not.toHaveProperty('finalPassProgress');
+    });
+  });
 
   describe('updateMeeting', () => {
     it('renames, changes the date, or both, and search and the list use the result', async () => {

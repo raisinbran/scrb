@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Backend, MeetingId, MeetingStatus } from '@scrb/contracts';
 import { useProcessingBackend } from '../lib/backend-context.tsx';
+import { seedFinalPassProgress } from '../lib/final-pass-progress.ts';
 
 /** Processing is reported by real meeting states, never combined real+mock demo records. */
 export function useProcessingCounts(): { finalPass: number; importing: number } {
@@ -24,6 +25,7 @@ export function useProcessingCounts(): { finalPass: number; importing: number } 
         .call('listMeetings', {})
         .then((meetings) => {
           if (!live || requestId !== request) return;
+          seedFinalPassProgress(backend, meetings);
           const next = new Map<MeetingId, MeetingStatus>();
           for (const meeting of meetings) next.set(meeting.id, meeting.status);
           // Only events newer than this particular list request override its result.

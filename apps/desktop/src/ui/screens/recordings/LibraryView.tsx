@@ -15,7 +15,7 @@ import { SplitLayout } from '../SplitLayout.tsx';
 import { FilterSearch, type Origin } from './FilterSearch.tsx';
 import { Highlight } from './highlight.tsx';
 import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
-import { useFinalPassProgress } from '../../lib/final-pass-progress.ts';
+import { seedFinalPassProgress, useFinalPassProgress } from '../../lib/final-pass-progress.ts';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
 import styles from './recordings.module.css';
@@ -174,9 +174,14 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
       };
       if (query) {
         const results = await client.call('searchMeetings', { query });
+        seedFinalPassProgress(
+          client,
+          results.map((result) => result.meeting),
+        );
         return results.filter((result) => matchesMeetingFilter(result.meeting, filter));
       }
       const meetings = await client.call('listMeetings', { filter });
+      seedFinalPassProgress(client, meetings);
       return meetings.map((meeting) => ({ meeting, matches: [] }));
     },
     [query, origin, from, to],

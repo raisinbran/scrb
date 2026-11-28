@@ -10,9 +10,12 @@ import { RecordingsScreen } from '../RecordingsScreen.tsx';
 
 const SLOW = { timeout: 5000 };
 let backend: MockBackend;
+/** The mock starts with one pass 40% done, as after a restart; cases about the first report start without it. */
+let beforeAnyReport = false;
 
 function renderScreen(existing?: MockBackend) {
   backend = existing ?? new MockBackend();
+  if (!existing && beforeAnyReport) backend.setMidPassProgress('meeting-final-pass', null);
   render(
     <BackendProvider backend={backend}>
       <RecordingsScreen />
@@ -195,6 +198,13 @@ describe('Recordings', () => {
   });
 
   describe('final processing indicator', () => {
+    beforeEach(() => {
+      beforeAnyReport = true;
+    });
+    afterEach(() => {
+      beforeAnyReport = false;
+    });
+
     it('shows a provisional-text banner in the meeting and removes it when processing ends', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
@@ -342,6 +352,43 @@ describe('Recordings', () => {
           .getByRole('progressbar', { name: /Final transcript processing/ })
           .getAttribute('aria-valuenow'),
       ).toBe('0');
+    });
+
+    it('starts a list opened after a restart at the real progress the list returns', async () => {
+      const restarted = new MockBackend();
+      restarted.setMidPassProgress('meeting-final-pass', {
+        meetingId: 'meeting-final-pass',
+        stage: 'diarizing',
+        fraction: 0.7,
+        startedAt: '2026-11-27T10:00:00.000Z',
+      });
+      renderScreen(restarted);
+      const row = (await screen.findByText(/Budget review/)).closest('li') as HTMLElement;
+      expect(
+        within(row)
+          .getByRole('progressbar', { name: /Final transcript processing/ })
+          .getAttribute('aria-valuenow'),
+      ).toBe('70');
+      await openMeeting(/Budget review/);
+      expect(
+        screen
+          .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('70');
+      // A later event never goes backwards from the seeded value within the same pass.
+      act(() =>
+        backend.emit('finalPassProgress', {
+          meetingId: 'meeting-final-pass',
+          stage: 'transcribing',
+          fraction: 0.2,
+          startedAt: '2026-11-27T10:00:00.000Z',
+        }),
+      );
+      expect(
+        screen
+          .getByRole('progressbar', { name: 'Final transcript processing' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('70');
     });
 
     it('seeds a row and banner that mount mid-pass from the latest report', async () => {

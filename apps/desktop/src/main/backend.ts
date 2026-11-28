@@ -217,7 +217,8 @@ export async function openBackend(
     };
     library.setMeetingChangedListener((meeting) => {
       void readSummaryState(library, meeting.id, (id) => summaries.isRunning(id)).then(
-        (summaryState) =>
+        (summaryState) => {
+          const progress = finalPasses?.currentProgress?.(meeting.id);
           emit('meetingChanged', {
             id: meeting.id,
             title: meeting.title,
@@ -227,7 +228,11 @@ export async function openBackend(
             status: meeting.status,
             summaryState,
             speakerCount: 0,
-          }),
+            ...(meeting.status === 'finalPassRunning' && progress
+              ? { finalPassProgress: progress }
+              : {}),
+          });
+        },
       );
     });
     // Unpackaged: real mode is opt-in through the environment, otherwise the mock answers.

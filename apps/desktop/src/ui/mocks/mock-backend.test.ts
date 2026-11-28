@@ -601,6 +601,16 @@ describe('MockBackend', () => {
       return { segment, range: { firstWordId: wordId, lastWordId: wordId } };
     };
 
+    it('returns the current progress of a running pass with the list, and drops it when the pass ends', async () => {
+      const running = (await backend.call('listMeetings', {})).find(
+        (meeting) => meeting.status === 'finalPassRunning',
+      );
+      expect(running?.finalPassProgress).toMatchObject({ meetingId: running?.id, fraction: 0.4 });
+      backend.finishFinalPass();
+      const after = await backend.call('listMeetings', {});
+      expect(after.every((meeting) => meeting.finalPassProgress === undefined)).toBe(true);
+    });
+
     it('emits final-pass progress that ends at finishing', async () => {
       const seen: { stage: string; fraction: number }[] = [];
       backend.on('finalPassProgress', ({ stage, fraction }) => seen.push({ stage, fraction }));
