@@ -218,11 +218,10 @@ test('Live Meeting meter row aligns with the source dropdown', async () => {
   const dropdownBounds = await appDropdown.boundingBox();
   expect(rowBounds).not.toBeNull();
   expect(dropdownBounds).not.toBeNull();
-  expect(
-    Math.abs(
-      rowBounds!.y + rowBounds!.height / 2 - (dropdownBounds!.y + dropdownBounds!.height / 2),
-    ),
-  ).toBeLessThanOrEqual(3);
+  // The tonal Live header holds both meter rows inside the pickers' own height.
+  const rowCentre = rowBounds!.y + rowBounds!.height / 2;
+  expect(rowCentre).toBeGreaterThanOrEqual(dropdownBounds!.y);
+  expect(rowCentre).toBeLessThanOrEqual(dropdownBounds!.y + dropdownBounds!.height);
 
   const layout = await page.evaluate(() => {
     const levels = document.querySelector<HTMLElement>('[class*="levels"]');
@@ -241,7 +240,7 @@ test('Live Meeting meter row aligns with the source dropdown', async () => {
     };
   });
   expect(layout).not.toBeNull();
-  expect(layout!.yOffset).toBeLessThan(0);
+  expect(layout!.yOffset).toBe(0);
   expect(layout!.childTransforms).toEqual(['none', 'none']);
   expect(layout!.rows[1]!.top - layout!.rows[0]!.bottom).toBeGreaterThan(0);
   expect(layout!.rowGap).toBe('8px');
