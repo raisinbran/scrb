@@ -13,6 +13,7 @@ import { MockBackend } from '../mocks/index.ts';
 import { ThemeProvider } from '../theme/ThemeProvider.tsx';
 import { SettingsScreen } from './SettingsScreen.tsx';
 import { SpeakersScreen } from './SpeakersScreen.tsx';
+import { MeetingSpeakersTab } from './speakers/MeetingSpeakers.tsx';
 import { VocabularyScreen } from './VocabularyScreen.tsx';
 
 function renderScreen(backend: Backend, node: ReactNode) {
@@ -47,99 +48,107 @@ describe('screens', () => {
   });
 
   describe('Speakers', () => {
-    it('shows the empty state', async () => {
-      backend.setProfiles([]);
-      renderScreen(backend, <SpeakersScreen />);
-      expect(await screen.findByText('No voice profiles yet')).toBeTruthy();
-    });
-
-    it('explains when there are no meetings to edit while keeping the meeting card', async () => {
-      backend.setLibrary([]);
-      renderScreen(backend, <SpeakersScreen />);
-      const column = await screen.findByTestId('meeting-speakers-column');
-      expect(within(column).getByRole('heading', { name: 'Speakers in a meeting' })).toBeTruthy();
-      expect(
-        within(column).getByText('No meetings are currently available for speaker editing.'),
-      ).toBeTruthy();
-    });
-
-    it('uses the standard centered empty state inside the profile column', async () => {
+    it('shows the empty state in the list column', async () => {
       backend.setProfiles([]);
       renderScreen(backend, <SpeakersScreen />);
       const empty = (await screen.findByText('No voice profiles yet')).parentElement;
-      expect(empty?.className).toMatch(/empty/);
-      expect(empty?.className).not.toMatch(/emptyCompact/);
-      expect(empty?.closest('[data-testid="voice-profile-column"]')).toBeTruthy();
-      const css = readFileSync(join(__dirname, 'Screen.module.css'), 'utf8');
-      expect(css.match(/\.empty \{([^}]*)\}/)?.[1]).toMatch(/text-align: center/);
-      expect(css.match(/\.empty \{([^}]*)\}/)?.[1]).toMatch(/--space-7/);
-      expect(readFileSync(join(__dirname, 'SpeakersScreen.module.css'), 'utf8')).not.toMatch(
-        /\.empty\b/,
-      );
+      expect(empty?.className).toMatch(/emptyCompact/);
+      expect(await screen.findByText('Select a voice')).toBeTruthy();
     });
 
-    it('keeps profile suggestions and meeting controls in separate columns', async () => {
+    it('lists the voices in the shared list column and selects the first', async () => {
       renderScreen(backend, <SpeakersScreen />);
-      await screen.findByText('Voice profiles');
-      backend.emit('speakerSuggestion', {
-        meetingId: 'meeting-outdated',
-        speakerId: 'sp-3',
-        profileId: 'profile-2',
-        profileName: 'Tomas Lindgren',
-      });
-      await screen.findByRole('heading', { name: 'Suggested matches' });
-      const left = screen.getByTestId('voice-profile-column');
-      const right = screen.getByTestId('meeting-speakers-column');
-      expect(left.contains(screen.getByRole('heading', { name: 'Suggested matches' }))).toBe(true);
-      expect(left.contains(screen.getByText('Voice profiles'))).toBe(true);
-      expect(right.contains(screen.getByRole('heading', { name: 'Speakers in a meeting' }))).toBe(
-        true,
-      );
-      expect(right.contains(screen.getByRole('combobox', { name: 'Meeting' }))).toBe(true);
+      const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
+      const buttons = rows.getAllByRole('button');
+      expect(buttons).toHaveLength(3);
+      expect(buttons[0]?.getAttribute('aria-current')).toBe('true');
+      expect(buttons[0]?.closest('[data-split]')).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 2, name: 'Priya Natarajan' })).toBeTruthy();
+      fireEvent.click(buttons[1] as HTMLElement);
+      expect(screen.getByRole('heading', { level: 2, name: 'Tomas Lindgren' })).toBeTruthy();
+      expect(buttons[1]?.getAttribute('aria-current')).toBe('true');
     });
 
-    it('renames a profile', async () => {
+    it('offers the five actions, with Split explained rather than hidden', async () => {
       renderScreen(backend, <SpeakersScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Rename Unnamed voice' }));
+      await screen.findByRole('heading', { level: 2, name: 'Priya Natarajan' });
+      for (const name of [
+        'Play sample of Priya Natarajan',
+        'Rename Priya Natarajan',
+        'Merge Priya Natarajan into another voice',
+        'Delete Priya Natarajan',
+      ]) {
+        expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(false);
+      }
+      const split = screen.getByRole('button', {
+        name: 'Split Priya Natarajan into two voices',
+      }) as HTMLButtonElement;
+      // Focusable (not `disabled`) so keyboard users can reach the reason.
+      expect(split.disabled).toBe(false);
+      expect(split.getAttribute('aria-disabled')).toBe('true');
+      split.focus();
+      expect(document.activeElement).toBe(split);
+      fireEvent.click(split);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('renames the selected profile', async () => {
+      renderScreen(backend, <SpeakersScreen />);
+      const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
+      fireEvent.click(rows.getByRole('button', { name: /Unnamed voice/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Rename Unnamed voice' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
         target: { value: 'Mina Sato' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
-      expect(await screen.findByText('Mina Sato')).toBeTruthy();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Mina Sato' })).toBeTruthy();
     });
 
     it('merges two profiles and adds their meetings', async () => {
       renderScreen(backend, <SpeakersScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Merge Tomas Lindgren' }));
+      const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
+      fireEvent.click(rows.getByRole('button', { name: /Tomas Lindgren/ }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Merge Tomas Lindgren into another voice' }),
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
       await vi.waitFor(() => expect(screen.queryByText('Tomas Lindgren')).toBeNull());
-      expect(await screen.findByText(/23 meetings/)).toBeTruthy();
+      expect((await screen.findAllByText(/23 meetings/)).length).toBeGreaterThan(0);
     });
 
-    it('shows a deleting row, then removes the profile', async () => {
+    it('shows a deleting state, then removes the profile', async () => {
       renderScreen(backend, <SpeakersScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete Tomas Lindgren' }));
+      const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
+      fireEvent.click(rows.getByRole('button', { name: /Tomas Lindgren/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Tomas Lindgren' }));
       fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
-      expect(await screen.findByText('Deleting…')).toBeTruthy();
+      expect((await screen.findAllByText('Deleting…')).length).toBeGreaterThan(0);
       await vi.waitFor(() => expect(screen.queryByText('Tomas Lindgren')).toBeNull(), {
         timeout: 2000,
       });
+      await vi.waitFor(() =>
+        expect(document.activeElement?.closest('[aria-label="Voice profiles"]')).not.toBeNull(),
+      );
+      expect(document.activeElement?.getAttribute('aria-current')).toBe('true');
     });
 
-    it('keeps the profile and says so when delete fails', async () => {
+    it('keeps the profile and says so in a dismissible banner when delete fails', async () => {
       backend.arm('profileDeleteFails');
       renderScreen(backend, <SpeakersScreen />);
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete Tomas Lindgren' }));
+      const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
+      fireEvent.click(rows.getByRole('button', { name: /Tomas Lindgren/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Tomas Lindgren' }));
       fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
-      expect((await screen.findByRole('alert', {}, { timeout: 2000 })).textContent).toContain(
-        'could not be deleted',
-      );
-      expect(screen.getByText('Tomas Lindgren')).toBeTruthy();
+      const alert = await screen.findByRole('alert', {}, { timeout: 2000 });
+      expect(alert.textContent).toContain('could not be deleted');
+      expect(screen.getAllByText('Tomas Lindgren').length).toBeGreaterThan(0);
+      fireEvent.click(within(alert).getByRole('button', { name: /Dismiss/ }));
+      expect(screen.queryByRole('alert')).toBeNull();
     });
 
     it('confirms a suggested match', async () => {
       renderScreen(backend, <SpeakersScreen />);
-      await screen.findByText('Voice profiles');
+      await screen.findByRole('list', { name: 'Voice profiles' });
       backend.emit('speakerSuggestion', {
         meetingId: 'meeting-outdated',
         speakerId: 'sp-3',
@@ -157,11 +166,26 @@ describe('screens', () => {
       expect(page.speakers.find((speaker) => speaker.id === 'sp-3')?.label).toBe('Tomas Lindgren');
     });
 
-    it('splits part of a speaker in a chosen meeting', async () => {
-      renderScreen(backend, <SpeakersScreen />);
-      const picker = await screen.findByRole('combobox', { name: 'Meeting' });
-      fireEvent.change(picker, { target: { value: 'meeting-outdated' } });
-      fireEvent.click(await screen.findByRole('button', { name: 'Split a speaker…' }));
+    it('uses only tonal styling: no borders in the Speakers styles', () => {
+      const css = readFileSync(join(__dirname, 'SpeakersScreen.module.css'), 'utf8');
+      expect(css).not.toMatch(/border(?!-radius)/);
+    });
+  });
+
+  describe('Meeting Speakers tab', () => {
+    it('splits part of a speaker from a meeting', async () => {
+      render(
+        <BackendProvider backend={backend}>
+          <ThemeProvider>
+            <MeetingSpeakersTab meetingId="meeting-outdated" onChanged={() => undefined} />
+          </ThemeProvider>
+        </BackendProvider>,
+      );
+      fireEvent.click(
+        (
+          await screen.findAllByRole('button', { name: /^Split .* into two speakers$/ })
+        )[0] as HTMLElement,
+      );
       const dialog = within(screen.getByRole('dialog'));
       fireEvent.change(dialog.getByRole('textbox', { name: 'New speaker name' }), {
         target: { value: 'Ben Okafor' },
@@ -170,7 +194,7 @@ describe('screens', () => {
       fireEvent.click(lines[0] as HTMLElement);
       fireEvent.click(lines[1] as HTMLElement);
       fireEvent.click(dialog.getByRole('button', { name: 'Split' }));
-      expect(await screen.findByRole('button', { name: 'Speaker: Ben Okafor' })).toBeTruthy();
+      expect(await screen.findByText('Ben Okafor')).toBeTruthy();
       const page = await backend.call('getTranscript', {
         meetingId: 'meeting-outdated',
         offset: 0,
@@ -180,6 +204,25 @@ describe('screens', () => {
       const count = page.segments.filter((segment) => segment.speakerId === added?.id).length;
       expect(count).toBe(2);
       expect(page.speakers.filter((speaker) => speaker.label === 'Ben Okafor')).toHaveLength(1);
+    });
+
+    it('renames and merges speakers of the meeting', async () => {
+      render(
+        <BackendProvider backend={backend}>
+          <ThemeProvider>
+            <MeetingSpeakersTab meetingId="meeting-outdated" onChanged={() => undefined} />
+          </ThemeProvider>
+        </BackendProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename Speaker 2' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+        target: { value: 'Ana Ruiz' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+      expect(await screen.findByText('Ana Ruiz')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Merge Ana Ruiz into another speaker' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+      await vi.waitFor(() => expect(screen.queryByText('Ana Ruiz')).toBeNull());
     });
   });
 

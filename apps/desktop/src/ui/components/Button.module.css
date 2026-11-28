@@ -8,11 +8,12 @@
   border-radius: var(--radius-control);
 }
 
-.button:hover:not(:disabled) {
+.button:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--btn-hover, var(--color-surface-hover));
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   opacity: 0.6;
 }
 
@@ -39,7 +40,7 @@
   border-color: transparent;
 }
 
-:global([data-design='tonal']) .button:hover:not(:disabled) {
+:global([data-design='tonal']) .button:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--color-surface-hover);
 }
 

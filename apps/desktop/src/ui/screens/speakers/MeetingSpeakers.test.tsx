@@ -6,7 +6,7 @@ import { BackendProvider } from '../../lib/backend-context.tsx';
 import { PlaybackProvider, useMeetingPlayback } from '../../lib/playback-context.tsx';
 import { MockBackend } from '../../mocks/index.ts';
 import { ThemeProvider } from '../../theme/ThemeProvider.tsx';
-import { SpeakersScreen } from '../SpeakersScreen.tsx';
+import { MeetingSpeakersTab } from './MeetingSpeakers.tsx';
 
 class FakeAudio {
   static all: FakeAudio[] = [];
@@ -34,7 +34,7 @@ class FakeAudio {
   load() {}
 }
 
-describe('Split a speaker: passage preview', () => {
+describe('Meeting Speakers tab: split passage preview', () => {
   let backend: MockBackend;
 
   beforeEach(() => {
@@ -68,15 +68,17 @@ describe('Split a speaker: passage preview', () => {
           <SpeakerSuggestionsProvider>
             <PlaybackProvider>
               <Probe />
-              <SpeakersScreen />
+              <MeetingSpeakersTab meetingId="meeting-outdated" onChanged={() => undefined} />
             </PlaybackProvider>
           </SpeakerSuggestionsProvider>
         </ThemeProvider>
       </BackendProvider>,
     );
-    const picker = await screen.findByRole('combobox', { name: 'Meeting' });
-    fireEvent.change(picker, { target: { value: 'meeting-outdated' } });
-    fireEvent.click(await screen.findByRole('button', { name: 'Split a speaker…' }));
+    fireEvent.click(
+      (
+        await screen.findAllByRole('button', { name: /^Split .* into two speakers$/ })
+      )[0] as HTMLElement,
+    );
     return within(screen.getByRole('dialog'));
   }
 
