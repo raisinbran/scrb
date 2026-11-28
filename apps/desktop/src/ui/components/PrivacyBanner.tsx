@@ -4,8 +4,7 @@ import { noteOptionalDismiss, useNotificationEnabled } from '../lib/notification
 import { useBackend } from '../lib/backend-context.tsx';
 import { US_STATES, isListedState } from '../lib/us-states.ts';
 import { useRecordingStatus } from '../shell/use-recording-status.ts';
-import { DismissButton } from './DismissButton.tsx';
-import styles from './PrivacyBanner.module.css';
+import { NoticeStrip } from './Notices.tsx';
 
 // One dismissal is shared by every place the banner can show (Live and the app shell).
 let dismissedId: MeetingId | null = null;
@@ -46,22 +45,17 @@ export function PrivacyBanner() {
     ? US_STATES.find((state) => state.code === usState)?.name
     : undefined;
   return (
-    <div className={styles.banner} role="status" data-level={stateName ? 'warning' : undefined}>
-      <span>
-        {stateName ? `${stateName} has a biometric-privacy law. ` : ''}
-        Voice profiles are being built from this recording.
-        {stateName ? " Check whether you need people's consent." : ''}
-      </span>
-      <span className={styles.dismissSlot}>
-        <DismissButton
-          label="Dismiss voice-profile privacy reminder for this recording"
-          onClick={() => {
-            if (!meetingId) return;
-            dismissOnly(meetingId);
-            noteOptionalDismiss();
-          }}
-        />
-      </span>
-    </div>
+    <NoticeStrip
+      dismissLabel="Dismiss voice-profile privacy reminder for this recording"
+      onDismiss={() => {
+        if (!meetingId) return;
+        dismissOnly(meetingId);
+        noteOptionalDismiss();
+      }}
+    >
+      {stateName ? `${stateName} has a biometric-privacy law. ` : ''}
+      Voice profiles are being built from this recording.
+      {stateName ? " Check whether you need people's consent." : ''}
+    </NoticeStrip>
   );
 }

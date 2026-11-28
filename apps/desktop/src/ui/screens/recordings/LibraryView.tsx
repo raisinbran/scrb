@@ -18,6 +18,7 @@ import { prefersReducedMotion, useTitleScroll } from './useTitleScroll.ts';
 import { seedFinalPassProgress, useFinalPassProgress } from '../../lib/final-pass-progress.ts';
 import { ImportDialog, ImportPanel } from './ImportPanel.tsx';
 import { STATUS_LABELS, SUMMARY_STATE_LABELS } from './labels.ts';
+import { Toast } from '../../components/Notices.tsx';
 import styles from './recordings.module.css';
 
 const SEARCH_DELAY_MS = 200;
@@ -251,18 +252,8 @@ export function LibraryView({ notice, selectedId, onOpen, children }: LibraryVie
             onFrom={setFrom}
             onTo={setTo}
           />
-          <div className={styles.floatSlot}>
-            {notice && (
-              <p role="status" className={styles.floatNote}>
-                {notice}
-              </p>
-            )}
-            {pickError && (
-              <p role="alert" className={styles.floatNote}>
-                {pickError}
-              </p>
-            )}
-          </div>
+          <Toast message={notice} />
+          <Toast message={pickError} role="alert" />
           <ImportPanel onOpen={onOpen} />
         </>
       }

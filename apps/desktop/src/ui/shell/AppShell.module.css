@@ -17,25 +17,18 @@
   min-height: 0;
 }
 
-/* Holds the workspace and the notices that float over it. Notices sit in the top gutter above the
-   cards, centred and compact, so they never move anything and stay clear of the player bar, the
-   save bar and the Live controls at the bottom. */
+/* Holds the app-level notice strips above the workspace; they take their own row and nudge it. */
 .workspaceFrame {
-  position: relative;
   display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .notices {
-  composes: stack from '../components/Banner.module.css';
-  inset-block-start: var(--space-1);
-  z-index: 30;
-  pointer-events: none;
-}
-
-.notices > * {
-  pointer-events: auto;
+  padding: var(--space-card-gap) var(--space-card-gap) 0;
+  background: var(--color-surface);
 }
 
 /* A column, so the zero-size wrapper of the corner button never adds an empty line above a screen. */
@@ -56,6 +49,10 @@
 .sidebarCollapsed,
 :global([data-design='tonal']) .sidebarCollapsed {
   width: 52px;
+}
+
+:global([data-design='tonal']) .notices {
+  background: var(--color-page);
 }
 
 :global([data-design='tonal']) .workspace {

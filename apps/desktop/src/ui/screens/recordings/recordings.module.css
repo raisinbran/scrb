@@ -3,25 +3,6 @@
   color: var(--color-text-muted);
 }
 
-.processingBanner {
-  padding-block: var(--space-1) var(--space-2);
-  overflow: hidden;
-  font-size: var(--text-sm);
-}
-
-/* A 2px bar along the bottom edge of the banner. */
-.slimBar {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-}
-
-.slimBar [role='progressbar'],
-.slimBar [role='progressbar'] > div {
-  height: 2px;
-  border-radius: 0;
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -113,27 +94,6 @@
 }
 
 /* Library */
-
-/* Notes under the search float over the list top, so showing or clearing one never moves the list. */
-.floatSlot {
-  position: absolute;
-  inset-block-end: var(--space-2);
-  inset-inline: 0;
-  z-index: 5;
-  height: 0;
-}
-
-.floatNote {
-  composes: banner from '../../components/Banner.module.css';
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-  margin-block: 0;
-}
-
-.floatNote + .floatNote {
-  inset-block-end: 2.2em;
-}
 
 .search {
   width: 100%;
@@ -966,14 +926,6 @@
 }
 
 /* The edit hint floats over transcript text; clicks pass through it except on its own button. */
-div.editHint {
-  pointer-events: none;
-}
-
-div.editHint button {
-  pointer-events: auto;
-}
-
 :global([data-design='tonal']) .detail {
   gap: var(--space-card-gap);
 }
@@ -1141,4 +1093,9 @@ div.editHint button {
   display: flex;
   flex: none;
   margin-inline-end: calc(-1 * var(--space-1));
+}
+
+/* Notice strips at the top of a tab's panel, with the panel's own inset. */
+.panelNotices {
+  padding: var(--space-card-pad) var(--space-card-pad) 0;
 }

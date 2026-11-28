@@ -41,6 +41,8 @@ const BACKGROUNDS = [
   '--color-surface-sidebar',
   '--color-surface-raised',
   '--color-banner',
+  '--color-notice',
+  '--color-alert',
   '--color-surface-hover',
   '--color-line-current',
   '--color-page',
@@ -81,6 +83,15 @@ describe.each(['light', 'dark'] as const)('%s tokens', (theme) => {
         tokens[background] as string,
       );
       expect(ratio, background).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('meets WCAG AA for toast text, and keeps notice and alert fills apart from the card', () => {
+    expect(
+      contrast(tokens['--color-on-toast'] as string, tokens['--color-toast'] as string),
+    ).toBeGreaterThanOrEqual(4.5);
+    for (const fill of ['--color-notice', '--color-alert']) {
+      expect(tokens[fill], fill).not.toBe(tokens['--color-card']);
     }
   });
 

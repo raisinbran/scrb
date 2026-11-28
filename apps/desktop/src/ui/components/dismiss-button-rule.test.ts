@@ -27,6 +27,17 @@ describe('dismissing a banner', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('keeps the X off alert strips and toasts', () => {
+    const source = readFileSync(join(__dirname, 'Notices.tsx'), 'utf8');
+    const alert = source.slice(
+      source.indexOf('export function AlertStrip'),
+      source.indexOf('export const TOAST_MS'),
+    );
+    const toast = source.slice(source.indexOf('export function Toast'));
+    expect(alert).not.toMatch(/onDismiss|DismissButton/);
+    expect(toast).not.toMatch(/onDismiss|DismissButton/);
+  });
+
   it('matches a text Dismiss button whose handler is an arrow function', () => {
     const sample = '<button onClick={() => go()}>Dismiss</button>';
     expect([...sample.matchAll(TEXT_DISMISS)]).toHaveLength(1);

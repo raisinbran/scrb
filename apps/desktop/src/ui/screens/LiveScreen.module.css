@@ -232,46 +232,9 @@ button:disabled {
 }
 
 /* Notices float over the top of the transcript, so they never push it down. */
-.alertsSlot {
-  position: relative;
-  z-index: 5;
-  height: 0;
-}
-
-.alerts {
-  composes: stack from '../components/Banner.module.css';
-  inset-block-start: 0;
-}
-
-.banner {
-  composes: banner from '../components/Banner.module.css';
-  margin: 0;
-}
-
-.banner[data-level='failed'] {
-  box-shadow:
-    inset 3px 0 0 var(--color-danger),
-    var(--shadow-banner);
-}
-
 .bannerTime {
   margin-inline-start: var(--space-2);
   color: var(--color-text-muted);
-}
-
-.finished {
-  composes: banner from '../components/Banner.module.css';
-  position: absolute;
-  inset-inline: 0;
-  inset-block-start: var(--space-1);
-  margin-block: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  color: var(--color-text-muted);
-}
-
-.finished p {
-  margin: 0;
 }
 
 .idle {
@@ -431,8 +394,4 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.dismissSlot {
-  composes: dismissSlot from '../components/Banner.module.css';
 }

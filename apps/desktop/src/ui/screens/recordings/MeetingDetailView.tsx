@@ -10,7 +10,7 @@ import { DataView } from '../Screen.tsx';
 import { CopyTranscriptAction } from './CopyTranscriptAction.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Modal } from './Modal.tsx';
-import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { AlertStrip, NoticeStack, NoticeStrip, Toast } from '../../components/Notices.tsx';
 import { ProcessingBanner } from './ProcessingBanner.tsx';
 import { SummaryTab } from './SummaryTab.tsx';
 import { MeetingSpeakersTab } from '../speakers/MeetingSpeakers.tsx';
@@ -530,7 +530,8 @@ function LoadedDetail(props: LoadedDetailProps) {
   const tipsOn = useNotificationEnabled('tips');
   const [hintShown, setHintShown] = useState(() => readStored<boolean>(HINT_KEY) !== true);
   const [placed, setPlaced] = useState(false);
-  const [popupSlot, setPopupSlot] = useState<HTMLDivElement | null>(null);
+  const [recoveredSeen, setRecoveredSeen] = useState(false);
+  const [processingDismissed, setProcessingDismissed] = useState(false);
   const [fontPx, setFontPx] = useState(settings.transcriptFontPx);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -635,6 +636,55 @@ function LoadedDetail(props: LoadedDetailProps) {
     canEdit && meeting.hasAudio && (meeting.status === 'ready' || meeting.status === 'recovered');
   const status = STATUS_LABELS[meeting.status];
   const summaryLabel = SUMMARY_STATE_LABELS[meeting.summaryState];
+
+  const notices = (
+    <>
+      {tab === 'Transcript' && canEdit && hintShown && tipsOn && (
+        <NoticeStrip dismissLabel="Got it" onDismiss={dismissHint}>
+          Double-click a word to correct it. Click a speaker to rename.
+        </NoticeStrip>
+      )}
+      {meeting.status === 'recovered' && !recoveredSeen && (
+        <NoticeStrip onDismiss={() => setRecoveredSeen(true)}>
+          Recovered after a crash.
+          {meeting.recoveredEndMs !== undefined &&
+            ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
+        </NoticeStrip>
+      )}
+      {meeting.status === 'transcriptionFailed' && (
+        <AlertStrip
+          action={
+            meeting.hasAudio
+              ? {
+                  label: 'Retry transcription',
+                  onClick: () => {
+                    setRetryError(null);
+                    void backend.call('retryFinalPass', { meetingId }).then(
+                      () => onChanged(),
+                      () => setRetryError('The final pass could not be retried.'),
+                    );
+                  },
+                }
+              : undefined
+          }
+        >
+          {meeting.transcriptionFailure ?? 'Transcription could not finish.'}
+          {retryError && ` ${retryError}`}
+        </AlertStrip>
+      )}
+      {meeting.status === 'finalPassRunning' && (
+        <ProcessingBanner
+          meetingId={meetingId}
+          dismissed={processingDismissed}
+          onDismiss={() => setProcessingDismissed(true)}
+        />
+      )}
+      {live && (
+        <NoticeStrip>This meeting is still recording. Controls are on the Live screen.</NoticeStrip>
+      )}
+      {meeting.status === 'deleting' && <NoticeStrip>This meeting is being deleted.</NoticeStrip>}
+    </>
+  );
 
   return (
     <div className={styles.detail}>
@@ -776,75 +826,16 @@ function LoadedDetail(props: LoadedDetailProps) {
         aria-labelledby={`meeting-tab-${tab}`}
         className={styles.panel}
       >
-        <PopupLayer stackRef={setPopupSlot}>
-          {undoState.error && (
-            <PopupBanner role="alert" level="danger">
-              <p>{undoState.error}</p>
-            </PopupBanner>
-          )}
-          {tab === 'Transcript' && canEdit && hintShown && tipsOn && (
-            <PopupBanner className={styles.editHint} dismissLabel="Got it" onDismiss={dismissHint}>
-              <p>Double-click a word to correct it. Click a speaker to rename.</p>
-            </PopupBanner>
-          )}
-          {copyError && (
-            <PopupBanner role="alert" level="danger" onDismiss={() => setCopyError(null)}>
-              <p>{copyError}</p>
-            </PopupBanner>
-          )}
-          {folderError && (
-            <PopupBanner role="alert" level="danger" onDismiss={() => setFolderError(null)}>
-              <p>{folderError}</p>
-            </PopupBanner>
-          )}
-          {canReprocess && retryError && (
-            <PopupBanner role="alert" level="danger" onDismiss={() => setRetryError(null)}>
-              <p>{retryError}</p>
-            </PopupBanner>
-          )}
-          {meeting.status === 'recovered' && (
-            <PopupBanner level="warning">
-              <p>
-                Recovered after a crash.
-                {meeting.recoveredEndMs !== undefined &&
-                  ` The recording ended at ${formatElapsed(meeting.recoveredEndMs)}.`}
-              </p>
-            </PopupBanner>
-          )}
-          {meeting.status === 'transcriptionFailed' && (
-            <PopupBanner level="warning">
-              <p>{meeting.transcriptionFailure ?? 'Transcription could not finish.'}</p>
-              {meeting.hasAudio && (
-                <button
-                  type="button"
-                  className={styles.button}
-                  onClick={() => {
-                    setRetryError(null);
-                    void backend.call('retryFinalPass', { meetingId }).then(
-                      () => onChanged(),
-                      () => setRetryError('The final pass could not be retried.'),
-                    );
-                  }}
-                >
-                  Retry transcription
-                </button>
-              )}
-              {retryError && <p role="alert">{retryError}</p>}
-            </PopupBanner>
-          )}
-          {meeting.status === 'finalPassRunning' && <ProcessingBanner meetingId={meetingId} />}
-          {live && (
-            <PopupBanner>
-              <p>This meeting is still recording. Controls are on the Live screen.</p>
-            </PopupBanner>
-          )}
-          {meeting.status === 'deleting' && (
-            <PopupBanner>
-              <p>This meeting is being deleted.</p>
-            </PopupBanner>
-          )}
-          <TeachingToast />
-        </PopupLayer>
+        {tab !== 'Summary' && <NoticeStack className={styles.panelNotices}>{notices}</NoticeStack>}
+        <Toast message={undoState.error} role="alert" />
+        <Toast message={copyError} role="alert" onGone={() => setCopyError(null)} />
+        <Toast
+          message={canReprocess && meeting.status !== 'transcriptionFailed' ? retryError : null}
+          role="alert"
+          onGone={() => setRetryError(null)}
+        />
+        <Toast message={folderError} role="alert" onGone={() => setFolderError(null)} />
+        <TeachingToast />
         {tab === 'Transcript' && (
           <TranscriptTab
             transcript={transcript}
@@ -873,7 +864,7 @@ function LoadedDetail(props: LoadedDetailProps) {
           <SummaryTab
             meeting={meeting}
             defaultLength={settings.summaryDefaultLength}
-            popupSlot={popupSlot}
+            notices={notices}
             onPlay={playback.play}
           />
         )}
