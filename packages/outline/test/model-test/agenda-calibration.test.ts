@@ -2,7 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { matchPoints, type Embed } from '../../eval/model-test/match.js';
-import { adversarialSuite, type GeneralKind, type SuiteCase } from '../../eval/model-test/suites.js';
+import {
+  adversarialSuite,
+  type GeneralKind,
+  type SuiteCase,
+} from '../../eval/model-test/suites.js';
 import { runAdversarial, runGeneral } from '../../eval/model-test/validate.js';
 
 const ref = 'The board approved the budget.';
@@ -50,9 +54,9 @@ describe('experimental matching weight', () => {
     'rejects invalid weight %s before embedding in the matcher and both suite wrappers',
     async (wEmbed) => {
       const unusedEmbed = vi.fn(embed);
-      await expect(
-        matchPoints(points, [ref], span, unusedEmbed, { tau, wEmbed }),
-      ).rejects.toThrow(RangeError);
+      await expect(matchPoints(points, [ref], span, unusedEmbed, { tau, wEmbed })).rejects.toThrow(
+        RangeError,
+      );
       await expect(runGeneral([fixture], unusedEmbed, tau, wEmbed)).rejects.toThrow(RangeError);
       await expect(
         runAdversarial(adversarialSuite().slice(0, 1), unusedEmbed, tau, wEmbed),
