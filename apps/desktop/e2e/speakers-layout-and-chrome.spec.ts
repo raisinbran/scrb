@@ -70,17 +70,26 @@ async function inspectSplit(page: Page, width: number) {
 
 /** Real boxes: heading and first list text share a left edge; list card and detail card share a top. */
 async function expectAligned(page: Page, firstListText: Locator) {
-  const heading = await page.getByRole('heading', { level: 1, name: 'Speakers' }).boundingBox();
-  const text = await firstListText.boundingBox();
-  const column = await page.locator('[data-split] > :first-child').boundingBox();
-  const card = await page
-    .locator('[data-testid="speaker-detail"]')
-    .locator('section, [data-testid="speaker-empty"]')
-    .first()
-    .boundingBox();
-  expect(heading && text && column && card).toBeTruthy();
-  expect(Math.abs(text!.x - heading!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(card!.y - column!.y)).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('heading', { level: 1, name: 'Speakers' })).toBeVisible();
+  await expect(firstListText).toBeVisible();
+  // Measure in one renderer turn. Separate boundingBox calls can straddle
+  // the responsive sidebar's React commit and compare different layouts.
+  const result = await firstListText.evaluate((text) => {
+    const split = text.closest('[data-split]');
+    const column = split?.firstElementChild;
+    const heading = column?.querySelector('h1');
+    const card = split?.querySelector(
+      '[data-testid="speaker-detail"] section, [data-testid="speaker-detail"] [data-testid="speaker-empty"]',
+    );
+    if (!column || !heading || !card) return null;
+    return {
+      leftDelta: Math.abs(text.getBoundingClientRect().x - heading.getBoundingClientRect().x),
+      topDelta: Math.abs(card.getBoundingClientRect().y - column.getBoundingClientRect().y),
+    };
+  });
+  expect(result).not.toBeNull();
+  expect(result!.leftDelta).toBeLessThanOrEqual(1);
+  expect(result!.topDelta).toBeLessThanOrEqual(1);
 }
 
 async function tooltipBounds(page: Page, label: string) {
@@ -119,6 +128,8 @@ test('Speakers shows its empty state in the list column and fits at 760px', asyn
     await expectAligned(page, page.getByText('No voice profiles yet', { exact: true }).first());
     await expect(page.getByText('Voices will appear here')).toBeVisible();
     await page.setViewportSize({ width: 760, height: 720 });
+    // The media-query listener updates the sidebar asynchronously after resizing.
+    await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeDisabled();
     await inspectSplit(page, 760);
     await expectAligned(page, page.getByText('No voice profiles yet', { exact: true }).first());
     await page.screenshot({ path: join(evidenceDir, 'after-speakers-narrow.png') });
