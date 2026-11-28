@@ -23,7 +23,8 @@
     "test:smoke": "npm run test:smoke -w @scrb/desktop",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:register": "node scripts/check-register-ids.mjs",
-    "check": "npm run typecheck && npm run lint && npm test && npm run check:boundaries && npm run check:register"
+    "check:gate-status": "node scripts/check-gate-status.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run check:boundaries && npm run check:register && npm run check:gate-status"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
