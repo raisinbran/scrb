@@ -12,6 +12,7 @@ function sources(dir: string): string[] {
 
 // Banners, notices and toasts are dismissed with the shared X (DismissButton), never a text button.
 // The one text "Dismiss" left is the per-row action on a finished import in the import list, which is not a banner.
+const TEXT_DISMISS = /<button\b(?:=>|[^>])*>\s*Dismiss\s*<\/button>/g;
 const ALLOWED = ['aria-label={`Dismiss ${entry.fileName}`}'];
 
 describe('dismissing a banner', () => {
@@ -19,10 +20,15 @@ describe('dismissing a banner', () => {
     const offenders: string[] = [];
     for (const file of sources(join(__dirname, '..'))) {
       const text = readFileSync(file, 'utf8');
-      for (const match of text.matchAll(/<button\b[^>]*>\s*Dismiss\s*<\/button>/g)) {
+      for (const match of text.matchAll(TEXT_DISMISS)) {
         if (!ALLOWED.some((allowed) => match[0].includes(allowed))) offenders.push(file);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('matches a text Dismiss button whose handler is an arrow function', () => {
+    const sample = '<button onClick={() => go()}>Dismiss</button>';
+    expect([...sample.matchAll(TEXT_DISMISS)]).toHaveLength(1);
   });
 });
