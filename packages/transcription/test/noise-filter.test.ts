@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,7 +91,7 @@ describe('filterMicCopy', () => {
     expect(r).toEqual({ kind: 'filtered', wavPath: expect.stringContaining(FILTERED_MIC_NAME) });
     if (r.kind === 'filtered') {
       expect(r.wavPath).not.toBe(mic);
-      expect(dirname(r.wavPath)).toBe(dirname(resolve(mic)));
+      expect(dirname(r.wavPath)).toBe(dirname(realpathSync(mic)));
     }
     expect([hash(mic), hash(meeting)]).toEqual(before);
   });
