@@ -159,7 +159,7 @@ Grid is 4px, steps are tokens:
 
 **Vocabulary:** `SplitLayout`. Second column: search field and the usage note pinned on top, then terms under Suggested (n), Enabled (n) and Disabled (n) headers (empty groups are hidden), each term one `ListItem` row with the selected tint. Content panel: the selected term's panel sized to its content (name, Heard as, Edit / Enable or Disable / Delete; a suggestion shows its correction counts with Remember and Dismiss) and a separate small History panel. With nothing selected it says "Select a term". The note "Terms are saved but not used for transcription yet." stays in the column header.
 
-**Speakers:** `SplitLayout`. Second column: contacts-style rows (round initial, name, meeting count) with the selected tint. Content panel: a detail card for the selected voice (name, meetings and last heard, then Play sample, Rename, Merge into…, Split into…, Delete) and a Samples card when clips exist; delete errors use `PopupBanner`. Split into… is disabled with a tooltip because the contract has no profile-level split (see `docs/handoffs/profile-split-contract-gap.md`). In a meeting, the **Speakers** tab (between Summary and Audio) lists that meeting's speakers with Rename, Merge into… and Split into…. Empty state: `EmptyState compact` in the list column.
+**Speakers:** `SplitLayout`. Second column: contacts-style rows (round initial, name, meeting count) with the selected tint. Content panel: a detail card for the selected voice (name, meetings and last heard, then Play sample, Rename, Merge into…, Split into…, Delete) and a Samples card when clips exist; delete errors use `PopupBanner`. Split into… is disabled with a tooltip because the contract has no profile-level split (see `docs/handoffs/profile-split-contract-gap.md`). In a meeting, the **Speakers** tab (between Summary and Audio) lists that meeting's speakers with Rename, Merge into… and Split into…. Empty state: `EmptyState compact` in the list column, inset to the heading's left edge, and a centred `EmptyState` in the content card (never a blank card).
 
 **Dialogs:** `Dialog` / `ActionDialog` (440px wide, 24px padding, title at `--text-lg`, actions right aligned with `--space-2` gap, 24px above them). Focus is trapped, Escape closes unless the dialog is required, focus returns to the opener.
 
@@ -311,6 +311,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 
 - [ ] Read this guide and matched the nearest existing screen.
 - [ ] Spacing: only `--space-*`; sibling gaps equal; settings rows and headings use the standard rhythm.
+- [ ] Screen heading, empty-state text and card content share one left inset (`--space-card-pad`); the list card and the first content card have the same top edge. A `PopupLayer` is never a flex sibling that adds a gap. Check the empty state too, and guard it with a real bounding-box test (see `speakers-layout-and-chrome.spec.ts`).
 - [ ] Controls inside any card keep the card inset (`--space-card-pad`); none touch the card edge.
 - [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)` (panels) or `var(--radius-control)` (controls).
 - [ ] Reused shared components (Button, IconButton, Tooltip, PopupBanner, Dialog, Progress, meters); nothing duplicated.
