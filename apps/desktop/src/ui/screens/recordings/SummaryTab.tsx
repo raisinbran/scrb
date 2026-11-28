@@ -1,8 +1,7 @@
-import { PopupBanner, PopupLayer } from '../../components/PopupBanner.tsx';
+import { NoticeStack, NoticeStrip } from '../../components/Notices.tsx';
 import { noteOptionalDismiss, useNotificationEnabled } from '../../lib/notification-prefs.ts';
 import { Button } from '../../components/Button.tsx';
 import { useCallback, useEffect, useReducer, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import type {
   ActionItem,
   ActionStatus,
@@ -416,15 +415,15 @@ function LengthToggle({
 interface SummaryTabProps {
   meeting: MeetingDetail;
   defaultLength: SummaryLength;
-  /** The detail view's banner stack: summary banners join it so they never overlap its own. */
-  popupSlot?: HTMLElement | null;
+  /** The detail view's own notice strips; they share one stack with the summary's. */
+  notices?: ReactNode;
   onPlay(ms: number): void;
 }
 
 /** Meetings whose outdated-summary banner was dismissed; it stays gone until the app restarts. */
 const outdatedDismissals = new Set<string>();
 
-export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: SummaryTabProps) {
+export function SummaryTab({ meeting, defaultLength, notices, onPlay }: SummaryTabProps) {
   const backend = useBackend();
   const openModels = useOpenModels();
   const meetingId = meeting.id;
@@ -438,19 +437,6 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
   const summaryNoticesOn = useNotificationEnabled('summary');
   const [, bumpOutdated] = useReducer((count: number) => count + 1, 0);
-  // Banners float over the panel; while any show, the content starts below them instead of under them.
-  const [bannerReserve, setBannerReserve] = useState(0);
-  useEffect(() => {
-    if (!popupSlot || typeof ResizeObserver === 'undefined') return undefined;
-    const measure = () => {
-      const height = popupSlot.getBoundingClientRect().height;
-      setBannerReserve(height > 0 ? Math.ceil(height) : 0);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(popupSlot);
-    return () => observer.disconnect();
-  }, [popupSlot]);
   const outdatedDismissed = outdatedDismissals.has(meetingId);
   const dismissOutdated = () => {
     outdatedDismissals.add(meetingId);
@@ -509,14 +495,7 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
     !setupState.data.models.some((model) => model.role === 'summary' && model.installed);
 
   return (
-    <div
-      className={styles.summary}
-      style={
-        bannerReserve > 0
-          ? { paddingBlockStart: `calc(var(--space-card-pad) + ${bannerReserve}px)` }
-          : undefined
-      }
-    >
+    <div className={styles.summary}>
       {error && (
         <p role="alert" className={styles.bannerDanger}>
           {error}
@@ -538,85 +517,81 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
           const generating = doc.state === 'generating' || progress !== null;
           if (generating) {
             return (
-              <div role="status" className={styles.generating}>
-                <p className={styles.fileName}>
-                  {progress ? SUMMARY_STAGE_LABELS[progress.stage] : 'Generating the summary'}
-                </p>
-                <Progress label="Summary progress" fraction={progress?.fraction ?? 0} />
-                <p className={styles.muted}>
-                  You can keep working. The summary appears here when it is ready.
-                </p>
-              </div>
+              <>
+                <NoticeStack>{notices}</NoticeStack>
+                <div role="status" className={styles.generating}>
+                  <p className={styles.fileName}>
+                    {progress ? SUMMARY_STAGE_LABELS[progress.stage] : 'Generating the summary'}
+                  </p>
+                  <Progress label="Summary progress" fraction={progress?.fraction ?? 0} />
+                  <p className={styles.muted}>
+                    You can keep working. The summary appears here when it is ready.
+                  </p>
+                </div>
+              </>
             );
           }
           if (doc.state === 'notGenerated') {
             return (
-              <div className={styles.generating}>
-                <p className={styles.fileName}>No summary yet</p>
-                {!summaryModelMissing && (
-                  <p className={styles.muted}>
-                    {unfinished
-                      ? 'A summary can be generated when the final pass is done.'
-                      : 'Summaries are made on this computer from the finished transcript.'}
-                  </p>
-                )}
-                {!summaryModelMissing && (
-                  <div className={styles.inlineActions}>
-                    <LengthToggle length={length} onChange={setLength} />
-                    <button
-                      type="button"
-                      className={styles.primary}
-                      disabled={unfinished}
-                      onClick={() => void generate(length)}
-                    >
-                      Generate Summary
-                    </button>
-                  </div>
-                )}
-              </div>
+              <>
+                <NoticeStack>{notices}</NoticeStack>
+                <div className={styles.generating}>
+                  <p className={styles.fileName}>No summary yet</p>
+                  {!summaryModelMissing && (
+                    <p className={styles.muted}>
+                      {unfinished
+                        ? 'A summary can be generated when the final pass is done.'
+                        : 'Summaries are made on this computer from the finished transcript.'}
+                    </p>
+                  )}
+                  {!summaryModelMissing && (
+                    <div className={styles.inlineActions}>
+                      <LengthToggle length={length} onChange={setLength} />
+                      <button
+                        type="button"
+                        className={styles.primary}
+                        disabled={unfinished}
+                        onClick={() => void generate(length)}
+                      >
+                        Generate Summary
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             );
           }
           const sections = doc.narrative[length];
           const banners = (
             <>
               {doc.state === 'outdated' && summaryNoticesOn && !outdatedDismissed && (
-                <PopupBanner level="warning" onDismiss={dismissOutdated}>
-                  <p>
-                    {doc.outdatedByReprocess
-                      ? 'Transcript was re-processed. The summary may be outdated.'
-                      : 'May be outdated — regenerate?'}
-                  </p>
-                  <div>
-                    <button
-                      type="button"
-                      className={styles.button}
-                      onClick={() => void generate(length)}
-                    >
-                      Regenerate
-                    </button>
-                  </div>
-                </PopupBanner>
+                <NoticeStrip
+                  onDismiss={dismissOutdated}
+                  action={{ label: 'Regenerate', onClick: () => void generate(length) }}
+                >
+                  {doc.outdatedByReprocess
+                    ? 'Transcript was re-processed. The summary may be outdated.'
+                    : 'May be outdated — regenerate?'}
+                </NoticeStrip>
               )}
               {doc.warnings
                 .filter((warning) => !dismissedWarnings.includes(warning))
                 .filter((warning) => (/\bpaused\b/i.test(warning) ? pausedNoticesOn : true))
                 .map((warning) => (
-                  <PopupBanner
+                  <NoticeStrip
                     key={warning}
-                    level="warning"
                     onDismiss={() => {
                       setDismissedWarnings([...dismissedWarnings, warning]);
                       if (/\bpaused\b/i.test(warning)) noteOptionalDismiss();
                     }}
                   >
-                    <p>{warning}</p>
-                  </PopupBanner>
+                    {warning}
+                  </NoticeStrip>
                 ))}
             </>
           );
           return (
             <>
-              {popupSlot ? createPortal(banners, popupSlot) : <PopupLayer>{banners}</PopupLayer>}
               <div className={styles.summaryBar}>
                 <LengthToggle length={length} onChange={setLength} />
                 {doc.state === 'edited' && <span className={styles.badge}>Edited</span>}
@@ -633,6 +608,10 @@ export function SummaryTab({ meeting, defaultLength, popupSlot, onPlay }: Summar
                   </button>
                 )}
               </div>
+              <NoticeStack>
+                {notices}
+                {banners}
+              </NoticeStack>
               <section className={styles.summarySection}>
                 {sections ? (
                   sections.map((section) => (

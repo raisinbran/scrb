@@ -132,7 +132,7 @@ describe('screens', () => {
       expect(document.activeElement?.getAttribute('aria-current')).toBe('true');
     });
 
-    it('keeps the profile and says so in a dismissible banner when delete fails', async () => {
+    it('keeps the profile and says so in a toast when delete fails', async () => {
       backend.arm('profileDeleteFails');
       renderScreen(backend, <SpeakersScreen />);
       const rows = within(await screen.findByRole('list', { name: 'Voice profiles' }));
@@ -142,8 +142,8 @@ describe('screens', () => {
       const alert = await screen.findByRole('alert', {}, { timeout: 2000 });
       expect(alert.textContent).toContain('could not be deleted');
       expect(screen.getAllByText('Tomas Lindgren').length).toBeGreaterThan(0);
-      fireEvent.click(within(alert).getByRole('button', { name: /Dismiss/ }));
-      expect(screen.queryByRole('alert')).toBeNull();
+      // A toast has no X and goes by itself.
+      expect(within(alert).queryByRole('button')).toBeNull();
     });
 
     it('confirms a suggested match', async () => {

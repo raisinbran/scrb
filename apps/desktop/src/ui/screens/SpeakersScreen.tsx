@@ -6,7 +6,7 @@ import { ActionDialog, ChoiceDialog, TextDialog } from '../components/Dialog.tsx
 import { Tooltip } from '../components/Tooltip.tsx';
 import { Avatar } from '../components/speakers/Avatar.tsx';
 import { useSpeakerSuggestions } from '../components/speakers/SpeakerSuggestions.tsx';
-import { PopupBanner, PopupLayer } from '../components/PopupBanner.tsx';
+import { Toast } from '../components/Notices.tsx';
 import list from '../components/ListItem.module.css';
 import { useBackend } from '../lib/backend-context.tsx';
 import { formatMeetingDate } from '../lib/format.ts';
@@ -328,15 +328,11 @@ function Loaded({
       }
     >
       <div className={styles.content} data-testid="speaker-detail">
-        <div className={styles.popups}>
-          <PopupLayer>
-            {error && !dismissed && (
-              <PopupBanner level="danger" role="alert" onDismiss={() => setDismissed(true)}>
-                <p>{error}</p>
-              </PopupBanner>
-            )}
-          </PopupLayer>
-        </div>
+        <Toast
+          message={error && !dismissed ? error : null}
+          role="alert"
+          onGone={() => setDismissed(true)}
+        />
         {suggestions.length > 0 && (
           <section aria-labelledby="speaker-suggestions" className={styles.panel}>
             <h2 id="speaker-suggestions" className={styles.subheading}>

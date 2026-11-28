@@ -22,7 +22,7 @@ vi.mock('../shell/use-recording-status.ts', () => ({
   }),
 }));
 
-const TEACHING = 'You can turn banners on or off in Settings > Notifications.';
+const TEACHING = 'Turn banners on or off in Settings > Notifications.';
 
 describe('Notifications preferences', () => {
   beforeEach(() => {
@@ -49,7 +49,7 @@ describe('Notifications preferences', () => {
     backend.dispose();
   });
 
-  it('points to Settings once, after the first dismissal, and hides itself after 8 seconds', () => {
+  it('points to Settings once, after the first dismissal, and hides itself after 5 seconds', () => {
     vi.useFakeTimers();
     const open = vi.fn();
     render(<TeachingToast onOpenSettings={open} />);
@@ -57,7 +57,7 @@ describe('Notifications preferences', () => {
     act(() => noteOptionalDismiss());
     expect(screen.getByText(TEACHING)).toBeTruthy();
     act(() => {
-      vi.advanceTimersByTime(8000);
+      vi.advanceTimersByTime(5000);
     });
     expect(screen.queryByText(TEACHING)).toBeNull();
     act(() => noteOptionalDismiss());
@@ -68,7 +68,7 @@ describe('Notifications preferences', () => {
     const open = vi.fn();
     render(<TeachingToast onOpenSettings={open} />);
     act(() => noteOptionalDismiss());
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+    fireEvent.click(screen.getByText(TEACHING));
     expect(open).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(TEACHING)).toBeNull();
     expect(window.localStorage.getItem('scrb.notifications')).toContain('"taught":true');

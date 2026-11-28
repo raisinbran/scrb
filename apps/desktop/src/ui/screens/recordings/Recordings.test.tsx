@@ -442,34 +442,22 @@ describe('Recordings', () => {
       expect(screen.queryByText(/Processing final transcript\. Text may change/)).toBeNull();
     });
 
-    it('keeps the banner slim, with a 2px progress bar along its bottom edge', async () => {
+    it('keeps the notice slim, with a 2px progress bar along its bottom edge', async () => {
       renderScreen();
       await openMeeting(/Budget review/);
-      const banner = screen
+      const strip = screen
         .getByText(/Processing final transcript\. Text may change/)
-        .closest('[class*="processingBanner"]');
+        .closest('[data-type="notice"]');
       const progress = screen.getByRole('progressbar', { name: 'Final transcript processing' });
-      expect(banner?.contains(progress)).toBe(true);
-      const bannerCss = readFileSync(
-        join(__dirname, '../../screens/recordings/recordings.module.css'),
+      expect(strip?.contains(progress)).toBe(true);
+      expect(strip?.textContent).not.toMatch(/since you opened/i);
+      const noticeCss = readFileSync(
+        join(__dirname, '../../components/Notices.module.css'),
         'utf8',
       );
-      const popupCss = readFileSync(
-        join(__dirname, '../../components/PopupBanner.module.css'),
-        'utf8',
-      );
-      const progressCss = readFileSync(
-        join(__dirname, '../../components/Progress.module.css'),
-        'utf8',
-      );
-      expect(bannerCss.match(/\.processingBanner \{([^}]*)\}/)?.[1]).toMatch(
-        /font-size: var\(--text-sm\)/,
-      );
-      expect(bannerCss.match(/\.slimBar \[role='progressbar'\],[^{]*\{([^}]*)\}/)?.[1]).toMatch(
+      expect(noticeCss.match(/\.progress \[role='progressbar'\],[^{]*\{([^}]*)\}/)?.[1]).toMatch(
         /height: 2px/,
       );
-      expect(popupCss.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/composes: stack from/);
-      expect(progressCss.match(/\.track \{([^}]*)\}/)?.[1]).toMatch(/width: 100%/);
     });
 
     it('marks the library row as changing', async () => {
@@ -1313,7 +1301,8 @@ describe('Recordings', () => {
       await openMeeting(/Vendor call/);
       await confirm();
       expect(await screen.findByText('Deleted Vendor call.')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: /Vendor call/ })).toBeNull();
+      // The list reloads after the notice appears.
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Vendor call/ })).toBeNull());
     });
 
     it('keeps learned data by default and removes it only when ticked', async () => {
@@ -1399,15 +1388,14 @@ describe('Recordings', () => {
       expect(await button('Generate Summary')).toBeTruthy();
     });
 
-    it('floats banners over the summary, so showing or dismissing one never moves it', async () => {
+    it('puts summary notices below the summary bar, so the bar never moves', async () => {
       renderScreen();
       await openTab(/Weekly project sync/, 'Summary');
-      const banner = await screen.findByRole('button', { name: 'Regenerate' });
-      expect(banner.closest('[class*="layer"]')).not.toBeNull();
-      const css = readFileSync(join(__dirname, '../../components/PopupBanner.module.css'), 'utf8');
-      expect(css).not.toMatch(/\.inline/);
-      expect(css.match(/\.layer \{([^}]*)\}/)?.[1]).toMatch(/height: 0;/);
-      expect(css.match(/\.stack \{([^}]*)\}/)?.[1]).toMatch(/composes: stack from/);
+      const action = await screen.findByRole('button', { name: 'Regenerate' });
+      const strip = action.closest('[data-type="notice"]') as HTMLElement;
+      expect(strip).not.toBeNull();
+      const bar = document.querySelector('[class*="summaryBar"]') as HTMLElement;
+      expect(bar.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('flags an outdated summary and its warnings', async () => {
@@ -1428,7 +1416,7 @@ describe('Recordings', () => {
       const banner = screen.getByText(text).closest('[role="status"]') as HTMLElement;
       fireEvent.click(within(banner).getByRole('button', { name: 'Dismiss' }));
       expect(screen.queryByText(text)).toBeNull();
-      expect(screen.getByText(/turn banners on or off in Settings/)).toBeTruthy();
+      expect(screen.getByText(/turn banners on or off in Settings/i)).toBeTruthy();
     });
 
     it('turns outdated when the event arrives', async () => {

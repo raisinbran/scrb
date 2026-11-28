@@ -162,28 +162,25 @@ export function LiveScreen() {
           <LevelMeters active={status === 'recording'} />
         </div>
       </div>
-      <div className={styles.alertsSlot}>
-        <LiveAlerts
-          health={health}
-          lag={lag}
-          active={active}
-          device={device}
-          error={error}
-          onUseDevice={(chosen) => {
-            if (selection) selectSources({ ...selection, micDeviceId: chosen.id });
-            setDevice(null);
-          }}
-          onDismissDevice={() => setDevice(null)}
-        >
-          <PrivacyBanner />
-          <TeachingToast />
-        </LiveAlerts>
-      </div>
-      {status === 'idle' && lastMeetingId && (
-        <div className={styles.alertsSlot}>
+      <LiveAlerts
+        health={health}
+        lag={lag}
+        active={active}
+        device={device}
+        error={error}
+        onUseDevice={(chosen) => {
+          if (selection) selectSources({ ...selection, micDeviceId: chosen.id });
+          setDevice(null);
+        }}
+        onDismissDevice={() => setDevice(null)}
+        onClearError={() => setError(null)}
+      >
+        <PrivacyBanner />
+        {status === 'idle' && lastMeetingId && (
           <FinishedNotice key={lastMeetingId} meetingId={lastMeetingId} />
-        </div>
-      )}
+        )}
+      </LiveAlerts>
+      <TeachingToast />
       {meetingId ? (
         <TranscriptView
           key={meetingId}

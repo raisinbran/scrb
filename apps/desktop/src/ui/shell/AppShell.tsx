@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ModelsNotice } from '../components/ModelsNotice.tsx';
+import { NoticeStack } from '../components/Notices.tsx';
 import { PrivacyBanner } from '../components/PrivacyBanner.tsx';
 import { OpenNotificationSettings, TeachingToast } from '../components/TeachingToast.tsx';
 import { SharedLibraryNotice } from '../components/SharedLibraryNotice.tsx';
@@ -101,12 +102,12 @@ export function AppShell({ screenId, onSelectScreen, children }: AppShellProps) 
           />
         </div>
         <div className={styles.workspaceFrame}>
-          <div className={styles.notices}>
+          <NoticeStack className={styles.notices}>
             <SharedLibraryNotice />
             {screenId !== 'live' && <PrivacyBanner />}
             <ModelsNotice />
-            {screenId !== 'live' && screenId !== 'recordings' && <TeachingToast />}
-          </div>
+          </NoticeStack>
+          {screenId !== 'live' && screenId !== 'recordings' && <TeachingToast />}
           <OpenNotificationSettings.Provider value={openNotificationSettings}>
             <main
               ref={workspace}

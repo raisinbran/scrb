@@ -1,0 +1,102 @@
+/* The three message types (see the design guide): A notice strip, B alert strip, C toast.
+   Strips are in the page flow, one line, slim; a stack gives every strip one width and one left edge. */
+.stack {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+  width: 100%;
+}
+
+.stack:empty {
+  display: none;
+}
+
+.strip {
+  display: flex;
+  flex: none;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-notice);
+  border-radius: var(--radius-control);
+}
+
+.strip[data-type='alert'] {
+  background: var(--color-alert);
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.text > p {
+  margin: 0;
+}
+
+.action {
+  flex: none;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  background: none;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius-control);
+}
+
+.action:hover {
+  background: var(--color-surface-hover);
+}
+
+.dismissSlot {
+  display: flex;
+  flex: none;
+}
+
+/* A 2px bar along the bottom edge of a strip. */
+.progress {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+}
+
+.progress [role='progressbar'],
+.progress [role='progressbar'] > div {
+  height: 2px;
+  border-radius: 0;
+}
+
+.strip[data-progress] {
+  position: relative;
+}
+
+/* Bottom-centre, over everything, never in the layout. One balanced line, no X, goes by itself. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--space-6);
+  inset-inline-start: 50%;
+  z-index: 60;
+  max-width: min(90vw, 640px);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-on-toast);
+  text-align: center;
+  text-wrap: balance;
+  background: var(--color-toast);
+  border: 0;
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-overlay);
+  transform: translateX(-50%);
+}
+
+button.toast {
+  cursor: pointer;
+}

@@ -8,7 +8,7 @@ Source of truth: tokens in `apps/desktop/src/ui/theme/tokens.css`, shared pieces
 
 Checked against `origin/main` (`73e899d0`) on 2026-11-20. **Proposed** describes work on draft PR #383, not on main until merged and rebuilt.
 
-**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms hover delay, theme tokens); PopupLayer/PopupBanner, Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip; mini recording label gating, equaliser bars, Hide as a dash button left of Open Scribe, warning flag (PR #305); Live Mic/Meeting levels beside the two pickers (PR #288/#315); and Test mic with mic-only level meter inside Settings (PR #288/#315).
+**Implemented on main:** tokens and both themes; Button, IconButton, Tooltip (100 ms hover delay, theme tokens); NoticeStack/NoticeStrip/AlertStrip/Toast, Dialog, Menu, Progress; sidebar status icons (red pulsing mic, spinning disc); fixed 160px sidebar; Settings docked save bar; preset-locked controls with "Set by ..." tooltip and preset info tip; "Whole meeting" auto-delete wording; .docx/.pdf/.vtt names; Re-process tooltip; mini recording label gating, equaliser bars, Hide as a dash button left of Open Scribe, warning flag (PR #305); Live Mic/Meeting levels beside the two pickers (PR #288/#315); and Test mic with mic-only level meter inside Settings (PR #288/#315).
 
 **Proposed on draft PR #383:** instant themed tooltips (including the mini window), removal of Settings/Help pointer underlines/shadows, regression coverage for their hover tips, and positioning Settings Test mic above Input Profile. These source changes are not proof that the already-built Mac A2 package contains them.
 
@@ -113,7 +113,7 @@ Grid is 4px, steps are tokens:
 - **Sidebar:** labels and icons by default; a toggle at its top shrinks it to icons only (state saved in the browser's local storage under `scrb.sidebar.collapsed`, since the contract has no field for it). Icons-only items keep their names for screen readers and show them in the shared tooltip. At 1000px window width or less it collapses on its own and the toggle is disabled.
 - **List rows with status:** the status badge sits on the same line as the speaker count; a processing meeting shows a short fixed-width bar on that line (outside the row button so it keeps its progress role). No separate rows for status.
 - **One inner padding:** `--space-card-pad` (tokens.css) is the padding of every card and panel. Text, inputs, buttons and tabs start that far from the card edge; a row with its own tint (list rows, transcript lines) extends into it by its own padding so its text lands on the same edge. No one-off panel paddings. Every button, input and tab inside a card, including toolbars, footers, player bars and floating buttons such as Jump to Live, keeps at least `--space-card-pad` from every edge of that card; none touches it (`e2e/transcript-control-inset.spec.ts` enforces this for the transcript cards).
-- **Banners never push content:** every banner, notice and note is an overlay (absolutely positioned, raised, higher z-index) in a space that is always reserved and empty, so it moves nothing and hides no text: the meeting panel keeps a 40px strip at its top (`--popup-gutter`); app notices and list notes float at the bottom edge. Showing or dismissing one must not move or resize anything below it. Use `PopupLayer`/`PopupBanner`; `overlays.test.ts` guards the rule.
+- **Banners may nudge content, never controls (owner rule, supersedes the older "banners float" rules below):** messages come in exactly three types (see "Notices: A, B, C"). Strips sit in the page flow _below_ a screen's control bar, so a strip appearing or going moves content only; control bars, tabs and buttons never move except on window resize or when the left menu collapses. Toasts float and move nothing.
 - **Progress bars:** a known percentage fills left to right; with none, a short soft segment sweeps left to right and restarts (never back and forth); reduced motion shows a static partial fill. Keep `role="progressbar"`.
 - **Recordings search:** clicking into the field opens a Filters dropdown: rows with an icon, plain wording and the typed keyword in muted text (`source:`, `from:`, `to:`), then More filters, which opens a dialog (Source, Before/After dates, Clear filters, Cancel, Apply filters). Typing a keyword prefix narrows the rows; a picked filter becomes a chip in the field; the x or Backspace removes it. Escape, an outside click and Tab-away close it.
 - **Skip buttons:** `SkipButton`, an open circular arrow with 15 inside, clockwise to skip forward and mirrored to skip back.
@@ -159,7 +159,7 @@ Grid is 4px, steps are tokens:
 
 **Vocabulary:** `SplitLayout`. Second column: search field and the usage note pinned on top, then terms under Suggested (n), Enabled (n) and Disabled (n) headers (empty groups are hidden), each term one `ListItem` row with the selected tint. Content panel: the selected term's panel sized to its content (name, Heard as, Edit / Enable or Disable / Delete; a suggestion shows its correction counts with Remember and Dismiss) and a separate small History panel. With nothing selected it says "Select a term". The note "Terms are saved but not used for transcription yet." stays in the column header.
 
-**Speakers:** `SplitLayout`. Second column: contacts-style rows (round initial, name, meeting count) with the selected tint. Content panel: a detail card for the selected voice (name, meetings and last heard, then Play sample, Rename, Merge into…, Split into…, Delete) and a Samples card when clips exist; delete errors use `PopupBanner`. Split into… is disabled with a tooltip because the contract has no profile-level split (see `docs/handoffs/profile-split-contract-gap.md`). In a meeting, the **Speakers** tab (between Summary and Audio) lists that meeting's speakers with Rename, Merge into… and Split into…. Empty state: `EmptyState compact` in the list column, inset to the heading's left edge, and a centred `EmptyState` in the content card (never a blank card).
+**Speakers:** `SplitLayout`. Second column: contacts-style rows (round initial, name, meeting count) with the selected tint. Content panel: a detail card for the selected voice (name, meetings and last heard, then Play sample, Rename, Merge into…, Split into…, Delete) and a Samples card when clips exist; delete errors use a `Toast`. Split into… is disabled with a tooltip because the contract has no profile-level split (see `docs/handoffs/profile-split-contract-gap.md`). In a meeting, the **Speakers** tab (between Summary and Audio) lists that meeting's speakers with Rename, Merge into… and Split into…. Empty state: `EmptyState compact` in the list column, inset to the heading's left edge, and a centred `EmptyState` in the content card (never a blank card).
 
 **Dialogs:** `Dialog` / `ActionDialog` (440px wide, 24px padding, title at `--text-lg`, actions right aligned with `--space-2` gap, 24px above them). Focus is trapped, Escape closes unless the dialog is required, focus returns to the opener.
 
@@ -195,21 +195,27 @@ Variants: `secondary` (default, bordered, transparent), `primary` (accent fill, 
 
 Wraps one control. Opens without a hover delay, instantly on keyboard focus, then fades in and out over 80ms; hides on leave, blur, Escape or click. Themed (raised surface, border, `--text-xs`) using the resolved Light/Dark/System color tokens. Existing accessible descriptions are preserved when the tooltip is open. Max 240px; `\n` makes a line break. Use it for: icon-only names, why a control is disabled or locked ("Set by Studio"), short explanations that replace a permanent paragraph. Never put essential information only in a tooltip: the control must still be usable and named without it. Do not use the `title` attribute for tips.
 
-### PopupLayer and PopupBanner (`components/PopupBanner.tsx`)
+### Notices: A, B, C (`components/Notices.tsx`)
 
-For transient notices (errors, re-process notes, "final transcript is still being processed" with a `Progress` bar). `PopupLayer` is a zero-height sticky layer meant to be placed **first inside the panel it belongs to** (on main some layers still sit at a wider level; panel-anchoring is pending PR #315); banners overlay the panel's top, centred, max 640px, and never push content. `level`: `info` (accent edge), `warning`, `danger`. `role="alert"` only for errors the person must notice, otherwise `status`. Add `onDismiss` wherever dismissing makes sense.
+Every banner, notice and toast is one of three types. Pick by what the message is; never invent a fourth look.
+
+| Type                     | Component     | Use for                                                                                                                                                                                           | Look and behaviour                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A, persistent notice** | `NoticeStrip` | Information that stays until dismissed or its condition ends (privacy reminder, shared-library note, outdated summary, final transcript processing, device changed, recovered meeting, edit hint) | Slim one line inside the card, text left, the shared X `DismissButton` beside it (name and tooltip "Dismiss"). `--color-notice` fill. May carry one small action button. Omit the X only when the notice ends by itself with its condition ("still recording", "being deleted"). A 2px `Progress` bar may run along its bottom edge. |
+| **B, alert**             | `AlertStrip`  | An error or problem that needs action and lasts (models missing, recording warnings, live transcription stopped, transcription failed)                                                            | Same strip, danger-tinted (`--color-alert`, red left edge), optional action button (Download models, Retry transcription), **no X**. The screen renders it only while the condition holds, so it clears itself.                                                                                                                      |
+| **C, toast**             | `Toast`       | A transient result or failed one-off action (delete confirmation, copy or open-folder failure, the one-time Settings pointer)                                                                     | Bottom-centre dark pill (`--color-toast`), ONE balanced line, no X, no buttons, gone after about 5 seconds (time counted only while the window is visible). It floats over the page and takes no room.                                                                                                                               |
+
+`NoticeStack` holds the strips of a screen or panel: one width, one left edge, a small gap, and no height when empty. Put it directly **below** the control bar, tabs or toolbar of the screen (Live: under the head card; a meeting: under the tabs, and on Summary under the summary bar). App-level strips (shared library, privacy off Live, models) take a row above the workspace.
 
 ```tsx
-<PopupLayer>
-  <PopupBanner level="danger" role="alert" onDismiss={clear}>
-    <p>The folder could not be opened.</p>
-  </PopupBanner>
-</PopupLayer>
+<NoticeStack>
+  <NoticeStrip onDismiss={dismiss}>Voice profiles are being built from this recording.</NoticeStrip>
+  <AlertStrip action={{ label: 'Retry transcription', onClick: retry }}>Transcription could not finish.</AlertStrip>
+</NoticeStack>
+<Toast message={copyError} role="alert" onGone={() => setCopyError(null)} />
 ```
 
-Hard rule: **a banner anchors to the panel it belongs to, never to the whole page, and never covers a control the person needs.** If a banner would cover the action it talks about, move the layer to a panel that does not contain that control, or use an inline line. Check the screenshot at 1280×720.
-
-Not converted yet (left as rows by design): the import list's per-file voice-profile notice, Live and mini-window alerts, the Settings inline error line. Do not copy those as the pattern for new work; use PopupBanner.
+Hard rules: (1) a strip or toast never covers a control, and a strip never sits above a control bar; (2) dismissal is only the shared X, never a text button (`dismiss-button-rule.test.ts`, which also checks that B and C have no X); (3) stacked strips share one width and left edge; (4) keep each message to one line where you can; no secondary text such as elapsed times; (5) check each type on Live, Summary and Recordings at 1280×720.
 
 ### Dialog / ActionDialog (`components/Dialog.tsx`)
 
@@ -249,7 +255,7 @@ Native elements, accent via `accent-color`. Selects get the shared caret and ell
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Empty            | `EmptyState`: what is empty plus the one next step. No illustration.                                                                                                                                                                                       |
 | Loading          | `DataView`: holds the screen's space, shows "Loading…" only after 300ms so quick loads never flash. Use `Progress` for long work.                                                                                                                          |
-| Error            | Say what failed and what to do. Screen load failure: `role="alert"` text via `DataView`. Transient: `PopupBanner level="danger" role="alert"`. Recording keeps running; say so when true.                                                                  |
+| Error            | Say what failed and what to do. Screen load failure: `role="alert"` text via `DataView`. Failed one-off action: a `Toast` with `role="alert"`; a lasting problem: an `AlertStrip`. Recording keeps running; say so when true.                              |
 | Disabled         | Native `disabled`; dimmed; explain why in a tooltip when it is not obvious.                                                                                                                                                                                |
 | Focus            | Global 2px `--color-focus` ring with 2px offset from `tokens.css` on `:focus-visible`. Never remove it. The only exception, enforced by a test, is `h1[tabindex='-1']` (code-focused headings). Mouse clicks on sidebar items show no ring; keyboard does. |
 | Recording        | Title-bar indicator with elapsed time; red = recording, amber = paused; sidebar mic red and pulsing.                                                                                                                                                       |
@@ -294,7 +300,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 
 ## 13. Owner rules (hard rules, learned from feedback)
 
-1. **Banners never cover controls.** They anchor to their own panel via `PopupLayer`, not the whole page. Example: the "final transcript still being processed" banner overlays the meeting panel's top-right but must not hide the title, the icon-button row or the tabs; if it would, shorten it or move the layer.
+1. **Banners never cover or move controls.** Strips (`NoticeStack`) sit below the control bar and nudge only content; toasts float at the bottom centre and take no room. Check Live, Summary and Recordings at 1280×720.
 2. **Audio input shows live levels.** Anything that lets someone check or choose an input (Test mic, pickers) uses `LevelMeters`/`Meter`, same size and colour. On Live, Mic/Meeting meters stay beside both pickers under "Levels"; in Settings, Test mic's mic-only meter sits directly above Input Profile.
 3. **Add a new button to the existing row, in a consistent position.** Do not float it or add a new row. Example: Hide is in the mini window's button row immediately left of "Open Scribe"; export, folder, audio folder and delete sit together in the meeting icon row.
 4. **Icons are standard.** Minimise is "-", dismiss is X, trash is delete. One icon, one meaning, everywhere.
@@ -311,13 +317,13 @@ Every screen must handle every state the UI Specification lists for it. A state 
 
 - [ ] Read this guide and matched the nearest existing screen.
 - [ ] Spacing: only `--space-*`; sibling gaps equal; settings rows and headings use the standard rhythm.
-- [ ] Screen heading, empty-state text and card content share one left inset (`--space-card-pad`); the list card and the first content card have the same top edge. A `PopupLayer` is never a flex sibling that adds a gap. Check the empty state too, and guard it with a real bounding-box test (see `speakers-layout-and-chrome.spec.ts`).
+- [ ] Screen heading, empty-state text and card content share one left inset (`--space-card-pad`); the list card and the first content card have the same top edge. A `NoticeStack` takes no room when empty and sits below the control bar.
 - [ ] Controls inside any card keep the card inset (`--space-card-pad`); none touch the card edge.
 - [ ] Colours: tokens only; no `#`, `rgb`, `hsl` outside `tokens.css`; radius is `var(--radius)` (panels) or `var(--radius-control)` (controls).
-- [ ] Reused shared components (Button, IconButton, Tooltip, PopupBanner, Dialog, Progress, meters); nothing duplicated.
+- [ ] Reused shared components (Button, IconButton, Tooltip, NoticeStrip/AlertStrip/Toast, Dialog, Progress, meters); nothing duplicated.
 - [ ] Every icon-only control has a `label` and tooltip.
 - [ ] Banners, notices and toasts are dismissed with the shared X `DismissButton`, never a text button.
-- [ ] Banners use `PopupLayer` inside the right panel and cover no control (checked at 1280×720).
+- [ ] Messages use the three types (A `NoticeStrip`, B `AlertStrip`, C `Toast`); no control moves when one appears (checked at 1280×720).
 - [ ] Any audio input control shows the shared level meter.
 - [ ] Keyboard: reachable, operable, focus ring visible, Escape works where expected.
 - [ ] States handled: empty, loading, error, disabled, plus the screen's own states from the UI Specification.
@@ -347,7 +353,7 @@ Every screen must handle every state the UI Specification lists for it. A state 
 ## 16. Writing a new screen: recipe
 
 1. Wrap in `<Screen title="…">`; load data through `DataView`.
-2. Put a `PopupLayer` first inside the scrolling panel if the screen can show notices.
+2. Put a `NoticeStack` directly below the screen's control bar if it can show notices.
 3. Group content in boxed sections like Settings (`--color-surface-sidebar`, 1px border, `--space-3`/`--space-4` padding).
 4. Rows of controls: `display:flex; gap: var(--space-2)`; heights `--control-height`.
 5. Add a CSS module per component; use only tokens.
@@ -355,14 +361,12 @@ Every screen must handle every state the UI Specification lists for it. A state 
 7. Add the screen's states to the mock backend (`ui/mocks/`, dev menu: Ctrl+Shift+Alt+D) and cover them with a test.
 8. Run `npm run check`; tick section 14.
 
-- **Dismissing is always the X:** dismissing a banner, notice or toast uses the shared `DismissButton` (X, tooltip and name "Dismiss…") in the banner's `dismissSlot`, never a text button; `components/dismiss-button-rule.test.ts` fails on a text Dismiss button.
-- **One banner look:** every banner or notice that pops over a panel uses `components/Banner.module.css`: 75% of that panel's width, centred, compact padding, raised surface, no border (a coloured inner edge marks warnings and errors). Never set another width or look on a banner.
+- **Dismissing is always the X:** a type A notice is dismissed with the shared `DismissButton` (X, tooltip and name "Dismiss…"), never a text button; types B and C have no X. `components/dismiss-button-rule.test.ts` enforces both.
 - **One list column width:** every two-column screen (Recordings, Settings, Vocabulary, and Speakers later) uses `SplitLayout`'s `clamp(240px, 28vw, 320px)` column and nothing else. Measured in the browser: 268.8px at 960, 302.4px at 1080, 320px at 1280 and 1920, identical on all three screens.
 - **Vocabulary list:** one line per term (name, then a small badge for Suggested or Disabled, none for Enabled), a segmented All, Suggested, Enabled, Disabled filter with counts above, sorted Suggested, Enabled, Disabled. The misheard versions live in the detail panel.
 
 ## Round 9 rules
 
-- Banners hug their text: `fit-content`, centred, at most 75% of the panel, `text-wrap: balance`. Stacked banners keep a gap.
 - The playback row narrows by its own width (container query): volume track, then the Show in transcript text, then Mute go; last the seek track (at least 120 px) takes its own row. The window minimum width is 720 px.
 - Deliberate exception to the soft idle fill: media transport icons (play, skip back, skip forward) have no idle fill. A round fill shows on hover, focus and press; the hit target stays 34 px. Speed and Show in transcript keep the normal button fill.
 - The sidebar toggle sits at the bottom; the sidebar is its own card.
@@ -372,16 +376,13 @@ Every screen must handle every state the UI Specification lists for it. A state 
 
 - Disabled controls keep the normal default cursor everywhere. Never use `cursor: not-allowed` (the crossed-out circle); greyed text and the faded fill already say it is off.
 - Show in transcript is always in the player row, always an icon with a tooltip and `aria-label`. It is disabled while the transcript tab already follows the playhead, like Jump to Live in the live transcript, and enabled on every other tab.
-- Banners hug their content: `fit-content`, minimum 280 px, at most 75% of the panel, 16 px symmetric horizontal padding, balanced text with a dismiss button after it in the same row. Stacks run vertically with a gap and overlay the content.
 - Settings > Notifications has one checkbox per optional banner category (tips, summary, paused audio, privacy reminder, processing progress), all on by default and saved in the UI's own storage. Errors and anything that affects recording or data safety have no toggle.
-- The first dismissal of an optional banner shows one temporary pointer to Settings > Notifications (8 s, once ever). It appears in the popup stack of the panel the person is in (Live, a recording, otherwise the app notices), looks like every other banner and moves nothing.
+- The first dismissal of an optional notice shows one type C toast pointing to Settings > Notifications (about 5 s, once ever); clicking it opens the settings.
 - Live transcript toolbar: the title "Live transcript" with the text-styles info icon on the left, only A- and A+ on the right. Undo and redo exist in the Recordings transcript only; live corrections stay on double-click and Ctrl+Z. Jump to Live sits in a fixed strip under the text, always present, and is disabled (default cursor) while the transcript already follows.
 
 ## Round 14 rules
 
-- No banner gutter. The popup layer has zero height and banners float over the top of the card; every card keeps the same small top padding (`--space-card-pad`).
-- Every optional banner has an X; only errors and recording or data-safety notices lack one. A dismissal lasts for that meeting or session and counts as the first dismissal for the one-time pointer. The pointer is persisted when it closes, so a dismissal with no pointer showing is never lost.
-- Banners use the elevated tokens `--color-banner` (lighter than the card in dark, a cool off-white in light) and `--shadow-banner`, plus the coloured left accent for warning and danger.
+- Every optional notice (type A) has an X; alerts (B) and toasts (C) never do. A dismissal lasts for that meeting or session and counts as the first dismissal for the one-time pointer. The pointer is persisted when it closes, so a dismissal with no pointer showing is never lost.
 - Button set (the only styles in use; add none without a stated reason):
 
 | Role                                                     | Component                                                        | Size                                  | Padding                   | Type                     |
@@ -398,4 +399,3 @@ The Live and Recordings transcript toolbars use the same two `IconButton`s for t
 
 - **Toggle rule (one sentence):** in content and detail panels, the selected tab or segmented option takes the dark fill (`--color-control`) and every available option takes the lighter fill (`--color-card` on the page, `--color-card-inset` inside a card); disabled is about 30% of the idle fill. Menus and lists (Help, Settings groups, the Recordings list, filter menus) keep their own selected style.
 - Every segmented option and every button uses `--radius-control` and the shared button size; the selected segment never uses the accent colour.
-- Stacked banners share one container: as wide as the widest banner (at least 280 px, at most 75% of the panel), centred at the top of the panel, each banner stretched to that width, 8 px between them, X at the top-right of each. The same container class is used by panel stacks, Live alerts and the app notices.

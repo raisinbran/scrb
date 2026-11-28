@@ -1,23 +1,22 @@
 import { formatFileSize } from '../lib/format.ts';
 import { useModelsNeeded, useOpenModels } from '../lib/models-missing.tsx';
-import styles from './ModelsNotice.module.css';
+import { AlertStrip } from './Notices.tsx';
 
 /**
  * Shown on a fresh install until the speech models are downloaded. It does not block the app:
- * the owner can still browse, and the link goes to the download.
+ * the owner can still browse, and the action goes to the download. It ends when the models arrive.
  */
 export function ModelsNotice() {
   const { missing, bytes } = useModelsNeeded();
   const openModels = useOpenModels();
   if (!missing) return null;
   return (
-    <div className={styles.notice} role="status" aria-label="Models needed">
-      <span>
-        Scribe needs to download its speech models ({formatFileSize(bytes)}) before it can record.
-      </span>
-      <button type="button" className={styles.link} onClick={openModels}>
-        Download models
-      </button>
-    </div>
+    <AlertStrip
+      role="status"
+      label="Models needed"
+      action={{ label: 'Download models', onClick: openModels }}
+    >
+      Scribe needs to download its speech models ({formatFileSize(bytes)}) before it can record.
+    </AlertStrip>
   );
 }

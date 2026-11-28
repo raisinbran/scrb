@@ -9,7 +9,7 @@ import type {
 } from '@scrb/contracts';
 import { LAG_NOTICE_MS } from '../../lib/lag.ts';
 import { formatElapsed } from '../../lib/format.ts';
-import { DismissButton } from '../../components/DismissButton.tsx';
+import { AlertStrip, NoticeStack, NoticeStrip, Toast } from '../../components/Notices.tsx';
 import styles from '../LiveScreen.module.css';
 
 const WARNING_TITLES: Record<RecordingWarningKind, string> = {
@@ -41,14 +41,14 @@ const TRACK_NAMES: Record<TrackKind, string> = {
   meeting: 'the meeting audio',
 };
 
-function WarningBanner({ warning, failed }: { warning: RecordingWarning; failed: boolean }) {
+function WarningBanner({ warning }: { warning: RecordingWarning }) {
   return (
-    <div className={styles.banner} data-level={failed ? 'failed' : 'warning'} role="alert">
+    <AlertStrip>
       <strong>{WARNING_TITLES[warning.kind]}.</strong> {warning.message}
       {warning.track && <> This affects {TRACK_NAMES[warning.track]}.</>}{' '}
       {WARNING_ADVICE[warning.kind]}
       {warning.atMs > 0 && <span className={styles.bannerTime}>{formatElapsed(warning.atMs)}</span>}
-    </div>
+    </AlertStrip>
   );
 }
 
@@ -60,51 +60,48 @@ interface LiveAlertsProps {
   error: string | null;
   onUseDevice(device: DeviceChange['device']): void;
   onDismissDevice(): void;
+  onClearError(): void;
   children?: ReactNode;
 }
 
+/**
+ * Live strips, in the flow below the controls. Recording problems are alert strips that go when the
+ * problem does; a failed action is a toast.
+ */
 export function LiveAlerts(props: LiveAlertsProps) {
   const { health, lag, active, device, error } = props;
   return (
-    <div className={styles.alerts}>
-      {props.children}
-      {error && (
-        <div className={styles.banner} data-level="failed" role="alert">
-          {error}
-        </div>
-      )}
-      {active &&
-        health?.warnings.map((warning) => (
-          <WarningBanner
-            key={`${warning.kind}-${warning.atMs}`}
-            warning={warning}
-            failed={health.level === 'failed'}
-          />
-        ))}
-      {active && health?.level === 'failed' && health.warnings.length === 0 && (
-        <div className={styles.banner} data-level="failed" role="alert">
-          Recording has failed. Audio saved so far is kept.
-        </div>
-      )}
-      {active && lag?.status === 'failed' && (
-        <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription stopped.</strong> No new text will appear here until it starts
-          again.
-        </div>
-      )}
-      {active && lag?.status === 'restarting' && (
-        <div className={styles.banner} data-level="warning" role="alert">
-          <strong>Live transcription is restarting.</strong> New text may be delayed.
-        </div>
-      )}
-      {active && lag?.status === 'lagging' && lag.lagMs >= LAG_NOTICE_MS && (
-        <div className={styles.banner} data-level="warning" role="status">
-          <strong>Transcript is catching up.</strong> It is about {Math.round(lag.lagMs / 1000)}{' '}
-          seconds behind.
-        </div>
-      )}
-      {device && <DeviceNotice {...props} device={device} />}
-    </div>
+    <>
+      <NoticeStack>
+        {props.children}
+        {active &&
+          health?.warnings.map((warning) => (
+            <WarningBanner key={`${warning.kind}-${warning.atMs}`} warning={warning} />
+          ))}
+        {active && health?.level === 'failed' && health.warnings.length === 0 && (
+          <AlertStrip>Recording has failed. Audio saved so far is kept.</AlertStrip>
+        )}
+        {active && lag?.status === 'failed' && (
+          <AlertStrip>
+            <strong>Live transcription stopped.</strong> No new text will appear here until it
+            starts again.
+          </AlertStrip>
+        )}
+        {active && lag?.status === 'restarting' && (
+          <AlertStrip>
+            <strong>Live transcription is restarting.</strong> New text may be delayed.
+          </AlertStrip>
+        )}
+        {active && lag?.status === 'lagging' && lag.lagMs >= LAG_NOTICE_MS && (
+          <AlertStrip role="status">
+            <strong>Transcript is catching up.</strong> It is about {Math.round(lag.lagMs / 1000)}{' '}
+            seconds behind.
+          </AlertStrip>
+        )}
+        {device && <DeviceNotice {...props} device={device} />}
+      </NoticeStack>
+      <Toast message={error} role="alert" onGone={props.onClearError} />
+    </>
   );
 }
 
@@ -122,20 +119,13 @@ function DeviceNotice({
         ? `The system default microphone is now ${name}.`
         : `${name} was connected.`;
   return (
-    <div className={styles.banner} data-level="warning" role="status">
+    <NoticeStrip
+      onDismiss={onDismissDevice}
+      {...(device.suggestSwitch
+        ? { action: { label: `Use ${name}`, onClick: () => onUseDevice(device.device) } }
+        : {})}
+    >
       <strong>Device changed.</strong> {text}
-      {device.suggestSwitch && (
-        <button
-          type="button"
-          className={styles.linkButton}
-          onClick={() => onUseDevice(device.device)}
-        >
-          Use {name}
-        </button>
-      )}
-      <span className={styles.dismissSlot}>
-        <DismissButton label="Dismiss" onClick={onDismissDevice} />
-      </span>
-    </div>
+    </NoticeStrip>
   );
 }
